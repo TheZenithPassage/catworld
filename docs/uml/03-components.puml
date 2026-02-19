@@ -1,0 +1,23 @@
+@startuml
+skinparam componentStyle rectangle
+
+actor "Usuario (Madre)" as user
+
+package "CatWorld (Spring Boot Monolith)" {
+  [REST Controllers] as c
+  [Services] as s
+  [Repositories (JPA)] as r
+  [Domain (Entities + Rules)] as d
+  [DTO + Mapper] as m
+}
+
+database "MySQL (Docker)" as db
+
+user --> c
+c --> m
+m --> s
+s --> d
+s --> r
+r --> db
+
+@enduml

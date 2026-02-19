@@ -1,0 +1,83 @@
+@startuml
+hide methods
+hide stereotypes
+skinparam classAttributeIconSize 0
+
+package "MySQL schema" {
+
+  class owners <<table>> {
+    +uuid id <<PK>>
+    --
+    full_name <<NN>>
+    address
+    phone_primary <<NN>>
+    phone_secondary
+    phone_secondary_name
+    instagram
+    facebook
+    --
+    created_at <<NN>>
+    updated_at <<NN>>
+  }
+
+  class vets <<table>> {
+    +uuid id <<PK>>
+    --
+    name <<NN>>
+    address
+    phone
+    --
+    created_at <<NN>>
+    updated_at <<NN>>
+  }
+
+  class cats <<table>> {
+    +uuid id <<PK>>
+    --
+    name <<NN>>
+    birth_date <<NN>>
+    sex <<NN>>
+    breed
+    coat
+    color
+    food_brand
+    litter_brand
+    personality
+    vet_id <<FK>>
+    owner_id <<FK,NN>>
+    --
+    last_internal_dewormer_name
+    last_internal_deworming_date
+    last_external_dewormer_name
+    last_external_deworming_date
+    last_triple_feline_date
+    last_rabies_date
+    --
+    created_at <<NN>>
+    updated_at <<NN>>
+  }
+
+  class stays <<table>> {
+    +uuid id <<PK>>
+    --
+    cat_id <<FK,NN>>
+    start_at <<NN>>
+    end_at <<NN>>
+    cancelled_at
+    notes
+    --
+    created_at <<NN>>
+    updated_at <<NN>>
+  }
+
+  owners "1" -- "0..*" cats : FK owner_id
+  vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
+  cats   "1" -- "0..*" stays : FK cat_id
+}
+
+note right of stays
+No hay columna status.
+Se calcula en la app.
+end note
+
+@enduml

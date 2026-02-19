@@ -1,0 +1,90 @@
+@startuml
+skinparam classAttributeIconSize 0
+
+package "catworld.domain" {
+
+  abstract class Auditable {
+    +Instant createdAt
+    +Instant updatedAt
+  }
+
+  class Owner extends Auditable {
+    +UUID id
+    +String fullName  <<NotNull>>
+    +String address
+    +String phonePrimary  <<NotNull>>
+    +String phoneSecondary
+    +String phoneSecondaryName
+    +String instagram
+    +String facebook
+  }
+
+  class Vet extends Auditable {
+    +UUID id
+    +String name  <<NotNull>>
+    +String address
+    +String phone
+  }
+
+  enum Sex {
+    MALE
+    FEMALE
+  }
+
+  class Cat extends Auditable {
+    +UUID id
+    +String name  <<NotNull>>
+    +LocalDate birthDate  <<NotNull>>
+    +Sex sex  <<NotNull>>
+    +String breed
+    +String coat
+    +String color
+    +String foodBrand
+    +String litterBrand
+    +String personality
+
+    +String lastInternalDewormerName
+    +LocalDate lastInternalDewormingDate
+    +String lastExternalDewormerName
+    +LocalDate lastExternalDewormingDate
+    +LocalDate lastTripleFelineDate
+    +LocalDate lastRabiesDate
+  }
+
+  enum StayStatus <<computed>> {
+    RESERVED
+    CHECKED_IN
+    CHECKED_OUT
+    CANCELLED
+  }
+
+  class Stay extends Auditable {
+    +UUID id
+    +LocalDateTime startAt  <<NotNull>>
+    +LocalDateTime endAt    <<NotNull>>
+    +LocalDateTime cancelledAt
+    +String notes
+
+    +StayStatus status  <<Transient/Computed>>
+  }
+
+  Owner "1" o-- "0..*" Cat : owns >
+  Vet   "0..1" o-- "0..*" Cat : treats >
+  Cat   "1" o-- "0..*" Stay : stays >
+}
+
+note right of Stay
+status es DINÁMICO:
+- cancelledAt != null => CANCELLED
+- now < startAt => RESERVED
+- startAt <= now < endAt => CHECKED_IN
+- now >= endAt => CHECKED_OUT
+end note
+
+note bottom of Stay
+Reglas:
+- endAt > startAt
+- No solapamiento por Cat (ignorando canceladas)
+end note
+
+@enduml

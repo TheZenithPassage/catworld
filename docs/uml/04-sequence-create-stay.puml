@@ -1,0 +1,33 @@
+@startuml
+actor Client as client
+participant "StayController" as controller
+participant "StayService" as service
+participant "CatRepository" as catRepo
+participant "StayRepository" as stayRepo
+
+client -> controller: POST /stays (catId, startAt, endAt, notes)
+controller -> service: createStay(cmd)
+
+service -> catRepo: findById(catId)
+catRepo --> service: Cat | not found
+
+alt cat not found
+  service --> controller: 404 Not Found
+  controller --> client: 404
+else cat found
+  service -> service: validate(endAt > startAt)
+  service -> stayRepo: existsOverlapping(catId, startAt, endAt, cancelledAt IS NULL)
+  stayRepo --> service: true/false
+
+  alt overlaps = true
+    service --> controller: 409 Conflict (overlap)
+    controller --> client: 409
+  else overlaps = false
+    service -> stayRepo: save(Stay)
+    stayRepo --> service: Stay saved
+    service --> controller: StayDTO (incluye status calculado)
+    controller --> client: 201 Created
+  end
+end
+
+@enduml
