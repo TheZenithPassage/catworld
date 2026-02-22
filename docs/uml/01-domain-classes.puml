@@ -12,9 +12,9 @@ package "catworld.domain" {
     +UUID id
     +String fullName  <<NotNull>>
     +String address
-    +String phonePrimary  <<NotNull>>
-    +String phoneSecondary
-    +String phoneSecondaryName
+    +String primaryPhone  <<NotNull>>
+    +String secondaryPhone
+    +String secondaryPhoneName
     +String instagram
     +String facebook
   }
@@ -23,7 +23,7 @@ package "catworld.domain" {
     +UUID id
     +String name  <<NotNull>>
     +String address
-    +String phone
+    +String phoneNumber
   }
 
   enum Sex {
