@@ -4,28 +4,35 @@ participant "StayController" as controller
 participant "StayService" as service
 participant "CatRepository" as catRepo
 participant "StayRepository" as stayRepo
+participant "StayCatRepository" as stayCatRepo
 
-client -> controller: POST /stays (catId, startAt, endAt, notes)
+client -> controller: POST /stays (catIds, startAt, endAt, notes)
 controller -> service: createStay(cmd)
 
-service -> catRepo: findById(catId)
-catRepo --> service: Cat | not found
+service -> service: validate(catIds no vacío)
+service -> service: validate(no duplicados)
+service -> service: validate(endAt > startAt)
+service -> catRepo: findAllById(catIds)
+catRepo --> service: List<Cat>
 
-alt cat not found
-  service --> controller: 404 Not Found
-  controller --> client: 404
-else cat found
-  service -> service: validate(endAt > startAt)
-  service -> stayRepo: existsOverlapping(catId, startAt, endAt, cancelledAt IS NULL)
+alt faltan cats o lista vacía
+  service --> controller: 400 / 404
+  controller --> client: error
+else cats encontrados
+  service -> service: validate(todos comparten el mismo owner)
+  service -> stayRepo: existsOverlapForAnyCat(catIds, startAt, endAt)
   stayRepo --> service: true/false
 
   alt overlaps = true
     service --> controller: 409 Conflict (overlap)
     controller --> client: 409
   else overlaps = false
+    service -> service: owner = cats[0].owner
     service -> stayRepo: save(Stay)
     stayRepo --> service: Stay saved
-    service --> controller: StayDTO (incluye status calculado)
+    service -> stayCatRepo: saveAll(StayCat rows)
+    stayCatRepo --> service: links saved
+    service --> controller: StayResponseDto
     controller --> client: 201 Created
   end
 end

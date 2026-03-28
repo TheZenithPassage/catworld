@@ -42,7 +42,6 @@ package "catworld.domain" {
     +String foodBrand
     +String litterBrand
     +String personality
-
     +String lastInternalDewormerName
     +LocalDate lastInternalDewormingDate
     +String lastExternalDewormerName
@@ -64,13 +63,19 @@ package "catworld.domain" {
     +LocalDateTime endAt    <<NotNull>>
     +LocalDateTime cancelledAt
     +String notes
-
     +StayStatus status  <<Transient/Computed>>
+  }
+
+  class StayCat {
+    +Stay stay
+    +Cat cat
   }
 
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
-  Cat   "1" o-- "0..*" Stay : stays >
+  Owner "1" o-- "0..*" Stay : books >
+  Stay  "1" *-- "1..*" StayCat : includes >
+  Cat   "1" o-- "0..*" StayCat : participates >
 }
 
 note right of Stay
@@ -84,7 +89,15 @@ end note
 note bottom of Stay
 Reglas:
 - endAt > startAt
-- No solapamiento por Cat (ignorando canceladas)
+- al menos 1 cat por stay
+- todos los cats de una stay deben ser del mismo owner
+- no solapamiento por cat (ignorando canceladas)
+end note
+
+note bottom of StayCat
+Cada fila representa un único vínculo
+entre una stay y un cat.
+La clave lógica es (stay, cat).
 end note
 
 @enduml

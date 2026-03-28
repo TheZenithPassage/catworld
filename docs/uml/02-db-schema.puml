@@ -10,9 +10,9 @@ package "MySQL schema" {
     --
     full_name <<NN>>
     address
-    phone_primary <<NN>>
-    phone_secondary
-    phone_secondary_name
+    primary_phone <<NN>>
+    secondary_phone
+    secondary_phone_name
     instagram
     facebook
     --
@@ -25,7 +25,7 @@ package "MySQL schema" {
     --
     name <<NN>>
     address
-    phone
+    phone_number
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -43,15 +43,14 @@ package "MySQL schema" {
     food_brand
     litter_brand
     personality
-    vet_id <<FK>>
-    owner_id <<FK,NN>>
-    --
     last_internal_dewormer_name
     last_internal_deworming_date
     last_external_dewormer_name
     last_external_deworming_date
     last_triple_feline_date
     last_rabies_date
+    owner_id <<FK,NN>>
+    vet_id <<FK>>
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -60,7 +59,7 @@ package "MySQL schema" {
   class stays <<table>> {
     +uuid id <<PK>>
     --
-    cat_id <<FK,NN>>
+    owner_id <<FK,NN>>
     start_at <<NN>>
     end_at <<NN>>
     cancelled_at
@@ -70,14 +69,29 @@ package "MySQL schema" {
     updated_at <<NN>>
   }
 
+  class stay_cats <<table>> {
+    +stay_id <<PK,FK,NN>>
+    +cat_id <<PK,FK,NN>>
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
-  cats   "1" -- "0..*" stays : FK cat_id
+  owners "1" -- "0..*" stays : FK owner_id
+  stays  "1" -- "1..*" stay_cats : FK stay_id
+  cats   "1" -- "0..*" stay_cats : FK cat_id
 }
 
 note right of stays
 No hay columna status.
 Se calcula en la app.
+
+La relación con cats se resuelve
+mediante stay_cats.
+end note
+
+note bottom of stay_cats
+La pareja (stay_id, cat_id)
+no puede repetirse.
 end note
 
 @enduml
