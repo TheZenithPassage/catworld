@@ -7,14 +7,15 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "cats")
 public class Cat extends AuditableEntity {
 
     @Id
@@ -53,7 +54,7 @@ public class Cat extends AuditableEntity {
     @JoinColumn(name = "vet_id")
     private Vet vet;
 
-    @OneToMany(mappedBy = "cat", fetch = FetchType.LAZY)
-    private List<Stay> stays = new ArrayList<>();
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "cat")
+    private Set<StayCat> stayCats = new HashSet<>();
 
 }
