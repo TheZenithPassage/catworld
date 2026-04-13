@@ -7,12 +7,15 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "stays")
 public class Stay extends AuditableEntity {
 
     @Id
@@ -31,8 +34,11 @@ public class Stay extends AuditableEntity {
     private String notes;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "cat_id", nullable = false)
-    private Cat cat;
+    @JoinColumn(name = "owner_id", nullable = false)
+    private Owner owner;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<StayCat> stayCats = new HashSet<>();
 
     @Transient
     public StayStatus getStatus() {

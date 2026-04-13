@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Table(name = "vets")
 public class Vet extends AuditableEntity {
 
     @Id
