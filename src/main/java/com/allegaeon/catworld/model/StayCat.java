@@ -11,8 +11,9 @@ import lombok.*;
 @Table(name = "stay_cat")
 public class StayCat {
 
+    @Builder.Default
     @EmbeddedId
-    private StayCatId id;
+    private StayCatId id = new StayCatId();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @MapsId("stayId")
