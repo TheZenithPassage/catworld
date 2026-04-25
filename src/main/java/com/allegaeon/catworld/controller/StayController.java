@@ -40,4 +40,10 @@ public class StayController {
         return ResponseEntity.ok(stayService.updateStay(id, stayUpdateDTO));
     }
 
+    @PatchMapping("/{id}/cancel")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void  cancelStay(@PathVariable UUID id) {
+        stayService.cancelStay(id);
+    }
+
 }

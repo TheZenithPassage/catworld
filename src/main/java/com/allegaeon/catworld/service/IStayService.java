@@ -13,5 +13,6 @@ public interface IStayService {
     StayResponseDTO getStay(UUID stayId);
     StayResponseDTO createStay(StayRequestDTO stayRequestDTO);
     StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO);
+    void cancelStay(UUID stayId);
 
 }

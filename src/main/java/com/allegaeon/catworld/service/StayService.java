@@ -45,7 +45,7 @@ public class StayService implements IStayService {
     @Transactional
     public StayResponseDTO createStay(StayRequestDTO stayRequestDTO) {
 
-        if(!(stayRequestDTO.getEndAt().isAfter(stayRequestDTO.getStartAt()))) throw new BadRequestException("End time must be after start time");
+        validateEndDateIsAfterStartDate(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt());
 
         Stay stay = stayMapper.toEntity(stayRequestDTO);
 
@@ -81,15 +81,28 @@ public class StayService implements IStayService {
     @Transactional
     public StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO) {
 
-        if(!(stayUpdateDTO.getEndAt().isAfter(stayUpdateDTO.getStartAt()))) throw new BadRequestException("End time must be after start time");
+        validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
+        Stay stay = getStayEntity(stayId);
+        validateStayCanBeModified(stay);
 
-        Stay stay = stayMapper.updateEntity(getStayEntity(stayId), stayUpdateDTO);
+        stay = stayMapper.updateEntity(stay, stayUpdateDTO);
 
         for(Cat cat : stay.getStayCats().stream().map(StayCat::getCat).toList()) {
             if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
         }
 
         return stayMapper.toResponseDTO(stayRepository.save(stay));
+
+    }
+
+    @Override
+    @Transactional
+    public void cancelStay(UUID stayId) {
+
+        Stay stay = getStayEntity(stayId);
+        validateStayCanBeModified(stay);
+
+        stay.setCancelledAt(LocalDateTime.now());
 
     }
 
@@ -105,17 +118,22 @@ public class StayService implements IStayService {
 
     private boolean hasOverBooking(LocalDateTime startAt, LocalDateTime endAt, Cat cat, UUID stayId) {
 
-        Set<StayCat> catStays = cat.getStayCats();
-
-        for(StayCat stayCat : catStays) {
-
+        for(StayCat stayCat : cat.getStayCats()) {
             Stay existingStay = stayCat.getStay();
-
             if(existingStay.getCancelledAt() != null || existingStay.getId().equals(stayId)) continue;
-
             if(endAt.isAfter(existingStay.getStartAt()) && startAt.isBefore(existingStay.getEndAt())) return true;
         }
+
         return false;
     }
+
+    private void validateStayCanBeModified(Stay stay) {
+        if(stay.getCancelledAt() != null || stay.getEndAt().isBefore(LocalDateTime.now())) throw new ConflictException("Closed stays cannot be modified");
+    }
+
+    private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {
+        if(startAt.isAfter(endAt) || startAt.isEqual(endAt)) throw new BadRequestException("End time must be after start time");
+    }
+
 
 }
