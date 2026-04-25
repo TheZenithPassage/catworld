@@ -1,8 +1,6 @@
 package com.allegaeon.catworld.dto;
 
-import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
-import com.allegaeon.catworld.model.Vet;
 import lombok.*;
 
 import java.time.LocalDate;
