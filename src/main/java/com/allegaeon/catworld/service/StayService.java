@@ -56,13 +56,13 @@ public class StayService implements IStayService {
 
             Cat cat = getCatEntity(catId);
 
-            if(hasOverBooking(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cat, null)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
-
             if(owner == null) {
                 owner = cat.getOwner();
             } else if(!(cat.getOwner().getId().equals(owner.getId()))) {
                 throw new BadRequestException("Owner must be the same for all the cats");
             }
+
+            if(hasOverBooking(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cat, null)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
 
             stayCats.add(StayCat.builder()
                     .stay(stay)
