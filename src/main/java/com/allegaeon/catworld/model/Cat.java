@@ -52,6 +52,7 @@ public class Cat extends AuditableEntity {
     @JoinColumn(name = "vet_id")
     private Vet vet;
 
+    @Builder.Default
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "cat")
     private Set<StayCat> stayCats = new HashSet<>();
 
