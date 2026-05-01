@@ -31,6 +31,7 @@ public class Owner extends AuditableEntity{
     private String instagram;
     private String facebook;
 
+    @Builder.Default
     @OneToMany(mappedBy = "owner", fetch = FetchType.LAZY)
     private List<Cat> cats = new ArrayList<>();
 

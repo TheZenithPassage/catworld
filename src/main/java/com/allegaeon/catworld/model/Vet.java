@@ -25,6 +25,7 @@ public class Vet extends AuditableEntity {
     private String address;
     private String phoneNumber;
 
+    @Builder.Default
     @OneToMany(mappedBy = "vet", fetch = FetchType.LAZY)
     private List<Cat> cats = new ArrayList<>();
 
