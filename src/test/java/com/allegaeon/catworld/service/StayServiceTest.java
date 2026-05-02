@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
+import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
@@ -345,6 +346,293 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
 
             assertThrows(ConflictException.class, () -> service.cancelStay(stay.getId()));
+
+        }
+
+    }
+
+    @Nested
+    class UpdateStayTests {
+
+        @Test
+        public void shouldThrowBadRequest_whenEndDateIsNotAfterStartDate() {
+
+            assertThrows(BadRequestException.class, () -> {
+                service.updateStay(UUID.randomUUID(), StayUpdateDTO.builder()
+                        .startAt(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0))
+                        .endAt(LocalDateTime.of(2026, Month.MARCH, 14, 10, 0))
+                        .build());
+            });
+
+        }
+
+        @Test
+        public void shouldThrowConflict_whenStayIsCancelled() {
+
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2050, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2050, Month.APRIL, 18, 10, 0))
+                    .cancelledAt(LocalDateTime.of(2026, Month.APRIL, 19, 10, 0))
+                    .build();
+
+            StayUpdateDTO requestDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 20, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 30, 10, 0))
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+
+            assertThrows(ConflictException.class, () -> service.updateStay(stay.getId(), requestDto));
+
+        }
+
+        @Test
+        public void shouldThrowConflict_whenStayIsCheckedOut() {
+
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 18, 10, 0))
+                    .build();
+
+            StayUpdateDTO requestDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 20, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 30, 10, 0))
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+
+            assertThrows(ConflictException.class, () -> service.updateStay(stay.getId(), requestDto));
+
+        }
+
+        @Test
+        public void shouldThrowConflict_whenCatHasOverbooking() {
+
+            Stay overbookingStay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 25, 10, 0))
+                    .build();
+
+            Stay stayToModify = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.MAY, 25, 10, 0))
+                    .build();
+
+            Cat cat = Cat.builder()
+                    .id(UUID.randomUUID())
+                    .name("Cat 1")
+                    .owner(Owner.builder()
+                            .id(UUID.randomUUID())
+                            .build())
+                    .build();
+
+            StayCat overbookingStayCat = StayCat.builder()
+                    .stay(overbookingStay)
+                    .cat(cat)
+                    .build();
+
+            StayCat stayToModifyCat = StayCat.builder()
+                    .stay(stayToModify)
+                    .cat(cat)
+                    .build();
+
+            StayUpdateDTO updateDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 29, 10, 0))
+                    .build();
+
+            stayToModify.setStayCats(Set.of(stayToModifyCat));
+            cat.setStayCats(Set.of(overbookingStayCat, stayToModifyCat));
+
+            when(stayRepository.findById(stayToModify.getId())).thenReturn(Optional.of(stayToModify));
+            when(stayMapper.updateEntity(stayToModify, updateDto)).thenReturn(stayToModify);
+
+            assertThrows(ConflictException.class, () -> {
+                service.updateStay(stayToModify.getId(), updateDto);
+            });
+
+        }
+
+        @Test
+        public void shouldUpdateStaySuccessfully() {
+
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.MAY, 25, 10, 0))
+                    .build();
+
+            StayUpdateDTO updateDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 29, 10, 0))
+                    .notes("This is a note")
+                    .build();
+
+            Cat cat = Cat.builder()
+                    .id(UUID.randomUUID())
+                    .name("Cat 1")
+                    .owner(Owner.builder()
+                            .id(UUID.randomUUID())
+                            .build())
+                    .build();
+
+            StayCat stayCat = StayCat.builder()
+                    .stay(stay)
+                    .cat(cat)
+                    .build();
+
+            stay.setStayCats(Set.of(stayCat));
+            cat.setStayCats(Set.of(stayCat));
+
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            Stay updatedStay = Stay.builder()
+                    .id(stay.getId())
+                    .startAt(updateDto.getStartAt())
+                    .endAt(updateDto.getEndAt())
+                    .notes(updateDto.getNotes())
+                    .stayCats(Set.of(stayCat))
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = service.updateStay(stay.getId(), updateDto);
+
+            assertSame(expectedResponseDTO, result);
+
+            verify(stayMapper).updateEntity(stay, updateDto);
+            verify(stayRepository).save(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay);
+
+        }
+
+        @Test
+        public void shouldUpdateStay_whenOnlyOverlapIsSameStay() {
+
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.MAY, 25, 10, 0))
+                    .build();
+
+            Cat cat = Cat.builder()
+                    .id(UUID.randomUUID())
+                    .name("Cat 1")
+                    .owner(Owner.builder()
+                            .id(UUID.randomUUID())
+                            .build())
+                    .build();
+
+            StayCat stayCat = StayCat.builder()
+                    .stay(stay)
+                    .cat(cat)
+                    .build();
+
+            StayUpdateDTO updateDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 29, 10, 0))
+                    .build();
+
+            stay.setStayCats(Set.of(stayCat));
+            cat.setStayCats(Set.of(stayCat));
+
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            Stay updatedStay = Stay.builder()
+                    .id(stay.getId())
+                    .startAt(updateDto.getStartAt())
+                    .endAt(updateDto.getEndAt())
+                    .notes(updateDto.getNotes())
+                    .stayCats(Set.of(stayCat))
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = assertDoesNotThrow(() -> service.updateStay(stay.getId(), updateDto));
+
+            assertSame(expectedResponseDTO, result);
+
+            verify(stayMapper).updateEntity(stay, updateDto);
+            verify(stayRepository).save(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay);
+
+        }
+
+        @Test
+        public void shouldUpdateStay_whenOverlappingStayIsCancelled() {
+
+            Stay cancelledStay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 14, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.MAY, 25, 10, 0))
+                    .cancelledAt(LocalDateTime.of(2026, Month.APRIL, 25, 10, 0))
+                    .build();
+
+            Stay activeStay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(LocalDateTime.of(2026, Month.JUNE, 20, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.JUNE, 27, 10, 0))
+                    .build();
+
+            Cat cat = Cat.builder()
+                    .id(UUID.randomUUID())
+                    .name("Cat 1")
+                    .owner(Owner.builder()
+                            .id(UUID.randomUUID())
+                            .build())
+                    .build();
+
+            StayCat cancelledStayCat = StayCat.builder()
+                    .stay(cancelledStay)
+                    .cat(cat)
+                    .build();
+
+            StayCat activeStayCat = StayCat.builder()
+                    .stay(activeStay)
+                    .cat(cat)
+                    .build();
+
+            StayUpdateDTO updateDto = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, Month.APRIL, 22, 10, 0))
+                    .endAt(LocalDateTime.of(2026, Month.APRIL, 29, 10, 0))
+                    .build();
+
+            activeStay.setStayCats(Set.of(activeStayCat));
+            cancelledStay.setStayCats(Set.of(cancelledStayCat));
+            cat.setStayCats(Set.of(activeStayCat, cancelledStayCat));
+
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            Stay updatedStay = Stay.builder()
+                    .id(activeStay.getId())
+                    .startAt(updateDto.getStartAt())
+                    .endAt(updateDto.getEndAt())
+                    .notes(updateDto.getNotes())
+                    .stayCats(Set.of(activeStayCat))
+                    .build();
+
+            when(stayRepository.findById(activeStay.getId())).thenReturn(Optional.of(activeStay));
+            when(stayMapper.updateEntity(activeStay, updateDto)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = assertDoesNotThrow(() -> service.updateStay(activeStay.getId(), updateDto));
+
+            assertSame(expectedResponseDTO, result);
+
+            verify(stayMapper).updateEntity(activeStay, updateDto);
+            verify(stayRepository).save(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay);
 
         }
 
