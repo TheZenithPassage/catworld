@@ -1,20 +1,20 @@
 # CatWorld
 
-Aplicación web para gestionar una guardería felina.
+Web API for managing a cat boarding business.
 
-## Alcance (alto nivel)
+## Scope
 
-- Registro de dueños.
-- Registro de gatos.
-- Registro de veterinarios de referencia.
-- Agenda de estancias.
-- Consulta de estancias actuales, futuras, finalizadas y canceladas.
+- Owner management.
+- Cat management.
+- Reference vet management.
+- Stay booking management.
+- Lookup of current, future, completed, and cancelled stays.
 
-Fuera de alcance inicial:
-- gestión de habitaciones o capacidad
-- facturación avanzada
-- inventario
-- permisos y roles complejos
+Out of the initial scope:
+- room or capacity management
+- advanced billing
+- inventory
+- complex permissions and roles
 
 ## Stack
 
@@ -26,43 +26,43 @@ Fuera de alcance inicial:
 - Docker Compose
 - PlantUML
 
-## Arquitectura
+## Architecture
 
-Monolito por capas:
+Layered monolith:
 
-- `controller`: entrada HTTP y respuestas
-- `service`: reglas de negocio y transacciones
-- `repository`: persistencia
-- `model`: entidades y lógica de dominio
-- `dto` + `mapper`: contratos de entrada y salida
+- `controller`: HTTP entry points and responses
+- `service`: business rules and transactions
+- `repository`: persistence
+- `model`: entities and domain behavior
+- `dto` + `mapper`: input and output contracts
 
-## Modelo conceptual
+## Conceptual Model
 
-### Entidades principales
+### Main Entities
 
-- **Owner**: dueño y datos de contacto.
-- **Vet**: veterinario de referencia.
-- **Cat**: gato, asociado a un owner y opcionalmente a un vet.
-- **Stay**: estancia con fechas, cancelación, notas y owner asociado.
-- **StayCat**: entidad intermedia que vincula cada `Stay` con cada `Cat` participante.
+- **Owner**: owner contact record.
+- **Vet**: reference veterinarian.
+- **Cat**: cat linked to an owner and optionally to a vet.
+- **Stay**: booking with dates, cancellation data, notes, and associated owner.
+- **StayCat**: link entity between each `Stay` and each participating `Cat`.
 
-### Regla clave de negocio sobre Stay
+### Key Stay Rule
 
-Una `Stay` representa **una sola estancia**.
+A `Stay` represents **one boarding stay**.
 
-Puede incluir:
-- un solo gato
-- o varios gatos del mismo owner
+It can include:
+- one cat
+- multiple cats from the same owner
 
-Todos los gatos de una misma `Stay` comparten:
+All cats in the same `Stay` share:
 - `startAt`
 - `endAt`
 - `cancelledAt`
 - `notes`
 
-Si uno de esos gatos debiera salir antes, cancelarse aparte o seguir una lógica distinta, entonces ya no se considera la misma estancia: pasan a ser estancias diferentes.
+If one of those cats needs a different checkout time, a separate cancellation, or different lifecycle rules, it is no longer the same stay. It should be modeled as a separate `Stay`.
 
-### Relaciones principales
+### Main Relationships
 
 - `Owner` 1..* `Cat`
 - `Vet` 0..* `Cat`
@@ -70,99 +70,101 @@ Si uno de esos gatos debiera salir antes, cancelarse aparte o seguir una lógica
 - `Stay` 1..* `StayCat`
 - `Cat` 1..* `StayCat`
 
-No se modela una relación directa persistida `Stay <-> Cat` con un simple `@ManyToMany`. La relación se materializa mediante `StayCat`.
+The persisted `Stay <-> Cat` relationship is not modeled as a plain `@ManyToMany`. It is materialized through `StayCat`.
 
-## Decisiones importantes de modelado
+## Modeling Decisions
 
-### 1) El owner también se guarda en Stay
+### 1. Stay Stores the Owner
 
-`Stay` guarda referencia directa a `Owner`.
+`Stay` stores a direct reference to `Owner`.
 
-Motivos:
-- preservar mejor el histórico
-- evitar que un eventual cambio futuro de owner en `Cat` deforme el historial de una estancia pasada
-- simplificar consultas
+Reasons:
+- preserve historical ownership more clearly
+- avoid changing past stay history if a cat owner changes later
+- simplify queries
 
-### 2) La relación Stay-Cat se modela con entidad intermedia
+### 2. Stay-Cat Uses a Link Entity
 
-Se usa `StayCat` en lugar de dejar la relación solo como un `@ManyToMany` simple.
+`StayCat` is used instead of leaving the relationship as a plain `@ManyToMany`.
 
-Motivos:
-- hace explícita la relación en dominio y base de datos
-- da más control sobre restricciones
-- envejece mejor si más adelante la relación necesitara datos propios
+Reasons:
+- make the relationship explicit in the domain and database
+- provide more control over constraints
+- leave room for relationship-specific fields later
 
-## Reglas de negocio actuales para Stay
+## Current Stay Business Rules
 
-- Una `Stay` debe tener al menos un gato.
-- Todos los gatos de una `Stay` deben pertenecer al mismo `Owner`.
-- El `Owner` de la `Stay` debe coincidir con el `Owner` de todos sus gatos.
-- No puede haber el mismo gato repetido dentro de la misma `Stay`.
-- `endAt` debe ser posterior a `startAt`.
-- Un gato no puede tener solapes de estancias activas con otra `Stay`.
-- Una estancia cancelada no se considera activa para la validación de solapes.
+- A `Stay` must include at least one cat.
+- All cats in a `Stay` must belong to the same `Owner`.
+- The `Stay` owner must match every cat owner.
+- The same cat cannot be repeated within the same `Stay`.
+- `endAt` must be after `startAt`.
+- A cat cannot have overlapping active stays.
+- A cancelled stay is not considered active for overlap validation.
 
-## Estado de una estancia
+## Stay Status
 
-El estado de una `Stay` es **dinámico**. No se persiste como columna.
+The `Stay` status is **dynamic**. It is not persisted as a column.
 
-Se calcula a partir de:
+It is computed from:
 - `startAt`
 - `endAt`
 - `cancelledAt`
-- el momento actual
+- the current time
 
-Estados posibles:
+Possible statuses:
 - `RESERVED`
 - `CHECKED_IN`
 - `CHECKED_OUT`
 - `CANCELLED`
 
-## Auditoría
+## Auditing
 
-Las entidades principales persisten:
+Main entities persist:
 - `createdAt`
 - `updatedAt`
 
-Se gestionan con JPA Auditing.
+They are managed with JPA Auditing.
 
-## Base de datos
+## Database
 
-Puntos importantes del esquema:
-- `cats` tiene `owner_id` y `vet_id`
-- `stays` ya no tiene `cat_id`
-- `stays` pasa a tener `owner_id`
-- la relación entre estancias y gatos se guarda en `stay_cats`
-- `stay_cats` debe impedir duplicados de la pareja (`stay_id`, `cat_id`)
-- `status` no se persiste
+Important schema points:
+- `cats` has `owner_id` and `vet_id`
+- `stays` does not have `cat_id`
+- `stays` has `owner_id`
+- the relationship between stays and cats is stored in `stay_cat`
+- `stay_cat` prevents duplicate pairs through the primary key (`stay_id`, `cat_id`)
+- `status` is not persisted
 
-## Diagramas
+## Diagrams
 
-Los diagramas viven en `docs/uml/`:
+Diagrams live in `docs/uml/`:
 
 - `01-domain-classes.puml`
 - `02-db-schema.puml`
 - `03-components.puml`
 - `04-sequence-create-stay.puml`
 
-## Desarrollo local
+## Local Development
 
-### Requisitos
+### Requirements
 
-- Java
+- Java 17
 - Docker Desktop
-- Maven o Maven Wrapper
+- Maven or the included Maven Wrapper
 
-### Base de datos
+### Database
 
-1. Copiar `.env.example` a `.env` si hace falta.
-2. Levantar MySQL con Docker Compose.
-3. Arrancar la aplicación.
-4. Flyway aplica las migraciones al iniciar.
+1. Copy `.env.example` to `.env` if you want to override local defaults.
+2. Start MySQL with Docker Compose.
+3. Start the application with the `docker` profile.
+4. Flyway applies migrations on startup.
 
-## Fuente de verdad
+## Public Repository Notes
 
-La fuente de verdad del proyecto para arquitectura y modelo es:
+No real credentials are required to run this project locally. The committed environment examples use explicit dummy values, and the real `.env` file is ignored by Git.
+
+The source of truth for project architecture and modeling is:
 - `README.md`
 - `docs/ARCHITECTURE.md`
 - `docs/uml/*`

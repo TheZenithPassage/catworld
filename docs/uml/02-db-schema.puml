@@ -69,7 +69,7 @@ package "MySQL schema" {
     updated_at <<NN>>
   }
 
-  class stay_cats <<table>> {
+  class stay_cat <<table>> {
     +stay_id <<PK,FK,NN>>
     +cat_id <<PK,FK,NN>>
   }
@@ -77,21 +77,21 @@ package "MySQL schema" {
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id
-  stays  "1" -- "1..*" stay_cats : FK stay_id
-  cats   "1" -- "0..*" stay_cats : FK cat_id
+  stays  "1" -- "1..*" stay_cat : FK stay_id
+  cats   "1" -- "0..*" stay_cat : FK cat_id
 }
 
 note right of stays
-No hay columna status.
-Se calcula en la app.
+There is no status column.
+The app computes it.
 
-La relación con cats se resuelve
-mediante stay_cats.
+The relationship with cats is
+resolved through stay_cat.
 end note
 
-note bottom of stay_cats
-La pareja (stay_id, cat_id)
-no puede repetirse.
+note bottom of stay_cat
+The pair (stay_id, cat_id)
+cannot be repeated.
 end note
 
 @enduml

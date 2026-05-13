@@ -1,7 +1,7 @@
 @startuml
 skinparam componentStyle rectangle
 
-actor "Usuario" as user
+actor "User" as user
 
 package "CatWorld (Spring Boot Monolith)" {
   [REST Controllers] as c
@@ -21,12 +21,12 @@ s --> r
 r --> db
 
 note right of s
-Reglas de negocio relevantes:
+Relevant business rules:
 - endAt > startAt
-- al menos un cat por stay
-- todos los cats de una stay comparten owner
-- owner de stay coherente con cats
-- no solapes por cat
+- at least one cat per stay
+- all cats in a stay share the same owner
+- stay owner is consistent with the cats
+- no overlapping stays per cat
 end note
 
 @enduml
