@@ -79,7 +79,7 @@ package "catworld.domain" {
 }
 
 note right of Stay
-status es DINÁMICO:
+status is DYNAMIC:
 - cancelledAt != null => CANCELLED
 - now < startAt => RESERVED
 - startAt <= now < endAt => CHECKED_IN
@@ -87,17 +87,17 @@ status es DINÁMICO:
 end note
 
 note bottom of Stay
-Reglas:
+Rules:
 - endAt > startAt
-- al menos 1 cat por stay
-- todos los cats de una stay deben ser del mismo owner
-- no solapamiento por cat (ignorando canceladas)
+- at least 1 cat per stay
+- all cats in a stay must belong to the same owner
+- no overlapping stays per cat, ignoring cancelled stays
 end note
 
 note bottom of StayCat
-Cada fila representa un único vínculo
-entre una stay y un cat.
-La clave lógica es (stay, cat).
+Each row represents one link
+between a stay and a cat.
+The logical key is (stay, cat).
 end note
 
 @enduml

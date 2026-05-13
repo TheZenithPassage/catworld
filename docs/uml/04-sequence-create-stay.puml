@@ -9,17 +9,17 @@ participant "StayCatRepository" as stayCatRepo
 client -> controller: POST /stays (catIds, startAt, endAt, notes)
 controller -> service: createStay(cmd)
 
-service -> service: validate(catIds no vacío)
-service -> service: validate(no duplicados)
+service -> service: validate(catIds is not empty)
+service -> service: validate(no duplicates)
 service -> service: validate(endAt > startAt)
 service -> catRepo: findAllById(catIds)
 catRepo --> service: List<Cat>
 
-alt faltan cats o lista vacía
+alt missing cats or empty list
   service --> controller: 400 / 404
   controller --> client: error
-else cats encontrados
-  service -> service: validate(todos comparten el mismo owner)
+else cats found
+  service -> service: validate(all cats share the same owner)
   service -> stayRepo: existsOverlapForAnyCat(catIds, startAt, endAt)
   stayRepo --> service: true/false
 

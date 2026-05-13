@@ -1,68 +1,128 @@
-# CatWorld
+# CatWorld Architecture
 
-Aplicación web para gestionar una guardería felina.
+CatWorld is a Spring Boot REST API for managing a cat boarding business.
 
-## Alcance (alto nivel)
+This document describes the current architecture, domain model, persistence decisions and backend testing strategy.
 
-- Registro de dueños.
-- Registro de gatos.
-- Registro de veterinarios de referencia.
-- Agenda de estancias.
-- Consulta de estancias actuales, futuras, finalizadas y canceladas.
+## Scope
 
-Fuera de alcance inicial:
-- gestión de habitaciones o capacidad
-- facturación avanzada
-- inventario
-- permisos y roles complejos
+CatWorld currently covers:
+
+- Owner management.
+- Cat management.
+- Reference vet management.
+- Stay booking management.
+- Lookup of current, future, completed and cancelled stays.
+
+Out of the initial scope:
+
+- Room or capacity management.
+- Advanced billing.
+- Inventory.
+- Complex permissions and roles.
+- Authentication and authorization.
 
 ## Stack
 
-- Java + Spring Boot
+- Java 17
+- Spring Boot
 - Spring Web
 - Spring Data JPA
 - MySQL
 - Flyway
 - Docker Compose
+- JUnit 5
+- Mockito
+- GitHub Actions
 - PlantUML
 
-## Arquitectura
+## Architecture Style
 
-Monolito por capas:
+CatWorld is intentionally developed as a layered monolith.
 
-- `controller`: entrada HTTP y respuestas
-- `service`: reglas de negocio y transacciones
-- `repository`: persistencia
-- `model`: entidades y lógica de dominio
-- `dto` + `mapper`: contratos de entrada y salida
+```txt
+controller -> service -> repository -> database
+```
 
-## Modelo conceptual
+Main package responsibilities:
 
-### Entidades principales
+- `controller`: HTTP endpoints, request validation entry point and response status handling.
+- `service`: business rules, transactions and application use cases.
+- `repository`: persistence access through Spring Data JPA.
+- `model`: JPA entities and domain behavior.
+- `dto`: input and output contracts exposed by the API.
+- `mapper`: conversion between DTOs and entities.
+- `exception`: custom exceptions and global HTTP exception handling.
 
-- **Owner**: dueño y datos de contacto.
-- **Vet**: veterinario de referencia.
-- **Cat**: gato, asociado a un owner y opcionalmente a un vet.
-- **Stay**: estancia con fechas, cancelación, notas y owner asociado.
-- **StayCat**: entidad intermedia que vincula cada `Stay` con cada `Cat` participante.
+The project keeps business rules out of controllers. Controllers delegate to services and focus on the HTTP contract.
 
-### Regla clave de negocio sobre Stay
+## Domain Model
 
-Una `Stay` representa **una sola estancia**.
+### Main Entities
 
-Puede incluir:
-- un solo gato
-- o varios gatos del mismo owner
+#### Owner
 
-Todos los gatos de una misma `Stay` comparten:
+Represents a cat owner and contact information.
+
+An `Owner` can have:
+
+- multiple cats
+- multiple stays
+
+#### Vet
+
+Represents a reference veterinarian.
+
+A `Vet` can be associated with multiple cats, but a cat can also exist without a vet.
+
+#### Cat
+
+Represents a cat registered in the boarding system.
+
+A `Cat` belongs to one `Owner` and may optionally reference one `Vet`.
+
+#### Stay
+
+Represents one boarding stay.
+
+A `Stay` contains:
+
+- `startAt`
+- `endAt`
+- `cancelledAt`
+- `notes`
+- `owner`
+- participating cats through `StayCat`
+
+#### StayCat
+
+Represents the link between a `Stay` and a `Cat`.
+
+The project uses an explicit link entity instead of a plain `@ManyToMany`.
+
+## Stay Model
+
+### Key Rule
+
+A `Stay` represents **one boarding stay**.
+
+It can include:
+
+- one cat
+- multiple cats from the same owner
+
+All cats inside the same `Stay` share:
+
 - `startAt`
 - `endAt`
 - `cancelledAt`
 - `notes`
 
-Si uno de esos gatos debiera salir antes, cancelarse aparte o seguir una lógica distinta, entonces ya no se considera la misma estancia: pasan a ser estancias diferentes.
+If one cat needs a different checkout time, a separate cancellation or a different lifecycle, it should be modeled as a separate `Stay`.
 
-### Relaciones principales
+## Relationships
+
+Main relationships:
 
 - `Owner` 1..* `Cat`
 - `Vet` 0..* `Cat`
@@ -70,99 +130,194 @@ Si uno de esos gatos debiera salir antes, cancelarse aparte o seguir una lógica
 - `Stay` 1..* `StayCat`
 - `Cat` 1..* `StayCat`
 
-No se modela una relación directa persistida `Stay <-> Cat` con un simple `@ManyToMany`. La relación se materializa mediante `StayCat`.
+The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
-## Decisiones importantes de modelado
+## Modeling Decisions
 
-### 1) El owner también se guarda en Stay
+### Stay Stores the Owner
 
-`Stay` guarda referencia directa a `Owner`.
+`Stay` stores a direct reference to `Owner`.
 
-Motivos:
-- preservar mejor el histórico
-- evitar que un eventual cambio futuro de owner en `Cat` deforme el historial de una estancia pasada
-- simplificar consultas
+Reasons:
 
-### 2) La relación Stay-Cat se modela con entidad intermedia
+- Preserve historical ownership more clearly.
+- Avoid changing past stay history if a cat owner changes later.
+- Simplify queries involving stays by owner.
 
-Se usa `StayCat` en lugar de dejar la relación solo como un `@ManyToMany` simple.
+Even though the owner could be derived from the cats, storing it directly makes the stay aggregate easier to query and safer historically.
 
-Motivos:
-- hace explícita la relación en dominio y base de datos
-- da más control sobre restricciones
-- envejece mejor si más adelante la relación necesitara datos propios
+### Stay-Cat Uses a Link Entity
 
-## Reglas de negocio actuales para Stay
+The relationship between `Stay` and `Cat` is represented with `StayCat`.
 
-- Una `Stay` debe tener al menos un gato.
-- Todos los gatos de una `Stay` deben pertenecer al mismo `Owner`.
-- El `Owner` de la `Stay` debe coincidir con el `Owner` de todos sus gatos.
-- No puede haber el mismo gato repetido dentro de la misma `Stay`.
-- `endAt` debe ser posterior a `startAt`.
-- Un gato no puede tener solapes de estancias activas con otra `Stay`.
-- Una estancia cancelada no se considera activa para la validación de solapes.
+Reasons:
 
-## Estado de una estancia
+- Make the relationship explicit in the domain model.
+- Control the database structure directly.
+- Prevent duplicate pairs with a composite primary key.
+- Leave room for future relationship-specific fields if needed.
 
-El estado de una `Stay` es **dinámico**. No se persiste como columna.
+### Stay Status Is Dynamic
 
-Se calcula a partir de:
+Stay status is not persisted.
+
+It is computed from:
+
 - `startAt`
 - `endAt`
 - `cancelledAt`
-- el momento actual
+- current time
 
-Estados posibles:
+Possible statuses:
+
 - `RESERVED`
 - `CHECKED_IN`
 - `CHECKED_OUT`
 - `CANCELLED`
 
-## Auditoría
+This avoids storing redundant state that can become inconsistent with the dates.
 
-Las entidades principales persisten:
+## Stay Business Rules
+
+Current rules:
+
+- A `Stay` must include at least one cat.
+- All cats in a `Stay` must belong to the same `Owner`.
+- The `Stay` owner must match every cat owner.
+- The same cat cannot be repeated inside the same `Stay`.
+- `endAt` must be after `startAt`.
+- A cat cannot have overlapping active stays.
+- Cancelled stays are ignored during overlap validation.
+- Closed stays cannot be modified.
+- Cancelled stays cannot be cancelled again.
+
+## Persistence
+
+The application uses MySQL in local development through Docker Compose.
+
+Schema management is handled by Flyway migrations under:
+
+```txt
+src/main/resources/db/migration
+```
+
+Hibernate schema auto-update is not used for development schema evolution. The application validates the schema instead.
+
+Important schema points:
+
+- `owners` stores owner contact data.
+- `vets` stores reference vet data.
+- `cats` has `owner_id` and optional `vet_id`.
+- `stays` has `owner_id`.
+- `stays` does not have `cat_id`.
+- `stay_cat` stores the relationship between stays and cats.
+- `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
+- `status` is not persisted.
+
+## Auditing
+
+Main entities include:
+
 - `createdAt`
 - `updatedAt`
 
-Se gestionan con JPA Auditing.
+These fields are managed with JPA Auditing.
 
-## Base de datos
+## Error Handling
 
-Puntos importantes del esquema:
-- `cats` tiene `owner_id` y `vet_id`
-- `stays` ya no tiene `cat_id`
-- `stays` pasa a tener `owner_id`
-- la relación entre estancias y gatos se guarda en `stay_cats`
-- `stay_cats` debe impedir duplicados de la pareja (`stay_id`, `cat_id`)
-- `status` no se persiste
+The API uses custom exceptions for common error cases:
 
-## Diagramas
+- resource not found
+- bad request
+- conflict
 
-Los diagramas viven en `docs/uml/`:
+A global exception handler translates application exceptions into HTTP responses.
+
+Typical mappings:
+
+- `ResourceNotFoundException` -> `404 Not Found`
+- `BadRequestException` -> `400 Bad Request`
+- `ConflictException` -> `409 Conflict`
+- validation errors -> `400 Bad Request`
+
+## Testing Strategy
+
+Testing is focused on backend behavior with increasing scope.
+
+### Service Tests
+
+Service tests cover business rules directly.
+
+Current focus:
+
+- stay creation rules
+- owner consistency
+- overlap validation
+- cancellation flow
+- update flow rules
+
+Repositories and mappers are mocked where appropriate.
+
+### Controller Tests
+
+Controller tests cover the HTTP contract.
+
+Expected focus:
+
+- request methods and paths
+- response status codes
+- request validation
+- path variables
+- service delegation
+- exception mapping through the global exception handler
+
+Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
+
+### CI
+
+GitHub Actions runs the Maven test suite automatically.
+
+Workflow file:
+
+```txt
+.github/workflows/backend-ci.yml
+```
+
+The workflow:
+
+- runs on pull requests targeting `main`
+- runs on pushes to `main`
+- sets up Java 17
+- uses Maven dependency caching
+- runs `./mvnw test`
+
+## Diagrams
+
+PlantUML diagrams live in:
+
+```txt
+docs/uml/
+```
+
+Current diagrams:
 
 - `01-domain-classes.puml`
 - `02-db-schema.puml`
 - `03-components.puml`
 - `04-sequence-create-stay.puml`
 
-## Desarrollo local
+## Public Repository Notes
 
-### Requisitos
+No real credentials are required to run this project locally.
 
-- Java
-- Docker Desktop
-- Maven o Maven Wrapper
+The committed environment examples use dummy local values. The real `.env` file is ignored by Git.
 
-### Base de datos
+Database credentials for real environments must be provided through environment variables or external secret management, not committed to the repository.
 
-1. Copiar `.env.example` a `.env` si hace falta.
-2. Levantar MySQL con Docker Compose.
-3. Arrancar la aplicación.
-4. Flyway aplica las migraciones al iniciar.
+## Source of Truth
 
-## Fuente de verdad
+The source of truth for architecture and modeling is:
 
-La fuente de verdad del proyecto para arquitectura y modelo es:
 - `README.md`
 - `docs/ARCHITECTURE.md`
 - `docs/uml/*`
