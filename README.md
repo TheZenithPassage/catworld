@@ -8,7 +8,7 @@ CatWorld is a REST API for managing a cat boarding business. It handles owners, 
 
 CatWorld is currently under active development as a backend portfolio project and as a real tool for a small cat boarding business.
 
-The current focus is the backend API, domain modeling, business rules, database schema management, automated testing and CI.
+The current focus is the backend API, domain modeling, business rules, database schema management, automated testing, CI and deployment preparation.
 
 ## Features
 
@@ -19,6 +19,7 @@ The current focus is the backend API, domain modeling, business rules, database 
 - Stay cancellation flow.
 - Flyway-managed database schema.
 - Backend CI with GitHub Actions.
+- Docker Compose setup for running MySQL and the backend API together.
 
 ## Stack
 
@@ -34,7 +35,7 @@ The current focus is the backend API, domain modeling, business rules, database 
 ## Documentation
 
 - Architecture and modeling notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
-- PlantUML diagrams: [`docs/uml/`](docs/uml/)
+- PlantUML diagrams: [`docs/uml`](docs/uml)
 
 ## Local Development
 
@@ -50,12 +51,51 @@ Copy `.env.example` to `.env` if you want to override Docker Compose defaults.
 
 The example values are local-only placeholders. Do not commit real credentials.
 
-### 2. Start MySQL
+### 2. Start the Backend Stack
 
 ```bash
-docker compose up -d
-docker compose ps
+docker compose up --build
 ```
+
+On Windows PowerShell:
+
+```powershell
+docker compose up --build
+```
+
+This starts:
+
+- MySQL database
+- CatWorld Spring Boot API
+
+The API will be available at:
+
+```txt
+http://localhost:8080
+```
+
+Useful test endpoints:
+
+```txt
+http://localhost:8080/api/owners
+http://localhost:8080/api/cats
+http://localhost:8080/api/vets
+http://localhost:8080/api/stays
+```
+
+To stop the stack without deleting the local database volume:
+
+```bash
+docker compose down
+```
+
+To stop the stack and delete the local database volume:
+
+```bash
+docker compose down -v
+```
+
+Use `-v` only when you intentionally want to reset the local database.
 
 ### 3. Run Tests
 
@@ -69,7 +109,15 @@ On Windows PowerShell:
 .\mvnw.cmd test
 ```
 
-### 4. Start the API
+### 4. Optional: Run the API Locally Outside Docker
+
+If you only want Docker Compose to run MySQL and prefer starting the API from your IDE or Maven, run:
+
+```bash
+docker compose up db
+```
+
+Then start the API with the Docker profile:
 
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=docker
@@ -133,9 +181,21 @@ when the application starts with the Docker profile.
 
 The Docker profile reads database settings from environment variables and falls back to safe local dummy values. For production or shared deployments, provide real secrets through the runtime environment instead of committing them.
 
+The MySQL data is stored in a Docker volume, so stopping containers does not delete the local database.
+
+To reset the local database completely:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
+
 ## Testing and CI
 
-The project includes automated backend tests focused on service-level business rules.
+The project includes automated backend tests focused on:
+
+- service-level business rules
+- controller HTTP contracts for the critical stay flow
 
 Run the test suite locally:
 
