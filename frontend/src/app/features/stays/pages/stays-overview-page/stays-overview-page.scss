@@ -1,0 +1,41 @@
+.stays-overview-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.page-header h2 {
+  margin-bottom: 0.25rem;
+}
+
+.page-header p {
+  margin-top: 0;
+}
+
+.error-message {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 20rem;
+}
+
+.error-message button {
+  width: fit-content;
+}
+
+.stays-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stays-table th,
+.stays-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cat-id-summary {
+  display: block;
+  margin-top: 0.25rem;
+  color: #666;
+}

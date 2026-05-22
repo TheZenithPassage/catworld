@@ -1,0 +1,47 @@
+<section class="stays-overview-page">
+  <header class="page-header">
+    <h2>Estancias</h2>
+    <p>Vista inicial de las estancias registradas en CatWorld.</p>
+  </header>
+
+  @if (loading()) {
+    <p>Cargando estancias...</p>
+  } @else if (error()) {
+    <div class="error-message">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="loadStays()">Reintentar</button>
+    </div>
+  } @else if (stays().length === 0) {
+    <p>No hay estancias registradas.</p>
+  } @else {
+    <table class="stays-table">
+      <thead>
+        <tr>
+          <th>Estado</th>
+          <th>Inicio</th>
+          <th>Fin</th>
+          <th>Gatos</th>
+          <th>Notas</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (stay of stays(); track stay.stayId) {
+          <tr>
+            <td>{{ getStayStatus(stay) }}</td>
+            <td>{{ formatDate(stay.startAt) }}</td>
+            <td>{{ formatDate(stay.endAt) }}</td>
+            <td>
+              <span>{{ getCatSummary(stay) }}</span>
+
+              <small class="cat-id-summary">
+                {{ getCatIdsSummary(stay) }}
+              </small>
+            </td>
+            <td>{{ stay.notes || '-' }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
