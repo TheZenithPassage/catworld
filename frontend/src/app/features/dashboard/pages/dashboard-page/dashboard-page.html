@@ -1,4 +1,11 @@
 <section class="dashboard-page">
   <h2>Dashboard</h2>
-  <p>CatWorld frontend is running.</p>
+
+  @if (loading()) {
+  <p>Loading stays...</p>
+  } @else if (error()) {
+  <p>{{ error() }}</p>
+  } @else {
+  <p>Total stays: {{ stays().length }}</p>
+  }
 </section>
