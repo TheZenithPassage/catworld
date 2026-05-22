@@ -8,7 +8,7 @@ export const routes: Routes = [
     component: DashboardPage
   },
   {
-  path: 'stays',
-  component: StaysOverviewPage
-}
+    path: 'stays',
+    component: StaysOverviewPage
+  }
 ];

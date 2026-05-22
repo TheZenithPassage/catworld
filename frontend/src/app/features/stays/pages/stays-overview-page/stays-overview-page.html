@@ -1,27 +1,27 @@
 <section class="stays-overview-page">
   <header class="page-header">
-    <h2>Estancias</h2>
-    <p>Vista inicial de las estancias registradas en CatWorld.</p>
+    <h2>Stays</h2>
+    <p>Initial view of the stays registered in CatWorld.</p>
   </header>
 
   @if (loading()) {
-    <p>Cargando estancias...</p>
+    <p>Loading stays...</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadStays()">Reintentar</button>
+      <button type="button" (click)="loadStays()">Retry</button>
     </div>
   } @else if (stays().length === 0) {
-    <p>No hay estancias registradas.</p>
+    <p>No stays registered.</p>
   } @else {
     <table class="stays-table">
       <thead>
         <tr>
-          <th>Estado</th>
-          <th>Inicio</th>
-          <th>Fin</th>
-          <th>Gatos</th>
-          <th>Notas</th>
+          <th>State</th>
+          <th>Start</th>
+          <th>End</th>
+          <th>Cats</th>
+          <th>Notes</th>
         </tr>
       </thead>
 

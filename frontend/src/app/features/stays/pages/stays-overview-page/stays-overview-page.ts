@@ -38,7 +38,7 @@ export class StaysOverviewPage {
 
   getStayStatus(stay: Stay): string {
     if (stay.cancelledAt) {
-      return 'Cancelada';
+      return 'Cancelled';
     }
 
     const now = new Date();
@@ -46,14 +46,14 @@ export class StaysOverviewPage {
     const endAt = new Date(stay.endAt);
 
     if (endAt <= now) {
-      return 'Finalizada';
+      return 'Checked-out';
     }
 
     if (startAt <= now && endAt > now) {
-      return 'En curso';
+      return 'Checked-in';
     }
 
-    return 'Próxima';
+    return 'Reserved';
   }
 
   formatDate(value: string | null): string {
