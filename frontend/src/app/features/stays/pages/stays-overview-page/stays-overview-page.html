@@ -21,6 +21,7 @@
           <th>Start</th>
           <th>End</th>
           <th>Cats</th>
+          <th>Owner</th>
           <th>Notes</th>
         </tr>
       </thead>
@@ -33,11 +34,11 @@
             <td>{{ formatDate(stay.endAt) }}</td>
             <td>
               <span>{{ getCatSummary(stay) }}</span>
-
-              <small class="cat-id-summary">
-                {{ getCatIdsSummary(stay) }}
+              <small class="cat-name-summary">
+                {{ getCatNames(stay) }}
               </small>
             </td>
+            <td>{{ stay.ownerName }}</td>
             <td>{{ stay.notes || '-' }}</td>
           </tr>
         }
