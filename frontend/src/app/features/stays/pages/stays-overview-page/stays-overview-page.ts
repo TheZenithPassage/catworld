@@ -30,7 +30,7 @@ export class StaysOverviewPage {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('No se pudieron cargar las estancias.');
+        this.error.set('Error loading stays');
         this.loading.set(false);
       }
     });
@@ -68,12 +68,12 @@ export class StaysOverviewPage {
   }
 
   getCatSummary(stay: Stay): string {
-    return stay.catIds.length === 1 ? '1 gato' : `${stay.catIds.length} gatos`;
+    return stay.cats.length === 1 ? '1 cat' : `${stay.cats.length} cats`;
   }
 
-  getCatIdsSummary(stay: Stay): string {
-    return stay.catIds
-      .map((catId) => catId.slice(0, 8))
+  getCatNames(stay: Stay): string {
+    return stay.cats
+      .map((cat) => cat.name)
       .join(', ');
   }
 
