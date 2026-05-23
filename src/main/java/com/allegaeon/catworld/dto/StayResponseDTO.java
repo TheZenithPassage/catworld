@@ -21,5 +21,8 @@ public class StayResponseDTO {
     private Instant updatedAt;
     private String notes;
     private Set<UUID> catIds;
+    private UUID ownerId;
+    private String ownerName;
+    private Set<StayCatSummaryDTO> cats;
 
 }
