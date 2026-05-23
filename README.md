@@ -2,13 +2,13 @@
 
 ![Backend CI](https://github.com/TheZenithPassage/catworld/actions/workflows/backend-ci.yml/badge.svg)
 
-CatWorld is a REST API for managing a cat boarding business. It handles owners, cats, reference vets, and stay bookings.
+CatWorld is a full-stack application for managing a cat boarding business. It handles owners, cats, reference vets, and stay bookings.
 
 ## Project Status
 
-CatWorld is currently under active development as a backend portfolio project and as a real tool for a small cat boarding business.
+CatWorld is currently under active development as a portfolio project and as a real tool for a small cat boarding business.
 
-The current focus is the backend API, domain modeling, business rules, database schema management, automated testing, CI and deployment preparation.
+The current focus is the backend API, domain modeling, business rules, database schema management, automated testing, CI, frontend MVP development, and private local deployment preparation.
 
 ## Features
 
@@ -19,29 +19,46 @@ The current focus is the backend API, domain modeling, business rules, database 
 - Stay cancellation flow.
 - Flyway-managed database schema.
 - Backend CI with GitHub Actions.
-- Docker Compose setup for running MySQL and the backend API together.
+- Frontend CI with GitHub Actions.
+- Angular frontend MVP.
+- Docker Compose setup for running MySQL, the backend API and the frontend together.
 
 ## Stack
+
+### Backend
 
 - Java 17 + Spring Boot
 - Spring Web
 - Spring Data JPA
 - MySQL
 - Flyway
-- Docker Compose
 - JUnit 5 + Mockito
+
+### Frontend
+
+- Angular
+- TypeScript
+- SCSS
+- Nginx for serving the production build
+
+### Infrastructure
+
+- Docker Compose
 - GitHub Actions
 
 ## Documentation
 
 - Architecture and modeling notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - PlantUML diagrams: [`docs/uml`](docs/uml)
+- Frontend notes: [`frontend/README.md`](frontend/README.md)
 
 ## Local Development
 
 ### Requirements
 
 - Java 17
+- Node.js
+- npm
 - Docker Desktop or Docker Engine with Docker Compose
 - Maven Wrapper, included as `mvnw` and `mvnw.cmd`
 
@@ -51,7 +68,7 @@ Copy `.env.example` to `.env` if you want to override Docker Compose defaults.
 
 The example values are local-only placeholders. Do not commit real credentials.
 
-### 2. Start the Backend Stack
+### 2. Start the Full Docker Compose Stack
 
 ```bash
 docker compose up --build
@@ -67,20 +84,48 @@ This starts:
 
 - MySQL database
 - CatWorld Spring Boot API
+- CatWorld Angular frontend served by Nginx
 
-The API will be available at:
+The frontend will be available at:
+
+```txt
+http://localhost:4200
+```
+
+The backend API will be available at:
 
 ```txt
 http://localhost:8080
 ```
 
-Useful test endpoints:
+Useful frontend routes:
+
+```txt
+http://localhost:4200
+http://localhost:4200/stays
+```
+
+Useful API endpoints:
 
 ```txt
 http://localhost:8080/api/owners
 http://localhost:8080/api/cats
 http://localhost:8080/api/vets
 http://localhost:8080/api/stays
+```
+
+Inside the Docker Compose stack, the frontend uses `/api` as its API base path. Nginx proxies `/api/**` requests from the frontend container to the Spring Boot backend container.
+
+This allows the browser to call:
+
+```txt
+http://localhost:4200/api/stays
+```
+
+while Nginx forwards the request internally to:
+
+```txt
+http://app:8080/api/stays
 ```
 
 To stop the stack without deleting the local database volume:
@@ -97,7 +142,7 @@ docker compose down -v
 
 Use `-v` only when you intentionally want to reset the local database.
 
-### 3. Run Tests
+### 3. Run Backend Tests
 
 ```bash
 ./mvnw test
@@ -109,7 +154,46 @@ On Windows PowerShell:
 .\mvnw.cmd test
 ```
 
-### 4. Optional: Run the API Locally Outside Docker
+### 4. Run Frontend Locally for Development
+
+For frontend development, use Angular's development server instead of the Docker/Nginx production-like container.
+
+From the repository root:
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+The Angular development server runs at:
+
+```txt
+http://localhost:4200
+```
+
+During local frontend development, the backend API base URL is configured in:
+
+```txt
+frontend/src/environments/environment.development.ts
+```
+
+Expected development API base URL:
+
+```txt
+http://localhost:8080/api
+```
+
+### 5. Build and Test the Frontend
+
+From `frontend/`:
+
+```bash
+npm run build
+npm run test:ci
+```
+
+### 6. Optional: Run the API Locally Outside Docker
 
 If you only want Docker Compose to run MySQL and prefer starting the API from your IDE or Maven, run:
 
@@ -133,6 +217,40 @@ The API starts on the default Spring Boot port:
 
 ```txt
 http://localhost:8080
+```
+
+## Docker Compose Services
+
+The default Docker Compose stack includes:
+
+```txt
+db        MySQL database
+app       Spring Boot backend API
+frontend  Angular production build served through Nginx
+```
+
+The frontend container is built from:
+
+```txt
+frontend/Dockerfile
+```
+
+The frontend Nginx configuration is defined in:
+
+```txt
+frontend/nginx.conf
+```
+
+The frontend service exposes container port `80` through the host port configured by:
+
+```txt
+FRONTEND_PORT
+```
+
+Default frontend port:
+
+```txt
+4200
 ```
 
 ## API Surface
@@ -197,7 +315,7 @@ The project includes automated backend tests focused on:
 - service-level business rules
 - controller HTTP contracts for the critical stay flow
 
-Run the test suite locally:
+Run the backend test suite locally:
 
 ```bash
 ./mvnw test
@@ -209,15 +327,31 @@ On Windows PowerShell:
 .\mvnw.cmd test
 ```
 
-GitHub Actions runs the Maven test suite automatically on:
+Run the frontend validation locally:
+
+```bash
+cd frontend
+npm run build
+npm run test:ci
+```
+
+GitHub Actions runs backend validation automatically on:
 
 - pull requests targeting `main`
 - pushes to `main`
 
-Workflow file:
+Backend workflow file:
 
 ```txt
 .github/workflows/backend-ci.yml
+```
+
+GitHub Actions runs frontend validation automatically on frontend-related pull request changes.
+
+Frontend workflow file:
+
+```txt
+.github/workflows/frontend-ci.yml
 ```
 
 ## Architecture Notes
@@ -229,6 +363,24 @@ controller -> service -> repository -> database
 ```
 
 DTOs and mappers are used to keep HTTP contracts separated from persistence entities.
+
+The frontend is developed as an Angular application under:
+
+```txt
+frontend/
+```
+
+The current full-stack architecture is:
+
+```txt
+Angular frontend -> Spring Boot REST API -> MySQL
+```
+
+In Docker Compose, Nginx serves the Angular production build and proxies API requests to the backend:
+
+```txt
+Browser -> Nginx frontend -> Spring Boot API -> MySQL
+```
 
 The `Stay` status is not stored in the database. It is computed dynamically from:
 
