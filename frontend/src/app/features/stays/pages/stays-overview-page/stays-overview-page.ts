@@ -1,6 +1,6 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { HttpErrorResponse } from '@angular/common/http';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
