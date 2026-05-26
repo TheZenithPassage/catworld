@@ -1,0 +1,94 @@
+<section class="stay-create-page">
+  <header class="page-header">
+    <h2>Create stay</h2>
+    <p>Register a new cat stay in CatWorld.</p>
+  </header>
+
+  @if (loadingData()) {
+    <p>Loading form data...</p>
+  } @else {
+    <form class="stay-form" (ngSubmit)="submit()">
+      @if (error()) {
+        <div class="error-message">
+          <p>{{ error() }}</p>
+        </div>
+      }
+
+      <label>
+        Owner
+        <select
+          #ownerSelect
+          [ngModel]="selectedOwnerId()"
+          name="ownerId"
+          (change)="onOwnerChange(ownerSelect.value)"
+        >
+          <option value="">Select an owner</option>
+
+          @for (owner of owners(); track owner.id) {
+            <option [value]="owner.id">
+              {{ owner.fullName }}
+            </option>
+          }
+        </select>
+      </label>
+
+      @if (selectedOwnerId()) {
+        <fieldset>
+          <legend>Cats</legend>
+
+          @if (filteredCats().length === 0) {
+            <p>No cats found for this owner.</p>
+          } @else {
+            @for (cat of filteredCats(); track cat.id) {
+              <label class="checkbox-field">
+                <input
+                  #catCheckbox
+                  type="checkbox"
+                  [checked]="isCatSelected(cat.id)"
+                  (change)="onCatToggle(cat.id, catCheckbox.checked)"
+                />
+                {{ cat.name }}
+              </label>
+            }
+          }
+        </fieldset>
+      }
+
+      <label>
+        Start date/time
+        <input
+          type="datetime-local"
+          name="startAt"
+          [ngModel]="startAt()"
+          (ngModelChange)="startAt.set($event)"
+        />
+      </label>
+
+      <label>
+        End date/time
+        <input
+          type="datetime-local"
+          name="endAt"
+          [ngModel]="endAt()"
+          (ngModelChange)="endAt.set($event)"
+        />
+      </label>
+
+      <label>
+        Notes
+        <textarea
+          name="notes"
+          rows="4"
+          [ngModel]="notes()"
+          (ngModelChange)="notes.set($event)"
+        ></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Creating...' : 'Create stay' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

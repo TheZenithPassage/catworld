@@ -11,6 +11,20 @@
   margin-top: 0;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.primary-action {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid currentColor;
+  text-decoration: none;
+  width: fit-content;
+}
+
 .error-message {
   display: grid;
   gap: 0.5rem;

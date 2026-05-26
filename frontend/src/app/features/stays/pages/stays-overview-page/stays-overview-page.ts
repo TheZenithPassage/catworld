@@ -2,10 +2,11 @@ import { Component, inject, signal } from '@angular/core';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-stays-overview-page',
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './stays-overview-page.html',
   styleUrl: './stays-overview-page.scss'
 })
