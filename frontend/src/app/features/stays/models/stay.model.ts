@@ -16,3 +16,10 @@ export interface Stay {
   ownerName: string;
   cats: StayCatSummary[];
 }
+
+export interface CreateStayRequest {
+  catIds: string[];
+  startAt: string;
+  endAt: string;
+  notes: string | null;
+}
