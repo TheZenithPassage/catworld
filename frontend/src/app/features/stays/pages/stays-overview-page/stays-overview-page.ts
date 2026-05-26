@@ -1,8 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -16,6 +17,7 @@ export class StaysOverviewPage {
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {
     this.loadStays();
@@ -78,4 +80,68 @@ export class StaysOverviewPage {
       .join(', ');
   }
 
+  canCancelStay(stay: Stay): boolean {
+    const status = this.getStayStatus(stay);
+
+    return status !== 'Cancelled' && status !== 'Checked-out';
+  }
+
+  cancelStay(stay: Stay): void {
+    const confirmed = window.confirm(
+      `Cancel stay for ${this.getCatNames(stay)}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    this.error.set(null);
+    this.cancellingStayId.set(stay.stayId);
+
+    this.stayApiService.cancelStay(stay.stayId).subscribe({
+      next: () => {
+        this.cancellingStayId.set(null);
+        this.loadStays();
+      },
+      error: (error: unknown) => {
+        this.error.set(this.getApiErrorMessage(error, 'Error cancelling stay'));
+        this.cancellingStayId.set(null);
+      }
+    });
+  }
+
+  private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
+    if (!(error instanceof HttpErrorResponse)) {
+      return fallbackMessage;
+    }
+
+    const responseBody: unknown = error.error;
+
+    if (!responseBody) {
+      return fallbackMessage;
+    }
+
+    if (typeof responseBody === 'string') {
+      return responseBody.trim() || fallbackMessage;
+    }
+
+    if (this.isValidationErrorMap(responseBody)) {
+      const messages = Object.entries(responseBody).map(
+        ([field, message]) => `${field}: ${message}`
+      );
+
+      return messages.length > 0 ? messages.join('. ') : fallbackMessage;
+    }
+
+    return fallbackMessage;
+  }
+
+  private isValidationErrorMap(value: unknown): value is Record<string, string> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.values(value).every((message) => typeof message === 'string')
+    );
+  }
 }

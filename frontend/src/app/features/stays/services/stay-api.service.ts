@@ -24,4 +24,7 @@ export class StayApiService {
     return this.http.post<Stay>(this.baseUrl, request);
   }
 
+  cancelStay(id: string): Observable<Stay> {
+    return this.http.patch<Stay>(`${this.baseUrl}/${id}/cancel`, null);
+  }
 }
