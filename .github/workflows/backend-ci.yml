@@ -1,13 +1,15 @@
-name: CI Pipeline
+name: Backend CI
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  build:
+  backend:
+    name: Build and test Spring Boot backend
     runs-on: ubuntu-latest
 
     steps:
