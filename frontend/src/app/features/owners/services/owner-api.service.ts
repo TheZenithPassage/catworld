@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { Owner } from '../models/owner.model';
+import { CreateOwnerRequest, Owner } from '../models/owner.model';
 
 @Injectable({
   providedIn: 'root'
@@ -14,5 +14,9 @@ export class OwnerApiService {
 
   getOwners(): Observable<Owner[]> {
     return this.http.get<Owner[]>(this.baseUrl);
+  }
+
+  createOwner(request: CreateOwnerRequest): Observable<Owner> {
+    return this.http.post<Owner>(this.baseUrl, request);
   }
 }
