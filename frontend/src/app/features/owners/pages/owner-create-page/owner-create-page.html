@@ -1,0 +1,90 @@
+<section class="owner-create-page">
+  <header class="page-header">
+    <h2>Create owner</h2>
+    <p>Register a new owner in CatWorld.</p>
+  </header>
+
+  <form class="owner-form" (ngSubmit)="submit()">
+    @if (error()) {
+      <div class="error-message">
+        <p>{{ error() }}</p>
+      </div>
+    }
+
+    <label>
+      Full name
+      <input
+        type="text"
+        name="fullName"
+        [ngModel]="fullName()"
+        (ngModelChange)="fullName.set($event)"
+      />
+    </label>
+
+    <label>
+      Primary phone
+      <input
+        type="text"
+        name="primaryPhone"
+        [ngModel]="primaryPhone()"
+        (ngModelChange)="primaryPhone.set($event)"
+      />
+    </label>
+
+    <label>
+      Address
+      <input
+        type="text"
+        name="address"
+        [ngModel]="address()"
+        (ngModelChange)="address.set($event)"
+      />
+    </label>
+
+    <label>
+      Secondary phone
+      <input
+        type="text"
+        name="secondaryPhone"
+        [ngModel]="secondaryPhone()"
+        (ngModelChange)="secondaryPhone.set($event)"
+      />
+    </label>
+
+    <label>
+      Secondary phone name
+      <input
+        type="text"
+        name="secondaryPhoneName"
+        [ngModel]="secondaryPhoneName()"
+        (ngModelChange)="secondaryPhoneName.set($event)"
+      />
+    </label>
+
+    <label>
+      Instagram
+      <input
+        type="text"
+        name="instagram"
+        [ngModel]="instagram()"
+        (ngModelChange)="instagram.set($event)"
+      />
+    </label>
+
+    <label>
+      Facebook
+      <input
+        type="text"
+        name="facebook"
+        [ngModel]="facebook()"
+        (ngModelChange)="facebook.set($event)"
+      />
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Creating...' : 'Create owner' }}
+      </button>
+    </div>
+  </form>
+</section>

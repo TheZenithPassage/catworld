@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { Cat } from '../../../cats/models/cat.model';
@@ -13,7 +13,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-stay-create-page',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './stay-create-page.html',
   styleUrl: './stay-create-page.scss'
 })
