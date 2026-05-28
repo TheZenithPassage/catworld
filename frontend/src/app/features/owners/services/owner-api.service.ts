@@ -17,6 +17,6 @@ export class OwnerApiService {
   }
 
   createOwner(request: CreateOwnerRequest): Observable<Owner> {
-  return this.http.post<Owner>(this.baseUrl, request);
-}
+    return this.http.post<Owner>(this.baseUrl, request);
+  }
 }
