@@ -1,0 +1,194 @@
+<section class="cat-create-page">
+  <header class="page-header">
+    <h2>Create cat</h2>
+    <p>Register a new cat in CatWorld.</p>
+  </header>
+
+  @if (loadingData()) {
+    <p>Loading owners...</p>
+  } @else {
+    <form class="cat-form" (ngSubmit)="submit()">
+      @if (error()) {
+        <div class="error-message">
+          <p>{{ error() }}</p>
+        </div>
+      }
+
+      <label>
+        Name
+        <input
+          type="text"
+          name="name"
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
+        />
+      </label>
+
+      <label>
+        Birth date
+        <input
+          type="date"
+          name="birthDate"
+          [ngModel]="birthDate()"
+          (ngModelChange)="birthDate.set($event)"
+        />
+      </label>
+
+      <label>
+        Sex
+        <select
+          name="sex"
+          [ngModel]="sex()"
+          (ngModelChange)="sex.set($event)"
+        >
+          <option value="">Select sex</option>
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+        </select>
+      </label>
+
+      <label>
+        Owner
+        <select
+          name="ownerId"
+          [ngModel]="ownerId()"
+          (ngModelChange)="ownerId.set($event)"
+        >
+          <option value="">Select an owner</option>
+
+          @for (owner of owners(); track owner.id) {
+            <option [value]="owner.id">
+              {{ owner.fullName }}
+            </option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Breed
+        <input
+          type="text"
+          name="breed"
+          [ngModel]="breed()"
+          (ngModelChange)="breed.set($event)"
+        />
+      </label>
+
+      <label>
+        Coat
+        <input
+          type="text"
+          name="coat"
+          [ngModel]="coat()"
+          (ngModelChange)="coat.set($event)"
+        />
+      </label>
+
+      <label>
+        Color
+        <input
+          type="text"
+          name="color"
+          [ngModel]="color()"
+          (ngModelChange)="color.set($event)"
+        />
+      </label>
+
+      <label>
+        Food brand
+        <input
+          type="text"
+          name="foodBrand"
+          [ngModel]="foodBrand()"
+          (ngModelChange)="foodBrand.set($event)"
+        />
+      </label>
+
+      <label>
+        Litter brand
+        <input
+          type="text"
+          name="litterBrand"
+          [ngModel]="litterBrand()"
+          (ngModelChange)="litterBrand.set($event)"
+        />
+      </label>
+
+      <label>
+        Personality
+        <textarea
+          name="personality"
+          rows="4"
+          [ngModel]="personality()"
+          (ngModelChange)="personality.set($event)"
+        ></textarea>
+      </label>
+
+      <label>
+        Last internal dewormer name
+        <input
+          type="text"
+          name="lastInternalDewormerName"
+          [ngModel]="lastInternalDewormerName()"
+          (ngModelChange)="lastInternalDewormerName.set($event)"
+        />
+      </label>
+
+      <label>
+        Last internal deworming date
+        <input
+          type="date"
+          name="lastInternalDewormingDate"
+          [ngModel]="lastInternalDewormingDate()"
+          (ngModelChange)="lastInternalDewormingDate.set($event)"
+        />
+      </label>
+
+      <label>
+        Last external dewormer name
+        <input
+          type="text"
+          name="lastExternalDewormerName"
+          [ngModel]="lastExternalDewormerName()"
+          (ngModelChange)="lastExternalDewormerName.set($event)"
+        />
+      </label>
+
+      <label>
+        Last external deworming date
+        <input
+          type="date"
+          name="lastExternalDewormingDate"
+          [ngModel]="lastExternalDewormingDate()"
+          (ngModelChange)="lastExternalDewormingDate.set($event)"
+        />
+      </label>
+
+      <label>
+        Last triple feline date
+        <input
+          type="date"
+          name="lastTripleFelineDate"
+          [ngModel]="lastTripleFelineDate()"
+          (ngModelChange)="lastTripleFelineDate.set($event)"
+        />
+      </label>
+
+      <label>
+        Last rabies date
+        <input
+          type="date"
+          name="lastRabiesDate"
+          [ngModel]="lastRabiesDate()"
+          (ngModelChange)="lastRabiesDate.set($event)"
+        />
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="submitting()">
+          {{ submitting() ? 'Creating...' : 'Create cat' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>
