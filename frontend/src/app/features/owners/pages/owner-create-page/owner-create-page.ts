@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 
 import { CreateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
@@ -14,6 +14,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
 })
 export class OwnerCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly fullName = signal('');
@@ -55,7 +56,7 @@ export class OwnerCreatePage {
     this.ownerApiService.createOwner(request).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.router.navigate(['/stays/new']);
+        this.router.navigateByUrl(this.getSuccessRedirectPath());
       },
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, 'Error creating owner'));
@@ -68,6 +69,12 @@ export class OwnerCreatePage {
     const trimmedValue = value.trim();
 
     return trimmedValue || null;
+  }
+
+  private getSuccessRedirectPath(): string {
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+
+    return returnTo === '/stays/new' ? '/stays/new' : '/owners';
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
