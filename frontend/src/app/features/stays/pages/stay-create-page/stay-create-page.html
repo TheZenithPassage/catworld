@@ -30,7 +30,12 @@
             </option>
           }
         </select>
-        <a routerLink="/owners/new">Create owner</a>
+        <a
+          routerLink="/owners/new"
+          [queryParams]="{ returnTo: '/stays/new' }"
+        >
+          Create owner
+        </a>
       </label>
 
       @if (selectedOwnerId()) {

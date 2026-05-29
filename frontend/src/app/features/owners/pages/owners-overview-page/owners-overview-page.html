@@ -1,0 +1,52 @@
+<section class="owners-overview-page">
+  <header class="page-header">
+    <div>
+      <h2>Owners</h2>
+      <p>Basic view of the owners registered in CatWorld.</p>
+    </div>
+
+    <a routerLink="/owners/new" class="primary-action">
+      Create owner
+    </a>
+  </header>
+
+  @if (loading()) {
+    <p>Loading owners...</p>
+  } @else if (error()) {
+    <div class="error-message">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="loadOwners()">Retry</button>
+    </div>
+  } @else if (owners().length === 0) {
+    <p>No owners registered.</p>
+  } @else {
+    <table class="owners-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Primary phone</th>
+          <th>Secondary phone</th>
+          <th>Address</th>
+          <th>Social</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (owner of owners(); track owner.id) {
+          <tr>
+            <td>{{ owner.fullName }}</td>
+            <td>{{ owner.primaryPhone }}</td>
+            <td>{{ getSecondaryPhone(owner) }}</td>
+            <td>{{ formatOptionalValue(owner.address) }}</td>
+            <td>
+              <span>Instagram: {{ formatOptionalValue(owner.instagram) }}</span>
+              <small class="secondary-line">
+                Facebook: {{ formatOptionalValue(owner.facebook) }}
+              </small>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
