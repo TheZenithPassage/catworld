@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { Cat } from '../models/cat.model';
+import { Cat, CreateCatRequest } from '../models/cat.model';
 
 @Injectable({
   providedIn: 'root'
@@ -14,5 +14,8 @@ export class CatApiService {
 
   getCats(): Observable<Cat[]> {
     return this.http.get<Cat[]>(this.baseUrl);
+  }
+  createCat(request: CreateCatRequest): Observable<Cat> {
+    return this.http.post<Cat>(this.baseUrl, request);
   }
 }

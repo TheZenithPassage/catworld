@@ -3,6 +3,7 @@ import { DashboardPage } from './features/dashboard/pages/dashboard-page/dashboa
 import { StaysOverviewPage } from './features/stays/pages/stays-overview-page/stays-overview-page';
 import { StayCreatePage } from './features/stays/pages/stay-create-page/stay-create-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
+import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
 
 export const routes: Routes = [
   {
@@ -20,5 +21,9 @@ export const routes: Routes = [
   {
     path: 'owners/new',
     component: OwnerCreatePage
+  },
+  {
+    path: 'cats/new',
+    component: CatCreatePage
   }
 ];
