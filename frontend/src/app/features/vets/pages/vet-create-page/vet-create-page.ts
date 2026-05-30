@@ -68,7 +68,7 @@ export class VetCreatePage {
       return;
     }
 
-    this.router.navigate(['/cats/new']);
+    this.router.navigate(['/vets']);
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
