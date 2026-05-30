@@ -4,6 +4,7 @@ import { StaysOverviewPage } from './features/stays/pages/stays-overview-page/st
 import { StayCreatePage } from './features/stays/pages/stay-create-page/stay-create-page';
 import { OwnersOverviewPage } from './features/owners/pages/owners-overview-page/owners-overview-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
+import { CatsOverviewPage } from './features/cats/pages/cats-overview-page/cats-overview-page';
 import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
 
 export const routes: Routes = [
@@ -26,6 +27,10 @@ export const routes: Routes = [
   {
     path: 'owners/new',
     component: OwnerCreatePage
+  },
+  {
+    path: 'cats',
+    component: CatsOverviewPage
   },
   {
     path: 'cats/new',

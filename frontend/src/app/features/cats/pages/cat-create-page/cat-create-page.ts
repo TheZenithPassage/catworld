@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
@@ -17,6 +17,7 @@ import { CatApiService } from '../../services/cat-api.service';
 export class CatCreatePage {
   private readonly catApiService = inject(CatApiService);
   private readonly ownerApiService = inject(OwnerApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly owners = signal<Owner[]>([]);
@@ -54,6 +55,7 @@ export class CatCreatePage {
     this.ownerApiService.getOwners().subscribe({
       next: (owners) => {
         this.owners.set(owners);
+        this.setInitialOwnerFromQueryParams();
         this.loadingData.set(false);
       },
       error: () => {
@@ -111,7 +113,7 @@ export class CatCreatePage {
     this.catApiService.createCat(request).subscribe({
       next: () => {
         this.submitting.set(false);
-        this.router.navigate(['/stays/new']);
+        this.router.navigateByUrl(this.getSuccessRedirectPath());
       },
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, 'Error creating cat'));
@@ -124,6 +126,26 @@ export class CatCreatePage {
     const trimmedValue = value.trim();
 
     return trimmedValue || null;
+  }
+
+  private getSuccessRedirectPath(): string {
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+
+    return returnTo === '/stays/new' ? '/stays/new' : '/cats';
+  }
+
+  private setInitialOwnerFromQueryParams(): void {
+    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+
+    if (!queryOwnerId) {
+      return;
+    }
+
+    const ownerExists = this.owners().some((owner) => owner.id === queryOwnerId);
+
+    if (ownerExists) {
+      this.ownerId.set(queryOwnerId);
+    }
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

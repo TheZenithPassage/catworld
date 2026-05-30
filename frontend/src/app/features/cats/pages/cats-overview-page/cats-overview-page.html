@@ -1,0 +1,72 @@
+<section class="cats-overview-page">
+  <header class="page-header">
+    <div>
+      <h2>Cats</h2>
+      <p>Basic view of the cats registered in CatWorld.</p>
+    </div>
+
+    <a routerLink="/cats/new" class="primary-action">
+      Create cat
+    </a>
+  </header>
+
+  @if (loading()) {
+    <p>Loading cats...</p>
+  } @else if (error()) {
+    <div class="error-message">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="loadCats()">Retry</button>
+    </div>
+  } @else if (cats().length === 0) {
+    <p>No cats registered.</p>
+  } @else {
+    <table class="cats-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Owner</th>
+          <th>Sex</th>
+          <th>Birth date</th>
+          <th>Appearance</th>
+          <th>Care</th>
+          <th>Health</th>
+          <th>Vet</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        @for (cat of cats(); track cat.id) {
+          <tr>
+            <td>{{ cat.name }}</td>
+            <td>{{ cat.ownerName }}</td>
+            <td>{{ formatSex(cat.sex) }}</td>
+            <td>{{ formatDate(cat.birthDate) }}</td>
+            <td>{{ getAppearance(cat) }}</td>
+            <td>
+              <span>Food: {{ formatOptionalValue(cat.foodBrand) }}</span>
+              <small class="secondary-line">
+                Litter: {{ formatOptionalValue(cat.litterBrand) }}
+              </small>
+              <small class="secondary-line">
+                Personality: {{ formatOptionalValue(cat.personality) }}
+              </small>
+            </td>
+            <td>
+              <span>Triple feline: {{ formatDate(cat.lastTripleFelineDate) }}</span>
+              <small class="secondary-line">
+                Rabies: {{ formatDate(cat.lastRabiesDate) }}
+              </small>
+              <small class="secondary-line">
+                Internal deworming: {{ formatDate(cat.lastInternalDewormingDate) }}
+              </small>
+              <small class="secondary-line">
+                External deworming: {{ formatDate(cat.lastExternalDewormingDate) }}
+              </small>
+            </td>
+            <td>{{ formatOptionalValue(cat.vetName) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
