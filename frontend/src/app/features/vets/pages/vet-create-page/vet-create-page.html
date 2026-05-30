@@ -1,0 +1,50 @@
+<section class="vet-create-page">
+  <header class="page-header">
+    <h2>Create vet</h2>
+    <p>Register a new vet in CatWorld.</p>
+  </header>
+
+  <form class="vet-form" (ngSubmit)="submit()">
+    @if (error()) {
+      <div class="error-message">
+        <p>{{ error() }}</p>
+      </div>
+    }
+
+    <label>
+      Name
+      <input
+        type="text"
+        name="name"
+        [ngModel]="name()"
+        (ngModelChange)="name.set($event)"
+      />
+    </label>
+
+    <label>
+      Address
+      <input
+        type="text"
+        name="address"
+        [ngModel]="address()"
+        (ngModelChange)="address.set($event)"
+      />
+    </label>
+
+    <label>
+      Phone number
+      <input
+        type="text"
+        name="phoneNumber"
+        [ngModel]="phoneNumber()"
+        (ngModelChange)="phoneNumber.set($event)"
+      />
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Creating...' : 'Create vet' }}
+      </button>
+    </div>
+  </form>
+</section>
