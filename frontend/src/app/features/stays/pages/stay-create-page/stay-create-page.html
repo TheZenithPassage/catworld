@@ -58,7 +58,12 @@
             }
           }
         </fieldset>
-        <a routerLink="/cats/new">Create cat</a>
+        <a
+          routerLink="/cats/new"
+          [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
+        >
+          Create cat
+        </a>
       }
 
       <label>
