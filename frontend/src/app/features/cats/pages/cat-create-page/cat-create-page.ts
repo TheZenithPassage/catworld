@@ -1,31 +1,37 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { CreateCatRequest, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { Vet } from '../../../vets/models/vet.model';
+import { VetApiService } from '../../../vets/services/vet-api.service';
 
 @Component({
   selector: 'app-cat-create-page',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss'
 })
 export class CatCreatePage {
   private readonly catApiService = inject(CatApiService);
   private readonly ownerApiService = inject(OwnerApiService);
+  private readonly vetApiService = inject(VetApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly owners = signal<Owner[]>([]);
+  readonly vets = signal<Vet[]>([]);
 
   readonly name = signal('');
   readonly birthDate = signal('');
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
+  readonly vetId = signal('');
 
   readonly breed = signal('');
   readonly coat = signal('');
@@ -45,21 +51,26 @@ export class CatCreatePage {
   readonly error = signal<string | null>(null);
 
   constructor() {
-    this.loadOwners();
+    this.loadData();
   }
 
-  loadOwners(): void {
+  loadData(): void {
     this.loadingData.set(true);
     this.error.set(null);
 
-    this.ownerApiService.getOwners().subscribe({
-      next: (owners) => {
+    forkJoin({
+      owners: this.ownerApiService.getOwners(),
+      vets: this.vetApiService.getVets()
+    }).subscribe({
+      next: ({ owners, vets }) => {
         this.owners.set(owners);
+        this.vets.set(vets);
         this.setInitialOwnerFromQueryParams();
+        this.setInitialVetFromQueryParams();
         this.loadingData.set(false);
       },
       error: () => {
-        this.error.set('Error loading owners');
+        this.error.set('Error loading form data');
         this.loadingData.set(false);
       }
     });
@@ -105,7 +116,7 @@ export class CatCreatePage {
       lastTripleFelineDate: this.toNullableString(this.lastTripleFelineDate()),
       lastRabiesDate: this.toNullableString(this.lastRabiesDate()),
       ownerId: this.ownerId(),
-      vetId: null
+      vetId: this.toNullableString(this.vetId())
     };
 
     this.submitting.set(true);
@@ -145,6 +156,20 @@ export class CatCreatePage {
 
     if (ownerExists) {
       this.ownerId.set(queryOwnerId);
+    }
+  }
+
+  private setInitialVetFromQueryParams(): void {
+    const queryVetId = this.route.snapshot.queryParamMap.get('vetId');
+
+    if (!queryVetId) {
+      return;
+    }
+
+    const vetExists = this.vets().some((vet) => vet.id === queryVetId);
+
+    if (vetExists) {
+      this.vetId.set(queryVetId);
     }
   }
 

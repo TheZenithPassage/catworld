@@ -65,6 +65,29 @@
       </label>
 
       <label>
+        Vet
+        <select
+          name="vetId"
+          [ngModel]="vetId()"
+          (ngModelChange)="vetId.set($event)"
+        >
+          <option value="">No vet</option>
+
+          @for (vet of vets(); track vet.id) {
+            <option [value]="vet.id">
+              {{ vet.name }}
+            </option>
+          }
+        </select>
+        <a
+          routerLink="/vets/new"
+          [queryParams]="{ returnTo: '/cats/new' }"
+        >
+          Create vet
+        </a>
+      </label>
+
+      <label>
         Breed
         <input
           type="text"
