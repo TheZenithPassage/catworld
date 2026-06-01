@@ -54,9 +54,9 @@ export class OwnerCreatePage {
     this.submitting.set(true);
 
     this.ownerApiService.createOwner(request).subscribe({
-      next: () => {
+      next: (owner) => {
         this.submitting.set(false);
-        this.router.navigateByUrl(this.getSuccessRedirectPath());
+        this.navigateAfterSuccess(owner.id);
       },
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, 'Error creating owner'));
@@ -71,10 +71,17 @@ export class OwnerCreatePage {
     return trimmedValue || null;
   }
 
-  private getSuccessRedirectPath(): string {
+  private navigateAfterSuccess(ownerId: string): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
-    return returnTo === '/stays/new' ? '/stays/new' : '/owners';
+    if (returnTo === '/stays/new') {
+      this.router.navigate(['/stays/new'], {
+        queryParams: { ownerId }
+      });
+      return;
+    }
+
+    this.router.navigate(['/owners']);
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

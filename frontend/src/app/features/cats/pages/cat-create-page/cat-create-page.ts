@@ -122,9 +122,9 @@ export class CatCreatePage {
     this.submitting.set(true);
 
     this.catApiService.createCat(request).subscribe({
-      next: () => {
+      next: (cat) => {
         this.submitting.set(false);
-        this.router.navigateByUrl(this.getSuccessRedirectPath());
+        this.navigateAfterSuccess(cat.id, cat.ownerId);
       },
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, 'Error creating cat'));
@@ -133,16 +133,42 @@ export class CatCreatePage {
     });
   }
 
+  getCreateVetQueryParams(): Record<string, string> {
+    const queryParams: Record<string, string> = {
+      returnTo: '/cats/new'
+    };
+
+    const currentOwnerId = this.ownerId() || this.route.snapshot.queryParamMap.get('ownerId');
+    const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
+
+    if (currentOwnerId) {
+      queryParams['ownerId'] = currentOwnerId;
+    }
+
+    if (currentReturnTo === '/stays/new') {
+      queryParams['catReturnTo'] = currentReturnTo;
+    }
+
+    return queryParams;
+  }
+
   private toNullableString(value: string): string | null {
     const trimmedValue = value.trim();
 
     return trimmedValue || null;
   }
 
-  private getSuccessRedirectPath(): string {
+  private navigateAfterSuccess(catId: string, ownerId: string): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
-    return returnTo === '/stays/new' ? '/stays/new' : '/cats';
+    if (returnTo === '/stays/new') {
+      this.router.navigate(['/stays/new'], {
+        queryParams: { ownerId, catId }
+      });
+      return;
+    }
+
+    this.router.navigate(['/cats']);
   }
 
   private setInitialOwnerFromQueryParams(): void {

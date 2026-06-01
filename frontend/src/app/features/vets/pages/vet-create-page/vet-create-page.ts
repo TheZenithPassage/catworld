@@ -62,9 +62,20 @@ export class VetCreatePage {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (returnTo === '/cats/new') {
-      this.router.navigate(['/cats/new'], {
-        queryParams: { vetId }
-      });
+      const queryParams: Record<string, string> = { vetId };
+
+      const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
+      const catReturnTo = this.route.snapshot.queryParamMap.get('catReturnTo');
+
+      if (ownerId) {
+        queryParams['ownerId'] = ownerId;
+      }
+
+      if (catReturnTo === '/stays/new') {
+        queryParams['returnTo'] = catReturnTo;
+      }
+
+      this.router.navigate(['/cats/new'], { queryParams });
       return;
     }
 
