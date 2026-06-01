@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { Cat } from '../../../cats/models/cat.model';
@@ -21,6 +21,7 @@ export class StayCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
   private readonly catApiService = inject(CatApiService);
   private readonly stayApiService = inject(StayApiService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   readonly owners = signal<Owner[]>([]);
@@ -56,6 +57,7 @@ export class StayCreatePage {
       next: ({ owners, cats }) => {
         this.owners.set(owners);
         this.cats.set(cats);
+        this.setInitialSelectionFromQueryParams();
         this.loadingData.set(false);
       },
       error: () => {
@@ -122,6 +124,35 @@ export class StayCreatePage {
         this.submitting.set(false);
       }
     });
+  }
+
+  private setInitialSelectionFromQueryParams(): void {
+    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+    const queryCatId = this.route.snapshot.queryParamMap.get('catId');
+
+    if (!queryOwnerId) {
+      return;
+    }
+
+    const ownerExists = this.owners().some((owner) => owner.id === queryOwnerId);
+
+    if (!ownerExists) {
+      return;
+    }
+
+    this.selectedOwnerId.set(queryOwnerId);
+
+    if (!queryCatId) {
+      return;
+    }
+
+    const catExistsForOwner = this.cats().some(
+      (cat) => cat.id === queryCatId && cat.ownerId === queryOwnerId
+    );
+
+    if (catExistsForOwner) {
+      this.selectedCatIds.set([queryCatId]);
+    }
   }
 
   private getCreateStayErrorMessage(error: unknown): string {

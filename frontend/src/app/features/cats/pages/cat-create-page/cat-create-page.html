@@ -81,7 +81,7 @@
         </select>
         <a
           routerLink="/vets/new"
-          [queryParams]="{ returnTo: '/cats/new' }"
+          [queryParams]="getCreateVetQueryParams()"
         >
           Create vet
         </a>
