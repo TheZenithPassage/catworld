@@ -64,11 +64,13 @@ The current focus is the backend API, domain modeling, business rules, database 
 
 ### 1. Configure Local Environment
 
-Copy `.env.example` to `.env` if you want to override Docker Compose defaults.
+Copy `.env.example` to `.env` for local development overrides.
 
-The example values are local-only placeholders. Do not commit real credentials.
+For private/local production, copy `.env.production.example` to `.env.production`.
 
-### 2. Start the Full Docker Compose Stack
+The example files are committed as templates. Real `.env` and `.env.production` files must not be committed.
+
+### 2. Start the Full Docker Compose Stack for Development
 
 ```bash
 docker compose up --build
@@ -103,6 +105,13 @@ Useful frontend routes:
 ```txt
 http://localhost:4200
 http://localhost:4200/stays
+http://localhost:4200/stays/new
+http://localhost:4200/owners
+http://localhost:4200/owners/new
+http://localhost:4200/cats
+http://localhost:4200/cats/new
+http://localhost:4200/vets
+http://localhost:4200/vets/new
 ```
 
 Useful API endpoints:
@@ -142,7 +151,63 @@ docker compose down -v
 
 Use `-v` only when you intentionally want to reset the local database.
 
-### 3. Run Backend Tests
+### 3. Start the Private Local Production Stack
+
+Create a production env file from the example:
+
+```bash
+cp .env.production.example .env.production
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item .env.production.example .env.production
+```
+
+Edit `.env.production` and replace the placeholder passwords before starting the stack.
+
+Start the production-oriented stack:
+
+```bash
+docker compose --env-file .env.production -f compose.prod.yml up --build -d
+```
+
+On Windows PowerShell:
+
+```powershell
+docker compose --env-file .env.production -f compose.prod.yml up --build -d
+```
+
+This starts:
+
+- MySQL with persisted data
+- CatWorld Spring Boot API inside the Docker Compose network
+- CatWorld Angular frontend served by Nginx
+
+Only the frontend is exposed to the host machine:
+
+```txt
+http://localhost:4200
+```
+
+In this setup, the backend and database are not exposed directly. Browser API requests go through the frontend `/api` proxy.
+
+To check the running containers:
+
+```bash
+docker compose --env-file .env.production -f compose.prod.yml ps
+```
+
+To stop the stack without deleting the database volume:
+
+```bash
+docker compose --env-file .env.production -f compose.prod.yml down
+```
+
+Do not use `-v` unless you intentionally want to delete the local production database volume.
+
+### 4. Run Backend Tests
 
 ```bash
 ./mvnw test
@@ -154,7 +219,7 @@ On Windows PowerShell:
 .\mvnw.cmd test
 ```
 
-### 4. Run Frontend Locally for Development
+### 5. Run Frontend Locally for Development
 
 For frontend development, use Angular's development server instead of the Docker/Nginx production-like container.
 
@@ -184,7 +249,7 @@ Expected development API base URL:
 http://localhost:8080/api
 ```
 
-### 5. Build and Test the Frontend
+### 6. Build and Test the Frontend
 
 From `frontend/`:
 
@@ -193,7 +258,7 @@ npm run build
 npm run test:ci
 ```
 
-### 6. Optional: Run the API Locally Outside Docker
+### 7. Optional: Run the API Locally Outside Docker
 
 If you only want Docker Compose to run MySQL and prefer starting the API from your IDE or Maven, run:
 
