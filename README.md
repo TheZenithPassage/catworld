@@ -51,6 +51,7 @@ The current focus is the backend API, domain modeling, business rules, database 
 - Architecture and modeling notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - PlantUML diagrams: [`docs/uml`](docs/uml)
 - Frontend notes: [`frontend/README.md`](frontend/README.md)
+- Operations notes: [`docs/OPERATIONS.md`](docs/OPERATIONS.md)
 
 ## Local Development
 
