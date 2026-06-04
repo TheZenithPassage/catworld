@@ -1,0 +1,100 @@
+<section class="owner-edit-page">
+  <header class="page-header">
+    <div>
+      <h2>Edit owner</h2>
+      <p>Update owner contact information.</p>
+    </div>
+
+    <a routerLink="/owners">Back to owners</a>
+  </header>
+
+  @if (loading()) {
+    <p>Loading owner...</p>
+  } @else {
+    @if (error()) {
+      <div class="error-message">
+        <p>{{ error() }}</p>
+      </div>
+    }
+
+    @if (ownerLoaded()) {
+      <form class="owner-form" (ngSubmit)="submit()">
+        <label>
+          Full name
+          <input
+            type="text"
+            name="fullName"
+            [ngModel]="fullName()"
+            (ngModelChange)="fullName.set($event)"
+          />
+        </label>
+
+        <label>
+          Primary phone
+          <input
+            type="text"
+            name="primaryPhone"
+            [ngModel]="primaryPhone()"
+            (ngModelChange)="primaryPhone.set($event)"
+          />
+        </label>
+
+        <label>
+          Address
+          <input
+            type="text"
+            name="address"
+            [ngModel]="address()"
+            (ngModelChange)="address.set($event)"
+          />
+        </label>
+
+        <label>
+          Secondary phone
+          <input
+            type="text"
+            name="secondaryPhone"
+            [ngModel]="secondaryPhone()"
+            (ngModelChange)="secondaryPhone.set($event)"
+          />
+        </label>
+
+        <label>
+          Secondary phone name
+          <input
+            type="text"
+            name="secondaryPhoneName"
+            [ngModel]="secondaryPhoneName()"
+            (ngModelChange)="secondaryPhoneName.set($event)"
+          />
+        </label>
+
+        <label>
+          Instagram
+          <input
+            type="text"
+            name="instagram"
+            [ngModel]="instagram()"
+            (ngModelChange)="instagram.set($event)"
+          />
+        </label>
+
+        <label>
+          Facebook
+          <input
+            type="text"
+            name="facebook"
+            [ngModel]="facebook()"
+            (ngModelChange)="facebook.set($event)"
+          />
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="submitting()">
+            {{ submitting() ? 'Saving...' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    }
+  }
+</section>

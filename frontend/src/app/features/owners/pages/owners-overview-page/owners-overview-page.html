@@ -28,6 +28,7 @@
           <th>Secondary phone</th>
           <th>Address</th>
           <th>Social</th>
+          <th>Actions</th>
         </tr>
       </thead>
 
@@ -43,6 +44,9 @@
               <small class="secondary-line">
                 Facebook: {{ formatOptionalValue(owner.facebook) }}
               </small>
+            </td>
+            <td>
+              <a [routerLink]="['/owners', owner.id, 'edit']">Edit</a>
             </td>
           </tr>
         }
