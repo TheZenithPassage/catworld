@@ -10,3 +10,5 @@ export interface CreateVetRequest {
   address: string | null;
   phoneNumber: string | null;
 }
+
+export type UpdateVetRequest = CreateVetRequest;

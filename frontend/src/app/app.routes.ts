@@ -10,6 +10,7 @@ import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-
 import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
 import { VetsOverviewPage } from './features/vets/pages/vets-overview-page/vets-overview-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
+import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 
 export const routes: Routes = [
   {
@@ -55,5 +56,9 @@ export const routes: Routes = [
   {
     path: 'vets/new',
     component: VetCreatePage
+  },
+  {
+    path: 'vets/:id/edit',
+    component: VetEditPage
   }
 ];
