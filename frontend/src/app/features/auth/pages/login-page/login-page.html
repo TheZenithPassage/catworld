@@ -1,0 +1,42 @@
+<section class="login-page">
+  <header class="page-header">
+    <h2>Login</h2>
+    <p>Enter your CatWorld credentials to continue.</p>
+  </header>
+
+  @if (error()) {
+    <div class="error-message">
+      <p>{{ error() }}</p>
+    </div>
+  }
+
+  <form class="login-form" (ngSubmit)="submit()">
+    <label>
+      Username
+      <input
+        type="text"
+        name="username"
+        autocomplete="username"
+        [ngModel]="username()"
+        (ngModelChange)="username.set($event)"
+      />
+    </label>
+
+    <label>
+      Password
+      <input
+        type="password"
+        name="password"
+        autocomplete="current-password"
+        [ngModel]="password()"
+        (ngModelChange)="password.set($event)"
+      />
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Logging in...' : 'Log in' }}
+      </button>
+    </div>
+  </form>
+</section>
