@@ -31,6 +31,7 @@
           <th>Care</th>
           <th>Health</th>
           <th>Vet</th>
+          <th>Actions</th>
         </tr>
       </thead>
 
@@ -64,6 +65,9 @@
               </small>
             </td>
             <td>{{ formatOptionalValue(cat.vetName) }}</td>
+            <td>
+              <a [routerLink]="['/cats', cat.id, 'edit']">Edit</a>
+            </td>
           </tr>
         }
       </tbody>

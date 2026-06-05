@@ -42,3 +42,5 @@ export interface CreateCatRequest {
   ownerId: string;
   vetId: string | null;
 }
+
+export type UpdateCatRequest = CreateCatRequest;
