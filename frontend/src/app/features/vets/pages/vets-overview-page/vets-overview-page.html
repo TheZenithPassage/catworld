@@ -26,6 +26,7 @@
           <th>Name</th>
           <th>Phone number</th>
           <th>Address</th>
+          <th>Actions</th>
         </tr>
       </thead>
 
@@ -35,6 +36,9 @@
             <td>{{ vet.name }}</td>
             <td>{{ formatOptionalValue(vet.phoneNumber) }}</td>
             <td>{{ formatOptionalValue(vet.address) }}</td>
+            <td>
+              <a [routerLink]="['/vets', vet.id, 'edit']">Edit</a>
+            </td>
           </tr>
         }
       </tbody>

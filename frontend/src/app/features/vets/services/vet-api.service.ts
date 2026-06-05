@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateVetRequest, Vet } from '../models/vet.model';
+import { CreateVetRequest, UpdateVetRequest, Vet } from '../models/vet.model';
 
 @Injectable({
   providedIn: 'root'
@@ -16,7 +16,15 @@ export class VetApiService {
     return this.http.get<Vet[]>(this.baseUrl);
   }
 
+  getVetById(vetId: string): Observable<Vet> {
+    return this.http.get<Vet>(`${this.baseUrl}/${vetId}`);
+  }
+
   createVet(request: CreateVetRequest): Observable<Vet> {
     return this.http.post<Vet>(this.baseUrl, request);
+  }
+
+  updateVet(vetId: string, request: UpdateVetRequest): Observable<Vet> {
+    return this.http.put<Vet>(`${this.baseUrl}/${vetId}`, request);
   }
 }
