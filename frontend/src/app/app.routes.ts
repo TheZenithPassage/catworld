@@ -4,6 +4,7 @@ import { StaysOverviewPage } from './features/stays/pages/stays-overview-page/st
 import { StayCreatePage } from './features/stays/pages/stay-create-page/stay-create-page';
 import { OwnersOverviewPage } from './features/owners/pages/owners-overview-page/owners-overview-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
+import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
 import { CatsOverviewPage } from './features/cats/pages/cats-overview-page/cats-overview-page';
 import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
 import { VetsOverviewPage } from './features/vets/pages/vets-overview-page/vets-overview-page';
@@ -29,6 +30,10 @@ export const routes: Routes = [
   {
     path: 'owners/new',
     component: OwnerCreatePage
+  },
+  {
+    path: 'owners/:id/edit',
+    component: OwnerEditPage
   },
   {
     path: 'cats',

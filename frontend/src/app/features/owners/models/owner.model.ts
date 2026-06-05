@@ -18,3 +18,5 @@ export interface CreateOwnerRequest {
   instagram: string | null;
   facebook: string | null;
 }
+
+export type UpdateOwnerRequest = CreateOwnerRequest;
