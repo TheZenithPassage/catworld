@@ -2,6 +2,46 @@
 
 This document covers simple local/private operational procedures for CatWorld.
 
+## Private MVP Authentication
+
+The private production stack requires one configured login user.
+
+Set these values in `.env.production` before starting the stack:
+
+- `CATWORLD_SECURITY_USERNAME`: login username. Example: `admin`
+- `CATWORLD_SECURITY_PASSWORD`: login password. Example: `replace_with_a_strong_admin_password`
+- `CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS`: frontend origin allowed to call the API. Example: `http://localhost:4200`
+
+Default local setup:
+
+```env
+CATWORLD_SECURITY_USERNAME=admin
+CATWORLD_SECURITY_PASSWORD=replace_with_a_strong_admin_password
+CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:4200
+```
+
+If the frontend is exposed on another host or port, update `CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS` to match the browser URL used to open CatWorld.
+
+Start the private production stack with:
+
+```bash
+docker compose --env-file .env.production -f compose.prod.yml up --build -d
+```
+
+On Windows PowerShell:
+
+```powershell
+docker compose --env-file .env.production -f compose.prod.yml up --build -d
+```
+
+Then open:
+
+```txt
+http://localhost:4200
+```
+
+and log in with the configured username and password.
+
 ## Database Backups
 
 Backups are stored locally under:

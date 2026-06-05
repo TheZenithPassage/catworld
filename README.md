@@ -166,7 +166,21 @@ On Windows PowerShell:
 Copy-Item .env.production.example .env.production
 ```
 
-Edit `.env.production` and replace the placeholder passwords before starting the stack.
+Edit `.env.production` and set the database and login values before starting the stack.
+
+Required auth values:
+
+```txt
+CATWORLD_SECURITY_USERNAME
+CATWORLD_SECURITY_PASSWORD
+CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS
+```
+
+For the default local setup, keep:
+
+```txt
+CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:4200
+```
 
 Start the production-oriented stack:
 
@@ -191,6 +205,8 @@ Only the frontend is exposed to the host machine:
 ```txt
 http://localhost:4200
 ```
+
+Log in with the username and password configured in `.env.production`.
 
 In this setup, the backend and database are not exposed directly. Browser API requests go through the frontend `/api` proxy.
 
