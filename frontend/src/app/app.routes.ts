@@ -7,6 +7,7 @@ import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner
 import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
 import { CatsOverviewPage } from './features/cats/pages/cats-overview-page/cats-overview-page';
 import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
+import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
 import { VetsOverviewPage } from './features/vets/pages/vets-overview-page/vets-overview-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
 
@@ -42,13 +43,17 @@ export const routes: Routes = [
   {
     path: 'cats/new',
     component: CatCreatePage
-    },
-    {
-      path: 'vets',
-      component: VetsOverviewPage
-    },
-    {
-      path: 'vets/new',
-      component: VetCreatePage
-    }
+  },
+  {
+    path: 'cats/:id/edit',
+    component: CatEditPage
+  },
+  {
+    path: 'vets',
+    component: VetsOverviewPage
+  },
+  {
+    path: 'vets/new',
+    component: VetCreatePage
+  }
 ];
