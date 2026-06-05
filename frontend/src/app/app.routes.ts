@@ -11,54 +11,72 @@ import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
 import { VetsOverviewPage } from './features/vets/pages/vets-overview-page/vets-overview-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
+import { LoginPage } from './features/auth/pages/login-page/login-page';
+import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'login',
+    component: LoginPage
+  },
+  {
     path: '',
+    canActivate: [authGuard],
     component: DashboardPage
   },
   {
     path: 'stays',
+    canActivate: [authGuard],
     component: StaysOverviewPage
   },
   {
     path: 'stays/new',
+    canActivate: [authGuard],
     component: StayCreatePage
   },
   {
     path: 'owners',
+    canActivate: [authGuard],
     component: OwnersOverviewPage
   },
   {
     path: 'owners/new',
+    canActivate: [authGuard],
     component: OwnerCreatePage
   },
   {
     path: 'owners/:id/edit',
+    canActivate: [authGuard],
     component: OwnerEditPage
   },
   {
     path: 'cats',
+    canActivate: [authGuard],
     component: CatsOverviewPage
   },
   {
     path: 'cats/new',
+    canActivate: [authGuard],
     component: CatCreatePage
   },
   {
     path: 'cats/:id/edit',
+    canActivate: [authGuard],
     component: CatEditPage
   },
   {
     path: 'vets',
+    canActivate: [authGuard],
     component: VetsOverviewPage
   },
   {
     path: 'vets/new',
+    canActivate: [authGuard],
     component: VetCreatePage
   },
   {
     path: 'vets/:id/edit',
+    canActivate: [authGuard],
     component: VetEditPage
   }
 ];

@@ -1,12 +1,21 @@
 <header class="app-header">
-  <h1>CatWorld</h1>
-  <nav>
-    <a routerLink="/">Dashboard</a>
-    <a routerLink="/stays">Stays</a>
-    <a routerLink="/cats">Cats</a>
-    <a routerLink="/owners">Owners</a>
-    <a routerLink="/vets">Vets</a>
-  </nav>
+  <h1>
+    <a routerLink="/">CatWorld</a>
+  </h1>
+
+  @if (authenticated()) {
+    <nav>
+      <a routerLink="/">Dashboard</a>
+      <a routerLink="/stays">Stays</a>
+      <a routerLink="/cats">Cats</a>
+      <a routerLink="/owners">Owners</a>
+      <a routerLink="/vets">Vets</a>
+    </nav>
+
+    <button type="button" class="logout-button" (click)="logout()">
+      Log out
+    </button>
+  }
 </header>
 
 <main class="app-main">
