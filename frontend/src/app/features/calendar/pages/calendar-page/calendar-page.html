@@ -1,0 +1,32 @@
+<section class="calendar-page">
+  <header class="page-header">
+    <div>
+      <h2>Calendar</h2>
+      <p>Monthly view of registered stays.</p>
+    </div>
+
+    <a routerLink="/stays/new" class="primary-action">
+      Create stay
+    </a>
+  </header>
+
+  @if (loading()) {
+    <p>Loading calendar...</p>
+  } @else if (error()) {
+    <div class="error-message">
+      <p>{{ error() }}</p>
+      <button type="button" (click)="loadStays()">Retry</button>
+    </div>
+  } @else {
+    @if (stays().length === 0) {
+      <p>No stays registered.</p>
+    }
+
+    <div class="calendar-wrapper">
+      <full-calendar
+        [options]="calendarOptions"
+        [events]="calendarEvents()"
+      ></full-calendar>
+    </div>
+  }
+</section>
