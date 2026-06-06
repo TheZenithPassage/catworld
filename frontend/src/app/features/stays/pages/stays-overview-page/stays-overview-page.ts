@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -40,23 +41,7 @@ export class StaysOverviewPage {
   }
 
   getStayStatus(stay: Stay): string {
-    if (stay.cancelledAt) {
-      return 'Cancelled';
-    }
-
-    const now = new Date();
-    const startAt = new Date(stay.startAt);
-    const endAt = new Date(stay.endAt);
-
-    if (endAt <= now) {
-      return 'Checked-out';
-    }
-
-    if (startAt <= now && endAt > now) {
-      return 'Checked-in';
-    }
-
-    return 'Reserved';
+    return getStayStatusLabel(getStayStatus(stay));
   }
 
   formatDate(value: string | null): string {
