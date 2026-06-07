@@ -74,6 +74,24 @@ export class OwnerCreatePage {
   private navigateAfterSuccess(ownerId: string): void {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
+    if (returnTo === '/cats/new') {
+      const queryParams: Record<string, string> = { ownerId };
+
+      const vetId = this.route.snapshot.queryParamMap.get('vetId');
+      const catReturnTo = this.route.snapshot.queryParamMap.get('catReturnTo');
+
+      if (vetId) {
+        queryParams['vetId'] = vetId;
+      }
+
+      if (catReturnTo === '/stays/new') {
+        queryParams['returnTo'] = catReturnTo;
+      }
+
+      this.router.navigate(['/cats/new'], { queryParams });
+      return;
+    }
+
     if (returnTo === '/stays/new') {
       this.router.navigate(['/stays/new'], {
         queryParams: { ownerId }

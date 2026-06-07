@@ -152,6 +152,25 @@ export class CatCreatePage {
     return queryParams;
   }
 
+  getCreateOwnerQueryParams(): Record<string, string> {
+    const queryParams: Record<string, string> = {
+      returnTo: '/cats/new'
+    };
+
+    const currentVetId = this.vetId() || this.route.snapshot.queryParamMap.get('vetId');
+    const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
+
+    if (currentVetId) {
+      queryParams['vetId'] = currentVetId;
+    }
+
+    if (currentReturnTo === '/stays/new') {
+      queryParams['catReturnTo'] = currentReturnTo;
+    }
+
+    return queryParams;
+  }
+
   private toNullableString(value: string): string | null {
     const trimmedValue = value.trim();
 
