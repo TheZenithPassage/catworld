@@ -33,7 +33,10 @@
 
       <tbody>
         @for (stay of stays(); track stay.stayId) {
-          <tr>
+          <tr
+            [id]="'stay-' + stay.stayId"
+            [class.selected-row]="isSelectedStay(stay)"
+          >
             <td>{{ getStayStatus(stay) }}</td>
             <td>{{ formatDate(stay.startAt) }}</td>
             <td>{{ formatDate(stay.endAt) }}</td>
@@ -44,7 +47,7 @@
               </small>
             </td>
             <td>{{ stay.ownerName }}</td>
-            <td>{{ stay.notes || '-' }}</td>
+            <td class="notes-cell">{{ stay.notes || '-' }}</td>
             <td>
               @if (canCancelStay(stay)) {
                 <button
@@ -55,7 +58,9 @@
                   {{ cancellingStayId() === stay.stayId ? 'Cancelling...' : 'Cancel' }}
                 </button>
               } @else {
-                <span>-</span>
+                <span class="action-unavailable">
+                  {{ getUnavailableActionLabel(stay) }}
+                </span>
               }
             </td>
           </tr>

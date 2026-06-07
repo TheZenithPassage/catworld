@@ -5,9 +5,15 @@
       <p>Monthly view of registered stays.</p>
     </div>
 
-    <a routerLink="/stays/new" class="primary-action">
-      Create stay
-    </a>
+    <div class="header-actions">
+      <a routerLink="/stays" class="secondary-action">
+        View stays
+      </a>
+
+      <a routerLink="/stays/new" class="primary-action">
+        Create stay
+      </a>
+    </div>
   </header>
 
   @if (loading()) {
@@ -20,13 +26,17 @@
   } @else {
     @if (stays().length === 0) {
       <p>No stays registered.</p>
-    }
+    } @else {
+      <p class="calendar-help">
+        Select a calendar entry to open it in the stays list.
+      </p>
 
-    <div class="calendar-wrapper">
-      <full-calendar
-        [options]="calendarOptions"
-        [events]="calendarEvents()"
-      ></full-calendar>
-    </div>
+      <div class="calendar-wrapper">
+        <full-calendar
+          [options]="calendarOptions"
+          [events]="calendarEvents()"
+        ></full-calendar>
+      </div>
+    }
   }
 </section>

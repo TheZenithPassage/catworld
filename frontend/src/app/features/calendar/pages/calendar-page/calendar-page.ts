@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventInput } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -20,6 +20,7 @@ import {
 })
 export class CalendarPage {
   private readonly stayApiService = inject(StayApiService);
+  private readonly router = inject(Router);
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
@@ -41,6 +42,15 @@ export class CalendarPage {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
+    },
+    eventClick: ({ event }) => {
+      void this.router.navigate(['/stays'], {
+        queryParams: { selectedStayId: event.id }
+      });
+    },
+    eventDidMount: ({ el }) => {
+      el.title = 'Open stay in list';
+      el.style.cursor = 'pointer';
     }
   };
 

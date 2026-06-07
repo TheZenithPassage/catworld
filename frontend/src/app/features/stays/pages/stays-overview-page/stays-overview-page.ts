@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
-import { getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
+import { canCancelStay, getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -14,6 +15,10 @@ import { getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util'
 })
 export class StaysOverviewPage {
   private readonly stayApiService = inject(StayApiService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly selectedStayId = signal<string | null>(null);
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
@@ -21,6 +26,12 @@ export class StaysOverviewPage {
   readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((params) => {
+        this.selectedStayId.set(params.get('selectedStayId'));
+      });
+
     this.loadStays();
   }
 
@@ -32,6 +43,7 @@ export class StaysOverviewPage {
       next: (stays) => {
         this.stays.set(stays);
         this.loading.set(false);
+        this.scrollSelectedStayIntoView();
       },
       error: () => {
         this.error.set('Error loading stays');
@@ -66,9 +78,7 @@ export class StaysOverviewPage {
   }
 
   canCancelStay(stay: Stay): boolean {
-    const status = this.getStayStatus(stay);
-
-    return status !== 'Cancelled' && status !== 'Checked-out';
+    return canCancelStay(stay);
   }
 
   cancelStay(stay: Stay): void {
@@ -93,6 +103,24 @@ export class StaysOverviewPage {
         this.cancellingStayId.set(null);
       }
     });
+  }
+
+  isSelectedStay(stay: Stay): boolean {
+    return this.selectedStayId() === stay.stayId;
+  }
+
+  getUnavailableActionLabel(stay: Stay): string {
+    const status = getStayStatus(stay);
+
+    if (status === 'cancelled') {
+      return 'Already cancelled';
+    }
+
+    if (status === 'checked-out') {
+      return 'Already checked-out';
+    }
+
+    return '-';
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -128,5 +156,19 @@ export class StaysOverviewPage {
       !Array.isArray(value) &&
       Object.values(value).every((message) => typeof message === 'string')
     );
+  }
+
+  private scrollSelectedStayIntoView(): void {
+    const selectedStayId = this.selectedStayId();
+
+    if (!selectedStayId) {
+      return;
+    }
+
+    setTimeout(() => {
+      document
+        .getElementById(`stay-${selectedStayId}`)
+        ?.scrollIntoView({ block: 'center' });
+    });
   }
 }
