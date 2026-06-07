@@ -84,7 +84,13 @@ Create a MySQL dump from the running database container:
 docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE"' > "backups/catworld_$(date +%Y%m%d_%H%M%S).sql"
 ```
 
-On Windows PowerShell, create a timestamp first:
+On Windows PowerShell, create the backup directory first:
+
+```powershell
+New-Item -ItemType Directory -Force backups
+```
+
+Then create a timestamp:
 
 ```powershell
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
