@@ -48,8 +48,24 @@
   vertical-align: top;
 }
 
+.stays-table tr.selected-row td {
+  background: #fff3cd;
+  border-top: 2px solid #8a6d00;
+  border-bottom: 2px solid #8a6d00;
+}
+
 .cat-name-summary {
   display: block;
   margin-top: 0.25rem;
   color: #666;
+  overflow-wrap: anywhere;
+}
+
+.action-unavailable {
+  color: #666;
+}
+
+.notes-cell {
+  max-width: 28rem;
+  overflow-wrap: anywhere;
 }
