@@ -62,6 +62,12 @@
             </option>
           }
         </select>
+        <a
+          routerLink="/owners/new"
+          [queryParams]="getCreateOwnerQueryParams()"
+        >
+          Create owner
+        </a>
       </label>
 
       <label>
