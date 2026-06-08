@@ -30,6 +30,18 @@
     }
   </div>
 
+  <div class="calendar-display-options">
+    <label class="calendar-display-option">
+      <input
+        #dailyLabelsCheckbox
+        type="checkbox"
+        [checked]="dailyLabelsEnabled()"
+        (change)="dailyLabelsEnabled.set(dailyLabelsCheckbox.checked)"
+      />
+      Daily labels
+    </label>
+  </div>
+
   @if (loading()) {
     <p>Loading calendar...</p>
   } @else if (error()) {
