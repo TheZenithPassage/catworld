@@ -22,6 +22,11 @@
     }
   </div>
 
+  <app-stay-search-filters
+    [stays]="stays()"
+    (filtersChange)="setSearchFilters($event)"
+  ></app-stay-search-filters>
+
   @if (loading()) {
     <p>Loading stays...</p>
   } @else if (error()) {
@@ -32,7 +37,7 @@
   } @else if (stays().length === 0) {
     <p>No stays registered.</p>
   } @else if (filteredStays().length === 0) {
-    <p>No stays match the selected status filters.</p>
+    <p>No stays match the selected filters.</p>
   } @else {
     <table class="stays-table">
       <thead>

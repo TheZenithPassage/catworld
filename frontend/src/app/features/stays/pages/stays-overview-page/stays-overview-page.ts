@@ -5,6 +5,12 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
+import {
+  getDefaultStaySearchFilters,
+  isStayVisibleBySearchFilters,
+  StaySearchFilters
+} from '../../utils/stay-search-filter.util';
 import {
   canCancelStay,
   canModifyStay,
@@ -19,7 +25,7 @@ import {
 
 @Component({
   selector: 'app-stays-overview-page',
-  imports: [RouterLink],
+  imports: [RouterLink, StaySearchFiltersComponent],
   templateUrl: './stays-overview-page.html',
   styleUrl: './stays-overview-page.scss'
 })
@@ -31,9 +37,14 @@ export class StaysOverviewPage {
   readonly selectedStayId = signal<string | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
+  readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
 
   readonly filteredStays = computed(() =>
-    this.stays().filter((stay) => isStayVisibleByStatus(stay, this.statusVisibility()))
+    this.stays().filter(
+      (stay) =>
+        isStayVisibleByStatus(stay, this.statusVisibility()) &&
+        isStayVisibleBySearchFilters(stay, this.searchFilters())
+    )
   );
 
   readonly stays = signal<Stay[]>([]);
@@ -152,6 +163,10 @@ export class StaysOverviewPage {
       ...currentVisibility,
       [status]: checked
     }));
+  }
+
+  setSearchFilters(filters: StaySearchFilters): void {
+    this.searchFilters.set(filters);
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

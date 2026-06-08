@@ -8,6 +8,12 @@ import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
 import { compareStayCalendarEvents, toStayCalendarEvents } from './stay-calendar-events';
+import { StaySearchFiltersComponent } from '../../../stays/components/stay-search-filters/stay-search-filters';
+import {
+  getDefaultStaySearchFilters,
+  isStayVisibleBySearchFilters,
+  StaySearchFilters
+} from '../../../stays/utils/stay-search-filter.util';
 import {
   isStayVisibleByStatus,
   getDefaultStayStatusVisibility,
@@ -18,7 +24,7 @@ import {
 
 @Component({
   selector: 'app-calendar-page',
-  imports: [FullCalendarModule, RouterLink],
+  imports: [FullCalendarModule, RouterLink, StaySearchFiltersComponent],
   templateUrl: './calendar-page.html',
   styleUrl: './calendar-page.scss',
 })
@@ -33,9 +39,13 @@ export class CalendarPage {
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
   readonly dailyLabelsEnabled = signal(true);
-
+  readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly filteredStays = computed(() =>
-    this.stays().filter((stay) => isStayVisibleByStatus(stay, this.statusVisibility())),
+    this.stays().filter(
+      (stay) =>
+        isStayVisibleByStatus(stay, this.statusVisibility()) &&
+        isStayVisibleBySearchFilters(stay, this.searchFilters())
+    )
   );
 
   readonly calendarOptions: CalendarOptions = {
@@ -105,5 +115,9 @@ export class CalendarPage {
       ...currentVisibility,
       [status]: checked,
     }));
+  }
+
+  setSearchFilters(filters: StaySearchFilters): void {
+    this.searchFilters.set(filters);
   }
 }
