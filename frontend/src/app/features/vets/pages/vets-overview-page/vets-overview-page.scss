@@ -1,6 +1,6 @@
 .vets-overview-page {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .page-header {
@@ -15,35 +15,25 @@
 }
 
 .page-header p {
-  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .primary-action {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid currentColor;
-  text-decoration: none;
   width: fit-content;
 }
 
 .error-message {
   display: grid;
   gap: 0.5rem;
-  max-width: 20rem;
+  max-width: 28rem;
 }
 
 .error-message button {
   width: fit-content;
 }
 
-.vets-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.vets-table th,
-.vets-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #ddd;
-  text-align: left;
-  vertical-align: top;
+@media (max-width: 900px) {
+  .page-header {
+    flex-direction: column;
+  }
 }
