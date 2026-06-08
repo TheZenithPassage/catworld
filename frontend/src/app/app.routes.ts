@@ -14,6 +14,7 @@ import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 import { LoginPage } from './features/auth/pages/login-page/login-page';
 import { authGuard } from './core/auth/auth.guard';
+import { StayEditPage } from './features/stays/pages/stay-edit-page/stay-edit-page';
 
 export const routes: Routes = [
   {
@@ -34,6 +35,11 @@ export const routes: Routes = [
     path: 'stays/new',
     canActivate: [authGuard],
     component: StayCreatePage
+  },
+  {
+    path: 'stays/:id/edit',
+    canActivate: [authGuard],
+    component: StayEditPage
   },
   {
     path: 'calendar',

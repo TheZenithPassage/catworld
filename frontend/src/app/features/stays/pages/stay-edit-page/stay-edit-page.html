@@ -1,0 +1,65 @@
+<section class="stay-edit-page">
+  <header class="page-header">
+    <div>
+      <h2>Edit stay</h2>
+      <p>Update stay dates and notes.</p>
+    </div>
+
+    <a routerLink="/stays">Back to stays</a>
+  </header>
+
+  @if (loading()) {
+    <p>Loading stay...</p>
+  } @else {
+    @if (error()) {
+      <div class="error-message">
+        <p>{{ error() }}</p>
+      </div>
+    }
+
+    @if (stayLoaded()) {
+      <div class="stay-summary">
+        <p><strong>Owner:</strong> {{ ownerName() }}</p>
+        <p><strong>Cats:</strong> {{ catNames() }}</p>
+      </div>
+
+      <form class="stay-form" (ngSubmit)="submit()">
+        <label>
+          Start date/time
+          <input
+            type="datetime-local"
+            name="startAt"
+            [ngModel]="startAt()"
+            (ngModelChange)="startAt.set($event)"
+          />
+        </label>
+
+        <label>
+          End date/time
+          <input
+            type="datetime-local"
+            name="endAt"
+            [ngModel]="endAt()"
+            (ngModelChange)="endAt.set($event)"
+          />
+        </label>
+
+        <label>
+          Notes
+          <textarea
+            name="notes"
+            rows="4"
+            [ngModel]="notes()"
+            (ngModelChange)="notes.set($event)"
+          ></textarea>
+        </label>
+
+        <div class="form-actions">
+          <button type="submit" [disabled]="submitting()">
+            {{ submitting() ? 'Saving...' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    }
+  }
+</section>

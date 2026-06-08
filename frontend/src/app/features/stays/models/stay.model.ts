@@ -23,3 +23,9 @@ export interface CreateStayRequest {
   endAt: string;
   notes: string | null;
 }
+
+export interface UpdateStayRequest {
+  startAt: string;
+  endAt: string;
+  notes: string | null;
+}

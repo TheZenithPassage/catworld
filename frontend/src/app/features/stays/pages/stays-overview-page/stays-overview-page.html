@@ -49,14 +49,22 @@
             <td>{{ stay.ownerName }}</td>
             <td class="notes-cell">{{ stay.notes || '-' }}</td>
             <td>
-              @if (canCancelStay(stay)) {
-                <button
-                  type="button"
-                  (click)="cancelStay(stay)"
-                  [disabled]="cancellingStayId() === stay.stayId"
-                >
-                  {{ cancellingStayId() === stay.stayId ? 'Cancelling...' : 'Cancel' }}
-                </button>
+              @if (canEditStay(stay)) {
+                <div class="row-actions">
+                  <a [routerLink]="['/stays', stay.stayId, 'edit']">
+                    Edit
+                  </a>
+
+                  @if (canCancelStay(stay)) {
+                    <button
+                      type="button"
+                      (click)="cancelStay(stay)"
+                      [disabled]="cancellingStayId() === stay.stayId"
+                    >
+                      {{ cancellingStayId() === stay.stayId ? 'Cancelling...' : 'Cancel' }}
+                    </button>
+                  }
+                </div>
               } @else {
                 <span class="action-unavailable">
                   {{ getUnavailableActionLabel(stay) }}

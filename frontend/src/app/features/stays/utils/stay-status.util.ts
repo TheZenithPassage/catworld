@@ -35,8 +35,12 @@ export function getStayStatusLabel(status: StayStatus): string {
   }
 }
 
-export function canCancelStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
+export function canModifyStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
   const status = getStayStatus(stay);
 
   return status !== 'cancelled' && status !== 'checked-out';
+}
+
+export function canCancelStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
+  return canModifyStay(stay);
 }
