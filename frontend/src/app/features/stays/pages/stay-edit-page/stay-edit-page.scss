@@ -1,0 +1,60 @@
+.stay-edit-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.page-header > div {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.page-header h2,
+.page-header p {
+  margin: 0;
+}
+
+.stay-summary {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 32rem;
+  padding: 0.75rem;
+  border: 1px solid #bbb;
+}
+
+.stay-summary p {
+  margin: 0;
+}
+
+.stay-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 32rem;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+input,
+textarea {
+  padding: 0.5rem;
+  font: inherit;
+}
+
+.error-message {
+  padding: 0.75rem;
+  border: 1px solid #b00020;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+}

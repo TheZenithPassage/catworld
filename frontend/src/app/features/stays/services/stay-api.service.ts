@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateStayRequest, Stay } from '../models/stay.model';
+import { CreateStayRequest, Stay, UpdateStayRequest } from '../models/stay.model';
 
 @Injectable({
   providedIn: 'root'
@@ -22,6 +22,10 @@ export class StayApiService {
 
   createStay(request: CreateStayRequest): Observable<Stay> {
     return this.http.post<Stay>(this.baseUrl, request);
+  }
+
+  updateStay(id: string, request: UpdateStayRequest): Observable<Stay> {
+    return this.http.put<Stay>(`${this.baseUrl}/${id}`, request);
   }
 
   cancelStay(id: string): Observable<void> {

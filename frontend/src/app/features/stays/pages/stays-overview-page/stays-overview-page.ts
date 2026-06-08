@@ -5,7 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
-import { canCancelStay, getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
+import { canCancelStay, canModifyStay, getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -79,6 +79,10 @@ export class StaysOverviewPage {
 
   canCancelStay(stay: Stay): boolean {
     return canCancelStay(stay);
+  }
+
+  canEditStay(stay: Stay): boolean {
+    return canModifyStay(stay);
   }
 
   cancelStay(stay: Stay): void {

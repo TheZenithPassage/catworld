@@ -69,3 +69,21 @@
   max-width: 28rem;
   overflow-wrap: anywhere;
 }
+
+.row-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.row-actions a {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid currentColor;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.row-actions button {
+  width: fit-content;
+}
