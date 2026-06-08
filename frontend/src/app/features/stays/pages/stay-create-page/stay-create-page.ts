@@ -30,8 +30,8 @@ export class StayCreatePage {
   readonly selectedOwnerId = signal('');
   readonly selectedCatIds = signal<string[]>([]);
 
-  readonly startAt = signal('');
-  readonly endAt = signal('');
+  readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
+  readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
   readonly notes = signal('');
 
   readonly loadingData = signal(false);
@@ -190,6 +190,25 @@ export class StayCreatePage {
       !Array.isArray(value) &&
       Object.values(value).every((message) => typeof message === 'string')
     );
+  }
+
+  private getDefaultDateTimeLocalValue(daysToAdd: number): string {
+    const date = new Date();
+
+    date.setDate(date.getDate() + daysToAdd);
+    date.setHours(10, 0, 0, 0);
+
+    return this.toDateTimeLocalValue(date);
+  }
+
+  private toDateTimeLocalValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
   
 }
