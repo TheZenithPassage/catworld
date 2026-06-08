@@ -1,0 +1,65 @@
+<div class="stay-search-filters" aria-label="Stay search filters">
+  <label class="search-filter">
+    <span>Cat</span>
+
+    <div class="search-control">
+      <input
+        type="text"
+        autocomplete="off"
+        placeholder="Search cat"
+        [ngModel]="catSearch()"
+        (ngModelChange)="onCatSearchChange($event)"
+      />
+
+      @if (selectedCatId()) {
+        <button type="button" (click)="clearCat()">Clear</button>
+      }
+    </div>
+
+    @if (matchingCatOptions().length > 0) {
+      <ul class="search-options">
+        @for (option of matchingCatOptions(); track option.catId) {
+          <li>
+            <button type="button" (click)="selectCat(option)">
+              {{ option.label }}
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (catSearch().trim() && !selectedCatId()) {
+      <small class="empty-options">No cats match this search.</small>
+    }
+  </label>
+
+  <label class="search-filter">
+    <span>Owner</span>
+
+    <div class="search-control">
+      <input
+        type="text"
+        autocomplete="off"
+        placeholder="Search owner or one of their cats"
+        [ngModel]="ownerSearch()"
+        (ngModelChange)="onOwnerSearchChange($event)"
+      />
+
+      @if (selectedOwnerId()) {
+        <button type="button" (click)="clearOwner()">Clear</button>
+      }
+    </div>
+
+    @if (matchingOwnerOptions().length > 0) {
+      <ul class="search-options">
+        @for (option of matchingOwnerOptions(); track option.ownerId) {
+          <li>
+            <button type="button" (click)="selectOwner(option)">
+              {{ option.label }}
+            </button>
+          </li>
+        }
+      </ul>
+    } @else if (ownerSearch().trim() && !selectedOwnerId()) {
+      <small class="empty-options">No owners match this search.</small>
+    }
+  </label>
+</div>

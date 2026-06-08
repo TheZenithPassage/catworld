@@ -30,6 +30,11 @@
     }
   </div>
 
+  <app-stay-search-filters
+    [stays]="stays()"
+    (filtersChange)="setSearchFilters($event)"
+  ></app-stay-search-filters>
+
   <div class="calendar-display-options">
     <label class="calendar-display-option">
       <input
@@ -53,7 +58,7 @@
     @if (stays().length === 0) {
       <p>No stays registered.</p>
     } @else if (filteredStays().length === 0) {
-      <p>No calendar entries match the selected status filters.</p>
+      <p>No calendar entries match the selected filters.</p>
     } @else {
       <p class="calendar-help">
         Select a calendar entry to open it in the stays list.
