@@ -8,6 +8,20 @@
     </a>
   </header>
 
+  <div class="status-filters" aria-label="Stay status filters">
+    @for (option of statusFilterOptions; track option.status) {
+      <label class="status-filter">
+        <input
+          #statusCheckbox
+          type="checkbox"
+          [checked]="isStatusVisible(option.status)"
+          (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
+        />
+        {{ option.label }}
+      </label>
+    }
+  </div>
+
   @if (loading()) {
     <p>Loading stays...</p>
   } @else if (error()) {
@@ -17,6 +31,8 @@
     </div>
   } @else if (stays().length === 0) {
     <p>No stays registered.</p>
+  } @else if (filteredStays().length === 0) {
+    <p>No stays match the selected status filters.</p>
   } @else {
     <table class="stays-table">
       <thead>
@@ -32,7 +48,7 @@
       </thead>
 
       <tbody>
-        @for (stay of stays(); track stay.stayId) {
+        @for (stay of filteredStays(); track stay.stayId) {
           <tr
             [id]="'stay-' + stay.stayId"
             [class.selected-row]="isSelectedStay(stay)"

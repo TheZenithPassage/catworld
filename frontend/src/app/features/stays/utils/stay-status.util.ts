@@ -44,3 +44,45 @@ export function canModifyStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledA
 export function canCancelStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
   return canModifyStay(stay);
 }
+
+export type StayStatusVisibility = Record<StayStatus, boolean>;
+
+export interface StayStatusFilterOption {
+  status: StayStatus;
+  label: string;
+}
+
+export const STAY_STATUS_FILTER_OPTIONS: StayStatusFilterOption[] = [
+  {
+    status: 'reserved',
+    label: 'Reserved'
+  },
+  {
+    status: 'checked-in',
+    label: 'Checked-in'
+  },
+  {
+    status: 'checked-out',
+    label: 'Checked-out'
+  },
+  {
+    status: 'cancelled',
+    label: 'Cancelled'
+  }
+];
+
+export function getDefaultStayStatusVisibility(): StayStatusVisibility {
+  return {
+    reserved: true,
+    'checked-in': true,
+    'checked-out': false,
+    cancelled: false
+  };
+}
+
+export function isStayVisibleByStatus(
+  stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>,
+  statusVisibility: StayStatusVisibility
+): boolean {
+  return statusVisibility[getStayStatus(stay)];
+}

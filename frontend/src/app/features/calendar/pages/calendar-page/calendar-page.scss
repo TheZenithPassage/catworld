@@ -67,3 +67,17 @@
 :host ::ng-deep .fc .fc-daygrid-event {
   padding: 0.15rem 0.25rem;
 }
+
+.status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.status-filter {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  width: fit-content;
+}
