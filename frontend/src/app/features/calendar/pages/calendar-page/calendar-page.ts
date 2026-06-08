@@ -6,11 +6,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
-import {
-  getStayStatus,
-  getStayStatusLabel,
-  StayStatus
-} from '../../../stays/utils/stay-status.util';
+import { STAY_COLOR_PALETTE, StayCalendarColor } from './stay-calendar-colors';
+import { getStayStatus, StayStatus } from '../../../stays/utils/stay-status.util';
 
 @Component({
   selector: 'app-calendar-page',
@@ -31,17 +28,13 @@ export class CalendarPage {
     initialView: 'dayGridMonth',
     firstDay: 1,
     height: 'auto',
-    displayEventEnd: true,
+    displayEventTime: false,
+    displayEventEnd: false,
     dayMaxEvents: true,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
       right: ''
-    },
-    eventTimeFormat: {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
     },
     eventClick: ({ event }) => {
       void this.router.navigate(['/stays'], {
@@ -54,9 +47,14 @@ export class CalendarPage {
     }
   };
 
-  readonly calendarEvents = computed<EventInput[]>(() =>
-    this.stays().map((stay) => this.toCalendarEvent(stay))
-  );
+  readonly calendarEvents = computed<EventInput[]>(() => {
+    const stays = this.stays();
+    const colorAssignments = this.getColorAssignments(stays);
+
+    return stays.map((stay) =>
+      this.toCalendarEvent(stay, colorAssignments.get(stay.stayId))
+    );
+  });
 
   constructor() {
     this.loadStays();
@@ -78,15 +76,19 @@ export class CalendarPage {
     });
   }
 
-  private toCalendarEvent(stay: Stay): EventInput {
+  private toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
     const status = getStayStatus(stay);
+    const eventColor = this.getEventColor(status, color);
 
     return {
       id: stay.stayId,
-      title: this.getEventTitle(stay, status),
+      title: this.getEventTitle(stay),
       start: stay.startAt,
       end: stay.endAt,
       allDay: false,
+      backgroundColor: eventColor.backgroundColor,
+      borderColor: eventColor.borderColor,
+      textColor: eventColor.textColor,
       classNames: [`stay-event--${status}`],
       extendedProps: {
         stayId: stay.stayId,
@@ -98,8 +100,114 @@ export class CalendarPage {
     };
   }
 
-  private getEventTitle(stay: Stay, status: StayStatus): string {
-    return `${getStayStatusLabel(status)} · ${this.getCatNames(stay)} · ${stay.ownerName}`;
+    private getColorAssignments(stays: Stay[]): Map<string, StayCalendarColor> {
+    const assignments = new Map<string, StayCalendarColor>();
+    const usedColorIndexesByMonth = new Map<string, Set<number>>();
+
+    this.getSortedStays(stays).forEach((stay) => {
+      const monthKeys = this.getStayMonthKeys(stay);
+      const preferredColorIndex = this.getPreferredColorIndex(stay.stayId);
+      const colorIndex = this.getAvailableColorIndex(
+        monthKeys,
+        usedColorIndexesByMonth,
+        preferredColorIndex
+      );
+
+      assignments.set(stay.stayId, STAY_COLOR_PALETTE[colorIndex]);
+
+      monthKeys.forEach((monthKey) => {
+        const usedColorIndexes = usedColorIndexesByMonth.get(monthKey) ?? new Set<number>();
+        usedColorIndexes.add(colorIndex);
+        usedColorIndexesByMonth.set(monthKey, usedColorIndexes);
+      });
+    });
+
+    return assignments;
+  }
+
+  private getSortedStays(stays: Stay[]): Stay[] {
+    return [...stays].sort((firstStay, secondStay) => {
+      const createdAtComparison = firstStay.createdAt.localeCompare(secondStay.createdAt);
+
+      if (createdAtComparison !== 0) {
+        return createdAtComparison;
+      }
+
+      return firstStay.stayId.localeCompare(secondStay.stayId);
+    });
+  }
+
+  private getAvailableColorIndex(
+    monthKeys: string[],
+    usedColorIndexesByMonth: Map<string, Set<number>>,
+    preferredColorIndex: number
+  ): number {
+    for (let offset = 0; offset < STAY_COLOR_PALETTE.length; offset++) {
+      const colorIndex = (preferredColorIndex + offset) % STAY_COLOR_PALETTE.length;
+
+      const colorIsAvailable = monthKeys.every(
+        (monthKey) => !usedColorIndexesByMonth.get(monthKey)?.has(colorIndex)
+      );
+
+      if (colorIsAvailable) {
+        return colorIndex;
+      }
+    }
+
+    return preferredColorIndex;
+  }
+
+  private getStayMonthKeys(stay: Stay): string[] {
+    const startAt = new Date(stay.startAt);
+    const endAt = new Date(stay.endAt);
+    const monthKeys: string[] = [];
+
+    const currentMonth = new Date(startAt.getFullYear(), startAt.getMonth(), 1);
+    const lastMonth = new Date(endAt.getFullYear(), endAt.getMonth(), 1);
+
+    while (currentMonth <= lastMonth) {
+      monthKeys.push(this.getMonthKey(currentMonth));
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
+    }
+
+    return monthKeys;
+  }
+
+  private getPreferredColorIndex(stayId: string): number {
+    let hash = 0;
+
+    for (const character of stayId) {
+      hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+    }
+
+    return hash % STAY_COLOR_PALETTE.length;
+  }
+
+  private getMonthKey(date: Date): string {
+    return `${date.getFullYear()}-${date.getMonth()}`;
+  }
+
+  private getEventColor(
+    status: StayStatus,
+    color = STAY_COLOR_PALETTE[0]
+  ): Pick<StayCalendarColor, 'backgroundColor' | 'borderColor' | 'textColor'> {
+    if (status === 'checked-out' || status === 'cancelled') {
+      return {
+        backgroundColor: color.mutedBackgroundColor,
+        borderColor: color.mutedBorderColor,
+        textColor: color.mutedTextColor
+      };
+    }
+
+    return {
+      backgroundColor: color.backgroundColor,
+      borderColor: color.borderColor,
+      textColor: color.textColor
+    };
+  }
+
+  private getEventTitle(stay: Stay): string {
+    return this.getCatNames(stay);
   }
 
   private getCatNames(stay: Stay): string {
