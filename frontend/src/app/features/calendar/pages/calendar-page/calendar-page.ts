@@ -7,7 +7,14 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
 import { STAY_COLOR_PALETTE, StayCalendarColor } from './stay-calendar-colors';
-import { getStayStatus, StayStatus } from '../../../stays/utils/stay-status.util';
+import {
+  getStayStatus,
+  isStayVisibleByStatus,
+  getDefaultStayStatusVisibility,
+  STAY_STATUS_FILTER_OPTIONS,
+  StayStatus,
+  StayStatusVisibility
+} from '../../../stays/utils/stay-status.util';
 
 @Component({
   selector: 'app-calendar-page',
@@ -22,6 +29,13 @@ export class CalendarPage {
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
+  readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
+
+  readonly filteredStays = computed(() =>
+    this.stays().filter((stay) => isStayVisibleByStatus(stay, this.statusVisibility()))
+  );
 
   readonly calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin],
@@ -51,7 +65,7 @@ export class CalendarPage {
     const stays = this.stays();
     const colorAssignments = this.getColorAssignments(stays);
 
-    return stays.map((stay) =>
+    return this.filteredStays().map((stay) =>
       this.toCalendarEvent(stay, colorAssignments.get(stay.stayId))
     );
   });
@@ -74,6 +88,17 @@ export class CalendarPage {
         this.loading.set(false);
       }
     });
+  }
+
+  isStatusVisible(status: StayStatus): boolean {
+    return this.statusVisibility()[status];
+  }
+
+  setStatusVisibility(status: StayStatus, checked: boolean): void {
+    this.statusVisibility.update((currentVisibility) => ({
+      ...currentVisibility,
+      [status]: checked
+    }));
   }
 
   private toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
@@ -100,7 +125,7 @@ export class CalendarPage {
     };
   }
 
-    private getColorAssignments(stays: Stay[]): Map<string, StayCalendarColor> {
+  private getColorAssignments(stays: Stay[]): Map<string, StayCalendarColor> {
     const assignments = new Map<string, StayCalendarColor>();
     const usedColorIndexesByMonth = new Map<string, Set<number>>();
 

@@ -16,6 +16,20 @@
     </div>
   </header>
 
+  <div class="status-filters" aria-label="Calendar status filters">
+    @for (option of statusFilterOptions; track option.status) {
+      <label class="status-filter">
+        <input
+          #statusCheckbox
+          type="checkbox"
+          [checked]="isStatusVisible(option.status)"
+          (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
+        />
+        {{ option.label }}
+      </label>
+    }
+  </div>
+
   @if (loading()) {
     <p>Loading calendar...</p>
   } @else if (error()) {
@@ -26,6 +40,8 @@
   } @else {
     @if (stays().length === 0) {
       <p>No stays registered.</p>
+    } @else if (filteredStays().length === 0) {
+      <p>No calendar entries match the selected status filters.</p>
     } @else {
       <p class="calendar-help">
         Select a calendar entry to open it in the stays list.

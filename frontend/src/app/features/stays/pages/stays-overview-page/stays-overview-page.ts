@@ -1,11 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
-import { canCancelStay, canModifyStay, getStayStatus, getStayStatusLabel } from '../../utils/stay-status.util';
+import {
+  canCancelStay,
+  canModifyStay,
+  getStayStatus,
+  getStayStatusLabel,
+  getDefaultStayStatusVisibility,
+  isStayVisibleByStatus,
+  STAY_STATUS_FILTER_OPTIONS,
+  StayStatus,
+  StayStatusVisibility
+} from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -19,6 +29,12 @@ export class StaysOverviewPage {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly selectedStayId = signal<string | null>(null);
+  readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
+  readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
+
+  readonly filteredStays = computed(() =>
+    this.stays().filter((stay) => isStayVisibleByStatus(stay, this.statusVisibility()))
+  );
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
@@ -125,6 +141,17 @@ export class StaysOverviewPage {
     }
 
     return '-';
+  }
+
+  isStatusVisible(status: StayStatus): boolean {
+    return this.statusVisibility()[status];
+  }
+
+  setStatusVisibility(status: StayStatus, checked: boolean): void {
+    this.statusVisibility.update((currentVisibility) => ({
+      ...currentVisibility,
+      [status]: checked
+    }));
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
