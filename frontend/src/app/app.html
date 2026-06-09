@@ -2,7 +2,7 @@
   <h1>
     <a routerLink="/" class="app-brand">
       <span class="app-brand-logo">
-        <img src="/catworld-logo.png" alt="CatWorld logo" />
+        <img src="/catworld-logo.png" [alt]="text().app.logoAlt" />
       </span>
       <span>CatWorld</span>
     </a>
@@ -15,19 +15,33 @@
         routerLinkActive="active-link"
         [routerLinkActiveOptions]="{ exact: true }"
       >
-        Dashboard
+        {{ text().app.nav.dashboard }}
       </a>
-      <a routerLink="/stays" routerLinkActive="active-link">Stays</a>
-      <a routerLink="/calendar" routerLinkActive="active-link">Calendar</a>
-      <a routerLink="/cats" routerLinkActive="active-link">Cats</a>
-      <a routerLink="/owners" routerLinkActive="active-link">Owners</a>
-      <a routerLink="/vets" routerLinkActive="active-link">Vets</a>
+      <a routerLink="/stays" routerLinkActive="active-link">{{ text().app.nav.stays }}</a>
+      <a routerLink="/calendar" routerLinkActive="active-link">{{ text().app.nav.calendar }}</a>
+      <a routerLink="/cats" routerLinkActive="active-link">{{ text().app.nav.cats }}</a>
+      <a routerLink="/owners" routerLinkActive="active-link">{{ text().app.nav.owners }}</a>
+      <a routerLink="/vets" routerLinkActive="active-link">{{ text().app.nav.vets }}</a>
     </nav>
-
-    <button type="button" class="logout-button" (click)="logout()">
-      Log out
-    </button>
   }
+
+  <div class="app-actions">
+    <button
+      type="button"
+      class="language-toggle"
+      (click)="toggleLanguage()"
+      [attr.aria-label]="text().app.language.toggleLabel"
+      [title]="language() === 'es' ? text().app.language.switchToEnglish : text().app.language.switchToSpanish"
+    >
+      {{ language().toUpperCase() }}
+    </button>
+
+    @if (authenticated()) {
+      <button type="button" class="logout-button" (click)="logout()">
+        {{ text().app.logout }}
+      </button>
+    }
+  </div>
 </header>
 
 <main class="app-main">
