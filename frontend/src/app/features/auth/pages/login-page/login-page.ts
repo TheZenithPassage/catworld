@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-login-page',
@@ -17,7 +18,9 @@ export class LoginPage {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
 
+  readonly text = this.i18nService.text;
   readonly username = signal('');
   readonly password = signal('');
   readonly submitting = signal(false);
@@ -27,12 +30,12 @@ export class LoginPage {
     this.error.set(null);
 
     if (!this.username().trim()) {
-      this.error.set('Username is required');
+      this.error.set(this.text().auth.login.errors.usernameRequired);
       return;
     }
 
     if (!this.password()) {
-      this.error.set('Password is required');
+      this.error.set(this.text().auth.login.errors.passwordRequired);
       return;
     }
 
@@ -60,9 +63,9 @@ export class LoginPage {
 
   private getLoginErrorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse && error.status === 401) {
-      return 'Invalid username or password';
+      return this.text().auth.login.errors.invalidCredentials;
     }
 
-    return 'Error logging in';
+    return this.text().auth.login.errors.loginFailed;
   }
 }
