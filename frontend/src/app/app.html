@@ -1,16 +1,27 @@
 <header class="app-header">
   <h1>
-    <a routerLink="/">CatWorld</a>
+    <a routerLink="/" class="app-brand">
+      <span class="app-brand-logo">
+        <img src="/catworld-logo.png" alt="CatWorld logo" />
+      </span>
+      <span>CatWorld</span>
+    </a>
   </h1>
 
   @if (authenticated()) {
     <nav>
-      <a routerLink="/">Dashboard</a>
-      <a routerLink="/stays">Stays</a>
-      <a routerLink="/calendar">Calendar</a>
-      <a routerLink="/cats">Cats</a>
-      <a routerLink="/owners">Owners</a>
-      <a routerLink="/vets">Vets</a>
+      <a
+        routerLink="/"
+        routerLinkActive="active-link"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        Dashboard
+      </a>
+      <a routerLink="/stays" routerLinkActive="active-link">Stays</a>
+      <a routerLink="/calendar" routerLinkActive="active-link">Calendar</a>
+      <a routerLink="/cats" routerLinkActive="active-link">Cats</a>
+      <a routerLink="/owners" routerLinkActive="active-link">Owners</a>
+      <a routerLink="/vets" routerLinkActive="active-link">Vets</a>
     </nav>
 
     <button type="button" class="logout-button" (click)="logout()">
