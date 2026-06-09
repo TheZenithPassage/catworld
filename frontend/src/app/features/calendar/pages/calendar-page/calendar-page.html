@@ -45,6 +45,16 @@
       />
       Daily labels
     </label>
+
+    <label class="calendar-display-option">
+      <input
+        #compactModeCheckbox
+        type="checkbox"
+        [checked]="compactModeEnabled()"
+        (change)="compactModeEnabled.set(compactModeCheckbox.checked)"
+      />
+      Compact mode
+    </label>
   </div>
 
   @if (loading()) {

@@ -256,3 +256,25 @@
 :host ::ng-deep .fc .fc-daygrid-block-event {
   display: block;
 }
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--compact {
+  display: flex;
+  width: fit-content;
+  max-width: calc(100% - 0.25rem);
+}
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--compact-end {
+  margin-left: auto;
+}
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--compact .fc-event-main {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+}
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--compact .fc-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
