@@ -39,6 +39,7 @@ export class CalendarPage {
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
   readonly dailyLabelsEnabled = signal(true);
+  readonly compactModeEnabled = signal(false);
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly filteredStays = computed(() =>
     this.stays().filter(
@@ -70,8 +71,14 @@ export class CalendarPage {
         queryParams: { selectedStayId: stayId },
       });
     },
-    eventDidMount: ({ el }) => {
-      el.title = 'Open stay in list';
+    eventDidMount: ({ el, event }) => {
+      const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
+
+      el.title =
+        typeof compactMarkerLabel === 'string'
+          ? `${compactMarkerLabel}. Open stay in list.`
+          : 'Open stay in list';
+
       el.style.cursor = 'pointer';
     },
   };
@@ -83,6 +90,7 @@ export class CalendarPage {
       visibleStays: this.filteredStays(),
       colorAssignments,
       dailyLabelsEnabled: this.dailyLabelsEnabled(),
+      compactModeEnabled: this.compactModeEnabled(),
     });
   });
 
