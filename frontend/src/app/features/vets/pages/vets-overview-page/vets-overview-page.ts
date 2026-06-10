@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 
@@ -12,6 +13,9 @@ import { VetApiService } from '../../services/vet-api.service';
 })
 export class VetsOverviewPage {
   private readonly vetApiService = inject(VetApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly vets = signal<Vet[]>([]);
   readonly loading = signal(false);
@@ -31,13 +35,13 @@ export class VetsOverviewPage {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Error loading vets');
+        this.error.set(this.text().vets.overview.errorLoading);
         this.loading.set(false);
       }
     });
   }
 
   formatOptionalValue(value: string | null): string {
-    return value || '-';
+    return value || this.text().vets.emptyValue;
   }
 }

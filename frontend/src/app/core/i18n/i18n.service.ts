@@ -1,4 +1,5 @@
-import { computed, effect, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 
 import { AppLanguage, DEFAULT_APP_LANGUAGE, isAppLanguage } from './app-language';
 import { APP_TRANSLATIONS } from './app-translations';
@@ -8,13 +9,18 @@ import { APP_TRANSLATIONS } from './app-translations';
 })
 export class I18nService {
   private readonly storageKey = 'catworld.language';
+  private readonly document = inject(DOCUMENT);
 
   readonly language = signal<AppLanguage>(this.readStoredLanguage());
   readonly text = computed(() => APP_TRANSLATIONS[this.language()]);
+  readonly dateLocale = computed(() => (this.language() === 'es' ? 'es-ES' : 'en-GB'));
 
   constructor() {
     effect(() => {
-      this.storeLanguage(this.language());
+      const language = this.language();
+
+      this.storeLanguage(language);
+      this.document.documentElement.lang = language;
     });
   }
 
@@ -36,7 +42,7 @@ export class I18nService {
     try {
       localStorage.setItem(this.storageKey, language);
     } catch {
-        return;
+      return;
     }
   }
 }

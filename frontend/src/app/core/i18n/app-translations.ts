@@ -1,115 +1,43 @@
 import { AppLanguage } from './app-language';
+import { APP_SHELL_TRANSLATIONS, AppShellTranslations } from './translations/app-shell.translations';
+import { AUTH_TRANSLATIONS, AuthTranslations } from './translations/auth.translations';
+import { CALENDAR_TRANSLATIONS, CalendarTranslations } from './translations/calendar.translations';
+import { CATS_TRANSLATIONS, CatsTranslations } from './translations/cats.translations';
+import { DASHBOARD_TRANSLATIONS, DashboardTranslations } from './translations/dashboard.translations';
+import { OWNERS_TRANSLATIONS, OwnersTranslations } from './translations/owners.translations';
+import { STAYS_TRANSLATIONS, StaysTranslations } from './translations/stays.translations';
+import { VETS_TRANSLATIONS, VetsTranslations } from './translations/vets.translations';
 
 export interface AppTranslations {
-  app: {
-    logoAlt: string;
-    nav: {
-      dashboard: string;
-      stays: string;
-      calendar: string;
-      cats: string;
-      owners: string;
-      vets: string;
-    };
-    language: {
-      toggleLabel: string;
-      switchToEnglish: string;
-      switchToSpanish: string;
-    };
-    logout: string;
-  };
-
-  auth: {
-  login: {
-    logoAlt: string;
-    title: string;
-    description: string;
-    username: string;
-    password: string;
-    submit: string;
-    submitting: string;
-    errors: {
-      usernameRequired: string;
-      passwordRequired: string;
-      invalidCredentials: string;
-      loginFailed: string;
-    };
-  };
-
-};
+  app: AppShellTranslations;
+  auth: AuthTranslations;
+  dashboard: DashboardTranslations;
+  calendar: CalendarTranslations;
+  cats: CatsTranslations;
+  owners: OwnersTranslations;
+  stays: StaysTranslations;
+  vets: VetsTranslations;
 }
 
 export const APP_TRANSLATIONS = {
   es: {
-    app: {
-      logoAlt: 'Logo de CatWorld',
-      nav: {
-        dashboard: 'Panel',
-        stays: 'Estancias',
-        calendar: 'Calendario',
-        cats: 'Gatos',
-        owners: 'Dueños',
-        vets: 'Veterinarios',
-      },
-      language: {
-        toggleLabel: 'Cambiar idioma',
-        switchToEnglish: 'Cambiar a inglés',
-        switchToSpanish: 'Cambiar a español',
-      },
-      logout: 'Cerrar sesión',
-    },
-    auth: {
-      login: {
-        logoAlt: 'Logo de CatWorld',
-        title: 'Iniciar sesión',
-        description: 'Introduce tus credenciales de CatWorld para continuar.',
-        username: 'Usuario',
-        password: 'Contraseña',
-        submit: 'Entrar',
-        submitting: 'Entrando...',
-        errors: {
-          usernameRequired: 'El usuario es obligatorio',
-          passwordRequired: 'La contraseña es obligatoria',
-          invalidCredentials: 'Usuario o contraseña incorrectos',
-          loginFailed: 'Error al iniciar sesión',
-        },
-      },
-    },
+    app: APP_SHELL_TRANSLATIONS.es,
+    auth: AUTH_TRANSLATIONS.es,
+    dashboard: DASHBOARD_TRANSLATIONS.es,
+    calendar: CALENDAR_TRANSLATIONS.es,
+    cats: CATS_TRANSLATIONS.es,
+    owners: OWNERS_TRANSLATIONS.es,
+    stays: STAYS_TRANSLATIONS.es,
+    vets: VETS_TRANSLATIONS.es,
   },
   en: {
-    app: {
-      logoAlt: 'CatWorld logo',
-      nav: {
-        dashboard: 'Dashboard',
-        stays: 'Stays',
-        calendar: 'Calendar',
-        cats: 'Cats',
-        owners: 'Owners',
-        vets: 'Vets',
-      },
-      language: {
-        toggleLabel: 'Change language',
-        switchToEnglish: 'Switch to English',
-        switchToSpanish: 'Switch to Spanish',
-      },
-      logout: 'Log out',
-    },
-    auth: {
-      login: {
-        logoAlt: 'CatWorld logo',
-        title: 'Login',
-        description: 'Enter your CatWorld credentials to continue.',
-        username: 'Username',
-        password: 'Password',
-        submit: 'Log in',
-        submitting: 'Logging in...',
-        errors: {
-          usernameRequired: 'Username is required',
-          passwordRequired: 'Password is required',
-          invalidCredentials: 'Invalid username or password',
-          loginFailed: 'Error logging in',
-        },
-      },
-    },
+    app: APP_SHELL_TRANSLATIONS.en,
+    auth: AUTH_TRANSLATIONS.en,
+    dashboard: DASHBOARD_TRANSLATIONS.en,
+    calendar: CALENDAR_TRANSLATIONS.en,
+    cats: CATS_TRANSLATIONS.en,
+    owners: OWNERS_TRANSLATIONS.en,
+    stays: STAYS_TRANSLATIONS.en,
+    vets: VETS_TRANSLATIONS.en,
   },
 } satisfies Record<AppLanguage, AppTranslations>;

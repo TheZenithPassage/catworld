@@ -1,6 +1,7 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../models/stay.model';
 import {
   getDefaultStaySearchFilters,
@@ -19,6 +20,9 @@ import {
   styleUrl: './stay-search-filters.scss'
 })
 export class StaySearchFiltersComponent {
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
   readonly stays = input<Stay[]>([]);
   readonly filtersChange = output<StaySearchFilters>();
 

@@ -1,15 +1,15 @@
 <section class="stay-edit-page">
   <header class="page-header">
     <div>
-      <h2>Edit stay</h2>
-      <p>Update stay dates and notes.</p>
+      <h2>{{ text().stays.edit.title }}</h2>
+      <p>{{ text().stays.edit.description }}</p>
     </div>
 
-    <a routerLink="/stays" class="secondary-action">Back to owners</a>
+    <a routerLink="/stays" class="secondary-action">{{ text().stays.edit.backToStays }}</a>
   </header>
 
   @if (loading()) {
-    <p>Loading stay...</p>
+    <p>{{ text().stays.edit.loading }}</p>
   } @else {
     @if (error()) {
       <div class="error-message">
@@ -19,13 +19,13 @@
 
     @if (stayLoaded()) {
       <div class="stay-summary">
-        <p><strong>Owner:</strong> {{ ownerName() }}</p>
-        <p><strong>Cats:</strong> {{ catNames() }}</p>
+        <p><strong>{{ text().stays.edit.owner }}:</strong> {{ ownerName() }}</p>
+        <p><strong>{{ text().stays.edit.cats }}:</strong> {{ catNames() }}</p>
       </div>
 
       <form class="stay-form" (ngSubmit)="submit()">
         <label>
-          Start date/time
+          {{ text().stays.edit.startDateTime }}
           <input
             type="datetime-local"
             name="startAt"
@@ -35,7 +35,7 @@
         </label>
 
         <label>
-          End date/time
+          {{ text().stays.edit.endDateTime }}
           <input
             type="datetime-local"
             name="endAt"
@@ -45,7 +45,7 @@
         </label>
 
         <label>
-          Notes
+          {{ text().stays.edit.notes }}
           <textarea
             name="notes"
             rows="4"
@@ -56,7 +56,7 @@
 
         <div class="form-actions">
           <button type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Saving...' : 'Save changes' }}
+            {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
           </button>
         </div>
       </form>

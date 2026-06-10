@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UpdateVetRequest, Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 
@@ -16,6 +17,9 @@ export class VetEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly vetApiService = inject(VetApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly name = signal('');
   readonly address = signal('');
@@ -37,7 +41,7 @@ export class VetEditPage {
     this.vetLoaded.set(false);
 
     if (!this.vetId) {
-      this.showError('Vet id is missing');
+      this.showError(this.text().vets.edit.errors.vetIdMissing);
       return;
     }
 
@@ -50,7 +54,7 @@ export class VetEditPage {
         this.loading.set(false);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error loading vet'));
+        this.showError(this.getApiErrorMessage(error, this.text().vets.edit.errors.loadFailed));
         this.loading.set(false);
       }
     });
@@ -60,17 +64,17 @@ export class VetEditPage {
     this.error.set(null);
 
     if (!this.vetLoaded()) {
-      this.showError('Vet data is not loaded');
+      this.showError(this.text().vets.edit.errors.dataNotLoaded);
       return;
     }
 
     if (!this.vetId) {
-      this.showError('Vet id is missing');
+      this.showError(this.text().vets.edit.errors.vetIdMissing);
       return;
     }
 
     if (!this.name().trim()) {
-      this.showError('Name is required');
+      this.showError(this.text().vets.edit.errors.nameRequired);
       return;
     }
 
@@ -88,7 +92,7 @@ export class VetEditPage {
         this.router.navigate(['/vets']);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error updating vet'));
+        this.showError(this.getApiErrorMessage(error, this.text().vets.edit.errors.updateFailed));
         this.submitting.set(false);
       }
     });

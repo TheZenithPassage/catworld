@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CreateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
@@ -16,6 +17,9 @@ export class OwnerCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly fullName = signal('');
   readonly address = signal('');
@@ -32,12 +36,12 @@ export class OwnerCreatePage {
     this.error.set(null);
 
     if (!this.fullName().trim()) {
-      this.error.set('Full name is required');
+      this.error.set(this.text().owners.create.errors.fullNameRequired);
       return;
     }
 
     if (!this.primaryPhone().trim()) {
-      this.error.set('Primary phone is required');
+      this.error.set(this.text().owners.create.errors.primaryPhoneRequired);
       return;
     }
 
@@ -59,7 +63,7 @@ export class OwnerCreatePage {
         this.navigateAfterSuccess(owner.id);
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, 'Error creating owner'));
+        this.error.set(this.getApiErrorMessage(error, this.text().owners.create.errors.createFailed));
         this.submitting.set(false);
       }
     });

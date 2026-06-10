@@ -1,15 +1,15 @@
 <section class="cat-edit-page">
   <header class="page-header">
     <div>
-      <h2>Edit cat</h2>
-      <p>Update cat information.</p>
+      <h2>{{ text().cats.edit.title }}</h2>
+      <p>{{ text().cats.edit.description }}</p>
     </div>
 
-    <a routerLink="/cats" class="secondary-action">Back to cats</a>
+    <a routerLink="/cats" class="secondary-action">{{ text().cats.edit.backToCats }}</a>
   </header>
 
   @if (loadingData()) {
-    <p>Loading cat...</p>
+    <p>{{ text().cats.edit.loading }}</p>
   } @else {
     @if (error()) {
       <div class="error-message">
@@ -21,7 +21,7 @@
       <form class="cat-form" (ngSubmit)="submit()">
 
         <label>
-          Name
+          {{ text().cats.form.name }}
           <input
             type="text"
             name="name"
@@ -31,7 +31,7 @@
         </label>
 
         <label>
-          Birth date
+          {{ text().cats.form.birthDate }}
           <input
             type="date"
             name="birthDate"
@@ -41,26 +41,26 @@
         </label>
 
         <label>
-          Sex
+          {{ text().cats.form.sex }}
           <select
             name="sex"
             [ngModel]="sex()"
             (ngModelChange)="sex.set($event)"
           >
-            <option value="">Select sex</option>
-            <option value="MALE">Male</option>
-            <option value="FEMALE">Female</option>
+            <option value="">{{ text().cats.form.selectSex }}</option>
+            <option value="MALE">{{ text().cats.form.male }}</option>
+            <option value="FEMALE">{{ text().cats.form.female }}</option>
           </select>
         </label>
 
         <label>
-          Owner
+          {{ text().cats.form.owner }}
           <select
             name="ownerId"
             [ngModel]="ownerId()"
             (ngModelChange)="ownerId.set($event)"
           >
-            <option value="">Select an owner</option>
+            <option value="">{{ text().cats.form.selectOwner }}</option>
 
             @for (owner of owners(); track owner.id) {
               <option [value]="owner.id">
@@ -71,13 +71,13 @@
         </label>
 
         <label>
-          Vet
+          {{ text().cats.form.vet }}
           <select
             name="vetId"
             [ngModel]="vetId()"
             (ngModelChange)="vetId.set($event)"
           >
-            <option value="">No vet</option>
+            <option value="">{{ text().cats.form.noVet }}</option>
 
             @for (vet of vets(); track vet.id) {
               <option [value]="vet.id">
@@ -88,7 +88,7 @@
         </label>
 
         <label>
-          Breed
+          {{ text().cats.form.breed }}
           <input
             type="text"
             name="breed"
@@ -98,7 +98,7 @@
         </label>
 
         <label>
-          Coat
+          {{ text().cats.form.coat }}
           <input
             type="text"
             name="coat"
@@ -108,7 +108,7 @@
         </label>
 
         <label>
-          Color
+          {{ text().cats.form.color }}
           <input
             type="text"
             name="color"
@@ -118,7 +118,7 @@
         </label>
 
         <label>
-          Food brand
+          {{ text().cats.form.foodBrand }}
           <input
             type="text"
             name="foodBrand"
@@ -128,7 +128,7 @@
         </label>
 
         <label>
-          Litter brand
+          {{ text().cats.form.litterBrand }}
           <input
             type="text"
             name="litterBrand"
@@ -138,7 +138,7 @@
         </label>
 
         <label>
-          Personality
+          {{ text().cats.form.personality }}
           <textarea
             name="personality"
             rows="4"
@@ -148,7 +148,7 @@
         </label>
 
         <label>
-          Last internal dewormer name
+          {{ text().cats.form.lastInternalDewormerName }}
           <input
             type="text"
             name="lastInternalDewormerName"
@@ -158,7 +158,7 @@
         </label>
 
         <label>
-          Last internal deworming date
+          {{ text().cats.form.lastInternalDewormingDate }}
           <input
             type="date"
             name="lastInternalDewormingDate"
@@ -168,7 +168,7 @@
         </label>
 
         <label>
-          Last external dewormer name
+          {{ text().cats.form.lastExternalDewormerName }}
           <input
             type="text"
             name="lastExternalDewormerName"
@@ -178,7 +178,7 @@
         </label>
 
         <label>
-          Last external deworming date
+          {{ text().cats.form.lastExternalDewormingDate }}
           <input
             type="date"
             name="lastExternalDewormingDate"
@@ -188,7 +188,7 @@
         </label>
 
         <label>
-          Last triple feline date
+          {{ text().cats.form.lastTripleFelineDate }}
           <input
             type="date"
             name="lastTripleFelineDate"
@@ -198,7 +198,7 @@
         </label>
 
         <label>
-          Last rabies date
+          {{ text().cats.form.lastRabiesDate }}
           <input
             type="date"
             name="lastRabiesDate"
@@ -209,7 +209,7 @@
 
         <div class="form-actions">
           <button type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Saving...' : 'Save changes' }}
+            {{ submitting() ? text().cats.edit.submitting : text().cats.edit.submit }}
           </button>
         </div>
       </form>

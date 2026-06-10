@@ -10,6 +10,7 @@ import { CreateCatRequest, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-cat-create-page',
@@ -23,6 +24,9 @@ export class CatCreatePage {
   private readonly vetApiService = inject(VetApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly owners = signal<Owner[]>([]);
   readonly vets = signal<Vet[]>([]);
@@ -70,7 +74,7 @@ export class CatCreatePage {
         this.loadingData.set(false);
       },
       error: () => {
-        this.error.set('Error loading form data');
+        this.error.set(this.text().cats.create.errors.loadFormDataFailed);
         this.loadingData.set(false);
       }
     });
@@ -80,22 +84,22 @@ export class CatCreatePage {
     this.error.set(null);
 
     if (!this.name().trim()) {
-      this.error.set('Name is required');
+      this.error.set(this.text().cats.create.errors.nameRequired);
       return;
     }
 
     if (!this.birthDate()) {
-      this.error.set('Birth date is required');
+      this.error.set(this.text().cats.create.errors.birthDateRequired);
       return;
     }
 
     if (!this.sex()) {
-      this.error.set('Sex is required');
+      this.error.set(this.text().cats.create.errors.sexRequired);
       return;
     }
 
     if (!this.ownerId()) {
-      this.error.set('Owner is required');
+      this.error.set(this.text().cats.create.errors.ownerRequired);
       return;
     }
 
@@ -127,7 +131,7 @@ export class CatCreatePage {
         this.navigateAfterSuccess(cat.id, cat.ownerId);
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, 'Error creating cat'));
+        this.error.set(this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed));
         this.submitting.set(false);
       }
     });

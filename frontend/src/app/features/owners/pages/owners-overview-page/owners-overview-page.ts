@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
@@ -12,6 +13,9 @@ import { OwnerApiService } from '../../services/owner-api.service';
 })
 export class OwnersOverviewPage {
   private readonly ownerApiService = inject(OwnerApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly owners = signal<Owner[]>([]);
   readonly loading = signal(false);
@@ -31,19 +35,19 @@ export class OwnersOverviewPage {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Error loading owners');
+        this.error.set(this.text().owners.overview.errorLoading);
         this.loading.set(false);
       }
     });
   }
 
   formatOptionalValue(value: string | null): string {
-    return value || '-';
+    return value || this.text().owners.emptyValue;
   }
 
   getSecondaryPhone(owner: Owner): string {
     if (!owner.secondaryPhone) {
-      return '-';
+      return this.text().owners.emptyValue;
     }
 
     if (!owner.secondaryPhoneName) {

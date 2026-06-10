@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import {
   getDefaultStaySearchFilters,
@@ -15,8 +17,6 @@ import {
   canCancelStay,
   canModifyStay,
   getStayStatus,
-  getStayStatusLabel,
-  getDefaultStayStatusVisibility,
   isStayVisibleByStatus,
   STAY_STATUS_FILTER_OPTIONS,
   StayStatus,
@@ -33,10 +33,14 @@ export class StaysOverviewPage {
   private readonly stayApiService = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly i18nService = inject(I18nService);
+  private readonly stayStatusVisibilityPreferencesService = inject(StayStatusVisibilityPreferencesService);
 
+  readonly text = this.i18nService.text;
+  readonly dateLocale = this.i18nService.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
-  readonly statusVisibility = signal<StayStatusVisibility>(getDefaultStayStatusVisibility());
+  readonly statusVisibility = signal<StayStatusVisibility>(this.stayStatusVisibilityPreferencesService.read());
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
 
   readonly filteredStays = computed(() =>
@@ -53,6 +57,10 @@ export class StaysOverviewPage {
   readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {
+    effect(() => {
+      this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
+    });
+
     this.route.queryParamMap
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((params) => {
@@ -73,29 +81,31 @@ export class StaysOverviewPage {
         this.scrollSelectedStayIntoView();
       },
       error: () => {
-        this.error.set('Error loading stays');
+        this.error.set(this.text().stays.overview.errorLoading);
         this.loading.set(false);
       }
     });
   }
 
   getStayStatus(stay: Stay): string {
-    return getStayStatusLabel(getStayStatus(stay));
+    return this.text().stays.status[getStayStatus(stay)];
   }
 
   formatDate(value: string | null): string {
     if (!value) {
-      return '-';
+      return this.text().stays.emptyValue;
     }
 
-    return new Intl.DateTimeFormat('es-ES', {
+    return new Intl.DateTimeFormat(this.dateLocale(), {
       dateStyle: 'short',
       timeStyle: 'short'
     }).format(new Date(value));
   }
 
   getCatSummary(stay: Stay): string {
-    return stay.cats.length === 1 ? '1 cat' : `${stay.cats.length} cats`;
+    return stay.cats.length === 1
+      ? `1 ${this.text().stays.overview.catSingular}`
+      : `${stay.cats.length} ${this.text().stays.overview.catPlural}`;
   }
 
   getCatNames(stay: Stay): string {
@@ -114,7 +124,7 @@ export class StaysOverviewPage {
 
   cancelStay(stay: Stay): void {
     const confirmed = window.confirm(
-      `Cancel stay for ${this.getCatNames(stay)}?`
+      `${this.text().stays.overview.cancelConfirmPrefix}${this.getCatNames(stay)}${this.text().stays.overview.cancelConfirmSuffix}`
     );
 
     if (!confirmed) {
@@ -130,7 +140,7 @@ export class StaysOverviewPage {
         this.loadStays();
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, 'Error cancelling stay'));
+        this.error.set(this.getApiErrorMessage(error, this.text().stays.overview.errorCancelling));
         this.cancellingStayId.set(null);
       }
     });
@@ -144,14 +154,14 @@ export class StaysOverviewPage {
     const status = getStayStatus(stay);
 
     if (status === 'cancelled') {
-      return 'Already cancelled';
+      return this.text().stays.overview.alreadyCancelled;
     }
 
     if (status === 'checked-out') {
-      return 'Already checked-out';
+      return this.text().stays.overview.alreadyCheckedOut;
     }
 
-    return '-';
+    return this.text().stays.emptyValue;
   }
 
   isStatusVisible(status: StayStatus): boolean {

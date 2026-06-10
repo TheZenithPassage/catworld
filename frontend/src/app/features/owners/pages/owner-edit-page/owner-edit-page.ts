@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner, UpdateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
@@ -16,6 +17,9 @@ export class OwnerEditPage {
   private readonly ownerApiService = inject(OwnerApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly fullName = signal('');
   readonly address = signal('');
@@ -41,7 +45,7 @@ export class OwnerEditPage {
     this.ownerLoaded.set(false);
 
     if (!this.ownerId) {
-      this.showError('Owner id is missing');
+      this.showError(this.text().owners.edit.errors.ownerIdMissing);
       return;
     }
 
@@ -54,7 +58,7 @@ export class OwnerEditPage {
         this.loading.set(false);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error loading owner'));
+        this.showError(this.getApiErrorMessage(error, this.text().owners.edit.errors.loadFailed));
         this.loading.set(false);
       }
     });
@@ -63,17 +67,17 @@ export class OwnerEditPage {
   submit(): void {
 
     if (!this.ownerId) {
-      this.showError('Owner id is missing');
+      this.showError(this.text().owners.edit.errors.ownerIdMissing);
       return;
     }
 
     if (!this.fullName().trim()) {
-      this.showError('Full name is required');
+      this.showError(this.text().owners.edit.errors.fullNameRequired);
       return;
     }
 
     if (!this.primaryPhone().trim()) {
-      this.showError('Primary phone is required');
+      this.showError(this.text().owners.edit.errors.primaryPhoneRequired);
       return;
     }
 
@@ -95,7 +99,7 @@ export class OwnerEditPage {
         this.router.navigate(['/owners']);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error updating owner'));
+        this.showError(this.getApiErrorMessage(error, this.text().owners.edit.errors.updateFailed));
         this.submitting.set(false);
       }
     });

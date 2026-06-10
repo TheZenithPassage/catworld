@@ -1,32 +1,32 @@
 <section class="vets-overview-page">
   <header class="page-header">
     <div>
-      <h2>Vets</h2>
-      <p>Basic view of the vets registered in CatWorld.</p>
+      <h2>{{ text().vets.overview.title }}</h2>
+      <p>{{ text().vets.overview.description }}</p>
     </div>
 
     <a routerLink="/vets/new" class="primary-action">
-      Create vet
+      {{ text().vets.overview.create }}
     </a>
   </header>
 
   @if (loading()) {
-    <p>Loading vets...</p>
+    <p>{{ text().vets.overview.loading }}</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadVets()">Retry</button>
+      <button type="button" (click)="loadVets()">{{ text().vets.overview.retry }}</button>
     </div>
   } @else if (vets().length === 0) {
-    <p>No vets registered.</p>
+    <p>{{ text().vets.overview.empty }}</p>
   } @else {
     <table class="vets-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Phone number</th>
-          <th>Address</th>
-          <th>Actions</th>
+          <th>{{ text().vets.overview.table.name }}</th>
+          <th>{{ text().vets.overview.table.phoneNumber }}</th>
+          <th>{{ text().vets.overview.table.address }}</th>
+          <th>{{ text().vets.overview.table.actions }}</th>
         </tr>
       </thead>
 
@@ -37,7 +37,7 @@
             <td>{{ formatOptionalValue(vet.phoneNumber) }}</td>
             <td>{{ formatOptionalValue(vet.address) }}</td>
             <td>
-              <a [routerLink]="['/vets', vet.id, 'edit']">Edit</a>
+              <a [routerLink]="['/vets', vet.id, 'edit']">{{ text().vets.overview.edit }}</a>
             </td>
           </tr>
         }

@@ -6,11 +6,19 @@ import { STAY_COLOR_PALETTE, StayCalendarColor } from './stay-calendar-colors';
 
 type CompactMarkerKind = 'start' | 'end';
 
+export type StayCalendarCompactMarkerLabels = Record<CompactMarkerKind, string>;
+
+const EMPTY_COMPACT_MARKER_LABELS: StayCalendarCompactMarkerLabels = {
+  start: '',
+  end: '',
+};
+
 interface ToStayCalendarEventsParams {
   visibleStays: Stay[];
   colorAssignments: Map<string, StayCalendarColor>;
   dailyLabelsEnabled: boolean;
   compactModeEnabled: boolean;
+  compactMarkerLabels?: StayCalendarCompactMarkerLabels;
 }
 
 export function toStayCalendarEvents({
@@ -18,6 +26,7 @@ export function toStayCalendarEvents({
   colorAssignments,
   dailyLabelsEnabled,
   compactModeEnabled,
+  compactMarkerLabels = EMPTY_COMPACT_MARKER_LABELS,
 }: ToStayCalendarEventsParams): EventInput[] {
   if (dailyLabelsEnabled) {
     return visibleStays.flatMap((stay) =>
@@ -27,7 +36,7 @@ export function toStayCalendarEvents({
 
   if (compactModeEnabled) {
     return visibleStays.flatMap((stay) =>
-      toCompactCalendarEvents(stay, colorAssignments.get(stay.stayId)),
+      toCompactCalendarEvents(stay, colorAssignments.get(stay.stayId), compactMarkerLabels),
     );
   }
 
@@ -90,10 +99,14 @@ function toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
   };
 }
 
-function toCompactCalendarEvents(stay: Stay, color?: StayCalendarColor): EventInput[] {
+function toCompactCalendarEvents(
+  stay: Stay,
+  color: StayCalendarColor | undefined,
+  compactMarkerLabels: StayCalendarCompactMarkerLabels,
+): EventInput[] {
   return [
-    toCompactCalendarEvent(stay, new Date(stay.startAt), 'start', color),
-    toCompactCalendarEvent(stay, new Date(stay.endAt), 'end', color),
+    toCompactCalendarEvent(stay, new Date(stay.startAt), 'start', color, compactMarkerLabels),
+    toCompactCalendarEvent(stay, new Date(stay.endAt), 'end', color, compactMarkerLabels),
   ];
 }
 
@@ -101,7 +114,8 @@ function toCompactCalendarEvent(
   stay: Stay,
   date: Date,
   markerKind: CompactMarkerKind,
-  color?: StayCalendarColor,
+  color: StayCalendarColor | undefined,
+  compactMarkerLabels: StayCalendarCompactMarkerLabels,
 ): EventInput {
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
@@ -128,7 +142,7 @@ function toCompactCalendarEvent(
       stayDurationDays: getStayDurationDays(stay),
       compactMarkerKind: markerKind,
       compactMarkerOrder: getCompactMarkerOrder(markerKind),
-      compactMarkerLabel: getCompactMarkerLabel(markerKind),
+      compactMarkerLabel: compactMarkerLabels[markerKind],
     },
   };
 }
@@ -197,10 +211,6 @@ function getStayEventClassNames(status: StayStatus, extraClassNames: string[] = 
 
 function getCompactMarkerOrder(markerKind: CompactMarkerKind): number {
   return markerKind === 'start' ? 1 : 2;
-}
-
-function getCompactMarkerLabel(markerKind: CompactMarkerKind): string {
-  return markerKind === 'start' ? 'Check-in marker' : 'Check-out marker';
 }
 
 function getEventColor(

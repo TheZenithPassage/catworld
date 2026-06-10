@@ -1,15 +1,15 @@
 <section class="owner-edit-page">
   <header class="page-header">
     <div>
-      <h2>Edit owner</h2>
-      <p>Update owner contact information.</p>
+      <h2>{{ text().owners.edit.title }}</h2>
+      <p>{{ text().owners.edit.description }}</p>
     </div>
 
-    <a routerLink="/owners" class="secondary-action">Back to owners</a>
+    <a routerLink="/owners" class="secondary-action">{{ text().owners.edit.backToOwners }}</a>
   </header>
 
   @if (loading()) {
-    <p>Loading owner...</p>
+    <p>{{ text().owners.edit.loading }}</p>
   } @else {
     @if (error()) {
       <div class="error-message">
@@ -20,7 +20,7 @@
     @if (ownerLoaded()) {
       <form class="owner-form" (ngSubmit)="submit()">
         <label>
-          Full name
+          {{ text().owners.form.fullName }}
           <input
             type="text"
             name="fullName"
@@ -30,7 +30,7 @@
         </label>
 
         <label>
-          Primary phone
+          {{ text().owners.form.primaryPhone }}
           <input
             type="text"
             name="primaryPhone"
@@ -40,7 +40,7 @@
         </label>
 
         <label>
-          Address
+          {{ text().owners.form.address }}
           <input
             type="text"
             name="address"
@@ -50,7 +50,7 @@
         </label>
 
         <label>
-          Secondary phone
+          {{ text().owners.form.secondaryPhone }}
           <input
             type="text"
             name="secondaryPhone"
@@ -60,7 +60,7 @@
         </label>
 
         <label>
-          Secondary phone name
+          {{ text().owners.form.secondaryPhoneName }}
           <input
             type="text"
             name="secondaryPhoneName"
@@ -70,7 +70,7 @@
         </label>
 
         <label>
-          Instagram
+          {{ text().owners.form.instagram }}
           <input
             type="text"
             name="instagram"
@@ -80,7 +80,7 @@
         </label>
 
         <label>
-          Facebook
+          {{ text().owners.form.facebook }}
           <input
             type="text"
             name="facebook"
@@ -91,7 +91,7 @@
 
         <div class="form-actions">
           <button type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Saving...' : 'Save changes' }}
+            {{ submitting() ? text().owners.edit.submitting : text().owners.edit.submit }}
           </button>
         </div>
       </form>

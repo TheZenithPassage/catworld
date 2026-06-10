@@ -1,15 +1,15 @@
 <section class="vet-edit-page">
   <header class="page-header">
     <div>
-      <h2>Edit vet</h2>
-      <p>Update vet contact information.</p>
+      <h2>{{ text().vets.edit.title }}</h2>
+      <p>{{ text().vets.edit.description }}</p>
     </div>
 
-    <a routerLink="/vets" class="secondary-action">Back to vets</a>
+    <a routerLink="/vets" class="secondary-action">{{ text().vets.edit.backToVets }}</a>
   </header>
 
   @if (loading()) {
-    <p>Loading vet...</p>
+    <p>{{ text().vets.edit.loading }}</p>
   } @else {
     @if (error()) {
       <div class="error-message">
@@ -20,7 +20,7 @@
     @if (vetLoaded()) {
       <form class="vet-form" (ngSubmit)="submit()">
         <label>
-          Name
+          {{ text().vets.form.name }}
           <input
             type="text"
             name="name"
@@ -30,7 +30,7 @@
         </label>
 
         <label>
-          Address
+          {{ text().vets.form.address }}
           <input
             type="text"
             name="address"
@@ -40,7 +40,7 @@
         </label>
 
         <label>
-          Phone number
+          {{ text().vets.form.phoneNumber }}
           <input
             type="text"
             name="phoneNumber"
@@ -51,7 +51,7 @@
 
         <div class="form-actions">
           <button type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Saving...' : 'Save changes' }}
+            {{ submitting() ? text().vets.edit.submitting : text().vets.edit.submit }}
           </button>
         </div>
       </form>

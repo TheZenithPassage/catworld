@@ -22,19 +22,6 @@ export function getStayStatus(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledA
   return 'reserved';
 }
 
-export function getStayStatusLabel(status: StayStatus): string {
-  switch (status) {
-    case 'cancelled':
-      return 'Cancelled';
-    case 'checked-out':
-      return 'Checked-out';
-    case 'checked-in':
-      return 'Checked-in';
-    case 'reserved':
-      return 'Reserved';
-  }
-}
-
 export function canModifyStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
   const status = getStayStatus(stay);
 
@@ -49,25 +36,20 @@ export type StayStatusVisibility = Record<StayStatus, boolean>;
 
 export interface StayStatusFilterOption {
   status: StayStatus;
-  label: string;
 }
 
 export const STAY_STATUS_FILTER_OPTIONS: StayStatusFilterOption[] = [
   {
-    status: 'reserved',
-    label: 'Reserved'
+    status: 'reserved'
   },
   {
-    status: 'checked-in',
-    label: 'Checked-in'
+    status: 'checked-in'
   },
   {
-    status: 'checked-out',
-    label: 'Checked-out'
+    status: 'checked-out'
   },
   {
-    status: 'cancelled',
-    label: 'Cancelled'
+    status: 'cancelled'
   }
 ];
 
