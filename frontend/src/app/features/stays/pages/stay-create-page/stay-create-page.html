@@ -1,11 +1,11 @@
 <section class="stay-create-page">
   <header class="page-header">
-    <h2>Create stay</h2>
-    <p>Register a new cat stay in CatWorld.</p>
+    <h2>{{ text().stays.create.title }}</h2>
+    <p>{{ text().stays.create.description }}</p>
   </header>
 
   @if (loadingData()) {
-    <p>Loading form data...</p>
+    <p>{{ text().stays.create.loading }}</p>
   } @else {
     <form class="stay-form" (ngSubmit)="submit()">
       @if (error()) {
@@ -15,14 +15,14 @@
       }
 
       <label>
-        Owner
+        {{ text().stays.create.owner }}
         <select
           #ownerSelect
           [ngModel]="selectedOwnerId()"
           name="ownerId"
           (change)="onOwnerChange(ownerSelect.value)"
         >
-          <option value="">Select an owner</option>
+          <option value="">{{ text().stays.create.selectOwner }}</option>
 
           @for (owner of owners(); track owner.id) {
             <option [value]="owner.id">
@@ -34,16 +34,16 @@
           routerLink="/owners/new"
           [queryParams]="{ returnTo: '/stays/new' }"
         >
-          Create owner
+          {{ text().stays.create.createOwner }}
         </a>
       </label>
 
       @if (selectedOwnerId()) {
         <fieldset>
-          <legend>Cats</legend>
+          <legend>{{ text().stays.create.cats }}</legend>
 
           @if (filteredCats().length === 0) {
-            <p>No cats found for this owner.</p>
+            <p>{{ text().stays.create.noCatsForOwner }}</p>
           } @else {
             @for (cat of filteredCats(); track cat.id) {
               <label class="checkbox-field">
@@ -62,12 +62,12 @@
           routerLink="/cats/new"
           [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
         >
-          Create cat
+          {{ text().stays.create.createCat }}
         </a>
       }
 
       <label>
-        Start date/time
+        {{ text().stays.create.startDateTime }}
         <input
           type="datetime-local"
           name="startAt"
@@ -77,7 +77,7 @@
       </label>
 
       <label>
-        End date/time
+        {{ text().stays.create.endDateTime }}
         <input
           type="datetime-local"
           name="endAt"
@@ -87,7 +87,7 @@
       </label>
 
       <label>
-        Notes
+        {{ text().stays.create.notes }}
         <textarea
           name="notes"
           rows="4"
@@ -98,7 +98,7 @@
 
       <div class="form-actions">
         <button type="submit" [disabled]="submitting()">
-          {{ submitting() ? 'Creating...' : 'Create stay' }}
+          {{ submitting() ? text().stays.create.submitting : text().stays.create.submit }}
         </button>
       </div>
     </form>

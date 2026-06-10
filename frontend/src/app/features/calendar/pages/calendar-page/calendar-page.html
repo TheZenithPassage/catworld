@@ -1,22 +1,22 @@
 <section class="calendar-page">
   <header class="page-header">
     <div>
-      <h2>Calendar</h2>
-      <p>Monthly view of registered stays.</p>
+      <h2>{{ text().calendar.title }}</h2>
+      <p>{{ text().calendar.description }}</p>
     </div>
 
     <div class="header-actions">
       <a routerLink="/stays" class="secondary-action">
-        View stays
+        {{ text().calendar.actions.viewStays }}
       </a>
 
       <a routerLink="/stays/new" class="primary-action">
-        Create stay
+        {{ text().calendar.actions.createStay }}
       </a>
     </div>
   </header>
 
-  <div class="status-filters" aria-label="Calendar status filters">
+  <div class="status-filters" [attr.aria-label]="text().calendar.statusFiltersAriaLabel">
     @for (option of statusFilterOptions; track option.status) {
       <label class="status-filter">
         <input
@@ -25,7 +25,7 @@
           [checked]="isStatusVisible(option.status)"
           (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
         />
-        {{ option.label }}
+        {{ text().stays.status[option.status] }}
       </label>
     }
   </div>
@@ -43,7 +43,7 @@
         [checked]="dailyLabelsEnabled()"
         (change)="dailyLabelsEnabled.set(dailyLabelsCheckbox.checked)"
       />
-      Daily labels
+      {{ text().calendar.displayOptions.dailyLabels }}
     </label>
 
     <label class="calendar-display-option">
@@ -53,30 +53,30 @@
         [checked]="compactModeEnabled()"
         (change)="compactModeEnabled.set(compactModeCheckbox.checked)"
       />
-      Compact mode
+      {{ text().calendar.displayOptions.compactMode }}
     </label>
   </div>
 
   @if (loading()) {
-    <p>Loading calendar...</p>
+    <p>{{ text().calendar.loading }}</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadStays()">Retry</button>
+      <button type="button" (click)="loadStays()">{{ text().calendar.actions.retry }}</button>
     </div>
   } @else {
     @if (stays().length === 0) {
-      <p>No stays registered.</p>
+      <p>{{ text().calendar.empty }}</p>
     } @else if (filteredStays().length === 0) {
-      <p>No calendar entries match the selected filters.</p>
+      <p>{{ text().calendar.emptyFiltered }}</p>
     } @else {
       <p class="calendar-help">
-        Select a calendar entry to open it in the stays list.
+        {{ text().calendar.help }}
       </p>
 
       <div class="calendar-wrapper">
         <full-calendar
-          [options]="calendarOptions"
+          [options]="calendarOptions()"
           [events]="calendarEvents()"
         ></full-calendar>
       </div>

@@ -1,10 +1,10 @@
 <section class="login-page">
   <header class="page-header">
     <span class="login-logo">
-      <img src="/catworld-logo.png" alt="CatWorld logo" />
+      <img src="/catworld-logo.png" [alt]="text().auth.login.logoAlt" />
     </span>
-    <h2>Login</h2>
-    <p>Enter your CatWorld credentials to continue.</p>
+    <h2>{{ text().auth.login.title }}</h2>
+    <p>{{ text().auth.login.description }}</p>
   </header>
 
   @if (error()) {
@@ -15,7 +15,7 @@
 
   <form class="login-form" (ngSubmit)="submit()">
     <label>
-      Username
+      {{ text().auth.login.username }}
       <input
         type="text"
         name="username"
@@ -26,7 +26,7 @@
     </label>
 
     <label>
-      Password
+      {{ text().auth.login.password }}
       <input
         type="password"
         name="password"
@@ -38,7 +38,7 @@
 
     <div class="form-actions">
       <button type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Logging in...' : 'Log in' }}
+        {{ submitting() ? text().auth.login.submitting : text().auth.login.submit }}
       </button>
     </div>
   </form>

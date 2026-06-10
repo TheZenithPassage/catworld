@@ -1,16 +1,16 @@
 <section class="stays-overview-page">
   <header class="page-header">
     <div>
-      <h2>Stays</h2>
-      <p>Initial view of the stays registered in CatWorld.</p>
+      <h2>{{ text().stays.overview.title }}</h2>
+      <p>{{ text().stays.overview.description }}</p>
     </div>
 
     <a routerLink="/stays/new" class="primary-action">
-      Create stay
+      {{ text().stays.overview.create }}
     </a>
   </header>
 
-  <div class="status-filters" aria-label="Stay status filters">
+  <div class="status-filters" [attr.aria-label]="text().stays.overview.statusFiltersAriaLabel">
     @for (option of statusFilterOptions; track option.status) {
       <label class="status-filter">
         <input
@@ -19,7 +19,7 @@
           [checked]="isStatusVisible(option.status)"
           (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
         />
-        {{ option.label }}
+        {{ text().stays.status[option.status] }}
       </label>
     }
   </div>
@@ -30,27 +30,27 @@
   ></app-stay-search-filters>
 
   @if (loading()) {
-    <p>Loading stays...</p>
+    <p>{{ text().stays.overview.loading }}</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadStays()">Retry</button>
+      <button type="button" (click)="loadStays()">{{ text().stays.overview.retry }}</button>
     </div>
   } @else if (stays().length === 0) {
-    <p>No stays registered.</p>
+    <p>{{ text().stays.overview.empty }}</p>
   } @else if (filteredStays().length === 0) {
-    <p>No stays match the selected filters.</p>
+    <p>{{ text().stays.overview.emptyFiltered }}</p>
   } @else {
     <table class="stays-table">
       <thead>
         <tr>
-          <th>State</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Cats</th>
-          <th>Owner</th>
-          <th>Notes</th>
-          <th>Actions</th>
+          <th>{{ text().stays.overview.table.state }}</th>
+          <th>{{ text().stays.overview.table.start }}</th>
+          <th>{{ text().stays.overview.table.end }}</th>
+          <th>{{ text().stays.overview.table.cats }}</th>
+          <th>{{ text().stays.overview.table.owner }}</th>
+          <th>{{ text().stays.overview.table.notes }}</th>
+          <th>{{ text().stays.overview.table.actions }}</th>
         </tr>
       </thead>
 
@@ -70,12 +70,12 @@
               </small>
             </td>
             <td>{{ stay.ownerName }}</td>
-            <td class="notes-cell">{{ stay.notes || '-' }}</td>
+            <td class="notes-cell">{{ stay.notes || text().stays.emptyValue }}</td>
             <td>
               @if (canEditStay(stay)) {
                 <div class="row-actions">
                   <a [routerLink]="['/stays', stay.stayId, 'edit']">
-                    Edit
+                    {{ text().stays.overview.edit }}
                   </a>
 
                   @if (canCancelStay(stay)) {
@@ -84,7 +84,7 @@
                       (click)="cancelStay(stay)"
                       [disabled]="cancellingStayId() === stay.stayId"
                     >
-                      {{ cancellingStayId() === stay.stayId ? 'Cancelling...' : 'Cancel' }}
+                      {{ cancellingStayId() === stay.stayId ? text().stays.overview.cancelling : text().stays.overview.cancel }}
                     </button>
                   }
                 </div>

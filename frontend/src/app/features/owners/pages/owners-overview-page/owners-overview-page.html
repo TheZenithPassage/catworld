@@ -1,34 +1,34 @@
 <section class="owners-overview-page">
   <header class="page-header">
     <div>
-      <h2>Owners</h2>
-      <p>Basic view of the owners registered in CatWorld.</p>
+      <h2>{{ text().owners.overview.title }}</h2>
+      <p>{{ text().owners.overview.description }}</p>
     </div>
 
     <a routerLink="/owners/new" class="primary-action">
-      Create owner
+      {{ text().owners.overview.create }}
     </a>
   </header>
 
   @if (loading()) {
-    <p>Loading owners...</p>
+    <p>{{ text().owners.overview.loading }}</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadOwners()">Retry</button>
+      <button type="button" (click)="loadOwners()">{{ text().owners.overview.retry }}</button>
     </div>
   } @else if (owners().length === 0) {
-    <p>No owners registered.</p>
+    <p>{{ text().owners.overview.empty }}</p>
   } @else {
     <table class="owners-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Primary phone</th>
-          <th>Secondary phone</th>
-          <th>Address</th>
-          <th>Social</th>
-          <th>Actions</th>
+          <th>{{ text().owners.overview.table.name }}</th>
+          <th>{{ text().owners.overview.table.primaryPhone }}</th>
+          <th>{{ text().owners.overview.table.secondaryPhone }}</th>
+          <th>{{ text().owners.overview.table.address }}</th>
+          <th>{{ text().owners.overview.table.social }}</th>
+          <th>{{ text().owners.overview.table.actions }}</th>
         </tr>
       </thead>
 
@@ -40,13 +40,13 @@
             <td>{{ getSecondaryPhone(owner) }}</td>
             <td>{{ formatOptionalValue(owner.address) }}</td>
             <td>
-              <span>Instagram: {{ formatOptionalValue(owner.instagram) }}</span>
+              <span>{{ text().owners.overview.social.instagram }}: {{ formatOptionalValue(owner.instagram) }}</span>
               <small class="secondary-line">
-                Facebook: {{ formatOptionalValue(owner.facebook) }}
+                {{ text().owners.overview.social.facebook }}: {{ formatOptionalValue(owner.facebook) }}
               </small>
             </td>
             <td>
-              <a [routerLink]="['/owners', owner.id, 'edit']">Edit</a>
+              <a [routerLink]="['/owners', owner.id, 'edit']">{{ text().owners.overview.edit }}</a>
             </td>
           </tr>
         }

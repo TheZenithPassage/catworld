@@ -1,7 +1,7 @@
 <section class="owner-create-page">
   <header class="page-header">
-    <h2>Create owner</h2>
-    <p>Register a new owner in CatWorld.</p>
+    <h2>{{ text().owners.create.title }}</h2>
+    <p>{{ text().owners.create.description }}</p>
   </header>
 
   <form class="owner-form" (ngSubmit)="submit()">
@@ -12,7 +12,7 @@
     }
 
     <label>
-      Full name
+      {{ text().owners.form.fullName }}
       <input
         type="text"
         name="fullName"
@@ -22,7 +22,7 @@
     </label>
 
     <label>
-      Primary phone
+      {{ text().owners.form.primaryPhone }}
       <input
         type="text"
         name="primaryPhone"
@@ -32,7 +32,7 @@
     </label>
 
     <label>
-      Address
+      {{ text().owners.form.address }}
       <input
         type="text"
         name="address"
@@ -42,7 +42,7 @@
     </label>
 
     <label>
-      Secondary phone
+      {{ text().owners.form.secondaryPhone }}
       <input
         type="text"
         name="secondaryPhone"
@@ -52,7 +52,7 @@
     </label>
 
     <label>
-      Secondary phone name
+      {{ text().owners.form.secondaryPhoneName }}
       <input
         type="text"
         name="secondaryPhoneName"
@@ -62,7 +62,7 @@
     </label>
 
     <label>
-      Instagram
+      {{ text().owners.form.instagram }}
       <input
         type="text"
         name="instagram"
@@ -72,7 +72,7 @@
     </label>
 
     <label>
-      Facebook
+      {{ text().owners.form.facebook }}
       <input
         type="text"
         name="facebook"
@@ -83,7 +83,7 @@
 
     <div class="form-actions">
       <button type="submit" [disabled]="submitting()">
-        {{ submitting() ? 'Creating...' : 'Create owner' }}
+        {{ submitting() ? text().owners.create.submitting : text().owners.create.submit }}
       </button>
     </div>
   </form>

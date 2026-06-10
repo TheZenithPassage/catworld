@@ -96,6 +96,25 @@ describe('toStayCalendarEvents', () => {
       true,
     );
   });
+
+  it('adds translated compact marker labels when compact mode is enabled without daily labels', () => {
+    const stay = createStay();
+
+    const events = toStayCalendarEvents({
+      visibleStays: [stay],
+      colorAssignments: new Map(),
+      dailyLabelsEnabled: false,
+      compactModeEnabled: true,
+      compactMarkerLabels: {
+        start: 'Entrada',
+        end: 'Salida',
+      },
+    });
+
+    expect(events).toHaveLength(2);
+    expect(events[0].extendedProps?.['compactMarkerLabel']).toBe('Entrada');
+    expect(events[1].extendedProps?.['compactMarkerLabel']).toBe('Salida');
+  });
 });
 
 function createStay(overrides: Partial<Stay> = {}): Stay {

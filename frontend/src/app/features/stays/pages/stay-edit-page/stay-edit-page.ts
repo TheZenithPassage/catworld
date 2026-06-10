@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay, UpdateStayRequest } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { canModifyStay } from '../../utils/stay-status.util';
@@ -17,6 +18,9 @@ export class StayEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly stayApiService = inject(StayApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly ownerName = signal('');
   readonly catNames = signal('');
@@ -41,7 +45,7 @@ export class StayEditPage {
     this.stayLoaded.set(false);
 
     if (!this.stayId) {
-      this.showError('Stay id is missing');
+      this.showError(this.text().stays.edit.errors.stayIdMissing);
       return;
     }
 
@@ -50,7 +54,7 @@ export class StayEditPage {
     this.stayApiService.getStayById(this.stayId).subscribe({
       next: (stay) => {
         if (!canModifyStay(stay)) {
-          this.showError('Closed stays cannot be modified');
+          this.showError(this.text().stays.edit.errors.closedCannotBeModified);
           this.loading.set(false);
           return;
         }
@@ -60,7 +64,7 @@ export class StayEditPage {
         this.loading.set(false);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error loading stay'));
+        this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.loadFailed));
         this.loading.set(false);
       }
     });
@@ -70,22 +74,22 @@ export class StayEditPage {
     this.error.set(null);
 
     if (!this.stayLoaded()) {
-      this.showError('Stay data is not loaded');
+      this.showError(this.text().stays.edit.errors.dataNotLoaded);
       return;
     }
 
     if (!this.stayId) {
-      this.showError('Stay id is missing');
+      this.showError(this.text().stays.edit.errors.stayIdMissing);
       return;
     }
 
     if (!this.startAt() || !this.endAt()) {
-      this.showError('Start and end date are required');
+      this.showError(this.text().stays.edit.errors.datesRequired);
       return;
     }
 
     if (new Date(this.endAt()) <= new Date(this.startAt())) {
-      this.showError('End date must be after start date');
+      this.showError(this.text().stays.edit.errors.endAfterStart);
       return;
     }
 
@@ -103,7 +107,7 @@ export class StayEditPage {
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error updating stay'));
+        this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed));
         this.submitting.set(false);
       }
     });

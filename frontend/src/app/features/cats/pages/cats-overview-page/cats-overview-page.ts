@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 
@@ -12,6 +13,10 @@ import { CatApiService } from '../../services/cat-api.service';
 })
 export class CatsOverviewPage {
   private readonly catApiService = inject(CatApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
+  readonly dateLocale = this.i18nService.dateLocale;
 
   readonly cats = signal<Cat[]>([]);
   readonly loading = signal(false);
@@ -31,33 +36,33 @@ export class CatsOverviewPage {
         this.loading.set(false);
       },
       error: () => {
-        this.error.set('Error loading cats');
+        this.error.set(this.text().cats.overview.errorLoading);
         this.loading.set(false);
       }
     });
   }
 
   formatOptionalValue(value: string | null): string {
-    return value || '-';
+    return value || this.text().cats.emptyValue;
   }
 
   formatDate(value: string | null): string {
     if (!value) {
-      return '-';
+      return this.text().cats.emptyValue;
     }
 
-    return new Intl.DateTimeFormat('es-ES', {
+    return new Intl.DateTimeFormat(this.dateLocale(), {
       dateStyle: 'short'
     }).format(new Date(`${value}T00:00:00`));
   }
 
   formatSex(sex: Sex): string {
-    return sex === 'MALE' ? 'Male' : 'Female';
+    return sex === 'MALE' ? this.text().cats.form.male : this.text().cats.form.female;
   }
 
   getAppearance(cat: Cat): string {
     const values = [cat.breed, cat.coat, cat.color].filter(Boolean);
 
-    return values.length > 0 ? values.join(' / ') : '-';
+    return values.length > 0 ? values.join(' / ') : this.text().cats.emptyValue;
   }
 }

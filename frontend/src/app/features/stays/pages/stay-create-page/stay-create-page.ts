@@ -10,6 +10,7 @@ import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { CreateStayRequest } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-stay-create-page',
@@ -23,6 +24,9 @@ export class StayCreatePage {
   private readonly stayApiService = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly owners = signal<Owner[]>([]);
   readonly cats = signal<Cat[]>([]);
@@ -61,7 +65,7 @@ export class StayCreatePage {
         this.loadingData.set(false);
       },
       error: () => {
-        this.error.set('Error loading form data');
+        this.error.set(this.text().stays.create.errors.loadFormDataFailed);
         this.loadingData.set(false);
       }
     });
@@ -91,17 +95,17 @@ export class StayCreatePage {
     this.error.set(null);
 
     if (this.selectedCatIds().length === 0) {
-      this.error.set('Select at least one cat');
+      this.error.set(this.text().stays.create.errors.selectAtLeastOneCat);
       return;
     }
 
     if (!this.startAt() || !this.endAt()) {
-      this.error.set('Start and end date are required');
+      this.error.set(this.text().stays.create.errors.datesRequired);
       return;
     }
 
     if (new Date(this.endAt()) <= new Date(this.startAt())) {
-      this.error.set('End date must be after start date');
+      this.error.set(this.text().stays.create.errors.endAfterStart);
       return;
     }
 
@@ -156,7 +160,7 @@ export class StayCreatePage {
   }
 
   private getCreateStayErrorMessage(error: unknown): string {
-    const fallbackMessage = 'Error creating stay';
+    const fallbackMessage = this.text().stays.create.errors.createFailed;
 
     if (!(error instanceof HttpErrorResponse)) {
       return fallbackMessage;

@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CreateVetRequest } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 
@@ -16,6 +17,9 @@ export class VetCreatePage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly vetApiService = inject(VetApiService);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly name = signal('');
   readonly address = signal('');
@@ -28,7 +32,7 @@ export class VetCreatePage {
     this.error.set(null);
 
     if (!this.name().trim()) {
-      this.error.set('Name is required');
+      this.error.set(this.text().vets.create.errors.nameRequired);
       return;
     }
 
@@ -46,7 +50,7 @@ export class VetCreatePage {
         this.navigateAfterSuccess(vet.id);
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, 'Error creating vet'));
+        this.error.set(this.getApiErrorMessage(error, this.text().vets.create.errors.createFailed));
         this.submitting.set(false);
       }
     });

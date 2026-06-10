@@ -1,18 +1,18 @@
-<div class="stay-search-filters" aria-label="Stay search filters">
+<div class="stay-search-filters" [attr.aria-label]="text().stays.filters.searchAriaLabel">
   <label class="search-filter">
-    <span>Cat</span>
+    <span>{{ text().stays.filters.cat }}</span>
 
     <div class="search-control">
       <input
         type="text"
         autocomplete="off"
-        placeholder="Search cat"
+        [placeholder]="text().stays.filters.searchCat"
         [ngModel]="catSearch()"
         (ngModelChange)="onCatSearchChange($event)"
       />
 
       @if (selectedCatId()) {
-        <button type="button" (click)="clearCat()">Clear</button>
+        <button type="button" (click)="clearCat()">{{ text().stays.filters.clear }}</button>
       }
     </div>
 
@@ -27,24 +27,24 @@
         }
       </ul>
     } @else if (catSearch().trim() && !selectedCatId()) {
-      <small class="empty-options">No cats match this search.</small>
+      <small class="empty-options">{{ text().stays.filters.noCatsMatch }}</small>
     }
   </label>
 
   <label class="search-filter">
-    <span>Owner</span>
+    <span>{{ text().stays.filters.owner }}</span>
 
     <div class="search-control">
       <input
         type="text"
         autocomplete="off"
-        placeholder="Search owner or one of their cats"
+        [placeholder]="text().stays.filters.searchOwnerOrCats"
         [ngModel]="ownerSearch()"
         (ngModelChange)="onOwnerSearchChange($event)"
       />
 
       @if (selectedOwnerId()) {
-        <button type="button" (click)="clearOwner()">Clear</button>
+        <button type="button" (click)="clearOwner()">{{ text().stays.filters.clear }}</button>
       }
     </div>
 
@@ -59,7 +59,7 @@
         }
       </ul>
     } @else if (ownerSearch().trim() && !selectedOwnerId()) {
-      <small class="empty-options">No owners match this search.</small>
+      <small class="empty-options">{{ text().stays.filters.noOwnersMatch }}</small>
     }
   </label>
 </div>

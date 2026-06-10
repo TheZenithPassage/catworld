@@ -10,6 +10,7 @@ import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-cat-edit-page',
@@ -23,6 +24,9 @@ export class CatEditPage {
   private readonly vetApiService = inject(VetApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly i18nService = inject(I18nService);
+
+  readonly text = this.i18nService.text;
 
   readonly owners = signal<Owner[]>([]);
   readonly vets = signal<Vet[]>([]);
@@ -62,7 +66,7 @@ export class CatEditPage {
     this.catLoaded.set(false);
 
     if (!this.catId) {
-      this.showError('Cat id is missing');
+      this.showError(this.text().cats.edit.errors.catIdMissing);
       return;
     }
 
@@ -81,7 +85,7 @@ export class CatEditPage {
         this.loadingData.set(false);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error loading cat form data'));
+        this.showError(this.getApiErrorMessage(error, this.text().cats.edit.errors.loadFormDataFailed));
         this.loadingData.set(false);
       }
     });
@@ -89,32 +93,32 @@ export class CatEditPage {
 
   submit(): void {
     if (!this.catLoaded()) {
-      this.showError('Cat data is not loaded');
+      this.showError(this.text().cats.edit.errors.dataNotLoaded);
       return;
     }
 
     if (!this.catId) {
-      this.showError('Cat id is missing');
+      this.showError(this.text().cats.edit.errors.catIdMissing);
       return;
     }
 
     if (!this.name().trim()) {
-      this.showError('Name is required');
+      this.showError(this.text().cats.edit.errors.nameRequired);
       return;
     }
 
     if (!this.birthDate()) {
-      this.showError('Birth date is required');
+      this.showError(this.text().cats.edit.errors.birthDateRequired);
       return;
     }
 
     if (!this.sex()) {
-      this.showError('Sex is required');
+      this.showError(this.text().cats.edit.errors.sexRequired);
       return;
     }
 
     if (!this.ownerId()) {
-      this.showError('Owner is required');
+      this.showError(this.text().cats.edit.errors.ownerRequired);
       return;
     }
 
@@ -146,7 +150,7 @@ export class CatEditPage {
         this.router.navigate(['/cats']);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, 'Error updating cat'));
+        this.showError(this.getApiErrorMessage(error, this.text().cats.edit.errors.updateFailed));
         this.submitting.set(false);
       }
     });

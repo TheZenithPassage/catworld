@@ -1,45 +1,45 @@
 <section class="dashboard-page">
   <header class="page-header">
-    <h2>Dashboard</h2>
-    <p>Use CatWorld to manage stays, owners and cats for the local boarding workflow.</p>
+    <h2>{{ text().dashboard.title }}</h2>
+    <p>{{ text().dashboard.description }}</p>
   </header>
 
   <div class="dashboard-links">
     <a routerLink="/stays" class="dashboard-card">
-      <h3>Stays</h3>
-      <p>View reservations, create new stays and cancel active bookings.</p>
+      <h3>{{ text().dashboard.links.stays.title }}</h3>
+      <p>{{ text().dashboard.links.stays.description }}</p>
     </a>
 
     <a routerLink="/calendar" class="dashboard-card">
-      <h3>Calendar</h3>
-      <p>Review stays in a monthly calendar view.</p>
+      <h3>{{ text().dashboard.links.calendar.title }}</h3>
+      <p>{{ text().dashboard.links.calendar.description }}</p>
     </a>
 
     <a routerLink="/cats" class="dashboard-card">
-      <h3>Cats</h3>
-      <p>Browse registered cats and add cats to existing owners.</p>
+      <h3>{{ text().dashboard.links.cats.title }}</h3>
+      <p>{{ text().dashboard.links.cats.description }}</p>
     </a>
 
      <a routerLink="/owners" class="dashboard-card">
-      <h3>Owners</h3>
-      <p>Browse owner contact information and register new owners.</p>
+      <h3>{{ text().dashboard.links.owners.title }}</h3>
+      <p>{{ text().dashboard.links.owners.description }}</p>
     </a>
     
     <a routerLink="/vets" class="dashboard-card">
-      <h3>Vets</h3>
-      <p>Browse registered vets and update their contact information.</p>
+      <h3>{{ text().dashboard.links.vets.title }}</h3>
+      <p>{{ text().dashboard.links.vets.description }}</p>
     </a>
   </div>
 
 
   <section class="quick-actions">
-    <h3>Quick actions</h3>
+    <h3>{{ text().dashboard.quickActions.title }}</h3>
 
     <div class="action-links">
-      <a routerLink="/stays/new">Create stay</a>
-      <a routerLink="/owners/new">Create owner</a>
-      <a routerLink="/cats/new">Create cat</a>
-      <a routerLink="/vets/new">Create vet</a>
+      <a routerLink="/stays/new">{{ text().dashboard.quickActions.createStay }}</a>
+      <a routerLink="/owners/new">{{ text().dashboard.quickActions.createOwner }}</a>
+      <a routerLink="/cats/new">{{ text().dashboard.quickActions.createCat }}</a>
+      <a routerLink="/vets/new">{{ text().dashboard.quickActions.createVet }}</a>
     </div>
   </section>
 </section>

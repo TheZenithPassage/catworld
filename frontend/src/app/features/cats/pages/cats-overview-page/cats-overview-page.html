@@ -1,37 +1,37 @@
 <section class="cats-overview-page">
   <header class="page-header">
     <div>
-      <h2>Cats</h2>
-      <p>Basic view of the cats registered in CatWorld.</p>
+      <h2>{{ text().cats.overview.title }}</h2>
+      <p>{{ text().cats.overview.description }}</p>
     </div>
 
     <a routerLink="/cats/new" class="primary-action">
-      Create cat
+      {{ text().cats.overview.create }}
     </a>
   </header>
 
   @if (loading()) {
-    <p>Loading cats...</p>
+    <p>{{ text().cats.overview.loading }}</p>
   } @else if (error()) {
     <div class="error-message">
       <p>{{ error() }}</p>
-      <button type="button" (click)="loadCats()">Retry</button>
+      <button type="button" (click)="loadCats()">{{ text().cats.overview.retry }}</button>
     </div>
   } @else if (cats().length === 0) {
-    <p>No cats registered.</p>
+    <p>{{ text().cats.overview.empty }}</p>
   } @else {
     <table class="cats-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Owner</th>
-          <th>Sex</th>
-          <th>Birth date</th>
-          <th>Appearance</th>
-          <th>Care</th>
-          <th>Health</th>
-          <th>Vet</th>
-          <th>Actions</th>
+          <th>{{ text().cats.overview.table.name }}</th>
+          <th>{{ text().cats.overview.table.owner }}</th>
+          <th>{{ text().cats.overview.table.sex }}</th>
+          <th>{{ text().cats.overview.table.birthDate }}</th>
+          <th>{{ text().cats.overview.table.appearance }}</th>
+          <th>{{ text().cats.overview.table.care }}</th>
+          <th>{{ text().cats.overview.table.health }}</th>
+          <th>{{ text().cats.overview.table.vet }}</th>
+          <th>{{ text().cats.overview.table.actions }}</th>
         </tr>
       </thead>
 
@@ -44,29 +44,29 @@
             <td>{{ formatDate(cat.birthDate) }}</td>
             <td>{{ getAppearance(cat) }}</td>
             <td>
-              <span>Food: {{ formatOptionalValue(cat.foodBrand) }}</span>
+              <span>{{ text().cats.overview.care.food }}: {{ formatOptionalValue(cat.foodBrand) }}</span>
               <small class="secondary-line">
-                Litter: {{ formatOptionalValue(cat.litterBrand) }}
+                {{ text().cats.overview.care.litter }}: {{ formatOptionalValue(cat.litterBrand) }}
               </small>
               <small class="secondary-line">
-                Personality: {{ formatOptionalValue(cat.personality) }}
+                {{ text().cats.overview.care.personality }}: {{ formatOptionalValue(cat.personality) }}
               </small>
             </td>
             <td>
-              <span>Triple feline: {{ formatDate(cat.lastTripleFelineDate) }}</span>
+              <span>{{ text().cats.overview.health.tripleFeline }}: {{ formatDate(cat.lastTripleFelineDate) }}</span>
               <small class="secondary-line">
-                Rabies: {{ formatDate(cat.lastRabiesDate) }}
+                {{ text().cats.overview.health.rabies }}: {{ formatDate(cat.lastRabiesDate) }}
               </small>
               <small class="secondary-line">
-                Internal deworming: {{ formatDate(cat.lastInternalDewormingDate) }}
+                {{ text().cats.overview.health.internalDeworming }}: {{ formatDate(cat.lastInternalDewormingDate) }}
               </small>
               <small class="secondary-line">
-                External deworming: {{ formatDate(cat.lastExternalDewormingDate) }}
+                {{ text().cats.overview.health.externalDeworming }}: {{ formatDate(cat.lastExternalDewormingDate) }}
               </small>
             </td>
             <td>{{ formatOptionalValue(cat.vetName) }}</td>
             <td>
-              <a [routerLink]="['/cats', cat.id, 'edit']">Edit</a>
+              <a [routerLink]="['/cats', cat.id, 'edit']">{{ text().cats.overview.edit }}</a>
             </td>
           </tr>
         }
