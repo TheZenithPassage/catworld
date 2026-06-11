@@ -116,3 +116,7 @@ export function normalizeSearchText(value: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
 }
+
+export function hasActiveStayEntityFilter(filters: StaySearchFilters): boolean {
+  return Boolean(filters.catId || filters.ownerId);
+}
