@@ -40,6 +40,10 @@ export interface VetsTranslations {
     retry: string;
     empty: string;
     errorLoading: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    emptyFiltered: string;
     table: {
       name: string;
       phoneNumber: string;
@@ -90,6 +94,10 @@ export const VETS_TRANSLATIONS = {
       loading: 'Cargando veterinarios...',
       retry: 'Reintentar',
       empty: 'No hay veterinarios registrados.',
+      searchLabel: 'Buscar',
+      searchPlaceholder: 'Buscar veterinario',
+      clearSearch: 'Limpiar',
+      emptyFiltered: 'Ningún veterinario coincide con la búsqueda.',
       errorLoading: 'Error al cargar veterinarios',
       table: {
         name: 'Nombre',
@@ -139,6 +147,10 @@ export const VETS_TRANSLATIONS = {
       loading: 'Loading vets...',
       retry: 'Retry',
       empty: 'No vets registered.',
+      searchLabel: 'Search',
+      searchPlaceholder: 'Search vet',
+      clearSearch: 'Clear',
+      emptyFiltered: 'No vets match the search.',
       errorLoading: 'Error loading vets',
       table: {
         name: 'Name',

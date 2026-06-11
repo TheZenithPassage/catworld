@@ -20,57 +20,89 @@
   } @else if (cats().length === 0) {
     <p>{{ text().cats.overview.empty }}</p>
   } @else {
-    <table class="cats-table">
-      <thead>
-        <tr>
-          <th>{{ text().cats.overview.table.name }}</th>
-          <th>{{ text().cats.overview.table.owner }}</th>
-          <th>{{ text().cats.overview.table.sex }}</th>
-          <th>{{ text().cats.overview.table.birthDate }}</th>
-          <th>{{ text().cats.overview.table.appearance }}</th>
-          <th>{{ text().cats.overview.table.care }}</th>
-          <th>{{ text().cats.overview.table.health }}</th>
-          <th>{{ text().cats.overview.table.vet }}</th>
-          <th>{{ text().cats.overview.table.actions }}</th>
-        </tr>
-      </thead>
 
-      <tbody>
-        @for (cat of cats(); track cat.id) {
+    <div class="overview-search">
+      <label>
+        <span>{{ text().cats.overview.searchLabel }}</span>
+        <input
+          #searchInput
+          type="search"
+          [value]="searchText()"
+          [placeholder]="text().cats.overview.searchPlaceholder"
+          (input)="setSearchText(searchInput.value)"
+        />
+      </label>
+
+      @if (searchText()) {
+        <button type="button" class="secondary-action" (click)="clearSearch()">
+          {{ text().cats.overview.clearSearch }}
+        </button>
+      }
+    </div>
+
+    @if (filteredCats().length === 0) {
+      <p>{{ text().cats.overview.emptyFiltered }}</p>
+    } @else {
+      <table class="cats-table">
+        <thead>
           <tr>
-            <td>{{ cat.name }}</td>
-            <td>{{ cat.ownerName }}</td>
-            <td>{{ formatSex(cat.sex) }}</td>
-            <td>{{ formatDate(cat.birthDate) }}</td>
-            <td>{{ getAppearance(cat) }}</td>
-            <td>
-              <span>{{ text().cats.overview.care.food }}: {{ formatOptionalValue(cat.foodBrand) }}</span>
-              <small class="secondary-line">
-                {{ text().cats.overview.care.litter }}: {{ formatOptionalValue(cat.litterBrand) }}
-              </small>
-              <small class="secondary-line">
-                {{ text().cats.overview.care.personality }}: {{ formatOptionalValue(cat.personality) }}
-              </small>
-            </td>
-            <td>
-              <span>{{ text().cats.overview.health.tripleFeline }}: {{ formatDate(cat.lastTripleFelineDate) }}</span>
-              <small class="secondary-line">
-                {{ text().cats.overview.health.rabies }}: {{ formatDate(cat.lastRabiesDate) }}
-              </small>
-              <small class="secondary-line">
-                {{ text().cats.overview.health.internalDeworming }}: {{ formatDate(cat.lastInternalDewormingDate) }}
-              </small>
-              <small class="secondary-line">
-                {{ text().cats.overview.health.externalDeworming }}: {{ formatDate(cat.lastExternalDewormingDate) }}
-              </small>
-            </td>
-            <td>{{ formatOptionalValue(cat.vetName) }}</td>
-            <td>
-              <a [routerLink]="['/cats', cat.id, 'edit']">{{ text().cats.overview.edit }}</a>
-            </td>
+            <th>{{ text().cats.overview.table.name }}</th>
+            <th>{{ text().cats.overview.table.owner }}</th>
+            <th>{{ text().cats.overview.table.sex }}</th>
+            <th>{{ text().cats.overview.table.birthDate }}</th>
+            <th>{{ text().cats.overview.table.appearance }}</th>
+            <th>{{ text().cats.overview.table.care }}</th>
+            <th>{{ text().cats.overview.table.health }}</th>
+            <th>{{ text().cats.overview.table.vet }}</th>
+            <th>{{ text().cats.overview.table.actions }}</th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody>
+          @for (cat of filteredCats(); track cat.id) {
+            <tr>
+              <td>{{ cat.name }}</td>
+              <td>
+                <a
+                  class="owner-search-link"
+                  routerLink="/owners"
+                  [queryParams]="{ search: cat.ownerName, selectedOwnerId: cat.ownerId }"
+                >
+                  {{ cat.ownerName }}
+                </a>
+              </td>
+              <td>{{ formatSex(cat.sex) }}</td>
+              <td>{{ formatDate(cat.birthDate) }}</td>
+              <td>{{ getAppearance(cat) }}</td>
+              <td>
+                <span>{{ text().cats.overview.care.food }}: {{ formatOptionalValue(cat.foodBrand) }}</span>
+                <small class="secondary-line">
+                  {{ text().cats.overview.care.litter }}: {{ formatOptionalValue(cat.litterBrand) }}
+                </small>
+                <small class="secondary-line">
+                  {{ text().cats.overview.care.personality }}: {{ formatOptionalValue(cat.personality) }}
+                </small>
+              </td>
+              <td>
+                <span>{{ text().cats.overview.health.tripleFeline }}: {{ formatDate(cat.lastTripleFelineDate) }}</span>
+                <small class="secondary-line">
+                  {{ text().cats.overview.health.rabies }}: {{ formatDate(cat.lastRabiesDate) }}
+                </small>
+                <small class="secondary-line">
+                  {{ text().cats.overview.health.internalDeworming }}: {{ formatDate(cat.lastInternalDewormingDate) }}
+                </small>
+                <small class="secondary-line">
+                  {{ text().cats.overview.health.externalDeworming }}: {{ formatDate(cat.lastExternalDewormingDate) }}
+                </small>
+              </td>
+              <td>{{ formatOptionalValue(cat.vetName) }}</td>
+              <td>
+                <a [routerLink]="['/cats', cat.id, 'edit']">{{ text().cats.overview.edit }}</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
   }
 </section>
