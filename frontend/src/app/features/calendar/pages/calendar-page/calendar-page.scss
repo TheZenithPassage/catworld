@@ -56,16 +56,68 @@
   overflow-x: auto;
 }
 
-.status-filters,
-.calendar-display-options {
+.status-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
 }
 
-.status-filter,
+.calendar-display-options {
+  display: grid;
+  gap: 1rem;
+}
+
+.calendar-display-options-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.75rem;
+}
+
+.calendar-display-options-header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.calendar-display-options-header strong {
+  font-size: 1rem;
+}
+
+.calendar-display-options-header p {
+  max-width: 46rem;
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
 .calendar-display-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  width: min(100%, 36rem);
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(255 253 248 / 0.82);
+}
+
+.calendar-display-option span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.calendar-display-option strong {
+  line-height: 1.2;
+}
+
+.calendar-display-option small {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.status-filter {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
@@ -75,7 +127,7 @@
 .status-filter input,
 .calendar-display-option input {
   width: auto;
-  margin: 0;
+  margin: 0.15rem 0 0;
 }
 
 :host ::ng-deep .fc {

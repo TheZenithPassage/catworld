@@ -9,14 +9,31 @@ export interface CalendarTranslations {
     retry: string;
   };
   statusFiltersAriaLabel: string;
-  displayOptions: {
+  displayModes: {
+    title: string;
+    description: string;
+    options: {
+      'daily-labels': {
+        label: string;
+        description: string;
+      };
+      'compact-daily-labels': {
+        label: string;
+        description: string;
+      };
+      'entry-exit-markers': {
+        label: string;
+        description: string;
+      };
+    };
+  };
+  filteredDisplayOptions: {
+    title: string;
     dailyLabels: string;
-    compactMode: string;
   };
   loading: string;
   empty: string;
   emptyFiltered: string;
-  help: string;
   errorLoading: string;
   openStayInList: string;
   compactMarkerLabels: {
@@ -35,14 +52,31 @@ export const CALENDAR_TRANSLATIONS = {
       retry: 'Reintentar',
     },
     statusFiltersAriaLabel: 'Filtros de estado del calendario',
-    displayOptions: {
-      dailyLabels: 'Etiquetas diarias',
-      compactMode: 'Modo compacto',
+    displayModes: {
+      title: 'Vista del calendario',
+      description: 'Elige cómo mostrar las estancias.',
+      options: {
+        'daily-labels': {
+          label: 'Estándar',
+          description: 'Diseño estándar.',
+        },
+        'compact-daily-labels': {
+          label: 'Compacto',
+          description: 'Reduce el tamaño de las etiquetas.',
+        },
+        'entry-exit-markers': {
+          label: 'Entradas y salidas',
+          description: 'Muestra solo el inicio y el final de cada estancia.',
+        },
+      },
+    },
+    filteredDisplayOptions: {
+      title: 'Vista del calendario',
+      dailyLabels: 'Mostrar etiqueta en cada día',
     },
     loading: 'Cargando calendario...',
     empty: 'No hay estancias registradas.',
-    emptyFiltered: 'Ninguna entrada del calendario coincide con los filtros seleccionados.',
-    help: 'Selecciona una entrada del calendario para abrirla en la lista de estancias.',
+    emptyFiltered: 'Ninguna estancia coincide con los filtros seleccionados.',
     errorLoading: 'Error al cargar el calendario',
     openStayInList: 'Abrir estancia para ver los detalles',
     compactMarkerLabels: {
@@ -59,14 +93,31 @@ export const CALENDAR_TRANSLATIONS = {
       retry: 'Retry',
     },
     statusFiltersAriaLabel: 'Calendar status filters',
-    displayOptions: {
-      dailyLabels: 'Daily labels',
-      compactMode: 'Compact mode',
+    displayModes: {
+      title: 'Calendar view',
+      description: 'Choose how stays are displayed when no cat or owner filter is active.',
+      options: {
+        'daily-labels': {
+          label: 'Standard',
+          description: 'Standard design.',
+        },
+        'compact-daily-labels': {
+          label: 'Compact',
+          description: 'Reduce the size of the labels.',
+        },
+        'entry-exit-markers': {
+          label: 'Entry and exit markers',
+          description: 'Shows only the start and end of each stay.',
+        },
+      },
+    },
+    filteredDisplayOptions: {
+      title: 'Calendar view',
+      dailyLabels: 'Show label on each day',
     },
     loading: 'Loading calendar...',
     empty: 'No stays registered.',
-    emptyFiltered: 'No calendar entries match the selected filters.',
-    help: 'Select a calendar entry to open it in the stays list.',
+    emptyFiltered: 'No stays match the selected filters.',
     errorLoading: 'Error loading calendar',
     openStayInList: 'Open stay to see details',
     compactMarkerLabels: {
