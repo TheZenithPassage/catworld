@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { matchesSearchText } from '../../../../core/search/search-text.util';
 
 @Component({
   selector: 'app-cats-overview-page',
@@ -21,6 +22,13 @@ export class CatsOverviewPage {
   readonly cats = signal<Cat[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly searchText = signal('');
+
+  readonly filteredCats = computed(() =>
+    this.cats().filter((cat) =>
+      matchesSearchText([cat.name, cat.ownerName], this.searchText())
+    )
+  );
 
   constructor() {
     this.loadCats();
@@ -40,6 +48,14 @@ export class CatsOverviewPage {
         this.loading.set(false);
       }
     });
+  }
+
+  setSearchText(value: string): void {
+    this.searchText.set(value);
+  }
+
+  clearSearch(): void {
+    this.searchText.set('');
   }
 
   formatOptionalValue(value: string | null): string {

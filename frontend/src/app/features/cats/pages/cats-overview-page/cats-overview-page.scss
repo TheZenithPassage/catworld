@@ -42,3 +42,62 @@
     flex-direction: column;
   }
 }
+
+.overview-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.overview-search label {
+  display: grid;
+  gap: 0.35rem;
+  width: min(100%, 24rem);
+  font-weight: 750;
+}
+
+.overview-search input {
+  width: 100%;
+}
+
+.cats-table th:nth-child(1),
+.cats-table td:nth-child(1) {
+  min-width: 7rem;
+}
+
+.cats-table th:nth-child(2),
+.cats-table td:nth-child(2) {
+  min-width: 10rem;
+}
+
+.cats-table th:nth-child(3),
+.cats-table td:nth-child(3) {
+  min-width: 5.5rem;
+}
+
+.cats-table th:nth-child(4),
+.cats-table td:nth-child(4) {
+  min-width: 8rem;
+}
+
+.cats-table td a.owner-search-link {
+  display: inline;
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text);
+  font-weight: 450;
+  line-height: inherit;
+  text-decoration-color: rgb(201 111 47 / 0.35);
+  text-underline-offset: 0.15rem;
+}
+
+.cats-table td a.owner-search-link:hover {
+  background: transparent;
+  color: var(--color-primary-hover);
+  text-decoration-color: currentColor;
+}

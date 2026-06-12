@@ -68,6 +68,10 @@ export interface CatsTranslations {
     loading: string;
     retry: string;
     empty: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    emptyFiltered: string;
     errorLoading: string;
     table: {
       name: string;
@@ -164,6 +168,10 @@ export const CATS_TRANSLATIONS = {
       loading: 'Cargando gatos...',
       retry: 'Reintentar',
       empty: 'No hay gatos registrados.',
+      searchLabel: 'Buscar',
+      searchPlaceholder: 'Buscar por gato o dueño',
+      clearSearch: 'Limpiar',
+      emptyFiltered: 'Ningún gato coincide con la búsqueda.',
       errorLoading: 'Error al cargar gatos',
       table: {
         name: 'Nombre',
@@ -258,6 +266,10 @@ export const CATS_TRANSLATIONS = {
       loading: 'Loading cats...',
       retry: 'Retry',
       empty: 'No cats registered.',
+      searchLabel: 'Search',
+      searchPlaceholder: 'Search by cat or owner',
+      clearSearch: 'Clear',
+      emptyFiltered: 'No cats match the search.',
       errorLoading: 'Error loading cats',
       table: {
         name: 'Name',

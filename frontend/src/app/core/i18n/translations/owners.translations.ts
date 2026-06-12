@@ -44,6 +44,10 @@ export interface OwnersTranslations {
     loading: string;
     retry: string;
     empty: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    emptyFiltered: string;
     errorLoading: string;
     table: {
       name: string;
@@ -106,6 +110,10 @@ export const OWNERS_TRANSLATIONS = {
       loading: 'Cargando dueños...',
       retry: 'Reintentar',
       empty: 'No hay dueños registrados.',
+      searchLabel: 'Buscar',
+      searchPlaceholder: 'Buscar dueño',
+      clearSearch: 'Limpiar',
+      emptyFiltered: 'Ningún dueño coincide con la búsqueda.',
       errorLoading: 'Error al cargar dueños',
       table: {
         name: 'Nombre',
@@ -166,6 +174,10 @@ export const OWNERS_TRANSLATIONS = {
       loading: 'Loading owners...',
       retry: 'Retry',
       empty: 'No owners registered.',
+      searchLabel: 'Search',
+      searchPlaceholder: 'Search owner',
+      clearSearch: 'Clear',
+      emptyFiltered: 'No owners match the search.',
       errorLoading: 'Error loading owners',
       table: {
         name: 'Name',

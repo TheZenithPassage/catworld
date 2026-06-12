@@ -1,9 +1,10 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
+import { matchesSearchText } from '../../../../core/search/search-text.util';
 
 @Component({
   selector: 'app-vets-overview-page',
@@ -20,6 +21,11 @@ export class VetsOverviewPage {
   readonly vets = signal<Vet[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly searchText = signal('');
+
+  readonly filteredVets = computed(() =>
+    this.vets().filter((vet) => matchesSearchText([vet.name], this.searchText()))
+  );
 
   constructor() {
     this.loadVets();
@@ -39,6 +45,14 @@ export class VetsOverviewPage {
         this.loading.set(false);
       }
     });
+  }
+
+  setSearchText(value: string): void {
+    this.searchText.set(value);
+  }
+
+  clearSearch(): void {
+    this.searchText.set('');
   }
 
   formatOptionalValue(value: string | null): string {
