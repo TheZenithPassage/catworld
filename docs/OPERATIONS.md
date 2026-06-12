@@ -1,198 +1,147 @@
 # CatWorld Operations
 
-This document covers simple local/private operational procedures for CatWorld.
+Simple operations notes for the first private CatWorld production version.
 
-## Private MVP Authentication
+## Private Production
 
-The private production stack requires one configured login user.
+The first private production version runs from the developer machine with `compose.prod.yml`.
 
-Set these values in `.env.production` before starting the stack:
+Only the frontend is exposed to the host. The backend and database stay inside the Docker Compose network, and browser API requests go through the frontend `/api` proxy.
 
-- `CATWORLD_SECURITY_USERNAME`: login username. Example: `admin`
-- `CATWORLD_SECURITY_PASSWORD`: login password. Example: `replace_with_a_strong_admin_password`
-- `CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS`: frontend origin allowed to call the API. Example: `http://localhost:4200`
+External access, if needed, must point only to the frontend URL. Backend and database ports must not be exposed directly.
 
-Default local setup:
+Real production data must not be mixed with portfolio/demo data.
 
-```env
+## Configuration
+
+Copy the production environment template:
+
+```
+Copy-Item .env.production.example .env.production
+```
+
+Set real values in `.env.production` before starting the stack:
+
+```
+DB_NAME=catworld
+DB_USER=catworld_app
+DB_PASSWORD=replace_with_a_strong_password
+DB_ROOT_PASSWORD=replace_with_a_strong_root_password
 CATWORLD_SECURITY_USERNAME=admin
 CATWORLD_SECURITY_PASSWORD=replace_with_a_strong_admin_password
 CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:4200
+FRONTEND_PORT=4200
 ```
 
-If the frontend is exposed on another host or port, update `CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS` to match the browser URL used to open CatWorld.
+Do not commit real `.env.production` values.
 
-Start the private production stack with:
+## Start and Stop
 
-```bash
+Start the private production stack:
+
+```
 docker compose --env-file .env.production -f compose.prod.yml up --build -d
 ```
 
-On Windows PowerShell:
+Open the app:
 
-```powershell
-docker compose --env-file .env.production -f compose.prod.yml up --build -d
 ```
-
-Then open:
-
-```txt
 http://localhost:4200
 ```
 
-and log in with the configured username and password.
+Stop the stack without deleting data:
 
-## Database Backups
-
-Backups are stored locally under:
-
-```txt
-backups/
+```
+docker compose --env-file .env.production -f compose.prod.yml down
 ```
 
-Use this naming convention:
+Do not use `down -v` unless the local production database should be deleted.
 
-```txt
-catworld_YYYYMMDD_HHMMSS.sql
-```
+## Backup
 
-Example:
-
-```txt
-backups/catworld_20260602_153000.sql
-```
-
-Backup files may contain real owner, cat, vet and stay data. Do not commit them.
-
-## Create a Backup
-
-Start from the private production stack:
-
-```bash
-docker compose --env-file .env.production -f compose.prod.yml up --build -d
-```
+Backups are stored under `backups/` and must not be committed.
 
 Create the backup directory:
 
-```bash
-mkdir -p backups
 ```
-
-Create a MySQL dump from the running database container:
-
-```bash
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE"' > "backups/catworld_$(date +%Y%m%d_%H%M%S).sql"
-```
-
-On Windows PowerShell, create the backup directory first:
-
-```powershell
 New-Item -ItemType Directory -Force backups
 ```
 
-Then create a timestamp:
+Create a timestamp:
 
-```powershell
+```
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 ```
 
 Create the dump inside the database container:
 
-```powershell
+```
 docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE" > /tmp/catworld-backup.sql'
 ```
 
-Copy the dump from the container to the local backup directory:
+Copy it to the local backup directory:
 
-```powershell
+```
 docker compose --env-file .env.production -f compose.prod.yml cp db:/tmp/catworld-backup.sql "backups/catworld_$timestamp.sql"
 ```
 
-Remove the temporary dump from the container:
+Remove the temporary dump:
 
-```powershell
+```
 docker compose --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/catworld-backup.sql
 ```
 
-Check that the backup file exists:
+## Restore
 
-```powershell
-Get-ChildItem backups
+Stop the stack and delete the local production database volume:
+
 ```
-
-## Restore a Backup Into a Fresh Local Stack
-
-Stop the private production stack and delete the local production database volume:
-
-```bash
 docker compose --env-file .env.production -f compose.prod.yml down -v
 ```
 
-Start only MySQL so the database and user are created before restoring:
+Start only MySQL:
 
-```bash
+```
 docker compose --env-file .env.production -f compose.prod.yml up -d db
 ```
 
-Wait until MySQL is healthy:
+Copy the selected backup into the database container:
 
-```bash
-docker compose --env-file .env.production -f compose.prod.yml ps
 ```
-
-Restore the selected backup file:
-
-```bash
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' < backups/catworld_YYYYMMDD_HHMMSS.sql
-```
-
-On Windows PowerShell, first copy the selected backup into the database container:
-
-```powershell
 docker compose --env-file .env.production -f compose.prod.yml cp backups/catworld_YYYYMMDD_HHMMSS.sql db:/tmp/restore.sql
 ```
 
-Then restore it from inside the container:
+Restore it:
 
-```powershell
+```
 docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /tmp/restore.sql'
 ```
 
-Remove the temporary restore file from the container:
+Remove the temporary restore file:
 
-```powershell
+```
 docker compose --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/restore.sql
 ```
 
-Then start the full stack:
+Start the full stack:
 
-```bash
+```
 docker compose --env-file .env.production -f compose.prod.yml up --build -d
 ```
 
-Check the containers:
+Confirm the app opens and the restored data is visible:
 
-```bash
-docker compose --env-file .env.production -f compose.prod.yml ps
 ```
-
-Open the frontend:
-
-```txt
 http://localhost:4200
 ```
 
-## Manual Validation
+## Manual Check Before Real Use
 
-Before using CatWorld with real data, test this procedure once with non-sensitive sample data:
+Before using real data:
 
 1. Start the private production stack.
-2. Create one sample owner, cat, vet if needed, and stay.
+2. Create sample owner, cat, vet and stay records.
 3. Create a backup.
-4. Stop the stack with `down -v`.
-5. Start only `db`.
-6. Wait until MySQL is healthy.
-7. Restore the backup.
-8. Start the full stack.
-9. Confirm the sample data is visible from the frontend.
-10. Remove the sample data if it should not remain in the local database.
+4. Restore the backup into a fresh local database.
+5. Confirm the sample data is visible from the frontend.
+6. Remove sample data if it should not remain.
