@@ -392,49 +392,17 @@ docker compose up --build
 
 ## Testing and CI
 
-The project includes automated backend tests focused on:
+Run backend verification:
 
-- service-level business rules
-- controller HTTP contracts for the critical stay flow
+    ./mvnw verify
 
-Run the backend test suite locally:
+Run frontend validation:
 
-```bash
-./mvnw test
-```
+    cd frontend
+    npm run build
+    npm run test:ci
 
-On Windows PowerShell:
-
-```powershell
-.\mvnw.cmd test
-```
-
-Run the frontend validation locally:
-
-```bash
-cd frontend
-npm run build
-npm run test:ci
-```
-
-GitHub Actions runs backend validation automatically on:
-
-- pull requests targeting `main`
-- pushes to `main`
-
-Backend workflow file:
-
-```txt
-.github/workflows/backend-ci.yml
-```
-
-GitHub Actions runs frontend validation automatically on frontend-related pull request changes.
-
-Frontend workflow file:
-
-```txt
-.github/workflows/frontend-ci.yml
-```
+GitHub Actions runs on pull requests targeting `main` and after changes are merged into `main`.
 
 ## Architecture Notes
 
