@@ -11,7 +11,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
   selector: 'app-owner-create-page',
   imports: [FormsModule],
   templateUrl: './owner-create-page.html',
-  styleUrl: './owner-create-page.scss'
+  styleUrl: './owner-create-page.scss',
 })
 export class OwnerCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
@@ -52,7 +52,7 @@ export class OwnerCreatePage {
       secondaryPhone: this.toNullableString(this.secondaryPhone()),
       secondaryPhoneName: this.toNullableString(this.secondaryPhoneName()),
       instagram: this.toNullableString(this.instagram()),
-      facebook: this.toNullableString(this.facebook())
+      facebook: this.toNullableString(this.facebook()),
     };
 
     this.submitting.set(true);
@@ -63,9 +63,11 @@ export class OwnerCreatePage {
         this.navigateAfterSuccess(owner.id);
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, this.text().owners.create.errors.createFailed));
+        this.error.set(
+          this.getApiErrorMessage(error, this.text().owners.create.errors.createFailed),
+        );
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -98,7 +100,7 @@ export class OwnerCreatePage {
 
     if (returnTo === '/stays/new') {
       this.router.navigate(['/stays/new'], {
-        queryParams: { ownerId }
+        queryParams: { ownerId },
       });
       return;
     }
@@ -123,7 +125,7 @@ export class OwnerCreatePage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

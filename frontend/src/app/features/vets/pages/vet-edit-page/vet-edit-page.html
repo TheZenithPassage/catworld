@@ -21,12 +21,7 @@
       <form class="vet-form" (ngSubmit)="submit()">
         <label>
           {{ text().vets.form.name }}
-          <input
-            type="text"
-            name="name"
-            [ngModel]="name()"
-            (ngModelChange)="name.set($event)"
-          />
+          <input type="text" name="name" [ngModel]="name()" (ngModelChange)="name.set($event)" />
         </label>
 
         <label>

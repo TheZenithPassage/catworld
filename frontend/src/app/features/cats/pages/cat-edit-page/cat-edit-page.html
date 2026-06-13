@@ -19,15 +19,9 @@
 
     @if (catLoaded()) {
       <form class="cat-form" (ngSubmit)="submit()">
-
         <label>
           {{ text().cats.form.name }}
-          <input
-            type="text"
-            name="name"
-            [ngModel]="name()"
-            (ngModelChange)="name.set($event)"
-          />
+          <input type="text" name="name" [ngModel]="name()" (ngModelChange)="name.set($event)" />
         </label>
 
         <label>
@@ -42,11 +36,7 @@
 
         <label>
           {{ text().cats.form.sex }}
-          <select
-            name="sex"
-            [ngModel]="sex()"
-            (ngModelChange)="sex.set($event)"
-          >
+          <select name="sex" [ngModel]="sex()" (ngModelChange)="sex.set($event)">
             <option value="">{{ text().cats.form.selectSex }}</option>
             <option value="MALE">{{ text().cats.form.male }}</option>
             <option value="FEMALE">{{ text().cats.form.female }}</option>
@@ -55,11 +45,7 @@
 
         <label>
           {{ text().cats.form.owner }}
-          <select
-            name="ownerId"
-            [ngModel]="ownerId()"
-            (ngModelChange)="ownerId.set($event)"
-          >
+          <select name="ownerId" [ngModel]="ownerId()" (ngModelChange)="ownerId.set($event)">
             <option value="">{{ text().cats.form.selectOwner }}</option>
 
             @for (owner of owners(); track owner.id) {
@@ -72,11 +58,7 @@
 
         <label>
           {{ text().cats.form.vet }}
-          <select
-            name="vetId"
-            [ngModel]="vetId()"
-            (ngModelChange)="vetId.set($event)"
-          >
+          <select name="vetId" [ngModel]="vetId()" (ngModelChange)="vetId.set($event)">
             <option value="">{{ text().cats.form.noVet }}</option>
 
             @for (vet of vets(); track vet.id) {
@@ -89,32 +71,17 @@
 
         <label>
           {{ text().cats.form.breed }}
-          <input
-            type="text"
-            name="breed"
-            [ngModel]="breed()"
-            (ngModelChange)="breed.set($event)"
-          />
+          <input type="text" name="breed" [ngModel]="breed()" (ngModelChange)="breed.set($event)" />
         </label>
 
         <label>
           {{ text().cats.form.coat }}
-          <input
-            type="text"
-            name="coat"
-            [ngModel]="coat()"
-            (ngModelChange)="coat.set($event)"
-          />
+          <input type="text" name="coat" [ngModel]="coat()" (ngModelChange)="coat.set($event)" />
         </label>
 
         <label>
           {{ text().cats.form.color }}
-          <input
-            type="text"
-            name="color"
-            [ngModel]="color()"
-            (ngModelChange)="color.set($event)"
-          />
+          <input type="text" name="color" [ngModel]="color()" (ngModelChange)="color.set($event)" />
         </label>
 
         <label>

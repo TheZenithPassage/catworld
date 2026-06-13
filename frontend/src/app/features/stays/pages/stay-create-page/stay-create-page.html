@@ -30,10 +30,7 @@
             </option>
           }
         </select>
-        <a
-          routerLink="/owners/new"
-          [queryParams]="{ returnTo: '/stays/new' }"
-        >
+        <a routerLink="/owners/new" [queryParams]="{ returnTo: '/stays/new' }">
           {{ text().stays.create.createOwner }}
         </a>
       </label>

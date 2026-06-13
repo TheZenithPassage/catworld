@@ -7,7 +7,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
   selector: 'app-dashboard-page',
   imports: [RouterLink],
   templateUrl: './dashboard-page.html',
-  styleUrl: './dashboard-page.scss'
+  styleUrl: './dashboard-page.scss',
 })
 export class DashboardPage {
   private readonly i18nService = inject(I18nService);

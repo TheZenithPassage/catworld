@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../../core/config/api.config';
 import { Cat, CreateCatRequest, UpdateCatRequest } from '../models/cat.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class CatApiService {
   private readonly http = inject(HttpClient);

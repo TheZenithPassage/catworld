@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../../core/config/api.config';
 import { CreateStayRequest, Stay, UpdateStayRequest } from '../models/stay.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class StayApiService {
   private readonly http = inject(HttpClient);

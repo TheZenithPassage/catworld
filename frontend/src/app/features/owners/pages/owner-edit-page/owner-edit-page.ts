@@ -11,7 +11,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
   selector: 'app-owner-edit-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './owner-edit-page.html',
-  styleUrl: './owner-edit-page.scss'
+  styleUrl: './owner-edit-page.scss',
 })
 export class OwnerEditPage {
   private readonly ownerApiService = inject(OwnerApiService);
@@ -60,12 +60,11 @@ export class OwnerEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().owners.edit.errors.loadFailed));
         this.loading.set(false);
-      }
+      },
     });
   }
 
   submit(): void {
-
     if (!this.ownerId) {
       this.showError(this.text().owners.edit.errors.ownerIdMissing);
       return;
@@ -88,7 +87,7 @@ export class OwnerEditPage {
       secondaryPhone: this.toNullableString(this.secondaryPhone()),
       secondaryPhoneName: this.toNullableString(this.secondaryPhoneName()),
       instagram: this.toNullableString(this.instagram()),
-      facebook: this.toNullableString(this.facebook())
+      facebook: this.toNullableString(this.facebook()),
     };
 
     this.submitting.set(true);
@@ -101,7 +100,7 @@ export class OwnerEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().owners.edit.errors.updateFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -143,7 +142,7 @@ export class OwnerEditPage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

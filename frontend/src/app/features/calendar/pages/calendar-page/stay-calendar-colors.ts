@@ -14,7 +14,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#dbeafe',
     mutedBorderColor: '#93c5fd',
-    mutedTextColor: '#1e3a8a'
+    mutedTextColor: '#1e3a8a',
   },
   {
     backgroundColor: '#047857',
@@ -22,7 +22,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#d1fae5',
     mutedBorderColor: '#6ee7b7',
-    mutedTextColor: '#064e3b'
+    mutedTextColor: '#064e3b',
   },
   {
     backgroundColor: '#b45309',
@@ -30,7 +30,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#fef3c7',
     mutedBorderColor: '#fcd34d',
-    mutedTextColor: '#78350f'
+    mutedTextColor: '#78350f',
   },
   {
     backgroundColor: '#be123c',
@@ -38,7 +38,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#ffe4e6',
     mutedBorderColor: '#fda4af',
-    mutedTextColor: '#881337'
+    mutedTextColor: '#881337',
   },
   {
     backgroundColor: '#6d28d9',
@@ -46,7 +46,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#ede9fe',
     mutedBorderColor: '#c4b5fd',
-    mutedTextColor: '#4c1d95'
+    mutedTextColor: '#4c1d95',
   },
   {
     backgroundColor: '#0f766e',
@@ -54,7 +54,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#ccfbf1',
     mutedBorderColor: '#5eead4',
-    mutedTextColor: '#134e4a'
+    mutedTextColor: '#134e4a',
   },
   {
     backgroundColor: '#c2410c',
@@ -62,7 +62,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#ffedd5',
     mutedBorderColor: '#fdba74',
-    mutedTextColor: '#7c2d12'
+    mutedTextColor: '#7c2d12',
   },
   {
     backgroundColor: '#4338ca',
@@ -70,7 +70,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#e0e7ff',
     mutedBorderColor: '#a5b4fc',
-    mutedTextColor: '#312e81'
+    mutedTextColor: '#312e81',
   },
   {
     backgroundColor: '#15803d',
@@ -78,7 +78,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#dcfce7',
     mutedBorderColor: '#86efac',
-    mutedTextColor: '#14532d'
+    mutedTextColor: '#14532d',
   },
   {
     backgroundColor: '#a21caf',
@@ -86,7 +86,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#fae8ff',
     mutedBorderColor: '#f0abfc',
-    mutedTextColor: '#701a75'
+    mutedTextColor: '#701a75',
   },
   {
     backgroundColor: '#0369a1',
@@ -94,7 +94,7 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#e0f2fe',
     mutedBorderColor: '#7dd3fc',
-    mutedTextColor: '#0c4a6e'
+    mutedTextColor: '#0c4a6e',
   },
   {
     backgroundColor: '#a16207',
@@ -102,6 +102,6 @@ export const STAY_COLOR_PALETTE: StayCalendarColor[] = [
     textColor: '#ffffff',
     mutedBackgroundColor: '#fef9c3',
     mutedBorderColor: '#fde047',
-    mutedTextColor: '#713f12'
-  }
+    mutedTextColor: '#713f12',
+  },
 ];

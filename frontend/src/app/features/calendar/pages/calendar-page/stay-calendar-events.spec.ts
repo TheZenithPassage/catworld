@@ -62,11 +62,7 @@ describe('toStayCalendarEvents', () => {
     });
 
     expect(events).toHaveLength(3);
-    expect(events.map((event) => event.start)).toEqual([
-      '2099-06-03',
-      '2099-06-04',
-      '2099-06-05',
-    ]);
+    expect(events.map((event) => event.start)).toEqual(['2099-06-03', '2099-06-04', '2099-06-05']);
     expect(events.every((event) => !getClassNames(event).includes('stay-event--compact'))).toBe(
       true,
     );
@@ -89,9 +85,9 @@ describe('toStayCalendarEvents', () => {
     expect(events.every((event) => getClassNames(event).includes('stay-event--compact'))).toBe(
       true,
     );
-    expect(events.every((event) => !getClassNames(event).includes('stay-event--compact-start'))).toBe(
-      true,
-    );
+    expect(
+      events.every((event) => !getClassNames(event).includes('stay-event--compact-start')),
+    ).toBe(true);
     expect(events.every((event) => !getClassNames(event).includes('stay-event--compact-end'))).toBe(
       true,
     );

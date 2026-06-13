@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../../core/config/api.config';
 import { CreateVetRequest, UpdateVetRequest, Vet } from '../models/vet.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class VetApiService {
   private readonly http = inject(HttpClient);

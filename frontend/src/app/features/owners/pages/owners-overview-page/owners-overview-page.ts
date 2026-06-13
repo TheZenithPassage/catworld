@@ -10,7 +10,7 @@ import { matchesSearchText } from '../../../../core/search/search-text.util';
   selector: 'app-owners-overview-page',
   imports: [RouterLink],
   templateUrl: './owners-overview-page.html',
-  styleUrl: './owners-overview-page.scss'
+  styleUrl: './owners-overview-page.scss',
 })
 export class OwnersOverviewPage {
   private readonly ownerApiService = inject(OwnerApiService);
@@ -27,9 +27,7 @@ export class OwnersOverviewPage {
   readonly searchText = signal('');
 
   readonly filteredOwners = computed(() =>
-    this.owners().filter((owner) =>
-      matchesSearchText([owner.fullName], this.searchText())
-    )
+    this.owners().filter((owner) => matchesSearchText([owner.fullName], this.searchText())),
   );
 
   constructor() {
@@ -54,7 +52,7 @@ export class OwnersOverviewPage {
       error: () => {
         this.error.set(this.text().owners.overview.errorLoading);
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -106,9 +104,7 @@ export class OwnersOverviewPage {
     }
 
     setTimeout(() => {
-      document
-        .getElementById(`owner-${selectedOwnerId}`)
-        ?.scrollIntoView({ block: 'center' });
+      document.getElementById(`owner-${selectedOwnerId}`)?.scrollIntoView({ block: 'center' });
     });
   }
 }

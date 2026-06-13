@@ -40,17 +40,17 @@ export interface StayStatusFilterOption {
 
 export const STAY_STATUS_FILTER_OPTIONS: StayStatusFilterOption[] = [
   {
-    status: 'reserved'
+    status: 'reserved',
   },
   {
-    status: 'checked-in'
+    status: 'checked-in',
   },
   {
-    status: 'checked-out'
+    status: 'checked-out',
   },
   {
-    status: 'cancelled'
-  }
+    status: 'cancelled',
+  },
 ];
 
 export function getDefaultStayStatusVisibility(): StayStatusVisibility {
@@ -58,13 +58,13 @@ export function getDefaultStayStatusVisibility(): StayStatusVisibility {
     reserved: true,
     'checked-in': true,
     'checked-out': false,
-    cancelled: false
+    cancelled: false,
   };
 }
 
 export function isStayVisibleByStatus(
   stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>,
-  statusVisibility: StayStatusVisibility
+  statusVisibility: StayStatusVisibility,
 ): boolean {
   return statusVisibility[getStayStatus(stay)];
 }

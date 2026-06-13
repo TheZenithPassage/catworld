@@ -56,10 +56,7 @@
 
       <tbody>
         @for (stay of filteredStays(); track stay.stayId) {
-          <tr
-            [id]="'stay-' + stay.stayId"
-            [class.selected-row]="isSelectedStay(stay)"
-          >
+          <tr [id]="'stay-' + stay.stayId" [class.selected-row]="isSelectedStay(stay)">
             <td>{{ getStayStatus(stay) }}</td>
             <td>{{ formatDate(stay.startAt) }}</td>
             <td>{{ formatDate(stay.endAt) }}</td>
@@ -84,7 +81,11 @@
                       (click)="cancelStay(stay)"
                       [disabled]="cancellingStayId() === stay.stayId"
                     >
-                      {{ cancellingStayId() === stay.stayId ? text().stays.overview.cancelling : text().stays.overview.cancel }}
+                      {{
+                        cancellingStayId() === stay.stayId
+                          ? text().stays.overview.cancelling
+                          : text().stays.overview.cancel
+                      }}
                     </button>
                   }
                 </div>

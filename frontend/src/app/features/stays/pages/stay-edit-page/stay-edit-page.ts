@@ -12,7 +12,7 @@ import { canModifyStay } from '../../utils/stay-status.util';
   selector: 'app-stay-edit-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './stay-edit-page.html',
-  styleUrl: './stay-edit-page.scss'
+  styleUrl: './stay-edit-page.scss',
 })
 export class StayEditPage {
   private readonly route = inject(ActivatedRoute);
@@ -66,7 +66,7 @@ export class StayEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.loadFailed));
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -96,7 +96,7 @@ export class StayEditPage {
     const request: UpdateStayRequest = {
       startAt: this.startAt(),
       endAt: this.endAt(),
-      notes: this.notes().trim() || null
+      notes: this.notes().trim() || null,
     };
 
     this.submitting.set(true);
@@ -109,7 +109,7 @@ export class StayEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -147,7 +147,7 @@ export class StayEditPage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

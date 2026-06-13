@@ -8,7 +8,7 @@ import { I18nService } from './core/i18n/i18n.service';
   selector: 'app-root',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
 })
 export class App {
   private readonly authSessionService = inject(AuthSessionService);

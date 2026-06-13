@@ -8,7 +8,7 @@ export function normalizeSearchText(value: string | null | undefined): string {
 
 export function matchesSearchText(
   values: Array<string | null | undefined>,
-  searchText: string
+  searchText: string,
 ): boolean {
   const normalizedSearchText = normalizeSearchText(searchText);
 

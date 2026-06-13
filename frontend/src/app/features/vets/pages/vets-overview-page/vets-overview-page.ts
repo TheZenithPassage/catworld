@@ -10,7 +10,7 @@ import { matchesSearchText } from '../../../../core/search/search-text.util';
   selector: 'app-vets-overview-page',
   imports: [RouterLink],
   templateUrl: './vets-overview-page.html',
-  styleUrl: './vets-overview-page.scss'
+  styleUrl: './vets-overview-page.scss',
 })
 export class VetsOverviewPage {
   private readonly vetApiService = inject(VetApiService);
@@ -24,7 +24,7 @@ export class VetsOverviewPage {
   readonly searchText = signal('');
 
   readonly filteredVets = computed(() =>
-    this.vets().filter((vet) => matchesSearchText([vet.name], this.searchText()))
+    this.vets().filter((vet) => matchesSearchText([vet.name], this.searchText())),
   );
 
   constructor() {
@@ -43,7 +43,7 @@ export class VetsOverviewPage {
       error: () => {
         this.error.set(this.text().vets.overview.errorLoading);
         this.loading.set(false);
-      }
+      },
     });
   }
 

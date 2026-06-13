@@ -11,7 +11,7 @@ import { StaySearchFiltersComponent } from '../../components/stay-search-filters
 import {
   getDefaultStaySearchFilters,
   isStayVisibleBySearchFilters,
-  StaySearchFilters
+  StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 import {
   canCancelStay,
@@ -20,35 +20,39 @@ import {
   isStayVisibleByStatus,
   STAY_STATUS_FILTER_OPTIONS,
   StayStatus,
-  StayStatusVisibility
+  StayStatusVisibility,
 } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stays-overview-page',
   imports: [RouterLink, StaySearchFiltersComponent],
   templateUrl: './stays-overview-page.html',
-  styleUrl: './stays-overview-page.scss'
+  styleUrl: './stays-overview-page.scss',
 })
 export class StaysOverviewPage {
   private readonly stayApiService = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18nService = inject(I18nService);
-  private readonly stayStatusVisibilityPreferencesService = inject(StayStatusVisibilityPreferencesService);
+  private readonly stayStatusVisibilityPreferencesService = inject(
+    StayStatusVisibilityPreferencesService,
+  );
 
   readonly text = this.i18nService.text;
   readonly dateLocale = this.i18nService.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
-  readonly statusVisibility = signal<StayStatusVisibility>(this.stayStatusVisibilityPreferencesService.read());
+  readonly statusVisibility = signal<StayStatusVisibility>(
+    this.stayStatusVisibilityPreferencesService.read(),
+  );
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
 
   readonly filteredStays = computed(() =>
     this.stays().filter(
       (stay) =>
         isStayVisibleByStatus(stay, this.statusVisibility()) &&
-        isStayVisibleBySearchFilters(stay, this.searchFilters())
-    )
+        isStayVisibleBySearchFilters(stay, this.searchFilters()),
+    ),
   );
 
   readonly stays = signal<Stay[]>([]);
@@ -61,11 +65,9 @@ export class StaysOverviewPage {
       this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
     });
 
-    this.route.queryParamMap
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((params) => {
-        this.selectedStayId.set(params.get('selectedStayId'));
-      });
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.selectedStayId.set(params.get('selectedStayId'));
+    });
 
     this.loadStays();
   }
@@ -83,7 +85,7 @@ export class StaysOverviewPage {
       error: () => {
         this.error.set(this.text().stays.overview.errorLoading);
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -98,7 +100,7 @@ export class StaysOverviewPage {
 
     return new Intl.DateTimeFormat(this.dateLocale(), {
       dateStyle: 'short',
-      timeStyle: 'short'
+      timeStyle: 'short',
     }).format(new Date(value));
   }
 
@@ -109,9 +111,7 @@ export class StaysOverviewPage {
   }
 
   getCatNames(stay: Stay): string {
-    return stay.cats
-      .map((cat) => cat.name)
-      .join(', ');
+    return stay.cats.map((cat) => cat.name).join(', ');
   }
 
   canCancelStay(stay: Stay): boolean {
@@ -124,7 +124,7 @@ export class StaysOverviewPage {
 
   cancelStay(stay: Stay): void {
     const confirmed = window.confirm(
-      `${this.text().stays.overview.cancelConfirmPrefix}${this.getCatNames(stay)}${this.text().stays.overview.cancelConfirmSuffix}`
+      `${this.text().stays.overview.cancelConfirmPrefix}${this.getCatNames(stay)}${this.text().stays.overview.cancelConfirmSuffix}`,
     );
 
     if (!confirmed) {
@@ -142,7 +142,7 @@ export class StaysOverviewPage {
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, this.text().stays.overview.errorCancelling));
         this.cancellingStayId.set(null);
-      }
+      },
     });
   }
 
@@ -171,7 +171,7 @@ export class StaysOverviewPage {
   setStatusVisibility(status: StayStatus, checked: boolean): void {
     this.statusVisibility.update((currentVisibility) => ({
       ...currentVisibility,
-      [status]: checked
+      [status]: checked,
     }));
   }
 
@@ -196,7 +196,7 @@ export class StaysOverviewPage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;
@@ -222,9 +222,7 @@ export class StaysOverviewPage {
     }
 
     setTimeout(() => {
-      document
-        .getElementById(`stay-${selectedStayId}`)
-        ?.scrollIntoView({ block: 'center' });
+      document.getElementById(`stay-${selectedStayId}`)?.scrollIntoView({ block: 'center' });
     });
   }
 }

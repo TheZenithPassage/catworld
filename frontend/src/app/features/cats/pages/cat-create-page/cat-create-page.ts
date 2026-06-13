@@ -16,7 +16,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
   selector: 'app-cat-create-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './cat-create-page.html',
-  styleUrl: './cat-create-page.scss'
+  styleUrl: './cat-create-page.scss',
 })
 export class CatCreatePage {
   private readonly catApiService = inject(CatApiService);
@@ -64,7 +64,7 @@ export class CatCreatePage {
 
     forkJoin({
       owners: this.ownerApiService.getOwners(),
-      vets: this.vetApiService.getVets()
+      vets: this.vetApiService.getVets(),
     }).subscribe({
       next: ({ owners, vets }) => {
         this.owners.set(owners);
@@ -76,7 +76,7 @@ export class CatCreatePage {
       error: () => {
         this.error.set(this.text().cats.create.errors.loadFormDataFailed);
         this.loadingData.set(false);
-      }
+      },
     });
   }
 
@@ -120,7 +120,7 @@ export class CatCreatePage {
       lastTripleFelineDate: this.toNullableString(this.lastTripleFelineDate()),
       lastRabiesDate: this.toNullableString(this.lastRabiesDate()),
       ownerId: this.ownerId(),
-      vetId: this.toNullableString(this.vetId())
+      vetId: this.toNullableString(this.vetId()),
     };
 
     this.submitting.set(true);
@@ -133,13 +133,13 @@ export class CatCreatePage {
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
   getCreateVetQueryParams(): Record<string, string> {
     const queryParams: Record<string, string> = {
-      returnTo: '/cats/new'
+      returnTo: '/cats/new',
     };
 
     const currentOwnerId = this.ownerId() || this.route.snapshot.queryParamMap.get('ownerId');
@@ -158,7 +158,7 @@ export class CatCreatePage {
 
   getCreateOwnerQueryParams(): Record<string, string> {
     const queryParams: Record<string, string> = {
-      returnTo: '/cats/new'
+      returnTo: '/cats/new',
     };
 
     const currentVetId = this.vetId() || this.route.snapshot.queryParamMap.get('vetId');
@@ -186,7 +186,7 @@ export class CatCreatePage {
 
     if (returnTo === '/stays/new') {
       this.router.navigate(['/stays/new'], {
-        queryParams: { ownerId, catId }
+        queryParams: { ownerId, catId },
       });
       return;
     }
@@ -239,7 +239,7 @@ export class CatCreatePage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

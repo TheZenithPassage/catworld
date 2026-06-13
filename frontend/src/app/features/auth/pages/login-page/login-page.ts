@@ -11,7 +11,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
   selector: 'app-login-page',
   imports: [FormsModule],
   templateUrl: './login-page.html',
-  styleUrl: './login-page.scss'
+  styleUrl: './login-page.scss',
 })
 export class LoginPage {
   private readonly authApiService = inject(AuthApiService);
@@ -53,7 +53,7 @@ export class LoginPage {
       error: (error: unknown) => {
         this.error.set(this.getLoginErrorMessage(error));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
