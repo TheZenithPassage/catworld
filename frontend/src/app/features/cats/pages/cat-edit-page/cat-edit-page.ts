@@ -16,7 +16,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
   selector: 'app-cat-edit-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './cat-edit-page.html',
-  styleUrl: './cat-edit-page.scss'
+  styleUrl: './cat-edit-page.scss',
 })
 export class CatEditPage {
   private readonly catApiService = inject(CatApiService);
@@ -75,7 +75,7 @@ export class CatEditPage {
     forkJoin({
       cat: this.catApiService.getCatById(this.catId),
       owners: this.ownerApiService.getOwners(),
-      vets: this.vetApiService.getVets()
+      vets: this.vetApiService.getVets(),
     }).subscribe({
       next: ({ cat, owners, vets }) => {
         this.owners.set(owners);
@@ -85,9 +85,11 @@ export class CatEditPage {
         this.loadingData.set(false);
       },
       error: (error: unknown) => {
-        this.showError(this.getApiErrorMessage(error, this.text().cats.edit.errors.loadFormDataFailed));
+        this.showError(
+          this.getApiErrorMessage(error, this.text().cats.edit.errors.loadFormDataFailed),
+        );
         this.loadingData.set(false);
-      }
+      },
     });
   }
 
@@ -139,7 +141,7 @@ export class CatEditPage {
       lastTripleFelineDate: this.toNullableString(this.lastTripleFelineDate()),
       lastRabiesDate: this.toNullableString(this.lastRabiesDate()),
       ownerId: this.ownerId(),
-      vetId: this.toNullableString(this.vetId())
+      vetId: this.toNullableString(this.vetId()),
     };
 
     this.submitting.set(true);
@@ -152,7 +154,7 @@ export class CatEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().cats.edit.errors.updateFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -205,7 +207,7 @@ export class CatEditPage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

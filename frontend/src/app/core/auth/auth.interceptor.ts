@@ -17,14 +17,11 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const authorizationHeader = authSessionService.getAuthorizationHeader();
 
   const authenticatedRequest =
-    isApiRequest &&
-    !isLoginRequest &&
-    !hasAuthorizationHeader &&
-    authorizationHeader
+    isApiRequest && !isLoginRequest && !hasAuthorizationHeader && authorizationHeader
       ? request.clone({
           setHeaders: {
-            Authorization: authorizationHeader
-          }
+            Authorization: authorizationHeader,
+          },
         })
       : request;
 
@@ -39,12 +36,12 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         authSessionService.logout();
         router.navigate(['/login'], {
           queryParams: {
-            returnUrl: router.url
-          }
+            returnUrl: router.url,
+          },
         });
       }
 
       return throwError(() => error);
-    })
+    }),
   );
 };

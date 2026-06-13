@@ -10,7 +10,7 @@ import { matchesSearchText } from '../../../../core/search/search-text.util';
   selector: 'app-cats-overview-page',
   imports: [RouterLink],
   templateUrl: './cats-overview-page.html',
-  styleUrl: './cats-overview-page.scss'
+  styleUrl: './cats-overview-page.scss',
 })
 export class CatsOverviewPage {
   private readonly catApiService = inject(CatApiService);
@@ -25,9 +25,7 @@ export class CatsOverviewPage {
   readonly searchText = signal('');
 
   readonly filteredCats = computed(() =>
-    this.cats().filter((cat) =>
-      matchesSearchText([cat.name, cat.ownerName], this.searchText())
-    )
+    this.cats().filter((cat) => matchesSearchText([cat.name, cat.ownerName], this.searchText())),
   );
 
   constructor() {
@@ -46,7 +44,7 @@ export class CatsOverviewPage {
       error: () => {
         this.error.set(this.text().cats.overview.errorLoading);
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -68,7 +66,7 @@ export class CatsOverviewPage {
     }
 
     return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short'
+      dateStyle: 'short',
     }).format(new Date(`${value}T00:00:00`));
   }
 

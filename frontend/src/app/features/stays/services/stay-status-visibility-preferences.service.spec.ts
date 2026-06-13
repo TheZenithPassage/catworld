@@ -1,7 +1,4 @@
-import {
-  getDefaultStayStatusVisibility,
-  StayStatusVisibility,
-} from '../utils/stay-status.util';
+import { getDefaultStayStatusVisibility, StayStatusVisibility } from '../utils/stay-status.util';
 
 import { StayStatusVisibilityPreferencesService } from './stay-status-visibility-preferences.service';
 
@@ -50,7 +47,7 @@ describe('StayStatusVisibilityPreferencesService', () => {
         'checked-in': 'no',
         'checked-out': true,
         cancelled: null,
-      })
+      }),
     );
 
     expect(service.read()).toEqual({

@@ -20,7 +20,6 @@
   } @else if (cats().length === 0) {
     <p>{{ text().cats.overview.empty }}</p>
   } @else {
-
     <div class="overview-search">
       <label>
         <span>{{ text().cats.overview.searchLabel }}</span>
@@ -75,24 +74,33 @@
               <td>{{ formatDate(cat.birthDate) }}</td>
               <td>{{ getAppearance(cat) }}</td>
               <td>
-                <span>{{ text().cats.overview.care.food }}: {{ formatOptionalValue(cat.foodBrand) }}</span>
+                <span
+                  >{{ text().cats.overview.care.food }}:
+                  {{ formatOptionalValue(cat.foodBrand) }}</span
+                >
                 <small class="secondary-line">
                   {{ text().cats.overview.care.litter }}: {{ formatOptionalValue(cat.litterBrand) }}
                 </small>
                 <small class="secondary-line">
-                  {{ text().cats.overview.care.personality }}: {{ formatOptionalValue(cat.personality) }}
+                  {{ text().cats.overview.care.personality }}:
+                  {{ formatOptionalValue(cat.personality) }}
                 </small>
               </td>
               <td>
-                <span>{{ text().cats.overview.health.tripleFeline }}: {{ formatDate(cat.lastTripleFelineDate) }}</span>
+                <span
+                  >{{ text().cats.overview.health.tripleFeline }}:
+                  {{ formatDate(cat.lastTripleFelineDate) }}</span
+                >
                 <small class="secondary-line">
                   {{ text().cats.overview.health.rabies }}: {{ formatDate(cat.lastRabiesDate) }}
                 </small>
                 <small class="secondary-line">
-                  {{ text().cats.overview.health.internalDeworming }}: {{ formatDate(cat.lastInternalDewormingDate) }}
+                  {{ text().cats.overview.health.internalDeworming }}:
+                  {{ formatDate(cat.lastInternalDewormingDate) }}
                 </small>
                 <small class="secondary-line">
-                  {{ text().cats.overview.health.externalDeworming }}: {{ formatDate(cat.lastExternalDewormingDate) }}
+                  {{ text().cats.overview.health.externalDeworming }}:
+                  {{ formatDate(cat.lastExternalDewormingDate) }}
                 </small>
               </td>
               <td>{{ formatOptionalValue(cat.vetName) }}</td>

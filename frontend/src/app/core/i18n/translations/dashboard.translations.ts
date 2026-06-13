@@ -37,7 +37,8 @@ export interface DashboardTranslations {
 export const DASHBOARD_TRANSLATIONS = {
   es: {
     title: 'Panel de administración',
-    description: 'Desde aquí puedes gestionar las estancias, dueños o gatos y acceder al calendario.',
+    description:
+      'Desde aquí puedes gestionar las estancias, dueños o gatos y acceder al calendario.',
     links: {
       stays: {
         title: 'Estancias',

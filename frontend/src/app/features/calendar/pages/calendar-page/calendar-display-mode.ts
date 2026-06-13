@@ -1,7 +1,4 @@
-export type CalendarDisplayMode =
-  | 'daily-labels'
-  | 'compact-daily-labels'
-  | 'entry-exit-markers';
+export type CalendarDisplayMode = 'daily-labels' | 'compact-daily-labels' | 'entry-exit-markers';
 
 export interface CalendarDisplaySettings {
   dailyLabelsEnabled: boolean;
@@ -18,9 +15,7 @@ export const CALENDAR_DISPLAY_MODES: CalendarDisplayMode[] = [
 
 export function isCalendarDisplayMode(value: unknown): value is CalendarDisplayMode {
   return (
-    value === 'daily-labels' ||
-    value === 'compact-daily-labels' ||
-    value === 'entry-exit-markers'
+    value === 'daily-labels' || value === 'compact-daily-labels' || value === 'entry-exit-markers'
   );
 }
 
@@ -48,7 +43,7 @@ export function toCalendarDisplaySettings(mode: CalendarDisplayMode): CalendarDi
 
 export function toUnfilteredCalendarDisplayModeFromLegacySettings(
   dailyLabelsEnabled: unknown,
-  compactModeEnabled: unknown
+  compactModeEnabled: unknown,
 ): CalendarDisplayMode {
   if (dailyLabelsEnabled === true && compactModeEnabled === true) {
     return 'compact-daily-labels';

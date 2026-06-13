@@ -1,9 +1,15 @@
 import { AppLanguage } from './app-language';
-import { APP_SHELL_TRANSLATIONS, AppShellTranslations } from './translations/app-shell.translations';
+import {
+  APP_SHELL_TRANSLATIONS,
+  AppShellTranslations,
+} from './translations/app-shell.translations';
 import { AUTH_TRANSLATIONS, AuthTranslations } from './translations/auth.translations';
 import { CALENDAR_TRANSLATIONS, CalendarTranslations } from './translations/calendar.translations';
 import { CATS_TRANSLATIONS, CatsTranslations } from './translations/cats.translations';
-import { DASHBOARD_TRANSLATIONS, DashboardTranslations } from './translations/dashboard.translations';
+import {
+  DASHBOARD_TRANSLATIONS,
+  DashboardTranslations,
+} from './translations/dashboard.translations';
 import { OWNERS_TRANSLATIONS, OwnersTranslations } from './translations/owners.translations';
 import { STAYS_TRANSLATIONS, StaysTranslations } from './translations/stays.translations';
 import { VETS_TRANSLATIONS, VetsTranslations } from './translations/vets.translations';

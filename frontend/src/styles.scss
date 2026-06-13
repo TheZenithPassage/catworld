@@ -53,7 +53,7 @@ body {
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
-    "Segoe UI",
+    'Segoe UI',
     sans-serif;
   line-height: 1.5;
 }
@@ -140,8 +140,7 @@ label textarea {
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.9);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(135deg, rgb(255 253 248 / 0.95), rgb(255 241 223 / 0.9));
+  background: linear-gradient(135deg, rgb(255 253 248 / 0.95), rgb(255 241 223 / 0.9));
   box-shadow: var(--shadow-soft);
 }
 
@@ -299,8 +298,7 @@ label textarea {
 }
 
 :where(.owners-table, .cats-table, .vets-table, .stays-table) th {
-  background:
-    linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
+  background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
   color: #6d5140;
   font-size: 0.78rem;
   font-weight: 850;
@@ -336,8 +334,7 @@ label textarea {
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(145deg, rgb(255 253 248 / 0.98), rgb(255 247 237 / 0.95));
+  background: linear-gradient(145deg, rgb(255 253 248 / 0.98), rgb(255 247 237 / 0.95));
   box-shadow: var(--shadow-soft);
 }
 
@@ -346,7 +343,7 @@ label textarea {
 .vet-form::before,
 .stay-form::before,
 .login-form::before {
-  content: "";
+  content: '';
   position: absolute;
   top: 0;
   left: 1.25rem;
@@ -415,7 +412,7 @@ legend {
   align-items: center;
 }
 
-input[type="checkbox"] {
+input[type='checkbox'] {
   accent-color: var(--color-primary);
 }
 
@@ -436,7 +433,9 @@ input[type="checkbox"] {
   font-weight: 650;
 }
 
-:where(.owners-table, .cats-table, .vets-table, .stays-table) td a:not(.primary-action):not(.secondary-action) {
+:where(.owners-table, .cats-table, .vets-table, .stays-table)
+  td
+  a:not(.primary-action):not(.secondary-action) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -452,7 +451,9 @@ input[type="checkbox"] {
   text-decoration: none;
 }
 
-:where(.owners-table, .cats-table, .vets-table, .stays-table) td a:not(.primary-action):not(.secondary-action):hover {
+:where(.owners-table, .cats-table, .vets-table, .stays-table)
+  td
+  a:not(.primary-action):not(.secondary-action):hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);

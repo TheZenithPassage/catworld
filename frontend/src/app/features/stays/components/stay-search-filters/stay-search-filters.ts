@@ -10,14 +10,14 @@ import {
   normalizeSearchText,
   StayCatFilterOption,
   StayOwnerFilterOption,
-  StaySearchFilters
+  StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 
 @Component({
   selector: 'app-stay-search-filters',
   imports: [FormsModule],
   templateUrl: './stay-search-filters.html',
-  styleUrl: './stay-search-filters.scss'
+  styleUrl: './stay-search-filters.scss',
 })
 export class StaySearchFiltersComponent {
   private readonly i18nService = inject(I18nService);
@@ -108,7 +108,7 @@ export class StaySearchFiltersComponent {
     this.filtersChange.emit({
       ...getDefaultStaySearchFilters(),
       catId: this.selectedCatId(),
-      ownerId: this.selectedOwnerId()
+      ownerId: this.selectedOwnerId(),
     });
   }
 }

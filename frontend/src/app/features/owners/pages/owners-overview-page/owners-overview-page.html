@@ -38,12 +38,10 @@
         </button>
       }
     </div>
-    
+
     @if (filteredOwners().length === 0) {
       <p>{{ text().owners.overview.emptyFiltered }}</p>
     } @else {
-
-
       <table class="owners-table">
         <thead>
           <tr>
@@ -58,22 +56,25 @@
 
         <tbody>
           @for (owner of filteredOwners(); track owner.id) {
-            <tr
-              [id]="'owner-' + owner.id"
-              [class.selected-row]="isSelectedOwner(owner)"
-            >
+            <tr [id]="'owner-' + owner.id" [class.selected-row]="isSelectedOwner(owner)">
               <td>{{ owner.fullName }}</td>
               <td>{{ owner.primaryPhone }}</td>
               <td>{{ getSecondaryPhone(owner) }}</td>
               <td>{{ formatOptionalValue(owner.address) }}</td>
               <td>
-                <span>{{ text().owners.overview.social.instagram }}: {{ formatOptionalValue(owner.instagram) }}</span>
+                <span
+                  >{{ text().owners.overview.social.instagram }}:
+                  {{ formatOptionalValue(owner.instagram) }}</span
+                >
                 <small class="secondary-line">
-                  {{ text().owners.overview.social.facebook }}: {{ formatOptionalValue(owner.facebook) }}
+                  {{ text().owners.overview.social.facebook }}:
+                  {{ formatOptionalValue(owner.facebook) }}
                 </small>
               </td>
               <td>
-                <a [routerLink]="['/owners', owner.id, 'edit']">{{ text().owners.overview.edit }}</a>
+                <a [routerLink]="['/owners', owner.id, 'edit']">{{
+                  text().owners.overview.edit
+                }}</a>
               </td>
             </tr>
           }

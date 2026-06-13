@@ -11,7 +11,7 @@ import { VetApiService } from '../../services/vet-api.service';
   selector: 'app-vet-create-page',
   imports: [FormsModule],
   templateUrl: './vet-create-page.html',
-  styleUrl: './vet-create-page.scss'
+  styleUrl: './vet-create-page.scss',
 })
 export class VetCreatePage {
   private readonly route = inject(ActivatedRoute);
@@ -39,7 +39,7 @@ export class VetCreatePage {
     const request: CreateVetRequest = {
       name: this.name().trim(),
       address: this.toNullableString(this.address()),
-      phoneNumber: this.toNullableString(this.phoneNumber())
+      phoneNumber: this.toNullableString(this.phoneNumber()),
     };
 
     this.submitting.set(true);
@@ -52,7 +52,7 @@ export class VetCreatePage {
       error: (error: unknown) => {
         this.error.set(this.getApiErrorMessage(error, this.text().vets.create.errors.createFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -103,7 +103,7 @@ export class VetCreatePage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

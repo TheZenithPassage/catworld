@@ -16,7 +16,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
   selector: 'app-stay-create-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './stay-create-page.html',
-  styleUrl: './stay-create-page.scss'
+  styleUrl: './stay-create-page.scss',
 })
 export class StayCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
@@ -43,7 +43,7 @@ export class StayCreatePage {
   readonly error = signal<string | null>(null);
 
   readonly filteredCats = computed(() =>
-    this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId())
+    this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),
   );
 
   constructor() {
@@ -56,7 +56,7 @@ export class StayCreatePage {
 
     forkJoin({
       owners: this.ownerApiService.getOwners(),
-      cats: this.catApiService.getCats()
+      cats: this.catApiService.getCats(),
     }).subscribe({
       next: ({ owners, cats }) => {
         this.owners.set(owners);
@@ -67,7 +67,7 @@ export class StayCreatePage {
       error: () => {
         this.error.set(this.text().stays.create.errors.loadFormDataFailed);
         this.loadingData.set(false);
-      }
+      },
     });
   }
 
@@ -82,9 +82,7 @@ export class StayCreatePage {
       return;
     }
 
-    this.selectedCatIds.update((catIds) =>
-      catIds.filter((currentCatId) => currentCatId !== catId)
-    );
+    this.selectedCatIds.update((catIds) => catIds.filter((currentCatId) => currentCatId !== catId));
   }
 
   isCatSelected(catId: string): boolean {
@@ -113,7 +111,7 @@ export class StayCreatePage {
       catIds: this.selectedCatIds(),
       startAt: this.startAt(),
       endAt: this.endAt(),
-      notes: this.notes().trim() || null
+      notes: this.notes().trim() || null,
     };
 
     this.submitting.set(true);
@@ -126,7 +124,7 @@ export class StayCreatePage {
       error: (error: unknown) => {
         this.error.set(this.getCreateStayErrorMessage(error));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -151,7 +149,7 @@ export class StayCreatePage {
     }
 
     const catExistsForOwner = this.cats().some(
-      (cat) => cat.id === queryCatId && cat.ownerId === queryOwnerId
+      (cat) => cat.id === queryCatId && cat.ownerId === queryOwnerId,
     );
 
     if (catExistsForOwner) {
@@ -178,7 +176,7 @@ export class StayCreatePage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;
@@ -214,5 +212,4 @@ export class StayCreatePage {
 
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
-  
 }

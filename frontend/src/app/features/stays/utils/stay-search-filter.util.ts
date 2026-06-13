@@ -25,7 +25,7 @@ export interface StayOwnerFilterOption {
 export function getDefaultStaySearchFilters(): StaySearchFilters {
   return {
     catId: null,
-    ownerId: null
+    ownerId: null,
   };
 }
 
@@ -44,13 +44,13 @@ export function getStayCatFilterOptions(stays: Stay[]): StayCatFilterOption[] {
         ownerId: stay.ownerId,
         ownerName: stay.ownerName,
         label: `${cat.name} (${stay.ownerName})`,
-        searchText: normalizeSearchText(cat.name)
+        searchText: normalizeSearchText(cat.name),
       });
     });
   });
 
   return [...optionsByCatId.values()].sort((firstOption, secondOption) =>
-    firstOption.label.localeCompare(secondOption.label, 'es')
+    firstOption.label.localeCompare(secondOption.label, 'es'),
   );
 }
 
@@ -68,7 +68,7 @@ export function getStayOwnerFilterOptions(stays: Stay[]): StayOwnerFilterOption[
     const owner = ownersById.get(stay.ownerId) ?? {
       ownerId: stay.ownerId,
       ownerName: stay.ownerName,
-      catNames: new Set<string>()
+      catNames: new Set<string>(),
     };
 
     stay.cats.forEach((cat) => owner.catNames.add(cat.name));
@@ -78,7 +78,7 @@ export function getStayOwnerFilterOptions(stays: Stay[]): StayOwnerFilterOption[
   return [...ownersById.values()]
     .map((owner) => {
       const catNames = [...owner.catNames].sort((firstName, secondName) =>
-        firstName.localeCompare(secondName, 'es')
+        firstName.localeCompare(secondName, 'es'),
       );
 
       return {
@@ -86,18 +86,13 @@ export function getStayOwnerFilterOptions(stays: Stay[]): StayOwnerFilterOption[
         ownerName: owner.ownerName,
         catNames,
         label: `${owner.ownerName} (${catNames.join(', ')})`,
-        searchText: normalizeSearchText(`${owner.ownerName} ${catNames.join(' ')}`)
+        searchText: normalizeSearchText(`${owner.ownerName} ${catNames.join(' ')}`),
       };
     })
-    .sort((firstOption, secondOption) =>
-      firstOption.label.localeCompare(secondOption.label, 'es')
-    );
+    .sort((firstOption, secondOption) => firstOption.label.localeCompare(secondOption.label, 'es'));
 }
 
-export function isStayVisibleBySearchFilters(
-  stay: Stay,
-  filters: StaySearchFilters
-): boolean {
+export function isStayVisibleBySearchFilters(stay: Stay, filters: StaySearchFilters): boolean {
   if (filters.catId) {
     return stay.cats.some((cat) => cat.catId === filters.catId);
   }

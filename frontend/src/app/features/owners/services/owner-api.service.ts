@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../../../core/config/api.config';
 import { CreateOwnerRequest, Owner, UpdateOwnerRequest } from '../models/owner.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class OwnerApiService {
   private readonly http = inject(HttpClient);
@@ -27,5 +27,4 @@ export class OwnerApiService {
   updateOwner(ownerId: string, request: UpdateOwnerRequest): Observable<Owner> {
     return this.http.put<Owner>(`${this.baseUrl}/${ownerId}`, request);
   }
-
 }

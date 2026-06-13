@@ -11,7 +11,7 @@ export function getStayColorAssignments(stays: Stay[]): Map<string, StayCalendar
     const colorIndex = getAvailableColorIndex(
       monthKeys,
       usedColorIndexesByMonth,
-      preferredColorIndex
+      preferredColorIndex,
     );
 
     assignments.set(stay.stayId, STAY_COLOR_PALETTE[colorIndex]);
@@ -41,13 +41,13 @@ function getSortedStays(stays: Stay[]): Stay[] {
 function getAvailableColorIndex(
   monthKeys: string[],
   usedColorIndexesByMonth: Map<string, Set<number>>,
-  preferredColorIndex: number
+  preferredColorIndex: number,
 ): number {
   for (let offset = 0; offset < STAY_COLOR_PALETTE.length; offset++) {
     const colorIndex = (preferredColorIndex + offset) % STAY_COLOR_PALETTE.length;
 
     const colorIsAvailable = monthKeys.every(
-      (monthKey) => !usedColorIndexesByMonth.get(monthKey)?.has(colorIndex)
+      (monthKey) => !usedColorIndexesByMonth.get(monthKey)?.has(colorIndex),
     );
 
     if (colorIsAvailable) {

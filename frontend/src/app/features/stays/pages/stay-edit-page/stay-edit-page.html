@@ -19,8 +19,12 @@
 
     @if (stayLoaded()) {
       <div class="stay-summary">
-        <p><strong>{{ text().stays.edit.owner }}:</strong> {{ ownerName() }}</p>
-        <p><strong>{{ text().stays.edit.cats }}:</strong> {{ catNames() }}</p>
+        <p>
+          <strong>{{ text().stays.edit.owner }}:</strong> {{ ownerName() }}
+        </p>
+        <p>
+          <strong>{{ text().stays.edit.cats }}:</strong> {{ catNames() }}
+        </p>
       </div>
 
       <form class="stay-form" (ngSubmit)="submit()">

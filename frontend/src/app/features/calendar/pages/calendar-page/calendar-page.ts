@@ -17,7 +17,7 @@ import {
   getDefaultStaySearchFilters,
   hasActiveStayEntityFilter,
   isStayVisibleBySearchFilters,
-  StaySearchFilters
+  StaySearchFilters,
 } from '../../../stays/utils/stay-search-filter.util';
 import {
   isStayVisibleByStatus,
@@ -50,7 +50,9 @@ export class CalendarPage {
   private readonly stayApiService = inject(StayApiService);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
-  private readonly stayStatusVisibilityPreferencesService = inject(StayStatusVisibilityPreferencesService);
+  private readonly stayStatusVisibilityPreferencesService = inject(
+    StayStatusVisibilityPreferencesService,
+  );
 
   private readonly calendarPreferencesStorageKey = 'catworld.calendar.preferences';
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
@@ -64,22 +66,20 @@ export class CalendarPage {
 
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(
-    this.stayStatusVisibilityPreferencesService.read()
+    this.stayStatusVisibilityPreferencesService.read(),
   );
 
   readonly displayModeOptions = CALENDAR_DISPLAY_MODES;
 
   readonly unfilteredDisplayMode = signal<CalendarDisplayMode>(
-    this.storedCalendarPreferences.unfilteredDisplayMode
+    this.storedCalendarPreferences.unfilteredDisplayMode,
   );
 
   readonly filteredDailyLabelsEnabled = signal(false);
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
-  readonly hasEntityFilter = computed(() =>
-    hasActiveStayEntityFilter(this.searchFilters())
-  );
+  readonly hasEntityFilter = computed(() => hasActiveStayEntityFilter(this.searchFilters()));
 
   readonly calendarDisplaySettings = computed(() => {
     if (this.hasEntityFilter()) {
@@ -95,8 +95,8 @@ export class CalendarPage {
     this.stays().filter(
       (stay) =>
         isStayVisibleByStatus(stay, this.statusVisibility()) &&
-        isStayVisibleBySearchFilters(stay, this.searchFilters())
-    )
+        isStayVisibleBySearchFilters(stay, this.searchFilters()),
+    ),
   );
 
   readonly calendarOptions = computed<CalendarOptions>(() => ({
@@ -232,10 +232,9 @@ export class CalendarPage {
 
       return {
         unfilteredDisplayMode: this.readStoredUnfilteredDisplayMode(parsedValue),
-        visibleMonth:
-          this.isDateValue(parsedValue['visibleMonth'])
-            ? parsedValue['visibleMonth']
-            : defaultPreferences.visibleMonth,
+        visibleMonth: this.isDateValue(parsedValue['visibleMonth'])
+          ? parsedValue['visibleMonth']
+          : defaultPreferences.visibleMonth,
       };
     } catch {
       return defaultPreferences;
@@ -249,7 +248,7 @@ export class CalendarPage {
 
     return toUnfilteredCalendarDisplayModeFromLegacySettings(
       value['dailyLabelsEnabled'],
-      value['compactModeEnabled']
+      value['compactModeEnabled'],
     );
   }
 

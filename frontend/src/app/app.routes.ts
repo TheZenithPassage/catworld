@@ -19,76 +19,76 @@ import { StayEditPage } from './features/stays/pages/stay-edit-page/stay-edit-pa
 export const routes: Routes = [
   {
     path: 'login',
-    component: LoginPage
+    component: LoginPage,
   },
   {
     path: '',
     canActivate: [authGuard],
-    component: DashboardPage
+    component: DashboardPage,
   },
   {
     path: 'stays',
     canActivate: [authGuard],
-    component: StaysOverviewPage
+    component: StaysOverviewPage,
   },
   {
     path: 'stays/new',
     canActivate: [authGuard],
-    component: StayCreatePage
+    component: StayCreatePage,
   },
   {
     path: 'stays/:id/edit',
     canActivate: [authGuard],
-    component: StayEditPage
+    component: StayEditPage,
   },
   {
     path: 'calendar',
     canActivate: [authGuard],
-    component: CalendarPage
+    component: CalendarPage,
   },
   {
     path: 'owners',
     canActivate: [authGuard],
-    component: OwnersOverviewPage
+    component: OwnersOverviewPage,
   },
   {
     path: 'owners/new',
     canActivate: [authGuard],
-    component: OwnerCreatePage
+    component: OwnerCreatePage,
   },
   {
     path: 'owners/:id/edit',
     canActivate: [authGuard],
-    component: OwnerEditPage
+    component: OwnerEditPage,
   },
   {
     path: 'cats',
     canActivate: [authGuard],
-    component: CatsOverviewPage
+    component: CatsOverviewPage,
   },
   {
     path: 'cats/new',
     canActivate: [authGuard],
-    component: CatCreatePage
+    component: CatCreatePage,
   },
   {
     path: 'cats/:id/edit',
     canActivate: [authGuard],
-    component: CatEditPage
+    component: CatEditPage,
   },
   {
     path: 'vets',
     canActivate: [authGuard],
-    component: VetsOverviewPage
+    component: VetsOverviewPage,
   },
   {
     path: 'vets/new',
     canActivate: [authGuard],
-    component: VetCreatePage
+    component: VetCreatePage,
   },
   {
     path: 'vets/:id/edit',
     canActivate: [authGuard],
-    component: VetEditPage
-  }
+    component: VetEditPage,
+  },
 ];

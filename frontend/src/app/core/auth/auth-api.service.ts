@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../config/api.config';
 import { AuthUser, LoginRequest } from './auth.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthApiService {
   private readonly http = inject(HttpClient);
@@ -17,8 +17,8 @@ export class AuthApiService {
 
     return this.http.post<AuthUser>(`${this.baseUrl}/login`, null, {
       headers: new HttpHeaders({
-        Authorization: authorizationHeader
-      })
+        Authorization: authorizationHeader,
+      }),
     });
   }
 }

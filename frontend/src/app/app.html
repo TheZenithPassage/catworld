@@ -10,11 +10,7 @@
 
   @if (authenticated()) {
     <nav>
-      <a
-        routerLink="/"
-        routerLinkActive="active-link"
-        [routerLinkActiveOptions]="{ exact: true }"
-      >
+      <a routerLink="/" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">
         {{ text().app.nav.dashboard }}
       </a>
       <a routerLink="/stays" routerLinkActive="active-link">{{ text().app.nav.stays }}</a>
@@ -31,7 +27,11 @@
       class="language-toggle"
       (click)="toggleLanguage()"
       [attr.aria-label]="text().app.language.toggleLabel"
-      [title]="language() === 'es' ? text().app.language.switchToEnglish : text().app.language.switchToSpanish"
+      [title]="
+        language() === 'es'
+          ? text().app.language.switchToEnglish
+          : text().app.language.switchToSpanish
+      "
     >
       {{ language().toUpperCase() }}
     </button>

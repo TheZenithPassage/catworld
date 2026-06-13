@@ -11,7 +11,7 @@ import { VetApiService } from '../../services/vet-api.service';
   selector: 'app-vet-edit-page',
   imports: [FormsModule, RouterLink],
   templateUrl: './vet-edit-page.html',
-  styleUrl: './vet-edit-page.scss'
+  styleUrl: './vet-edit-page.scss',
 })
 export class VetEditPage {
   private readonly route = inject(ActivatedRoute);
@@ -56,7 +56,7 @@ export class VetEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().vets.edit.errors.loadFailed));
         this.loading.set(false);
-      }
+      },
     });
   }
 
@@ -81,7 +81,7 @@ export class VetEditPage {
     const request: UpdateVetRequest = {
       name: this.name().trim(),
       address: this.toNullableString(this.address()),
-      phoneNumber: this.toNullableString(this.phoneNumber())
+      phoneNumber: this.toNullableString(this.phoneNumber()),
     };
 
     this.submitting.set(true);
@@ -94,7 +94,7 @@ export class VetEditPage {
       error: (error: unknown) => {
         this.showError(this.getApiErrorMessage(error, this.text().vets.edit.errors.updateFailed));
         this.submitting.set(false);
-      }
+      },
     });
   }
 
@@ -132,7 +132,7 @@ export class VetEditPage {
 
     if (this.isValidationErrorMap(responseBody)) {
       const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`
+        ([field, message]) => `${field}: ${message}`,
       );
 
       return messages.length > 0 ? messages.join('. ') : fallbackMessage;

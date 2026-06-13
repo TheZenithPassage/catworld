@@ -90,12 +90,8 @@
     } @else if (filteredStays().length === 0) {
       <p>{{ text().calendar.emptyFiltered }}</p>
     } @else {
-
       <div class="calendar-wrapper">
-        <full-calendar
-          [options]="calendarOptions()"
-          [events]="calendarEvents()"
-        ></full-calendar>
+        <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
       </div>
     }
   }

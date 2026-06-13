@@ -91,13 +91,13 @@ src/environments/environment.ts
 Expected local development value:
 
 ```ts
-apiBaseUrl: 'http://localhost:8080/api'
+apiBaseUrl: 'http://localhost:8080/api';
 ```
 
 Expected production/local-private value:
 
 ```ts
-apiBaseUrl: '/api'
+apiBaseUrl: '/api';
 ```
 
 Do not hardcode backend URLs inside components.

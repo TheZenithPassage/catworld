@@ -6,7 +6,7 @@ interface AuthSession {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthSessionService {
   private readonly session = signal<AuthSession | null>(null);
@@ -16,7 +16,7 @@ export class AuthSessionService {
   login(username: string, password: string): void {
     this.session.set({
       username,
-      authorizationHeader: this.buildBasicAuthorizationHeader(username, password)
+      authorizationHeader: this.buildBasicAuthorizationHeader(username, password),
     });
   }
 
