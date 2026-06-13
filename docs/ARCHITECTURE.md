@@ -1,8 +1,8 @@
 # CatWorld Architecture
 
-CatWorld is a Spring Boot REST API for managing a cat boarding business.
+CatWorld is a full-stack application for managing a cat boarding business.
 
-This document describes the current architecture, domain model, persistence decisions and backend testing strategy.
+This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
 
 ## Scope
 
@@ -12,15 +12,15 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
+- Basic application authentication.
 - Lookup of current, future, completed and cancelled stays.
 
-Out of the initial scope:
+## Not included in the current MVP
 
-- Room or capacity management.
-- Advanced billing.
-- Inventory.
-- Complex permissions and roles.
-- Authentication and authorization.
+* Room or capacity management.
+* Billing and payments.
+* Inventory management.
+* Role-based permissions and multiple user accounts.
 
 ## Stack
 
@@ -28,6 +28,7 @@ Out of the initial scope:
 - Spring Boot
 - Spring Web
 - Spring Data JPA
+- Spring Security
 - MySQL
 - Flyway
 - Docker Compose
@@ -124,11 +125,11 @@ If one cat needs a different checkout time, a separate cancellation or a differe
 
 Main relationships:
 
-- `Owner` 1..* `Cat`
-- `Vet` 0..* `Cat`
-- `Owner` 1..* `Stay`
-- `Stay` 1..* `StayCat`
-- `Cat` 1..* `StayCat`
+* An `Owner` may have zero or more `Cat` records; each `Cat` belongs to one `Owner`.
+* A `Vet` may be referenced by zero or more cats; each `Cat` may reference zero or one `Vet`.
+* An `Owner` may have zero or more `Stay` records; each `Stay` belongs to one `Owner`.
+* A `Stay` contains one or more `StayCat` links.
+* A `Cat` may have zero or more `StayCat` links.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -242,7 +243,7 @@ Typical mappings:
 
 ## Testing Strategy
 
-Testing is focused on backend behavior with increasing scope.
+Testing focuses on backend business rules and HTTP contracts, complemented by behavior-level frontend tests for critical authentication and calendar flows.
 
 ### Service Tests
 
@@ -275,7 +276,7 @@ Controller tests should use Spring MVC slice testing instead of booting the full
 
 ### CI
 
-GitHub Actions runs the Maven test suite automatically.
+GitHub Actions runs Maven verification automatically.
 
 Workflow file:
 
@@ -289,7 +290,7 @@ The workflow:
 - runs on pushes to `main`
 - sets up Java 17
 - uses Maven dependency caching
-- runs `./mvnw test`
+- runs `./mvnw verify`
 
 ## Diagrams
 
