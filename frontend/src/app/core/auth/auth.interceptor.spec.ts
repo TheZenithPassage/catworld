@@ -111,4 +111,44 @@ describe('authInterceptor', () => {
 
     request.flush({});
   });
+
+  it('logs out and redirects to login with the current route when a protected API request returns unauthorized', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    vi.spyOn(router, 'url', 'get').mockReturnValue('/owners');
+
+    authSessionService.login('admin', 'secret');
+
+    httpClient.get(`${API_BASE_URL}/owners`).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/owners`);
+
+    request.flush({ error: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(authSessionService.authenticated()).toBeNull();
+    expect(navigateSpy).toHaveBeenCalledWith(['/login'], {
+      queryParams: {
+        returnUrl: '/owners',
+      },
+    });
+  });
+
+  it('does not log out or redirect on non-unauthorized API errors', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    authSessionService.login('admin', 'secret');
+
+    httpClient.get(`${API_BASE_URL}/owners`).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/owners`);
+
+    request.flush({ error: 'Server error' }, { status: 500, statusText: 'Server Error' });
+
+    expect(authSessionService.getUsername()).toBe('admin');
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
 });
