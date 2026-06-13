@@ -1,123 +1,65 @@
 # CatWorld Frontend
 
-Angular frontend for CatWorld.
+Angular frontend for the CatWorld cat boarding management application.
 
-This application is part of the CatWorld monorepo and will consume the Spring Boot backend through HTTP.
+## Features
 
-## Current status
+- Authenticated application shell.
+- Owner, cat and vet management screens.
+- Stay creation, editing, cancellation and filtering.
+- Monthly FullCalendar integration.
+- Standard, compact and entry/exit calendar modes.
+- English and Spanish interface.
+- Responsive reusable form and table styles.
 
-This is the initial Angular setup.
-
-Implemented:
-
-- Angular application under `frontend/`
-- minimal application shell
-- basic routing
-- placeholder dashboard page
-- initial folder structure
-- backend API base URL configuration outside components
-
-Not implemented yet:
-
-- real CatWorld screens
-- stay calendar
-- CRUD forms
-- authentication
-- frontend Docker container
-
-## Tech stack
-
-- Angular
-- TypeScript
-- SCSS
-- npm
-
-## Project structure
-
-```txt
-src/app/
-  core/       shared configuration, services and infrastructure
-  features/   feature-specific screens and logic
-  layout/     application layout components
-  shared/     reusable UI/components/helpers
-```
-
-## Run locally
-
-From the repository root:
-
-```bash
-cd frontend
-npm install
-npm start
-```
-
-The frontend runs at:
-
-```txt
-http://localhost:4200
-```
-
-## Build
+## Run Locally
 
 From `frontend/`:
 
 ```bash
-npm run build
+npm install
+npm start
 ```
 
-The production build is generated under:
+The development server runs at:
 
-```txt
-dist/catworld-frontend
+```text
+http://localhost:4200
 ```
 
-## Backend API configuration
+The local backend is expected at:
 
-The backend API base URL is configured outside Angular components.
-
-Local development configuration:
-
-```txt
-src/environments/environment.development.ts
+```text
+http://localhost:8080/api
 ```
 
-Production/default configuration:
+The API base URL is configured under:
 
-```txt
-src/environments/environment.ts
+```text
+src/environments/
 ```
 
-Expected local development value:
-
-```ts
-apiBaseUrl: 'http://localhost:8080/api';
-```
-
-Expected production/local-private value:
-
-```ts
-apiBaseUrl: '/api';
-```
-
-Do not hardcode backend URLs inside components.
-
-## Related backend
-
-During local development, the backend is expected to run separately from the repository root.
-
-Typical backend validation:
+## Validation
 
 ```bash
-./mvnw test
+npm run format
+npm run format:check
+npm run build
+npm run test:ci
 ```
 
-On Windows PowerShell:
+## Structure
 
-```powershell
-.\mvnw test
+```text
+src/app/
+  core/       authentication, configuration and infrastructure
+  features/   feature-specific screens and logic
+  layout/     application shell and navigation
+  shared/     reusable UI and helpers
 ```
 
-## Notes
+## Production
 
-This frontend is intentionally minimal for now. The goal of this step is to provide a clean Angular foundation, not to implement business screens yet.
+The production build is served by Nginx through Docker Compose. Browser requests to `/api` are proxied to the Spring Boot backend.
+
+See the [root README](../README.md) for the complete project overview and startup instructions.
