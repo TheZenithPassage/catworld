@@ -87,6 +87,17 @@ class SecurityConfigTest {
     }
 
     @Test
+    void loginNormalizesUsernameBeforeLookup() throws Exception {
+        saveUser("admin", "admin-password", UserRole.ADMIN, true);
+
+        mockMvc.perform(post("/api/auth/login")
+                        .with(httpBasic("Admin", "admin-password")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username", is("admin")))
+                .andExpect(jsonPath("$.role").doesNotExist());
+    }
+
+    @Test
     void loginWithInvalidCredentialsReturnsUnauthorized() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .with(httpBasic("test-admin", "wrong-password")))

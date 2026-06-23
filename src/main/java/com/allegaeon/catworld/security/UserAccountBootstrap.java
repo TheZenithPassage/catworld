@@ -11,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Locale;
+
 @Component
 @RequiredArgsConstructor
 public class UserAccountBootstrap implements ApplicationRunner {
@@ -31,7 +33,7 @@ public class UserAccountBootstrap implements ApplicationRunner {
         }
 
         UserAccount administrator = UserAccount.builder()
-                .username(securityProperties.username())
+                .username(securityProperties.username().trim().toLowerCase(Locale.ROOT))
                 .passwordHash(passwordEncoder.encode(securityProperties.password()))
                 .role(UserRole.ADMIN)
                 .enabled(true)

@@ -32,7 +32,7 @@ class UserAccountBootstrapTest {
 
     @Test
     void createsExactlyOneAdminWhenDatabaseIsFresh() {
-        bootstrap("first-admin", "first-password").bootstrapFirstAdminIfRequired();
+        bootstrap(" First-Admin ", "first-password").bootstrapFirstAdminIfRequired();
 
         List<UserAccount> users = userAccountRepository.findAll();
 
