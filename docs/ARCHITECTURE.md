@@ -12,7 +12,7 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
-- Basic application authentication.
+- Database-backed HTTP Basic application authentication.
 - Lookup of current, future, completed and cancelled stays.
 
 ## Not included in the current MVP
@@ -20,7 +20,7 @@ CatWorld currently covers:
 * Room or capacity management.
 * Billing and payments.
 * Inventory management.
-* Role-based permissions and multiple user accounts.
+* Administrative user management and role-based endpoint permissions.
 
 ## Stack
 
@@ -100,6 +100,18 @@ A `Stay` contains:
 Represents the link between a `Stay` and a `Cat`.
 
 The project uses an explicit link entity instead of a plain `@ManyToMany`.
+
+#### UserAccount
+
+Represents an application login account.
+
+A `UserAccount` contains:
+
+- unique username
+- encoded password hash
+- fixed `ADMIN` or `STAFF` role
+- enabled state
+- auditing timestamps
 
 ## Stay Model
 
@@ -214,6 +226,13 @@ Important schema points:
 - `stay_cat` stores the relationship between stays and cats.
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
 - `status` is not persisted.
+- `user_accounts` stores persistent application users for HTTP Basic authentication.
+
+## Authentication
+
+HTTP Basic credentials are authenticated through Spring Security against `user_accounts`.
+
+On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
 ## Auditing
 

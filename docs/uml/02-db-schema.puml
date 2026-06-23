@@ -74,6 +74,18 @@ package "MySQL schema" {
     +cat_id <<PK,FK,NN>>
   }
 
+  class user_accounts <<table>> {
+    +uuid id <<PK>>
+    --
+    username <<NN,UQ>>
+    password_hash <<NN>>
+    role <<NN>>
+    enabled <<NN>>
+    --
+    created_at <<NN>>
+    updated_at <<NN>>
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id

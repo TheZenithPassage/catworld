@@ -4,6 +4,7 @@ skinparam componentStyle rectangle
 actor "User" as user
 
 package "CatWorld (Spring Boot Monolith)" {
+  [Spring Security] as sec
   [REST Controllers] as c
   [DTO + Mapper] as m
   [Services] as s
@@ -13,7 +14,9 @@ package "CatWorld (Spring Boot Monolith)" {
 
 database "MySQL (Docker)" as db
 
-user --> c
+user --> sec
+sec --> c
+sec --> r : user lookup
 c --> m
 m --> s
 s --> d
@@ -27,6 +30,12 @@ Relevant business rules:
 - all cats in a stay share the same owner
 - stay owner is consistent with the cats
 - no overlapping stays per cat
+end note
+
+note left of sec
+HTTP Basic is stateless.
+Credentials are checked against
+user_accounts.
 end note
 
 @enduml

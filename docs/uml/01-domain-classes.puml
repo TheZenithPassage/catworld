@@ -71,6 +71,19 @@ package "catworld.domain" {
     +Cat cat
   }
 
+  enum UserRole {
+    ADMIN
+    STAFF
+  }
+
+  class UserAccount extends Auditable {
+    +UUID id
+    +String username  <<NotNull,Unique>>
+    +String passwordHash  <<NotNull>>
+    +UserRole role  <<NotNull>>
+    +boolean enabled  <<NotNull>>
+  }
+
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >

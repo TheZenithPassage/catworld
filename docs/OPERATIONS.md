@@ -33,6 +33,10 @@ CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:4200
 FRONTEND_PORT=4200
 ```
 
+On a fresh database, `CATWORLD_SECURITY_USERNAME` and `CATWORLD_SECURITY_PASSWORD` bootstrap the first `ADMIN` account in `user_accounts`. The password is encoded before storage.
+
+When any user already exists, startup does not create, update, re-enable or overwrite accounts. Changing these environment variables after the first bootstrap does not rotate or reset the stored administrator password.
+
 Do not commit real `.env.production` values.
 
 ## Start and Stop
