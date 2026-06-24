@@ -28,7 +28,7 @@ CatWorld is a full-stack application for managing a small cat boarding business.
 * Dynamic reserved, checked-in, checked-out and cancelled statuses.
 * Filtering by status, cat and owner.
 * Monthly calendar with standard, compact and entry/exit display modes.
-* Basic login and English/Spanish interface.
+* HTTP Basic login backed by persistent application users and English/Spanish interface.
 * Docker Compose setup with MySQL, Spring Boot, Angular and Nginx.
 * Flyway-managed database migrations.
 * Documented manual backup and restore flow.
@@ -59,7 +59,7 @@ Open:
 http://localhost:4200
 ```
 
-Use the login credentials configured in `.env`.
+Use the login credentials configured in `.env`. On a fresh database, these credentials bootstrap the first administrator account.
 
 Private deployment, environment and backup instructions are documented in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
@@ -116,6 +116,6 @@ More detail is available in:
 
 ## Current Scope
 
-* One configured application user; no role-based permissions.
+* No user-management screens or role-based endpoint permissions yet.
 * No room capacity, billing, payment or inventory management.
 * Designed for private/local deployment with manual backups.
