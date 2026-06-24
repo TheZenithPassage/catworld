@@ -17,6 +17,7 @@ describe('LoginPage', () => {
 
   const authSessionService = {
     login: vi.fn(),
+    logout: vi.fn(),
   };
 
   const router = {
@@ -89,7 +90,8 @@ describe('LoginPage', () => {
   });
 
   it('stores the session and redirects to the return URL after a successful login', () => {
-    authApiService.login.mockReturnValue(of({ username: 'admin' }));
+    const user = { username: 'admin', role: 'ADMIN' as const };
+    authApiService.login.mockReturnValue(of(user));
 
     component.username.set('  admin  ');
     component.password.set('secret');
@@ -100,7 +102,11 @@ describe('LoginPage', () => {
       username: 'admin',
       password: 'secret',
     });
-    expect(authSessionService.login).toHaveBeenCalledWith('admin', 'secret');
+    expect(authSessionService.login).toHaveBeenCalledWith(user, {
+      username: 'admin',
+      password: 'secret',
+    });
+    expect(authSessionService.logout).not.toHaveBeenCalled();
     expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
     expect(component.submitting()).toBe(false);
     expect(component.error()).toBeNull();
@@ -125,6 +131,7 @@ describe('LoginPage', () => {
     expect(component.error()).toBe(component.text().auth.login.errors.invalidCredentials);
     expect(component.submitting()).toBe(false);
     expect(authSessionService.login).not.toHaveBeenCalled();
+    expect(authSessionService.logout).toHaveBeenCalledOnce();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 });

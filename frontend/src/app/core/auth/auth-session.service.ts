@@ -1,7 +1,10 @@
 import { Injectable, signal } from '@angular/core';
 
+import { AuthUser, LoginRequest, UserRole } from './auth.model';
+
 interface AuthSession {
   username: string;
+  role: UserRole;
   authorizationHeader: string;
 }
 
@@ -13,10 +16,14 @@ export class AuthSessionService {
 
   readonly authenticated = this.session.asReadonly();
 
-  login(username: string, password: string): void {
+  login(user: AuthUser, credentials: LoginRequest): void {
     this.session.set({
-      username,
-      authorizationHeader: this.buildBasicAuthorizationHeader(username, password),
+      username: user.username,
+      role: user.role,
+      authorizationHeader: this.buildBasicAuthorizationHeader(
+        credentials.username,
+        credentials.password,
+      ),
     });
   }
 
@@ -30,6 +37,14 @@ export class AuthSessionService {
 
   getUsername(): string | null {
     return this.session()?.username ?? null;
+  }
+
+  getRole(): UserRole | null {
+    return this.session()?.role ?? null;
+  }
+
+  hasRole(role: UserRole): boolean {
+    return this.session()?.role === role;
   }
 
   private buildBasicAuthorizationHeader(username: string, password: string): string {

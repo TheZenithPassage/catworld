@@ -26,7 +26,7 @@ describe('AuthApiService', () => {
 
   it('sends basic credentials when logging in', () => {
     service.login({ username: 'admin', password: 'secret' }).subscribe((user) => {
-      expect(user).toEqual({ username: 'admin' });
+      expect(user).toEqual({ username: 'admin', role: 'ADMIN' });
     });
 
     const request = httpTestingController.expectOne(`${API_BASE_URL}/auth/login`);
@@ -35,6 +35,6 @@ describe('AuthApiService', () => {
     expect(request.request.headers.get('Authorization')).toBe(`Basic ${btoa('admin:secret')}`);
     expect(request.request.body).toBeNull();
 
-    request.flush({ username: 'admin' });
+    request.flush({ username: 'admin', role: 'ADMIN' });
   });
 });

@@ -35,7 +35,10 @@ describe('authGuard', () => {
   });
 
   it('allows navigation when the user is authenticated', () => {
-    authSessionService.login('admin', 'secret');
+    authSessionService.login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'secret' },
+    );
 
     expect(executeGuard(route, state)).toBe(true);
   });
