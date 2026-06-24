@@ -15,7 +15,7 @@ CatWorld currently covers:
 - Database-backed HTTP Basic application authentication.
 - Lookup of current, future, completed and cancelled stays.
 
-## Not included in the current MVP
+## Not included in the current scope
 
 * Room or capacity management.
 * Billing and payments.

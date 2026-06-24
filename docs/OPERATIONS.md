@@ -4,13 +4,13 @@ Simple operations notes for the first private CatWorld production version.
 
 ## Private Production
 
-The first private production version runs from the developer machine with `compose.prod.yml`.
+The first private production version runs from the host machine with `compose.prod.yml`.
 
 Only the frontend is exposed to the host. The backend and database stay inside the Docker Compose network, and browser API requests go through the frontend `/api` proxy.
 
 External access, if needed, must point only to the frontend URL. Backend and database ports must not be exposed directly.
 
-Real production data must not be mixed with portfolio/demo data.
+Real production data must not be mixed with sample or test data.
 
 ## Configuration
 

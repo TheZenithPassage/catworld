@@ -5,8 +5,6 @@
 
 CatWorld is a full-stack application for managing a small cat boarding business. It covers customer and cat records, reference vets, stay bookings and calendar-based planning.
 
-The project was built as a portfolio application with a real private-use workflow in mind.
-
 ## Screenshots
 
 ### Stay calendar
@@ -21,7 +19,7 @@ The project was built as a portfolio application with a real private-use workflo
 
 ![Cat records](docs/screenshots/cat-management.png)
 
-## MVP Features
+## Features
 
 * Owner, cat and reference vet management.
 * Creation, editing and cancellation of stays.
@@ -116,7 +114,7 @@ More detail is available in:
 * [`docs/uml`](docs/uml)
 * [`frontend/README.md`](frontend/README.md)
 
-## Current Limitations
+## Current Scope
 
 * No user-management screens or role-based endpoint permissions yet.
 * No room capacity, billing, payment or inventory management.
