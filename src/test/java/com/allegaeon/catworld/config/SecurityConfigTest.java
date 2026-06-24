@@ -71,7 +71,7 @@ class SecurityConfigTest {
                         .with(httpBasic("test-admin", "test-password")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username", is("test-admin")))
-                .andExpect(jsonPath("$.role").doesNotExist());
+                .andExpect(jsonPath("$.role", is("ADMIN")));
     }
 
     @Test
@@ -83,7 +83,13 @@ class SecurityConfigTest {
                         .with(httpBasic(username, "staff-password")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username", is(username)))
-                .andExpect(jsonPath("$.role").doesNotExist());
+                .andExpect(jsonPath("$.role", is("STAFF")))
+                .andExpect(jsonPath("$.passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.enabled").doesNotExist())
+                .andExpect(jsonPath("$.id").doesNotExist())
+                .andExpect(jsonPath("$.createdAt").doesNotExist())
+                .andExpect(jsonPath("$.updatedAt").doesNotExist())
+                .andExpect(jsonPath("$.password").doesNotExist());
     }
 
     @Test
@@ -94,7 +100,7 @@ class SecurityConfigTest {
                         .with(httpBasic("Admin", "admin-password")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username", is("admin")))
-                .andExpect(jsonPath("$.role").doesNotExist());
+                .andExpect(jsonPath("$.role", is("ADMIN")));
     }
 
     @Test

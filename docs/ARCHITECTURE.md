@@ -232,6 +232,8 @@ Important schema points:
 
 HTTP Basic credentials are authenticated through Spring Security against `user_accounts`.
 
+Successful login returns the canonical stored username and its fixed `ADMIN` or `STAFF` role. Angular keeps that identity and role in its in-memory authentication state alongside the HTTP Basic credentials.
+
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
 ## Auditing

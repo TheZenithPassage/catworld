@@ -44,13 +44,16 @@ export class LoginPage {
 
     this.submitting.set(true);
 
-    this.authApiService.login({ username, password }).subscribe({
-      next: () => {
-        this.authSessionService.login(username, password);
+    const credentials = { username, password };
+
+    this.authApiService.login(credentials).subscribe({
+      next: (user) => {
+        this.authSessionService.login(user, credentials);
         this.submitting.set(false);
         this.router.navigateByUrl(this.getReturnUrl());
       },
       error: (error: unknown) => {
+        this.authSessionService.logout();
         this.error.set(this.getLoginErrorMessage(error));
         this.submitting.set(false);
       },
