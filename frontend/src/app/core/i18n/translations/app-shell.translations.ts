@@ -10,6 +10,7 @@ export interface AppShellTranslations {
     cats: string;
     owners: string;
     vets: string;
+    accounts: string;
   };
   language: {
     toggleLabel: string;
@@ -30,6 +31,7 @@ export const APP_SHELL_TRANSLATIONS = {
       cats: 'Gatos',
       owners: 'Dueños',
       vets: 'Veterinarios',
+      accounts: 'Cuentas',
     },
     language: {
       toggleLabel: 'Cambiar idioma',
@@ -48,6 +50,7 @@ export const APP_SHELL_TRANSLATIONS = {
       cats: 'Cats',
       owners: 'Owners',
       vets: 'Vets',
+      accounts: 'Accounts',
     },
     language: {
       toggleLabel: 'Change language',

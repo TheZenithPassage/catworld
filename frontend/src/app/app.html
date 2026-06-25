@@ -18,6 +18,9 @@
       <a routerLink="/cats" routerLinkActive="active-link">{{ text().app.nav.cats }}</a>
       <a routerLink="/owners" routerLinkActive="active-link">{{ text().app.nav.owners }}</a>
       <a routerLink="/vets" routerLinkActive="active-link">{{ text().app.nav.vets }}</a>
+      @if (authenticated()?.role === 'ADMIN') {
+        <a routerLink="/accounts" routerLinkActive="active-link">{{ text().app.nav.accounts }}</a>
+      }
     </nav>
   }
 

@@ -13,6 +13,7 @@ CatWorld currently covers:
 - Reference vet management.
 - Stay booking management.
 - Database-backed HTTP Basic application authentication.
+- ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Lookup of current, future, completed and cancelled stays.
 
 ## Not included in the current scope
@@ -20,7 +21,6 @@ CatWorld currently covers:
 * Room or capacity management.
 * Billing and payments.
 * Inventory management.
-* Administrative user management and role-based endpoint permissions.
 
 ## Stack
 
@@ -233,6 +233,8 @@ Important schema points:
 HTTP Basic credentials are authenticated through Spring Security against `user_accounts`.
 
 Successful login returns the canonical stored username and its fixed `ADMIN` or `STAFF` role. Angular keeps that identity and role in its in-memory authentication state alongside the HTTP Basic credentials.
+
+The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 

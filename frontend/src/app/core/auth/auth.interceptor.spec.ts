@@ -156,4 +156,57 @@ describe('authInterceptor', () => {
     expect(authSessionService.getRole()).toBe('ADMIN');
     expect(navigateSpy).not.toHaveBeenCalled();
   });
+
+  it('clears a stale ADMIN session when an account-management request returns forbidden', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    authSessionService.login(adminUser, adminCredentials);
+
+    httpClient.patch(`${API_BASE_URL}/users/user-1/role`, { role: 'STAFF' }).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/users/user-1/role`);
+    request.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+    expect(authSessionService.authenticated()).toBeNull();
+    expect(navigateSpy).toHaveBeenCalledWith(['/login'], {
+      queryParams: {
+        returnUrl: router.url,
+      },
+    });
+  });
+
+  it('clears a stale ADMIN session when loading accounts returns forbidden', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    authSessionService.login(adminUser, adminCredentials);
+
+    httpClient.get(`${API_BASE_URL}/users`).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/users`);
+    request.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+    expect(authSessionService.authenticated()).toBeNull();
+    expect(navigateSpy).toHaveBeenCalledWith(['/login'], {
+      queryParams: {
+        returnUrl: router.url,
+      },
+    });
+  });
+
+  it('does not clear the session for forbidden responses outside account management', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    authSessionService.login(adminUser, adminCredentials);
+
+    httpClient.get(`${API_BASE_URL}/owners`).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/owners`);
+    request.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+    expect(authSessionService.getRole()).toBe('ADMIN');
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
 });
