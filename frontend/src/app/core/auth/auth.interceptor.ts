@@ -12,6 +12,10 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   const isApiRequest = request.url.startsWith(API_BASE_URL);
   const isLoginRequest = request.url.endsWith('/auth/login');
+  const accountManagementBaseUrl = `${API_BASE_URL}/users`;
+  const isAccountManagementRequest =
+    request.url === accountManagementBaseUrl ||
+    request.url.startsWith(`${accountManagementBaseUrl}/`);
   const hasAuthorizationHeader = request.headers.has('Authorization');
 
   const authorizationHeader = authSessionService.getAuthorizationHeader();
@@ -29,9 +33,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     catchError((error: unknown) => {
       if (
         error instanceof HttpErrorResponse &&
-        error.status === 401 &&
         isApiRequest &&
-        !isLoginRequest
+        !isLoginRequest &&
+        (error.status === 401 || (error.status === 403 && isAccountManagementRequest))
       ) {
         authSessionService.logout();
         router.navigate(['/login'], {

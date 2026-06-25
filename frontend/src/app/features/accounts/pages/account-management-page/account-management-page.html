@@ -1,0 +1,142 @@
+<section class="account-management-page">
+  <header class="page-header">
+    <h2>{{ text().accounts.title }}</h2>
+    <p>{{ text().accounts.description }}</p>
+  </header>
+
+  <form class="account-form" (ngSubmit)="createAccount()">
+    <h3>{{ text().accounts.create.title }}</h3>
+
+    <label>
+      {{ text().accounts.create.username }}
+      <input
+        type="text"
+        name="username"
+        autocomplete="off"
+        [ngModel]="username()"
+        (ngModelChange)="username.set($event)"
+      />
+    </label>
+
+    <label>
+      {{ text().accounts.create.password }}
+      <input
+        type="password"
+        name="password"
+        autocomplete="new-password"
+        [ngModel]="password()"
+        (ngModelChange)="password.set($event)"
+      />
+    </label>
+
+    <label>
+      {{ text().accounts.create.role }}
+      <select
+        name="newAccountRole"
+        [ngModel]="newAccountRole()"
+        (ngModelChange)="newAccountRole.set($event)"
+      >
+        <option value="ADMIN">{{ text().accounts.roles.admin }}</option>
+        <option value="STAFF">{{ text().accounts.roles.staff }}</option>
+      </select>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="primary-action" [disabled]="creating()">
+        {{ creating() ? text().accounts.create.submitting : text().accounts.create.submit }}
+      </button>
+    </div>
+  </form>
+
+  @if (actionError()) {
+    <div class="error-message" role="alert">
+      <p>{{ actionError() }}</p>
+    </div>
+  }
+
+  @if (loading()) {
+    <p>{{ text().accounts.loading }}</p>
+  } @else if (loadError()) {
+    <div class="error-message">
+      <p>{{ loadError() }}</p>
+      <button type="button" (click)="loadAccounts()">{{ text().accounts.retry }}</button>
+    </div>
+  } @else if (accounts().length === 0) {
+    <p>{{ text().accounts.empty }}</p>
+  } @else {
+    <div class="accounts-table-wrapper">
+      <table class="accounts-table">
+        <thead>
+          <tr>
+            <th>{{ text().accounts.table.username }}</th>
+            <th>{{ text().accounts.table.role }}</th>
+            <th>{{ text().accounts.table.enabled }}</th>
+            <th>{{ text().accounts.table.actions }}</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (account of accounts(); track account.id) {
+            <tr>
+              <td>
+                {{ account.username }}
+                @if (isCurrentAccount(account)) {
+                  <span class="you-marker">{{ text().accounts.you }}</span>
+                }
+              </td>
+              <td>
+                <div class="role-action">
+                  <select
+                    [name]="'role-' + account.id"
+                    [attr.aria-label]="text().accounts.table.role + ': ' + account.username"
+                    [ngModel]="selectedRole(account)"
+                    (ngModelChange)="selectRole(account.id, $event)"
+                    [disabled]="isPending(account.id)"
+                  >
+                    <option value="ADMIN">{{ text().accounts.roles.admin }}</option>
+                    <option value="STAFF">{{ text().accounts.roles.staff }}</option>
+                  </select>
+                  <button
+                    type="button"
+                    (click)="changeRole(account)"
+                    [disabled]="isPending(account.id) || selectedRole(account) === account.role"
+                  >
+                    {{
+                      isPending(account.id)
+                        ? text().accounts.actions.updating
+                        : text().accounts.actions.saveRole
+                    }}
+                  </button>
+                </div>
+              </td>
+              <td>
+                <span class="state-marker" [class.disabled]="!account.enabled">
+                  {{
+                    account.enabled
+                      ? text().accounts.states.enabled
+                      : text().accounts.states.disabled
+                  }}
+                </span>
+              </td>
+              <td>
+                <button
+                  type="button"
+                  (click)="changeEnabled(account)"
+                  [disabled]="isPending(account.id)"
+                >
+                  {{
+                    isPending(account.id)
+                      ? text().accounts.actions.updating
+                      : account.enabled
+                        ? text().accounts.actions.disable
+                        : text().accounts.actions.enable
+                  }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

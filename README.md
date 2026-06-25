@@ -29,6 +29,7 @@ CatWorld is a full-stack application for managing a small cat boarding business.
 * Filtering by status, cat and owner.
 * Monthly calendar with standard, compact and entry/exit display modes.
 * HTTP Basic login backed by persistent application users, with authenticated username and role available to the Angular application.
+* ADMIN-only account management for creating accounts, assigning roles and enabling or disabling access.
 * Docker Compose setup with MySQL, Spring Boot, Angular and Nginx.
 * Flyway-managed database migrations.
 * Documented manual backup and restore flow.
@@ -67,7 +68,7 @@ Private deployment, environment and backup instructions are documented in [`docs
 
 A basic workflow can be tested in a few minutes:
 
-1. Log in.
+1. Log in. An administrator can create and manage application accounts from the Accounts area.
 2. Create an owner and one or more cats.
 3. Optionally assign a reference vet.
 4. Create a stay and inspect it in the stays list and monthly calendar.
@@ -116,6 +117,6 @@ More detail is available in:
 
 ## Current Scope
 
-* No user-management screens or role-based endpoint permissions yet.
+* User management is limited to fixed `ADMIN` and `STAFF` roles; both roles retain access to operational pages.
 * No room capacity, billing, payment or inventory management.
 * Designed for private/local deployment with manual backups.

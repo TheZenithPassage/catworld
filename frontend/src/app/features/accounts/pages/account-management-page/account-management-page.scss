@@ -1,0 +1,112 @@
+.account-management-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.account-form {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, rgb(255 253 248 / 0.98), rgb(255 247 237 / 0.95));
+  box-shadow: var(--shadow-soft);
+}
+
+.account-form::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1.25rem;
+  right: 1.25rem;
+  height: 0.25rem;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(90deg, var(--color-secondary), var(--color-primary));
+}
+
+.account-form h3,
+.account-form .form-actions {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.accounts-table-wrapper {
+  overflow-x: auto;
+}
+
+.accounts-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.accounts-table th,
+.accounts-table td {
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.accounts-table th {
+  background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
+  color: #6d5140;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.accounts-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.accounts-table tbody tr:nth-child(even) td {
+  background: #fffaf2;
+}
+
+.role-action {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.role-action select {
+  min-width: 9rem;
+}
+
+.you-marker,
+.state-marker {
+  display: inline-flex;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-secondary-soft);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.state-marker.disabled {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+@media (max-width: 760px) {
+  .account-form {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .role-action {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
