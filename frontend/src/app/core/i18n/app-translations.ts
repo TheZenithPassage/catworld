@@ -17,6 +17,11 @@ import { ACCOUNTS_TRANSLATIONS, AccountsTranslations } from './translations/acco
 
 export interface AppTranslations {
   app: AppShellTranslations;
+  detailDialog: {
+    back: string;
+    close: string;
+    edit: string;
+  };
   auth: AuthTranslations;
   dashboard: DashboardTranslations;
   calendar: CalendarTranslations;
@@ -30,6 +35,11 @@ export interface AppTranslations {
 export const APP_TRANSLATIONS = {
   es: {
     app: APP_SHELL_TRANSLATIONS.es,
+    detailDialog: {
+      back: 'Volver',
+      close: 'Cerrar',
+      edit: 'Editar',
+    },
     auth: AUTH_TRANSLATIONS.es,
     dashboard: DASHBOARD_TRANSLATIONS.es,
     calendar: CALENDAR_TRANSLATIONS.es,
@@ -41,6 +51,11 @@ export const APP_TRANSLATIONS = {
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
+    detailDialog: {
+      back: 'Back',
+      close: 'Close',
+      edit: 'Edit',
+    },
     auth: AUTH_TRANSLATIONS.en,
     dashboard: DASHBOARD_TRANSLATIONS.en,
     calendar: CALENDAR_TRANSLATIONS.en,

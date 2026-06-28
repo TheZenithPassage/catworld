@@ -1,3 +1,5 @@
+@import '@angular/cdk/overlay-prebuilt.css';
+
 :root {
   --color-surface: #fffdf8;
   --color-surface-muted: #fff1df;
@@ -219,6 +221,22 @@ label textarea {
 .calendar-help,
 .empty-options {
   color: var(--color-text-muted);
+}
+
+.catworld-detail-dialog-backdrop {
+  background: rgb(41 35 31 / 0.48);
+}
+
+.catworld-detail-dialog-panel {
+  max-height: calc(100dvh - 2rem);
+}
+
+@media (max-width: 520px) {
+  .catworld-detail-dialog-panel {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+    max-height: calc(100dvh - 1rem);
+  }
 }
 
 @media (max-width: 900px) {

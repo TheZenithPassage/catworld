@@ -1,0 +1,34 @@
+@if (entry(); as detail) {
+  <article class="detail-dialog-shell" aria-labelledby="detail-dialog-title">
+    <header class="detail-dialog-header">
+      <div class="detail-dialog-heading">
+        @if (canGoBack()) {
+          <button type="button" class="detail-dialog-back" (click)="back()">
+            {{ text().detailDialog.back }}
+          </button>
+        }
+
+        <h2 id="detail-dialog-title">{{ detail.title }}</h2>
+      </div>
+
+      <div class="detail-dialog-actions">
+        @if (detail.editCommands) {
+          <button type="button" class="secondary-action" (click)="edit()">
+            {{ text().detailDialog.edit }}
+          </button>
+        }
+
+        <button type="button" class="detail-dialog-close" (click)="close()">
+          {{ text().detailDialog.close }}
+        </button>
+      </div>
+    </header>
+
+    <section class="detail-dialog-body">
+      <ng-container
+        [ngComponentOutlet]="detail.bodyComponent"
+        [ngComponentOutletInputs]="bodyInputs()"
+      />
+    </section>
+  </article>
+}
