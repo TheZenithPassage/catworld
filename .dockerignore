@@ -2,13 +2,21 @@
 .gitignore
 .idea
 *.iml
+*.log*
 
 target
 .mvn/wrapper/maven-wrapper.jar
+node_modules
+frontend/node_modules
+frontend/dist
+coverage
 
 .env
 .env.*
 !.env.example
+
+Dockerfile*
+.dockerignore
 
 README.md
 docs

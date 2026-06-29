@@ -8,6 +8,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+.specify/feature.json
 
 ### STS ###
 .apt_generated
@@ -33,6 +34,12 @@ target/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+### Frontend ###
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.log
 
 ### VS Code ###
 .vscode/
