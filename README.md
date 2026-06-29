@@ -3,7 +3,7 @@
 ![Backend CI](https://github.com/TheZenithPassage/catworld/actions/workflows/backend-ci.yml/badge.svg)
 ![Frontend CI](https://github.com/TheZenithPassage/catworld/actions/workflows/frontend-ci.yml/badge.svg)
 
-CatWorld is a full-stack application for managing a small cat boarding business. It covers customer and cat records, reference vets, stay bookings and calendar-based planning.
+CatWorld is a full-stack administration system for cat-boarding operations. It currently covers customer and cat records, reference vets, stay bookings and calendar-based planning.
 
 ## Screenshots
 
@@ -62,7 +62,7 @@ http://localhost:4200
 
 Use the login credentials configured in `.env`. On a fresh database, these credentials bootstrap the first administrator account.
 
-Private deployment, environment and backup instructions are documented in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+Current deployment, environment and operations procedures are documented in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 ## Demo Flow
 
@@ -86,8 +86,8 @@ Frontend:
 
 ```bash
 cd frontend
-npm run format:check
 npm run build
+npm run format:check
 npm run test:ci
 ```
 
@@ -115,8 +115,6 @@ More detail is available in:
 * [`docs/uml`](docs/uml)
 * [`frontend/README.md`](frontend/README.md)
 
-## Current Scope
+## Current Account Behavior
 
 * User management is limited to fixed `ADMIN` and `STAFF` roles; both roles retain access to operational pages.
-* No room capacity, billing, payment or inventory management.
-* Designed for private/local deployment with manual backups.

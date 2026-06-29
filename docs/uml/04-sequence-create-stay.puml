@@ -2,37 +2,56 @@
 actor Client as client
 participant "StayController" as controller
 participant "StayService" as service
+participant "StayMapper" as mapper
 participant "CatRepository" as catRepo
 participant "StayRepository" as stayRepo
-participant "StayCatRepository" as stayCatRepo
 
-client -> controller: POST /stays (catIds, startAt, endAt, notes)
-controller -> service: createStay(cmd)
+client -> controller: POST /api/stays (catIds, startAt, endAt, notes)
+controller -> controller: Bean Validation (@Valid)
 
-service -> service: validate(catIds is not empty)
-service -> service: validate(no duplicates)
-service -> service: validate(endAt > startAt)
-service -> catRepo: findAllById(catIds)
-catRepo --> service: List<Cat>
+alt invalid request body
+  controller --> client: 400
+else valid request body
+  controller -> service: createStay(stayRequestDTO)
+  service -> service: validate(endAt > startAt)
 
-alt missing cats or empty list
-  service --> controller: 400 / 404
-  controller --> client: error
-else cats found
-  service -> service: validate(all cats share the same owner)
-  service -> stayRepo: existsOverlapForAnyCat(catIds, startAt, endAt)
-  stayRepo --> service: true/false
+  alt endAt is not after startAt
+    service --> controller: BadRequestException
+    controller --> client: 400
+  else dates are valid
+    service -> mapper: toEntity(stayRequestDTO)
+    mapper --> service: Stay
 
-  alt overlaps = true
-    service --> controller: 409 Conflict (overlap)
-    controller --> client: 409
-  else overlaps = false
-    service -> service: owner = cats[0].owner
-    service -> stayRepo: save(Stay)
-    stayRepo --> service: Stay saved
-    service -> stayCatRepo: saveAll(StayCat rows)
-    stayCatRepo --> service: links saved
-    service --> controller: StayResponseDto
+    loop each catId in request catIds
+      service -> catRepo: findById(catId)
+      catRepo --> service: Optional<Cat>
+
+      alt cat missing
+        service --> controller: ResourceNotFoundException
+        controller --> client: 404
+      else cat found
+        service -> service: set or validate owner
+        service -> service: scan cat.stayCats for active date overlap
+
+        alt overlap found
+          service --> controller: ConflictException
+          controller --> client: 409
+        else no overlap
+          service -> service: build StayCat link for stay and cat
+        end
+      end
+    end
+
+    service -> service: set stay owner and stayCats
+    service -> stayRepo: save(stay)
+    note right of stayRepo
+      Stay.stayCats uses cascade ALL,
+      so saving Stay persists stay_cat rows.
+    end note
+    stayRepo --> service: saved Stay
+    service -> mapper: toResponseDTO(saved Stay)
+    mapper --> service: StayResponseDTO
+    service --> controller: StayResponseDTO
     controller --> client: 201 Created
   end
 end
