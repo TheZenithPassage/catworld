@@ -17,8 +17,8 @@ database "MySQL (Docker)" as db
 user --> sec
 sec --> c
 sec --> r : user lookup
-c --> m
-m --> s
+c --> s
+s --> m
 s --> d
 s --> r
 r --> db

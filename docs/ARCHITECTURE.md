@@ -1,6 +1,8 @@
 # CatWorld Architecture
 
-CatWorld is a full-stack application for managing a cat boarding business.
+CatWorld is a full-stack administration system for cat-boarding operations.
+
+This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
 
@@ -15,12 +17,6 @@ CatWorld currently covers:
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Lookup of current, future, completed and cancelled stays.
-
-## Not included in the current scope
-
-* Room or capacity management.
-* Billing and payments.
-* Inventory management.
 
 ## Stack
 
@@ -299,21 +295,36 @@ Controller tests should use Spring MVC slice testing instead of booting the full
 
 ### CI
 
-GitHub Actions runs Maven verification automatically.
+GitHub Actions runs backend and frontend validation automatically.
 
-Workflow file:
+Workflow files:
 
 ```txt
 .github/workflows/backend-ci.yml
+.github/workflows/frontend-ci.yml
 ```
 
-The workflow:
+Both workflows:
 
-- runs on pull requests targeting `main`
-- runs on pushes to `main`
+- run on pull requests targeting `main`
+- run on pushes to `main`
+- support manual `workflow_dispatch`
+
+The backend workflow:
+
 - sets up Java 17
 - uses Maven dependency caching
 - runs `./mvnw verify`
+
+The frontend workflow:
+
+- runs from `frontend/`
+- sets up Node.js 22
+- uses npm dependency caching
+- runs `npm ci`
+- runs `npm run build`
+- runs `npm run format:check`
+- runs `npm run test:ci`
 
 ## Diagrams
 

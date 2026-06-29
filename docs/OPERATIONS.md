@@ -1,10 +1,10 @@
 # CatWorld Operations
 
-Simple operations notes for the first private CatWorld production version.
+Operations procedures for the current CatWorld deployment.
 
-## Private Production
+## Current Production Deployment
 
-The first private production version runs from the host machine with `compose.prod.yml`.
+The current production deployment runs from the host machine with `compose.prod.yml`.
 
 Only the frontend is exposed to the host. The backend and database stay inside the Docker Compose network, and browser API requests go through the frontend `/api` proxy.
 
@@ -41,7 +41,7 @@ Do not commit real `.env.production` values.
 
 ## Start and Stop
 
-Start the private production stack:
+Start the production stack:
 
 ```
 docker compose --env-file .env.production -f compose.prod.yml up --build -d
@@ -59,7 +59,7 @@ Stop the stack without deleting data:
 docker compose --env-file .env.production -f compose.prod.yml down
 ```
 
-Do not use `down -v` unless the local production database should be deleted.
+Do not use `down -v` unless the production database volume should be deleted.
 
 ## Backup
 
@@ -97,7 +97,7 @@ docker compose --env-file .env.production -f compose.prod.yml exec -T db rm /tmp
 
 ## Restore
 
-Stop the stack and delete the local production database volume:
+Stop the stack and delete the production database volume:
 
 ```
 docker compose --env-file .env.production -f compose.prod.yml down -v
@@ -139,13 +139,13 @@ Confirm the app opens and the restored data is visible:
 http://localhost:4200
 ```
 
-## Manual Check Before Real Use
+## Production Readiness Check
 
 Before using real data:
 
-1. Start the private production stack.
+1. Start the production stack.
 2. Create sample owner, cat, vet and stay records.
 3. Create a backup.
-4. Restore the backup into a fresh local database.
+4. Restore the backup into a fresh database.
 5. Confirm the sample data is visible from the frontend.
 6. Remove sample data if it should not remain.
