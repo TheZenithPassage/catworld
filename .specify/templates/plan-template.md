@@ -18,29 +18,111 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Language/Version**: [Inspect current repository; record backend and frontend languages and versions or NEEDS CLARIFICATION]
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Primary Dependencies**: [Inspect current repository; record relevant dependencies or NEEDS CLARIFICATION]
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+<!--
+  Inspect the current repository for language, dependency, runtime, and tool
+  versions. Do not hardcode stale examples into generated plans.
+-->
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Storage**: [Inspect current repository; record affected persistence/storage or N/A]
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Testing**: [Inspect current repository; record relevant test commands/frameworks or NEEDS CLARIFICATION]
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Target Platform**: [Inspect current repository; record affected runtime/deployment target or NEEDS CLARIFICATION]
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Project Type**: [CatWorld full-stack web administration system; refine only if current repository evidence requires it]
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+**Performance Goals**: [Use N/A if no confirmed requirement. Record only measurable targets supported by the specification, current repository, or explicit human decision. Use NEEDS CLARIFICATION when unresolved performance requirements materially affect design. Never invent throughput, data-volume, screen-count, user-count, or latency targets.]
 
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Constraints**: [Use N/A if no confirmed constraint. Record only constraints supported by the specification, current repository, or explicit human decision. Use NEEDS CLARIFICATION when unresolved constraints materially affect design. Never invent throughput, data-volume, screen-count, user-count, or latency targets.]
+
+**Scale/Scope**: [Use N/A if no confirmed scale requirement. Record only measurable scope or scale supported by the specification, current repository, or explicit human decision. Use NEEDS CLARIFICATION when unresolved scale materially affects design. Never invent throughput, data-volume, screen-count, user-count, or latency targets.]
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*GATE 1: Before Phase 0 research, identify applicable constitution principles, assessment triggers, and unresolved decisions. Phase 0 MAY research alternatives needed to complete a required assessment.*
 
-[Gates determined based on constitution file]
+*GATE 2: Before decision-dependent Phase 1 design and before implementation task generation, every required architecture and technology assessment MUST be completed and human-approved. Re-check full constitution compliance after Phase 1 design.*
+
+- **Domain focus and sustainable evolution**: Does the feature remain in the
+  cat-boarding domain, avoid speculative platform/cross-species abstractions,
+  and avoid treating one current installation or workflow as a permanent
+  architectural assumption?
+- **Layered monolith responsibilities**: Does the plan preserve controller ->
+  service -> repository -> database responsibilities, with DTOs/mappers keeping
+  HTTP contracts separate from JPA entities?
+- **Backend and database authority**: Are business rules, authorization,
+  validation, and important calculations enforced by the backend and, where
+  applicable, protected by database constraints rather than frontend-only logic?
+- **Schema evolution**: If schema changes are needed, are Flyway migrations and
+  proportional migration validation planned, with Hibernate auto-update excluded
+  from real schema changes?
+- **Protected stay model**: If stays are affected, does the plan preserve or
+  explicitly specify reviewed changes to dynamic status and core stay
+  invariants?
+- **Specification and planning discipline**: Are observable behavior, scope,
+  edge cases, exclusions, and major architectural/security/persistence decisions
+  resolved before implementation?
+- **Architecture and technology assessment**: If the feature introduces a
+  significant shared or cross-cutting capability, confirmed repeated approved
+  use, a non-trivial accessibility or correctness responsibility, a material
+  security, persistence, shared-contract, or operational decision, a
+  significant dependency, or meaningful replacement or migration cost, has the
+  required assessment been completed and human-approved? Implementation is
+  blocked while a required significant technical decision remains pending or
+  unapproved.
+- **Focused changes and proportional validation**: Is the change scoped and
+  reviewable, with validation depth proportional to business, persistence,
+  security, contract, and operational risk?
+- **Operational safety and sources of truth**: Are secrets, real data,
+  deployment exposure, recovery procedures, and documentation/source-of-truth
+  updates handled for the active deployment model?
+
+## Architecture and Technology Assessment
+
+<!--
+  Complete this section only when a constitution trigger applies. Use N/A for
+  ordinary local changes where no significant architecture, framework, library,
+  shared-infrastructure, or costly-to-replace decision is introduced. Do not
+  create ceremonial comparison work for ordinary local changes; use
+  "Assessment required: No" for small CRUD changes, routine use of an already
+  approved framework, minor component organization, local utilities, and normal
+  coding details.
+-->
+
+**Assessment required**: [Yes/No, with reason]
+
+**Decision trigger**: [significant shared capability | significant cross-cutting concern | confirmed repeated approved use | non-trivial accessibility or correctness responsibility | material security decision | material persistence decision | material shared-contract decision | material operational decision | significant dependency | meaningful replacement or migration cost | N/A]
+
+**Options considered**:
+
+- Existing platform/framework/project capability: [fit, cost, risk, and constraints for confirmed requirements or N/A]
+- Established library/framework/service: [fit, cost, risk, maturity, lock-in, and operational consequences or N/A]
+- Focused custom implementation: [fit, correctness/accessibility responsibility, maintenance cost, and reversibility or N/A]
+
+**Selected approach**: [Chosen option or N/A]
+
+**Why selected**: [Fit for confirmed current requirements, confirmed medium-term reuse, and tradeoffs or N/A]
+
+**Confirmed medium-term use**: [Approved features or repeated use this is expected to support, or N/A]
+
+**Maintenance and operational consequences**: [Ongoing ownership, upgrade, security, accessibility, correctness, and operational considerations or N/A]
+
+**Reversibility and migration path**: [How the decision can be changed later and expected migration cost or N/A]
+
+**Human approval**: [pending/approved; keep pending unless explicit human
+approval or a valid prior approved decision is referenced. Explicit human
+approval of the completed feature plan counts as approval of the selected
+approach. Approval may be referenced from the constitution or another
+explicitly approved and still-applicable architectural decision record; identify
+the source and explain its applicability. If an existing approved decision fully
+governs the choice, such as normal Flyway migration work following the
+constitution, reference it rather than reopen the decision unnecessarily. An
+agent cannot infer approval or approve its own recommendation. A material
+change to the selected approach invalidates prior approval.]
 
 ## Project Structure
 
@@ -58,46 +140,17 @@ specs/[###-feature]/
 
 ### Source Code (repository root)
 <!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
+  ACTION REQUIRED: Replace the placeholder tree below with only the concrete
+  CatWorld paths relevant to this feature. Omit directories the feature does
+  not touch. Use current repository inspection for exact package/component
+  paths.
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+src/main/java/
+src/main/resources/
+src/test/java/
+frontend/src/
 ```
 
 **Structure Decision**: [Document the selected structure and reference the real
@@ -105,9 +158,11 @@ directories captured above]
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+> **Complete ONLY for necessary complexity that still complies with the
+> constitution. A constitutional conflict cannot be justified here; the plan
+> must change or the constitution must be amended first.**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| Complexity | Why Needed | Simpler Alternative Rejected Because | Constitution Compliance |
+|------------|------------|-------------------------------------|-------------------------|
+| [e.g., additional module] | [current need] | [why existing structure insufficient] | [how this remains constitution-compliant] |
+| [e.g., additional abstraction] | [specific problem] | [why direct implementation insufficient] | [how this remains constitution-compliant] |
