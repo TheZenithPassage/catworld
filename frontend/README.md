@@ -10,7 +10,8 @@ Angular frontend for the CatWorld cat boarding management application.
 - Monthly FullCalendar integration.
 - Standard, compact and entry/exit calendar modes.
 - English and Spanish interface.
-- Responsive reusable form and table styles.
+- Angular Material foundation for interactive UI components and application-wide theming.
+- Responsive component SCSS for layout and product-specific presentation.
 
 ## Run Locally
 
@@ -57,6 +58,27 @@ src/app/
   layout/     application shell and navigation
   shared/     reusable UI and helpers
 ```
+
+## UI Foundation
+
+Angular Material and Angular CDK are the default foundation for interactive UI
+components, theming and shared UI behavior in the authenticated administration
+interface.
+
+The global Material theme lives in:
+
+```text
+src/styles.scss
+```
+
+Use component SCSS for local layout, responsive composition and
+product-specific presentation. Keep FullCalendar-specific styling separate
+where Material does not provide the relevant interaction or structure.
+
+During the migration, existing native controls may remain on unmigrated
+surfaces. New migrated controls should use Angular Material when Material
+provides the corresponding component. Do not create a broad global Material
+module or a separate design-system package for CatWorld.
 
 ## Production
 

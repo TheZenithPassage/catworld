@@ -30,6 +30,12 @@ CatWorld currently covers:
 - Docker Compose
 - JUnit 5
 - Mockito
+- Angular
+- Angular Material
+- Angular CDK
+- TypeScript
+- SCSS
+- FullCalendar
 - GitHub Actions
 - PlantUML
 
@@ -233,6 +239,79 @@ Successful login returns the canonical stored username and its fixed `ADMIN` or 
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
+
+## Frontend UI Foundation
+
+The authenticated Angular administration interface uses Angular Material and
+Angular CDK as its default UI foundation for interactive components,
+application-wide theming and shared UI behavior.
+
+Angular Material was selected and approved as the frontend foundation in
+GitHub issue #176. Issue #177 establishes the foundation and migration
+boundaries without migrating complete pages, forms, tables, shell controls or
+feature workflows.
+
+### Material Theming
+
+`frontend/src/styles.scss` owns the application-wide Material theme.
+
+The theme:
+
+- Uses Angular Material public Sass APIs from `@angular/material`.
+- Preserves CatWorld's warm, soft administration identity through the existing
+  CatWorld colors, typography and density choices.
+- Provides the Material system tokens that future Material components inherit.
+- Does not implement the user-facing dark-mode preference tracked by #126.
+
+Material customization must use supported theming APIs and public component
+APIs. CatWorld must not rely on private Angular Material selectors, internal
+DOM structure or implementation details for customization.
+
+### Styling Responsibilities
+
+Global styles are limited to:
+
+- Material theme setup.
+- Document and application-level defaults.
+- Temporary native-control coexistence styles for unmigrated surfaces.
+- Truly shared utilities.
+- Integration boundaries for external libraries.
+
+Component SCSS remains responsible for local layout, responsive composition
+and product-specific presentation.
+
+Shared utilities should stay small, semantic and broadly useful across
+approved migrated surfaces. They should not become a parallel component system.
+
+FullCalendar remains a custom integration where Material does not provide the
+relevant calendar interaction or structure. FullCalendar-specific styling stays
+explicitly separate from Material component customization.
+
+### Migration Coexistence
+
+During the migration, existing native buttons, inputs, selects, textareas and
+tables may remain on unmigrated surfaces. New migrated controls should use
+Angular Material when Material provides the corresponding component.
+
+CatWorld must not maintain a permanent competing global component system after
+Material replacements are in place. Later migration issues should remove
+superseded native global styling as their owning surfaces move to Material.
+
+### Component Conventions
+
+Standalone Material imports belong in the standalone component that directly
+uses them, or in a narrowly scoped shared component that owns a real CatWorld
+pattern. CatWorld should not introduce a broad global Material module that
+re-exports many unused Material modules.
+
+Icons should support recognition without replacing clear operational text.
+Primary actions should keep text labels where practical. Decorative icons must
+be hidden from assistive technology, and icon-only controls must have an
+accessible name and a clear visible or tooltip-supported affordance.
+
+Typography and density are configured through the Material theme. Local
+typography or density overrides should be limited to documented product
+exceptions on specific components.
 
 ## Auditing
 
