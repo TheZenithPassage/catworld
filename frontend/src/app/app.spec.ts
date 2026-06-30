@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
 
 import { App } from './app';
@@ -8,7 +9,7 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideNoopAnimations()],
     }).compileComponents();
   });
 
@@ -27,6 +28,7 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('h1')?.textContent).toContain('CatWorld');
+    expect(compiled.querySelector('mat-toolbar')).not.toBeNull();
   });
 
   it('shows account management navigation to ADMIN', () => {

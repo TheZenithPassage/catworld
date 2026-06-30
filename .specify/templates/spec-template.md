@@ -4,8 +4,6 @@
 
 **Created**: [DATE]
 
-**Status**: Draft
-
 **Input**: User description: "$ARGUMENTS"
 
 ## User Scenarios, Technical Outcomes & Testing *(mandatory)*

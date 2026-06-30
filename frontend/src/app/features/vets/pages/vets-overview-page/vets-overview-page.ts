@@ -5,10 +5,11 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-vets-overview-page',
-  imports: [RouterLink],
+  imports: [RouterLink, UiStateComponent],
   templateUrl: './vets-overview-page.html',
   styleUrl: './vets-overview-page.scss',
 })

@@ -13,6 +13,7 @@ import { StayStatusVisibilityPreferencesService } from '../../../stays/services/
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
 import { compareStayCalendarEvents, toStayCalendarEvents } from './stay-calendar-events';
 import { StaySearchFiltersComponent } from '../../../stays/components/stay-search-filters/stay-search-filters';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStaySearchFilters,
   hasActiveStayEntityFilter,
@@ -42,7 +43,7 @@ interface CalendarLocalPreferences {
 
 @Component({
   selector: 'app-calendar-page',
-  imports: [FullCalendarModule, RouterLink, StaySearchFiltersComponent],
+  imports: [FullCalendarModule, RouterLink, StaySearchFiltersComponent, UiStateComponent],
   templateUrl: './calendar-page.html',
   styleUrl: './calendar-page.scss',
 })

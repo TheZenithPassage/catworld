@@ -78,17 +78,19 @@
   </div>
 
   @if (loading()) {
-    <p>{{ text().calendar.loading }}</p>
+    <app-ui-state kind="loading" [message]="text().calendar.loading"></app-ui-state>
   } @else if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-      <button type="button" (click)="loadStays()">{{ text().calendar.actions.retry }}</button>
-    </div>
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? ''"
+      [actionLabel]="text().calendar.actions.retry"
+      (actionTriggered)="loadStays()"
+    ></app-ui-state>
   } @else {
     @if (stays().length === 0) {
-      <p>{{ text().calendar.empty }}</p>
+      <app-ui-state kind="empty" [message]="text().calendar.empty"></app-ui-state>
     } @else if (filteredStays().length === 0) {
-      <p>{{ text().calendar.emptyFiltered }}</p>
+      <app-ui-state kind="empty" [message]="text().calendar.emptyFiltered"></app-ui-state>
     } @else {
       <div class="calendar-wrapper">
         <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>

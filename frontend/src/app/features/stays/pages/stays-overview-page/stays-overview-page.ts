@@ -8,6 +8,7 @@ import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStaySearchFilters,
   isStayVisibleBySearchFilters,
@@ -25,7 +26,7 @@ import {
 
 @Component({
   selector: 'app-stays-overview-page',
-  imports: [RouterLink, StaySearchFiltersComponent],
+  imports: [RouterLink, StaySearchFiltersComponent, UiStateComponent],
   templateUrl: './stays-overview-page.html',
   styleUrl: './stays-overview-page.scss',
 })

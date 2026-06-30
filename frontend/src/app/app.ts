@@ -1,12 +1,30 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { I18nService } from './core/i18n/i18n.service';
 
+interface ShellNavigationItem {
+  path: string;
+  label: string;
+  exact: boolean;
+}
+
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    MatButtonModule,
+    MatIconModule,
+    MatMenuModule,
+    MatToolbarModule,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -19,6 +37,23 @@ export class App {
   readonly text = this.i18nService.text;
 
   readonly authenticated = this.authSessionService.authenticated;
+  readonly navigationItems = computed<ShellNavigationItem[]>(() => {
+    const nav = this.text().app.nav;
+    const items: ShellNavigationItem[] = [
+      { path: '/', label: nav.dashboard, exact: true },
+      { path: '/stays', label: nav.stays, exact: false },
+      { path: '/calendar', label: nav.calendar, exact: false },
+      { path: '/cats', label: nav.cats, exact: false },
+      { path: '/owners', label: nav.owners, exact: false },
+      { path: '/vets', label: nav.vets, exact: false },
+    ];
+
+    if (this.authenticated()?.role === 'ADMIN') {
+      items.push({ path: '/accounts', label: nav.accounts, exact: false });
+    }
+
+    return items;
+  });
 
   logout(): void {
     this.authSessionService.logout();

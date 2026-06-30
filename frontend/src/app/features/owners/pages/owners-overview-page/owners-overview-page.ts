@@ -5,10 +5,11 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-owners-overview-page',
-  imports: [RouterLink],
+  imports: [RouterLink, UiStateComponent],
   templateUrl: './owners-overview-page.html',
   styleUrl: './owners-overview-page.scss',
 })
