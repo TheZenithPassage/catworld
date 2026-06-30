@@ -63,7 +63,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md
+   - Phase 1: Generate data-model.md (full model only when data changes apply; concise non-applicable note otherwise), contracts/, quickstart.md
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
@@ -135,10 +135,18 @@ Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generate
 
 **Prerequisites:** `research.md` complete
 
-1. **Extract entities from feature spec** → `data-model.md`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+1. **Generate data model artifact** → `data-model.md`:
+   - Generate a full data model only when the feature changes domain entities, persistence, API payloads, schema, browser storage, external contracts, or structured feature data
+   - For a full data model, include entity name, fields, relationships, validation rules from requirements, and state transitions if applicable
+   - If none of those data concerns apply, still create `data-model.md` with concise non-applicable content:
+
+     ```markdown
+     # Data Model
+
+     Not applicable. This feature introduces no domain entities, persistence model,
+     API payloads, schema changes, browser storage, external contracts or structured
+     feature data.
+     ```
 
 2. **Define interface contracts** (if project has external interfaces) → `/contracts/`:
    - Identify what interfaces the project exposes to users or other systems

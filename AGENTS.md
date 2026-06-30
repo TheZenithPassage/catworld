@@ -3,13 +3,14 @@
 ## Required Context
 
 * Read `.specify/memory/constitution.md` before planning or implementing work.
+* For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
 * If those artifacts conflict, contain unresolved blocking decisions, or require pending human approval, stop and report the blocker instead of implementing.
 
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree.
+* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
