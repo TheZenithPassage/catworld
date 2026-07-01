@@ -31,6 +31,7 @@ CatWorld currently covers:
 - JUnit 5
 - Mockito
 - Angular
+- Angular animations
 - Angular Material
 - Angular CDK
 - TypeScript
@@ -296,6 +297,23 @@ Angular Material when Material provides the corresponding component.
 CatWorld must not maintain a permanent competing global component system after
 Material replacements are in place. Later migration issues should remove
 superseded native global styling as their owning surfaces move to Material.
+
+### Material Shell and Shared States
+
+The authenticated application shell uses Angular Material toolbar, menu, button
+and icon primitives for global navigation, language switching and session
+actions while preserving the existing route and guard structure. Desktop
+navigation remains visible in the toolbar; narrow viewports use the Material
+menu trigger without adding product routes or changing the navigation
+information architecture.
+The root application configuration provides Angular animations for Material
+overlays and interactive shell components.
+
+Reusable loading, empty and error states live under
+`frontend/src/app/shared/ui-state/`. Pages continue to own data fetching,
+filtering, retries and domain decisions; the shared state component owns only
+Material-themed presentation, accessible status or alert semantics and optional
+retry-action rendering.
 
 ### Component Conventions
 

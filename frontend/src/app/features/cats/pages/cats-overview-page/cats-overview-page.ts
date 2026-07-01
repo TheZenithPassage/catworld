@@ -5,10 +5,11 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-cats-overview-page',
-  imports: [RouterLink],
+  imports: [RouterLink, UiStateComponent],
   templateUrl: './cats-overview-page.html',
   styleUrl: './cats-overview-page.scss',
 })

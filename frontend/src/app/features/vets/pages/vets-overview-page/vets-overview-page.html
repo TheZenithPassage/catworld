@@ -11,14 +11,16 @@
   </header>
 
   @if (loading()) {
-    <p>{{ text().vets.overview.loading }}</p>
+    <app-ui-state kind="loading" [message]="text().vets.overview.loading"></app-ui-state>
   } @else if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-      <button type="button" (click)="loadVets()">{{ text().vets.overview.retry }}</button>
-    </div>
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? ''"
+      [actionLabel]="text().vets.overview.retry"
+      (actionTriggered)="loadVets()"
+    ></app-ui-state>
   } @else if (vets().length === 0) {
-    <p>{{ text().vets.overview.empty }}</p>
+    <app-ui-state kind="empty" [message]="text().vets.overview.empty"></app-ui-state>
   } @else {
     <div class="overview-search">
       <label>
@@ -40,7 +42,7 @@
     </div>
 
     @if (filteredVets().length === 0) {
-      <p>{{ text().vets.overview.emptyFiltered }}</p>
+      <app-ui-state kind="empty" [message]="text().vets.overview.emptyFiltered"></app-ui-state>
     } @else {
       <table class="vets-table">
         <thead>

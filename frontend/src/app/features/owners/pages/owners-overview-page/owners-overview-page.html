@@ -11,14 +11,16 @@
   </header>
 
   @if (loading()) {
-    <p>{{ text().owners.overview.loading }}</p>
+    <app-ui-state kind="loading" [message]="text().owners.overview.loading"></app-ui-state>
   } @else if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-      <button type="button" (click)="loadOwners()">{{ text().owners.overview.retry }}</button>
-    </div>
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? ''"
+      [actionLabel]="text().owners.overview.retry"
+      (actionTriggered)="loadOwners()"
+    ></app-ui-state>
   } @else if (owners().length === 0) {
-    <p>{{ text().owners.overview.empty }}</p>
+    <app-ui-state kind="empty" [message]="text().owners.overview.empty"></app-ui-state>
   } @else {
     <div class="overview-search">
       <label>
@@ -40,7 +42,7 @@
     </div>
 
     @if (filteredOwners().length === 0) {
-      <p>{{ text().owners.overview.emptyFiltered }}</p>
+      <app-ui-state kind="empty" [message]="text().owners.overview.emptyFiltered"></app-ui-state>
     } @else {
       <table class="owners-table">
         <thead>

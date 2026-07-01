@@ -22,16 +22,6 @@
   width: fit-content;
 }
 
-.error-message {
-  display: grid;
-  gap: 0.5rem;
-  max-width: 28rem;
-}
-
-.error-message button {
-  width: fit-content;
-}
-
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;

@@ -11,14 +11,16 @@
   </header>
 
   @if (loading()) {
-    <p>{{ text().cats.overview.loading }}</p>
+    <app-ui-state kind="loading" [message]="text().cats.overview.loading"></app-ui-state>
   } @else if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-      <button type="button" (click)="loadCats()">{{ text().cats.overview.retry }}</button>
-    </div>
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? ''"
+      [actionLabel]="text().cats.overview.retry"
+      (actionTriggered)="loadCats()"
+    ></app-ui-state>
   } @else if (cats().length === 0) {
-    <p>{{ text().cats.overview.empty }}</p>
+    <app-ui-state kind="empty" [message]="text().cats.overview.empty"></app-ui-state>
   } @else {
     <div class="overview-search">
       <label>
@@ -40,7 +42,7 @@
     </div>
 
     @if (filteredCats().length === 0) {
-      <p>{{ text().cats.overview.emptyFiltered }}</p>
+      <app-ui-state kind="empty" [message]="text().cats.overview.emptyFiltered"></app-ui-state>
     } @else {
       <table class="cats-table">
         <thead>

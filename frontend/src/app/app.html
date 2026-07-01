@@ -1,6 +1,6 @@
-<header class="app-header">
+<mat-toolbar class="app-header">
   <h1>
-    <a routerLink="/" class="app-brand">
+    <a mat-button routerLink="/" class="app-brand">
       <span class="app-brand-logo">
         <img src="/catworld-logo.png" [alt]="text().app.logoAlt" />
       </span>
@@ -9,23 +9,52 @@
   </h1>
 
   @if (authenticated()) {
-    <nav>
-      <a routerLink="/" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">
-        {{ text().app.nav.dashboard }}
-      </a>
-      <a routerLink="/stays" routerLinkActive="active-link">{{ text().app.nav.stays }}</a>
-      <a routerLink="/calendar" routerLinkActive="active-link">{{ text().app.nav.calendar }}</a>
-      <a routerLink="/cats" routerLinkActive="active-link">{{ text().app.nav.cats }}</a>
-      <a routerLink="/owners" routerLinkActive="active-link">{{ text().app.nav.owners }}</a>
-      <a routerLink="/vets" routerLinkActive="active-link">{{ text().app.nav.vets }}</a>
-      @if (authenticated()?.role === 'ADMIN') {
-        <a routerLink="/accounts" routerLinkActive="active-link">{{ text().app.nav.accounts }}</a>
+    <nav class="app-nav" [attr.aria-label]="text().app.navigationLabel">
+      @for (item of navigationItems(); track item.path) {
+        <a
+          mat-button
+          [routerLink]="item.path"
+          routerLinkActive="active-link"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+        >
+          {{ item.label }}
+        </a>
       }
     </nav>
+
+    <button
+      mat-icon-button
+      type="button"
+      class="nav-menu-button"
+      [matMenuTriggerFor]="navigationMenu"
+      [attr.aria-label]="text().app.navigationMenuLabel"
+    >
+      <mat-icon aria-hidden="true" class="app-menu-icon">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+      </mat-icon>
+    </button>
+
+    <mat-menu #navigationMenu="matMenu" class="app-navigation-menu">
+      @for (item of navigationItems(); track item.path) {
+        <a
+          mat-menu-item
+          [routerLink]="item.path"
+          routerLinkActive="active-link"
+          [routerLinkActiveOptions]="{ exact: item.exact }"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </mat-menu>
   }
+
+  <span class="toolbar-spacer"></span>
 
   <div class="app-actions">
     <button
+      mat-stroked-button
       type="button"
       class="language-toggle"
       (click)="toggleLanguage()"
@@ -40,12 +69,12 @@
     </button>
 
     @if (authenticated()) {
-      <button type="button" class="logout-button" (click)="logout()">
+      <button mat-flat-button type="button" class="logout-button" (click)="logout()">
         {{ text().app.logout }}
       </button>
     }
   </div>
-</header>
+</mat-toolbar>
 
 <main class="app-main">
   <router-outlet></router-outlet>

@@ -3,6 +3,8 @@ import { AppLanguage } from '../app-language';
 export interface AppShellTranslations {
   brand: string;
   logoAlt: string;
+  navigationLabel: string;
+  navigationMenuLabel: string;
   nav: {
     dashboard: string;
     stays: string;
@@ -24,6 +26,8 @@ export const APP_SHELL_TRANSLATIONS = {
   es: {
     brand: 'CatWorld',
     logoAlt: 'Logo de CatWorld',
+    navigationLabel: 'Navegación principal',
+    navigationMenuLabel: 'Abrir navegación',
     nav: {
       dashboard: 'Panel de administración',
       stays: 'Estancias',
@@ -43,6 +47,8 @@ export const APP_SHELL_TRANSLATIONS = {
   en: {
     brand: 'CatWorld',
     logoAlt: 'CatWorld logo',
+    navigationLabel: 'Primary navigation',
+    navigationMenuLabel: 'Open navigation',
     nav: {
       dashboard: 'Dashboard',
       stays: 'Stays',

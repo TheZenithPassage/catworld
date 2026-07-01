@@ -80,6 +80,13 @@ surfaces. New migrated controls should use Angular Material when Material
 provides the corresponding component. Do not create a broad global Material
 module or a separate design-system package for CatWorld.
 
+The authenticated application shell is Material-based in `src/app/app.*` and
+keeps the existing route and guard structure. Shared loading, empty and error
+presentation lives in `src/app/shared/ui-state/`; pages still own their data
+fetching, filtering and retry behavior. Material overlays and shell
+interactions use the Angular animations provider configured in
+`src/app/app.config.ts`.
+
 ## Production
 
 The production build is served by Nginx through Docker Compose. Browser requests to `/api` are proxied to the Spring Boot backend.

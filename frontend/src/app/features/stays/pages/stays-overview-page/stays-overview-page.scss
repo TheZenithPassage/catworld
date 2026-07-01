@@ -22,16 +22,6 @@
   width: fit-content;
 }
 
-.error-message {
-  display: grid;
-  gap: 0.5rem;
-  max-width: 28rem;
-}
-
-.error-message button {
-  width: fit-content;
-}
-
 .stays-table tr.selected-row td {
   background: var(--color-warning-soft);
   border-top: 2px solid var(--color-primary);

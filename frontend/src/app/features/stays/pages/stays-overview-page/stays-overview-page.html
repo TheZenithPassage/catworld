@@ -30,16 +30,18 @@
   ></app-stay-search-filters>
 
   @if (loading()) {
-    <p>{{ text().stays.overview.loading }}</p>
+    <app-ui-state kind="loading" [message]="text().stays.overview.loading"></app-ui-state>
   } @else if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-      <button type="button" (click)="loadStays()">{{ text().stays.overview.retry }}</button>
-    </div>
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? ''"
+      [actionLabel]="text().stays.overview.retry"
+      (actionTriggered)="loadStays()"
+    ></app-ui-state>
   } @else if (stays().length === 0) {
-    <p>{{ text().stays.overview.empty }}</p>
+    <app-ui-state kind="empty" [message]="text().stays.overview.empty"></app-ui-state>
   } @else if (filteredStays().length === 0) {
-    <p>{{ text().stays.overview.emptyFiltered }}</p>
+    <app-ui-state kind="empty" [message]="text().stays.overview.emptyFiltered"></app-ui-state>
   } @else {
     <table class="stays-table">
       <thead>
