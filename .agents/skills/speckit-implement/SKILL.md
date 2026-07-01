@@ -97,25 +97,39 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
 4. **Project Setup Verification**:
-   - **REQUIRED**: Create/verify ignore files based on actual project setup:
+   - **REQUIRED**: Review ignore-file hygiene only within the active scope defined
+     by spec.md, plan.md, tasks.md, and the plan/source map.
+   - Do **not** create, modify, or append to ignore files such as `.gitignore`,
+     `.dockerignore`, `.eslintignore`, `.prettierignore`, `.npmignore`,
+     `.terraformignore`, `.helmignore`, or similar files based on detected
+     technologies alone.
+   - Create or modify ignore files only when the active spec/plan/tasks
+     explicitly require setup or infrastructure hygiene for those files and the
+     target paths are included in the plan/source map.
+   - If detection finds missing or incomplete ignore hygiene outside the active
+     scope, report it as an out-of-scope observation or future work. Do not edit
+     the files, do not mark unrelated setup tasks complete, and let the final
+     changed-file/source-map review catch any accidental edits.
 
-   **Detection & Creation Logic**:
-   - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
+   **Scoped Detection & Verification Logic**:
+   - Check if the following command succeeds to determine if the repository is a
+     git repo (verify `.gitignore` only if it is explicitly in scope):
 
      ```sh
      git rev-parse --git-dir 2>/dev/null
      ```
 
-   - Check if Dockerfile* exists or Docker in plan.md → create/verify .dockerignore
-   - Check if .eslintrc* exists → create/verify .eslintignore
-   - Check if eslint.config.* exists → ensure the config's `ignores` entries cover required patterns
-   - Check if .prettierrc* exists → create/verify .prettierignore
-   - Check if .npmrc or package.json exists → create/verify .npmignore (if publishing)
-   - Check if terraform files (*.tf) exist → create/verify .terraformignore
-   - Check if .helmignore needed (helm charts present) → create/verify .helmignore
+   - Check if Dockerfile* exists or Docker is in plan.md → verify `.dockerignore` only if in scope
+   - Check if .eslintrc* exists → verify `.eslintignore` only if in scope
+   - Check if eslint.config.* exists → verify the config's `ignores` entries only if in scope
+   - Check if .prettierrc* exists → verify `.prettierignore` only if in scope
+   - Check if .npmrc or package.json exists → verify `.npmignore` only if publishing hygiene is in scope
+   - Check if terraform files (*.tf) exist → verify `.terraformignore` only if in scope
+   - Check if .helmignore is needed (helm charts present) → verify `.helmignore` only if in scope
 
-   **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
-   **If ignore file missing**: Create with full pattern set for detected technology
+   **If an ignore file already exists and is in scope**: Verify it contains essential patterns, append missing critical patterns only
+   **If an ignore file is missing and is in scope**: Create it with the required pattern set for the scoped technology
+   **If an ignore file gap is out of scope**: Report the gap without editing files
 
    **Common Patterns by Technology** (from plan.md tech stack):
    - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
