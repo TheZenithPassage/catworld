@@ -86,6 +86,7 @@ Load only the minimal necessary context from each artifact:
 - Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
 - User Stories
 - Edge Cases (if present)
+- Observable Behavior Detail and Input/State Validation Matrix (if present)
 
 **From plan.md:**
 
@@ -93,6 +94,7 @@ Load only the minimal necessary context from each artifact:
 - Data Model references
 - Phases
 - Technical constraints
+- Semantic-equivalence review and validation evidence plan (if present)
 
 **From tasks.md:**
 
@@ -112,6 +114,7 @@ Create internal representations (do not include raw artifacts in output):
 
 - **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
 - **User story/action inventory**: Discrete user actions with acceptance criteria
+- **Evidence expectation inventory**: Observable behavior details, validation matrix rows, semantic-equivalence proof requirements, and validation evidence plan entries. Classify each expectation by layer: visible UI, routed navigation, focus/keyboard, manual visible smoke, controller/API contract, service/business rule, authorization/security, persistence/migration, mobile/device, i18n, shared component, global style, documentation/source of truth, or operational safety.
 - **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
 
@@ -153,13 +156,24 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - Task ordering contradictions (e.g., integration tasks before foundational setup tasks without dependency note)
 - Conflicting requirements (e.g., one requires Next.js while other specifies Vue)
 
+#### G. Qualitative Evidence Coverage
+
+- Frontend-visible requirements, observable behavior details, or validation matrix rows whose tasks only mention component state, service spies, mocks, implementation internals, or generic "unit test" language without DOM, Angular Material/CDK harness, routed navigation, focus/keyboard, or manual visible-device evidence
+- UI/component migrations or behavior-preserving replacements whose tasks do not cover semantic-equivalence proof from the plan
+- Backend business rules whose tasks lack service-layer evidence, or externally observable rules whose tasks lack controller/API evidence
+- API contract behavior whose tasks lack status, payload, serialization, validation-response, or compatibility evidence
+- Authorization or security behavior whose tasks lack backend enforcement evidence, plus frontend visibility/navigation evidence when the UI changes
+- Persistence or Flyway migration behavior whose tasks lack schema, migration, or data-integrity evidence proportional to risk
+- Mobile/device-specific, i18n-visible, shared component, global style, or operational safety requirements whose tasks omit the planned evidence layer
+- Validation tasks that can be marked complete without stating the command, review, smoke check, or required evidence must pass after the latest relevant change
+
 ### 5. Severity Assignment
 
 Use this heuristic to prioritize findings:
 
 - **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
-- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
+- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion, or missing layer-appropriate evidence for core visible, contract, authorization, persistence, migration, security, or other correctness-sensitive behavior
+- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, or missing qualitative evidence language for a correctness-sensitive requirement
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
 ### 6. Produce Compact Analysis Report

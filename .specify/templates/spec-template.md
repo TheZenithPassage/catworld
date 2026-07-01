@@ -77,11 +77,47 @@
     1. **Given** [initial technical state], **When** [change or validation occurs], **Then** [objective expected outcome]
   - **Validation Evidence**: [Command, review artifact, migration validation, contract check, or other objective evidence]
 
+### Observable Behavior Detail *(include when visible UI or user-observable behavior changes)*
+
+<!--
+  Use this section only when the feature changes what a user sees or
+  experiences. Keep it proportional, but include enough detail for verification
+  at the visible surface rather than through implementation internals.
+-->
+
+- **Visible states**: [field validation messages, backend errors, empty states,
+  loading states, disabled states, destructive confirmations, success/conflict
+  states, or N/A]
+- **Interaction outcomes**: [submit/action behavior, route or dialog
+  navigation, focus/keyboard behavior, role-dependent action visibility, or N/A]
+- **Copy and localization**: [i18n-visible text expectations or existing copy
+  preservation, or N/A]
+- **Responsive/mobile behavior**: [target viewport/device behavior or N/A]
+
+### Input/State Validation Matrix *(include when validation or state-sensitive behavior changes)*
+
+<!--
+  Use a lightweight matrix when the feature changes or preserves validation,
+  conflict handling, backend-rejected state, role-dependent behavior, or similar
+  state-sensitive behavior. Add or remove rows/columns to fit the feature.
+-->
+
+| Input or State | Submit/Action Blocked? | API Call Made? | Visible Error or Conflict | Value Transformed or Preserved | Correction Behavior |
+|----------------|------------------------|----------------|---------------------------|--------------------------------|---------------------|
+| [empty string] | [Yes/No/N/A] | [Yes/No/N/A] | [message/state] | [transformed/preserved/N/A] | [clears/replaces/N/A] |
+| [whitespace-only string] | [Yes/No/N/A] | [Yes/No/N/A] | [message/state] | [transformed/preserved/N/A] | [clears/replaces/N/A] |
+| [valid value] | [Yes/No/N/A] | [Yes/No/N/A] | [none/state] | [transformed/preserved/N/A] | [N/A] |
+| [invalid format or boundary] | [Yes/No/N/A] | [Yes/No/N/A] | [message/state] | [transformed/preserved/N/A] | [clears/replaces/N/A] |
+| [backend-rejected or stale state] | [Yes/No/N/A] | [Yes/No/N/A] | [message/state] | [transformed/preserved/N/A] | [clears/replaces/N/A] |
+
 ### Edge Cases
 
 <!--
   ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
+  Fill them out with the right edge cases. Consider observable UI states,
+  backend business rules, API contracts, authorization, persistence, migrations,
+  mobile/device-specific behavior, i18n-visible behavior, shared components,
+  global styling, and operational safety when those surfaces are in scope.
 -->
 
 - What happens when [boundary condition]?
@@ -96,6 +132,9 @@
   architectural, migration, security, operational, refactoring, or enabling
   requirements. Do not invent functional requirements for purely technical work
   or technical requirements for an ordinary product feature without a real need.
+  Requirements for visible behavior must be detailed enough to verify what the
+  user sees or experiences. Requirements for correctness-sensitive technical
+  behavior must identify the observable contract or responsible evidence layer.
 -->
 
 ### Functional Requirements *(include when observable product or user behavior changes)*

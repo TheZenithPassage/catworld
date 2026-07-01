@@ -152,6 +152,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Evidence freshness**: If implementation changes after a validation command, review, manual smoke check, browser-control session, or other evidence task, rerun the affected evidence before marking the task complete. If it cannot be rerun, leave the task incomplete or record it explicitly as not revalidated in the completion report.
 
 7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -167,12 +168,17 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - Mark an implementation task `[X]` only after the implemented behavior satisfies the spec, plan, and relevant contract or validation matrix, not merely because files were edited.
+   - Mark a validation task `[X]` only after the command, test, review, smoke check, or required evidence passed after the latest relevant change.
+   - Do not summarize stale, timed-out, skipped, interrupted, failed, partial, or not-rerun validation as passed. Use explicit statuses: passed, failed, skipped, timed out, interrupted, partial, stale, or not revalidated.
+   - Component state, service spies, mocks, or implementation-detail assertions do not complete a frontend-visible task unless the task also has the required DOM, Angular Material/CDK harness, navigation, focus/keyboard, or manual visible evidence.
 
 9. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan
+   - Compare changed files against the plan/source map. If late cleanup touched shared shell, global styles, shared components, routing, contracts, migrations, authorization, persistence, or other cross-cutting surfaces outside the plan, stop to justify the change, add needed evidence, or leave/report remaining work.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit-tasks` first to regenerate the task list.
 

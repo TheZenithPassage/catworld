@@ -136,6 +136,9 @@ Given that feature description, do this:
        - Product behavior features may use functional requirements
        - Technical/enabling features may use technical requirements or verifiable technical outcomes
        - Each requirement must be testable
+       - When a feature changes visible UI state or user-observable behavior, capture what the user actually sees or experiences closely enough for verification. Include applicable field validation messages, backend error presentation, empty states, loading states, disabled states, destructive confirmations, focus/keyboard behavior, route or dialog navigation, i18n-visible text, responsive/mobile behavior, and role-dependent action visibility.
+       - When a feature changes or preserves validation, conflict handling, backend-rejected state, role-dependent behavior, or similar state-sensitive behavior, include a proportional input/state matrix. Each relevant row should distinguish whether the submit/action is blocked, whether an API call is made, whether a visible error/conflict is shown, whether the value is transformed or preserved, and whether correction clears or replaces the message when in scope.
+       - When behavior is correctness-sensitive but not visibly UI-driven, identify the observable contract or responsible evidence layer, such as controller/API response, service business rule, authorization enforcement, persistence constraint, Flyway migration, security behavior, operational safety, or source-of-truth documentation.
        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
     7. Define Success Criteria
        Create measurable and objectively verifiable outcomes
@@ -174,6 +177,9 @@ Given that feature description, do this:
       - [ ] Success criteria avoid unapproved implementation detail
       - [ ] Acceptance scenarios appropriate to the feature shape are defined
       - [ ] Edge cases are identified
+      - [ ] Observable UI or user-observable behavior changes define visible states, messages, interaction outcomes, navigation/focus behavior, i18n-visible text, responsive/mobile behavior, and role-dependent visibility where applicable
+      - [ ] Validation-sensitive behavior includes a proportional input/state matrix, or is marked N/A with a reason
+      - [ ] Correctness-sensitive technical behavior identifies the responsible evidence layer
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
 
@@ -311,7 +317,9 @@ When creating this spec from a user prompt:
    - Lack any reasonable default
 4. **Prioritize clarifications**: scope > security/privacy > persistence/shared-contract/architecture > user experience > operations > local technical details
 5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
-6. **Common areas needing clarification** (only if no reasonable default exists):
+6. **Describe the observable surface**: For visible UI and user-observable behavior, specify the rendered state or experience that proves the requirement. Internal state, helper calls, or service spies are not enough to define the requirement.
+7. **Use validation matrices proportionally**: Add a matrix when validation, conflicts, blocked actions, backend-rejected state, permissions, or state transitions are in scope. Keep it lightweight for small features and omit it with a clear N/A reason for backend-only, documentation-only, or unrelated technical work.
+8. **Common areas needing clarification** (only if no reasonable default exists):
    - Feature scope and boundaries (include/exclude specific use cases)
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)

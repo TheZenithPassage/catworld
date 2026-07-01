@@ -61,6 +61,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
    - **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints
    - Note: Not all projects have all documents. Generate tasks based on what's available.
+   - Extract observable behavior details, validation matrices, semantic-equivalence reviews, and validation evidence plans when present. These are evidence requirements, not optional prose.
 
 3. **Execute task generation workflow**:
    - Load plan.md and extract tech stack, libraries, project structure
@@ -71,7 +72,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Generate tasks organized by user story (see Task Generation Rules below)
    - Generate dependency graph showing user story completion order
    - Create parallel execution examples per user story
-   - Validate task completeness (each user story has all needed tasks, independently testable)
+   - Validate task completeness (each user story or technical outcome has all needed implementation and evidence tasks, independently testable where the artifacts support it)
+   - For validation matrices, generate tasks that prove the matrix rows at the appropriate layer. For forms and similar validation surfaces, consider empty string, whitespace-only string when trim-based validation exists, valid value, invalid format, boundary dates or numbers, missing optional vs required values, role-dependent permissions, stale state, and backend-rejected state when applicable.
+   - For semantic-equivalence reviews, generate proof tasks that compare preserved behavior against the recorded old behavior/source of truth and the new component/framework semantics.
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
@@ -140,6 +143,34 @@ The tasks.md should be immediately executable - each task must be specific enoug
 **CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
 
 **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature specification or if user requests TDD approach.
+
+Evidence tasks are not optional when required by the specification,
+constitution, plan validation evidence section, semantic-equivalence review, or
+feature risk. Evidence may be an automated test, DOM/harness check, routed
+navigation assertion, focus/keyboard check, contract/controller/service/
+persistence/security/migration validation, focused review, or manual visible
+smoke check when automation cannot fully prove the behavior.
+
+### Evidence Requirements
+
+1. **Frontend-visible behavior**:
+   - Do not treat component state, service spies, implementation details, or class-only assertions as sufficient evidence for a user-visible requirement.
+   - Generate DOM assertions, Angular Material/CDK harness checks where appropriate, routed navigation assertions, focus/keyboard checks, or manual visible-device smoke checks when automation is not enough.
+   - Include i18n-visible text, responsive/mobile behavior, loading/empty/error/disabled states, destructive confirmations, and role-dependent visibility when in scope.
+
+2. **Backend and contract behavior**:
+   - Business rules need evidence at the service layer and, where externally observable, controller/API behavior.
+   - API contracts need status, payload, serialization, validation response, and compatibility evidence at the contract boundary.
+   - Authorization/security behavior needs evidence at the enforcing backend layer; add frontend visibility/navigation evidence only when the UI changes.
+   - Persistence and migrations need Flyway/schema/data-integrity evidence proportional to risk.
+
+3. **Validation and state matrices**:
+   - For each matrix row in spec.md or plan.md, generate an evidence task or explicitly justify why an existing broader task covers it.
+   - Distinguish blocked action, API-call behavior, visible error/conflict, value transformation or preservation, and correction behavior when in scope.
+
+4. **Scope and freshness**:
+   - Add review or validation tasks for shared components, global styles, routing, contracts, migrations, authorization, and other cross-cutting surfaces changed by the plan.
+   - Validation tasks are complete only when the evidence passes after the latest relevant change.
 
 ### Checklist Format (REQUIRED)
 

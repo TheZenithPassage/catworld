@@ -65,7 +65,8 @@
   invariants?
 - **Specification and planning discipline**: Are observable behavior, scope,
   edge cases, exclusions, and major architectural/security/persistence decisions
-  resolved before implementation?
+  resolved before implementation, with observable-state and validation-matrix
+  detail when visible or state-sensitive behavior is in scope?
 - **Architecture and technology assessment**: If the feature introduces a
   significant shared or cross-cutting capability, confirmed repeated approved
   use, a non-trivial accessibility or correctness responsibility, a material
@@ -76,7 +77,9 @@
   unapproved.
 - **Focused changes and proportional validation**: Is the change scoped and
   reviewable, with validation depth proportional to business, persistence,
-  security, contract, and operational risk?
+  security, contract, and operational risk? Are planned evidence layers strong
+  enough to verify externally visible behavior rather than only implementation
+  internals?
 - **Operational safety and sources of truth**: Are secrets, real data,
   deployment exposure, recovery procedures, and documentation/source-of-truth
   updates handled for the active deployment model?
@@ -123,6 +126,48 @@ governs the choice, such as normal Flyway migration work following the
 constitution, reference it rather than reopen the decision unnecessarily. An
 agent cannot infer approval or approve its own recommendation. A material
 change to the selected approach invalidates prior approval.]
+
+## Semantic Equivalence and Replacement Review
+
+<!--
+  Complete this section when the feature replaces UI primitives, shared
+  components, interaction mechanisms, presentation mechanisms, data/contract
+  mechanisms, or other behavior-preserving mechanisms with mismatch risk.
+  Examples: native input/label/button to Angular Material form-field/input/button,
+  native error markup to a shared state component, native select to searchable
+  selector, table/list replacement, dialog/overlay/routing/focus replacement,
+  date/money/status/role/filtering presentation changes, or migration between
+  validation/error-handling mechanisms. Use N/A for features with no replacement
+  or migration risk.
+-->
+
+**Review required**: [Yes/No, with reason]
+
+**Old behavior/source of truth**: [Existing behavior, contracts, tests, docs, or source files that define what must be preserved, or N/A]
+
+**New mechanism semantics**: [Relevant semantics of the new component, framework, pattern, or mechanism, or N/A]
+
+**Mismatch risks**: [Potential behavior, accessibility, validation, navigation, focus, i18n, responsive/mobile, contract, authorization, persistence, migration, or styling mismatches, or N/A]
+
+**Mitigation**: [Design constraints or implementation choices that preserve semantics, or N/A]
+
+**Proof required**: [Automated DOM/harness/navigation/focus/API/persistence/security/migration checks and any manual visible-device smoke checks required, or N/A]
+
+## Validation Evidence Plan
+
+<!--
+  Identify evidence at the layer that can prove each affected behavior. Keep this
+  proportional: backend-only and documentation-only work should not get heavy UI
+  checks, while observable, contract-visible, authorization, persistence,
+  migration, security, shared component, global style, mobile, i18n, and other
+  correctness-sensitive work needs stronger evidence.
+-->
+
+| Surface / Requirement | Responsible Layer | Evidence Type | Freshness / Manual Notes |
+|-----------------------|-------------------|---------------|--------------------------|
+| [visible UI state or user-observable behavior] | [DOM, Angular Material/CDK harness, route, focus/keyboard, or manual visible-device check] | [test/review/smoke] | [rerun after relevant changes or N/A] |
+| [backend business rule or validation] | [service/controller/API] | [test/review] | [rerun after relevant changes or N/A] |
+| [contract, authorization, persistence, migration, security, i18n, mobile, shared component, or global style behavior] | [responsible layer] | [test/review/smoke] | [rerun after relevant changes or N/A] |
 
 ## Project Structure
 

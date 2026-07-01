@@ -10,9 +10,11 @@ description: "Task list template for feature implementation"
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
 **Tests**: The examples below include test tasks. Include tests when explicitly
-requested in the feature specification or required by the constitution for
-business rules, persistence, migrations, security, shared contracts, or other
-high-risk behavior.
+requested in the feature specification or required by the constitution, plan,
+semantic-equivalence review, validation matrix, or feature risk for business
+rules, visible behavior, persistence, migrations, security, shared contracts,
+or other correctness-sensitive behavior. Evidence may also be a focused review
+or manual visible smoke check when automation cannot fully prove the behavior.
 
 **Organization**: Tasks are grouped by independently verifiable user journeys
 when natural, or by dependency-driven verifiable technical outcomes for
@@ -54,6 +56,34 @@ Before generating implementation tasks, inspect plan.md.
   no duplicate approval task is needed.
 - Implementation tasks MUST NOT reopen the decision or silently substitute a
   different approach.
+
+## Validation Evidence Rules
+
+Before generating implementation tasks, inspect spec.md and plan.md for
+observable behavior details, validation matrices, semantic-equivalence reviews,
+and validation evidence plans.
+
+- Frontend-visible requirements need evidence at the visible surface: DOM
+  assertions, Angular Material/CDK harness checks where appropriate, routed
+  navigation assertions, focus/keyboard checks, or manual visible-device smoke
+  checks when automation is not enough. Component state, service spies, or
+  implementation-detail assertions are not sufficient by themselves.
+- Backend business rules need service-layer evidence and controller/API
+  evidence when externally observable.
+- API contracts need status, payload, serialization, validation-response, and
+  compatibility evidence at the contract boundary.
+- Authorization and security behavior need backend enforcement evidence; add
+  frontend role visibility or navigation evidence when the UI changes.
+- Persistence and migrations need Flyway/schema/data-integrity evidence
+  proportional to risk.
+- Validation matrices need evidence for relevant rows, including blocked
+  action, API-call behavior, visible feedback, value transformation or
+  preservation, and correction behavior when in scope.
+- Semantic-equivalence reviews need proof tasks that compare preserved behavior
+  against the recorded old behavior/source of truth and new mechanism
+  semantics.
+- Validation tasks are complete only when the required evidence passed after
+  the latest relevant change.
 
 <!--
   ============================================================================
@@ -109,7 +139,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T004 [P] Update authorization in src/main/java/[package]/[Class].java when the feature changes access behavior
 - [ ] T005 [P] Add shared DTO/model/mapper changes in src/main/java/[package]/[Class].java when required by multiple stories
 - [ ] T006 Add configuration in src/main/resources/[file] only when the feature introduces a new runtime setting
-- [ ] T007 Add constitution-required validation task(s) for business rules, persistence, security, contracts, or operational safety
+- [ ] T007 Add constitution- or plan-required validation task(s) for visible behavior, business rules, persistence, migrations, security, contracts, authorization, semantic equivalence, or operational safety
 
 <!--
   Architecture and Technology Assessment approval is a generation gate, not an
@@ -138,17 +168,18 @@ technical outcome implementation can now begin
 > remains mandatory for business rules, persistence, migrations, security,
 > shared contracts, and other high-risk behavior.**
 
-- [ ] T011 [P] [US1/TO1] Backend/service/controller test in src/test/java/[package]/[TestClass].java
-- [ ] T012 [P] [US1/TO1] Frontend behavior test in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T011 [P] [US1/TO1] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
+- [ ] T012 [P] [US1/TO1] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T013 [US1/TO1] Validation matrix evidence for blocked actions, API-call behavior, visible feedback, value transformation or preservation, and correction behavior in [exact test or review path]
 
 ### Implementation for User Story or Technical Outcome 1
 
-- [ ] T013 [P] [US1/TO1] Update backend model/DTO/mapper in src/main/java/[package]/[Class].java when required by the feature
-- [ ] T014 [P] [US1/TO1] Update frontend model or utility in frontend/src/[feature]/[file].ts when required by the feature
-- [ ] T015 [US1/TO1] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
-- [ ] T016 [US1/TO1] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
-- [ ] T017 [US1/TO1] Add validation and error handling required by this user journey or technical outcome
-- [ ] T018 [US1/TO1] Add logging only if required by the specification, plan, or existing project pattern
+- [ ] T014 [P] [US1/TO1] Update backend model/DTO/mapper in src/main/java/[package]/[Class].java when required by the feature
+- [ ] T015 [P] [US1/TO1] Update frontend model or utility in frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T016 [US1/TO1] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
+- [ ] T017 [US1/TO1] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T018 [US1/TO1] Add validation and error handling required by this user journey or technical outcome
+- [ ] T019 [US1/TO1] Add logging only if required by the specification, plan, or existing project pattern
 
 **Checkpoint**: At this point, User Story or Technical Outcome 1 should be fully functional and objectively verifiable
 
@@ -162,15 +193,15 @@ technical outcome implementation can now begin
 
 ### Tests for User Story or Technical Outcome 2 (include if requested or constitution-required) ⚠️
 
-- [ ] T019 [P] [US2/TO2] Backend/service/controller test in src/test/java/[package]/[TestClass].java
-- [ ] T020 [P] [US2/TO2] Frontend behavior test in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T020 [P] [US2/TO2] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
+- [ ] T021 [P] [US2/TO2] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
 
 ### Implementation for User Story or Technical Outcome 2
 
-- [ ] T021 [P] [US2/TO2] Update backend or frontend model in src/main/java/[package]/[Class].java or frontend/src/[feature]/[file].ts when required by the feature
-- [ ] T022 [US2/TO2] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
-- [ ] T023 [US2/TO2] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
-- [ ] T024 [US2/TO2] Integrate with User Story or Technical Outcome 1 components if required by recorded dependencies
+- [ ] T022 [P] [US2/TO2] Update backend or frontend model in src/main/java/[package]/[Class].java or frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T023 [US2/TO2] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
+- [ ] T024 [US2/TO2] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T025 [US2/TO2] Integrate with User Story or Technical Outcome 1 components if required by recorded dependencies
 
 **Checkpoint**: At this point, User Stories or Technical Outcomes 1 AND 2 should both be objectively verifiable
 
@@ -184,14 +215,14 @@ technical outcome implementation can now begin
 
 ### Tests for User Story or Technical Outcome 3 (include if requested or constitution-required) ⚠️
 
-- [ ] T025 [P] [US3/TO3] Backend/service/controller test in src/test/java/[package]/[TestClass].java
-- [ ] T026 [P] [US3/TO3] Frontend behavior test in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T026 [P] [US3/TO3] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
+- [ ] T027 [P] [US3/TO3] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
 
 ### Implementation for User Story or Technical Outcome 3
 
-- [ ] T027 [P] [US3/TO3] Update backend or frontend model in src/main/java/[package]/[Class].java or frontend/src/[feature]/[file].ts when required by the feature
-- [ ] T028 [US3/TO3] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
-- [ ] T029 [US3/TO3] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T028 [P] [US3/TO3] Update backend or frontend model in src/main/java/[package]/[Class].java or frontend/src/[feature]/[file].ts when required by the feature
+- [ ] T029 [US3/TO3] Implement service behavior in src/main/java/[package]/service/[Service].java when required by the feature
+- [ ] T030 [US3/TO3] Implement endpoint or UI behavior in src/main/java/[package]/controller/[Controller].java or frontend/src/[feature]/[file].ts when required by the feature
 
 **Checkpoint**: All user stories or technical outcomes should now be objectively verifiable
 
@@ -212,6 +243,8 @@ technical outcome implementation can now begin
 - [ ] TXXX Security hardening in [exact path] only when required by the feature or constitution
 - [ ] TXXX Run constitution compliance validation
 - [ ] TXXX Run quickstart.md validation only if quickstart.md exists for this feature
+- [ ] TXXX Review changed files against plan/source map and justify or remove unplanned touched surfaces
+- [ ] TXXX Rerun affected validation after relevant late changes, or report stale/not-revalidated checks explicitly
 
 <!--
   The final phase must contain only concrete work supported by the feature

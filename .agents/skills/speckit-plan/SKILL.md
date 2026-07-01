@@ -62,6 +62,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
+   - Identify observable and correctness-sensitive surfaces affected by the feature, including visible UI state, validation, error handling, loading/disabled states, navigation, contracts, authorization, persistence, migrations, security, mobile/device-specific behavior, i18n-visible behavior, shared components, and global styling
+   - Fill a responsible-layer validation evidence plan for those surfaces before task generation. Evidence should point to the layer that can prove the behavior: DOM or Angular Material/CDK harness for visible UI, routed navigation and focus/keyboard checks for interaction behavior, controller/API tests for contracts, service tests for business rules, authorization/security tests for access control, Flyway/schema/data-integrity checks for persistence and migrations, or manual visible-device smoke checks when automation is not enough.
+   - When replacing UI primitives, shared components, interaction mechanisms, presentation mechanisms, or other behavior-preserving mechanisms with mismatch risk, fill a lightweight semantic-equivalence review. Identify old behavior/source of truth, new component/framework semantics, mismatch risks, mitigation, and automated/manual proof. Mark it N/A with a reason when no replacement or migration risk exists.
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md (full model only when data changes apply; concise non-applicable note otherwise), contracts/, quickstart.md
    - Phase 1: Update agent context by running the agent script
@@ -156,6 +159,8 @@ Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generate
 
 3. **Create quickstart validation guide** → `quickstart.md`:
    - Document runnable validation scenarios that prove the feature works end-to-end
+   - Include layer-appropriate evidence from the plan's validation evidence section, and call out any manual visible-device, focus/keyboard, navigation, i18n, authorization, migration, persistence, or contract checks that automation cannot fully prove
+   - State that validation must be rerun after relevant late changes, or reported as not revalidated rather than passed
    - Include prerequisites, setup commands, test/run commands, and expected outcomes
    - Use links or references to contracts and data model details instead of duplicating them
    - Do not include full implementation code, model/service/controller bodies, migrations, or complete test suites
