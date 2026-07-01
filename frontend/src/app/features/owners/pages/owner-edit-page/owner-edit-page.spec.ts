@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -76,6 +78,34 @@ describe('OwnerEditPage', () => {
     component = fixture.componentInstance;
   }
 
+  async function submitRenderedForm(): Promise<void> {
+    fixture.nativeElement
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function setInputValue(name: string, value: string): void {
+    const inputDebugElement = fixture.debugElement.query(By.css(`input[name="${name}"]`));
+    const input = inputDebugElement.nativeElement as HTMLInputElement;
+    const ngModel = inputDebugElement.injector.get(NgModel);
+    const formSignal = (component as unknown as Record<string, { set(value: string): void }>)[name];
+
+    input.value = value;
+    ngModel.control.setValue(value);
+    ngModel.control.markAsTouched();
+    ngModel.control.updateValueAndValidity();
+    formSignal?.set(value);
+    fixture.detectChanges();
+  }
+
+  function getMaterialErrorText(): string {
+    return [...fixture.nativeElement.querySelectorAll('mat-error')]
+      .map((error) => error.textContent?.trim())
+      .join(' ');
+  }
+
   it('loads the owner and renders Material edit fields and actions', async () => {
     createComponent();
     fixture.detectChanges();
@@ -93,15 +123,33 @@ describe('OwnerEditPage', () => {
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
   });
 
-  it('does not update when the full name is blank', () => {
+  it('does not update when the full name is blank', async () => {
     createComponent();
-    component.fullName.set('   ');
-    component.primaryPhone.set('555-1111');
-
-    component.submit();
+    fixture.detectChanges();
+    setInputValue('fullName', '   ');
+    setInputValue('primaryPhone', '555-1111');
+    await submitRenderedForm();
 
     expect(ownerApiService.updateOwner).not.toHaveBeenCalled();
     expect(component.fullNameError()).toBe(component.text().owners.edit.errors.fullNameRequired);
+    expect(getMaterialErrorText()).toContain(component.text().owners.edit.errors.fullNameRequired);
+    expect(component.error()).toBeNull();
+  });
+
+  it('does not update when the primary phone is blank', async () => {
+    createComponent();
+    fixture.detectChanges();
+    setInputValue('fullName', 'Ada Lovelace');
+    setInputValue('primaryPhone', '   ');
+    await submitRenderedForm();
+
+    expect(ownerApiService.updateOwner).not.toHaveBeenCalled();
+    expect(component.primaryPhoneError()).toBe(
+      component.text().owners.edit.errors.primaryPhoneRequired,
+    );
+    expect(getMaterialErrorText()).toContain(
+      component.text().owners.edit.errors.primaryPhoneRequired,
+    );
     expect(component.error()).toBeNull();
   });
 

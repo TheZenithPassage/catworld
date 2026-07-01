@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -59,6 +61,34 @@ describe('VetCreatePage', () => {
     TestBed.resetTestingModule();
   });
 
+  async function submitRenderedForm(): Promise<void> {
+    fixture.nativeElement
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function setInputValue(name: string, value: string): void {
+    const inputDebugElement = fixture.debugElement.query(By.css(`input[name="${name}"]`));
+    const input = inputDebugElement.nativeElement as HTMLInputElement;
+    const ngModel = inputDebugElement.injector.get(NgModel);
+    const formSignal = (component as unknown as Record<string, { set(value: string): void }>)[name];
+
+    input.value = value;
+    ngModel.control.setValue(value);
+    ngModel.control.markAsTouched();
+    ngModel.control.updateValueAndValidity();
+    formSignal?.set(value);
+    fixture.detectChanges();
+  }
+
+  function getMaterialErrorText(): string {
+    return [...fixture.nativeElement.querySelectorAll('mat-error')]
+      .map((error) => error.textContent?.trim())
+      .join(' ');
+  }
+
   it('renders Material vet create fields and submit action', () => {
     fixture.detectChanges();
 
@@ -70,13 +100,14 @@ describe('VetCreatePage', () => {
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
   });
 
-  it('does not submit when the name is blank', () => {
-    component.name.set('   ');
-
-    component.submit();
+  it('does not submit when the name is blank', async () => {
+    fixture.detectChanges();
+    setInputValue('name', '   ');
+    await submitRenderedForm();
 
     expect(vetApiService.createVet).not.toHaveBeenCalled();
     expect(component.nameError()).toBe(component.text().vets.create.errors.nameRequired);
+    expect(getMaterialErrorText()).toContain(component.text().vets.create.errors.nameRequired);
     expect(component.error()).toBeNull();
   });
 

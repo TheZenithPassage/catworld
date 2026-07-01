@@ -9,11 +9,21 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-login-page',
-  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    TrimRequiredDirective,
+    UiStateComponent,
+  ],
   templateUrl: './login-page.html',
   styleUrl: './login-page.scss',
 })

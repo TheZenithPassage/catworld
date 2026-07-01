@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner, UpdateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
@@ -21,6 +22,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
     MatFormField,
     MatInput,
     MatLabel,
+    TrimRequiredDirective,
     UiStateComponent,
   ],
   templateUrl: './owner-edit-page.html',

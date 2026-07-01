@@ -7,13 +7,23 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
 @Component({
   selector: 'app-owner-create-page',
-  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    TrimRequiredDirective,
+    UiStateComponent,
+  ],
   templateUrl: './owner-create-page.html',
   styleUrl: './owner-create-page.scss',
 })

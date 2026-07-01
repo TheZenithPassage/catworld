@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -72,6 +74,34 @@ describe('VetEditPage', () => {
     component = fixture.componentInstance;
   }
 
+  async function submitRenderedForm(): Promise<void> {
+    fixture.nativeElement
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  function setInputValue(name: string, value: string): void {
+    const inputDebugElement = fixture.debugElement.query(By.css(`input[name="${name}"]`));
+    const input = inputDebugElement.nativeElement as HTMLInputElement;
+    const ngModel = inputDebugElement.injector.get(NgModel);
+    const formSignal = (component as unknown as Record<string, { set(value: string): void }>)[name];
+
+    input.value = value;
+    ngModel.control.setValue(value);
+    ngModel.control.markAsTouched();
+    ngModel.control.updateValueAndValidity();
+    formSignal?.set(value);
+    fixture.detectChanges();
+  }
+
+  function getMaterialErrorText(): string {
+    return [...fixture.nativeElement.querySelectorAll('mat-error')]
+      .map((error) => error.textContent?.trim())
+      .join(' ');
+  }
+
   it('loads the vet and renders Material edit fields and actions', async () => {
     createComponent();
     fixture.detectChanges();
@@ -89,14 +119,15 @@ describe('VetEditPage', () => {
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
   });
 
-  it('does not update when the name is blank', () => {
+  it('does not update when the name is blank', async () => {
     createComponent();
-    component.name.set('   ');
-
-    component.submit();
+    fixture.detectChanges();
+    setInputValue('name', '   ');
+    await submitRenderedForm();
 
     expect(vetApiService.updateVet).not.toHaveBeenCalled();
     expect(component.nameError()).toBe(component.text().vets.edit.errors.nameRequired);
+    expect(getMaterialErrorText()).toContain(component.text().vets.edit.errors.nameRequired);
     expect(component.error()).toBeNull();
   });
 

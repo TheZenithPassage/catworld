@@ -26,6 +26,7 @@
             type="text"
             name="fullName"
             required
+            appTrimRequired
             [ngModel]="fullName()"
             (ngModelChange)="fullName.set($event)"
           />
@@ -41,6 +42,7 @@
             type="text"
             name="primaryPhone"
             required
+            appTrimRequired
             [ngModel]="primaryPhone()"
             (ngModelChange)="primaryPhone.set($event)"
           />
