@@ -162,11 +162,12 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Tests for User Story or Technical Outcome 1 (include if requested or constitution-required) ⚠️
+### Evidence for User Story or Technical Outcome 1 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
 
-> **NOTE: Testing order is chosen per feature. Constitution-required coverage
-> remains mandatory for business rules, persistence, migrations, security,
-> shared contracts, and other high-risk behavior.**
+> **NOTE: Evidence timing is chosen per feature. Required coverage remains
+> mandatory for visible behavior, business rules, persistence, migrations,
+> security, shared contracts, semantic equivalence, validation matrices, and
+> other correctness-sensitive behavior.**
 
 - [ ] T011 [P] [US1/TO1] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
 - [ ] T012 [P] [US1/TO1] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
@@ -191,7 +192,7 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Tests for User Story or Technical Outcome 2 (include if requested or constitution-required) ⚠️
+### Evidence for User Story or Technical Outcome 2 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
 
 - [ ] T020 [P] [US2/TO2] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
 - [ ] T021 [P] [US2/TO2] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
@@ -213,7 +214,7 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Tests for User Story or Technical Outcome 3 (include if requested or constitution-required) ⚠️
+### Evidence for User Story or Technical Outcome 3 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
 
 - [ ] T026 [P] [US3/TO3] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
 - [ ] T027 [P] [US3/TO3] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
@@ -297,7 +298,7 @@ technical outcome implementation can now begin
 ## Parallel Example: User Story or Technical Outcome 1
 
 ```bash
-# Launch all tests for User Story or Technical Outcome 1 together (if included and independent):
+# Launch all evidence tasks for User Story or Technical Outcome 1 together (if included and independent):
 Task: "Backend/service/controller test in src/test/java/[package]/[TestClass].java"
 Task: "Frontend behavior test in frontend/src/[feature]/[component-or-service].spec.ts"
 

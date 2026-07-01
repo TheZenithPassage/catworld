@@ -70,6 +70,44 @@ Harden the CatWorld Spec Kit workflow so specifications, plans, tasks, analysis,
 
 **Human approval**: N/A for a significant technical decision; issue #189 provides the requested workflow hardening scope.
 
+## Semantic Equivalence and Replacement Review
+
+**Review required**: No. This PR changes Spec Kit workflow guidance, templates,
+and active issue artifacts only; it does not replace CatWorld application UI
+primitives, data mechanisms, contract mechanisms, persistence mechanisms, or
+runtime interaction mechanisms.
+
+**Old behavior/source of truth**: N/A. Existing CatWorld application behavior is
+out of scope and unchanged. The source of truth for this feature is issue #189,
+the constitution, and the current Spec Kit workflow files.
+
+**New mechanism semantics**: N/A. No application component, framework,
+contract, routing, focus, validation, persistence, migration, or security
+mechanism is being replaced.
+
+**Mismatch risks**: N/A for application behavior. Workflow risk is stale or
+contradictory guidance across generated specs, plans, tasks, analysis,
+convergence, implementation, and final reporting.
+
+**Mitigation**: Keep edits targeted to workflow guidance/templates and active
+issue artifacts, then perform focused text review for contradictions and
+duplicated rules.
+
+**Proof required**: Focused text review of changed workflow skill/template
+files, `git diff --check`, and scope-boundary review confirming no application
+behavior code or existing `specs/001-*` / `specs/002-*` artifacts changed.
+
+## Validation Evidence Plan
+
+| Surface / Requirement | Responsible Layer | Evidence Type | Freshness / Manual Notes |
+|-----------------------|-------------------|---------------|--------------------------|
+| Changed workflow skill/template files | Spec Kit skill/template Markdown | Focused text review for stale contradictions and duplicated rules | Re-review after final Markdown edits |
+| Whitespace and patch hygiene | Git diff output | `git diff --check` | Rerun after the latest relevant edit |
+| Scope boundary | Active branch changed-path review | `git status --short`, `git diff --name-only`, and path review | Confirm no application code, runtime dependency, CI, or existing `specs/001-*` / `specs/002-*` changes |
+| Technical/enabling feature support | Spec/template wording | Text review confirms technical outcomes remain supported without artificial user stories | Re-review after task/spec/template wording changes |
+| Unresolved major decision blocking | Plan/task/orchestration wording | Text review confirms pending product, architecture, persistence, security, shared-contract, UX, or operational decisions still block implementation | Re-review after task/plan wording changes |
+| Validation freshness | Implement/orchestration wording and active validation run | Text review plus final rerun/reporting of validation checks | Do not report stale, skipped, interrupted, timed-out, partial, or not-rerun checks as passed |
+
 ## Project Structure
 
 ### Documentation (this feature)
