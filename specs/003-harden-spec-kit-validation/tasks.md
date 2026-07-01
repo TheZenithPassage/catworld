@@ -89,6 +89,8 @@
 - [X] T018 [TO1] Confirm updated workflow still supports technical/enabling features without artificial user stories
 - [X] T019 [TO2/TO3] Confirm updated workflow still blocks unresolved major decisions instead of allowing implementation agents to invent them
 - [X] T020 [TO1/TO2/TO3] Confirm no CatWorld application behavior code was changed
+- [X] T021 [TO3] Confirm `speckit-analyze` and `speckit-converge` explicitly load, inventory, map, and report TR-### and TO-### coverage
+- [X] T022 [TO1] Confirm `speckit-specify` preserves unresolved material decisions as blockers instead of guessing them into assumptions
 
 ---
 

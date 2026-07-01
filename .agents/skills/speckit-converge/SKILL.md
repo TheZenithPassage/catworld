@@ -116,9 +116,11 @@ Load only the minimal necessary context from each artifact:
 **From spec.md:**
 
 - Functional Requirements (FR-###)
+- Technical Requirements (TR-###)
 - Success Criteria (SC-###) — include only items requiring buildable work; exclude
   post-launch outcome metrics and business KPIs
 - User Stories and their Acceptance Scenarios
+- Verifiable Technical Outcomes (TO-###), their Acceptance Scenarios, and Validation Evidence
 - Edge Cases (if present)
 
 **From plan.md:**
@@ -142,9 +144,13 @@ Load only the minimal necessary context from each artifact:
 
 Create an internal model (do not echo raw artifacts):
 
-- **Requirements inventory**: one stable key per FR-### / SC-### / user-story acceptance
-  scenario (e.g. `US1/AC2`), plus the plan decisions and constitution principles that
-  impose buildable obligations.
+- **Requirements inventory**: one stable key per FR-### / TR-### / SC-### /
+  user-story acceptance scenario (e.g. `US1/AC2`) / technical-outcome acceptance
+  scenario (e.g. `TO1/AC2`), plus the plan decisions and constitution principles
+  that impose buildable obligations.
+- **Technical outcome inventory**: TO-### items with their acceptance scenarios
+  and validation evidence, treated as first-class intent for technical/enabling
+  features.
 - **Evidence inventory**: observable behavior details, validation matrix rows,
   semantic-equivalence proof requirements, and validation evidence plan entries that
   impose verification obligations at a responsible layer.
@@ -183,6 +189,10 @@ For evidence-specific assessment:
   Flyway migrations, mobile/device-specific behavior, i18n-visible behavior, shared
   components, global styling, and operational safety are only satisfied when evidence
   exists at the responsible layer recorded in the plan or implied by the constitution.
+- Technical Requirements and Verifiable Technical Outcomes are only satisfied when the
+  implementation and evidence satisfy their stated outcome, acceptance scenarios, and
+  validation evidence. Missing or partial TR/TO implementation or evidence produces
+  a convergence finding.
 - Validation and smoke evidence is partial when it is stale after later relevant changes,
   timed out, skipped, interrupted, or reported without the command/review/smoke result.
 
@@ -198,9 +208,9 @@ severity, and a short human-readable description with the evidence (the file/are
 ### 5. Assign Severity
 
 - **CRITICAL**: violates a constitution MUST principle, or a `missing`/`contradicts` gap
-  that blocks baseline functionality of a P1 user story.
+  that blocks baseline functionality of a P1 user story or P1 technical outcome.
 - **HIGH**: a `missing` or `partial` gap on a core functional requirement or acceptance
-  criterion.
+  criterion, Technical Requirement, or Verifiable Technical Outcome.
 - **MEDIUM**: a `partial` gap on a secondary requirement, or an `unrequested` addition with
   unclear justification.
 - **LOW**: minor partial gaps, polish, or low-risk `unrequested` additions.
@@ -218,6 +228,7 @@ Before appending anything, output a compact, severity-graded summary (no file wr
 **Summary metrics:**
 
 - Requirements / acceptance criteria checked
+- Technical Requirements and Verifiable Technical Outcomes checked
 - Plan decisions checked
 - Constitution principles checked (or "skipped — template")
 - Findings by gap type (missing / partial / contradicts / unrequested)

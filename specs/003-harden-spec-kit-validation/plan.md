@@ -104,6 +104,7 @@ behavior code or existing `specs/001-*` / `specs/002-*` artifacts changed.
 | Changed workflow skill/template files | Spec Kit skill/template Markdown | Focused text review for stale contradictions and duplicated rules | Re-review after final Markdown edits |
 | Whitespace and patch hygiene | Git diff output | `git diff --check` | Rerun after the latest relevant edit |
 | Scope boundary | Active branch changed-path review | `git status --short`, `git diff --name-only`, and path review | Confirm no application code, runtime dependency, CI, or existing `specs/001-*` / `specs/002-*` changes |
+| TR/TO analysis and convergence coverage | `speckit-analyze` and `speckit-converge` guidance | Text review confirms TR-### and TO-### items are loaded, inventoried, mapped, and reported | Re-review after analyze/converge wording changes |
 | Technical/enabling feature support | Spec/template wording | Text review confirms technical outcomes remain supported without artificial user stories | Re-review after task/spec/template wording changes |
 | Unresolved major decision blocking | Plan/task/orchestration wording | Text review confirms pending product, architecture, persistence, security, shared-contract, UX, or operational decisions still block implementation | Re-review after task/plan wording changes |
 | Validation freshness | Implement/orchestration wording and active validation run | Text review plus final rerun/reporting of validation checks | Do not report stale, skipped, interrupted, timed-out, partial, or not-rerun checks as passed |

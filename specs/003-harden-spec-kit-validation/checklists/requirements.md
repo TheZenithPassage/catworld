@@ -23,6 +23,9 @@
 - [x] Observable UI or user-observable behavior changes define visible states, messages, interaction outcomes, navigation/focus behavior, i18n-visible text, responsive/mobile behavior, and role-dependent visibility where applicable - N/A: this technical/enabling feature changes workflow guidance/templates only and does not change CatWorld application UI or user-visible runtime behavior
 - [x] Validation-sensitive behavior includes a proportional input/state matrix, or is marked N/A with a reason - N/A: this feature changes validation workflow guidance, not an application input/state validation surface
 - [x] Correctness-sensitive technical behavior identifies the responsible evidence layer
+- [x] Technical Requirement and Verifiable Technical Outcome coverage expectations are explicit for analysis and convergence
+- [x] Unresolved material decisions remain blockers instead of assumptions or guesses
+- [x] No unresolved major Open Questions remain; if any remain, feature is explicitly reported as blocked
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 

@@ -83,8 +83,10 @@ Load only the minimal necessary context from each artifact:
 
 - Overview/Context
 - Functional Requirements
+- Technical Requirements
 - Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
 - User Stories
+- Verifiable Technical Outcomes
 - Edge Cases (if present)
 - Observable Behavior Detail and Input/State Validation Matrix (if present)
 
@@ -112,10 +114,11 @@ Load only the minimal necessary context from each artifact:
 
 Create internal representations (do not include raw artifacts in output):
 
-- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
+- **Requirements inventory**: For each Functional Requirement (FR-###), Technical Requirement (TR-###), and Success Criterion (SC-###), record a stable key. Use the explicit FR-/TR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
 - **User story/action inventory**: Discrete user actions with acceptance criteria
+- **Technical outcome inventory**: Verifiable Technical Outcomes (TO-###), their acceptance scenarios, and validation evidence.
 - **Evidence expectation inventory**: Observable behavior details, validation matrix rows, semantic-equivalence proof requirements, and validation evidence plan entries. Classify each expectation by layer: visible UI, routed navigation, focus/keyboard, manual visible smoke, controller/API contract, service/business rule, authorization/security, persistence/migration, mobile/device, i18n, shared component, global style, documentation/source of truth, or operational safety.
-- **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
+- **Task coverage mapping**: Map each task to one or more requirements, user stories, acceptance scenarios, or technical outcomes (inference by keyword / explicit reference patterns like FR-/TR-/SC-/US-/TO- IDs or key phrases)
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
 
 ### 4. Detection Passes (Token-Efficient Analysis)
@@ -146,8 +149,9 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 #### E. Coverage Gaps
 
 - Requirements with zero associated tasks
-- Tasks with no mapped requirement/story
+- Tasks with no mapped requirement, user story, acceptance scenario, or technical outcome
 - Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
+- Technical Requirements or Verifiable Technical Outcomes with zero associated tasks or missing evidence language
 
 #### F. Inconsistency
 
@@ -193,6 +197,9 @@ Output a Markdown report (no file writes) with the following structure:
 | Requirement Key | Has Task? | Task IDs | Notes |
 |-----------------|-----------|----------|-------|
 
+Include FR, TR, buildable SC, user-story acceptance scenario, and TO keys in
+the coverage table when those categories exist.
+
 **Constitution Alignment Issues:** (if any)
 
 **Unmapped Tasks:** (if any)
@@ -200,8 +207,10 @@ Output a Markdown report (no file writes) with the following structure:
 **Metrics:**
 
 - Total Requirements
+- Total Technical Outcomes
 - Total Tasks
 - Coverage % (requirements with >=1 task)
+  - Report coverage separately for FR, TR, SC, user-story acceptance scenarios, and TO items when those categories exist
 - Ambiguity Count
 - Duplication Count
 - Critical Issues Count

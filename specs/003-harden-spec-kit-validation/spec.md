@@ -33,6 +33,7 @@
     2. **Given** backend business rules, API contracts, authorization, persistence, migrations, or security behavior are in scope, **When** tasks or analysis are generated, **Then** evidence is required at the responsible controller/service/persistence/security/migration layer.
     3. **Given** relevant files change after validation, **When** implementation or final orchestration reports results, **Then** affected validation must be rerun or reported as stale, skipped, timed out, interrupted, partial, failed, or not verified rather than passed.
     4. **Given** changed files or surfaces fall outside the plan/source map, **When** convergence or final orchestration runs, **Then** the workflow flags them for review or justification instead of silently accepting scope drift.
+    5. **Given** a technical/enabling feature is specified with Technical Requirements and Verifiable Technical Outcomes, **When** analysis or convergence runs, **Then** TR-### and TO-### items are loaded, inventoried, mapped, and reported alongside FR, SC, and user-story acceptance coverage.
   - **Validation Evidence**: Text review of `speckit-tasks`, `tasks-template.md`, `speckit-analyze`, `speckit-converge`, `speckit-implement`, and `catworld-implement-issue` confirms layer-appropriate evidence, validation freshness, and scope-drift rules are present.
 
 ### Edge Cases
@@ -58,11 +59,12 @@
 - **TR-006**: `speckit-tasks` and `tasks-template.md` MUST prevent internal component state, service spies, or implementation details from being sufficient evidence for frontend-visible requirements.
 - **TR-007**: Task guidance MUST require DOM, Angular Material/CDK harness, routed navigation, focus/keyboard, or manual visible-device checks for frontend-visible behavior when automation cannot fully cover the behavior.
 - **TR-008**: Task guidance MUST require controller/service/persistence/security/migration evidence at the appropriate layer for backend contracts, business rules, authorization, persistence, migrations, and security behavior when in scope.
-- **TR-009**: `speckit-analyze` MUST flag qualitative coverage gaps when requirements claim visible behavior, contract behavior, migration safety, security behavior, authorization behavior, or persistence behavior but tasks lack appropriate evidence language.
-- **TR-010**: `speckit-converge` MUST treat missing observable or layer-appropriate verification as a partial gap and MUST flag unplanned touched surfaces for review or justification.
+- **TR-009**: `speckit-analyze` MUST include Functional Requirements, Technical Requirements, Success Criteria, user-story acceptance scenarios, and Verifiable Technical Outcomes in its semantic inventory, task coverage mapping, coverage summary, and qualitative evidence-gap detection.
+- **TR-010**: `speckit-converge` MUST include Technical Requirements and Verifiable Technical Outcomes in its intent inventory and MUST treat missing observable, layer-appropriate, TR, or TO implementation/evidence as a convergence gap while still flagging unplanned touched surfaces for review or justification.
 - **TR-011**: `speckit-implement` MUST only mark validation tasks complete when required evidence passed after the latest relevant change, and MUST only mark implementation tasks complete when behavior satisfies the spec and plan.
 - **TR-012**: `catworld-implement-issue` final orchestration MUST distinguish passed, failed, skipped, timed out, interrupted, partial, stale, and not revalidated checks, and MUST require reruns after relevant late changes or explicit reporting that affected checks were not verified.
 - **TR-013**: Workflow hardening MUST remain proportional, avoid new runtime tools or dependencies, avoid application behavior changes, avoid public issue/PR operations, and avoid modifying existing generated feature directories under `specs/`.
+- **TR-014**: `speckit-specify` MUST NOT convert unresolved material product, architecture, persistence, security, shared-contract, authorization, UX, operational, or correctness-sensitive decisions into assumptions or guesses; those decisions MUST remain blockers until resolved by a human decision.
 
 ### Scope Boundaries
 
@@ -95,6 +97,8 @@ None. The issue scope and constraints are sufficient for planning.
 - **SC-005**: The updated workflow still supports technical/enabling features without artificial user stories.
 - **SC-006**: The updated workflow still blocks unresolved major product, architecture, persistence, security, shared-contract, UX, or operational decisions instead of allowing implementation agents to invent them.
 - **SC-007**: No CatWorld application behavior code is changed.
+- **SC-008**: Text review confirms `speckit-analyze` and `speckit-converge` explicitly load, inventory, map, and report coverage for TR-### and TO-### items.
+- **SC-009**: Text review confirms `speckit-specify` allows only safe minor assumptions and preserves unresolved material decisions as blockers.
 
 ## Assumptions
 

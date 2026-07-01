@@ -46,10 +46,12 @@
 5. Confirm workflow proportionality:
 
    - Technical/enabling features can still use technical outcomes instead of artificial user stories.
+   - `speckit-analyze` and `speckit-converge` explicitly load, inventory, map, and report Technical Requirements and Verifiable Technical Outcomes.
    - Backend-only or documentation-only work is not forced into heavy UI matrices or manual smoke tests.
    - Observable, contract, authorization, persistence, migration, security, shared component, global style, mobile, i18n, and correctness-sensitive work requires appropriate evidence.
 
 6. Confirm decision blocking:
 
    - Unresolved major product, architecture, persistence, security, shared-contract, UX, or operational decisions still block implementation.
+   - `speckit-specify` does not guess material decisions away when more than three blockers exist.
    - Agents are not instructed to infer or approve their own significant technical decisions.
