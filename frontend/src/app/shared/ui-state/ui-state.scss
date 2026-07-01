@@ -25,16 +25,20 @@
   font-weight: 650;
 }
 
-.ui-state mat-icon {
+.ui-state-icon {
+  display: inline-grid;
   flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
   color: var(--color-primary-hover);
+  place-items: center;
 }
 
 .ui-state button {
   margin-left: 0.25rem;
 }
 
-.ui-state mat-icon svg {
+.ui-state-icon svg {
   width: 100%;
   height: 100%;
   fill: none;
@@ -56,6 +60,6 @@
   color: var(--color-danger);
 }
 
-.ui-state--error mat-icon {
+.ui-state--error .ui-state-icon {
   color: var(--color-danger);
 }

@@ -1,15 +1,28 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { UpdateVetRequest, Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 
 @Component({
   selector: 'app-vet-edit-page',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    UiStateComponent,
+  ],
   templateUrl: './vet-edit-page.html',
   styleUrl: './vet-edit-page.scss',
 })
@@ -29,6 +42,7 @@ export class VetEditPage {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly vetLoaded = signal(false);
+  readonly nameError = signal<string | null>(null);
 
   private readonly vetId = this.route.snapshot.paramMap.get('id');
 
@@ -62,6 +76,7 @@ export class VetEditPage {
 
   submit(): void {
     this.error.set(null);
+    this.clearValidationErrors();
 
     if (!this.vetLoaded()) {
       this.showError(this.text().vets.edit.errors.dataNotLoaded);
@@ -74,7 +89,7 @@ export class VetEditPage {
     }
 
     if (!this.name().trim()) {
-      this.showError(this.text().vets.edit.errors.nameRequired);
+      this.nameError.set(this.text().vets.edit.errors.nameRequired);
       return;
     }
 
@@ -102,6 +117,10 @@ export class VetEditPage {
     this.name.set(vet.name);
     this.address.set(vet.address ?? '');
     this.phoneNumber.set(vet.phoneNumber ?? '');
+  }
+
+  private clearValidationErrors(): void {
+    this.nameError.set(null);
   }
 
   private toNullableString(value: string): string | null {

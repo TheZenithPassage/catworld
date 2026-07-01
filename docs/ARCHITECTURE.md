@@ -315,6 +315,22 @@ filtering, retries and domain decisions; the shared state component owns only
 Material-themed presentation, accessible status or alert semantics and optional
 retry-action rendering.
 
+### Material Forms
+
+The login, owner create/edit and vet create/edit forms use Angular Material
+form fields, inputs and buttons for their interactive controls. Each routed
+form page keeps its own signal-based field state, request payload shaping,
+submit method, navigation and responsive form layout in component SCSS.
+
+Required-field validation for these migrated forms is presented through
+Material field errors while preserving existing validation rules and submit
+timing. Page-level backend errors and edit-page loading states use the shared
+`UiStateComponent` where that presentation fits the existing behavior.
+
+Native form card and native control coexistence styling remains only for
+unmigrated surfaces such as cat and stay forms. Material inputs and buttons
+must not depend on the legacy global native-control selectors.
+
 ### Component Conventions
 
 Standalone Material imports belong in the standalone component that directly

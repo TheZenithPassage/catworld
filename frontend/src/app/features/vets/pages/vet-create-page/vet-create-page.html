@@ -5,39 +5,49 @@
   </header>
 
   <form class="vet-form" (ngSubmit)="submit()">
-    @if (error()) {
-      <div class="error-message">
-        <p>{{ error() }}</p>
-      </div>
+    @if (error(); as errorMessage) {
+      <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
     }
 
-    <label>
-      {{ text().vets.form.name }}
-      <input type="text" name="name" [ngModel]="name()" (ngModelChange)="name.set($event)" />
-    </label>
-
-    <label>
-      {{ text().vets.form.address }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().vets.form.name }}</mat-label>
       <input
+        matInput
+        type="text"
+        name="name"
+        required
+        [ngModel]="name()"
+        (ngModelChange)="name.set($event)"
+      />
+      @if (nameError(); as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().vets.form.address }}</mat-label>
+      <input
+        matInput
         type="text"
         name="address"
         [ngModel]="address()"
         (ngModelChange)="address.set($event)"
       />
-    </label>
+    </mat-form-field>
 
-    <label>
-      {{ text().vets.form.phoneNumber }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().vets.form.phoneNumber }}</mat-label>
       <input
+        matInput
         type="text"
         name="phoneNumber"
         [ngModel]="phoneNumber()"
         (ngModelChange)="phoneNumber.set($event)"
       />
-    </label>
+    </mat-form-field>
 
     <div class="form-actions">
-      <button type="submit" [disabled]="submitting()">
+      <button mat-flat-button type="submit" [disabled]="submitting()">
         {{ submitting() ? text().vets.create.submitting : text().vets.create.submit }}
       </button>
     </div>

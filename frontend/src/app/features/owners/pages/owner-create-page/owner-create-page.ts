@@ -1,15 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
 @Component({
   selector: 'app-owner-create-page',
-  imports: [FormsModule],
+  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
   templateUrl: './owner-create-page.html',
   styleUrl: './owner-create-page.scss',
 })
@@ -31,17 +35,20 @@ export class OwnerCreatePage {
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly fullNameError = signal<string | null>(null);
+  readonly primaryPhoneError = signal<string | null>(null);
 
   submit(): void {
     this.error.set(null);
+    this.clearValidationErrors();
 
     if (!this.fullName().trim()) {
-      this.error.set(this.text().owners.create.errors.fullNameRequired);
+      this.fullNameError.set(this.text().owners.create.errors.fullNameRequired);
       return;
     }
 
     if (!this.primaryPhone().trim()) {
-      this.error.set(this.text().owners.create.errors.primaryPhoneRequired);
+      this.primaryPhoneError.set(this.text().owners.create.errors.primaryPhoneRequired);
       return;
     }
 
@@ -69,6 +76,11 @@ export class OwnerCreatePage {
         this.submitting.set(false);
       },
     });
+  }
+
+  private clearValidationErrors(): void {
+    this.fullNameError.set(null);
+    this.primaryPhoneError.set(null);
   }
 
   private toNullableString(value: string): string | null {

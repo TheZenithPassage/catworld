@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
@@ -10,6 +11,7 @@ import { LoginPage } from './login-page';
 
 describe('LoginPage', () => {
   let component: LoginPage;
+  let fixture: ComponentFixture<LoginPage>;
 
   const authApiService = {
     login: vi.fn(),
@@ -24,13 +26,14 @@ describe('LoginPage', () => {
     navigateByUrl: vi.fn(),
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
     router.navigateByUrl.mockResolvedValue(true);
 
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [LoginPage],
       providers: [
+        provideNoopAnimations(),
         {
           provide: AuthApiService,
           useValue: authApiService,
@@ -54,19 +57,25 @@ describe('LoginPage', () => {
           useValue: router,
         },
       ],
-    });
+    }).compileComponents();
 
-    TestBed.overrideComponent(LoginPage, {
-      set: {
-        template: '',
-      },
-    });
-
-    component = TestBed.createComponent(LoginPage).componentInstance;
+    fixture = TestBed.createComponent(LoginPage);
+    component = fixture.componentInstance;
   });
 
   afterEach(() => {
     TestBed.resetTestingModule();
+  });
+
+  it('renders Material login fields and submit action', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(2);
+    expect(compiled.querySelector('input[name="username"]')).not.toBeNull();
+    expect(compiled.querySelector('input[name="password"]')).not.toBeNull();
+    expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
   });
 
   it('does not submit when the username is blank', () => {
@@ -76,7 +85,8 @@ describe('LoginPage', () => {
     component.submit();
 
     expect(authApiService.login).not.toHaveBeenCalled();
-    expect(component.error()).toBe(component.text().auth.login.errors.usernameRequired);
+    expect(component.usernameError()).toBe(component.text().auth.login.errors.usernameRequired);
+    expect(component.error()).toBeNull();
   });
 
   it('does not submit when the password is blank', () => {
@@ -86,7 +96,8 @@ describe('LoginPage', () => {
     component.submit();
 
     expect(authApiService.login).not.toHaveBeenCalled();
-    expect(component.error()).toBe(component.text().auth.login.errors.passwordRequired);
+    expect(component.passwordError()).toBe(component.text().auth.login.errors.passwordRequired);
+    expect(component.error()).toBeNull();
   });
 
   it('stores the session and redirects to the return URL after a successful login', () => {
@@ -133,5 +144,12 @@ describe('LoginPage', () => {
     expect(authSessionService.login).not.toHaveBeenCalled();
     expect(authSessionService.logout).toHaveBeenCalledOnce();
     expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().auth.login.errors.invalidCredentials,
+    );
   });
 });

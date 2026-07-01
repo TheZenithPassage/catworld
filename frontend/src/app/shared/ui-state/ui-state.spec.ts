@@ -34,7 +34,7 @@ describe('UiStateComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelector('[role="alert"]')?.textContent).toContain('Error loading cats');
-    expect(compiled.querySelector('mat-icon svg')).not.toBeNull();
+    expect(compiled.querySelector('.ui-state-icon svg')).not.toBeNull();
   });
 
   it('emits an action when the optional action button is clicked', () => {

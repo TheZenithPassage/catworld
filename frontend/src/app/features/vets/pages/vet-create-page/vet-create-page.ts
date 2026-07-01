@@ -1,15 +1,19 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateVetRequest } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 
 @Component({
   selector: 'app-vet-create-page',
-  imports: [FormsModule],
+  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
   templateUrl: './vet-create-page.html',
   styleUrl: './vet-create-page.scss',
 })
@@ -27,12 +31,14 @@ export class VetCreatePage {
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly nameError = signal<string | null>(null);
 
   submit(): void {
     this.error.set(null);
+    this.clearValidationErrors();
 
     if (!this.name().trim()) {
-      this.error.set(this.text().vets.create.errors.nameRequired);
+      this.nameError.set(this.text().vets.create.errors.nameRequired);
       return;
     }
 
@@ -54,6 +60,10 @@ export class VetCreatePage {
         this.submitting.set(false);
       },
     });
+  }
+
+  private clearValidationErrors(): void {
+    this.nameError.set(null);
   }
 
   private toNullableString(value: string): string | null {

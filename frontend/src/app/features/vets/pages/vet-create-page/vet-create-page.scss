@@ -13,7 +13,16 @@
   margin-bottom: 0;
 }
 
-label {
+.vet-form {
   display: grid;
-  gap: 0.35rem;
+  gap: 1rem;
+  max-width: 34rem;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.vet-form mat-form-field {
+  width: 100%;
 }
