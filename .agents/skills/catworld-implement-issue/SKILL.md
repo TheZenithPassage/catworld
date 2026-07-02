@@ -101,13 +101,31 @@ Run this flow in order:
 13. Stop after at most two extra implement/converge cycles, even if more tasks
     remain, and report the remaining work.
 14. Run all validations required by the issue, plan, and tasks.
-15. Inspect local active-feature state before the final report:
+15. Before treating validation as complete:
+    - Rerun any validation command, test, review, browser-control session, manual smoke
+      check, or other evidence affected by relevant changes made after that evidence
+      was collected.
+    - If affected evidence cannot be rerun, report it as `not revalidated` or `stale`
+      instead of passed.
+    - Report each check with an explicit status: `passed`, `failed`, `skipped`,
+      `timed out`, `interrupted`, `partial`, `stale`, or `not revalidated`.
+    - Do not summarize timed-out, skipped, interrupted, partial, stale, failed, or
+      not-rerun validation as passed.
+16. Inspect changed files and surfaces before the final report:
+    - Use current working-tree information such as `git status --short` and
+      `git diff --name-only` on the active branch only.
+    - Compare changed paths with the issue, spec, plan, tasks, and source map.
+    - Flag any file or surface changed outside the plan/source map for review or
+      justification, especially late cleanup touching shared shell, global styles,
+      shared components, routing, contracts, migrations, authorization, persistence,
+      security, or other cross-cutting surfaces.
+17. Inspect local active-feature state before the final report:
     - If `AGENTS.md` changed only because of the `SPECKIT START` / `SPECKIT END`
       active plan pointer, restore that block to the `main` version.
     - Do not remove or rewrite permanent `AGENTS.md` instructions.
-16. Report final status, commands executed, validation results, risks, git
-    status and diff summary, suggested conventional commit title, and suggested
-    pull request description.
+18. Report final status, commands executed with explicit validation statuses,
+    scope-drift review results, risks, git status and diff summary, suggested
+    conventional commit title, and suggested pull request description.
 
 ## Stop Conditions
 
@@ -122,6 +140,10 @@ Stop and report the blocker when any of these occur:
   still-applicable prior approved plan.
 - Generated artifacts conflict in a way that is not safely mechanical to fix.
 - Validation fails and cannot be fixed without changing approved scope.
+- Required validation is stale after relevant late changes and cannot be rerun or
+  honestly reported within the approved scope.
+- Changed files or surfaces outside the issue/spec/plan/tasks source map cannot be
+  justified without changing approved scope.
 
 ## Completion Report
 
@@ -133,7 +155,8 @@ Use the CatWorld `AGENTS.md` completion format:
 4. One suggested conventional commit title.
 5. One concise pull request description.
 
-Include the final branch name, `git status --short`, and a concise diff summary.
+Include the final branch name, `git status --short`, a concise diff summary,
+validation freshness status, and any scope-drift review findings.
 Do not create the commit, push, pull request, issue update, or merge.
 
 ## Done When
@@ -143,6 +166,9 @@ Do not create the commit, push, pull request, issue update, or merge.
   constitution.
 - Implementation and convergence have run within the cycle limit.
 - Required validations have run or any inability to run them is reported.
+- Validation results are fresh after the latest relevant change, or stale/not-rerun
+  checks are explicitly reported as not passed.
+- Changed files have been reviewed against the issue/spec/plan/tasks source map.
 - Final status includes commands, validation, risks, diff summary, suggested
   commit title, and suggested pull request description.
 - The `AGENTS.md` active plan pointer is restored before the final report when it was changed only as local workflow state.

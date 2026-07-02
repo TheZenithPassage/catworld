@@ -122,12 +122,14 @@ Given that feature description, do this:
        - Product behavior features describe user-visible behavior and may use user stories, functional requirements, user-facing acceptance scenarios, and technology-neutral success criteria when appropriate
        - Technical/enabling features describe objective technical outcomes and may use technical requirements, technical acceptance scenarios, and explicit technologies, commands, files, or APIs when they are part of the issue, repository evidence, constitution, or an approved technical decision
     4. For unclear aspects:
-       - Make informed guesses based on context and industry standards
+       - Make informed assumptions only for minor defaults that do not materially affect scope, security, persistence, shared contracts, architecture, authorization, user experience, operations, or other correctness-sensitive behavior
        - Only mark with [NEEDS CLARIFICATION: specific question] if:
          - The choice significantly impacts feature scope, security, persistence, shared contracts, architecture, user experience, or operations
          - Multiple reasonable interpretations exist with different implications
          - No reasonable default exists
+       - Preserve unresolved major decisions as [NEEDS CLARIFICATION] markers and Open Questions; they block planning or implementation until a human decision is recorded
        - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+       - If more than 3 material blockers exist, do not guess the remainder. Keep the three highest-impact markers in-line, summarize the additional blockers under Open Questions, and report that the feature is blocked until those decisions are resolved.
        - Prioritize clarifications by impact: scope > security/privacy > persistence/shared-contract/architecture > user experience > operations > local technical details
     5. Fill scenarios and testing sections according to feature shape
        - Product behavior features need testable user-facing scenarios; if a product behavior feature has no testable scenario, ERROR "Product behavior feature lacks a testable acceptance scenario"
@@ -136,7 +138,10 @@ Given that feature description, do this:
        - Product behavior features may use functional requirements
        - Technical/enabling features may use technical requirements or verifiable technical outcomes
        - Each requirement must be testable
-       Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+       - When a feature changes visible UI state or user-observable behavior, capture what the user actually sees or experiences closely enough for verification. Include applicable field validation messages, backend error presentation, empty states, loading states, disabled states, destructive confirmations, focus/keyboard behavior, route or dialog navigation, i18n-visible text, responsive/mobile behavior, and role-dependent action visibility.
+       - When a feature changes or preserves validation, conflict handling, backend-rejected state, role-dependent behavior, or similar state-sensitive behavior, include a proportional input/state matrix. Each relevant row should distinguish whether the submit/action is blocked, whether an API call is made, whether a visible error/conflict is shown, whether the value is transformed or preserved, and whether correction clears or replaces the message when in scope.
+       - When behavior is correctness-sensitive but not visibly UI-driven, identify the observable contract or responsible evidence layer, such as controller/API response, service business rule, authorization enforcement, persistence constraint, Flyway migration, security behavior, operational safety, or source-of-truth documentation.
+       Use only safe minor defaults for unspecified details when they do not materially affect scope, security, persistence, shared contracts, architecture, authorization, user experience, operations, or correctness-sensitive behavior. Document those low-impact defaults in the Assumptions section. Material unresolved decisions must remain under Open Questions and block planning or implementation until a human decision is recorded.
     7. Define Success Criteria
        Create measurable and objectively verifiable outcomes
        For product behavior features, prefer user/business outcomes and keep criteria technology-neutral unless the approved scope requires a technical constraint
@@ -174,6 +179,10 @@ Given that feature description, do this:
       - [ ] Success criteria avoid unapproved implementation detail
       - [ ] Acceptance scenarios appropriate to the feature shape are defined
       - [ ] Edge cases are identified
+      - [ ] Observable UI or user-observable behavior changes define visible states, messages, interaction outcomes, navigation/focus behavior, i18n-visible text, responsive/mobile behavior, and role-dependent visibility where applicable
+      - [ ] Validation-sensitive behavior includes a proportional input/state matrix, or is marked N/A with a reason
+      - [ ] Correctness-sensitive technical behavior identifies the responsible evidence layer
+      - [ ] No unresolved major Open Questions remain; if any remain, feature is explicitly reported as blocked
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
 
@@ -206,7 +215,7 @@ Given that feature description, do this:
 
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
-        2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
+        2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical in-line (by scope/security/UX impact). Do not guess material decisions. Move or summarize additional material blockers under Open Questions and report that planning/implementation is blocked until they are resolved. Only minor defaults that do not affect scope, security, persistence, shared contracts, architecture, authorization, UX, operations, or correctness-sensitive behavior may become documented assumptions.
         3. For each clarification needed (max 3), present options to user in this format:
 
            ```markdown
@@ -303,15 +312,18 @@ Report completion to the user with:
 
 When creating this spec from a user prompt:
 
-1. **Make informed guesses**: Use context, industry standards, and common patterns to fill gaps
-2. **Document assumptions**: Record reasonable defaults in the Assumptions section
+1. **Make only safe minor assumptions**: Use context, industry standards, and common patterns only for minor defaults that do not materially affect scope, security, persistence, shared contracts, architecture, authorization, user experience, operations, or other correctness-sensitive behavior.
+2. **Document assumptions**: Record reasonable low-impact defaults in the Assumptions section
 3. **Limit clarifications**: Maximum 3 [NEEDS CLARIFICATION] markers - use only for critical decisions that:
    - Significantly impact feature scope, security, persistence, shared contracts, architecture, user experience, or operations
    - Have multiple reasonable interpretations with different implications
    - Lack any reasonable default
-4. **Prioritize clarifications**: scope > security/privacy > persistence/shared-contract/architecture > user experience > operations > local technical details
-5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
-6. **Common areas needing clarification** (only if no reasonable default exists):
+4. **Do not invent major decisions**: If more than 3 material blockers exist, keep the top 3 markers in-line, record the rest in Open Questions, and report the feature as blocked until a human decision is recorded.
+5. **Prioritize clarifications**: scope > security/privacy > persistence/shared-contract/architecture > user experience > operations > local technical details
+6. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
+7. **Describe the observable surface**: For visible UI and user-observable behavior, specify the rendered state or experience that proves the requirement. Internal state, helper calls, or service spies are not enough to define the requirement.
+8. **Use validation matrices proportionally**: Add a matrix when validation, conflicts, blocked actions, backend-rejected state, permissions, or state transitions are in scope. Keep it lightweight for small features and omit it with a clear N/A reason for backend-only, documentation-only, or unrelated technical work.
+9. **Common areas needing clarification** (only if no reasonable default exists):
    - Feature scope and boundaries (include/exclude specific use cases)
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)
@@ -320,9 +332,9 @@ When creating this spec from a user prompt:
 
 - Data retention: Preserve existing repository behavior unless the issue or an approved decision explicitly changes it.
 - Performance targets: Use existing repository limits, issue requirements, or approved decisions. Do not invent throughput, latency, scale, or timing targets.
-- Error handling: User-friendly messages with appropriate fallbacks
+- Error handling: Preserve existing repository error-handling patterns unless the issue or an approved decision explicitly changes them. Do not invent new error semantics, status mappings, or user-visible behavior.
 - Authentication, authorization and security behavior must be derived from repository evidence or explicit decisions. Do not invent a default authentication method.
-- Integration patterns: Use project-appropriate patterns (REST/GraphQL for web services, function calls for libraries, CLI args for tools, etc.)
+- Integration patterns: Use existing repository integration patterns or explicit approved decisions. Do not select a new API style, protocol, framework, or integration mechanism as a default.
 
 ### Success Criteria Guidelines
 
