@@ -18,9 +18,22 @@
   margin-bottom: 0;
 }
 
-label {
+.form-back-link {
+  flex: 0 0 auto;
+}
+
+.owner-form {
   display: grid;
-  gap: 0.35rem;
+  gap: 1rem;
+  max-width: 34rem;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.owner-form mat-form-field {
+  width: 100%;
 }
 
 @media (max-width: 760px) {

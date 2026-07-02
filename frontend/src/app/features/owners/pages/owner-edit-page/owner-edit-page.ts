@@ -1,15 +1,30 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner, UpdateOwnerRequest } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 
 @Component({
   selector: 'app-owner-edit-page',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    RouterLink,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    TrimRequiredDirective,
+    UiStateComponent,
+  ],
   templateUrl: './owner-edit-page.html',
   styleUrl: './owner-edit-page.scss',
 })
@@ -33,6 +48,8 @@ export class OwnerEditPage {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly ownerLoaded = signal(false);
+  readonly fullNameError = signal<string | null>(null);
+  readonly primaryPhoneError = signal<string | null>(null);
 
   private readonly ownerId = this.route.snapshot.paramMap.get('id');
 
@@ -65,18 +82,21 @@ export class OwnerEditPage {
   }
 
   submit(): void {
+    this.error.set(null);
+    this.clearValidationErrors();
+
     if (!this.ownerId) {
       this.showError(this.text().owners.edit.errors.ownerIdMissing);
       return;
     }
 
     if (!this.fullName().trim()) {
-      this.showError(this.text().owners.edit.errors.fullNameRequired);
+      this.fullNameError.set(this.text().owners.edit.errors.fullNameRequired);
       return;
     }
 
     if (!this.primaryPhone().trim()) {
-      this.showError(this.text().owners.edit.errors.primaryPhoneRequired);
+      this.primaryPhoneError.set(this.text().owners.edit.errors.primaryPhoneRequired);
       return;
     }
 
@@ -112,6 +132,11 @@ export class OwnerEditPage {
     this.secondaryPhoneName.set(owner.secondaryPhoneName ?? '');
     this.instagram.set(owner.instagram ?? '');
     this.facebook.set(owner.facebook ?? '');
+  }
+
+  private clearValidationErrors(): void {
+    this.fullNameError.set(null);
+    this.primaryPhoneError.set(null);
   }
 
   private toNullableString(value: string): string | null {

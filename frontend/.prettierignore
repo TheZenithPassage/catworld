@@ -1,4 +1,8 @@
-.angular
-coverage
-dist
-node_modules
+.angular/
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

@@ -7,37 +7,46 @@
     <p>{{ text().auth.login.description }}</p>
   </header>
 
-  @if (error()) {
-    <div class="error-message">
-      <p>{{ error() }}</p>
-    </div>
+  @if (error(); as errorMessage) {
+    <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
   }
 
   <form class="login-form" (ngSubmit)="submit()">
-    <label>
-      {{ text().auth.login.username }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().auth.login.username }}</mat-label>
       <input
+        matInput
         type="text"
         name="username"
         autocomplete="username"
+        required
+        appTrimRequired
         [ngModel]="username()"
         (ngModelChange)="username.set($event)"
       />
-    </label>
+      @if (usernameError(); as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
 
-    <label>
-      {{ text().auth.login.password }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().auth.login.password }}</mat-label>
       <input
+        matInput
         type="password"
         name="password"
         autocomplete="current-password"
+        required
         [ngModel]="password()"
         (ngModelChange)="password.set($event)"
       />
-    </label>
+      @if (passwordError(); as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
 
     <div class="form-actions">
-      <button type="submit" [disabled]="submitting()">
+      <button mat-flat-button type="submit" [disabled]="submitting()">
         {{ submitting() ? text().auth.login.submitting : text().auth.login.submit }}
       </button>
     </div>

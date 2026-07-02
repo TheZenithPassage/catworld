@@ -19,16 +19,22 @@
 }
 
 .login-form {
+  display: grid;
+  gap: 1rem;
   max-width: none;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
-label {
-  display: grid;
-  gap: 0.35rem;
+.login-form mat-form-field {
+  width: 100%;
 }
 
 .form-actions button {
   width: 100%;
+  min-width: 0;
 }
 
 .login-logo {
