@@ -36,13 +36,6 @@
   width: 100%;
 }
 
-.cat-form mat-label {
-  display: inline-block;
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;

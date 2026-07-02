@@ -164,8 +164,8 @@ button:not(.mat-mdc-button-base):disabled {
 }
 
 input:not(.mat-mdc-input-element),
-select,
-textarea {
+select:not(.mat-mdc-input-element),
+textarea:not(.mat-mdc-input-element) {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border-strong);
@@ -175,13 +175,13 @@ textarea {
 }
 
 input:not(.mat-mdc-input-element):focus,
-select:focus,
-textarea:focus {
+select:not(.mat-mdc-input-element):focus,
+textarea:not(.mat-mdc-input-element):focus {
   outline: 3px solid rgb(232 137 63 / 0.22);
   border-color: var(--color-primary);
 }
 
-textarea {
+textarea:not(.mat-mdc-input-element) {
   min-height: 7rem;
   resize: vertical;
 }
@@ -316,8 +316,8 @@ label textarea {
   }
 
   input:not(.mat-mdc-input-element),
-  select,
-  textarea {
+  select:not(.mat-mdc-input-element),
+  textarea:not(.mat-mdc-input-element) {
     padding: 0.55rem 0.65rem;
   }
 
@@ -412,7 +412,7 @@ label textarea {
   margin: 0;
 }
 
-input[type='checkbox'] {
+input[type='checkbox']:not(.mdc-checkbox__native-control) {
   width: auto;
   margin: 0;
   padding: 0;

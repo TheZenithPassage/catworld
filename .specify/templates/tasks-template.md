@@ -82,6 +82,10 @@ and validation evidence plans.
 - Semantic-equivalence reviews need proof tasks that compare preserved behavior
   against the recorded old behavior/source of truth and new mechanism
   semantics.
+- Replacement, migration, or narrowing work needs a replacement-boundary proof
+  task. The task must verify that the old mechanism no longer affects migrated
+  surfaces unless that coexistence is intentional, and that any remaining old
+  behavior is scoped to surfaces that still depend on it.
 - Validation tasks are complete only when the required evidence passed after
   the latest relevant change.
 
@@ -245,6 +249,7 @@ technical outcome implementation can now begin
 - [ ] TXXX Run constitution compliance validation
 - [ ] TXXX Run quickstart.md validation only if quickstart.md exists for this feature
 - [ ] TXXX Review changed files against plan/source map and justify or remove unplanned touched surfaces
+- [ ] TXXX Perform a proportional replacement-boundary review when the feature replaces, migrates, or narrows an existing mechanism. Briefly list the old selectors, helpers, routes, APIs, styles, or behaviors being replaced; verify they no longer affect migrated surfaces unless coexistence is intentional; identify the surfaces that still depend on the old mechanism; and remove or narrow any unintentional remaining effect
 - [ ] TXXX Rerun affected validation after relevant late changes, or report stale/not-revalidated checks explicitly
 
 <!--
