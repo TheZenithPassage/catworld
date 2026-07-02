@@ -155,25 +155,26 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
 5. Parse tasks.md structure and extract:
-   - **Task phases**: Setup, Tests, Core, Integration, Polish
+   - **Task phases**: Setup, Foundational, user story phases, technical outcome phases, Evidence, Implementation, Polish, or other feature-specific phases defined by `tasks.md`
    - **Task dependencies**: Sequential vs parallel execution rules
-   - **Task details**: ID, description, file paths, parallel markers [P]
-   - **Execution flow**: Order and dependency requirements
+   - **Task details**: ID, description, file paths, parallel markers [P], and trace labels such as [US1] or [TO1]
+   - **Evidence requirements**: Required tests, DOM/harness checks, routed navigation checks, focus/keyboard checks, controller/API checks, service/business-rule checks, persistence/migration checks, security/authorization checks, focused reviews, or manual visible smoke checks
+   - **Execution flow**: Order and dependency requirements recorded in `tasks.md`
 
 6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
+   - **Phase-by-phase execution**: Complete each included phase before moving to dependent phases
+   - **Respect dependencies**: Run sequential tasks in order; parallel tasks [P] can run together only when they touch independent files or surfaces
+   - **Evidence at the useful point**: Run required evidence tasks before or alongside the implementation work they are meant to prove, according to `tasks.md`
    - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Validation checkpoints**: Verify each phase, user story, or technical outcome before treating it as complete
    - **Evidence freshness**: If implementation changes after a validation command, review, manual smoke check, browser-control session, or other evidence task, rerun the affected evidence before marking the task complete. If it cannot be rerun, leave the task incomplete or record it explicitly as not revalidated in the completion report.
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Setup only when scoped**: Complete setup tasks only when they are present in `tasks.md` and required by the active feature
+   - **Evidence before completion**: A required evidence task can be marked complete only when the specified evidence passed after the latest relevant change
+   - **Implementation work**: Implement the model, service, endpoint, UI, documentation, migration, workflow, or other scoped change named by the task
+   - **Integration work**: Complete only the integration tasks explicitly required by `tasks.md`
+   - **Polish and validation**: Perform only polish, review, refactor, documentation, or validation tasks supported by the spec, plan, and task list
 
 8. Progress tracking and error handling:
    - Report progress after each completed task

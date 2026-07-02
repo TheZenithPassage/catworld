@@ -59,13 +59,21 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
-   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
+   - Fill Technical Context by marking unknowns as "NEEDS CLARIFICATION" and classifying them as researchable unknowns or material decision blockers.
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
    - Identify observable and correctness-sensitive surfaces affected by the feature, including visible UI state, validation, error handling, loading/disabled states, navigation, contracts, authorization, persistence, migrations, security, mobile/device-specific behavior, i18n-visible behavior, shared components, and global styling
    - Fill a responsible-layer validation evidence plan for those surfaces before task generation. Evidence should point to the layer that can prove the behavior: DOM or Angular Material/CDK harness for visible UI, routed navigation and focus/keyboard checks for interaction behavior, controller/API tests for contracts, service tests for business rules, authorization/security tests for access control, Flyway/schema/data-integrity checks for persistence and migrations, or manual visible-device smoke checks when automation is not enough.
    - When replacing UI primitives, shared components, interaction mechanisms, presentation mechanisms, or other behavior-preserving mechanisms with mismatch risk, fill a lightweight semantic-equivalence review. Identify old behavior/source of truth, new component/framework semantics, mismatch risks, mitigation, and automated/manual proof. Mark it N/A with a reason when no replacement or migration risk exists.
-   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
+   - Phase 0: Generate research.md for researchable unknowns only. Resolve
+     factual, technical, or repository-verifiable NEEDS CLARIFICATION items
+     through repository inspection, project documentation, official/reference
+     documentation, or objective technical research. Do not resolve material
+     product, architecture, persistence, security, shared-contract,
+     authorization, UX, operational, or correctness-sensitive decisions through
+     research, assumptions, or agent-selected implementation choices; list them
+     as blockers that require explicit human decision and stop planning before
+     decision-dependent design.
    - Phase 1: Generate data-model.md (full model only when data changes apply; concise non-applicable note otherwise), contracts/, quickstart.md
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
@@ -107,36 +115,52 @@ Check if `.specify/extensions.yml` exists in the project root.
 
 ## Completion Report
 
-Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and
+generated artifacts. If planning stops on unresolved material decisions, report
+those blockers and which decision-dependent artifacts were not generated.
 
 ## Phases
 
 ### Phase 0: Outline & Research
 
 1. **Extract unknowns from Technical Context** above:
-   - For each NEEDS CLARIFICATION → research task
-   - For each dependency → best practices task
-   - For each integration → patterns task
+   - Classify each NEEDS CLARIFICATION before creating research tasks.
+   - For each factual, technical, or repository-verifiable NEEDS CLARIFICATION
+     → research task
+   - For each material product, architecture, persistence, security,
+     shared-contract, authorization, UX, operational, or correctness-sensitive
+     decision → record as a blocking decision requiring explicit human approval;
+     do not create a research task that chooses for the user
+   - For each non-material or already-approved dependency → best practices task
+   - For each non-material or already-approved integration → patterns task
 
 2. **Generate and dispatch research agents**:
 
    ```text
-   For each unknown in Technical Context:
+   For each researchable unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"
-   For each technology choice:
+   For each non-material technology choice or already-approved technology:
      Task: "Find best practices for {tech} in {domain}"
    ```
 
-3. **Consolidate findings** in `research.md` using format:
+   If any material decision remains unresolved, stop before Phase 1 and report
+   the blocker instead of generating decision-dependent design artifacts.
+
+3. **Consolidate findings** in `research.md` using format for researchable
+   findings only:
    - Decision: [what was chosen]
    - Rationale: [why chosen]
    - Alternatives considered: [what else evaluated]
 
-**Output**: research.md with all NEEDS CLARIFICATION resolved
+**Output**: research.md with researchable NEEDS CLARIFICATION items resolved,
+plus any unresolved material decisions reported as blockers that require
+explicit human decision before planning or implementation can continue
 
 ### Phase 1: Design & Contracts
 
-**Prerequisites:** `research.md` complete
+**Prerequisites:** `research.md` complete and no unresolved material product,
+architecture, persistence, security, shared-contract, authorization, UX,
+operational, or correctness-sensitive decisions
 
 1. **Generate data model artifact** → `data-model.md`:
    - Generate a full data model only when the feature changes domain entities, persistence, API payloads, schema, browser storage, external contracts, or structured feature data
@@ -174,7 +198,9 @@ Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generate
 ## Key rules
 
 - Use absolute paths for filesystem operations; use project-relative paths for references in documentation and agent context files
-- ERROR on gate failures or unresolved clarifications
+- ERROR on gate failures, unresolved researchable clarifications, or unresolved
+  material decisions. Agents must not convert material open decisions into
+  assumptions, research findings, or self-approved implementation choices.
 
 ## Done When
 

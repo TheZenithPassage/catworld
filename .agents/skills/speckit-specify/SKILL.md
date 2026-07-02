@@ -141,7 +141,7 @@ Given that feature description, do this:
        - When a feature changes visible UI state or user-observable behavior, capture what the user actually sees or experiences closely enough for verification. Include applicable field validation messages, backend error presentation, empty states, loading states, disabled states, destructive confirmations, focus/keyboard behavior, route or dialog navigation, i18n-visible text, responsive/mobile behavior, and role-dependent action visibility.
        - When a feature changes or preserves validation, conflict handling, backend-rejected state, role-dependent behavior, or similar state-sensitive behavior, include a proportional input/state matrix. Each relevant row should distinguish whether the submit/action is blocked, whether an API call is made, whether a visible error/conflict is shown, whether the value is transformed or preserved, and whether correction clears or replaces the message when in scope.
        - When behavior is correctness-sensitive but not visibly UI-driven, identify the observable contract or responsible evidence layer, such as controller/API response, service business rule, authorization enforcement, persistence constraint, Flyway migration, security behavior, operational safety, or source-of-truth documentation.
-       Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+       Use only safe minor defaults for unspecified details when they do not materially affect scope, security, persistence, shared contracts, architecture, authorization, user experience, operations, or correctness-sensitive behavior. Document those low-impact defaults in the Assumptions section. Material unresolved decisions must remain under Open Questions and block planning or implementation until a human decision is recorded.
     7. Define Success Criteria
        Create measurable and objectively verifiable outcomes
        For product behavior features, prefer user/business outcomes and keep criteria technology-neutral unless the approved scope requires a technical constraint
@@ -332,9 +332,9 @@ When creating this spec from a user prompt:
 
 - Data retention: Preserve existing repository behavior unless the issue or an approved decision explicitly changes it.
 - Performance targets: Use existing repository limits, issue requirements, or approved decisions. Do not invent throughput, latency, scale, or timing targets.
-- Error handling: User-friendly messages with appropriate fallbacks
+- Error handling: Preserve existing repository error-handling patterns unless the issue or an approved decision explicitly changes them. Do not invent new error semantics, status mappings, or user-visible behavior.
 - Authentication, authorization and security behavior must be derived from repository evidence or explicit decisions. Do not invent a default authentication method.
-- Integration patterns: Use project-appropriate patterns (REST/GraphQL for web services, function calls for libraries, CLI args for tools, etc.)
+- Integration patterns: Use existing repository integration patterns or explicit approved decisions. Do not select a new API style, protocol, framework, or integration mechanism as a default.
 
 ### Success Criteria Guidelines
 
