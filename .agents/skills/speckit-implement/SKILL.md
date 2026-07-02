@@ -97,25 +97,39 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
 4. **Project Setup Verification**:
-   - **REQUIRED**: Create/verify ignore files based on actual project setup:
+   - **REQUIRED**: Review ignore-file hygiene only within the active scope defined
+     by spec.md, plan.md, tasks.md, and the plan/source map.
+   - Do **not** create, modify, or append to ignore files such as `.gitignore`,
+     `.dockerignore`, `.eslintignore`, `.prettierignore`, `.npmignore`,
+     `.terraformignore`, `.helmignore`, or similar files based on detected
+     technologies alone.
+   - Create or modify ignore files only when the active spec/plan/tasks
+     explicitly require setup or infrastructure hygiene for those files and the
+     target paths are included in the plan/source map.
+   - If detection finds missing or incomplete ignore hygiene outside the active
+     scope, report it as an out-of-scope observation or future work. Do not edit
+     the files, do not mark unrelated setup tasks complete, and let the final
+     changed-file/source-map review catch any accidental edits.
 
-   **Detection & Creation Logic**:
-   - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
+   **Scoped Detection & Verification Logic**:
+   - Check if the following command succeeds to determine if the repository is a
+     git repo (verify `.gitignore` only if it is explicitly in scope):
 
      ```sh
      git rev-parse --git-dir 2>/dev/null
      ```
 
-   - Check if Dockerfile* exists or Docker in plan.md → create/verify .dockerignore
-   - Check if .eslintrc* exists → create/verify .eslintignore
-   - Check if eslint.config.* exists → ensure the config's `ignores` entries cover required patterns
-   - Check if .prettierrc* exists → create/verify .prettierignore
-   - Check if .npmrc or package.json exists → create/verify .npmignore (if publishing)
-   - Check if terraform files (*.tf) exist → create/verify .terraformignore
-   - Check if .helmignore needed (helm charts present) → create/verify .helmignore
+   - Check if Dockerfile* exists or Docker is in plan.md → verify `.dockerignore` only if in scope
+   - Check if .eslintrc* exists → verify `.eslintignore` only if in scope
+   - Check if eslint.config.* exists → verify the config's `ignores` entries only if in scope
+   - Check if .prettierrc* exists → verify `.prettierignore` only if in scope
+   - Check if .npmrc or package.json exists → verify `.npmignore` only if publishing hygiene is in scope
+   - Check if terraform files (*.tf) exist → verify `.terraformignore` only if in scope
+   - Check if .helmignore is needed (helm charts present) → verify `.helmignore` only if in scope
 
-   **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
-   **If ignore file missing**: Create with full pattern set for detected technology
+   **If an ignore file already exists and is in scope**: Verify it contains essential patterns, append missing critical patterns only
+   **If an ignore file is missing and is in scope**: Create it with the required pattern set for the scoped technology
+   **If an ignore file gap is out of scope**: Report the gap without editing files
 
    **Common Patterns by Technology** (from plan.md tech stack):
    - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
@@ -141,24 +155,26 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
 5. Parse tasks.md structure and extract:
-   - **Task phases**: Setup, Tests, Core, Integration, Polish
+   - **Task phases**: Setup, Foundational, user story phases, technical outcome phases, Evidence, Implementation, Polish, or other feature-specific phases defined by `tasks.md`
    - **Task dependencies**: Sequential vs parallel execution rules
-   - **Task details**: ID, description, file paths, parallel markers [P]
-   - **Execution flow**: Order and dependency requirements
+   - **Task details**: ID, description, file paths, parallel markers [P], and trace labels such as [US1] or [TO1]
+   - **Evidence requirements**: Required tests, DOM/harness checks, routed navigation checks, focus/keyboard checks, controller/API checks, service/business-rule checks, persistence/migration checks, security/authorization checks, focused reviews, or manual visible smoke checks
+   - **Execution flow**: Order and dependency requirements recorded in `tasks.md`
 
 6. Execute implementation following the task plan:
-   - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
-   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
+   - **Phase-by-phase execution**: Complete each included phase before moving to dependent phases
+   - **Respect dependencies**: Run sequential tasks in order; parallel tasks [P] can run together only when they touch independent files or surfaces
+   - **Evidence at the useful point**: Run required evidence tasks before or alongside the implementation work they are meant to prove, according to `tasks.md`
    - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Validation checkpoints**: Verify each phase, user story, or technical outcome before treating it as complete
+   - **Evidence freshness**: If implementation changes after a validation command, review, manual smoke check, browser-control session, or other evidence task, rerun the affected evidence before marking the task complete. If it cannot be rerun, leave the task incomplete or record it explicitly as not revalidated in the completion report.
 
 7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Setup only when scoped**: Complete setup tasks only when they are present in `tasks.md` and required by the active feature
+   - **Evidence before completion**: A required evidence task can be marked complete only when the specified evidence passed after the latest relevant change
+   - **Implementation work**: Implement the model, service, endpoint, UI, documentation, migration, workflow, or other scoped change named by the task
+   - **Integration work**: Complete only the integration tasks explicitly required by `tasks.md`
+   - **Polish and validation**: Perform only polish, review, refactor, documentation, or validation tasks supported by the spec, plan, and task list
 
 8. Progress tracking and error handling:
    - Report progress after each completed task
@@ -167,12 +183,17 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - Mark an implementation task `[X]` only after the implemented behavior satisfies the spec, plan, and relevant contract or validation matrix, not merely because files were edited.
+   - Mark a validation task `[X]` only after the command, test, review, smoke check, or required evidence passed after the latest relevant change.
+   - Do not summarize stale, timed-out, skipped, interrupted, failed, partial, or not-rerun validation as passed. Use explicit statuses: passed, failed, skipped, timed out, interrupted, partial, stale, or not revalidated.
+   - Component state, service spies, mocks, or implementation-detail assertions do not complete a frontend-visible task unless the task also has the required DOM, Angular Material/CDK harness, navigation, focus/keyboard, or manual visible evidence.
 
 9. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan
+   - Compare changed files against the plan/source map. If late cleanup touched shared shell, global styles, shared components, routing, contracts, migrations, authorization, persistence, or other cross-cutting surfaces outside the plan, stop to justify the change, add needed evidence, or leave/report remaining work.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit-tasks` first to regenerate the task list.
 
