@@ -1,7 +1,6 @@
 import { Routes } from '@angular/router';
 import { DashboardPage } from './features/dashboard/pages/dashboard-page/dashboard-page';
 import { StaysOverviewPage } from './features/stays/pages/stays-overview-page/stays-overview-page';
-import { StayCreatePage } from './features/stays/pages/stay-create-page/stay-create-page';
 import { CalendarPage } from './features/calendar/pages/calendar-page/calendar-page';
 import { OwnersOverviewPage } from './features/owners/pages/owners-overview-page/owners-overview-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
@@ -36,7 +35,10 @@ export const routes: Routes = [
   {
     path: 'stays/new',
     canActivate: [authGuard],
-    component: StayCreatePage,
+    loadComponent: () =>
+      import('./features/stays/pages/stay-create-page/stay-create-page').then(
+        (m) => m.StayCreatePage,
+      ),
   },
   {
     path: 'stays/:id/edit',

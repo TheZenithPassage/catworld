@@ -1,20 +1,35 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
-import { CreateCatRequest, Sex } from '../../models/cat.model';
-import { CatApiService } from '../../services/cat-api.service';
 import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
-import { I18nService } from '../../../../core/i18n/i18n.service';
+import { CreateCatRequest, Sex } from '../../models/cat.model';
+import { CatApiService } from '../../services/cat-api.service';
 
 @Component({
   selector: 'app-cat-create-page',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    RouterLink,
+    TrimRequiredDirective,
+    UiStateComponent,
+  ],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss',
 })
@@ -53,6 +68,10 @@ export class CatCreatePage {
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
+  readonly nameError = signal<string | null>(null);
+  readonly birthDateError = signal<string | null>(null);
+  readonly sexError = signal<string | null>(null);
+  readonly ownerIdError = signal<string | null>(null);
 
   constructor() {
     this.loadData();
@@ -82,24 +101,25 @@ export class CatCreatePage {
 
   submit(): void {
     this.error.set(null);
+    this.clearValidationErrors();
 
     if (!this.name().trim()) {
-      this.error.set(this.text().cats.create.errors.nameRequired);
+      this.nameError.set(this.text().cats.create.errors.nameRequired);
       return;
     }
 
     if (!this.birthDate()) {
-      this.error.set(this.text().cats.create.errors.birthDateRequired);
+      this.birthDateError.set(this.text().cats.create.errors.birthDateRequired);
       return;
     }
 
     if (!this.sex()) {
-      this.error.set(this.text().cats.create.errors.sexRequired);
+      this.sexError.set(this.text().cats.create.errors.sexRequired);
       return;
     }
 
     if (!this.ownerId()) {
-      this.error.set(this.text().cats.create.errors.ownerRequired);
+      this.ownerIdError.set(this.text().cats.create.errors.ownerRequired);
       return;
     }
 
@@ -135,6 +155,13 @@ export class CatCreatePage {
         this.submitting.set(false);
       },
     });
+  }
+
+  private clearValidationErrors(): void {
+    this.nameError.set(null);
+    this.birthDateError.set(null);
+    this.sexError.set(null);
+    this.ownerIdError.set(null);
   }
 
   getCreateVetQueryParams(): Record<string, string> {

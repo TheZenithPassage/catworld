@@ -140,11 +140,11 @@ If one cat needs a different checkout time, a separate cancellation or a differe
 
 Main relationships:
 
-* An `Owner` may have zero or more `Cat` records; each `Cat` belongs to one `Owner`.
-* A `Vet` may be referenced by zero or more cats; each `Cat` may reference zero or one `Vet`.
-* An `Owner` may have zero or more `Stay` records; each `Stay` belongs to one `Owner`.
-* A `Stay` contains one or more `StayCat` links.
-* A `Cat` may have zero or more `StayCat` links.
+- An `Owner` may have zero or more `Cat` records; each `Cat` belongs to one `Owner`.
+- A `Vet` may be referenced by zero or more cats; each `Cat` may reference zero or one `Vet`.
+- An `Owner` may have zero or more `Stay` records; each `Stay` belongs to one `Owner`.
+- A `Stay` contains one or more `StayCat` links.
+- A `Cat` may have zero or more `StayCat` links.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -317,19 +317,23 @@ retry-action rendering.
 
 ### Material Forms
 
-The login, owner create/edit and vet create/edit forms use Angular Material
-form fields, inputs and buttons for their interactive controls. Each routed
-form page keeps its own signal-based field state, request payload shaping,
-submit method, navigation and responsive form layout in component SCSS.
+The login, owner create/edit, vet create/edit, cat create/edit and stay
+create/edit forms use Angular Material form fields, inputs, selects,
+checkboxes and buttons for their interactive controls where Material provides
+the matching control role. Each routed form page keeps its own signal-based
+field state, request payload shaping, submit method, navigation and responsive
+form layout in component SCSS.
 
 Required-field validation for these migrated forms is presented through
 Material field errors while preserving existing validation rules and submit
-timing. Page-level backend errors and edit-page loading states use the shared
+timing where the control has field-level validation. Page-level loading,
+backend errors and cross-field or selection errors use the shared
 `UiStateComponent` where that presentation fits the existing behavior.
 
-Native form card and native control coexistence styling remains only for
-unmigrated surfaces such as cat and stay forms. Material inputs and buttons
-must not depend on the legacy global native-control selectors.
+Native control coexistence styling remains only for unmigrated controls such
+as calendar and stay filters that still use native inputs. Material inputs,
+selects, checkboxes and buttons must not depend on the legacy global
+native-control selectors.
 
 ### Component Conventions
 

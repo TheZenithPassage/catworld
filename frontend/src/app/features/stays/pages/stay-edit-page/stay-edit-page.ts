@@ -1,16 +1,20 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Stay, UpdateStayRequest } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { canModifyStay } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stay-edit-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, MatButton, MatFormField, MatInput, MatLabel, RouterLink, UiStateComponent],
   templateUrl: './stay-edit-page.html',
   styleUrl: './stay-edit-page.scss',
 })

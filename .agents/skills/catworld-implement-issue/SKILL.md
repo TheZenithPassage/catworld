@@ -84,8 +84,8 @@ Run this flow in order:
    - Stop when `Assessment required: Yes` and `Human approval` is pending.
    - Stop when the selected approach materially changes from the approved issue
      or a prior approved plan.
-   - Stop when a product behavior, security, persistence, shared-contract,
-     architecture, UX, or operational decision is unresolved.
+   - Stop when a product behavior, security, authorization, persistence,
+     shared-contract, architecture, UX, correctness-sensitive, or operational decision is unresolved.
 6. Run `speckit-tasks`.
 7. Run `speckit-analyze`.
 8. If it reports inconsistencies, resolve only safe mechanical artifact inconsistencies before implementation,
