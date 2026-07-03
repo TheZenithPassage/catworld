@@ -1,6 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatTableModule } from '@angular/material/table';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
@@ -12,7 +16,7 @@ import { UserAccountApiService } from '../../services/user-account-api.service';
 
 @Component({
   selector: 'app-account-management-page',
-  imports: [FormsModule],
+  imports: [FormsModule, MatButton, MatFormField, MatInput, MatLabel, MatTableModule],
   templateUrl: './account-management-page.html',
   styleUrl: './account-management-page.scss',
 })
@@ -33,6 +37,7 @@ export class AccountManagementPage {
   readonly creating = signal(false);
   readonly pendingAccountIds = signal<ReadonlySet<string>>(new Set());
   readonly roleSelections = signal<Record<string, UserRole>>({});
+  readonly displayedColumns = ['username', 'role', 'enabled', 'actions'];
 
   constructor() {
     this.loadAccounts();

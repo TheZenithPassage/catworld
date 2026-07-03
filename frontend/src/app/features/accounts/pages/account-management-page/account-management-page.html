@@ -42,7 +42,7 @@
     </label>
 
     <div class="form-actions">
-      <button type="submit" class="primary-action" [disabled]="creating()">
+      <button mat-flat-button type="submit" class="account-submit" [disabled]="creating()">
         {{ creating() ? text().accounts.create.submitting : text().accounts.create.submit }}
       </button>
     </div>
@@ -59,83 +59,92 @@
   } @else if (loadError()) {
     <div class="error-message">
       <p>{{ loadError() }}</p>
-      <button type="button" (click)="loadAccounts()">{{ text().accounts.retry }}</button>
+      <button mat-stroked-button type="button" (click)="loadAccounts()">
+        {{ text().accounts.retry }}
+      </button>
     </div>
   } @else if (accounts().length === 0) {
     <p>{{ text().accounts.empty }}</p>
   } @else {
     <div class="accounts-table-wrapper">
-      <table class="accounts-table">
-        <thead>
-          <tr>
-            <th>{{ text().accounts.table.username }}</th>
-            <th>{{ text().accounts.table.role }}</th>
-            <th>{{ text().accounts.table.enabled }}</th>
-            <th>{{ text().accounts.table.actions }}</th>
-          </tr>
-        </thead>
+      <table mat-table [dataSource]="accounts()" class="accounts-table">
+        <ng-container matColumnDef="username">
+          <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.username }}</th>
+          <td mat-cell *matCellDef="let account">
+            {{ account.username }}
+            @if (isCurrentAccount(account)) {
+              <span class="you-marker">{{ text().accounts.you }}</span>
+            }
+          </td>
+        </ng-container>
 
-        <tbody>
-          @for (account of accounts(); track account.id) {
-            <tr>
-              <td>
-                {{ account.username }}
-                @if (isCurrentAccount(account)) {
-                  <span class="you-marker">{{ text().accounts.you }}</span>
-                }
-              </td>
-              <td>
-                <div class="role-action">
-                  <select
-                    [name]="'role-' + account.id"
-                    [attr.aria-label]="text().accounts.table.role + ': ' + account.username"
-                    [ngModel]="selectedRole(account)"
-                    (ngModelChange)="selectRole(account.id, $event)"
-                    [disabled]="isPending(account.id)"
-                  >
-                    <option value="ADMIN">{{ text().accounts.roles.admin }}</option>
-                    <option value="STAFF">{{ text().accounts.roles.staff }}</option>
-                  </select>
-                  <button
-                    type="button"
-                    (click)="changeRole(account)"
-                    [disabled]="isPending(account.id) || selectedRole(account) === account.role"
-                  >
-                    {{
-                      isPending(account.id)
-                        ? text().accounts.actions.updating
-                        : text().accounts.actions.saveRole
-                    }}
-                  </button>
-                </div>
-              </td>
-              <td>
-                <span class="state-marker" [class.disabled]="!account.enabled">
-                  {{
-                    account.enabled
-                      ? text().accounts.states.enabled
-                      : text().accounts.states.disabled
-                  }}
-                </span>
-              </td>
-              <td>
-                <button
-                  type="button"
-                  (click)="changeEnabled(account)"
+        <ng-container matColumnDef="role">
+          <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.role }}</th>
+          <td mat-cell *matCellDef="let account">
+            <div class="role-action">
+              <mat-form-field appearance="outline" class="role-select">
+                <mat-label>{{ text().accounts.table.role }}</mat-label>
+                <select
+                  matNativeControl
+                  [name]="'role-' + account.id"
+                  [attr.aria-label]="text().accounts.table.role + ': ' + account.username"
+                  [ngModel]="selectedRole(account)"
+                  (ngModelChange)="selectRole(account.id, $event)"
                   [disabled]="isPending(account.id)"
                 >
-                  {{
-                    isPending(account.id)
-                      ? text().accounts.actions.updating
-                      : account.enabled
-                        ? text().accounts.actions.disable
-                        : text().accounts.actions.enable
-                  }}
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
+                  <option value="ADMIN">{{ text().accounts.roles.admin }}</option>
+                  <option value="STAFF">{{ text().accounts.roles.staff }}</option>
+                </select>
+              </mat-form-field>
+              <button
+                mat-stroked-button
+                type="button"
+                (click)="changeRole(account)"
+                [disabled]="isPending(account.id) || selectedRole(account) === account.role"
+              >
+                {{
+                  isPending(account.id)
+                    ? text().accounts.actions.updating
+                    : text().accounts.actions.saveRole
+                }}
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="enabled">
+          <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.enabled }}</th>
+          <td mat-cell *matCellDef="let account">
+            <span class="state-marker" [class.disabled]="!account.enabled">
+              {{
+                account.enabled ? text().accounts.states.enabled : text().accounts.states.disabled
+              }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.actions }}</th>
+          <td mat-cell *matCellDef="let account">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="changeEnabled(account)"
+              [disabled]="isPending(account.id)"
+            >
+              {{
+                isPending(account.id)
+                  ? text().accounts.actions.updating
+                  : account.enabled
+                    ? text().accounts.actions.disable
+                    : text().accounts.actions.enable
+              }}
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let account; columns: displayedColumns"></tr>
       </table>
     </div>
   }

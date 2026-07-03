@@ -5,7 +5,7 @@
       <p>{{ text().owners.overview.description }}</p>
     </div>
 
-    <a routerLink="/owners/new" class="primary-action">
+    <a mat-flat-button routerLink="/owners/new" class="page-action">
       {{ text().owners.overview.create }}
     </a>
   </header>
@@ -23,19 +23,20 @@
     <app-ui-state kind="empty" [message]="text().owners.overview.empty"></app-ui-state>
   } @else {
     <div class="overview-search">
-      <label>
-        <span>{{ text().owners.overview.searchLabel }}</span>
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>{{ text().owners.overview.searchLabel }}</mat-label>
         <input
+          matInput
           #searchInput
           type="search"
           [value]="searchText()"
           [placeholder]="text().owners.overview.searchPlaceholder"
           (input)="setSearchText(searchInput.value)"
         />
-      </label>
+      </mat-form-field>
 
       @if (searchText()) {
-        <button type="button" class="secondary-action" (click)="clearSearch()">
+        <button mat-stroked-button type="button" class="clear-action" (click)="clearSearch()">
           {{ text().owners.overview.clearSearch }}
         </button>
       }
@@ -44,44 +45,64 @@
     @if (filteredOwners().length === 0) {
       <app-ui-state kind="empty" [message]="text().owners.overview.emptyFiltered"></app-ui-state>
     } @else {
-      <table class="owners-table">
-        <thead>
-          <tr>
-            <th>{{ text().owners.overview.table.name }}</th>
-            <th>{{ text().owners.overview.table.primaryPhone }}</th>
-            <th>{{ text().owners.overview.table.secondaryPhone }}</th>
-            <th>{{ text().owners.overview.table.address }}</th>
-            <th>{{ text().owners.overview.table.social }}</th>
-            <th>{{ text().owners.overview.table.actions }}</th>
-          </tr>
-        </thead>
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="filteredOwners()" class="owners-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.name }}</th>
+            <td mat-cell *matCellDef="let owner">{{ owner.fullName }}</td>
+          </ng-container>
 
-        <tbody>
-          @for (owner of filteredOwners(); track owner.id) {
-            <tr [id]="'owner-' + owner.id" [class.selected-row]="isSelectedOwner(owner)">
-              <td>{{ owner.fullName }}</td>
-              <td>{{ owner.primaryPhone }}</td>
-              <td>{{ getSecondaryPhone(owner) }}</td>
-              <td>{{ formatOptionalValue(owner.address) }}</td>
-              <td>
-                <span
-                  >{{ text().owners.overview.social.instagram }}:
-                  {{ formatOptionalValue(owner.instagram) }}</span
-                >
-                <small class="secondary-line">
-                  {{ text().owners.overview.social.facebook }}:
-                  {{ formatOptionalValue(owner.facebook) }}
-                </small>
-              </td>
-              <td>
-                <a [routerLink]="['/owners', owner.id, 'edit']">{{
-                  text().owners.overview.edit
-                }}</a>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+          <ng-container matColumnDef="primaryPhone">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ text().owners.overview.table.primaryPhone }}
+            </th>
+            <td mat-cell *matCellDef="let owner">{{ owner.primaryPhone }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="secondaryPhone">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ text().owners.overview.table.secondaryPhone }}
+            </th>
+            <td mat-cell *matCellDef="let owner">{{ getSecondaryPhone(owner) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="address">
+            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.address }}</th>
+            <td mat-cell *matCellDef="let owner">{{ formatOptionalValue(owner.address) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="social">
+            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.social }}</th>
+            <td mat-cell *matCellDef="let owner">
+              <span
+                >{{ text().owners.overview.social.instagram }}:
+                {{ formatOptionalValue(owner.instagram) }}</span
+              >
+              <small class="secondary-line">
+                {{ text().owners.overview.social.facebook }}:
+                {{ formatOptionalValue(owner.facebook) }}
+              </small>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.actions }}</th>
+            <td mat-cell *matCellDef="let owner">
+              <a mat-stroked-button [routerLink]="['/owners', owner.id, 'edit']">
+                {{ text().owners.overview.edit }}
+              </a>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr
+            mat-row
+            *matRowDef="let owner; columns: displayedColumns"
+            [id]="'owner-' + owner.id"
+            [class.selected-row]="isSelectedOwner(owner)"
+          ></tr>
+        </table>
+      </div>
     }
   }
 </section>

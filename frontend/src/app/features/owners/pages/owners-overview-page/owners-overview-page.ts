@@ -1,4 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -9,7 +13,15 @@ import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-owners-overview-page',
-  imports: [RouterLink, UiStateComponent],
+  imports: [
+    MatButton,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    MatTableModule,
+    RouterLink,
+    UiStateComponent,
+  ],
   templateUrl: './owners-overview-page.html',
   styleUrl: './owners-overview-page.scss',
 })
@@ -26,6 +38,14 @@ export class OwnersOverviewPage {
   readonly error = signal<string | null>(null);
   readonly selectedOwnerId = signal<string | null>(null);
   readonly searchText = signal('');
+  readonly displayedColumns = [
+    'name',
+    'primaryPhone',
+    'secondaryPhone',
+    'address',
+    'social',
+    'actions',
+  ];
 
   readonly filteredOwners = computed(() =>
     this.owners().filter((owner) => matchesSearchText([owner.fullName], this.searchText())),
