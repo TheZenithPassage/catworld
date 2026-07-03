@@ -13,15 +13,54 @@
   margin-bottom: 0;
 }
 
-label {
+.stay-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 42rem;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.stay-form mat-form-field {
+  width: 100%;
+}
+
+.field-with-action {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.related-action {
+  justify-self: start;
+}
+
+.cat-selection {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.25rem 0 0;
+  border: 0;
+}
+
+.cat-selection legend {
+  padding: 0;
+  color: var(--color-text);
+  font-weight: 750;
+}
+
+.cat-options {
   display: grid;
   gap: 0.35rem;
 }
 
-.checkbox-field {
-  display: flex;
-  align-items: center;
-  width: fit-content;
-  gap: 0.5rem;
-  font-weight: 650;
+.empty-options {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .stay-form {
+    padding: 1rem;
+    border-radius: var(--radius-md);
+  }
 }

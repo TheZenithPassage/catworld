@@ -20,6 +20,10 @@
   margin: 0;
 }
 
+.form-back-link {
+  flex: 0 0 auto;
+}
+
 .stay-summary {
   display: grid;
   gap: 0.5rem;
@@ -35,13 +39,30 @@
   margin: 0;
 }
 
-label {
+.stay-form {
   display: grid;
-  gap: 0.35rem;
+  gap: 1rem;
+  max-width: 34rem;
+  padding: 1.35rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.stay-form mat-form-field {
+  width: 100%;
 }
 
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .stay-form,
+  .stay-summary {
+    padding: 1rem;
+    border-radius: var(--radius-md);
   }
 }

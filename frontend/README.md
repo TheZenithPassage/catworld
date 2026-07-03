@@ -87,12 +87,13 @@ fetching, filtering and retry behavior. Material overlays and shell
 interactions use the Angular animations provider configured in
 `src/app/app.config.ts`.
 
-Login, owner create/edit and vet create/edit forms are Material-based. Keep
-form state, payload shaping, submit behavior and responsive layout in the
-routed page component that owns the form. Use Material field errors for
-field-level validation and `src/app/shared/ui-state/` for page-level loading or
-backend-error presentation where it matches the current behavior. Native form
-styling remains only for unmigrated surfaces such as cat and stay forms.
+Login, owner create/edit, vet create/edit, cat create/edit and stay create/edit
+forms are Material-based. Keep form state, payload shaping, submit behavior and
+responsive layout in the routed page component that owns the form. Use Material
+field errors for field-level validation and `src/app/shared/ui-state/` for
+page-level loading, backend-error, cross-field or selection-error presentation
+where it matches the current behavior. Native control coexistence styling
+remains only for unmigrated controls such as calendar and stay filters.
 
 ## Production
 

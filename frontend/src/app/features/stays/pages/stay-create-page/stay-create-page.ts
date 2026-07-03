@@ -1,20 +1,34 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { CreateStayRequest } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
-import { HttpErrorResponse } from '@angular/common/http';
-import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-stay-create-page',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatCheckbox,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    RouterLink,
+    UiStateComponent,
+  ],
   templateUrl: './stay-create-page.html',
   styleUrl: './stay-create-page.scss',
 })

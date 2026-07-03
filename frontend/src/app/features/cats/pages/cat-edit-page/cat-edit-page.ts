@@ -1,20 +1,35 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
+import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
-import { I18nService } from '../../../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-cat-edit-page',
-  imports: [FormsModule, RouterLink],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    RouterLink,
+    TrimRequiredDirective,
+    UiStateComponent,
+  ],
   templateUrl: './cat-edit-page.html',
   styleUrl: './cat-edit-page.scss',
 })
@@ -54,6 +69,10 @@ export class CatEditPage {
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly catLoaded = signal(false);
+  readonly nameError = signal<string | null>(null);
+  readonly birthDateError = signal<string | null>(null);
+  readonly sexError = signal<string | null>(null);
+  readonly ownerIdError = signal<string | null>(null);
 
   private readonly catId = this.route.snapshot.paramMap.get('id');
 
@@ -94,6 +113,9 @@ export class CatEditPage {
   }
 
   submit(): void {
+    this.error.set(null);
+    this.clearValidationErrors();
+
     if (!this.catLoaded()) {
       this.showError(this.text().cats.edit.errors.dataNotLoaded);
       return;
@@ -105,22 +127,22 @@ export class CatEditPage {
     }
 
     if (!this.name().trim()) {
-      this.showError(this.text().cats.edit.errors.nameRequired);
+      this.nameError.set(this.text().cats.edit.errors.nameRequired);
       return;
     }
 
     if (!this.birthDate()) {
-      this.showError(this.text().cats.edit.errors.birthDateRequired);
+      this.birthDateError.set(this.text().cats.edit.errors.birthDateRequired);
       return;
     }
 
     if (!this.sex()) {
-      this.showError(this.text().cats.edit.errors.sexRequired);
+      this.sexError.set(this.text().cats.edit.errors.sexRequired);
       return;
     }
 
     if (!this.ownerId()) {
-      this.showError(this.text().cats.edit.errors.ownerRequired);
+      this.ownerIdError.set(this.text().cats.edit.errors.ownerRequired);
       return;
     }
 
@@ -183,6 +205,13 @@ export class CatEditPage {
     const trimmedValue = value.trim();
 
     return trimmedValue || null;
+  }
+
+  private clearValidationErrors(): void {
+    this.nameError.set(null);
+    this.birthDateError.set(null);
+    this.sexError.set(null);
+    this.ownerIdError.set(null);
   }
 
   private showError(message: string): void {

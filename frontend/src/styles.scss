@@ -164,8 +164,8 @@ button:not(.mat-mdc-button-base):disabled {
 }
 
 input:not(.mat-mdc-input-element),
-select,
-textarea {
+select:not(.mat-mdc-input-element),
+textarea:not(.mat-mdc-input-element) {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border-strong);
@@ -175,13 +175,13 @@ textarea {
 }
 
 input:not(.mat-mdc-input-element):focus,
-select:focus,
-textarea:focus {
+select:not(.mat-mdc-input-element):focus,
+textarea:not(.mat-mdc-input-element):focus {
   outline: 3px solid rgb(232 137 63 / 0.22);
   border-color: var(--color-primary);
 }
 
-textarea {
+textarea:not(.mat-mdc-input-element) {
   min-height: 7rem;
   resize: vertical;
 }
@@ -315,15 +315,9 @@ label textarea {
     font-size: 0.95rem;
   }
 
-  .cat-form,
-  .stay-form {
-    padding: 1rem;
-    border-radius: var(--radius-md);
-  }
-
   input:not(.mat-mdc-input-element),
-  select,
-  textarea {
+  select:not(.mat-mdc-input-element),
+  textarea:not(.mat-mdc-input-element) {
     padding: 0.55rem 0.65rem;
   }
 
@@ -381,31 +375,6 @@ label textarea {
   background: var(--color-secondary-soft);
 }
 
-.cat-form,
-.stay-form {
-  position: relative;
-  display: grid;
-  gap: 1rem;
-  max-width: 34rem;
-  padding: 1.35rem;
-  border: 1px solid rgb(234 216 198 / 0.95);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(145deg, rgb(255 253 248 / 0.98), rgb(255 247 237 / 0.95));
-  box-shadow: var(--shadow-soft);
-}
-
-.cat-form::before,
-.stay-form::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 1.25rem;
-  right: 1.25rem;
-  height: 0.25rem;
-  border-radius: 0 0 999px 999px;
-  background: linear-gradient(90deg, var(--color-secondary), var(--color-primary));
-}
-
 .form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -438,34 +407,12 @@ label textarea {
 }
 
 .status-filter input,
-.calendar-display-option input,
-.checkbox-field input {
+.calendar-display-option input {
   width: auto;
   margin: 0;
 }
 
-fieldset {
-  display: grid;
-  gap: 0.55rem;
-  padding: 1rem;
-  border: 1px solid rgb(234 216 198 / 0.95);
-  border-radius: var(--radius-md);
-  background: rgb(255 250 242 / 0.82);
-}
-
-legend {
-  padding: 0 0.35rem;
-  color: #6d5140;
-  font-weight: 850;
-}
-
-.checkbox-field {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-input[type='checkbox'] {
+input[type='checkbox']:not(.mdc-checkbox__native-control) {
   width: auto;
   margin: 0;
   padding: 0;
