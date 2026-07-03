@@ -223,44 +223,6 @@ label textarea {
   color: var(--color-text-muted);
 }
 
-.primary-action,
-.secondary-action,
-.action-links a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 2.35rem;
-  padding: 0.55rem 0.9rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-weight: 750;
-  line-height: 1.2;
-  text-decoration: none;
-}
-
-.primary-action:hover,
-.secondary-action:hover,
-.action-links a:hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
-}
-
-.primary-action {
-  border-color: var(--color-primary);
-  background: linear-gradient(135deg, var(--color-primary), #f0a761);
-  color: #ffffff;
-  box-shadow: 0 8px 18px rgb(232 137 63 / 0.24);
-}
-
-.primary-action:hover {
-  background: linear-gradient(135deg, var(--color-primary-hover), var(--color-primary));
-  color: #ffffff;
-}
-
 .error-message {
   padding: 0.85rem 1rem;
   border: 1px solid rgb(180 35 24 / 0.35);
@@ -310,10 +272,7 @@ label textarea {
     padding: 0.55rem 0.65rem;
   }
 
-  button:not(.mat-mdc-button-base),
-  .primary-action,
-  .secondary-action,
-  .action-links a {
+  button:not(.mat-mdc-button-base) {
     min-height: 2.2rem;
     padding: 0.45rem 0.7rem;
   }
@@ -327,7 +286,6 @@ label textarea {
 }
 
 .status-filters,
-.calendar-display-options,
 .stay-search-filters {
   padding: 0.9rem;
   border: 1px solid rgb(234 216 198 / 0.95);
@@ -336,8 +294,7 @@ label textarea {
   box-shadow: var(--shadow-soft);
 }
 
-.status-filter,
-.calendar-display-option {
+label.status-filter {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
@@ -350,8 +307,7 @@ label textarea {
   font-weight: 750;
 }
 
-.status-filter input,
-.calendar-display-option input {
+label.status-filter input {
   width: auto;
   margin: 0;
 }
@@ -376,8 +332,7 @@ input[type='checkbox']:not(.mdc-checkbox__native-control) {
   font-weight: 650;
 }
 
-.status-filter:hover,
-.calendar-display-option:hover {
+label.status-filter:hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);
