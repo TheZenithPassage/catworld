@@ -1,4 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
+import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -9,7 +13,15 @@ import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
 @Component({
   selector: 'app-cats-overview-page',
-  imports: [RouterLink, UiStateComponent],
+  imports: [
+    MatButton,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    MatTableModule,
+    RouterLink,
+    UiStateComponent,
+  ],
   templateUrl: './cats-overview-page.html',
   styleUrl: './cats-overview-page.scss',
 })
@@ -24,6 +36,17 @@ export class CatsOverviewPage {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly searchText = signal('');
+  readonly displayedColumns = [
+    'name',
+    'owner',
+    'sex',
+    'birthDate',
+    'appearance',
+    'care',
+    'health',
+    'vet',
+    'actions',
+  ];
 
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => matchesSearchText([cat.name, cat.ownerName], this.searchText())),

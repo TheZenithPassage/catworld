@@ -18,7 +18,8 @@
   margin-bottom: 0;
 }
 
-.primary-action {
+.page-action,
+.clear-action {
   width: fit-content;
 }
 
@@ -40,38 +41,70 @@
   align-items: end;
 }
 
-.overview-search label {
-  display: grid;
-  gap: 0.35rem;
+.search-field {
   width: min(100%, 24rem);
-  font-weight: 750;
 }
 
-.overview-search input {
+.table-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.cats-table {
   width: 100%;
+  min-width: 84rem;
+  overflow: hidden;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-soft);
 }
 
-.cats-table th:nth-child(1),
-.cats-table td:nth-child(1) {
+.cats-table .mat-mdc-header-cell {
+  background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
+  color: #6d5140;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cats-table .mat-mdc-header-cell,
+.cats-table .mat-mdc-cell {
+  padding: 0.85rem 0.95rem;
+  border-bottom-color: var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.cats-table .mat-mdc-cell {
+  color: var(--color-text);
+}
+
+.cats-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
+  background: #fffaf2;
+}
+
+.cats-table .mat-mdc-row:hover .mat-mdc-cell {
+  background: var(--color-secondary-soft);
+}
+
+.cats-table .mat-column-name {
   min-width: 7rem;
 }
 
-.cats-table th:nth-child(2),
-.cats-table td:nth-child(2) {
+.cats-table .mat-column-owner {
   min-width: 10rem;
 }
 
-.cats-table th:nth-child(3),
-.cats-table td:nth-child(3) {
+.cats-table .mat-column-sex {
   min-width: 5.5rem;
 }
 
-.cats-table th:nth-child(4),
-.cats-table td:nth-child(4) {
+.cats-table .mat-column-birthDate {
   min-width: 8rem;
 }
 
-.cats-table td a.owner-search-link {
+.cats-table .owner-search-link {
   display: inline;
   min-height: auto;
   padding: 0;
@@ -86,7 +119,7 @@
   text-underline-offset: 0.15rem;
 }
 
-.cats-table td a.owner-search-link:hover {
+.cats-table .owner-search-link:hover {
   background: transparent;
   color: var(--color-primary-hover);
   text-decoration-color: currentColor;

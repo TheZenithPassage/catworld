@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatButton } from '@angular/material/button';
+import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -26,7 +28,7 @@ import {
 
 @Component({
   selector: 'app-stays-overview-page',
-  imports: [RouterLink, StaySearchFiltersComponent, UiStateComponent],
+  imports: [MatButton, MatTableModule, RouterLink, StaySearchFiltersComponent, UiStateComponent],
   templateUrl: './stays-overview-page.html',
   styleUrl: './stays-overview-page.scss',
 })
@@ -47,6 +49,7 @@ export class StaysOverviewPage {
     this.stayStatusVisibilityPreferencesService.read(),
   );
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
+  readonly displayedColumns = ['state', 'start', 'end', 'cats', 'owner', 'notes', 'actions'];
 
   readonly filteredStays = computed(() =>
     this.stays().filter(

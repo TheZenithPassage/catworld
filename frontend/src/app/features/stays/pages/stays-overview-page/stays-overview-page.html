@@ -5,7 +5,7 @@
       <p>{{ text().stays.overview.description }}</p>
     </div>
 
-    <a routerLink="/stays/new" class="primary-action">
+    <a mat-flat-button routerLink="/stays/new" class="page-action">
       {{ text().stays.overview.create }}
     </a>
   </header>
@@ -43,63 +43,85 @@
   } @else if (filteredStays().length === 0) {
     <app-ui-state kind="empty" [message]="text().stays.overview.emptyFiltered"></app-ui-state>
   } @else {
-    <table class="stays-table">
-      <thead>
-        <tr>
-          <th>{{ text().stays.overview.table.state }}</th>
-          <th>{{ text().stays.overview.table.start }}</th>
-          <th>{{ text().stays.overview.table.end }}</th>
-          <th>{{ text().stays.overview.table.cats }}</th>
-          <th>{{ text().stays.overview.table.owner }}</th>
-          <th>{{ text().stays.overview.table.notes }}</th>
-          <th>{{ text().stays.overview.table.actions }}</th>
-        </tr>
-      </thead>
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="filteredStays()" class="stays-table">
+        <ng-container matColumnDef="state">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.state }}</th>
+          <td mat-cell *matCellDef="let stay">{{ getStayStatus(stay) }}</td>
+        </ng-container>
 
-      <tbody>
-        @for (stay of filteredStays(); track stay.stayId) {
-          <tr [id]="'stay-' + stay.stayId" [class.selected-row]="isSelectedStay(stay)">
-            <td>{{ getStayStatus(stay) }}</td>
-            <td>{{ formatDate(stay.startAt) }}</td>
-            <td>{{ formatDate(stay.endAt) }}</td>
-            <td>
-              <span>{{ getCatSummary(stay) }}</span>
-              <small class="cat-name-summary">
-                {{ getCatNames(stay) }}
-              </small>
-            </td>
-            <td>{{ stay.ownerName }}</td>
-            <td class="notes-cell">{{ stay.notes || text().stays.emptyValue }}</td>
-            <td>
-              @if (canEditStay(stay)) {
-                <div class="row-actions">
-                  <a [routerLink]="['/stays', stay.stayId, 'edit']">
-                    {{ text().stays.overview.edit }}
-                  </a>
+        <ng-container matColumnDef="start">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.start }}</th>
+          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.startAt) }}</td>
+        </ng-container>
 
-                  @if (canCancelStay(stay)) {
-                    <button
-                      type="button"
-                      (click)="cancelStay(stay)"
-                      [disabled]="cancellingStayId() === stay.stayId"
-                    >
-                      {{
-                        cancellingStayId() === stay.stayId
-                          ? text().stays.overview.cancelling
-                          : text().stays.overview.cancel
-                      }}
-                    </button>
-                  }
-                </div>
-              } @else {
-                <span class="action-unavailable">
-                  {{ getUnavailableActionLabel(stay) }}
-                </span>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+        <ng-container matColumnDef="end">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.end }}</th>
+          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.endAt) }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="cats">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.cats }}</th>
+          <td mat-cell *matCellDef="let stay">
+            <span>{{ getCatSummary(stay) }}</span>
+            <small class="cat-name-summary">
+              {{ getCatNames(stay) }}
+            </small>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="owner">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.owner }}</th>
+          <td mat-cell *matCellDef="let stay">{{ stay.ownerName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="notes">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.notes }}</th>
+          <td mat-cell *matCellDef="let stay" class="notes-cell">
+            {{ stay.notes || text().stays.emptyValue }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.actions }}</th>
+          <td mat-cell *matCellDef="let stay">
+            @if (canEditStay(stay)) {
+              <div class="row-actions">
+                <a mat-stroked-button [routerLink]="['/stays', stay.stayId, 'edit']">
+                  {{ text().stays.overview.edit }}
+                </a>
+
+                @if (canCancelStay(stay)) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="cancelStay(stay)"
+                    [disabled]="cancellingStayId() === stay.stayId"
+                  >
+                    {{
+                      cancellingStayId() === stay.stayId
+                        ? text().stays.overview.cancelling
+                        : text().stays.overview.cancel
+                    }}
+                  </button>
+                }
+              </div>
+            } @else {
+              <span class="action-unavailable">
+                {{ getUnavailableActionLabel(stay) }}
+              </span>
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let stay; columns: displayedColumns"
+          [id]="'stay-' + stay.stayId"
+          [class.selected-row]="isSelectedStay(stay)"
+        ></tr>
+      </table>
+    </div>
   }
 </section>

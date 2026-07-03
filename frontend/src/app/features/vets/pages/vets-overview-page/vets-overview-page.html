@@ -5,7 +5,7 @@
       <p>{{ text().vets.overview.description }}</p>
     </div>
 
-    <a routerLink="/vets/new" class="primary-action">
+    <a mat-flat-button routerLink="/vets/new" class="page-action">
       {{ text().vets.overview.create }}
     </a>
   </header>
@@ -23,19 +23,20 @@
     <app-ui-state kind="empty" [message]="text().vets.overview.empty"></app-ui-state>
   } @else {
     <div class="overview-search">
-      <label>
-        <span>{{ text().vets.overview.searchLabel }}</span>
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>{{ text().vets.overview.searchLabel }}</mat-label>
         <input
+          matInput
           #searchInput
           type="search"
           [value]="searchText()"
           [placeholder]="text().vets.overview.searchPlaceholder"
           (input)="setSearchText(searchInput.value)"
         />
-      </label>
+      </mat-form-field>
 
       @if (searchText()) {
-        <button type="button" class="secondary-action" (click)="clearSearch()">
+        <button mat-stroked-button type="button" class="clear-action" (click)="clearSearch()">
           {{ text().vets.overview.clearSearch }}
         </button>
       }
@@ -44,29 +45,38 @@
     @if (filteredVets().length === 0) {
       <app-ui-state kind="empty" [message]="text().vets.overview.emptyFiltered"></app-ui-state>
     } @else {
-      <table class="vets-table">
-        <thead>
-          <tr>
-            <th>{{ text().vets.overview.table.name }}</th>
-            <th>{{ text().vets.overview.table.phoneNumber }}</th>
-            <th>{{ text().vets.overview.table.address }}</th>
-            <th>{{ text().vets.overview.table.actions }}</th>
-          </tr>
-        </thead>
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="filteredVets()" class="vets-table">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>{{ text().vets.overview.table.name }}</th>
+            <td mat-cell *matCellDef="let vet">{{ vet.name }}</td>
+          </ng-container>
 
-        <tbody>
-          @for (vet of filteredVets(); track vet.id) {
-            <tr>
-              <td>{{ vet.name }}</td>
-              <td>{{ formatOptionalValue(vet.phoneNumber) }}</td>
-              <td>{{ formatOptionalValue(vet.address) }}</td>
-              <td>
-                <a [routerLink]="['/vets', vet.id, 'edit']">{{ text().vets.overview.edit }}</a>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+          <ng-container matColumnDef="phoneNumber">
+            <th mat-header-cell *matHeaderCellDef>
+              {{ text().vets.overview.table.phoneNumber }}
+            </th>
+            <td mat-cell *matCellDef="let vet">{{ formatOptionalValue(vet.phoneNumber) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="address">
+            <th mat-header-cell *matHeaderCellDef>{{ text().vets.overview.table.address }}</th>
+            <td mat-cell *matCellDef="let vet">{{ formatOptionalValue(vet.address) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>{{ text().vets.overview.table.actions }}</th>
+            <td mat-cell *matCellDef="let vet">
+              <a mat-stroked-button [routerLink]="['/vets', vet.id, 'edit']">
+                {{ text().vets.overview.edit }}
+              </a>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let vet; columns: displayedColumns"></tr>
+        </table>
+      </div>
     }
   }
 </section>

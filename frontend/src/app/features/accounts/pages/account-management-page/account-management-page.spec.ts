@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
@@ -41,20 +42,21 @@ describe('AccountManagementPage', () => {
   let component: AccountManagementPage;
   let fixture: ComponentFixture<AccountManagementPage>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
     userAccountApiService.getAccounts.mockReturnValue(of([adminAccount, staffAccount]));
     authSessionService.getUsername.mockReturnValue('admin');
     router.navigate.mockResolvedValue(true);
 
-    TestBed.configureTestingModule({
+    await TestBed.configureTestingModule({
       imports: [AccountManagementPage],
       providers: [
+        provideNoopAnimations(),
         { provide: UserAccountApiService, useValue: userAccountApiService },
         { provide: AuthSessionService, useValue: authSessionService },
         { provide: Router, useValue: router },
       ],
-    });
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AccountManagementPage);
     component = fixture.componentInstance;
@@ -74,6 +76,47 @@ describe('AccountManagementPage', () => {
 
     const marker = fixture.nativeElement.querySelector('.you-marker') as HTMLElement | null;
     expect(marker?.textContent?.trim()).toBe(component.text().accounts.you);
+  });
+
+  it('renders the account list through a Material table with existing row actions', () => {
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const headerText = [...compiled.querySelectorAll('th')]
+      .map((header) => header.textContent?.trim())
+      .join(' ');
+
+    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
+    expect(headerText).toContain(component.text().accounts.table.username);
+    expect(headerText).toContain(component.text().accounts.table.actions);
+    expect(compiled.textContent).toContain('admin');
+    expect(compiled.textContent).toContain('staff');
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(2);
+    expect(compiled.querySelector('button[mat-flat-button]')?.textContent).toContain(
+      component.text().accounts.create.submit,
+    );
+    expect(compiled.querySelectorAll('button[mat-stroked-button]').length).toBeGreaterThanOrEqual(
+      2,
+    );
+  });
+
+  it('renders loading, empty, and load-error states without the Material table', () => {
+    component.loading.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(component.text().accounts.loading);
+    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
+
+    component.loading.set(false);
+    component.accounts.set([]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(component.text().accounts.empty);
+    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
+
+    component.loadError.set(component.text().accounts.errorLoading);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(component.text().accounts.errorLoading);
+    expect(fixture.nativeElement.textContent).toContain(component.text().accounts.retry);
+    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
   });
 
   it('creates an account and preserves username and password input exactly', () => {

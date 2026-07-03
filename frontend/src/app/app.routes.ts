@@ -1,20 +1,15 @@
 import { Routes } from '@angular/router';
 import { DashboardPage } from './features/dashboard/pages/dashboard-page/dashboard-page';
-import { StaysOverviewPage } from './features/stays/pages/stays-overview-page/stays-overview-page';
 import { CalendarPage } from './features/calendar/pages/calendar-page/calendar-page';
-import { OwnersOverviewPage } from './features/owners/pages/owners-overview-page/owners-overview-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
 import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
-import { CatsOverviewPage } from './features/cats/pages/cats-overview-page/cats-overview-page';
 import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
 import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
-import { VetsOverviewPage } from './features/vets/pages/vets-overview-page/vets-overview-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 import { LoginPage } from './features/auth/pages/login-page/login-page';
 import { authGuard } from './core/auth/auth.guard';
 import { StayEditPage } from './features/stays/pages/stay-edit-page/stay-edit-page';
-import { AccountManagementPage } from './features/accounts/pages/account-management-page/account-management-page';
 import { adminGuard } from './core/auth/admin.guard';
 
 export const routes: Routes = [
@@ -30,7 +25,10 @@ export const routes: Routes = [
   {
     path: 'stays',
     canActivate: [authGuard],
-    component: StaysOverviewPage,
+    loadComponent: () =>
+      import('./features/stays/pages/stays-overview-page/stays-overview-page').then(
+        (m) => m.StaysOverviewPage,
+      ),
   },
   {
     path: 'stays/new',
@@ -53,7 +51,10 @@ export const routes: Routes = [
   {
     path: 'owners',
     canActivate: [authGuard],
-    component: OwnersOverviewPage,
+    loadComponent: () =>
+      import('./features/owners/pages/owners-overview-page/owners-overview-page').then(
+        (m) => m.OwnersOverviewPage,
+      ),
   },
   {
     path: 'owners/new',
@@ -68,7 +69,10 @@ export const routes: Routes = [
   {
     path: 'cats',
     canActivate: [authGuard],
-    component: CatsOverviewPage,
+    loadComponent: () =>
+      import('./features/cats/pages/cats-overview-page/cats-overview-page').then(
+        (m) => m.CatsOverviewPage,
+      ),
   },
   {
     path: 'cats/new',
@@ -83,7 +87,10 @@ export const routes: Routes = [
   {
     path: 'vets',
     canActivate: [authGuard],
-    component: VetsOverviewPage,
+    loadComponent: () =>
+      import('./features/vets/pages/vets-overview-page/vets-overview-page').then(
+        (m) => m.VetsOverviewPage,
+      ),
   },
   {
     path: 'vets/new',
@@ -98,7 +105,10 @@ export const routes: Routes = [
   {
     path: 'accounts',
     canActivate: [adminGuard],
-    component: AccountManagementPage,
+    loadComponent: () =>
+      import('./features/accounts/pages/account-management-page/account-management-page').then(
+        (m) => m.AccountManagementPage,
+      ),
   },
   {
     path: '**',

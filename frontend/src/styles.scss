@@ -225,8 +225,7 @@ label textarea {
 
 .primary-action,
 .secondary-action,
-.action-links a,
-.row-actions a {
+.action-links a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -244,8 +243,7 @@ label textarea {
 
 .primary-action:hover,
 .secondary-action:hover,
-.action-links a:hover,
-.row-actions a:hover {
+.action-links a:hover {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);
@@ -291,15 +289,6 @@ label textarea {
   .page-header {
     display: grid;
   }
-
-  .owners-table,
-  .cats-table,
-  .vets-table,
-  .stays-table {
-    display: block;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
 }
 
 @media (max-width: 520px) {
@@ -324,55 +313,10 @@ label textarea {
   button:not(.mat-mdc-button-base),
   .primary-action,
   .secondary-action,
-  .action-links a,
-  .row-actions a {
+  .action-links a {
     min-height: 2.2rem;
     padding: 0.45rem 0.7rem;
   }
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  border: 1px solid rgb(234 216 198 / 0.95);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) th,
-:where(.owners-table, .cats-table, .vets-table, .stays-table) td {
-  padding: 0.85rem 0.95rem;
-  border-bottom: 1px solid var(--color-border);
-  text-align: left;
-  vertical-align: top;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) th {
-  background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
-  color: #6d5140;
-  font-size: 0.78rem;
-  font-weight: 850;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) td {
-  color: var(--color-text);
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) tbody tr:nth-child(even) td {
-  background: #fffaf2;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table) tbody tr:hover td {
-  background: var(--color-secondary-soft);
 }
 
 .form-actions {
@@ -419,10 +363,6 @@ input[type='checkbox']:not(.mdc-checkbox__native-control) {
   accent-color: var(--color-primary);
 }
 
-.owners-overview-page > p,
-.cats-overview-page > p,
-.vets-overview-page > p,
-.stays-overview-page > p,
 .calendar-page > p {
   width: fit-content;
   max-width: 100%;
@@ -434,32 +374,6 @@ input[type='checkbox']:not(.mdc-checkbox__native-control) {
   box-shadow: var(--shadow-soft);
   color: var(--color-text-muted);
   font-weight: 650;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table)
-  td
-  a:not(.primary-action):not(.secondary-action) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2rem;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 999px;
-  background: #fffaf2;
-  color: var(--color-primary-hover);
-  font-size: 0.92rem;
-  font-weight: 800;
-  line-height: 1.2;
-  text-decoration: none;
-}
-
-:where(.owners-table, .cats-table, .vets-table, .stays-table)
-  td
-  a:not(.primary-action):not(.secondary-action):hover {
-  border-color: var(--color-primary);
-  background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
 }
 
 .status-filter:hover,
