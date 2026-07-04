@@ -91,7 +91,8 @@ describe('AccountManagementPage', () => {
     expect(headerText).toContain(component.text().accounts.table.actions);
     expect(compiled.textContent).toContain('admin');
     expect(compiled.textContent).toContain('staff');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(2);
+    expect(compiled.querySelectorAll('.account-form mat-form-field')).toHaveLength(3);
+    expect(compiled.querySelectorAll('.role-action mat-form-field')).toHaveLength(2);
     expect(compiled.querySelector('button[mat-flat-button]')?.textContent).toContain(
       component.text().accounts.create.submit,
     );

@@ -75,10 +75,10 @@ Use component SCSS for local layout, responsive composition and
 product-specific presentation. Keep FullCalendar-specific styling separate
 where Material does not provide the relevant interaction or structure.
 
-During the migration, existing native controls may remain on unmigrated
-surfaces. New migrated controls should use Angular Material when Material
-provides the corresponding component. Do not create a broad global Material
-module or a separate design-system package for CatWorld.
+Authenticated administration controls should use Angular Material when
+Material provides the matching interaction role. Do not recreate a global
+native-control styling system, create a broad global Material module, or add a
+separate design-system package for CatWorld.
 
 The authenticated application shell is Material-based in `src/app/app.*` and
 keeps the existing route and guard structure. Shared loading, empty and error
@@ -87,16 +87,19 @@ fetching, filtering and retry behavior. Material overlays and shell
 interactions use the Angular animations provider configured in
 `src/app/app.config.ts`.
 
-Login, owner create/edit, vet create/edit, cat create/edit and stay create/edit
-forms are Material-based. Keep form state, payload shaping, submit behavior and
-responsive layout in the routed page component that owns the form. Use Material
-field errors for field-level validation and `src/app/shared/ui-state/` for
-page-level loading, backend-error, cross-field or selection-error presentation
-where it matches the current behavior. Native control coexistence styling
-remains only for unmigrated controls. Calendar app-owned filters, display
-options and shared stay search filters are Material-based; FullCalendar
-vendor-owned controls and stays overview native status checkboxes remain
-documented exceptions.
+Login, account management, owner create/edit, vet create/edit, cat create/edit
+and stay create/edit forms are Material-based. Keep form state, payload
+shaping, submit behavior and responsive layout in the routed page component
+that owns the form. Use Material field errors for field-level validation and
+`src/app/shared/ui-state/` for page-level loading, backend-error, cross-field
+or selection-error presentation where it matches the current behavior.
+
+Native `<select>` elements may remain only inside `mat-form-field` with
+`matNativeControl`, where Angular Material explicitly supports the native
+select and the short option list does not require the custom `mat-select`
+overlay. Calendar app-owned filters, display options, stays overview status
+filters and shared stay search filters are Material-based. FullCalendar
+vendor-owned controls remain a documented integration boundary.
 
 ## Production
 

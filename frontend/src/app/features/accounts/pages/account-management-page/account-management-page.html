@@ -7,31 +7,34 @@
   <form class="account-form" (ngSubmit)="createAccount()">
     <h3>{{ text().accounts.create.title }}</h3>
 
-    <label>
-      {{ text().accounts.create.username }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().accounts.create.username }}</mat-label>
       <input
+        matInput
         type="text"
         name="username"
         autocomplete="off"
         [ngModel]="username()"
         (ngModelChange)="username.set($event)"
       />
-    </label>
+    </mat-form-field>
 
-    <label>
-      {{ text().accounts.create.password }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().accounts.create.password }}</mat-label>
       <input
+        matInput
         type="password"
         name="password"
         autocomplete="new-password"
         [ngModel]="password()"
         (ngModelChange)="password.set($event)"
       />
-    </label>
+    </mat-form-field>
 
-    <label>
-      {{ text().accounts.create.role }}
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().accounts.create.role }}</mat-label>
       <select
+        matNativeControl
         name="newAccountRole"
         [ngModel]="newAccountRole()"
         (ngModelChange)="newAccountRole.set($event)"
@@ -39,7 +42,7 @@
         <option value="ADMIN">{{ text().accounts.roles.admin }}</option>
         <option value="STAFF">{{ text().accounts.roles.staff }}</option>
       </select>
-    </label>
+    </mat-form-field>
 
     <div class="form-actions">
       <button mat-flat-button type="submit" class="account-submit" [disabled]="creating()">

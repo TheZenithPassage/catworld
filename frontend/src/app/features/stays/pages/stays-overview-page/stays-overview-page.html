@@ -12,15 +12,13 @@
 
   <div class="status-filters" [attr.aria-label]="text().stays.overview.statusFiltersAriaLabel">
     @for (option of statusFilterOptions; track option.status) {
-      <label class="status-filter">
-        <input
-          #statusCheckbox
-          type="checkbox"
-          [checked]="isStatusVisible(option.status)"
-          (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
-        />
+      <mat-checkbox
+        class="status-filter"
+        [checked]="isStatusVisible(option.status)"
+        (change)="setStatusVisibility(option.status, $event.checked)"
+      >
         {{ text().stays.status[option.status] }}
-      </label>
+      </mat-checkbox>
     }
   </div>
 

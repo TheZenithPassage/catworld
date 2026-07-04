@@ -274,7 +274,7 @@ Global styles are limited to:
 
 - Material theme setup.
 - Document and application-level defaults.
-- Temporary native-control coexistence styles for unmigrated surfaces.
+- CatWorld design tokens and CSS custom properties.
 - Truly shared utilities.
 - Integration boundaries for external libraries.
 
@@ -283,20 +283,36 @@ and product-specific presentation.
 
 Shared utilities should stay small, semantic and broadly useful across
 approved migrated surfaces. They should not become a parallel component system.
+Global styles must not recreate native button, input, select, textarea, table
+or checkbox component systems for authenticated administration surfaces that
+use Angular Material.
 
 FullCalendar remains a custom integration where Material does not provide the
 relevant calendar interaction or structure. FullCalendar-specific styling stays
 explicitly separate from Material component customization.
 
-### Migration Coexistence
+### Material Completion and Native Boundaries
 
-During the migration, existing native buttons, inputs, selects, textareas and
-tables may remain on unmigrated surfaces. New migrated controls should use
-Angular Material when Material provides the corresponding component.
+Authenticated administration controls use Angular Material when Material
+provides the matching interaction role. CatWorld no longer keeps a global
+native-control styling system alongside the Material foundation.
 
-CatWorld must not maintain a permanent competing global component system after
-Material replacements are in place. Later migration issues should remove
-superseded native global styling as their owning surfaces move to Material.
+Retained native markup is limited to explicit boundaries:
+
+- Native `<select>` elements may remain inside `mat-form-field` with
+  `matNativeControl` for short option lists where Angular Material explicitly
+  supports the native select control and the existing form behavior does not
+  require the custom `mat-select` overlay.
+- FullCalendar owns its internal buttons, tables and event markup. CatWorld
+  styles that vendor boundary only through the calendar component integration
+  styles, not through global native-control selectors.
+- Browser-provided dialogs such as cancellation confirmation prompts remain
+  browser controls unless a feature explicitly approves replacing the
+  interaction.
+
+Any future retained native control in an authenticated administration surface
+must record its reason and must not depend on global legacy native-control
+styling.
 
 ### Material Shell and Shared States
 
@@ -317,12 +333,12 @@ retry-action rendering.
 
 ### Material Forms
 
-The login, owner create/edit, vet create/edit, cat create/edit and stay
-create/edit forms use Angular Material form fields, inputs, selects,
-checkboxes and buttons for their interactive controls where Material provides
-the matching control role. Each routed form page keeps its own signal-based
-field state, request payload shaping, submit method, navigation and responsive
-form layout in component SCSS.
+The login, account management, owner create/edit, vet create/edit, cat
+create/edit and stay create/edit forms use Angular Material form fields,
+inputs, supported native selects, checkboxes and buttons for their interactive
+controls where Material provides the matching control role. Each routed form
+page keeps its own signal-based field state, request payload shaping, submit
+method, navigation and responsive form layout in component SCSS.
 
 Required-field validation for these migrated forms is presented through
 Material field errors while preserving existing validation rules and submit
@@ -330,13 +346,11 @@ timing where the control has field-level validation. Page-level loading,
 backend errors and cross-field or selection errors use the shared
 `UiStateComponent` where that presentation fits the existing behavior.
 
-Native control coexistence styling remains only for unmigrated controls.
-Calendar app-owned filters, display options and shared stay search filters are
-Material-based. FullCalendar vendor-owned controls remain a separate
-integration boundary, and stays overview status checkboxes remain native
-operational-table controls pending the follow-up cleanup and revalidation
-tracked by #183. Material inputs, selects, checkboxes and buttons must not
-depend on the legacy global native-control selectors.
+Calendar app-owned filters, display options, stays overview status filters and
+shared stay search filters are Material-based. FullCalendar vendor-owned
+controls remain a separate integration boundary. Material inputs, supported
+native selects, checkboxes and buttons do not depend on legacy global
+native-control selectors.
 
 ### Component Conventions
 

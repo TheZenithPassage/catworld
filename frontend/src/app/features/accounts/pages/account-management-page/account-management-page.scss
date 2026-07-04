@@ -32,6 +32,11 @@
   margin: 0;
 }
 
+.account-form mat-form-field {
+  min-width: 0;
+  width: 100%;
+}
+
 .accounts-table-wrapper {
   max-width: 100%;
   overflow-x: auto;
