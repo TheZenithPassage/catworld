@@ -94,11 +94,12 @@
   background: rgb(255 253 248 / 0.82);
 }
 
-:host ::ng-deep .calendar-display-option .mdc-label,
-.calendar-display-option span {
+.calendar-display-option-content {
   display: grid;
   gap: 0.2rem;
   width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .calendar-display-option strong {

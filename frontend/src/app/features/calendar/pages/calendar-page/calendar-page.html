@@ -44,7 +44,7 @@
         [checked]="filteredDailyLabelsEnabled()"
         (change)="setFilteredDailyLabelsEnabled($event.checked)"
       >
-        <span>
+        <span class="calendar-display-option-content">
           <strong>{{ text().calendar.filteredDisplayOptions.dailyLabels }}</strong>
         </span>
       </mat-checkbox>
@@ -61,7 +61,7 @@
       >
         @for (displayMode of displayModeOptions; track displayMode) {
           <mat-radio-button class="calendar-display-option" [value]="displayMode">
-            <span>
+            <span class="calendar-display-option-content">
               <strong>{{ text().calendar.displayModes.options[displayMode].label }}</strong>
               <small>{{ text().calendar.displayModes.options[displayMode].description }}</small>
             </span>
