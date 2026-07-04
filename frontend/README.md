@@ -93,7 +93,10 @@ responsive layout in the routed page component that owns the form. Use Material
 field errors for field-level validation and `src/app/shared/ui-state/` for
 page-level loading, backend-error, cross-field or selection-error presentation
 where it matches the current behavior. Native control coexistence styling
-remains only for unmigrated controls such as calendar and stay filters.
+remains only for unmigrated controls. Calendar app-owned filters, display
+options and shared stay search filters are Material-based; FullCalendar
+vendor-owned controls and stays overview native status checkboxes remain
+documented exceptions.
 
 ## Production
 

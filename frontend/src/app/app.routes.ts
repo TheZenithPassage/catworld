@@ -1,6 +1,4 @@
 import { Routes } from '@angular/router';
-import { DashboardPage } from './features/dashboard/pages/dashboard-page/dashboard-page';
-import { CalendarPage } from './features/calendar/pages/calendar-page/calendar-page';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
 import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
 import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
@@ -20,7 +18,10 @@ export const routes: Routes = [
   {
     path: '',
     canActivate: [authGuard],
-    component: DashboardPage,
+    loadComponent: () =>
+      import('./features/dashboard/pages/dashboard-page/dashboard-page').then(
+        (m) => m.DashboardPage,
+      ),
   },
   {
     path: 'stays',
@@ -46,7 +47,8 @@ export const routes: Routes = [
   {
     path: 'calendar',
     canActivate: [authGuard],
-    component: CalendarPage,
+    loadComponent: () =>
+      import('./features/calendar/pages/calendar-page/calendar-page').then((m) => m.CalendarPage),
   },
   {
     path: 'owners',

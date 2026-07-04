@@ -28,6 +28,8 @@
 .primary-action,
 .secondary-action {
   width: fit-content;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .calendar-help {
@@ -56,6 +58,11 @@
 .calendar-display-options {
   display: grid;
   gap: 1rem;
+  padding: 0.9rem;
+  border: 1px solid rgb(234 216 198 / 0.95);
+  border-radius: var(--radius-lg);
+  background: rgb(255 253 248 / 0.92);
+  box-shadow: var(--shadow-soft);
 }
 
 .calendar-display-options-list {
@@ -80,10 +87,6 @@
 }
 
 .calendar-display-option {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.65rem;
-  align-items: start;
   width: min(100%, 36rem);
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--color-border);
@@ -91,9 +94,12 @@
   background: rgb(255 253 248 / 0.82);
 }
 
-.calendar-display-option span {
+.calendar-display-option-content {
   display: grid;
   gap: 0.2rem;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .calendar-display-option strong {
@@ -108,16 +114,7 @@
 }
 
 .status-filter {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
   width: fit-content;
-}
-
-.status-filter input,
-.calendar-display-option input {
-  width: auto;
-  margin: 0.15rem 0 0;
 }
 
 :host ::ng-deep .fc {

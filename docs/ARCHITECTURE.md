@@ -330,10 +330,13 @@ timing where the control has field-level validation. Page-level loading,
 backend errors and cross-field or selection errors use the shared
 `UiStateComponent` where that presentation fits the existing behavior.
 
-Native control coexistence styling remains only for unmigrated controls such
-as calendar and stay filters that still use native inputs. Material inputs,
-selects, checkboxes and buttons must not depend on the legacy global
-native-control selectors.
+Native control coexistence styling remains only for unmigrated controls.
+Calendar app-owned filters, display options and shared stay search filters are
+Material-based. FullCalendar vendor-owned controls remain a separate
+integration boundary, and stays overview status checkboxes remain native
+operational-table controls pending the follow-up cleanup and revalidation
+tracked by #183. Material inputs, selects, checkboxes and buttons must not
+depend on the legacy global native-control selectors.
 
 ### Component Conventions
 

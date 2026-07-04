@@ -1,65 +1,79 @@
 <div class="stay-search-filters" [attr.aria-label]="text().stays.filters.searchAriaLabel">
-  <label class="search-filter">
-    <span>{{ text().stays.filters.cat }}</span>
-
+  <div class="search-filter">
     <div class="search-control">
-      <input
-        type="text"
-        autocomplete="off"
-        [placeholder]="text().stays.filters.searchCat"
-        [ngModel]="catSearch()"
-        (ngModelChange)="onCatSearchChange($event)"
-      />
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>{{ text().stays.filters.cat }}</mat-label>
+        <input
+          matInput
+          type="text"
+          autocomplete="off"
+          [placeholder]="text().stays.filters.searchCat"
+          [ngModel]="catSearch()"
+          (ngModelChange)="onCatSearchChange($event)"
+          [matAutocomplete]="catAutocomplete"
+        />
+
+        <mat-autocomplete
+          #catAutocomplete="matAutocomplete"
+          [displayWith]="displayCatOption"
+          (optionSelected)="selectCatFromAutocomplete($event)"
+        >
+          @for (option of matchingCatOptions(); track option.catId) {
+            <mat-option [value]="option">
+              {{ option.label }}
+            </mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
 
       @if (selectedCatId()) {
-        <button type="button" (click)="clearCat()">{{ text().stays.filters.clear }}</button>
+        <button mat-stroked-button type="button" (click)="clearCat()">
+          {{ text().stays.filters.clear }}
+        </button>
       }
     </div>
 
-    @if (matchingCatOptions().length > 0) {
-      <ul class="search-options">
-        @for (option of matchingCatOptions(); track option.catId) {
-          <li>
-            <button type="button" (click)="selectCat(option)">
-              {{ option.label }}
-            </button>
-          </li>
-        }
-      </ul>
-    } @else if (catSearch().trim() && !selectedCatId()) {
+    @if (matchingCatOptions().length === 0 && catSearch().trim() && !selectedCatId()) {
       <small class="empty-options">{{ text().stays.filters.noCatsMatch }}</small>
     }
-  </label>
+  </div>
 
-  <label class="search-filter">
-    <span>{{ text().stays.filters.owner }}</span>
-
+  <div class="search-filter">
     <div class="search-control">
-      <input
-        type="text"
-        autocomplete="off"
-        [placeholder]="text().stays.filters.searchOwnerOrCats"
-        [ngModel]="ownerSearch()"
-        (ngModelChange)="onOwnerSearchChange($event)"
-      />
+      <mat-form-field appearance="outline" class="search-field">
+        <mat-label>{{ text().stays.filters.owner }}</mat-label>
+        <input
+          matInput
+          type="text"
+          autocomplete="off"
+          [placeholder]="text().stays.filters.searchOwnerOrCats"
+          [ngModel]="ownerSearch()"
+          (ngModelChange)="onOwnerSearchChange($event)"
+          [matAutocomplete]="ownerAutocomplete"
+        />
+
+        <mat-autocomplete
+          #ownerAutocomplete="matAutocomplete"
+          [displayWith]="displayOwnerOption"
+          (optionSelected)="selectOwnerFromAutocomplete($event)"
+        >
+          @for (option of matchingOwnerOptions(); track option.ownerId) {
+            <mat-option [value]="option">
+              {{ option.label }}
+            </mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
 
       @if (selectedOwnerId()) {
-        <button type="button" (click)="clearOwner()">{{ text().stays.filters.clear }}</button>
+        <button mat-stroked-button type="button" (click)="clearOwner()">
+          {{ text().stays.filters.clear }}
+        </button>
       }
     </div>
 
-    @if (matchingOwnerOptions().length > 0) {
-      <ul class="search-options">
-        @for (option of matchingOwnerOptions(); track option.ownerId) {
-          <li>
-            <button type="button" (click)="selectOwner(option)">
-              {{ option.label }}
-            </button>
-          </li>
-        }
-      </ul>
-    } @else if (ownerSearch().trim() && !selectedOwnerId()) {
+    @if (matchingOwnerOptions().length === 0 && ownerSearch().trim() && !selectedOwnerId()) {
       <small class="empty-options">{{ text().stays.filters.noOwnersMatch }}</small>
     }
-  </label>
+  </div>
 </div>

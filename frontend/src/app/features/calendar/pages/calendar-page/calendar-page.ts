@@ -1,4 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { MatRadioModule } from '@angular/material/radio';
 import { Router, RouterLink } from '@angular/router';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
@@ -43,7 +46,15 @@ interface CalendarLocalPreferences {
 
 @Component({
   selector: 'app-calendar-page',
-  imports: [FullCalendarModule, RouterLink, StaySearchFiltersComponent, UiStateComponent],
+  imports: [
+    FullCalendarModule,
+    MatButton,
+    MatCheckbox,
+    MatRadioModule,
+    RouterLink,
+    StaySearchFiltersComponent,
+    UiStateComponent,
+  ],
   templateUrl: './calendar-page.html',
   styleUrl: './calendar-page.scss',
 })

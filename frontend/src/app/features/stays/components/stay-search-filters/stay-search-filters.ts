@@ -1,4 +1,11 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  MatAutocompleteModule,
+  MatAutocompleteSelectedEvent,
+} from '@angular/material/autocomplete';
+import { MatButton } from '@angular/material/button';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -15,7 +22,7 @@ import {
 
 @Component({
   selector: 'app-stay-search-filters',
-  imports: [FormsModule],
+  imports: [FormsModule, MatAutocompleteModule, MatButton, MatFormField, MatInput, MatLabel],
   templateUrl: './stay-search-filters.html',
   styleUrl: './stay-search-filters.scss',
 })
@@ -82,6 +89,10 @@ export class StaySearchFiltersComponent {
     this.emitFilters();
   }
 
+  selectCatFromAutocomplete(event: MatAutocompleteSelectedEvent): void {
+    this.selectCat(event.option.value as StayCatFilterOption);
+  }
+
   selectOwner(option: StayOwnerFilterOption): void {
     this.selectedOwnerId.set(option.ownerId);
     this.ownerSearch.set(option.label);
@@ -90,6 +101,18 @@ export class StaySearchFiltersComponent {
     this.catSearch.set('');
 
     this.emitFilters();
+  }
+
+  selectOwnerFromAutocomplete(event: MatAutocompleteSelectedEvent): void {
+    this.selectOwner(event.option.value as StayOwnerFilterOption);
+  }
+
+  displayCatOption(option: StayCatFilterOption | string | null): string {
+    return typeof option === 'string' ? option : (option?.label ?? '');
+  }
+
+  displayOwnerOption(option: StayOwnerFilterOption | string | null): string {
+    return typeof option === 'string' ? option : (option?.label ?? '');
   }
 
   clearCat(): void {

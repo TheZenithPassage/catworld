@@ -6,11 +6,11 @@
     </div>
 
     <div class="header-actions">
-      <a routerLink="/stays" class="secondary-action">
+      <a mat-stroked-button routerLink="/stays" class="secondary-action">
         {{ text().calendar.actions.viewStays }}
       </a>
 
-      <a routerLink="/stays/new" class="primary-action">
+      <a mat-flat-button routerLink="/stays/new" class="primary-action">
         {{ text().calendar.actions.createStay }}
       </a>
     </div>
@@ -18,15 +18,13 @@
 
   <div class="status-filters" [attr.aria-label]="text().calendar.statusFiltersAriaLabel">
     @for (option of statusFilterOptions; track option.status) {
-      <label class="status-filter">
-        <input
-          #statusCheckbox
-          type="checkbox"
-          [checked]="isStatusVisible(option.status)"
-          (change)="setStatusVisibility(option.status, statusCheckbox.checked)"
-        />
+      <mat-checkbox
+        class="status-filter"
+        [checked]="isStatusVisible(option.status)"
+        (change)="setStatusVisibility(option.status, $event.checked)"
+      >
         {{ text().stays.status[option.status] }}
-      </label>
+      </mat-checkbox>
     }
   </div>
 
@@ -41,39 +39,35 @@
         <strong>{{ text().calendar.filteredDisplayOptions.title }}</strong>
       </div>
 
-      <label class="calendar-display-option">
-        <input
-          #filteredDailyLabelsCheckbox
-          type="checkbox"
-          [checked]="filteredDailyLabelsEnabled()"
-          (change)="setFilteredDailyLabelsEnabled(filteredDailyLabelsCheckbox.checked)"
-        />
-        <span>
+      <mat-checkbox
+        class="calendar-display-option calendar-display-option--single"
+        [checked]="filteredDailyLabelsEnabled()"
+        (change)="setFilteredDailyLabelsEnabled($event.checked)"
+      >
+        <span class="calendar-display-option-content">
           <strong>{{ text().calendar.filteredDisplayOptions.dailyLabels }}</strong>
         </span>
-      </label>
+      </mat-checkbox>
     } @else {
       <div class="calendar-display-options-header">
         <strong>{{ text().calendar.displayModes.title }}</strong>
         <p>{{ text().calendar.displayModes.description }}</p>
       </div>
 
-      <div class="calendar-display-options-list">
+      <mat-radio-group
+        class="calendar-display-options-list"
+        [value]="unfilteredDisplayMode()"
+        (change)="setUnfilteredDisplayMode($event.value)"
+      >
         @for (displayMode of displayModeOptions; track displayMode) {
-          <label class="calendar-display-option">
-            <input
-              type="radio"
-              name="calendarDisplayMode"
-              [checked]="unfilteredDisplayMode() === displayMode"
-              (change)="setUnfilteredDisplayMode(displayMode)"
-            />
-            <span>
+          <mat-radio-button class="calendar-display-option" [value]="displayMode">
+            <span class="calendar-display-option-content">
               <strong>{{ text().calendar.displayModes.options[displayMode].label }}</strong>
               <small>{{ text().calendar.displayModes.options[displayMode].description }}</small>
             </span>
-          </label>
+          </mat-radio-button>
         }
-      </div>
+      </mat-radio-group>
     }
   </div>
 
