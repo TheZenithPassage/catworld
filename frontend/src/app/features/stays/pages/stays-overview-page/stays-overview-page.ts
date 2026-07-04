@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
@@ -28,7 +29,14 @@ import {
 
 @Component({
   selector: 'app-stays-overview-page',
-  imports: [MatButton, MatTableModule, RouterLink, StaySearchFiltersComponent, UiStateComponent],
+  imports: [
+    MatButton,
+    MatCheckbox,
+    MatTableModule,
+    RouterLink,
+    StaySearchFiltersComponent,
+    UiStateComponent,
+  ],
   templateUrl: './stays-overview-page.html',
   styleUrl: './stays-overview-page.scss',
 })

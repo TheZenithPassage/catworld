@@ -105,6 +105,9 @@ describe('StaysOverviewPage', () => {
     expect(compiled.textContent).toContain('Ada Lovelace');
     expect(compiled.textContent).toContain('Needs quiet room');
     expect(compiled.querySelector('#stay-stay-1.selected-row')).not.toBeNull();
+    expect(compiled.querySelectorAll('mat-checkbox.status-filter')).toHaveLength(
+      component.statusFilterOptions.length,
+    );
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().stays.overview.create,
     );
