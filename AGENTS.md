@@ -9,6 +9,34 @@
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
 * If those artifacts conflict, contain unresolved blocking decisions, or require pending human approval, stop and report the blocker instead of implementing.
 
+## Shorthand Issue Prompt Routing
+
+When the user prompt contains only one GitHub issue number or issue URL,
+optionally followed by `parallel` or `sequential`, treat it as an end-to-end
+CatWorld issue implementation request.
+
+* Bare numbers such as `148`, issue references such as `#148`, and issue URLs
+  route to issue implementation after Codex fetches and inspects the issue
+  read-only.
+* Normal implementable issues use
+  `.agents/skills/catworld-implement-issue/SKILL.md`.
+* Coordinator issues use
+  `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` in
+  sequential mode by default.
+* The `parallel` keyword requests coordinator parallel mode only when the issue
+  is a coordinator issue and parallel execution is safe. If the issue is not a
+  coordinator issue, ignore the flag and use normal single-issue
+  implementation.
+* The `sequential` keyword explicitly requests coordinator sequential mode when
+  the issue is a coordinator issue. If the issue is not a coordinator issue,
+  use normal single-issue implementation.
+* Never infer parallel mode from a bare issue number, issue reference, or issue
+  URL.
+* If a prompt contains multiple issue numbers without a clear instruction, stop
+  and ask which issue to implement.
+* If the issue cannot be classified as a normal implementable issue or a
+  coordinator issue after reading it, stop and report the ambiguity.
+
 ## Repository Boundaries
 
 * Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request.
