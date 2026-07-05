@@ -10,8 +10,10 @@ import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.security.CurrentUserAccountService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +40,9 @@ public class StayServiceTest {
 
     @Mock
     private CatRepository catRepository;
+
+    @Mock
+    private CurrentUserAccountService currentUserAccountService;
 
     @InjectMocks
     private StayService service;
@@ -162,10 +167,15 @@ public class StayServiceTest {
                     .build();
 
             StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+            UserAccount creator = UserAccount.builder()
+                    .id(UUID.randomUUID())
+                    .username("staff")
+                    .build();
 
             when(stayRepository.save(any(Stay.class))).thenAnswer(i -> i.getArgument(0));
             when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
             when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = service.createStay(stayRequestDTO);
@@ -178,6 +188,7 @@ public class StayServiceTest {
             assertEquals(stayRequestDTO.getStartAt(), savedStay.getStartAt());
             assertEquals(stayRequestDTO.getEndAt(), savedStay.getEndAt());
             assertEquals(owner.getId(), savedStay.getOwner().getId());
+            assertSame(creator, savedStay.getCreatedBy());
 
             Set<UUID> savedCatIds = savedStay.getStayCats().stream().map(stayCat -> stayCat.getCat().getId()).collect(Collectors.toSet());
 
@@ -220,11 +231,16 @@ public class StayServiceTest {
                     .build();
 
             StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+            UserAccount creator = UserAccount.builder()
+                    .id(UUID.randomUUID())
+                    .username("staff")
+                    .build();
 
             when(stayRepository.save(any(Stay.class))).thenAnswer(i -> i.getArgument(0));
             when(catRepository.findById(cat1.getId())).thenReturn(Optional.of(cat1));
             when(catRepository.findById(cat2.getId())).thenReturn(Optional.of(cat2));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
             when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = service.createStay(stayRequestDTO);
@@ -237,6 +253,7 @@ public class StayServiceTest {
             assertEquals(stayRequestDTO.getStartAt(), savedStay.getStartAt());
             assertEquals(stayRequestDTO.getEndAt(), savedStay.getEndAt());
             assertEquals(owner.getId(), savedStay.getOwner().getId());
+            assertSame(creator, savedStay.getCreatedBy());
 
             Set<UUID> savedCatIds = savedStay.getStayCats().stream().map(stayCat -> stayCat.getCat().getId()).collect(Collectors.toSet());
 
@@ -284,10 +301,15 @@ public class StayServiceTest {
                     .build();
 
             StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+            UserAccount creator = UserAccount.builder()
+                    .id(UUID.randomUUID())
+                    .username("staff")
+                    .build();
 
             when(stayRepository.save(any(Stay.class))).thenAnswer(i -> i.getArgument(0));
             when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
             when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = assertDoesNotThrow(() -> service.createStay(stayRequestDTO));
@@ -300,6 +322,7 @@ public class StayServiceTest {
             assertEquals(stayRequestDTO.getStartAt(), savedStay.getStartAt());
             assertEquals(stayRequestDTO.getEndAt(), savedStay.getEndAt());
             assertEquals(owner.getId(), savedStay.getOwner().getId());
+            assertSame(creator, savedStay.getCreatedBy());
 
             Set<UUID> savedCatIds = savedStay.getStayCats().stream().map(stayCat -> stayCat.getCat().getId()).collect(Collectors.toSet());
 

@@ -15,6 +15,7 @@ package "MySQL schema" {
     secondary_phone_name
     instagram
     facebook
+    created_by_id <<FK,NN>>
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -26,6 +27,7 @@ package "MySQL schema" {
     name <<NN>>
     address
     phone_number
+    created_by_id <<FK,NN>>
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -51,6 +53,7 @@ package "MySQL schema" {
     last_rabies_date
     owner_id <<FK,NN>>
     vet_id <<FK>>
+    created_by_id <<FK,NN>>
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -64,6 +67,7 @@ package "MySQL schema" {
     end_at <<NN>>
     cancelled_at
     notes
+    created_by_id <<FK,NN>>
     --
     created_at <<NN>>
     updated_at <<NN>>
@@ -91,6 +95,10 @@ package "MySQL schema" {
   owners "1" -- "0..*" stays : FK owner_id
   stays  "1" -- "1..*" stay_cat : FK stay_id
   cats   "1" -- "0..*" stay_cat : FK cat_id
+  user_accounts "1" -- "0..*" owners : FK created_by_id
+  user_accounts "1" -- "0..*" cats : FK created_by_id
+  user_accounts "1" -- "0..*" vets : FK created_by_id
+  user_accounts "1" -- "0..*" stays : FK created_by_id
 }
 
 note right of stays

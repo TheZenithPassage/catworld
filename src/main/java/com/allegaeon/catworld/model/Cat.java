@@ -52,6 +52,10 @@ public class Cat extends AuditableEntity {
     @JoinColumn(name = "vet_id")
     private Vet vet;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
+    private UserAccount createdBy;
+
     @Builder.Default
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "cat")
     private Set<StayCat> stayCats = new HashSet<>();

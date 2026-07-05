@@ -10,6 +10,7 @@ import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.VetRepository;
+import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +25,7 @@ public class CatService implements ICatService{
     private final CatMapper catMapper;
     private final OwnerRepository ownerRepository;
     private final VetRepository vetRepository;
+    private final CurrentUserAccountService currentUserAccountService;
 
     @Override
     public List<CatResponseDTO> getAllCats() {
@@ -44,9 +46,10 @@ public class CatService implements ICatService{
             vet = getVetEntity(catRequestDTO.getVetId());
         }
 
-        return catMapper.toResponseDTO(
-                catRepository.save(
-                        catMapper.toEntity(catRequestDTO, owner, vet)));
+        Cat cat = catMapper.toEntity(catRequestDTO, owner, vet);
+        cat.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
+
+        return catMapper.toResponseDTO(catRepository.save(cat));
     }
 
     @Override

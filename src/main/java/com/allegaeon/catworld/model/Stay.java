@@ -35,6 +35,10 @@ public class Stay extends AuditableEntity {
     @JoinColumn(name = "owner_id", nullable = false)
     private Owner owner;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
+    private UserAccount createdBy;
+
     @Builder.Default
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StayCat> stayCats = new HashSet<>();

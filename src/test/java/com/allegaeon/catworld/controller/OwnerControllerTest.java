@@ -100,7 +100,11 @@ public class OwnerControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(ownerId.toString()))
-                    .andExpect(jsonPath("$.fullName").value("John Owner"));
+                    .andExpect(jsonPath("$.fullName").value("John Owner"))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(ownerService).createOwner(any(OwnerRequestDTO.class));
         }
