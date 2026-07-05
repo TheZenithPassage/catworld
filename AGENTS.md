@@ -3,6 +3,7 @@
 ## Required Context
 
 * Read `.specify/memory/constitution.md` before planning or implementing work.
+* For coordinator GitHub issue orchestration requests, read and follow `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`; keep concrete child issue implementation delegated to `.agents/skills/catworld-implement-issue/SKILL.md`.
 * For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
