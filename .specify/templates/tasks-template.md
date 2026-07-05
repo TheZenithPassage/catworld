@@ -348,7 +348,12 @@ With multiple developers:
 - [Trace] label maps task to a specific user story or technical outcome for traceability
 - Each group must be objectively verifiable
 - Choose test timing per feature while preserving constitution-required coverage
-- Do not commit unless the user explicitly asks for a commit for that task
+- Do not add task-list tasks for branch cleanup, branch deletion, remote
+  pruning, force-push, merge, auto-merge, issue mutation, or public comments
+  unless the user explicitly requests those operations where applicable.
+- Do not add committing, pushing, or opening/updating pull requests as ordinary
+  implementation tasks. Issue implementation delivery may still occur after
+  tasks complete when user and repository instructions explicitly allow it.
 - Stop at any checkpoint to validate the user journey or technical outcome
 - Avoid: vague tasks, same file conflicts, artificial independence, or
   unrelated cleanup

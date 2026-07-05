@@ -24,25 +24,34 @@ If the issue is ambiguous, stop and ask for the issue identifier.
 ## Repository Boundaries
 
 - May create and switch local branches for the active issue.
-- Do not commit.
-- Do not push.
-- Do not create or modify pull requests.
-- Do not modify GitHub issues.
+- May commit scoped implementation changes on the active issue branch after the required implementation and validation work is complete.
+- May push the active issue branch to `origin` with a normal non-force push.
+- May open a pull request targeting `main`, or update the existing pull request for the same active issue branch.
+- May implement review fixes as new follow-up commits on the same PR branch, then push normally.
+- Do not modify GitHub issues unless explicitly requested.
 - Do not merge.
+- Do not merge pull requests.
+- Do not enable auto-merge.
+- Do not approve Codex's own pull request.
 - Do not write directly to `main`.
+- Do not commit directly on `main`, merge any branch into local `main`, push directly to `main`, or use `main` as a delivery branch.
+- Do not update local `main` or pull unrelated changes into `main` unless the user explicitly requests a specific maintenance operation.
+- Do not use `git push --force`, `git push --force-with-lease`, rebase-push workflows, or any history-rewriting remote update unless the user explicitly requests it.
+- Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, or post public GitHub comments unless explicitly requested where applicable.
 - Do not generate example feature directories.
 
 ## Branch Preparation
 
 Fetch the issue title and labels read-only for branch naming, then prepare the
-local branch before running Spec Kit:
+local branch before running Spec Kit. Branch preparation may fetch and inspect
+`main`, but it must not update local `main` or use `main` as the delivery
+branch.
 
 1. Confirm the working tree is clean with `git status --porcelain`. If any
    output appears, abort and report the dirty paths.
-2. Switch to `main` with `git switch main`. If `main` is unavailable, abort.
-3. Pull `main` with `git pull --ff-only`. If the pull cannot fast-forward,
-   abort.
-4. Derive the target local branch name from the issue number, title, and labels:
+2. Fetch the current remote main ref with `git fetch origin main`. If
+   `origin/main` is unavailable after the fetch, abort.
+3. Derive the target local branch name from the issue number, title, and labels:
    - Format: `<type>/<issue-number>-<short-description>`.
    - Infer `<type>` from the issue title prefix first, then labels. Recognize
      common conventional types such as `feat`, `fix`, `docs`, `test`, `chore`,
@@ -53,12 +62,13 @@ local branch before running Spec Kit:
      prefixes such as `[Chore]` or `feat:`. Lowercase it, preserve meaningful
      technical terms, replace non-alphanumeric runs with hyphens, collapse
      repeated hyphens, and keep it concise.
-5. Check whether `refs/heads/<branch>` already exists. If it exists and the
+4. Check whether `refs/heads/<branch>` already exists. If it exists and the
    user did not explicitly ask to reuse it, abort. If reuse was explicitly
    requested, switch to it without merging.
-6. If the branch does not exist, create and switch to it with
-   `git switch -c <branch>`.
-7. Confirm the current branch is not `main` before running any Spec Kit command.
+5. If the branch does not exist, create and switch to it from `origin/main` with
+   `git switch -c <branch> origin/main`.
+6. Confirm the current branch is not `main` before running any Spec Kit command
+   or editing files.
 
 Examples:
 
@@ -66,6 +76,25 @@ Examples:
 - `feat/178-material-application-shell`
 - `fix/201-stay-date-validation`
 - `docs/210-update-operations-guide`
+
+## Future Sub-Issue Compatibility
+
+This skill does not implement full multi-agent orchestration, automatic
+worktree management, or branch-to-branch integration between work branches.
+However, do not word issue implementation rules in a way that blocks a future
+explicitly designed principal-agent workflow.
+
+- Coordinator issues may split work into sub-issues when dependencies and
+  conflict risks are understood.
+- Hard-dependent sub-issues must not be parallelized blindly.
+- Future sub-agents must inherit the same governing context as the principal
+  agent, including repository instructions, Spec Kit artifacts, issue body,
+  linked sub-issues, parent/coordinator issue, relevant documentation, and
+  current `main`.
+- Sub-agents are implementation executors, not product or architecture decision
+  makers.
+- When a sub-agent encounters ambiguity, missing context, conflict, or an
+  unresolved decision, it must stop and report back instead of guessing.
 
 ## Workflow
 
@@ -123,23 +152,42 @@ Run this flow in order:
     - If `AGENTS.md` changed only because of the `SPECKIT START` / `SPECKIT END`
       active plan pointer, restore that block to the `main` version.
     - Do not remove or rewrite permanent `AGENTS.md` instructions.
-18. Report final status, commands executed with explicit validation statuses,
-    scope-drift review results, risks, git status and diff summary, suggested
-    conventional commit title, and suggested pull request description.
+18. If delivery operations are explicitly requested and the current branch is
+    not `main`, commit the scoped changes with a conventional commit title,
+    push the active issue branch to `origin` with a normal non-force push, and
+    open or update a pull request targeting `main`.
+    - If validation passes, open or update a ready pull request.
+    - If validation is failed or incomplete but the branch is still useful for
+      review, open or update a draft pull request only when the validation
+      status is clearly reported.
+    - For sub-issues, close only the implemented child issue and reference the
+      parent/coordinator issue as related work. Do not close the coordinator
+      issue unless it is explicitly complete.
+    - Do not post public GitHub comments or modify GitHub issues unless the
+      user explicitly requests those operations.
+    - Returning the local checkout to `main` after PR delivery is not required.
+19. Report final status, commands executed with explicit validation statuses,
+    scope-drift review results, risks, git status and diff summary, branch
+    name, commit hash or hashes, PR URL if opened, ready/draft PR status, and
+    current local checkout branch. If delivery operations were not performed,
+    include a suggested conventional commit title and suggested pull request
+    description instead.
 
 ## Stop Conditions
 
 Stop and report the blocker when any of these occur:
 
 - Working tree is dirty before branch preparation.
-- `main` cannot be checked out or fast-forwarded.
+- `origin/main` cannot be fetched or inspected for branch preparation.
 - Target branch already exists without explicit reuse permission.
 - Spec, plan, or tasks conflict with the issue or constitution.
 - A new human decision is required and not already approved.
 - The plan selects a materially different approach from the approved issue or a
   still-applicable prior approved plan.
 - Generated artifacts conflict in a way that is not safely mechanical to fix.
-- Validation fails and cannot be fixed without changing approved scope.
+- Validation fails and cannot be fixed without changing approved scope, unless
+  delivery operations were explicitly requested and the branch is still useful
+  for draft PR review with the failure clearly reported.
 - Required validation is stale after relevant late changes and cannot be rerun or
   honestly reported within the approved scope.
 - Changed files or surfaces outside the issue/spec/plan/tasks source map cannot be
@@ -152,16 +200,22 @@ Use the CatWorld `AGENTS.md` completion format:
 1. Concise summary of implemented behavior.
 2. Validation commands executed and their results.
 3. Remaining risks, limitations, or unverified aspects.
-4. One suggested conventional commit title.
-5. One concise pull request description.
+4. When delivery operations were performed: branch name, commit hash or hashes,
+   PR URL, ready/draft PR status, and current local checkout branch.
+5. When delivery operations were not performed: one suggested conventional
+   commit title and one concise pull request description.
 
 Include the final branch name, `git status --short`, a concise diff summary,
-validation freshness status, and any scope-drift review findings.
-Do not create the commit, push, pull request, issue update, or merge.
+validation freshness status, and any scope-drift review findings. When delivery
+operations were performed, include the commit hash or hashes, PR URL, ready or
+draft PR status, and current local checkout branch. When delivery operations
+were not performed, include the suggested commit title and pull request
+description.
 
 ## Done When
 
-- Local issue branch is prepared from an up-to-date `main`.
+- Local issue branch is prepared from current `origin/main` without using
+  `main` as a delivery branch.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
 - Implementation and convergence have run within the cycle limit.
@@ -169,6 +223,12 @@ Do not create the commit, push, pull request, issue update, or merge.
 - Validation results are fresh after the latest relevant change, or stale/not-rerun
   checks are explicitly reported as not passed.
 - Changed files have been reviewed against the issue/spec/plan/tasks source map.
-- Final status includes commands, validation, risks, diff summary, suggested
-  commit title, and suggested pull request description.
+- When delivery operations are explicitly requested, scoped changes have been
+  committed on the active issue branch, the branch has been pushed normally, and
+  a PR targeting `main` has been opened or updated without merging, enabling
+  auto-merge, force-pushing, deleting branches, pruning remotes, mutating
+  issues, or posting public comments.
+- When delivery operations are not performed, final status includes commands,
+  validation, risks, diff summary, suggested commit title, and suggested pull
+  request description.
 - The `AGENTS.md` active plan pointer is restored before the final report when it was changed only as local workflow state.
