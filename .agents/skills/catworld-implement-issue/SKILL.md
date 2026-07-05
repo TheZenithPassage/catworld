@@ -21,6 +21,29 @@ that skill's `SKILL.md`.
 
 If the issue is ambiguous, stop and ask for the issue identifier.
 
+## Shorthand Prompt Routing
+
+When the user prompt consists of a single issue number, issue reference, or
+issue URL, optionally followed by `parallel` or `sequential`, treat the prompt
+as an end-to-end CatWorld issue implementation request.
+
+- Fetch and inspect the issue read-only before choosing the workflow.
+- Use this skill for normal implementable issues.
+- Use `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` for
+  coordinator issues, with sequential mode as the default.
+- Use coordinator parallel mode only when the prompt includes the explicit
+  `parallel` keyword, the issue is a coordinator issue, and parallel execution
+  is safe. Do not infer parallel mode from a bare issue number, issue
+  reference, or issue URL.
+- Treat `sequential` as an explicit request for coordinator sequential mode
+  when the issue is a coordinator issue.
+- Ignore `parallel` and `sequential` for normal implementable issues and use
+  this skill.
+- If a prompt contains multiple issue numbers without a clear instruction, stop
+  and ask which issue to implement.
+- If the issue cannot be classified after reading it, stop and report the
+  ambiguity.
+
 ## Coordinator Issue Boundary
 
 This skill implements one concrete CatWorld issue, including one concrete child
