@@ -21,6 +21,19 @@ that skill's `SKILL.md`.
 
 If the issue is ambiguous, stop and ask for the issue identifier.
 
+## Coordinator Issue Boundary
+
+This skill implements one concrete CatWorld issue, including one concrete child
+issue delegated by a coordinator workflow.
+
+If the issue body clearly indicates a coordinator issue, do not prepare an issue
+branch or implement the coordinator issue as one bundled PR by default. Load and
+follow `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`
+instead.
+
+Fetch or read the issue body read-only before branch preparation when needed to
+decide this boundary.
+
 ## Repository Boundaries
 
 - May create and switch local branches for the active issue.
@@ -86,6 +99,8 @@ explicitly designed principal-agent workflow.
 
 - Coordinator issues may split work into sub-issues when dependencies and
   conflict risks are understood.
+- Explicit coordinator issue orchestration belongs in
+  `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`.
 - Hard-dependent sub-issues must not be parallelized blindly.
 - Future sub-agents must inherit the same governing context as the principal
   agent, including repository instructions, Spec Kit artifacts, issue body,
