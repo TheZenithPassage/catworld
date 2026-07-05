@@ -29,8 +29,13 @@
 
 ## Repository Operations
 
-* Do not commit, amend commits, push branches, create or modify pull requests or issues, merge changes, or post public comments unless explicitly instructed.
-* Never write directly to `main`.
+* During an explicitly requested issue implementation, Codex may commit scoped changes on the active issue branch, push that branch to `origin` with a normal non-force push, and open or update a pull request targeting `main`.
+* Review fixes for an existing pull request should normally be delivered as new follow-up commits on the same PR branch, then pushed normally.
+* Outside explicitly requested delivery operations, do not commit, amend commits, push branches, or create or modify pull requests.
+* Codex may fetch or inspect `main` when needed, but must not update local `main`, pull unrelated changes into `main`, or use `main` as a delivery branch unless the user explicitly requests a specific maintenance operation.
+* Never commit directly on `main`, merge any branch into local `main`, push directly to `main`, merge a pull request, enable auto-merge, or approve Codex's own pull request.
+* Never use `git push --force`, `git push --force-with-lease`, rebase-push workflows, or any history-rewriting remote update unless the user explicitly requests it.
+* Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, modify GitHub issues, or post public GitHub comments unless explicitly requested where applicable.
 
 ## Language and Documentation
 
@@ -45,8 +50,8 @@ After completing an implementation, provide:
 1. A concise summary of the implemented behavior.
 2. The validation commands executed and their results.
 3. Any remaining risks, limitations, or unverified aspects.
-4. One suggested conventional commit title.
-5. One concise pull request description.
+4. When delivery operations were performed: the branch name, commit hash or hashes, pull request URL, whether the PR is ready or draft, and the current local checkout branch.
+5. When delivery operations were not performed: one suggested conventional commit title and one concise pull request description.
 
 The suggested commit(s) title(s) MUST:
 
@@ -76,4 +81,4 @@ Keep the pull request description focused:
 * do not repeat the full issue, specification, plan, task list, or file list;
 * use `Related to #<issue-number>` instead of `Closes` when the pull request must not close the issue;
 * omit empty or irrelevant sections;
-* do not create the commit or pull request unless explicitly instructed.
+* create or update the pull request only when delivery operations were explicitly requested; otherwise provide the description as a suggestion.
