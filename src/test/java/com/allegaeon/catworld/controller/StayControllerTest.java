@@ -104,7 +104,11 @@ public class StayControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.stayId").value(stayId.toString()));
+                    .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(stayService).createStay(any(StayRequestDTO.class));
 

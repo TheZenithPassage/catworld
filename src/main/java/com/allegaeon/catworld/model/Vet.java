@@ -25,6 +25,10 @@ public class Vet extends AuditableEntity {
     private String address;
     private String phoneNumber;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
+    private UserAccount createdBy;
+
     @Builder.Default
     @OneToMany(mappedBy = "vet", fetch = FetchType.LAZY)
     private List<Cat> cats = new ArrayList<>();

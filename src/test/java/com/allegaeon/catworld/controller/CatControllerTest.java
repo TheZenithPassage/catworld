@@ -109,7 +109,11 @@ public class CatControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(catId.toString()))
-                    .andExpect(jsonPath("$.name").value("Milo"));
+                    .andExpect(jsonPath("$.name").value("Milo"))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(catService).createCat(any(CatRequestDTO.class));
         }

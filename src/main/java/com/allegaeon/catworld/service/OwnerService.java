@@ -6,6 +6,7 @@ import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.repository.OwnerRepository;
+import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ public class OwnerService implements IOwnerService {
 
     private final OwnerRepository ownerRepository;
     private final OwnerMapper ownerMapper;
+    private final CurrentUserAccountService currentUserAccountService;
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {
@@ -31,9 +33,9 @@ public class OwnerService implements IOwnerService {
 
     @Override
     public OwnerResponseDTO createOwner(OwnerRequestDTO ownerRequestDTO) {
-        return ownerMapper.toResponseDTO(
-                ownerRepository.save(
-                        ownerMapper.toEntity(ownerRequestDTO)));
+        Owner owner = ownerMapper.toEntity(ownerRequestDTO);
+        owner.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
+        return ownerMapper.toResponseDTO(ownerRepository.save(owner));
     }
 
     @Override

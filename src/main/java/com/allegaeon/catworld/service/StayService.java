@@ -13,6 +13,7 @@ import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class StayService implements IStayService {
     private final StayRepository stayRepository;
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
+    private final CurrentUserAccountService currentUserAccountService;
 
     @Override
     public List<StayResponseDTO> getAllStays() {
@@ -72,6 +74,7 @@ public class StayService implements IStayService {
 
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
+        stay.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
 
         return stayMapper.toResponseDTO(stayRepository.save(stay));
 

@@ -17,6 +17,7 @@ package "catworld.domain" {
     +String secondaryPhoneName
     +String instagram
     +String facebook
+    +UserAccount createdBy  <<NotNull>>
   }
 
   class Vet extends Auditable {
@@ -24,6 +25,7 @@ package "catworld.domain" {
     +String name  <<NotNull>>
     +String address
     +String phoneNumber
+    +UserAccount createdBy  <<NotNull>>
   }
 
   enum Sex {
@@ -48,6 +50,7 @@ package "catworld.domain" {
     +LocalDate lastExternalDewormingDate
     +LocalDate lastTripleFelineDate
     +LocalDate lastRabiesDate
+    +UserAccount createdBy  <<NotNull>>
   }
 
   enum StayStatus <<computed>> {
@@ -64,6 +67,7 @@ package "catworld.domain" {
     +LocalDateTime cancelledAt
     +String notes
     +StayStatus status  <<Transient/Computed>>
+    +UserAccount createdBy  <<NotNull>>
   }
 
   class StayCat {
@@ -89,6 +93,10 @@ package "catworld.domain" {
   Owner "1" o-- "0..*" Stay : books >
   Stay  "1" *-- "1..*" StayCat : includes >
   Cat   "1" o-- "0..*" StayCat : participates >
+  UserAccount "1" <-- "0..*" Owner : createdBy
+  UserAccount "1" <-- "0..*" Cat : createdBy
+  UserAccount "1" <-- "0..*" Vet : createdBy
+  UserAccount "1" <-- "0..*" Stay : createdBy
 }
 
 note right of Stay

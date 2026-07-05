@@ -100,7 +100,11 @@ public class VetControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(vetId.toString()))
-                    .andExpect(jsonPath("$.name").value("Vet Clinic"));
+                    .andExpect(jsonPath("$.name").value("Vet Clinic"))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(vetService).createVet(any(VetRequestDTO.class));
         }

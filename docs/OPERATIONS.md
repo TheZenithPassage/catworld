@@ -149,3 +149,17 @@ Before using real data:
 4. Restore the backup into a fresh database.
 5. Confirm the sample data is visible from the frontend.
 6. Remove sample data if it should not remain.
+
+## Pre-Deployment Data Checks
+
+Before deploying the creator-attribution migration from issue #146, confirm the
+production operational tables are empty as expected:
+
+```
+docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c "mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\" -e \"SELECT 'owners' AS table_name, COUNT(*) AS rows_count FROM owners UNION ALL SELECT 'cats', COUNT(*) FROM cats UNION ALL SELECT 'vets', COUNT(*) FROM vets UNION ALL SELECT 'stays', COUNT(*) FROM stays;\""
+```
+
+If any of `owners`, `cats`, `vets` or `stays` contains rows, stop deployment
+and obtain an explicit backfill or deployment decision before applying the
+migration. Do not infer a creator for existing operational data without that
+decision.

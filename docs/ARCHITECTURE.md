@@ -72,6 +72,7 @@ An `Owner` can have:
 
 - multiple cats
 - multiple stays
+- one application account recorded as its creator
 
 #### Vet
 
@@ -79,11 +80,15 @@ Represents a reference veterinarian.
 
 A `Vet` can be associated with multiple cats, but a cat can also exist without a vet.
 
+Each `Vet` stores the application account that created it.
+
 #### Cat
 
 Represents a cat registered in the boarding system.
 
 A `Cat` belongs to one `Owner` and may optionally reference one `Vet`.
+
+Each `Cat` stores the application account that created it.
 
 #### Stay
 
@@ -97,6 +102,7 @@ A `Stay` contains:
 - `notes`
 - `owner`
 - participating cats through `StayCat`
+- the application account that created it
 
 #### StayCat
 
@@ -115,6 +121,9 @@ A `UserAccount` contains:
 - fixed `ADMIN` or `STAFF` role
 - enabled state
 - auditing timestamps
+
+`UserAccount` does not store its own creator. Operational creator attribution
+is stored only on owner, cat, vet and stay records.
 
 ## Stay Model
 
@@ -145,6 +154,8 @@ Main relationships:
 - An `Owner` may have zero or more `Stay` records; each `Stay` belongs to one `Owner`.
 - A `Stay` contains one or more `StayCat` links.
 - A `Cat` may have zero or more `StayCat` links.
+- Each `Owner`, `Cat`, `Vet` and `Stay` references the `UserAccount` that
+  created it.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -230,6 +241,8 @@ Important schema points:
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
 - `status` is not persisted.
 - `user_accounts` stores persistent application users for HTTP Basic authentication.
+- `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
+  foreign key to `user_accounts`.
 
 ## Authentication
 
@@ -240,6 +253,11 @@ Successful login returns the canonical stored username and its fixed `ADMIN` or 
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
+
+When authenticated users create owner, cat, vet or stay records, the backend
+resolves the stored `UserAccount` for the current Spring Security username and
+persists it as the record creator. Creator attribution is server-controlled and
+is not part of operational client request payloads or response display.
 
 ## Frontend UI Foundation
 
@@ -376,6 +394,16 @@ Main entities include:
 - `updatedAt`
 
 These fields are managed with JPA Auditing.
+
+Operational entities also include required creator attribution:
+
+- `Owner.createdBy`
+- `Cat.createdBy`
+- `Vet.createdBy`
+- `Stay.createdBy`
+
+Creator attribution is assigned by services during creation and enforced by
+database foreign keys. It is separate from JPA timestamp auditing.
 
 ## Error Handling
 

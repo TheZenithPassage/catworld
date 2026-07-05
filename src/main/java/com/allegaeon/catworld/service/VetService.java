@@ -6,6 +6,7 @@ import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.VetMapper;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.VetRepository;
+import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ public class VetService implements IVetService {
 
     private final VetRepository vetRepository;
     private final VetMapper vetMapper;
+    private final CurrentUserAccountService currentUserAccountService;
 
     @Override
     public List<VetResponseDTO> getAllVets() {
@@ -31,9 +33,9 @@ public class VetService implements IVetService {
 
     @Override
     public VetResponseDTO createVet(VetRequestDTO vetRequestDTO) {
-        return vetMapper.toResponseDTO(
-                vetRepository.save(
-                        vetMapper.toEntity(vetRequestDTO)));
+        Vet vet = vetMapper.toEntity(vetRequestDTO);
+        vet.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
+        return vetMapper.toResponseDTO(vetRepository.save(vet));
     }
 
     @Override
