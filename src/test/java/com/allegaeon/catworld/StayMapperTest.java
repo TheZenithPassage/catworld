@@ -63,4 +63,21 @@ public class StayMapperTest {
 
     }
 
+    @Test
+    void toResponseDTO_shouldMapCanDelete() {
+
+        Stay stay = Stay.builder()
+                .owner(Owner.builder()
+                        .id(UUID.randomUUID())
+                        .fullName("Owner 1")
+                        .build())
+                .stayCats(Set.of())
+                .build();
+
+        StayResponseDTO response = stayMapper.toResponseDTO(stay, true);
+
+        assertTrue(response.isCanDelete());
+
+    }
+
 }

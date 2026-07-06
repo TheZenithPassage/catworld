@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IStayService;
 import org.junit.jupiter.api.Nested;
@@ -57,11 +58,15 @@ public class StayControllerTest {
 
             UUID stayId = UUID.randomUUID();
 
-            when(stayService.getStay(stayId)).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+            when(stayService.getStay(stayId)).thenReturn(StayResponseDTO.builder()
+                    .stayId(stayId)
+                    .canDelete(true)
+                    .build());
 
             mockMvc.perform(get("/api/stays/{id}", stayId))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.stayId").value(stayId.toString()));
+                    .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(stayService).getStay(stayId);
 
@@ -238,6 +243,65 @@ public class StayControllerTest {
                     .andExpect(status().isNoContent());
 
             verify(stayService).cancelStay(stayId);
+
+        }
+
+    }
+
+    @Nested
+    class DeleteStayTests {
+
+        @Test
+        void shouldReturnNoContent_whenDeletingStay() throws Exception {
+
+            UUID stayId = UUID.randomUUID();
+
+            mockMvc.perform(delete("/api/stays/{id}", stayId))
+                    .andExpect(status().isNoContent());
+
+            verify(stayService).deleteStay(stayId);
+
+        }
+
+        @Test
+        void shouldReturnNotFound_whenDeleteServiceThrowsNotFoundException() throws Exception {
+
+            UUID stayId = UUID.randomUUID();
+
+            doThrow(new ResourceNotFoundException("Stay", stayId)).when(stayService).deleteStay(stayId);
+
+            mockMvc.perform(delete("/api/stays/{id}", stayId))
+                    .andExpect(status().isNotFound());
+
+            verify(stayService).deleteStay(stayId);
+
+        }
+
+        @Test
+        void shouldReturnForbidden_whenDeleteServiceThrowsForbiddenException() throws Exception {
+
+            UUID stayId = UUID.randomUUID();
+
+            doThrow(new ForbiddenException("Forbidden")).when(stayService).deleteStay(stayId);
+
+            mockMvc.perform(delete("/api/stays/{id}", stayId))
+                    .andExpect(status().isForbidden());
+
+            verify(stayService).deleteStay(stayId);
+
+        }
+
+        @Test
+        void shouldReturnConflict_whenDeleteServiceThrowsConflictException() throws Exception {
+
+            UUID stayId = UUID.randomUUID();
+
+            doThrow(new ConflictException("Conflict")).when(stayService).deleteStay(stayId);
+
+            mockMvc.perform(delete("/api/stays/{id}", stayId))
+                    .andExpect(status().isConflict());
+
+            verify(stayService).deleteStay(stayId);
 
         }
 

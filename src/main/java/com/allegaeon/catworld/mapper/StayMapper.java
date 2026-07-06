@@ -14,6 +14,10 @@ import java.util.stream.Collectors;
 public class StayMapper {
 
     public StayResponseDTO toResponseDTO(Stay stay) {
+        return toResponseDTO(stay, false);
+    }
+
+    public StayResponseDTO toResponseDTO(Stay stay, boolean canDelete) {
 
         return StayResponseDTO.builder()
                 .stayId(stay.getId())
@@ -27,6 +31,7 @@ public class StayMapper {
                 .ownerId(stay.getOwner().getId())
                 .ownerName(stay.getOwner().getFullName())
                 .cats(toCatSummaries(stay))
+                .canDelete(canDelete)
                 .build();
 
     }

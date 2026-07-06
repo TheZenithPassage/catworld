@@ -15,6 +15,8 @@ import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,15 +34,16 @@ public class StayService implements IStayService {
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
     private final CurrentUserAccountService currentUserAccountService;
+    private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @Override
     public List<StayResponseDTO> getAllStays() {
-        return stayRepository.findAll().stream().map(stayMapper::toResponseDTO).toList();
+        return stayRepository.findAll().stream().map(this::toResponseDTO).toList();
     }
 
     @Override
     public StayResponseDTO getStay(UUID stayId) {
-        return stayMapper.toResponseDTO(getStayEntity(stayId));
+        return toResponseDTO(getStayEntity(stayId));
     }
 
     @Override
@@ -76,7 +79,7 @@ public class StayService implements IStayService {
         stay.setStayCats(stayCats);
         stay.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
 
-        return stayMapper.toResponseDTO(stayRepository.save(stay));
+        return toResponseDTO(stayRepository.save(stay));
 
     }
 
@@ -94,7 +97,7 @@ public class StayService implements IStayService {
             if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
         }
 
-        return stayMapper.toResponseDTO(stayRepository.save(stay));
+        return toResponseDTO(stayRepository.save(stay));
 
     }
 
@@ -106,6 +109,22 @@ public class StayService implements IStayService {
         validateStayCanBeModified(stay);
 
         stay.setCancelledAt(LocalDateTime.now());
+
+    }
+
+    @Override
+    @Transactional
+    public void deleteStay(UUID stayId) {
+
+        Stay stay = getStayEntity(stayId);
+        deletionAuthorizationPolicy.authorize(stay.getCreatedBy(), stay.getCreatedAt());
+
+        try {
+            stayRepository.delete(stay);
+            stayRepository.flush();
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException exception) {
+            throw new ConflictException("Stay cannot be deleted because of a data conflict");
+        }
 
     }
 
@@ -138,5 +157,8 @@ public class StayService implements IStayService {
         if(startAt.isAfter(endAt) || startAt.isEqual(endAt)) throw new BadRequestException("End time must be after start time");
     }
 
+    private StayResponseDTO toResponseDTO(Stay stay) {
+        return stayMapper.toResponseDTO(stay, deletionAuthorizationPolicy.canDelete(stay.getCreatedBy(), stay.getCreatedAt()));
+    }
 
 }

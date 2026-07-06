@@ -17,7 +17,9 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,6 +44,8 @@ class DeletionAuthorizationPolicyTest {
             boolean authorized) {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
 
+        assertEquals(authorized, policy.canDelete(creator, createdAt), description);
+
         if (authorized) {
             assertDoesNotThrow(() -> policy.authorize(creator, createdAt), description);
         } else {
@@ -53,6 +57,7 @@ class DeletionAuthorizationPolicyTest {
     void authorizeAllowsAdminEvenWhenCreatorAndCreatedAtAreUnavailable() {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(account(CURRENT_USER_ID, UserRole.ADMIN));
 
+        assertTrue(policy.canDelete(null, null));
         assertDoesNotThrow(() -> policy.authorize(null, null));
     }
 
