@@ -58,12 +58,11 @@ CatWorld issue implementation request.
 
 ## Repository Operations
 
-* During an explicitly requested issue implementation, Codex may commit scoped changes on the active issue branch, push that branch to `origin` with a normal non-force push, and open or update a pull request targeting `main`.
+* Codex may commit scoped changes, push the active issue branch with a normal non-force push, and create or update pull requests when the active CatWorld workflow allows delivery.
 * Review fixes for an existing pull request should normally be delivered as new follow-up commits on the same PR branch, then pushed normally.
-* Outside explicitly requested delivery operations, do not commit, amend commits, push branches, or create or modify pull requests.
 * Codex may fetch or inspect `main` when needed, but must not update local `main`, pull unrelated changes into `main`, or use `main` as a delivery branch unless the user explicitly requests a specific maintenance operation.
 * Never commit directly on `main`, merge any branch into local `main`, push directly to `main`, merge a pull request, enable auto-merge, or approve Codex's own pull request.
-* Never use `git push --force`, `git push --force-with-lease`, rebase-push workflows, or any history-rewriting remote update unless the user explicitly requests it.
+* Never amend commits, rebase-push, force-push, use `--force` or `--force-with-lease`, or perform any history-rewriting remote update unless explicitly approved by the user.
 * Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, modify GitHub issues, or post public GitHub comments unless explicitly requested where applicable.
 
 ## Language and Documentation
