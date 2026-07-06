@@ -26,6 +26,7 @@ public class CatService implements ICatService{
     private final OwnerRepository ownerRepository;
     private final VetRepository vetRepository;
     private final CurrentUserAccountService currentUserAccountService;
+    private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @Override
     public List<CatResponseDTO> getAllCats() {
@@ -68,7 +69,9 @@ public class CatService implements ICatService{
 
     @Override
     public void deleteCat(UUID id) {
-        catRepository.delete(getCatEntity(id));
+        Cat cat = getCatEntity(id);
+        deletionAuthorizationPolicy.authorize(cat.getCreatedBy(), cat.getCreatedAt());
+        catRepository.delete(cat);
     }
 
     private Cat getCatEntity(UUID id) {

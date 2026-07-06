@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IOwnerService;
 import org.junit.jupiter.api.Nested;
@@ -180,6 +181,19 @@ public class OwnerControllerTest {
 
             mockMvc.perform(delete("/api/owners/{id}", ownerId))
                     .andExpect(status().isNoContent());
+
+            verify(ownerService).deleteOwner(ownerId);
+        }
+
+        @Test
+        void shouldReturnForbidden_whenDeleteAuthorizationFails() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+
+            doThrow(new ForbiddenException("Forbidden")).when(ownerService).deleteOwner(ownerId);
+
+            mockMvc.perform(delete("/api/owners/{id}", ownerId))
+                    .andExpect(status().isForbidden())
+                    .andExpect(content().string("Forbidden"));
 
             verify(ownerService).deleteOwner(ownerId);
         }

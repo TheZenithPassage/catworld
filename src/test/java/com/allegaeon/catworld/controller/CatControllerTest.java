@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.service.ICatService;
@@ -198,6 +199,19 @@ public class CatControllerTest {
 
             mockMvc.perform(delete("/api/cats/{id}", catId))
                     .andExpect(status().isNoContent());
+
+            verify(catService).deleteCat(catId);
+        }
+
+        @Test
+        void shouldReturnForbidden_whenDeleteAuthorizationFails() throws Exception {
+            UUID catId = UUID.randomUUID();
+
+            doThrow(new ForbiddenException("Forbidden")).when(catService).deleteCat(catId);
+
+            mockMvc.perform(delete("/api/cats/{id}", catId))
+                    .andExpect(status().isForbidden())
+                    .andExpect(content().string("Forbidden"));
 
             verify(catService).deleteCat(catId);
         }

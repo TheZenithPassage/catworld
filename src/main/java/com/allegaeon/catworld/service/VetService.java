@@ -20,6 +20,7 @@ public class VetService implements IVetService {
     private final VetRepository vetRepository;
     private final VetMapper vetMapper;
     private final CurrentUserAccountService currentUserAccountService;
+    private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @Override
     public List<VetResponseDTO> getAllVets() {
@@ -48,7 +49,9 @@ public class VetService implements IVetService {
 
     @Override
     public void deleteVet(UUID id) {
-        vetRepository.delete(getEntity(id));
+        Vet vet = getEntity(id);
+        deletionAuthorizationPolicy.authorize(vet.getCreatedBy(), vet.getCreatedAt());
+        vetRepository.delete(vet);
     }
 
     private Vet getEntity(UUID id) {
