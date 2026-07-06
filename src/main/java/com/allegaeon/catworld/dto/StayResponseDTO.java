@@ -24,5 +24,6 @@ public class StayResponseDTO {
     private UUID ownerId;
     private String ownerName;
     private Set<StayCatSummaryDTO> cats;
+    private boolean canDelete;
 
 }

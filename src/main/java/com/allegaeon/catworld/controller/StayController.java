@@ -46,4 +46,10 @@ public class StayController {
         stayService.cancelStay(id);
     }
 
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteStay(@PathVariable UUID id) {
+        stayService.deleteStay(id);
+    }
+
 }

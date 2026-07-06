@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
@@ -20,11 +21,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +47,9 @@ public class StayServiceTest {
 
     @Mock
     private CurrentUserAccountService currentUserAccountService;
+
+    @Mock
+    private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @InjectMocks
     private StayService service;
@@ -176,7 +183,8 @@ public class StayServiceTest {
             when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
-            when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = service.createStay(stayRequestDTO);
 
@@ -241,7 +249,8 @@ public class StayServiceTest {
             when(catRepository.findById(cat2.getId())).thenReturn(Optional.of(cat2));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
-            when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = service.createStay(stayRequestDTO);
 
@@ -310,7 +319,8 @@ public class StayServiceTest {
             when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
             when(stayMapper.toEntity(stayRequestDTO)).thenReturn(mappedStay);
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
-            when(stayMapper.toResponseDTO(any(Stay.class))).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = assertDoesNotThrow(() -> service.createStay(stayRequestDTO));
 
@@ -389,6 +399,166 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
 
             assertThrows(ConflictException.class, () -> service.cancelStay(stay.getId()));
+
+        }
+
+    }
+
+    @Nested
+    class DeleteStayTests {
+
+        @Test
+        void deleteStayAuthorizesBeforeDeletingStay() {
+
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+
+            service.deleteStay(stay.getId());
+
+            InOrder inOrder = inOrder(deletionAuthorizationPolicy, stayRepository);
+            inOrder.verify(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+            inOrder.verify(stayRepository).delete(stay);
+            inOrder.verify(stayRepository).flush();
+
+        }
+
+        @Test
+        void deleteStayDoesNotDeleteWhenAuthorizationFails() {
+
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            doThrow(new ForbiddenException("Forbidden"))
+                    .when(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+
+            assertThrows(ForbiddenException.class, () -> service.deleteStay(stay.getId()));
+
+            verify(stayRepository, never()).delete(any(Stay.class));
+            verify(stayRepository, never()).flush();
+
+        }
+
+        @Test
+        void deleteStayTranslatesIntegrityConflict() {
+
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            doThrow(new DataIntegrityViolationException("constraint conflict")).when(stayRepository).flush();
+
+            assertThrows(ConflictException.class, () -> service.deleteStay(stay.getId()));
+
+            verify(stayRepository).delete(stay);
+            verify(stayRepository).flush();
+
+        }
+
+        @Test
+        void deleteStayAllowsAnyDynamicStatusWhenAuthorizationPasses() {
+
+            LocalDateTime now = LocalDateTime.now();
+            List<Stay> stays = List.of(
+                    stayWithCreator(now.plusDays(1), now.plusDays(5), now.minusHours(1)),
+                    stayWithCreator(now.plusDays(1), now.plusDays(5), null),
+                    stayWithCreator(now.minusDays(1), now.plusDays(1), null),
+                    stayWithCreator(now.minusDays(5), now.minusDays(1), null));
+
+            for (Stay stay : stays) {
+                when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            }
+
+            for (Stay stay : stays) {
+                assertDoesNotThrow(() -> service.deleteStay(stay.getId()));
+            }
+
+            for (Stay stay : stays) {
+                verify(stayRepository).delete(stay);
+                verify(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+            }
+            verify(stayRepository, times(stays.size())).flush();
+
+        }
+
+    }
+
+    @Nested
+    class ResponseCanDeleteTests {
+
+        @Test
+        void getStayPassesAllowedCanDeleteToMapper() {
+
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(deletionAuthorizationPolicy.canDelete(stay.getCreatedBy(), stay.getCreatedAt())).thenReturn(true);
+            when(stayMapper.toResponseDTO(stay, true)).thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = service.getStay(stay.getId());
+
+            assertSame(expectedResponseDTO, result);
+            verify(stayMapper).toResponseDTO(stay, true);
+
+        }
+
+        @Test
+        void getStayPassesDeniedCanDeleteToMapper() {
+
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(deletionAuthorizationPolicy.canDelete(stay.getCreatedBy(), stay.getCreatedAt())).thenReturn(false);
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = service.getStay(stay.getId());
+
+            assertSame(expectedResponseDTO, result);
+            verify(stayMapper).toResponseDTO(stay, false);
+
+        }
+
+        @Test
+        void getAllStaysCalculatesCanDeleteForEachStay() {
+
+            Stay allowedStay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+            Stay deniedStay = stayWithCreator(
+                    LocalDateTime.now().plusDays(6),
+                    LocalDateTime.now().plusDays(10),
+                    null);
+            StayResponseDTO allowedResponse = new StayResponseDTO();
+            StayResponseDTO deniedResponse = new StayResponseDTO();
+
+            when(stayRepository.findAll()).thenReturn(List.of(allowedStay, deniedStay));
+            when(deletionAuthorizationPolicy.canDelete(allowedStay.getCreatedBy(), allowedStay.getCreatedAt())).thenReturn(true);
+            when(deletionAuthorizationPolicy.canDelete(deniedStay.getCreatedBy(), deniedStay.getCreatedAt())).thenReturn(false);
+            when(stayMapper.toResponseDTO(allowedStay, true)).thenReturn(allowedResponse);
+            when(stayMapper.toResponseDTO(deniedStay, false)).thenReturn(deniedResponse);
+
+            List<StayResponseDTO> result = service.getAllStays();
+
+            assertEquals(List.of(allowedResponse, deniedResponse), result);
+            verify(stayMapper).toResponseDTO(allowedStay, true);
+            verify(stayMapper).toResponseDTO(deniedStay, false);
 
         }
 
@@ -553,7 +723,8 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
-            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(updatedStay, true)).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = service.updateStay(stay.getId(), updateDto);
 
@@ -561,7 +732,7 @@ public class StayServiceTest {
 
             verify(stayMapper).updateEntity(stay, updateDto);
             verify(stayRepository).save(updatedStay);
-            verify(stayMapper).toResponseDTO(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay, true);
 
         }
 
@@ -607,7 +778,8 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
-            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(updatedStay, true)).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = assertDoesNotThrow(() -> service.updateStay(stay.getId(), updateDto));
 
@@ -615,7 +787,7 @@ public class StayServiceTest {
 
             verify(stayMapper).updateEntity(stay, updateDto);
             verify(stayRepository).save(updatedStay);
-            verify(stayMapper).toResponseDTO(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay, true);
 
         }
 
@@ -671,7 +843,8 @@ public class StayServiceTest {
             when(stayRepository.findById(activeStay.getId())).thenReturn(Optional.of(activeStay));
             when(stayMapper.updateEntity(activeStay, updateDto)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
-            when(stayMapper.toResponseDTO(updatedStay)).thenReturn(expectedResponseDTO);
+            when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
+            when(stayMapper.toResponseDTO(updatedStay, true)).thenReturn(expectedResponseDTO);
 
             StayResponseDTO result = assertDoesNotThrow(() -> service.updateStay(activeStay.getId(), updateDto));
 
@@ -679,7 +852,7 @@ public class StayServiceTest {
 
             verify(stayMapper).updateEntity(activeStay, updateDto);
             verify(stayRepository).save(updatedStay);
-            verify(stayMapper).toResponseDTO(updatedStay);
+            verify(stayMapper).toResponseDTO(updatedStay, true);
 
         }
 
@@ -696,6 +869,24 @@ public class StayServiceTest {
         cat.getStayCats().add(stayCat);
 
         return stayCat;
+
+    }
+
+    private Stay stayWithCreator(LocalDateTime startAt, LocalDateTime endAt, LocalDateTime cancelledAt) {
+
+        Stay stay = Stay.builder()
+                .id(UUID.randomUUID())
+                .startAt(startAt)
+                .endAt(endAt)
+                .cancelledAt(cancelledAt)
+                .createdBy(UserAccount.builder()
+                        .id(UUID.randomUUID())
+                        .username("creator")
+                        .build())
+                .build();
+        stay.setCreatedAt(Instant.now());
+
+        return stay;
 
     }
 

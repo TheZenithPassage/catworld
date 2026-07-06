@@ -14,6 +14,7 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
+- Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Lookup of current, future, completed and cancelled stays.
@@ -217,6 +218,9 @@ Current rules:
 - Cancelled stays are ignored during overlap validation.
 - Closed stays cannot be modified.
 - Cancelled stays cannot be cancelled again.
+- Permanent stay deletion is separate from cancellation. Authorized deletion
+  removes the stay and its `StayCat` links, preserves cat, owner, vet and
+  application-account records, and is not blocked by dynamic stay status.
 
 ## Persistence
 
@@ -259,15 +263,19 @@ resolves the stored `UserAccount` for the current Spring Security username and
 persists it as the record creator. Creator attribution is server-controlled and
 is not part of operational client request payloads or response display.
 
-Owner, cat and vet deletion uses a shared backend authorization policy. `ADMIN`
-accounts may delete operational records regardless of creator or record age.
-`STAFF` accounts may delete only records they created, and only while the
+Owner, cat, vet and stay deletion use a shared backend authorization policy.
+`ADMIN` accounts may delete operational records regardless of creator or record
+age. `STAFF` accounts may delete only records they created, and only while the
 record's `createdAt` timestamp remains strictly less than 15 minutes old
 according to server time. At exactly 15 minutes, and after that boundary, staff
 deletion is forbidden. The policy uses the backend time source and maps
 authorization denial to `403 Forbidden`; Angular does not calculate or enforce
 this rule. Entity lookup, relationship and state checks stay in the responsible
 services outside the shared authorization policy.
+
+Stay responses expose a backend-calculated `canDelete` rendering hint for the
+current authenticated user. The hint uses the same shared deletion policy, but
+the backend still rechecks authorization for every DELETE request.
 
 ## Frontend UI Foundation
 

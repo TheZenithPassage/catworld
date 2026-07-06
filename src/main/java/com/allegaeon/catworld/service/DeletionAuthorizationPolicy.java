@@ -21,20 +21,21 @@ public class DeletionAuthorizationPolicy {
     private final Clock clock;
 
     public void authorize(UserAccount creator, Instant createdAt) {
-        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
-
-        if (currentUser.getRole() == UserRole.ADMIN) {
-            return;
-        }
-
-        if (currentUser.getRole() == UserRole.STAFF
-                && isSameAccount(currentUser, creator)
-                && createdAt != null
-                && createdAt.plus(STAFF_DELETION_WINDOW).isAfter(Instant.now(clock))) {
+        if (canDelete(creator, createdAt)) {
             return;
         }
 
         throw new ForbiddenException("Deletion is not allowed for this record");
+    }
+
+    public boolean canDelete(UserAccount creator, Instant createdAt) {
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+
+        return currentUser.getRole() == UserRole.ADMIN
+                || currentUser.getRole() == UserRole.STAFF
+                && isSameAccount(currentUser, creator)
+                && createdAt != null
+                && createdAt.plus(STAFF_DELETION_WINDOW).isAfter(Instant.now(clock));
     }
 
     private boolean isSameAccount(UserAccount currentUser, UserAccount creator) {
