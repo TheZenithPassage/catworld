@@ -50,6 +50,13 @@ This coordinator skill may inspect current `origin/main` and issue metadata to
 classify work. It must not replace the single-issue implementation workflow for
 concrete child issues.
 
+Coordinator-delegated child work uses the active CatWorld delivery rules through
+`.agents/skills/catworld-implement-issue/SKILL.md` for each concrete child
+issue. Delivery includes scoped commit, normal branch push, and child PR creation
+when the active workflow allows delivery. Delivery is skipped only when the user
+explicitly asks for local-only or no-delivery execution, or when a stop condition
+prevents safe delivery.
+
 ## Coordinator Issue Detection
 
 Use this skill when the issue body clearly indicates one or more of these:
@@ -98,8 +105,7 @@ or read, stop and report the blocker.
 
 ## Dependency Classification
 
-Classify each child issue relationship as exactly one or more of these when
-applicable:
+Classify each child issue relationship as one or more of these when applicable:
 
 - **Hard dependency**: The child issue cannot be implemented correctly until
   another issue is merged into `main`.
@@ -188,8 +194,9 @@ Each sub-agent must receive:
 - known shared contracts or patterns from current `main` and governing docs;
 - out-of-scope boundaries;
 - required validation;
-- final report expectations, including child PR URL, validation status,
-  blockers, and any recommended merge order impact.
+- final report expectations, including delivery status, child PR URL when
+  opened, validation status, blockers, current checkout branch, and any
+  recommended merge order impact.
 
 A sub-agent must stop and report back when it finds ambiguity, missing context,
 unresolved product or architecture decisions, unresolved persistence, security,
@@ -197,8 +204,8 @@ UX, or shared-contract decisions, non-mechanical conflicts, validation failure,
 or scope mismatch.
 
 When a child issue is delivered, the child PR should close only that concrete
-child issue and reference the coordinator or parent epic as related work unless
-the child issue is explicitly the final coordinator-completing work.
+child issue and reference the coordinator or parent epic as related work. Do not
+close the coordinator issue unless the coordinator itself is explicitly complete.
 
 ## Final Report
 

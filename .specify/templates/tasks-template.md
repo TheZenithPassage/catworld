@@ -352,8 +352,9 @@ With multiple developers:
   pruning, force-push, merge, auto-merge, issue mutation, or public comments
   unless the user explicitly requests those operations where applicable.
 - Do not add committing, pushing, or opening/updating pull requests as ordinary
-  implementation tasks. Issue implementation delivery may still occur after
-  tasks complete when user and repository instructions explicitly allow it.
+  implementation tasks. Delivery operations are handled by the active CatWorld
+  workflow after scoped tasks and required validation complete, when that
+  workflow allows delivery.
 - Stop at any checkpoint to validate the user journey or technical outcome
 - Avoid: vague tasks, same file conflicts, artificial independence, or
   unrelated cleanup

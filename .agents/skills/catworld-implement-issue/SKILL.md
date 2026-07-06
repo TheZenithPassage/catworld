@@ -190,10 +190,13 @@ Run this flow in order:
     - If `AGENTS.md` changed only because of the `SPECKIT START` / `SPECKIT END`
       active plan pointer, restore that block to the `main` version.
     - Do not remove or rewrite permanent `AGENTS.md` instructions.
-18. If delivery operations are explicitly requested and the current branch is
-    not `main`, commit the scoped changes with a conventional commit title,
-    push the active issue branch to `origin` with a normal non-force push, and
-    open or update a pull request targeting `main`.
+18. After implementation and required validation, if the current branch is not
+    `main`, commit the scoped changes with a conventional commit title, push the
+    active issue branch to `origin` with a normal non-force push, and open or
+    update a pull request targeting `main`.
+    - Skip commit, push, and pull request delivery only when the user explicitly
+      asks for local-only or no-delivery execution, or when a stop condition
+      prevents safe delivery.
     - If validation passes, open or update a ready pull request.
     - If validation is failed or incomplete but the branch is still useful for
       review, open or update a draft pull request only when the validation
@@ -203,13 +206,28 @@ Run this flow in order:
       issue unless it is explicitly complete.
     - Do not post public GitHub comments or modify GitHub issues unless the
       user explicitly requests those operations.
-    - Returning the local checkout to `main` after PR delivery is not required.
-19. Report final status, commands executed with explicit validation statuses,
-    scope-drift review results, risks, git status and diff summary, branch
-    name, commit hash or hashes, PR URL if opened, ready/draft PR status, and
-    current local checkout branch. If delivery operations were not performed,
-    include a suggested conventional commit title and suggested pull request
-    description instead.
+    - After the pull request is opened or updated successfully, switch the local
+      checkout back to `main`. Do not pull, merge, rebase, prune remotes, delete
+      branches, or otherwise update `main` unless the user explicitly requests
+      that maintenance operation.
+19. Report final status with:
+    - concise summary;
+    - validation commands executed and explicit statuses;
+    - scope-drift review results;
+    - remaining risks or unresolved questions;
+    - `git status --short`;
+    - concise diff summary;
+    - branch name;
+    - commit hash or hashes;
+    - PR URL when delivery completed;
+    - ready/draft PR status when a PR was opened or updated;
+    - current local checkout branch;
+    - confirmation that the checkout was switched back to `main` when delivery
+      completed successfully.
+    If delivery cannot be completed, or if the user explicitly requested
+    local-only or no-delivery execution, include the blocker or reason, the
+    current branch state, a suggested conventional commit title, and a suggested
+    pull request description.
 
 ## Stop Conditions
 
@@ -261,12 +279,16 @@ description.
 - Validation results are fresh after the latest relevant change, or stale/not-rerun
   checks are explicitly reported as not passed.
 - Changed files have been reviewed against the issue/spec/plan/tasks source map.
-- When delivery operations are explicitly requested, scoped changes have been
-  committed on the active issue branch, the branch has been pushed normally, and
-  a PR targeting `main` has been opened or updated without merging, enabling
-  auto-merge, force-pushing, deleting branches, pruning remotes, mutating
-  issues, or posting public comments.
-- When delivery operations are not performed, final status includes commands,
-  validation, risks, diff summary, suggested commit title, and suggested pull
-  request description.
+- Normal issue delivery is complete when:
+  - scoped changes have been committed on the active issue branch;
+  - the branch has been pushed normally;
+  - a PR targeting `main` has been opened or updated;
+  - no merge, auto-merge, force-push, branch deletion, remote pruning, issue
+    mutation, or public GitHub comment was performed.
+- When delivery cannot be completed, final status includes:
+  - commands and validation results;
+  - risks and diff summary;
+  - the blocker that prevented delivery;
+  - suggested commit title;
+  - suggested pull request description.
 - The `AGENTS.md` active plan pointer is restored before the final report when it was changed only as local workflow state.
