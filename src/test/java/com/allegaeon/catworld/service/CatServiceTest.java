@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.mapper.CatMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
@@ -19,12 +20,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -45,6 +51,9 @@ class CatServiceTest {
 
     @Mock
     private CurrentUserAccountService currentUserAccountService;
+
+    @Mock
+    private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @InjectMocks
     private CatService service;
@@ -98,5 +107,51 @@ class CatServiceTest {
 
         verify(catRepository).save(catCaptor.capture());
         assertSame(creator, catCaptor.getValue().getCreatedBy());
+    }
+
+    @Test
+    void deleteCatAuthorizesBeforeDeletingCat() {
+        UUID catId = UUID.randomUUID();
+        UserAccount creator = UserAccount.builder()
+                .id(UUID.randomUUID())
+                .username("staff")
+                .build();
+        Instant createdAt = Instant.parse("2026-07-05T11:50:00Z");
+        Cat cat = Cat.builder()
+                .id(catId)
+                .createdBy(creator)
+                .build();
+        cat.setCreatedAt(createdAt);
+
+        when(catRepository.findById(catId)).thenReturn(Optional.of(cat));
+
+        service.deleteCat(catId);
+
+        var inOrder = inOrder(deletionAuthorizationPolicy, catRepository);
+        inOrder.verify(deletionAuthorizationPolicy).authorize(creator, createdAt);
+        inOrder.verify(catRepository).delete(cat);
+    }
+
+    @Test
+    void deleteCatDoesNotDeleteWhenAuthorizationFails() {
+        UUID catId = UUID.randomUUID();
+        UserAccount creator = UserAccount.builder()
+                .id(UUID.randomUUID())
+                .username("staff")
+                .build();
+        Instant createdAt = Instant.parse("2026-07-05T11:00:00Z");
+        Cat cat = Cat.builder()
+                .id(catId)
+                .createdBy(creator)
+                .build();
+        cat.setCreatedAt(createdAt);
+
+        when(catRepository.findById(catId)).thenReturn(Optional.of(cat));
+        doThrow(new ForbiddenException("Forbidden"))
+                .when(deletionAuthorizationPolicy).authorize(creator, createdAt);
+
+        assertThrows(ForbiddenException.class, () -> service.deleteCat(catId));
+
+        verify(catRepository, never()).delete(any(Cat.class));
     }
 }

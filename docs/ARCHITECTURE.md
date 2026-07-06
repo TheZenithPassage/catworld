@@ -259,6 +259,16 @@ resolves the stored `UserAccount` for the current Spring Security username and
 persists it as the record creator. Creator attribution is server-controlled and
 is not part of operational client request payloads or response display.
 
+Owner, cat and vet deletion uses a shared backend authorization policy. `ADMIN`
+accounts may delete operational records regardless of creator or record age.
+`STAFF` accounts may delete only records they created, and only while the
+record's `createdAt` timestamp remains strictly less than 15 minutes old
+according to server time. At exactly 15 minutes, and after that boundary, staff
+deletion is forbidden. The policy uses the backend time source and maps
+authorization denial to `403 Forbidden`; Angular does not calculate or enforce
+this rule. Entity lookup, relationship and state checks stay in the responsible
+services outside the shared authorization policy.
+
 ## Frontend UI Foundation
 
 The authenticated Angular administration interface uses Angular Material and

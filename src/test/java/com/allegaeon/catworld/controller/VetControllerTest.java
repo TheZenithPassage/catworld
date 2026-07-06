@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IVetService;
 import org.junit.jupiter.api.Nested;
@@ -178,6 +179,19 @@ public class VetControllerTest {
 
             mockMvc.perform(delete("/api/vets/{id}", vetId))
                     .andExpect(status().isNoContent());
+
+            verify(vetService).deleteVet(vetId);
+        }
+
+        @Test
+        void shouldReturnForbidden_whenDeleteAuthorizationFails() throws Exception {
+            UUID vetId = UUID.randomUUID();
+
+            doThrow(new ForbiddenException("Forbidden")).when(vetService).deleteVet(vetId);
+
+            mockMvc.perform(delete("/api/vets/{id}", vetId))
+                    .andExpect(status().isForbidden())
+                    .andExpect(content().string("Forbidden"));
 
             verify(vetService).deleteVet(vetId);
         }

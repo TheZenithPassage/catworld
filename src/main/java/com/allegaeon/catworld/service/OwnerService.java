@@ -20,6 +20,7 @@ public class OwnerService implements IOwnerService {
     private final OwnerRepository ownerRepository;
     private final OwnerMapper ownerMapper;
     private final CurrentUserAccountService currentUserAccountService;
+    private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {
@@ -47,7 +48,9 @@ public class OwnerService implements IOwnerService {
 
     @Override
     public void deleteOwner(UUID id) {
-        ownerRepository.delete(getEntity(id));
+        Owner owner = getEntity(id);
+        deletionAuthorizationPolicy.authorize(owner.getCreatedBy(), owner.getCreatedAt());
+        ownerRepository.delete(owner);
     }
 
     private Owner getEntity(UUID id) {
