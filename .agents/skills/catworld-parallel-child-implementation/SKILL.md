@@ -155,8 +155,8 @@ When the handoff is valid:
    boundaries.
 5. Run the validation required by the prepared child plan, tasks, shared
    contract, and handoff.
-6. Rerun affected validation after relevant late changes, or report it as
-   `not revalidated` instead of passed.
+6. Rerun affected validation after relevant late changes, or report affected
+   evidence as `stale` and any required rerun as `not run` instead of passed.
 7. Record each validation command, manual review, local sample artifact, and
    consumed coordinator or shared-contract check as `passed`, `failed`,
    `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
@@ -306,8 +306,8 @@ Stop and report a blocker when any of these occur:
 - a required refresh would use rebase, force-push, history rewriting, or any
   method other than a normal merge from the coordinator branch;
 - required validation is absent or impossible to run honestly;
-- required validation is failed, stale, not run, or not revalidated and the
-  handoff or report would need to treat it as passed or ready;
+- required validation is failed, stale, or not run and the handoff or report
+  would need to treat it as passed or ready;
 - a child-specific, coordinator-wide, shared-contract, conflict, or human-only
   blocker remains unresolved;
 - a non-trivial conflict affects contract, scope, persistence, security,
@@ -363,7 +363,7 @@ Report:
 - tasks completed and any tasks left incomplete;
 - changed-file summary compared with the prepared source map;
 - validation commands or reviews with explicit statuses;
-- blockers, unresolved decisions, or not-revalidated evidence;
+- blockers, unresolved decisions, stale evidence, or not-run evidence;
 - child PR readiness as `ready` or `draft` with the validation and blocker
   reason for that state;
 - delivery status according to the handoff and later approved sidecar Git/PR

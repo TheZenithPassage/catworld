@@ -103,7 +103,7 @@ changed-file review, and boundary text.
 - [X] T018 Run quickstart text checks from specs/020-sidecar-validation-reporting/quickstart.md
 - [X] T019 Run git diff --check from the repository root
 - [X] T020 Review changed files against specs/020-sidecar-validation-reporting/plan.md source map and confirm no unplanned product code, Git automation, PR automation, GitHub issue mutation, public comment, or normal sequential workflow implementation changes
-- [X] T021 Rerun affected quickstart checks after any late sidecar workflow or sample-report edits, or report stale/not-revalidated checks explicitly
+- [X] T021 Rerun affected quickstart checks after any late sidecar workflow or sample-report edits, or report stale/not-run checks explicitly
 
 ---
 
