@@ -573,6 +573,22 @@ worktree operations, pull request handling, GitHub issue mutation or CatWorld
 product code changes. Issues #220 through #234 continue to use the current
 sequential workflow guardrails during the sidecar build-out and adoption work.
 
+Issue #228 adds
+`.agents/skills/catworld-parallel-child-implementation/SKILL.md` as the
+separate sidecar child implementation skill. That skill is a prepared child
+handoff consumer only: it requires a child issue body, coordinator context,
+prepared `spec.md`, `plan.md`, `tasks.md`, shared contract, validation
+requirements, dependency status and target coordinator branch/worktree context
+from the sidecar coordinator artifacts before it can implement anything. It
+does not perform coordinator preflight, create planning artifacts, redefine
+shared contracts, create branches or worktrees, open pull requests, mutate
+GitHub issues or replace the normal sequential workflow.
+
+Direct child issues requested outside coordinator `parallel` execution still
+use the existing sequential workflow. Closed-child coordinator final passes
+also stay in the existing sequential workflow and do not route into the
+sidecar child implementation skill.
+
 ### Sidecar Artifact Preparation
 
 Before any future sidecar delegation, the coordinator entrypoint prepares or
