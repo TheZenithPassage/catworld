@@ -563,6 +563,55 @@ The sidecar workflow owns its own future skills and operating rules. It must
 not require changes to `.agents/skills/catworld-implement-issue/SKILL.md` to
 exist beside the current sequential workflow.
 
+### Sidecar Artifact Paths
+
+These artifact path rules apply only to sidecar coordinator parallel execution.
+They do not change normal sequential Spec Kit behavior. Normal issue
+implementation continues to use whatever artifact directory naming the
+sequential workflow creates.
+
+Sidecar coordinator artifacts use:
+
+```text
+specs/<coordinator-number>-coordinator-<slug>/
+```
+
+Sidecar child implementation artifacts use:
+
+```text
+specs/<child-issue-number>-<child-slug>/
+```
+
+The GitHub issue number is the authoritative uniqueness key in each sidecar
+artifact path. The slug is descriptive. Build the slug as a stable, lowercase,
+hyphen-separated title slug after removing issue title prefixes such as
+`[Workflow]`, `[Epic]`, or conventional type prefixes such as `feat:` or
+`docs:` when present. Replace non-alphanumeric runs with a single hyphen and
+trim leading or trailing hyphens.
+
+Before creating sidecar artifacts, future sidecar preparation must compute the
+coordinator target path and every child target path. It must stop and report a
+collision instead of overwriting, merging, deleting, silently reusing, or
+automatically renaming artifacts when any of these are true:
+
+- the exact target path already exists;
+- a coordinator artifact directory already exists with the same
+  `<coordinator-number>-coordinator-` prefix;
+- a child artifact directory already exists with the same
+  `<child-issue-number>-` prefix;
+- the coordinator child list contains the same child issue number more than
+  once.
+
+Different child issue numbers that normalize to the same slug do not collide,
+because their issue-number prefixes remain distinct. Duplicate child issue
+numbers do collide and must stop sidecar artifact preparation before any
+artifacts are created.
+
+A coordinator final pass after all listed child issues are closed uses the
+existing sequential workflow. It does not require sidecar artifact naming; if
+the sequential workflow creates artifacts during that final pass, it creates
+them on its own terms.
+
 ### Coordinator End-to-End Requests
 
 A coordinator issue requested end-to-end without `parallel` must be inspected
