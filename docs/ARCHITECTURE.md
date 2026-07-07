@@ -564,13 +564,35 @@ not require changes to `.agents/skills/catworld-implement-issue/SKILL.md` to
 exist beside the current sequential workflow.
 
 Issue #226 adds `.agents/skills/catworld-parallel-coordinator/SKILL.md` as the
-first sidecar coordinator entrypoint. That entrypoint is preflight-only while
-the sidecar workflow is still being completed and adopted by later #220 child
-issues. It may classify explicit coordinator `parallel` requests when routing
-guardrails allow sidecar use, but it must stop before child implementation,
-artifact generation, Git branch or worktree operations, pull request handling,
-or GitHub issue mutation. Issues #220 through #234 continue to use the current
+first sidecar coordinator entrypoint. Issue #227 extends that same sidecar
+skill with artifact preparation before delegation. The entrypoint may classify
+explicit coordinator `parallel` requests when routing guardrails allow sidecar
+use and may prepare or require sidecar coordinator and child artifacts after
+preflight, but it must still stop before child implementation, Git branch or
+worktree operations, pull request handling, GitHub issue mutation or CatWorld
+product code changes. Issues #220 through #234 continue to use the current
 sequential workflow guardrails during the sidecar build-out and adoption work.
+
+### Sidecar Artifact Preparation
+
+Before any future sidecar delegation, the coordinator entrypoint prepares or
+requires a coordinator orchestration artifact and issue-numbered child
+implementation artifacts. The coordinator artifact must contain a child issue
+map, dependency layers, shared contract section, validation plan and status
+table. Each child issue must have prepared or described `spec.md`, `plan.md`
+and `tasks.md` artifacts under the #225 child artifact path.
+
+Artifact preparation must validate child artifacts against the coordinator
+issue, child issue bodies, relevant source-of-truth documentation and shared
+contracts. It must stop before delegation when prepared artifacts are missing
+or unsafe, artifact paths collide, shared contracts are missing or unresolved,
+dependencies are unsafe, or scope conflicts remain.
+
+The sidecar coordinator must not invent or create seed, foundation or
+shared-contract child issues unless those issues already exist or the user
+explicitly approves creating them in a workflow that permits issue mutation.
+Closed-child coordinator final passes remain in the existing sequential
+workflow and do not use sidecar artifact preparation.
 
 ### Sidecar Artifact Paths
 
