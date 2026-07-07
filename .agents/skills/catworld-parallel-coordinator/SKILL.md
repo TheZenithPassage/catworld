@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#230"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#231"
 metadata:
   author: "catworld"
-  source: "issues-226-230"
+  source: "issues-226-231"
 ---
 
 # CatWorld Parallel Coordinator
@@ -19,11 +19,12 @@ artifact preparation before delegation. Issue #229 adds the sidecar Git
 execution model: coordinator and child branch state, isolated checkout/worktree
 state, merge-only refresh rules, and cleanup boundaries. Issue #230 adds
 sidecar PR target, issue closure, GitHub mutation, public comment, and remote
-cleanup approval rules. It still does not open, update, merge, approve, or
-enable auto-merge on pull requests, mutate GitHub issues, post public comments,
-run adoption dry-runs, or replace the normal sequential implementation
-workflow. Later #220 child issues may extend state tracking, adoption, and
-delivery execution pieces.
+cleanup approval rules. Issue #231 adds sidecar validation, blocker, conflict,
+stale-evidence, readiness, and human-only blocker reporting rules. It still
+does not open, update, merge, approve, or enable auto-merge on pull requests,
+mutate GitHub issues, post public comments, run adoption dry-runs, or replace
+the normal sequential implementation workflow. Later #220 child issues may
+extend state tracking, adoption, and delivery execution pieces.
 
 ## Routing Boundary
 
@@ -157,6 +158,10 @@ include:
 - sidecar PR delivery section that records child PR target, child issue
   reference wording, final coordinator PR target, closure authority, GitHub
   issue mutation approval state, and public comment approval state;
+- sidecar validation reporting section that records required coordinator and
+  child evidence, explicit validation statuses, freshness state, child PR
+  ready/draft readiness, coordinator readiness, blockers, conflicts, and
+  human-only decisions;
 - validation plan for coordinator-level and child-level evidence;
 - status table for each child issue, including readiness, blockers, dependency
   layer, artifact path, and required validation.
@@ -207,9 +212,11 @@ pass must not redo closed child scope.
 
 Issue #227 adds artifact preparation only. Issue #229 adds sidecar Git
 execution rules. Issue #230 adds sidecar PR target, closure, GitHub mutation,
-public comment, and remote cleanup approval rules without opening real pull
-requests, merging pull requests, mutating GitHub issues, posting public
-comments, running adoption dry-runs, or changing CatWorld product code.
+public comment, and remote cleanup approval rules. Issue #231 adds sidecar
+validation, blocker, conflict, stale-evidence, readiness, and human-only
+blocker reporting rules without opening real pull requests, merging pull
+requests, mutating GitHub issues, posting public comments, running adoption
+dry-runs, or changing CatWorld product code.
 
 ## Sidecar Git Execution Rules
 
@@ -341,6 +348,85 @@ uses normal sequential PR behavior.
 A closed-child coordinator final pass uses normal sequential PR behavior and is
 outside the sidecar child/final PR model.
 
+## Sidecar Validation, Blocker and Conflict Reporting
+
+Apply these reporting rules only to sidecar coordinator parallel execution
+after routing guardrails, coordinator preflight, source-of-truth review,
+dependency classification, artifact preparation, shared-contract validation,
+sidecar Git state validation, and sidecar PR delivery validation have
+succeeded. Issues #220 through #234 still use the current sequential workflow
+guardrails while the sidecar workflow is being designed, validated, and
+adopted.
+
+### Validation Evidence and Freshness
+
+Sidecar child reports and coordinator integration reports must list every
+required command, manual review, local sample artifact, and consumed child
+validation result. Each evidence item must use an explicit status:
+`passed`, `failed`, `skipped`, `timed out`, `interrupted`, `partial`,
+`stale`, or `not run`.
+
+Failed validation is never summarized as passed. Failed, timed-out, skipped,
+interrupted, partial, stale, and not-run validation must never be summarized as
+passed. A report may contain both passed and non-passed evidence, but its
+summary must preserve the non-passed status and its readiness impact.
+
+Validation becomes stale when coordinator branch updates, child branch
+refreshes, conflict resolution, or other relevant changes could affect the
+previous evidence. Stale evidence must be rerun before readiness is reported,
+or it must remain explicitly reported as stale. Coordinator readiness must not
+consume stale child evidence as fresh evidence.
+
+### Ready and Draft Reporting
+
+A sidecar child PR may be reported as ready only when required validation is
+fresh and passed, no unresolved blocker affects the child, and the approved
+sidecar PR target and issue-reference rules are satisfied.
+
+A sidecar child PR must be reported as draft when required validation is
+failed, skipped, timed out, interrupted, partial, stale, not run, or blocked,
+unless the non-passed evidence is explicitly outside child readiness and the
+report explains why. The same freshness and blocker rules apply before the
+final coordinator PR can be reported ready.
+
+### Blockers and Conflicts
+
+Reports must distinguish:
+
+- child-specific blockers that affect exactly one child issue;
+- coordinator-wide blockers that affect the coordinator branch, integration
+  set, or multiple children;
+- shared-contract blockers that affect cross-child contracts or handoff
+  expectations;
+- conflict blockers that require user guidance;
+- human-only blockers that Codex must not decide.
+
+Shared-contract blockers stop affected sidecar work until the blocker is
+resolved or user guidance is provided.
+
+Non-trivial conflicts affecting contract, scope, persistence, security, authorization, UX, or domain behavior require user guidance. The report must identify the conflicting inputs, affected source surfaces, blocked child or coordinator scope, and the guidance required before work can continue.
+
+Human-only blockers include new significant dependencies, material architecture
+changes, production exposure, secrets, deployment changes, Git/GitHub workflow
+outside the approved model, and unresolved product, persistence, security,
+authorization, UX, domain, contract, validation, operational, or scope
+decisions. The report must name the category, evidence, affected scope, and
+required human decision.
+
+### GitHub Mutation and Non-Sidecar Boundaries
+
+Codex must not modify GitHub issue bodies, checklists, labels, assignees,
+milestones, issue state, or public comments unless the user explicitly requests
+that operation in a workflow that permits it.
+
+Normal sequential validation and reporting behavior remains unchanged. Direct
+child issue work outside explicit sidecar `parallel` mode also uses normal
+sequential reporting.
+
+A closed-child coordinator final pass uses normal sequential validation and
+reporting. It may reference closed child issues for traceability, but it must
+not present closed child issue scope as newly implemented work.
+
 ## Prohibited Side Effects
 
 This entrypoint must not:
@@ -359,6 +445,17 @@ This entrypoint must not:
 - create sidecar artifacts outside the approved artifact-preparation phase or
   when any artifact-preparation stop condition applies;
 - run artifact preparation for closed-child coordinator final passes;
+- summarize failed, timed-out, skipped, interrupted, partial, stale, or not-run
+  validation as passed;
+- report a sidecar child PR or final coordinator PR as ready while required
+  validation is stale or an unresolved blocker affects readiness;
+- silently resolve non-trivial conflicts affecting contract, scope,
+  persistence, security, authorization, UX, or domain behavior;
+- silently decide human-only blocker categories such as significant
+  dependencies, material architecture changes, production exposure, secrets,
+  deployment changes, Git/GitHub workflow outside the approved model, or
+  unresolved product, persistence, security, authorization, UX, domain,
+  contract, validation, operational, or scope decisions;
 - invent or create seed, foundation, or shared-contract child issues without
   explicit user approval in a workflow that permits issue mutation;
 - delegate child implementation work;
@@ -387,6 +484,12 @@ Report a concise preflight result with:
   reference wording, final coordinator PR target, closure authority, GitHub
   mutation approval state, public comment approval state, and remote cleanup
   approval state when PR delivery state has been prepared or described;
+- sidecar validation reporting status, including commands and reviews passed,
+  failed, skipped, timed out, interrupted, partial, stale, and not run;
+- child PR ready/draft readiness status and final coordinator readiness status;
+- blocker and conflict status, including child-specific blockers,
+  coordinator-wide blockers, shared-contract blockers, human-only blockers, and
+  user-guidance requirements;
 - readiness status: `blocked`, `not adopted`, or `preflight-ready`;
 - specific stop reasons or remaining prerequisites;
 - confirmation that no child implementation, PR operation, issue mutation,
@@ -438,6 +541,28 @@ Validation for this entrypoint must include:
 - review that normal sequential PR behavior, direct child issue work outside
   `parallel`, and closed-child coordinator final passes are outside sidecar PR
   routing;
+- local sample reports for success, failure, stale validation, blocker,
+  conflict, one human-only blocker, and a closed-child coordinator final pass;
+- review that commands and reviews are reported as passed, failed, skipped,
+  timed out, interrupted, partial, stale, or not run;
+- review that failed, timed-out, skipped, interrupted, partial, stale, and
+  not-run validation is never summarized as passed;
+- review that stale validation after coordinator branch updates or child branch
+  refreshes blocks readiness until rerun or explicitly reported as stale;
+- review that sidecar child PR readiness is ready only with fresh required
+  validation, no unresolved child blocker, and approved sidecar PR target
+  rules, and draft when required validation is failed, incomplete, stale, not
+  run, or blocked;
+- review that child-specific blockers, coordinator-wide blockers, and
+  shared-contract blockers are distinguishable and that shared-contract
+  blockers stop affected sidecar work;
+- review that non-trivial conflicts affecting contract, scope, persistence,
+  security, authorization, UX, or domain behavior stop for user guidance;
+- review that human-only blocker reports cover material architecture,
+  production exposure, deployment, secrets, or Git/GitHub workflow issues;
+- review that closed-child coordinator final-pass reports use normal sequential
+  reporting and do not present closed child issue scope as newly implemented
+  work;
 - blocker simulation proving missing shared contracts stop for user guidance;
 - review that seed, foundation, and shared-contract child issues are not
   invented or created without explicit user approval;
@@ -448,5 +573,5 @@ Validation for this entrypoint must include:
   existing coordinator/orchestration skill are unchanged;
 - changed-file review proving no product code, real CatWorld sidecar worktrees,
   real CatWorld sidecar branches, real pull request operations, GitHub issue
-  mutations, public comments, or unapproved remote cleanup are part of issue
-  #230 validation.
+  mutations, public comments, or unapproved remote cleanup are part of sidecar
+  validation.
