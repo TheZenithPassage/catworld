@@ -54,6 +54,97 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
+### CatWorld Explicit Issue-Split Handoff Rules
+
+These rules apply only when the user explicitly asks to split an existing
+GitHub issue or active feature scope into a coordinator issue plus focused
+child issues. Do not apply this section to normal specification, planning,
+implementation, or one-issue/one-PR issue implementation requests.
+
+- Keep issue splitting opt-in. A normal end-to-end issue request, direct child
+  issue request, or ordinary `/speckit-tasks` flow must not be rewritten into a
+  coordinator split unless the user explicitly asked for splitting.
+- Preserve product scope exactly. Split output must derive from the source
+  issue, active spec, plan, and tasks; it must not add product behavior, remove
+  requested behavior, invent seed/foundation/shared-contract issues, or
+  reinterpret unresolved scope.
+- When splitting an existing issue, require the coordinator issue number or URL
+  from user input or already active issue context. If no coordinator issue can
+  be identified, stop before GitHub mutation and ask for the issue to split.
+- Before mutating GitHub issues, generate the coordinator rewrite body and child
+  issue bodies as a handoff preview. Create, update, close, label, assign,
+  milestone, checklist-edit, or publicly comment on real GitHub issues only
+  when the user explicitly requested that mutation in this command context and
+  the repository remote check below succeeds.
+- Local validation and samples must use placeholder issue references and must
+  not create real product issues.
+- Do not change or depend on `.agents/skills/catworld-implement-issue/SKILL.md`
+  for split handoff behavior.
+
+The rewritten coordinator issue body must include these headings in this order:
+
+```markdown
+## Goal
+
+## Preserved scope
+
+## Child issues
+
+## Dependencies
+
+## Execution model
+
+## Validation
+
+## Out of scope
+```
+
+The coordinator `Execution model` section must state all of the following:
+
+- Issue splitting does not activate parallel mode by itself.
+- Normal issues and direct child issue end-to-end requests use the current
+  sequential workflow.
+- Sidecar parallel work requires an explicit `parallel` request on a clearly
+  identified coordinator issue after sidecar support exists and has passed its
+  adoption gate.
+- Parallel readiness comes from coordinator preflight, child issue inspection,
+  dependency classification, and source-of-truth review; do not require or
+  invent a `parallel-ready` label.
+- A coordinator end-to-end request while any listed child issue is still open
+  must stop for routing.
+- A coordinator with all listed child issues closed may enter the existing
+  sequential workflow for final verification and delivery.
+- Coordinator finalization is not a separate workflow and must not reimplement
+  closed child issue scope.
+
+Each child issue body must include these headings in this order:
+
+```markdown
+## Parent coordinator
+
+## Scope
+
+## Dependencies
+
+## Validation
+
+## Out of scope
+```
+
+Each child issue body must:
+
+- reference the coordinator issue;
+- state that the child remains directly implementable through the normal
+  sequential workflow when the user chooses one-by-one execution;
+- state that the child does not activate sidecar parallel mode by itself;
+- exclude coordinator finalization and sibling child issue scope.
+
+If the handoff includes sidecar PR wording guidance, child PR wording must use
+`Related to #<child-issue>` and `Related to #<coordinator-issue>` without issue
+closing keywords. Final sidecar coordinator PR wording may close the
+coordinator issue and included child issues. A closed-child coordinator final
+pass uses normal sequential PR wording.
+
 1. Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 1. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
 1. From the executed script, extract the path to **tasks**.
