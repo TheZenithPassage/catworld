@@ -506,6 +506,90 @@ The frontend workflow:
 - runs `npm run format:check`
 - runs `npm run test:ci`
 
+## Codex Workflow Routing
+
+CatWorld uses two Codex workflow paths at the repository level: the current
+sequential issue implementation workflow and a future sidecar coordinator
+parallel workflow. This section documents routing only; it does not change
+CatWorld product behavior, application architecture, persistence,
+authorization, APIs, frontend behavior or operations.
+
+`AGENTS.md` keeps the short, mandatory routing guardrails. This document is the
+longer source-of-truth explanation for maintainers and future Codex sessions.
+
+### Default Sequential Workflow
+
+The current one-issue/one-PR implementation workflow remains the default path.
+
+Use the existing sequential workflow for:
+
+- a normal implementable issue requested end-to-end;
+- a direct child issue requested end-to-end;
+- issues #220 through #234 while the sidecar parallel workflow is still being
+  designed, validated and adopted.
+
+Direct child issues do not need coordinator orchestration when the user asks to
+implement them one by one. They are treated like ordinary implementable issues
+and run through the existing sequential workflow.
+
+### Sidecar Coordinator Parallel Workflow
+
+The sidecar coordinator parallel workflow is an opt-in addition, not a
+replacement for the sequential workflow.
+
+Parallel mode is valid only when all of these are true:
+
+- the prompt explicitly includes `parallel`;
+- the issue is clearly a coordinator issue;
+- the sidecar coordinator parallel workflow has been implemented and adopted.
+
+Parallel readiness is determined by the sidecar workflow's own safety review,
+not by an issue label. The readiness decision must come from:
+
+- coordinator preflight;
+- child issue inspection;
+- dependency classification;
+- source-of-truth review.
+
+Codex must not require a `parallel-ready` label, and it must not invent one.
+Labels may become useful metadata later, but labels are not the source of truth
+for parallel safety.
+
+`parallel` on a non-coordinator issue is an invalid routing request. Codex must
+stop and report that parallel mode only applies to coordinator issues instead
+of ignoring the flag or silently falling back to sequential execution.
+
+The sidecar workflow owns its own future skills and operating rules. It must
+not require changes to `.agents/skills/catworld-implement-issue/SKILL.md` to
+exist beside the current sequential workflow.
+
+### Coordinator End-to-End Requests
+
+A coordinator issue requested end-to-end without `parallel` must be inspected
+read-only before workflow selection. The listed sub-issues decide whether the
+request can proceed.
+
+If any listed sub-issue is still open, Codex must stop with a routing error.
+The user can either run the coordinator with explicit `parallel` once the
+sidecar workflow is available, or implement the open sub-issues directly
+through the sequential workflow.
+
+If all listed sub-issues are closed, Codex enters the existing sequential
+workflow for a coordinator final pass. This is not a separate workflow.
+
+During coordinator finalization, Codex must not reimplement closed sub-issue
+scope just because the coordinator preserves the original scope. The final pass
+may:
+
+- verify preserved coordinator scope;
+- run required validation;
+- complete remaining coordinator-level work;
+- prepare final delivery only when repository changes remain;
+- report that no diff is needed.
+
+This final pass keeps closed child scope closed and uses the same delivery
+safety rules as normal sequential issue work.
+
 ## Diagrams
 
 PlantUML diagrams live in:
