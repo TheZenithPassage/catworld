@@ -587,6 +587,11 @@ GitHub issues or replace the normal sequential workflow.
 Issue #229 adds sidecar Git execution rules for coordinator branch, child
 branch, isolated checkout/worktree, merge-only refresh and cleanup boundaries.
 Those rules apply only to the opt-in sidecar coordinator parallel workflow.
+Issue #230 adds sidecar PR target, issue closure, GitHub mutation, public
+comment and remote cleanup approval rules. Those rules define delivery
+authority only; they do not open real pull requests, merge pull requests,
+mutate GitHub issues, post public comments or change normal sequential PR
+behavior.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -717,6 +722,43 @@ merges. Local cleanup is eligible only after the final coordinator PR has been
 merged into `main`, and only for local branches and worktrees created by the
 sidecar workflow. Remote branch deletion, remote pruning and any remote cleanup
 require explicit user approval.
+
+### Sidecar PR Delivery Rules
+
+These pull request rules apply only to sidecar coordinator parallel delivery.
+They do not change normal one-issue/one-PR delivery, direct child issue
+delivery outside `parallel`, or closed-child coordinator final passes.
+
+Sidecar child PRs target the coordinator integration branch. They must not
+target `main` directly. Their descriptions reference the child and coordinator
+issues with `Related to #<child-issue>` and
+`Related to #<coordinator-issue>` wording only. Child PRs must not close the
+child issue or coordinator issue, and they must not imply that the child PR is
+the final delivery PR to `main`.
+
+The final sidecar coordinator PR targets `main` from the coordinator
+integration branch. It may close the coordinator issue and child issues in the
+sidecar set, and it should list integrated child PRs or child issue references
+clearly enough for reviewer traceability. The final coordinator PR is the only
+sidecar PR that may close the coordinator set during sidecar parallel
+delivery.
+
+Codex reports readiness for sidecar child PRs and the final coordinator PR.
+The user performs merges. Codex must not merge, approve or enable auto-merge
+on pull requests.
+
+GitHub issue body, checklist, label, assignee, milestone, issue state and
+public comment mutations require explicit user approval in a workflow that
+permits the operation. PR description wording is not permission to separately
+modify issue metadata, issue bodies, checklists, issue state or public
+comments. Remote branch deletion, remote pruning and remote cleanup also
+require explicit user approval.
+
+Normal one-issue sequential PR behavior keeps its current target and closure
+behavior. Direct child issue work outside explicit sidecar `parallel` mode also
+uses normal sequential PR behavior. A closed-child coordinator final pass uses
+normal sequential PR behavior and remains outside the sidecar child/final PR
+model.
 
 ### Coordinator End-to-End Requests
 
