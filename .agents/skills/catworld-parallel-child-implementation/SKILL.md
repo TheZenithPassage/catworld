@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#231"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#232"
 metadata:
   author: "catworld"
-  source: "issues-228-231"
+  source: "issues-228-232"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -17,7 +17,10 @@ This skill consumes prepared child artifacts. It does not create its own
 specification, plan, task list, shared contract, coordinator artifact, branch,
 worktree, pull request, issue mutation, or routing decision. It consumes the
 sidecar Git state prepared by the coordinator and refuses to run when the
-current checkout does not match that prepared state.
+current checkout does not match that prepared state. It also consumes the
+sidecar resume state prepared by the coordinator, including child workflow
+status, refresh state, stale validation, blockers, and cleanup eligibility, and
+must not rely on private conversation context when a child handoff is resumed.
 
 ## Routing Boundary
 
@@ -61,6 +64,14 @@ Before any implementation work, the handoff must provide all of these inputs:
 - prepared child `tasks.md` path and task set;
 - shared contract references and constraints from the coordinator artifacts;
 - dependency status showing this child is ready for implementation;
+- coordinator resume state for this child, including child artifact path,
+  workflow status, blockers, validation state, refresh state, cleanup
+  eligibility, and whether the child is active, blocked, pending, paused,
+  resume-needed, merged-to-coordinator, or complete;
+- current GitHub and repository evidence that was re-read before handoff or
+  resume, including coordinator issue, child issue, relevant PRs, coordinator
+  artifact, child artifacts, branch state, checkout/worktree state, validation
+  freshness, blockers, and cleanup approval state;
 - target coordinator branch, including evidence that it was created from
   current `origin/main`;
 - target child branch, including evidence that it starts from the coordinator
@@ -74,6 +85,8 @@ Before any implementation work, the handoff must provide all of these inputs:
   must not close the child issue or coordinator issue;
 - refresh status describing whether this child branch needs a normal merge from
   the coordinator branch after another child PR has been merged;
+- last coordinator branch state incorporated into this child branch/worktree,
+  when a refresh status is relevant;
 - cleanup eligibility status for the child branch and checkout/worktree;
 - GitHub issue mutation approval status, public comment approval status, and
   remote cleanup approval status under the approved sidecar PR and Git rules;
@@ -81,8 +94,8 @@ Before any implementation work, the handoff must provide all of these inputs:
   requirements;
 - expected validation report format, including explicit statuses, freshness
   requirements, child PR ready/draft readiness rules, blocker categories,
-  conflict reporting requirements, human-only blocker categories, and GitHub
-  issue/public-comment mutation approval state;
+  conflict reporting requirements, human-only blocker categories, resume-needed
+  state, and GitHub issue/public-comment mutation approval state;
 - final report and delivery boundaries provided by the coordinator and approved
   sidecar Git/PR rules, including that Codex reports readiness and the user
   performs merges.
@@ -102,6 +115,8 @@ Before implementation, read:
 - the relevant coordinator issue context supplied by the handoff;
 - the prepared child `spec.md`, `plan.md`, and `tasks.md`;
 - the shared contract references supplied by the handoff;
+- the coordinator resume state and current re-read evidence supplied by the
+  handoff;
 - source-of-truth documentation named by the prepared artifacts.
 
 Stop when required context cannot be read or when source-of-truth documents
@@ -117,6 +132,11 @@ Validate the handoff before touching implementation files:
   status.
 - The target coordinator branch, child branch, child checkout/worktree, child
   PR target, refresh status, and cleanup eligibility context are present.
+- The handoff includes current GitHub and repository evidence re-read before
+  resume, not private conversation context as the source of truth.
+- The child workflow status is explicit and distinguishes active, blocked,
+  pending, paused, resume-needed, merged-to-coordinator, or complete as
+  applicable.
 - The child branch starts from the coordinator branch and is not `main`.
 - The child checkout/worktree is isolated from other active child
   checkouts/worktrees.
@@ -124,6 +144,11 @@ Validate the handoff before touching implementation files:
 - The intended child PR wording uses `Related to` references only and cannot
   close the child issue or coordinator issue.
 - Any required refresh from the coordinator branch is a normal merge only.
+- Any validation affected by refresh, coordinator branch updates, conflict
+  resolution, or other relevant changes is marked stale until rerun.
+- Cleanup eligibility states that local sidecar branches/worktrees are not
+  cleaned after individual child PR merges and are eligible only after the
+  final coordinator PR has merged into `main`.
 - GitHub issue body, checklist, label, assignee, milestone, issue state, public
   comment, and remote cleanup approval state is present when the handoff allows
   any delivery operation that could touch those surfaces.
@@ -148,21 +173,25 @@ When the handoff is valid:
 1. Confirm the current checkout and worktree match the prepared target context.
    If they do not, stop. This skill must not invent, rename, or auto-recover
    branch/worktree context outside the coordinator handoff.
-2. Treat the prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract,
+2. Confirm the resume state from the handoff still matches current
+   GitHub/repository evidence that was re-read before continuing. If current
+   evidence conflicts with the recorded state, stop and return the mismatch to
+   the coordinator or user.
+3. Treat the prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract,
    and validation requirements as the implementation decision contract.
-3. Execute only tasks from the prepared child `tasks.md`.
-4. Keep implementation within the prepared child source map and out-of-scope
+4. Execute only tasks from the prepared child `tasks.md`.
+5. Keep implementation within the prepared child source map and out-of-scope
    boundaries.
-5. Run the validation required by the prepared child plan, tasks, shared
+6. Run the validation required by the prepared child plan, tasks, shared
    contract, and handoff.
-6. Rerun affected validation after relevant late changes, or report affected
+7. Rerun affected validation after relevant late changes, or report affected
    evidence as `stale` and any required rerun as `not run` instead of passed.
-7. Record each validation command, manual review, local sample artifact, and
+8. Record each validation command, manual review, local sample artifact, and
    consumed coordinator or shared-contract check as `passed`, `failed`,
    `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
    Failed, timed-out, skipped, interrupted, partial, stale, and not-run
    validation must never be summarized as passed.
-8. Inspect changed files against the prepared child source map before final
+9. Inspect changed files against the prepared child source map before final
    reporting.
 
 This skill may implement product or workflow code only when the prepared child
@@ -194,7 +223,8 @@ source of truth, or material unresolved decision, stop and report the blocker.
 
 The sidecar child report must identify the child issue, coordinator issue,
 prepared artifacts consumed, required validation evidence, freshness status,
-blockers, conflicts, and readiness state supplied by the handoff.
+blockers, conflicts, resume state, refresh state, cleanup eligibility, and
+readiness state supplied by the handoff.
 
 Each validation item must use an explicit status: `passed`, `failed`,
 `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
@@ -206,6 +236,13 @@ Validation becomes stale when coordinator branch updates, child branch
 refreshes, conflict resolution, or other relevant changes could affect the
 previous evidence. Stale evidence must be rerun before the child can be
 reported ready, or it must remain explicitly reported as stale.
+
+When a child handoff is resumed after a pause or a new Codex session, the child
+report must identify the GitHub and repository evidence re-read before
+continuing. It must report whether the child is active, blocked, pending,
+paused, resume-needed, merged-to-coordinator, or complete, and whether the
+branch/worktree refresh state is not needed, needed, in progress, or refreshed.
+Private conversation context is not sufficient resume evidence.
 
 A sidecar child PR may be reported as ready only when required validation is
 fresh and passed, no unresolved blocker affects the child, and the approved
@@ -235,6 +272,10 @@ Normal sequential validation and reporting behavior remains unchanged. Direct
 child issue work outside explicit sidecar `parallel` mode and closed-child
 coordinator final passes do not use this sidecar child reporting format.
 
+Normal sequential state handling also remains unchanged. Direct child issue
+work outside explicit sidecar `parallel` mode and closed-child coordinator
+final passes do not use sidecar resumability state.
+
 ## Prohibited Side Effects
 
 This skill must not:
@@ -245,6 +286,10 @@ This skill must not:
 - perform coordinator preflight or artifact preparation;
 - create, switch, or rename sidecar branches or worktrees outside the prepared
   coordinator handoff;
+- resume child work from private conversation context instead of current
+  GitHub and repository evidence supplied by the coordinator handoff;
+- continue from recorded resume state when current GitHub or repository
+  evidence conflicts with it;
 - rebase, force-push, or perform history-rewriting updates for sidecar
   branches;
 - push sidecar branches, open pull requests, update pull requests, delete
@@ -279,8 +324,10 @@ Issue #229 supplies the sidecar Git branch, worktree, refresh, and cleanup
 rules. Issue #230 supplies sidecar child/final PR target, issue closure,
 GitHub mutation, public comment, and remote cleanup approval rules. Issue #231
 supplies sidecar validation, blocker, conflict, stale-evidence, readiness, and
-human-only blocker reporting rules. Later sidecar issues may add approved state
-tracking, adoption, or delivery execution rules. Until the relevant rules and
+human-only blocker reporting rules. Issue #232 supplies sidecar resume state,
+resume re-read evidence, refresh state, stale validation, cleanup eligibility,
+and normal sequential state boundary rules. Later sidecar issues may add
+approved adoption or delivery execution rules. Until the relevant rules and
 approvals are present in the handoff and governing source-of-truth documents,
 stop before those operations.
 
@@ -299,6 +346,8 @@ Stop and report a blocker when any of these occur:
 - shared contracts are missing, ambiguous, unsafe, or inconsistent;
 - the target context is missing, the child branch targets `main`, or the child
   PR target is not the coordinator branch;
+- the resume state is missing, depends on private conversation context, or
+  conflicts with current GitHub or repository evidence;
 - child PR issue-reference wording would close the child issue or coordinator
   issue instead of using `Related to` references only;
 - the current checkout/worktree does not match the prepared child branch and
@@ -336,6 +385,12 @@ For each child implementation, validation must include:
 - changed-file review against the prepared source map;
 - confirmation that the child ran in the prepared child branch and isolated
   checkout/worktree from the coordinator handoff;
+- confirmation that resumed child work used current GitHub and repository
+  evidence from the coordinator handoff rather than private conversation
+  context;
+- confirmation that child workflow status, refresh state, validation freshness,
+  blockers, and cleanup eligibility were reported from the prepared resume
+  state;
 - confirmation that any required active-child refresh used a normal merge from
   the coordinator branch;
 - confirmation that sidecar child PR guidance targets the coordinator branch,
@@ -343,8 +398,9 @@ For each child implementation, validation must include:
   coordinator issues;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
   modified by sidecar child execution;
-- confirmation that normal sequential routing and closed-child coordinator
-  final-pass routing were not changed by the child execution.
+- confirmation that normal sequential routing/state handling and closed-child
+  coordinator final-pass routing/state handling were not changed by the child
+  execution.
 
 Validation for issue #228 itself must include one local sample child handoff,
 text review of the sidecar child skill boundaries, changed-file review, and
@@ -357,6 +413,8 @@ Report:
 - child issue number and coordinator issue number;
 - coordinator branch, child branch, child PR target, and worktree context from
   the handoff;
+- child workflow status, refresh state, validation freshness, blockers, cleanup
+  eligibility, and re-read evidence from the coordinator resume state;
 - child PR issue-reference wording and GitHub mutation/public comment approval
   state from the handoff;
 - prepared artifacts consumed;

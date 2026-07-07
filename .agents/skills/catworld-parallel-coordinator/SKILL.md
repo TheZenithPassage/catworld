@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#231"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#232"
 metadata:
   author: "catworld"
-  source: "issues-226-231"
+  source: "issues-226-232"
 ---
 
 # CatWorld Parallel Coordinator
@@ -20,11 +20,14 @@ execution model: coordinator and child branch state, isolated checkout/worktree
 state, merge-only refresh rules, and cleanup boundaries. Issue #230 adds
 sidecar PR target, issue closure, GitHub mutation, public comment, and remote
 cleanup approval rules. Issue #231 adds sidecar validation, blocker, conflict,
-stale-evidence, readiness, and human-only blocker reporting rules. It still
-does not open, update, merge, approve, or enable auto-merge on pull requests,
-mutate GitHub issues, post public comments, run adoption dry-runs, or replace
-the normal sequential implementation workflow. Later #220 child issues may
-extend state tracking, adoption, and delivery execution pieces.
+stale-evidence, readiness, and human-only blocker reporting rules. Issue #232
+adds resumable state tracking for paused or resumed sidecar coordinator runs,
+including child status, resume re-read evidence, refresh state, stale
+validation, and cleanup eligibility. It still does not open, update, merge,
+approve, or enable auto-merge on pull requests, mutate GitHub issues, post
+public comments, run adoption dry-runs, or replace the normal sequential
+implementation workflow. Later #220 child issues may extend adoption and
+delivery execution pieces.
 
 ## Routing Boundary
 
@@ -111,8 +114,9 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, #229, and #230 when their routing, entrypoint, artifact, child
-  handoff, Git execution, or PR delivery contracts apply.
+  #228, #229, #230, #231, and #232 when their routing, entrypoint, artifact,
+  child handoff, Git execution, PR delivery, validation reporting, or resume
+  state contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
@@ -162,9 +166,15 @@ include:
   child evidence, explicit validation statuses, freshness state, child PR
   ready/draft readiness, coordinator readiness, blockers, conflicts, and
   human-only decisions;
+- sidecar resume state section that records completed, active, blocked,
+  pending, paused, and resume-needed child work; required GitHub and
+  repository evidence to re-read before continuing; refresh-needed/refreshed
+  state after child PR merges; stale validation state; and cleanup eligibility;
 - validation plan for coordinator-level and child-level evidence;
-- status table for each child issue, including readiness, blockers, dependency
-  layer, artifact path, and required validation.
+- status table for each child issue, including artifact path, branch, local
+  checkout/worktree, PR, validation state, workflow status, blockers,
+  dependency layer, readiness, refresh state, cleanup eligibility, and required
+  validation.
 
 Stop before delegation when the coordinator artifact cannot be prepared safely
 because coordinator context, child context, dependencies, source-of-truth
@@ -216,7 +226,10 @@ public comment, and remote cleanup approval rules. Issue #231 adds sidecar
 validation, blocker, conflict, stale-evidence, readiness, and human-only
 blocker reporting rules without opening real pull requests, merging pull
 requests, mutating GitHub issues, posting public comments, running adoption
-dry-runs, or changing CatWorld product code.
+dry-runs, or changing CatWorld product code. Issue #232 adds resumable
+coordinator state tracking without running background work, posting GitHub
+comments, changing normal issue workflow state, changing CatWorld product code,
+or performing cleanup.
 
 ## Sidecar Git Execution Rules
 
@@ -281,6 +294,11 @@ updated from the coordinator branch using a normal merge.
 Do not rebase sidecar branches. Do not force-push sidecar branches. Do not use
 history-rewriting updates for sidecar branches.
 
+The coordinator artifact must record which still-active child branches or
+worktrees need refresh, which have been refreshed, and which coordinator branch
+state was last incorporated. Validation affected by a child branch refresh is
+stale until rerun after the normal merge.
+
 ### Cleanup
 
 Do not delete local sidecar branches or worktrees after individual child PR
@@ -294,6 +312,89 @@ user approval.
 Direct child issue work outside `parallel` keeps the normal sequential Git
 workflow. A closed-child coordinator final pass also keeps the normal
 sequential Git workflow and is outside this sidecar coordinator branch model.
+
+## Sidecar Resume State Tracking
+
+Apply these resume state rules only to sidecar coordinator parallel execution
+after routing guardrails, coordinator preflight, source-of-truth review,
+dependency classification, artifact preparation, shared-contract validation,
+sidecar Git state validation, sidecar PR delivery validation, and sidecar
+validation reporting rules have succeeded. Issues #220 through #234 still use
+the current sequential workflow guardrails while the sidecar workflow is being
+designed, validated, and adopted.
+
+### Durable Resume State
+
+The coordinator artifact is the durable resume source. A later session must be
+able to identify completed, active, blocked, pending, paused, and
+resume-needed child work from repository artifacts and GitHub/repository state
+without private conversation context.
+
+For each child issue, the coordinator artifact must record:
+
+- child artifact path;
+- child branch when created;
+- local child checkout/worktree when created;
+- child PR when opened;
+- validation state and freshness;
+- workflow status;
+- blockers;
+- refresh state after coordinator branch updates or child PR merges;
+- cleanup eligibility.
+
+Pending children must be identifiable without implying that a branch,
+checkout/worktree, PR, or validation result already exists.
+
+### Resume Re-Read Requirements
+
+Before continuing a paused sidecar coordinator run or a run resumed in a new
+Codex session, re-read current evidence from GitHub and the repository:
+
+- coordinator issue body, state, labels, and listed child issues;
+- each relevant child issue body, state, labels, dependencies, and blockers;
+- relevant child PRs and final coordinator PR state;
+- coordinator artifact and child artifacts;
+- coordinator branch state;
+- active sidecar child branch state;
+- local checkout/worktree existence and path state;
+- validation evidence, status, and freshness;
+- blockers, conflicts, and human-only decision state;
+- cleanup eligibility and remote cleanup approval state.
+
+If the current evidence conflicts with recorded resume state, stop and report
+the mismatch instead of guessing, deleting resources, rebasing, force-pushing,
+or silently treating stale validation as fresh.
+
+### Resume Updates
+
+Update the coordinator artifact when any of these events occur or are observed
+during resume:
+
+- user merges a child PR into the coordinator branch;
+- an active child branch/worktree needs refresh from the coordinator branch;
+- an active child branch/worktree is refreshed using a normal merge;
+- validation fails, is skipped, is interrupted, is partial, is stale, or is not
+  run;
+- child work pauses or resumes;
+- a child-specific, coordinator-wide, shared-contract, conflict, or human-only
+  blocker appears or clears;
+- final coordinator PR merge makes local cleanup eligible;
+- explicit user approval for remote cleanup is present or absent.
+
+After a child PR merge into the coordinator branch, local sidecar branches and
+worktrees are still retained. Local cleanup remains ineligible until the final
+coordinator PR has merged into `main`.
+
+### Non-Sidecar State Boundaries
+
+Normal sequential issue implementation state remains unchanged. Direct child
+issue work outside explicit sidecar `parallel` mode uses normal sequential
+state handling.
+
+A closed-child coordinator final pass uses the existing sequential workflow and
+normal sequential state handling. It may reference closed child issues for
+traceability, but it must not use sidecar resumability state or present closed
+child issue scope as newly implemented work.
 
 ## Sidecar PR Delivery Rules
 
@@ -433,6 +534,10 @@ This entrypoint must not:
 
 - create, modify, close, label, assign, milestone, or comment on GitHub issues
   without explicit user approval in a workflow that permits that operation;
+- resume sidecar coordinator work from private conversation context instead of
+  current GitHub and repository evidence;
+- continue from recorded resume state when current GitHub or repository
+  evidence conflicts with it;
 - rebase, force-push, or perform history-rewriting updates for sidecar
   branches;
 - push sidecar branches, open pull requests, update pull requests, delete
@@ -487,14 +592,18 @@ Report a concise preflight result with:
 - sidecar validation reporting status, including commands and reviews passed,
   failed, skipped, timed out, interrupted, partial, stale, and not run;
 - child PR ready/draft readiness status and final coordinator readiness status;
+- sidecar resume state status, including completed, active, blocked, pending,
+  paused, and resume-needed child work; required GitHub and repository evidence
+  re-read before continuing; refresh-needed/refreshed state; stale validation
+  state; cleanup eligibility; and remote cleanup approval state;
 - blocker and conflict status, including child-specific blockers,
   coordinator-wide blockers, shared-contract blockers, human-only blockers, and
   user-guidance requirements;
 - readiness status: `blocked`, `not adopted`, or `preflight-ready`;
 - specific stop reasons or remaining prerequisites;
 - confirmation that no child implementation, PR operation, issue mutation,
-  public comment, product code change, prohibited Git operation, or unapproved
-  cleanup was performed.
+  public comment, product code change, prohibited Git operation, private-context
+  resume, or unapproved cleanup was performed.
 
 Stop after preflight and artifact preparation. Do not launch child execution
 even if the coordinator appears preflight-ready and artifacts are prepared.
@@ -543,6 +652,20 @@ Validation for this entrypoint must include:
   routing;
 - local sample reports for success, failure, stale validation, blocker,
   conflict, one human-only blocker, and a closed-child coordinator final pass;
+- local sample resume state showing completed, active, blocked, and pending
+  sidecar child work with artifact path, branch, checkout/worktree, PR,
+  validation state, workflow status, blockers, refresh state, and cleanup
+  eligibility;
+- simulation of resume after one child PR has merged into the coordinator
+  branch, one active child branch/worktree needs refresh, and one child issue
+  remains blocked;
+- simulation of refreshing an active child branch/worktree from the coordinator
+  branch using a normal merge, with affected validation marked stale or rerun;
+- simulation or manual review showing local cleanup is eligible only after the
+  final coordinator PR has merged into `main` and only for sidecar-created local
+  branches/worktrees;
+- review that closed-child coordinator final passes use normal sequential state
+  handling and do not use sidecar resumability state;
 - review that commands and reviews are reported as passed, failed, skipped,
   timed out, interrupted, partial, stale, or not run;
 - review that failed, timed-out, skipped, interrupted, partial, stale, and
