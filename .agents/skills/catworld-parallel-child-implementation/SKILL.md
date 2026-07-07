@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#229"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#230"
 metadata:
   author: "catworld"
-  source: "issues-228-229"
+  source: "issues-228-230"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -69,13 +69,19 @@ Before any implementation work, the handoff must provide all of these inputs:
   checkout/worktree;
 - intended child PR target branch, which must be the coordinator branch and not
   `main`;
+- intended child PR issue-reference wording, which must use
+  `Related to #<child-issue>` and `Related to #<coordinator-issue>` only and
+  must not close the child issue or coordinator issue;
 - refresh status describing whether this child branch needs a normal merge from
   the coordinator branch after another child PR has been merged;
 - cleanup eligibility status for the child branch and checkout/worktree;
+- GitHub issue mutation approval status, public comment approval status, and
+  remote cleanup approval status under the approved sidecar PR and Git rules;
 - expected validation commands or manual evidence, including freshness
   requirements;
 - final report and delivery boundaries provided by the coordinator and approved
-  sidecar Git/PR rules.
+  sidecar Git/PR rules, including that Codex reports readiness and the user
+  performs merges.
 
 If any required input is absent, incomplete, unreadable, contradictory, or not
 applicable to exactly one child issue, stop before implementation and report a
@@ -111,7 +117,12 @@ Validate the handoff before touching implementation files:
 - The child checkout/worktree is isolated from other active child
   checkouts/worktrees.
 - The intended child PR target is the coordinator branch and not `main`.
+- The intended child PR wording uses `Related to` references only and cannot
+  close the child issue or coordinator issue.
 - Any required refresh from the coordinator branch is a normal merge only.
+- GitHub issue body, checklist, label, assignee, milestone, issue state, public
+  comment, and remote cleanup approval state is present when the handoff allows
+  any delivery operation that could touch those surfaces.
 - Prepared `spec.md`, `plan.md`, and `tasks.md` exist and refer to the same
   child issue scope.
 - The prepared plan has no pending human approval, unresolved major decision,
@@ -183,22 +194,28 @@ This skill must not:
 - rebase, force-push, or perform history-rewriting updates for sidecar
   branches;
 - push sidecar branches, open pull requests, update pull requests, delete
-  remote branches, prune remotes, or perform remote cleanup unless later
-  approved sidecar PR or cleanup rules permit the operation and explicit user
-  approval exists where repository rules require it;
+  remote branches, prune remotes, or perform remote cleanup unless approved
+  sidecar PR or cleanup rules permit the operation and explicit user approval
+  exists where repository rules require it;
 - delete local sidecar branches or worktrees after individual child PR merges;
 - clean local sidecar branches or worktrees before the final coordinator PR has
   been merged into `main`;
-- open, update, merge, approve, label, or enable auto-merge on pull requests;
-- create, modify, close, label, assign, milestone, or comment on GitHub issues;
+- open, update, merge, approve, label, or enable auto-merge on pull requests
+  unless the prepared handoff and approved sidecar PR rules explicitly permit
+  the operation; Codex still must not merge, approve, or enable auto-merge;
+- create, modify, close, label, assign, milestone, update checklists, change
+  issue state, or comment publicly on GitHub issues without explicit user
+  approval in a workflow that permits that operation;
 - target sidecar child pull requests directly at `main`;
 - change CatWorld product code unless the prepared child tasks explicitly
   require that product change.
 
 Issue #229 supplies the sidecar Git branch, worktree, refresh, and cleanup
-rules. Later sidecar issues may add approved PR handling, state tracking,
-adoption, or delivery rules. Until those rules are present in the handoff and
-governing source-of-truth documents, stop before those operations.
+rules. Issue #230 supplies sidecar child/final PR target, issue closure,
+GitHub mutation, public comment, and remote cleanup approval rules. Later
+sidecar issues may add approved state tracking, adoption, or delivery
+execution rules. Until the relevant rules and approvals are present in the
+handoff and governing source-of-truth documents, stop before those operations.
 
 ## Stop Conditions
 
@@ -215,6 +232,8 @@ Stop and report a blocker when any of these occur:
 - shared contracts are missing, ambiguous, unsafe, or inconsistent;
 - the target context is missing, the child branch targets `main`, or the child
   PR target is not the coordinator branch;
+- child PR issue-reference wording would close the child issue or coordinator
+  issue instead of using `Related to` references only;
 - the current checkout/worktree does not match the prepared child branch and
   checkout/worktree context;
 - a required refresh would use rebase, force-push, history rewriting, or any
@@ -223,8 +242,8 @@ Stop and report a blocker when any of these occur:
 - implementation would touch files outside the prepared child source map
   without an approved scope update;
 - implementation would require branch orchestration, PR handling, GitHub issue
-  mutation, or cleanup rules not present in approved sidecar source-of-truth
-  documents.
+  mutation, public comments, or cleanup rules not present in approved sidecar
+  source-of-truth documents and explicit user approval where required.
 
 ## Validation Expectations
 
@@ -238,6 +257,9 @@ For each child implementation, validation must include:
   checkout/worktree from the coordinator handoff;
 - confirmation that any required active-child refresh used a normal merge from
   the coordinator branch;
+- confirmation that sidecar child PR guidance targets the coordinator branch,
+  uses `Related to` issue references only, and does not close child or
+  coordinator issues;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
   modified by sidecar child execution;
 - confirmation that normal sequential routing and closed-child coordinator
@@ -254,6 +276,8 @@ Report:
 - child issue number and coordinator issue number;
 - coordinator branch, child branch, child PR target, and worktree context from
   the handoff;
+- child PR issue-reference wording and GitHub mutation/public comment approval
+  state from the handoff;
 - prepared artifacts consumed;
 - tasks completed and any tasks left incomplete;
 - changed-file summary compared with the prepared source map;
@@ -262,6 +286,6 @@ Report:
 - delivery status according to the handoff and later approved sidecar Git/PR
   rules.
 
-Do not post public GitHub comments or mutate GitHub issues unless a later
-approved sidecar workflow explicitly permits that operation and the user
-explicitly requests it where repository rules require approval.
+Do not post public GitHub comments or mutate GitHub issues unless an approved
+sidecar workflow explicitly permits that operation and the user explicitly
+requests it where repository rules require approval.

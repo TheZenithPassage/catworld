@@ -14,5 +14,14 @@ A coordinator with all child issues already closed that enters the existing
 sequential final-pass workflow uses normal sequential PR wording for any
 remaining final pass, not the sidecar final coordinator template.
 
+Codex reports sidecar PR readiness; the user performs merges. These templates
+do not authorize Codex to merge, approve or enable auto-merge on pull requests.
+
+GitHub issue body, checklist, label, assignee, milestone, issue state and
+public comment mutations require explicit user approval. Remote branch
+deletion, remote pruning and remote cleanup also require explicit user
+approval.
+
 These templates do not activate parallel mode, replace the normal sequential
-workflow, or require opening real PRs during validation.
+workflow, mutate GitHub issues, post public comments, perform remote cleanup,
+or require opening real PRs during validation.

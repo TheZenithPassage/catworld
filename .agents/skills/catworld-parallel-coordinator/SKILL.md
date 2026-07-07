@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#229"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#230"
 metadata:
   author: "catworld"
-  source: "issues-226-229"
+  source: "issues-226-230"
 ---
 
 # CatWorld Parallel Coordinator
@@ -17,10 +17,13 @@ This skill began as the preflight-only sidecar entrypoint introduced by issue
 #226. Issue #227 extends the same sidecar skill with coordinator and child
 artifact preparation before delegation. Issue #229 adds the sidecar Git
 execution model: coordinator and child branch state, isolated checkout/worktree
-state, merge-only refresh rules, and cleanup boundaries. It still does not
-open pull requests, mutate GitHub issues, run adoption dry-runs, or replace the
-normal sequential implementation workflow. Later #220 child issues may extend
-PR handling, state tracking, adoption, and delivery pieces.
+state, merge-only refresh rules, and cleanup boundaries. Issue #230 adds
+sidecar PR target, issue closure, GitHub mutation, public comment, and remote
+cleanup approval rules. It still does not open, update, merge, approve, or
+enable auto-merge on pull requests, mutate GitHub issues, post public comments,
+run adoption dry-runs, or replace the normal sequential implementation
+workflow. Later #220 child issues may extend state tracking, adoption, and
+delivery execution pieces.
 
 ## Routing Boundary
 
@@ -107,8 +110,8 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, and #229 when their routing, entrypoint, artifact, child handoff, or
-  Git execution contracts apply.
+  #228, #229, and #230 when their routing, entrypoint, artifact, child
+  handoff, Git execution, or PR delivery contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
@@ -151,6 +154,9 @@ include:
 - sidecar Git state section that records coordinator branch, coordinator
   checkout/worktree, child branch, child checkout/worktree, child PR target,
   refresh status, cleanup status, and remote-cleanup approval state;
+- sidecar PR delivery section that records child PR target, child issue
+  reference wording, final coordinator PR target, closure authority, GitHub
+  issue mutation approval state, and public comment approval state;
 - validation plan for coordinator-level and child-level evidence;
 - status table for each child issue, including readiness, blockers, dependency
   layer, artifact path, and required validation.
@@ -200,8 +206,10 @@ closed and the coordinator enters the existing sequential final pass. The final
 pass must not redo closed child scope.
 
 Issue #227 adds artifact preparation only. Issue #229 adds sidecar Git
-execution rules. Neither issue adds pull request handling, GitHub issue
-mutation, adoption dry-runs, or CatWorld product code changes.
+execution rules. Issue #230 adds sidecar PR target, closure, GitHub mutation,
+public comment, and remote cleanup approval rules without opening real pull
+requests, merging pull requests, mutating GitHub issues, posting public
+comments, running adoption dry-runs, or changing CatWorld product code.
 
 ## Sidecar Git Execution Rules
 
@@ -280,17 +288,71 @@ Direct child issue work outside `parallel` keeps the normal sequential Git
 workflow. A closed-child coordinator final pass also keeps the normal
 sequential Git workflow and is outside this sidecar coordinator branch model.
 
+## Sidecar PR Delivery Rules
+
+Apply these PR delivery rules only to sidecar coordinator parallel execution
+after routing guardrails, coordinator preflight, source-of-truth review,
+dependency classification, artifact preparation, shared-contract validation,
+and sidecar Git state validation have succeeded. Issues #220 through #234
+still use the current sequential workflow guardrails while the sidecar workflow
+is being designed, validated, and adopted.
+
+### Child PR Target and Issue References
+
+Sidecar child PR guidance must target the coordinator integration branch. A
+sidecar child PR must not target `main` directly.
+
+Sidecar child PR descriptions use `Related to #<child-issue>` and
+`Related to #<coordinator-issue>` issue references only. They must not use
+issue-closing wording for the child issue or coordinator issue, and they must
+not imply that the child PR is the final delivery PR to `main`.
+
+### Final Coordinator PR
+
+The final sidecar coordinator PR targets `main` from the coordinator
+integration branch. This final coordinator PR may close the coordinator issue
+and child issues in the sidecar set. It should identify integrated child PRs or
+child issue references clearly enough for reviewer traceability.
+
+The final coordinator PR is the only sidecar PR that may close the coordinator
+set during sidecar parallel delivery.
+
+### Merge Authority and GitHub Mutation Approval
+
+Codex reports readiness for sidecar child PRs and the final coordinator PR. The
+user performs merges. Codex must not merge, approve, or enable auto-merge on
+pull requests.
+
+GitHub issue body, checklist, label, assignee, milestone, issue state, and
+public comment mutation requires explicit user approval in a workflow that
+permits that operation. PR description wording is not permission to separately
+modify issue metadata, issue bodies, checklists, issue state, or public
+comments.
+
+Remote branch deletion, remote pruning, and remote cleanup require explicit
+user approval.
+
+### Non-Sidecar PR Boundaries
+
+Normal one-issue sequential PR behavior keeps its current target and closure
+behavior. Direct child issue work outside explicit sidecar `parallel` mode also
+uses normal sequential PR behavior.
+
+A closed-child coordinator final pass uses normal sequential PR behavior and is
+outside the sidecar child/final PR model.
+
 ## Prohibited Side Effects
 
 This entrypoint must not:
 
-- create, modify, close, label, assign, milestone, or comment on GitHub issues;
+- create, modify, close, label, assign, milestone, or comment on GitHub issues
+  without explicit user approval in a workflow that permits that operation;
 - rebase, force-push, or perform history-rewriting updates for sidecar
   branches;
 - push sidecar branches, open pull requests, update pull requests, delete
-  remote branches, prune remotes, or perform remote cleanup unless a later
-  approved sidecar rule permits the operation and explicit user approval exists
-  where repository rules require it;
+  remote branches, prune remotes, or perform remote cleanup unless an approved
+  sidecar rule permits the operation and explicit user approval exists where
+  repository rules require it;
 - delete local sidecar branches or worktrees after individual child PR merges;
 - clean local sidecar branches or worktrees before the final coordinator PR has
   been merged into `main`;
@@ -300,7 +362,8 @@ This entrypoint must not:
 - invent or create seed, foundation, or shared-contract child issues without
   explicit user approval in a workflow that permits issue mutation;
 - delegate child implementation work;
-- open, update, merge, approve, or enable auto-merge on pull requests;
+- open, update, merge, approve, or enable auto-merge on pull requests during
+  preflight or artifact preparation;
 - modify CatWorld product code;
 - modify `.agents/skills/catworld-implement-issue/SKILL.md`;
 - modify `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`;
@@ -320,11 +383,15 @@ Report a concise preflight result with:
   worktree path, child branch names, child checkout or worktree paths, child PR
   target branch, refresh status, cleanup eligibility, and unresolved
   collision/approval blockers when Git state has been prepared or described;
+- sidecar PR delivery status, including child PR target branch, child issue
+  reference wording, final coordinator PR target, closure authority, GitHub
+  mutation approval state, public comment approval state, and remote cleanup
+  approval state when PR delivery state has been prepared or described;
 - readiness status: `blocked`, `not adopted`, or `preflight-ready`;
 - specific stop reasons or remaining prerequisites;
 - confirmation that no child implementation, PR operation, issue mutation,
-  product code change, prohibited Git operation, or unapproved cleanup was
-  performed.
+  public comment, product code change, prohibited Git operation, or unapproved
+  cleanup was performed.
 
 Stop after preflight and artifact preparation. Do not launch child execution
 even if the coordinator appears preflight-ready and artifacts are prepared.
@@ -359,6 +426,18 @@ Validation for this entrypoint must include:
   coordinator PR has merged into `main`;
 - review that remote branch deletion, remote pruning, and remote cleanup require
   explicit user approval;
+- local sample child PR descriptions for two child issues that target the
+  coordinator branch, use `Related to` issue references only, and do not close
+  issues;
+- local sample final coordinator PR description that targets `main` and may
+  close the coordinator issue and child issues in the sidecar set;
+- local sample closed-child coordinator final-pass PR description that uses
+  normal sequential PR behavior;
+- review that GitHub issue body, checklist, label, assignee, milestone, issue
+  state, and public comment mutation require explicit user approval;
+- review that normal sequential PR behavior, direct child issue work outside
+  `parallel`, and closed-child coordinator final passes are outside sidecar PR
+  routing;
 - blocker simulation proving missing shared contracts stop for user guidance;
 - review that seed, foundation, and shared-contract child issues are not
   invented or created without explicit user approval;
@@ -368,5 +447,6 @@ Validation for this entrypoint must include:
 - changed-file review proving the existing sequential implementation skill and
   existing coordinator/orchestration skill are unchanged;
 - changed-file review proving no product code, real CatWorld sidecar worktrees,
-  real CatWorld sidecar branches, PR operations, or GitHub issue mutations are
-  part of issue #229 validation.
+  real CatWorld sidecar branches, real pull request operations, GitHub issue
+  mutations, public comments, or unapproved remote cleanup are part of issue
+  #230 validation.
