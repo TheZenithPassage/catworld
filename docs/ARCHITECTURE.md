@@ -563,6 +563,15 @@ The sidecar workflow owns its own future skills and operating rules. It must
 not require changes to `.agents/skills/catworld-implement-issue/SKILL.md` to
 exist beside the current sequential workflow.
 
+Issue #226 adds `.agents/skills/catworld-parallel-coordinator/SKILL.md` as the
+first sidecar coordinator entrypoint. That entrypoint is preflight-only while
+the sidecar workflow is still being completed and adopted by later #220 child
+issues. It may classify explicit coordinator `parallel` requests when routing
+guardrails allow sidecar use, but it must stop before child implementation,
+artifact generation, Git branch or worktree operations, pull request handling,
+or GitHub issue mutation. Issues #220 through #234 continue to use the current
+sequential workflow guardrails during the sidecar build-out and adoption work.
+
 ### Sidecar Artifact Paths
 
 These artifact path rules apply only to sidecar coordinator parallel execution.
