@@ -89,6 +89,7 @@ Post-design re-check: Compliant. Phase 1 artifacts confirm no data model, extern
 | Surface / Requirement | Responsible Layer | Evidence Type | Freshness / Manual Notes |
 |-----------------------|-------------------|---------------|--------------------------|
 | TR-001 through TR-007 routing cases | Repository documentation | Manual review against #220, #221, #222, `AGENTS.md`, and `.agents/skills/catworld-implement-issue/SKILL.md` | Rerun after documentation edits |
+| TR-011 parallel readiness and no-label rule | Repository documentation | Manual review against #222; confirm readiness comes from coordinator preflight, child issue inspection, dependency classification and source-of-truth review, with no required or invented `parallel-ready` label | Rerun after documentation edits |
 | TR-008 and TR-009 exclusions | Changed-file scope and documentation review | `git diff --name-only`; manual review that implementation skills and `AGENTS.md` are not part of final diff | Rerun before final report |
 | Documentation formatting | Git diff whitespace check | `git diff --check` | Rerun after final edits |
 | Product behavior unchanged | Scope review | Manual review of changed paths and text; no product code changes | Rerun before final report |

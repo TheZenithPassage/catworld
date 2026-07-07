@@ -543,6 +543,18 @@ Parallel mode is valid only when all of these are true:
 - the issue is clearly a coordinator issue;
 - the sidecar coordinator parallel workflow has been implemented and adopted.
 
+Parallel readiness is determined by the sidecar workflow's own safety review,
+not by an issue label. The readiness decision must come from:
+
+- coordinator preflight;
+- child issue inspection;
+- dependency classification;
+- source-of-truth review.
+
+Codex must not require a `parallel-ready` label, and it must not invent one.
+Labels may become useful metadata later, but labels are not the source of truth
+for parallel safety.
+
 `parallel` on a non-coordinator issue is an invalid routing request. Codex must
 stop and report that parallel mode only applies to coordinator issues instead
 of ignoring the flag or silently falling back to sequential execution.

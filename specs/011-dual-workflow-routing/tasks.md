@@ -54,6 +54,7 @@
 - [X] T007 Run `git diff --check` from the repository root.
 - [X] T008 Run `git diff --name-only` from the repository root and confirm changed paths are limited to docs/ARCHITECTURE.md and issue #222 Spec Kit artifacts, aside from any temporary active-plan context that must be restored.
 - [X] T009 Review the final diff to confirm AGENTS.md and .agents/skills/catworld-implement-issue/SKILL.md are not changed for the longer explanation.
+- [X] T010 Review docs/ARCHITECTURE.md against issue #222 and confirm it documents parallel readiness from coordinator preflight, child issue inspection, dependency classification and source-of-truth review, with no required or invented `parallel-ready` label.
 
 ---
 

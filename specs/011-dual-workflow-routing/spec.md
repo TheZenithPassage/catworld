@@ -24,6 +24,7 @@
   - **Acceptance Scenarios**:
     1. **Given** the sidecar workflow is not yet implemented, **When** maintainers read the documentation, **Then** it states that sidecar parallel execution is opt-in only and unavailable unless explicitly requested on a coordinator issue.
     2. **Given** a maintainer is adding sidecar workflow skills later, **When** they read the documentation, **Then** it identifies the sidecar as the owner of its own skills without directing changes to `catworld-implement-issue`.
+    3. **Given** a future sidecar workflow needs to decide whether coordinator parallel execution is safe, **When** maintainers read the documentation, **Then** it states that readiness comes from coordinator preflight, child issue inspection, dependency classification, and source-of-truth review rather than a required label.
   - **Validation Evidence**: Manual review that the implementation changes documentation only, with no product behavior, sidecar skill, or existing implementation skill changes.
 
 - **TO-003**: Documentation records what a closed-sub-issue coordinator final pass may and may not do.
@@ -38,6 +39,7 @@
 - The documentation must distinguish a coordinator issue with open sub-issues from a coordinator issue whose listed sub-issues are all closed.
 - The documentation must distinguish `parallel` on a coordinator issue from `parallel` on a non-coordinator issue.
 - The documentation must not imply that issue #220 through #234 can use parallel mode before the sidecar workflow is implemented and adopted.
+- The documentation must not require or invent a `parallel-ready` label as a substitute for sidecar coordinator safety review.
 - The documentation must not describe CatWorld product behavior, user roles, data, persistence, authorization, or application workflows as changed.
 
 ## Requirements *(mandatory)*
@@ -54,6 +56,7 @@
 - **TR-008**: Workflow documentation MUST state that the sidecar workflow owns its own skills and that this documentation issue does not require changes to `catworld-implement-issue`.
 - **TR-009**: The implementation MUST keep longer explanatory workflow guidance out of `AGENTS.md` and place it in repository documentation.
 - **TR-010**: Validation MUST include manual review against issues #220 and #221 and confirmation that no product behavior is described as changed.
+- **TR-011**: Workflow documentation MUST state that parallel readiness comes from coordinator preflight, child issue inspection, dependency classification, and source-of-truth review; it MUST NOT require or invent a `parallel-ready` label, and MUST state that labels may be metadata later but are not the source of truth for parallel safety.
 
 ### Scope Boundaries
 
@@ -81,6 +84,7 @@
 - **SC-002**: Documentation explicitly preserves the existing sequential workflow as the default path and describes sidecar parallel execution as an addition rather than a replacement.
 - **SC-003**: Documentation explicitly states that closed-sub-issue coordinator finalization uses the existing sequential workflow and is not a separate workflow.
 - **SC-004**: Manual review against #220 and #221 confirms that no CatWorld product behavior is described as changed.
+- **SC-005**: Manual review against #222 confirms parallel readiness is documented as a preflight/review outcome and no required or invented `parallel-ready` label is introduced.
 
 ## Assumptions
 

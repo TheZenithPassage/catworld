@@ -20,6 +20,8 @@
    - Expected: Every scope bullet in #222 is represented.
    - Expected: The documentation does not describe CatWorld product behavior as changed.
    - Expected: The final diff does not edit existing implementation skills.
+   - Expected: Parallel readiness is documented as coming from coordinator preflight, child issue inspection, dependency classification and source-of-truth review.
+   - Expected: The documentation does not require or invent a `parallel-ready` label; labels may be metadata later but are not the source of truth for parallel safety.
 
 4. Run:
 
