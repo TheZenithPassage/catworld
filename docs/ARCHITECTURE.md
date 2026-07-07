@@ -591,7 +591,9 @@ Issue #230 adds sidecar PR target, issue closure, GitHub mutation, public
 comment and remote cleanup approval rules. Those rules define delivery
 authority only; they do not open real pull requests, merge pull requests,
 mutate GitHub issues, post public comments or change normal sequential PR
-behavior.
+behavior. Issue #231 adds sidecar validation, blocker, conflict, stale-evidence,
+readiness and human-only blocker reporting rules. Those reporting rules do not
+change normal sequential validation or final reporting.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -759,6 +761,75 @@ behavior. Direct child issue work outside explicit sidecar `parallel` mode also
 uses normal sequential PR behavior. A closed-child coordinator final pass uses
 normal sequential PR behavior and remains outside the sidecar child/final PR
 model.
+
+### Sidecar Validation, Blocker and Conflict Reporting
+
+These reporting rules apply only to sidecar coordinator parallel execution.
+They do not change normal one-issue sequential validation, direct child issue
+reporting outside `parallel`, or closed-child coordinator final-pass reporting.
+
+Sidecar child reports and coordinator integration reports list every required
+command, manual review, local sample artifact and consumed child validation
+result. Each item uses an explicit status:
+
+- `passed`
+- `failed`
+- `skipped`
+- `timed out`
+- `interrupted`
+- `partial`
+- `stale`
+- `not run`
+
+Failed validation is never summarized as passed. Failed, timed-out, skipped,
+interrupted, partial, stale and not-run validation is never summarized as
+passed. A report may contain passed evidence, but the summary still preserves
+every non-passed status and its readiness impact.
+
+Validation becomes stale when a coordinator branch update, child branch refresh,
+conflict resolution or other relevant change could affect previous evidence.
+Stale evidence must be rerun before sidecar readiness is reported, or it stays
+explicitly reported as stale. Coordinator readiness must not consume stale
+child evidence as fresh evidence.
+
+A sidecar child PR is ready only when required validation is fresh and passed,
+no unresolved blocker affects the child, and the approved sidecar PR target and
+issue-reference rules are satisfied. A sidecar child PR is draft when required
+validation is failed, skipped, timed out, interrupted, partial, stale, not run
+or blocked, unless the non-passed evidence is explicitly outside child
+readiness and the report explains why. Final coordinator readiness follows the
+same freshness and blocker principle for coordinator-level and consumed child
+evidence.
+
+Sidecar reports distinguish:
+
+- child-specific blockers that affect exactly one child issue;
+- coordinator-wide blockers that affect the coordinator branch, integration
+  set or multiple children;
+- shared-contract blockers that affect cross-child contracts or handoff
+  expectations;
+- conflict blockers that require user guidance;
+- human-only blockers that Codex must not decide.
+
+Shared-contract blockers stop affected sidecar work until resolved or until
+user guidance is provided.
+
+Non-trivial conflicts affecting contract, scope, persistence, security, authorization, UX, or domain behavior require user guidance. The report names the conflicting inputs, affected source surfaces, blocked child or coordinator scope and guidance needed before work can continue.
+
+Human-only blockers include new significant dependencies, material architecture
+changes, production exposure, secrets, deployment changes, Git/GitHub workflow
+outside the approved model and unresolved product, persistence, security,
+authorization, UX, domain, contract, validation, operational or scope
+decisions. The report names the category, evidence, affected scope and required
+human decision instead of letting Codex decide silently.
+
+Codex must not modify GitHub issue bodies, checklists, labels, assignees,
+milestones, issue state or public comments unless the user explicitly requests
+that operation in a workflow that permits it.
+
+A closed-child coordinator final pass uses normal sequential validation and
+reporting. It may reference closed child issues for traceability, but it must
+not present closed child issue scope as newly implemented work.
 
 ### Coordinator End-to-End Requests
 
