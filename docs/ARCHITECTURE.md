@@ -584,6 +584,10 @@ does not perform coordinator preflight, create planning artifacts, redefine
 shared contracts, create branches or worktrees, open pull requests, mutate
 GitHub issues or replace the normal sequential workflow.
 
+Issue #229 adds sidecar Git execution rules for coordinator branch, child
+branch, isolated checkout/worktree, merge-only refresh and cleanup boundaries.
+Those rules apply only to the opt-in sidecar coordinator parallel workflow.
+
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
 also stay in the existing sequential workflow and do not route into the
@@ -658,6 +662,61 @@ A coordinator final pass after all listed child issues are closed uses the
 existing sequential workflow. It does not require sidecar artifact naming; if
 the sequential workflow creates artifacts during that final pass, it creates
 them on its own terms.
+
+### Sidecar Git Execution Rules
+
+These Git rules apply only to sidecar coordinator parallel execution after
+routing guardrails, coordinator preflight, source-of-truth review, dependency
+classification, artifact preparation and shared-contract validation have all
+succeeded. They do not change normal sequential issue implementation, direct
+child issue implementation outside `parallel`, or closed-child coordinator
+final passes.
+
+Coordinator parallel work uses one coordinator integration branch created from
+current `origin/main`. CatWorld must not update local `main`, merge unrelated
+work into `main`, or use `main` as a sidecar delivery branch while preparing
+that coordinator branch.
+
+Sidecar names are deterministic:
+
+- coordinator branch and checkout/worktree name component:
+  `<coordinator-number>-coordinator-<slug>`;
+- child branch and checkout/worktree name component:
+  `<child-issue-number>-<child-slug>`.
+
+The slug follows the sidecar artifact slug rule: lowercase, hyphen-separated
+title text after removing issue title prefixes such as `[Workflow]`, `[Epic]`,
+`feat:` or `docs:`. The coordinator artifact records the full branch names and
+full local checkout/worktree paths. The local parent directory is workflow
+context, but each local sidecar directory name must use the deterministic
+component above.
+
+Before creating, switching to, merging into, or reusing a sidecar Git resource,
+the workflow must compute every target branch and checkout/worktree name.
+Branch, checkout, worktree, directory and artifact collisions stop execution
+unless the coordinator artifact or explicit user-provided context proves the
+resource is the intended sidecar resource for the same issue and slug. The
+workflow must not guess, overwrite, delete, silently reuse or automatically
+rename colliding resources.
+
+Each child implementation branch starts from the coordinator branch, not from
+`main`. Each active child implementation uses an isolated local
+checkout/worktree recorded in the coordinator artifact and supplied in the child
+handoff.
+
+Sidecar child PR guidance must target the coordinator branch. Sidecar child PRs
+must not target `main` directly.
+
+After the user merges a child PR into the coordinator branch, every still-active
+sidecar child branch or worktree that needs the latest coordinator state is
+updated from the coordinator branch using a normal merge. Sidecar branches must
+not be rebased, force-pushed or updated with any history-rewriting operation.
+
+Local sidecar branches and worktrees are not deleted after individual child PR
+merges. Local cleanup is eligible only after the final coordinator PR has been
+merged into `main`, and only for local branches and worktrees created by the
+sidecar workflow. Remote branch deletion, remote pruning and any remote cleanup
+require explicit user approval.
 
 ### Coordinator End-to-End Requests
 
