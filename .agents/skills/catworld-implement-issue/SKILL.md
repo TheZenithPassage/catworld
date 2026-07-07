@@ -28,31 +28,40 @@ issue URL, optionally followed by `parallel` or `sequential`, treat the prompt
 as an end-to-end CatWorld issue implementation request.
 
 - Fetch and inspect the issue read-only before choosing the workflow.
-- Use this skill for normal implementable issues.
-- Use `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` for
-  coordinator issues, with sequential mode as the default.
-- Use coordinator parallel mode only when the prompt includes the explicit
-  `parallel` keyword, the issue is a coordinator issue, and parallel execution
-  is safe. Do not infer parallel mode from a bare issue number, issue
-  reference, or issue URL.
-- Treat `sequential` as an explicit request for coordinator sequential mode
-  when the issue is a coordinator issue.
-- Ignore `parallel` and `sequential` for normal implementable issues and use
-  this skill.
+- Use this skill for normal implementable issues and direct child issues.
+- For coordinator issues requested end-to-end, inspect listed sub-issues
+  read-only before workflow selection. If any listed sub-issue is still open,
+  stop with a routing error. If all listed sub-issues are closed, use this skill
+  for the existing sequential end-to-end workflow as a final pass.
+- The closed-sub-issue coordinator final pass is not a separate workflow and
+  must not redo closed sub-issue scope.
+- Treat `parallel` as valid only when the issue is a clearly identified
+  coordinator issue and a sidecar parallel workflow has been implemented.
+  Sidecar parallel execution is not implemented yet.
+- If the issue is not a coordinator issue and the prompt includes `parallel`,
+  stop with a routing error instead of ignoring the flag.
+- Treat `sequential` as a request to keep the current sequential workflow
+  guardrails. Normal implementable issues and direct child issues use this
+  skill.
 - If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
 - If the issue cannot be classified after reading it, stop and report the
   ambiguity.
+- Issues #220 through #234 must not route through parallel mode; use the current
+  sequential workflow guardrails only.
 
 ## Coordinator Issue Boundary
 
-This skill implements one concrete CatWorld issue, including one concrete child
-issue delegated by a coordinator workflow.
+This skill implements one concrete CatWorld issue, including a normal
+implementable issue, a direct child issue, or a coordinator final pass after all
+listed sub-issues are closed.
 
 If the issue body clearly indicates a coordinator issue, do not prepare an issue
-branch or implement the coordinator issue as one bundled PR by default. Load and
-follow `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`
-instead.
+branch until listed sub-issues have been inspected read-only. Stop with a
+routing error when any listed sub-issue is still open. When all listed
+sub-issues are closed, continue with this skill as the existing sequential
+end-to-end workflow for a final pass only, without redoing closed sub-issue
+scope.
 
 Fetch or read the issue body read-only before branch preparation when needed to
 decide this boundary.
@@ -122,8 +131,9 @@ explicitly designed principal-agent workflow.
 
 - Coordinator issues may split work into sub-issues when dependencies and
   conflict risks are understood.
-- Explicit coordinator issue orchestration belongs in
-  `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`.
+- Do not route coordinator issues to a separate orchestration workflow by
+  default. A future explicitly designed sidecar workflow may define that
+  behavior, but it is not implemented here.
 - Hard-dependent sub-issues must not be parallelized blindly.
 - Future sub-agents must inherit the same governing context as the principal
   agent, including repository instructions, Spec Kit artifacts, issue body,

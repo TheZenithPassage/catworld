@@ -3,7 +3,7 @@
 ## Required Context
 
 * Read `.specify/memory/constitution.md` before planning or implementing work.
-* For coordinator GitHub issue orchestration requests, read and follow `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`; keep concrete child issue implementation delegated to `.agents/skills/catworld-implement-issue/SKILL.md`.
+* Coordinator GitHub issues are not routed to a separate orchestration workflow by default. For end-to-end requests, use the routing guardrails below before entering the existing sequential implementation workflow.
 * For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
@@ -18,20 +18,27 @@ CatWorld issue implementation request.
 * Bare numbers such as `148`, issue references such as `#148`, and issue URLs
   route to issue implementation after Codex fetches and inspects the issue
   read-only.
-* Normal implementable issues use
+* Normal implementable issues and direct child issues use
   `.agents/skills/catworld-implement-issue/SKILL.md`.
-* Coordinator issues use
-  `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` in
-  sequential mode by default.
+* Coordinator issues requested end-to-end must be inspected read-only for listed
+  sub-issues before workflow selection. If any listed sub-issue is still open,
+  stop with a routing error. If all listed sub-issues are closed, use
+  `.agents/skills/catworld-implement-issue/SKILL.md` for the existing sequential
+  end-to-end workflow as a final pass.
+* The closed-sub-issue coordinator final pass is not a separate workflow and
+  must not redo closed sub-issue scope.
 * The `parallel` keyword requests coordinator parallel mode only when the issue
-  is a coordinator issue and parallel execution is safe. If the issue is not a
-  coordinator issue, ignore the flag and use normal single-issue
-  implementation.
-* The `sequential` keyword explicitly requests coordinator sequential mode when
-  the issue is a coordinator issue. If the issue is not a coordinator issue,
-  use normal single-issue implementation.
+  is a clearly identified coordinator issue and a sidecar parallel workflow has
+  been implemented. Sidecar parallel execution is not implemented yet.
+* If the issue is not a coordinator issue and the prompt includes `parallel`,
+  stop with a routing error instead of ignoring the flag.
+* The `sequential` keyword keeps normal implementable issues and direct child
+  issues on the existing sequential workflow. For coordinator issues, apply the
+  open-sub-issue and closed-sub-issue guardrails above.
 * Never infer parallel mode from a bare issue number, issue reference, or issue
   URL.
+* Issues #220 through #234 must not route through parallel mode; use the current
+  sequential workflow guardrails only.
 * If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
 * If the issue cannot be classified as a normal implementable issue or a
