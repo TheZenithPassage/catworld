@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#228"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#229"
 metadata:
   author: "catworld"
-  source: "issue-228"
+  source: "issues-228-229"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -15,7 +15,9 @@ preparation has completed.
 
 This skill consumes prepared child artifacts. It does not create its own
 specification, plan, task list, shared contract, coordinator artifact, branch,
-worktree, pull request, issue mutation, or routing decision.
+worktree, pull request, issue mutation, or routing decision. It consumes the
+sidecar Git state prepared by the coordinator and refuses to run when the
+current checkout does not match that prepared state.
 
 ## Routing Boundary
 
@@ -37,7 +39,9 @@ Use `.agents/skills/catworld-parallel-coordinator/SKILL.md` instead for:
 - child issue inspection;
 - dependency classification;
 - source-of-truth review before sidecar delegation;
-- coordinator and child artifact preparation.
+- coordinator and child artifact preparation;
+- coordinator branch, child branch, checkout/worktree, refresh, and cleanup
+  state preparation.
 
 Stop with a routing error when a request reaches this skill without a prepared
 sidecar child handoff.
@@ -57,11 +61,21 @@ Before any implementation work, the handoff must provide all of these inputs:
 - prepared child `tasks.md` path and task set;
 - shared contract references and constraints from the coordinator artifacts;
 - dependency status showing this child is ready for implementation;
-- target coordinator branch and target sidecar worktree context;
+- target coordinator branch, including evidence that it was created from
+  current `origin/main`;
+- target child branch, including evidence that it starts from the coordinator
+  branch and is not `main`;
+- target child checkout/worktree path, isolated from every other active child
+  checkout/worktree;
+- intended child PR target branch, which must be the coordinator branch and not
+  `main`;
+- refresh status describing whether this child branch needs a normal merge from
+  the coordinator branch after another child PR has been merged;
+- cleanup eligibility status for the child branch and checkout/worktree;
 - expected validation commands or manual evidence, including freshness
   requirements;
-- final report and delivery boundaries provided by the coordinator or later
-  approved sidecar Git/PR rules.
+- final report and delivery boundaries provided by the coordinator and approved
+  sidecar Git/PR rules.
 
 If any required input is absent, incomplete, unreadable, contradictory, or not
 applicable to exactly one child issue, stop before implementation and report a
@@ -91,7 +105,13 @@ Validate the handoff before touching implementation files:
 - The handoff identifies exactly one child issue.
 - The child issue is dependency-ready according to the prepared dependency
   status.
-- The target branch/worktree context is present and does not target `main`.
+- The target coordinator branch, child branch, child checkout/worktree, child
+  PR target, refresh status, and cleanup eligibility context are present.
+- The child branch starts from the coordinator branch and is not `main`.
+- The child checkout/worktree is isolated from other active child
+  checkouts/worktrees.
+- The intended child PR target is the coordinator branch and not `main`.
+- Any required refresh from the coordinator branch is a normal merge only.
 - Prepared `spec.md`, `plan.md`, and `tasks.md` exist and refer to the same
   child issue scope.
 - The prepared plan has no pending human approval, unresolved major decision,
@@ -111,8 +131,8 @@ coordinator or user.
 When the handoff is valid:
 
 1. Confirm the current checkout and worktree match the prepared target context.
-   If they do not, stop. Branch and worktree orchestration belongs to later
-   sidecar rules, not this skill.
+   If they do not, stop. This skill must not invent, rename, or auto-recover
+   branch/worktree context outside the coordinator handoff.
 2. Treat the prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract,
    and validation requirements as the implementation decision contract.
 3. Execute only tasks from the prepared child `tasks.md`.
@@ -158,17 +178,27 @@ This skill must not:
 - route normal issues or direct child issue end-to-end requests;
 - route closed-child coordinator final passes;
 - perform coordinator preflight or artifact preparation;
-- create, switch, merge, rebase, push, delete, or prune Git branches;
-- create, update, delete, or clean worktrees;
+- create, switch, or rename sidecar branches or worktrees outside the prepared
+  coordinator handoff;
+- rebase, force-push, or perform history-rewriting updates for sidecar
+  branches;
+- push sidecar branches, open pull requests, update pull requests, delete
+  remote branches, prune remotes, or perform remote cleanup unless later
+  approved sidecar PR or cleanup rules permit the operation and explicit user
+  approval exists where repository rules require it;
+- delete local sidecar branches or worktrees after individual child PR merges;
+- clean local sidecar branches or worktrees before the final coordinator PR has
+  been merged into `main`;
 - open, update, merge, approve, label, or enable auto-merge on pull requests;
 - create, modify, close, label, assign, milestone, or comment on GitHub issues;
 - target sidecar child pull requests directly at `main`;
 - change CatWorld product code unless the prepared child tasks explicitly
   require that product change.
 
-Later sidecar issues may add approved Git, PR, state tracking, cleanup, or
-adoption rules. Until those rules are present in the handoff and governing
-source-of-truth documents, stop before those operations.
+Issue #229 supplies the sidecar Git branch, worktree, refresh, and cleanup
+rules. Later sidecar issues may add approved PR handling, state tracking,
+adoption, or delivery rules. Until those rules are present in the handoff and
+governing source-of-truth documents, stop before those operations.
 
 ## Stop Conditions
 
@@ -183,7 +213,12 @@ Stop and report a blocker when any of these occur:
 - the child dependency status is unresolved, blocked, or contradicted by
   current source-of-truth context;
 - shared contracts are missing, ambiguous, unsafe, or inconsistent;
-- the target context is missing or targets `main`;
+- the target context is missing, the child branch targets `main`, or the child
+  PR target is not the coordinator branch;
+- the current checkout/worktree does not match the prepared child branch and
+  checkout/worktree context;
+- a required refresh would use rebase, force-push, history rewriting, or any
+  method other than a normal merge from the coordinator branch;
 - required validation is absent or impossible to run honestly;
 - implementation would touch files outside the prepared child source map
   without an approved scope update;
@@ -199,6 +234,10 @@ For each child implementation, validation must include:
   artifacts and handoff;
 - freshness status for every validation result;
 - changed-file review against the prepared source map;
+- confirmation that the child ran in the prepared child branch and isolated
+  checkout/worktree from the coordinator handoff;
+- confirmation that any required active-child refresh used a normal merge from
+  the coordinator branch;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
   modified by sidecar child execution;
 - confirmation that normal sequential routing and closed-child coordinator
@@ -213,7 +252,8 @@ confirmation that the normal implementation skill is untouched.
 Report:
 
 - child issue number and coordinator issue number;
-- target branch and worktree context from the handoff;
+- coordinator branch, child branch, child PR target, and worktree context from
+  the handoff;
 - prepared artifacts consumed;
 - tasks completed and any tasks left incomplete;
 - changed-file summary compared with the prepared source map;
