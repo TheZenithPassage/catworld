@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
-description: "Preflight CatWorld coordinator issues for explicit opt-in sidecar parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#226"
+description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#227"
 metadata:
   author: "catworld"
-  source: "issue-226"
+  source: "issues-226-227"
 ---
 
 # CatWorld Parallel Coordinator
@@ -13,11 +13,13 @@ Use this sidecar entrypoint only for an explicit CatWorld coordinator issue
 request that includes the `parallel` keyword, after the repository routing
 guardrails allow sidecar parallel use.
 
-This skill is a preflight-only sidecar entrypoint introduced by issue #226. It
-does not implement child artifacts, child execution, Git worktree or branch
-operations, pull request handling, resumable state, cleanup, adoption dry-runs,
-or delivery. Later #220 child issues may extend the sidecar workflow, but this
-entrypoint must stop before implementation.
+This skill began as the preflight-only sidecar entrypoint introduced by issue
+#226. Issue #227 extends the same sidecar skill with coordinator and child
+artifact preparation before delegation. It still does not implement child
+execution, Git worktree or branch operations, pull request handling, resumable
+state, cleanup, adoption dry-runs, or delivery. Later #220 child issues may
+extend those execution pieces, but this entrypoint must stop before child
+implementation.
 
 ## Routing Boundary
 
@@ -103,24 +105,98 @@ Compare the coordinator and child issue bodies against:
 - the CatWorld constitution;
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
-- issue #220 sidecar architecture and issues #221, #222, and #225 when their
-  routing or artifact contracts apply.
+- issue #220 sidecar architecture and issues #221, #222, #225, #226, and #227
+  when their routing, entrypoint, or artifact contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
 scope.
 
-## Sidecar Artifact Awareness
+## Sidecar Artifact Preparation
 
-When reasoning about future sidecar artifacts, apply the #225 path contract:
+Run artifact preparation only after coordinator classification, required
+context loading, source-of-truth review, dependency classification, and routing
+guardrails allow the sidecar coordinator path. Do not run artifact preparation
+for normal implementable issues, direct child issues, or closed-child
+coordinator final passes that enter the existing sequential workflow.
+
+Before creating or describing artifacts, apply the #225 path contract:
 
 - coordinator artifacts use `specs/<coordinator-number>-coordinator-<slug>/`;
 - child implementation artifacts use `specs/<child-issue-number>-<child-slug>/`;
 - existing target paths, same-number prefixes, and duplicate child issue
-  numbers are stop conditions for future artifact preparation.
+  numbers are stop conditions.
 
-Issue #226 does not create coordinator artifacts, child artifacts, sidecar
-worktrees, sidecar branches, or sidecar execution state.
+Compute the coordinator target path and every child target path before writing
+or reusing any artifact. Stop instead of overwriting, merging, deleting,
+silently reusing, or automatically renaming artifacts when any target path
+collides or any child issue number is duplicated.
+
+### Coordinator Orchestration Artifact
+
+Prepare a coordinator orchestration artifact in the coordinator artifact path,
+or describe the exact artifact path and content when the current workflow is
+running in a dry or read-only preparation mode. The coordinator artifact must
+include:
+
+- coordinator issue number, title, classification, and source references;
+- child issue map with each child issue number, title, state, dependencies,
+  source references, artifact path, and current preparation status;
+- dependency layers that identify hard dependencies, independent candidates,
+  conflict risks, and incomplete-context blockers;
+- shared contract section that records cross-child contracts, source-of-truth
+  references, and unresolved shared-contract blockers;
+- validation plan for coordinator-level and child-level evidence;
+- status table for each child issue, including readiness, blockers, dependency
+  layer, artifact path, and required validation.
+
+Stop before delegation when the coordinator artifact cannot be prepared safely
+because coordinator context, child context, dependencies, source-of-truth
+evidence, artifact paths, or shared contracts are missing, contradictory, or
+unsafe.
+
+### Child Implementation Artifacts
+
+For each listed child issue, prepare or describe an issue-numbered child
+artifact set:
+
+```text
+specs/<child-issue-number>-<child-slug>/
+├── spec.md
+├── plan.md
+└── tasks.md
+```
+
+Each child artifact set must derive from:
+
+- the coordinator orchestration artifact;
+- the child issue title, body, dependencies, validation requirements, and
+  explicit out-of-scope boundaries;
+- the child dependency layer and any hard-dependency or conflict-risk notes;
+- the shared contract section;
+- applicable source-of-truth documentation and existing feature artifacts.
+
+Validate every child artifact set against the coordinator issue, child issue
+body, relevant source-of-truth documentation, and shared contract before
+delegation. Stop before delegation when any child artifact expands beyond
+approved child scope, omits required validation, conflicts with another child,
+or relies on an unresolved shared contract.
+
+### Shared Contract and Child Issue Boundaries
+
+Do not invent or create seed, foundation, or shared-contract child issues. If a
+missing shared contract or foundation issue appears necessary and it does not
+already exist, stop before delegation and ask for user guidance. Create such an
+issue only when the user explicitly approves that issue mutation in a workflow
+that permits it.
+
+This artifact-preparation path is not used when all listed child issues are
+closed and the coordinator enters the existing sequential final pass. The final
+pass must not redo closed child scope.
+
+Issue #227 adds artifact preparation only. It does not add child execution, Git
+branch or worktree operations, pull request handling, GitHub issue mutation, or
+CatWorld product code changes.
 
 ## Prohibited Side Effects
 
@@ -129,7 +205,11 @@ This entrypoint must not:
 - create, modify, close, label, assign, milestone, or comment on GitHub issues;
 - create, switch, merge, rebase, push, delete, or prune Git branches;
 - create, update, delete, or clean worktrees;
-- create sidecar coordinator or child artifacts;
+- create sidecar artifacts outside the approved artifact-preparation phase or
+  when any artifact-preparation stop condition applies;
+- run artifact preparation for closed-child coordinator final passes;
+- invent or create seed, foundation, or shared-contract child issues without
+  explicit user approval in a workflow that permits issue mutation;
 - delegate child implementation work;
 - open, update, merge, approve, or enable auto-merge on pull requests;
 - modify CatWorld product code;
@@ -145,13 +225,15 @@ Report a concise preflight result with:
 - listed child issues inspected;
 - child dependency and conflict classification;
 - source-of-truth documents reviewed;
+- artifact-preparation status, including coordinator path, child paths, and
+  whether artifacts were prepared, described, blocked, or not applicable;
 - readiness status: `blocked`, `not adopted`, or `preflight-ready`;
 - specific stop reasons or remaining prerequisites;
-- confirmation that no implementation, Git operation, artifact generation, PR
-  operation, issue mutation, or product code change was performed.
+- confirmation that no child implementation, Git operation, PR operation, issue
+  mutation, or product code change was performed.
 
-In issue #226, stop after reporting preflight. Do not launch child execution
-even if the coordinator appears preflight-ready.
+Stop after preflight and artifact preparation. Do not launch child execution
+even if the coordinator appears preflight-ready and artifacts are prepared.
 
 ## Validation Expectations
 
@@ -162,9 +244,19 @@ Validation for this entrypoint must include:
   closed-child coordinator final-pass requests;
 - review that readiness is based on preflight, child issue inspection,
   dependency classification, and source-of-truth review;
+- simulation of one coordinator with at least three child issues, including the
+  coordinator artifact path and each child artifact path;
+- review that coordinator artifacts require a child issue map, dependency
+  layers, shared contract section, validation plan, and status table;
+- review that child artifacts require issue-numbered `spec.md`, `plan.md`, and
+  `tasks.md` preparation before delegation;
+- blocker simulation proving missing shared contracts stop for user guidance;
+- review that seed, foundation, and shared-contract child issues are not
+  invented or created without explicit user approval;
+- review that closed-child coordinator final passes do not use artifact
+  preparation;
 - review that no required `parallel-ready` label is introduced;
 - changed-file review proving the existing sequential implementation skill and
   existing coordinator/orchestration skill are unchanged;
-- changed-file review proving no product code, child artifacts, sidecar
-  worktrees, sidecar branches, PR operations, or GitHub issue mutations are
-  part of issue #226.
+- changed-file review proving no product code, sidecar worktrees, sidecar
+  branches, PR operations, or GitHub issue mutations are part of issue #227.
