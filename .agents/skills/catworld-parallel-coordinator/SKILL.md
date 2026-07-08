@@ -38,6 +38,10 @@ delivery execution pieces.
 - Until #261 activates sidecar coordinator routing, explicit coordinator
   `parallel` requests must stop with a routing error instead of using this
   skill for real product work.
+- After #261 activates sidecar coordinator routing, an eligible coordinator
+  `parallel` request starts or resumes the executable sidecar lifecycle in
+  this skill when coordinator preflight, source-of-truth review, child issue
+  inspection, dependency classification, and safety checks pass.
 - `parallel` on a non-coordinator issue is invalid. Stop and report that
   parallel mode applies only to coordinator issues.
 - `parallel` on a direct child issue is invalid. Stop and report that direct
@@ -53,6 +57,11 @@ delivery execution pieces.
     end-to-end workflow for the coordinator final pass;
   - the closed-child coordinator final pass is not a separate workflow and must
     not redo closed child scope.
+- When a valid future sidecar run is waiting for user-owned merges, report the
+  exact child PRs that must be merged into the remote coordinator branch before
+  resume.
+- When a valid future sidecar run resumes after user-owned merges, re-read
+  current GitHub and repository evidence before continuing from recorded state.
 
 ## Required Context
 
@@ -127,6 +136,61 @@ Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
 scope.
 
+## Executable Run Lifecycle
+
+This lifecycle is executable behavior only after #261 activates sidecar
+coordinator routing. Until then, it is build-out documentation and must not be
+used for real product work.
+
+Each state has explicit entry conditions, stop conditions, and allowed next
+states. If a stop condition applies, report the current state, evidence read,
+blocking condition, and user action required when applicable.
+
+| State | Entry Conditions | Stop Conditions | Allowed Next States |
+|-------|------------------|-----------------|---------------------|
+| 1. New coordinator `parallel` run | Prompt explicitly names a coordinator issue and includes `parallel`; #261 has activated sidecar routing. | #261 is not active; issue is not a coordinator; issue is ambiguous; required context cannot be read. | Coordinator preflight. |
+| 2. Coordinator preflight | New or resumed run passes routing boundary. | Coordinator is ineligible, lacks listed children, or has unresolved source-of-truth blockers. | Source-of-truth and child issue inspection. |
+| 3. Source-of-truth and child issue inspection | Coordinator issue and listed children are known. | Child issue context is missing or contradictory; child state conflicts with requested route; governing artifacts conflict. | Artifact path/content planning; dependency-layer planning. |
+| 4. Artifact path and content planning | Required issue and source context has been read. | Target path collision; duplicate child issue number; missing source contract; unresolved blocker. | Dependency-layer planning; coordinator branch/worktree preparation. |
+| 5. Dependency-layer planning | Child issue map and source maps are available. | Hard dependencies cannot be ordered; conflict risk requires user sequencing; missing shared contract. | Coordinator branch/worktree preparation; report blocker. |
+| 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed. | Cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
+| 7. Coordinator and child artifact writing | Codex is inside the coordinator branch/worktree. | Artifact write would occur outside coordinator branch/worktree; artifact conflicts with approved scope. | Child branch/worktree preparation. |
+| 8. Child branch/worktree preparation | Dependency-ready child layer exists and artifacts are written. | Child branch/worktree cannot be prepared safely from coordinator branch; collision; child target would be `main`. | Child handoff and child-agent launch for one dependency-ready layer. |
+| 9. Child handoff and child-agent launch for one dependency-ready layer | One dependency-ready layer has valid child artifacts, Git context, and handoff inputs. | Missing handoff data; hard-dependent layer would start early; child scope unresolved. | Child implementation and child PR delivery; waiting for user merges. |
+| 10. Child implementation and child PR delivery | Child agent receives valid prepared handoff and runs in prepared child context. | Child validation fails and cannot be fixed in scope; child blocker remains; PR target or issue wording violates sidecar rules. | Waiting for user merges. |
+| 11. Waiting for user merges into remote coordinator branch | One or more child PRs are ready or draft for user review. | Required child PRs remain unmerged; GitHub state cannot be read; user-owned merge is pending. | Resume after user merges. |
+| 12. Resume after user merges | User indicates child PRs were merged, or current evidence shows merge progress. | Current GitHub or repository evidence conflicts with recorded resume state. | Fetch and refresh local coordinator branch/worktree. |
+| 13. Fetch and refresh local coordinator branch/worktree | Remote coordinator branch contains new child merges. | Fetch fails; local coordinator state cannot be fast-forwarded or safely updated from the remote coordinator branch. | Active child branch refresh; next dependency layer execution; integrated coordinator validation. |
+| 14. Active child branch refresh | Active child branches/worktrees need updated coordinator state. | Refresh would require rebase, force-push, history rewrite, or unresolved conflict. | Next dependency layer execution; waiting for user guidance. |
+| 15. Next dependency layer execution | Previous dependency layer is integrated and validation state is known. | Next layer has unresolved blockers, stale required evidence, or conflict risk. | Child branch/worktree preparation; integrated coordinator validation. |
+| 16. Integrated coordinator validation | All child PRs are integrated into the coordinator branch. | Required coordinator or consumed child validation is failed, stale, skipped, partial, or not run. | Final coordinator PR to `main`; report blocker. |
+| 17. Final coordinator PR to `main` | Integrated validation is fresh and passed, and no unresolved blocker remains. | PR target or closing authority violates sidecar rules; validation stale; user-owned merge remains pending. | Post-final-merge local cleanup eligibility. |
+| 18. Post-final-merge local cleanup eligibility | Final coordinator PR has been merged into `main`. | Final PR is not merged; cleanup target was not created by sidecar workflow; remote cleanup lacks explicit approval. | Report local cleanup eligibility; remote cleanup remains approval-gated. |
+
+### Operation Ownership
+
+Codex may inspect issues and PRs read-only, plan artifacts, prepare allowed
+local branches/worktrees after #261 activation, write artifacts only inside the
+coordinator branch/worktree, launch dependency-ready child handoffs, report PR
+readiness, refresh local sidecar branches by allowed methods, and prepare
+final coordinator validation evidence.
+
+The user owns all merges. Child PRs are merged by the user into the remote
+coordinator branch. The final coordinator PR is merged by the user into
+`main`. GitHub issue mutations, public comments, remote branch deletion,
+remote pruning, and remote cleanup require explicit user approval in a workflow
+that permits the operation.
+
+### Dependency Layers
+
+Launch at most one dependency-ready layer at a time. Multiple child issues in
+the same layer may be handed off only when they are independent candidates and
+do not have unresolved conflict risk. A hard-dependent layer must wait until
+all prerequisite child PRs are merged into the coordinator branch, the local
+coordinator branch/worktree has been refreshed from the remote coordinator
+branch, affected active child branches/worktrees have been refreshed by an
+allowed method, and required validation is fresh.
+
 ## Sidecar Artifact Preparation
 
 Run artifact preparation only after coordinator classification, required
@@ -146,6 +210,19 @@ Compute the coordinator target path and every child target path before writing
 or reusing any artifact. Stop instead of overwriting, merging, deleting,
 silently reusing, or automatically renaming artifacts when any target path
 collides or any child issue number is duplicated.
+
+Artifact path and content planning may occur before coordinator branch/worktree
+preparation. Artifact file writing must not occur until Codex has created or
+entered the coordinator branch/worktree. While the active checkout is `main`,
+planning may describe exact paths and contents, but it must not create sidecar
+artifact files, sidecar commits, or untracked sidecar files. If Codex cannot
+create or enter the coordinator branch/worktree safely, stop before modifying
+files and report the planned artifact paths and the blocking condition.
+
+Coordinator and child artifacts are written only inside the coordinator
+branch/worktree. Child artifacts are still prepared by the coordinator before
+child branch/worktree handoff; a child executor must not repair missing
+coordinator artifact state by writing artifacts from its own context.
 
 ### Coordinator Orchestration Artifact
 
@@ -245,6 +322,13 @@ have succeeded. Issues #220 through #234 still use the current sequential
 workflow guardrails while the sidecar workflow is being designed, validated,
 and adopted.
 
+The coordinator branch/worktree is the sidecar artifact write boundary. Before
+writing coordinator or child artifact files, Codex must create or enter the
+coordinator branch/worktree. Local `main` must remain clean throughout sidecar
+planning: no sidecar artifacts, sidecar commits, or untracked sidecar files may
+be written there. If branch/worktree preparation is unsafe or blocked, stop
+before modifying files.
+
 ### Deterministic Names and Collision Checks
 
 Compute every sidecar branch and checkout/worktree name before creating,
@@ -279,6 +363,10 @@ work into `main`, or use `main` as a sidecar delivery branch.
 
 When a coordinator checkout/worktree is needed, it must be isolated from every
 active child checkout/worktree and recorded in the coordinator artifact.
+After a user-owned child PR merge, a resumed coordinator run must fetch and
+refresh the local coordinator branch/worktree from the remote coordinator
+branch before launching another dependency layer or consuming the merged child
+work as fresh evidence.
 
 ### Child Branches and Checkouts
 
@@ -289,12 +377,15 @@ child handoff.
 
 Sidecar child PR guidance must target the coordinator branch. A sidecar child
 PR must not target `main` directly.
+Child branch/worktree preparation starts only for one dependency-ready layer.
+Hard-dependent layers wait until prerequisite child PRs are integrated and any
+required coordinator or active-child refresh is complete.
 
 ### Refresh After Child PR Merges
 
 After the user merges a child PR into the coordinator branch, every still-active
 sidecar child branch or worktree that needs the latest coordinator state is
-updated from the coordinator branch using a normal merge.
+updated from the coordinator branch using fast-forward or a normal merge only.
 
 Do not rebase sidecar branches. Do not force-push sidecar branches. Do not use
 history-rewriting updates for sidecar branches.
@@ -302,7 +393,7 @@ history-rewriting updates for sidecar branches.
 The coordinator artifact must record which still-active child branches or
 worktrees need refresh, which have been refreshed, and which coordinator branch
 state was last incorporated. Validation affected by a child branch refresh is
-stale until rerun after the normal merge.
+stale until rerun after the fast-forward or normal merge.
 
 ### Cleanup
 
@@ -377,7 +468,8 @@ during resume:
 
 - user merges a child PR into the coordinator branch;
 - an active child branch/worktree needs refresh from the coordinator branch;
-- an active child branch/worktree is refreshed using a normal merge;
+- an active child branch/worktree is refreshed using fast-forward or a normal
+  merge;
 - validation fails, is skipped, is interrupted, is partial, is stale, or is not
   run;
 - child work pauses or resumes;
@@ -611,8 +703,10 @@ Report a concise preflight result with:
   public comment, product code change, prohibited Git operation, private-context
   resume, or unapproved cleanup was performed.
 
-Stop after preflight and artifact preparation. Do not launch child execution
-even if the coordinator appears preflight-ready and artifacts are prepared.
+Until #261 activates sidecar coordinator routing and execution, stop after
+preflight and artifact preparation. Do not launch child execution during the
+current build-out even if the coordinator appears preflight-ready and artifacts
+are prepared.
 
 ## Validation Expectations
 
@@ -633,8 +727,8 @@ Validation for this entrypoint must include:
   local Git repository, with the coordinator branch created from `origin/main`
   and each child branch created from the coordinator branch;
 - simulation of a child PR merge into the coordinator branch followed by
-  refreshing another active child branch from the coordinator branch using a
-  normal merge;
+  refreshing another active child branch from the coordinator branch using
+  fast-forward or a normal merge;
 - review that sidecar child PR guidance targets the coordinator branch and not
   `main`;
 - review that sidecar workflow text disallows rebase, force-push, and
@@ -666,7 +760,8 @@ Validation for this entrypoint must include:
   branch, one active child branch/worktree needs refresh, and one child issue
   remains blocked;
 - simulation of refreshing an active child branch/worktree from the coordinator
-  branch using a normal merge, with affected validation marked stale or rerun;
+  branch using fast-forward or a normal merge, with affected validation marked
+  stale or rerun;
 - simulation or manual review showing local cleanup is eligible only after the
   final coordinator PR has merged into `main` and only for sidecar-created local
   branches/worktrees;

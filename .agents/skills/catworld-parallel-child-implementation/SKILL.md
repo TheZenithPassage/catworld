@@ -64,6 +64,9 @@ Before any implementation work, the handoff must provide all of these inputs:
 - prepared child `tasks.md` path and task set;
 - shared contract references and constraints from the coordinator artifacts;
 - dependency status showing this child is ready for implementation;
+- executable sidecar lifecycle state from the coordinator, including evidence
+  that the coordinator and child artifacts were written inside the coordinator
+  branch/worktree and not while the active checkout was `main`;
 - coordinator resume state for this child, including child artifact path,
   workflow status, blockers, validation state, refresh state, cleanup
   eligibility, and whether the child is active, blocked, pending, paused,
@@ -74,6 +77,8 @@ Before any implementation work, the handoff must provide all of these inputs:
   freshness, blockers, and cleanup approval state;
 - target coordinator branch, including evidence that it was created from
   current `origin/main`;
+- target coordinator checkout/worktree, including evidence that it is the
+  coordinator branch/worktree that owns sidecar artifact writing;
 - target child branch, including evidence that it starts from the coordinator
   branch and is not `main`;
 - target child checkout/worktree path, isolated from every other active child
@@ -83,11 +88,15 @@ Before any implementation work, the handoff must provide all of these inputs:
 - intended child PR issue-reference wording, which must use
   `Related to #<child-issue>` and `Related to #<coordinator-issue>` only and
   must not close the child issue or coordinator issue;
-- refresh status describing whether this child branch needs a normal merge from
-  the coordinator branch after another child PR has been merged;
+- refresh status describing whether this child branch needs fast-forward or a
+  normal merge from the coordinator branch after another child PR has been
+  merged;
 - last coordinator branch state incorporated into this child branch/worktree,
   when a refresh status is relevant;
 - cleanup eligibility status for the child branch and checkout/worktree;
+- waiting/resume status showing whether this child is in the active dependency
+  layer, waiting for user merge into the coordinator branch, resumed after a
+  merge, refresh-needed, refreshed, or complete;
 - GitHub issue mutation approval status, public comment approval status, and
   remote cleanup approval status under the approved sidecar PR and Git rules;
 - expected validation commands or manual evidence, including freshness
@@ -134,16 +143,23 @@ Validate the handoff before touching implementation files:
   PR target, refresh status, and cleanup eligibility context are present.
 - The handoff includes current GitHub and repository evidence re-read before
   resume, not private conversation context as the source of truth.
+- The handoff identifies the executable sidecar lifecycle state that produced
+  this child handoff, and the state is compatible with launching exactly one
+  dependency-ready layer.
 - The child workflow status is explicit and distinguishes active, blocked,
   pending, paused, resume-needed, merged-to-coordinator, or complete as
   applicable.
 - The child branch starts from the coordinator branch and is not `main`.
+- The coordinator branch/worktree is the artifact write boundary, and prepared
+  artifacts were written there rather than from local `main` or from an
+  invented child context.
 - The child checkout/worktree is isolated from other active child
   checkouts/worktrees.
 - The intended child PR target is the coordinator branch and not `main`.
 - The intended child PR wording uses `Related to` references only and cannot
   close the child issue or coordinator issue.
-- Any required refresh from the coordinator branch is a normal merge only.
+- Any required refresh from the coordinator branch is a fast-forward or normal
+  merge only.
 - Any validation affected by refresh, coordinator branch updates, conflict
   resolution, or other relevant changes is marked stale until rerun.
 - Cleanup eligibility states that local sidecar branches/worktrees are not
@@ -165,6 +181,11 @@ Validate the handoff before touching implementation files:
 Do not repair missing planning artifacts by running `speckit-specify`,
 `speckit-plan`, or `speckit-tasks`. Stop and return the blocker to the
 coordinator or user.
+
+Do not repair missing coordinator artifact state by creating sidecar artifacts
+from the child checkout/worktree. Child implementation consumes prepared
+artifacts only after the coordinator lifecycle has entered the coordinator
+branch/worktree write boundary.
 
 ## Implementation Workflow
 
@@ -193,6 +214,10 @@ When the handoff is valid:
    validation must never be summarized as passed.
 9. Inspect changed files against the prepared child source map before final
    reporting.
+10. Report child PR readiness back to the coordinator lifecycle. The user owns
+    merges into the remote coordinator branch; this skill does not merge child
+    PRs, treat unmerged child PRs as integrated, or advance a hard-dependent
+    layer on its own.
 
 This skill may implement product or workflow code only when the prepared child
 tasks explicitly require it. It must not add product behavior, architecture,
@@ -276,6 +301,12 @@ Normal sequential state handling also remains unchanged. Direct child issue
 work outside explicit sidecar `parallel` mode and closed-child coordinator
 final passes do not use sidecar resumability state.
 
+When the child report is part of a waiting sidecar coordinator run, it must
+name the child PR that the user must merge into the remote coordinator branch
+before the coordinator resumes. When the child handoff resumes after another
+child PR has merged, it must identify the coordinator branch state incorporated
+by fast-forward or normal merge and mark affected validation stale until rerun.
+
 ## Prohibited Side Effects
 
 This skill must not:
@@ -284,6 +315,10 @@ This skill must not:
 - route normal issues or direct child issue end-to-end requests;
 - route closed-child coordinator final passes;
 - perform coordinator preflight or artifact preparation;
+- create or repair coordinator or child artifact files outside the coordinator
+  branch/worktree prepared by the coordinator lifecycle;
+- write sidecar artifacts, sidecar commits, or untracked sidecar files to
+  local `main`;
 - create, switch, or rename sidecar branches or worktrees outside the prepared
   coordinator handoff;
 - resume child work from private conversation context instead of current
@@ -353,7 +388,7 @@ Stop and report a blocker when any of these occur:
 - the current checkout/worktree does not match the prepared child branch and
   checkout/worktree context;
 - a required refresh would use rebase, force-push, history rewriting, or any
-  method other than a normal merge from the coordinator branch;
+  method other than fast-forward or a normal merge from the coordinator branch;
 - required validation is absent or impossible to run honestly;
 - required validation is failed, stale, or not run and the handoff or report
   would need to treat it as passed or ready;
@@ -391,8 +426,8 @@ For each child implementation, validation must include:
 - confirmation that child workflow status, refresh state, validation freshness,
   blockers, and cleanup eligibility were reported from the prepared resume
   state;
-- confirmation that any required active-child refresh used a normal merge from
-  the coordinator branch;
+- confirmation that any required active-child refresh used fast-forward or a
+  normal merge from the coordinator branch;
 - confirmation that sidecar child PR guidance targets the coordinator branch,
   uses `Related to` issue references only, and does not close child or
   coordinator issues;
