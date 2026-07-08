@@ -27,9 +27,12 @@ CatWorld issue implementation request.
   end-to-end workflow as a final pass.
 * The closed-sub-issue coordinator final pass is not a separate workflow and
   must not redo closed sub-issue scope.
-* The `parallel` keyword requests coordinator parallel mode only when the issue
-  is a clearly identified coordinator issue and a sidecar parallel workflow has
-  been implemented. Sidecar parallel execution is not implemented yet.
+* The `parallel` keyword is reserved for a clearly identified coordinator issue
+  and must not route to legacy coordinator orchestration. Until #261 activates
+  sidecar coordinator routing, stop with a routing error that sidecar parallel
+  is not active. After #261 activates it, explicit eligible coordinator
+  `parallel` requests route only to
+  `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
 * If the issue is not a coordinator issue and the prompt includes `parallel`,
   stop with a routing error instead of ignoring the flag.
 * The `sequential` keyword keeps normal implementable issues and direct child

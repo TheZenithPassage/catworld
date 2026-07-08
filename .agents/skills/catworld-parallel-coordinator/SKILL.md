@@ -10,8 +10,10 @@ metadata:
 # CatWorld Parallel Coordinator
 
 Use this sidecar entrypoint only for an explicit CatWorld coordinator issue
-request that includes the `parallel` keyword, after the repository routing
-guardrails allow sidecar parallel use.
+request that includes the `parallel` keyword, after #261 activates repository
+routing guardrails for sidecar parallel use. Until #261 activates that route,
+this skill is sidecar build-out text and must not be used for real product
+work.
 
 This skill began as the preflight-only sidecar entrypoint introduced by issue
 #226. Issue #227 extends the same sidecar skill with coordinator and child
@@ -33,6 +35,9 @@ delivery execution pieces.
 
 - Normal implementable issues use the existing sequential workflow.
 - Direct child issues use the existing sequential workflow.
+- Until #261 activates sidecar coordinator routing, explicit coordinator
+  `parallel` requests must stop with a routing error instead of using this
+  skill for real product work.
 - `parallel` on a non-coordinator issue is invalid. Stop and report that
   parallel mode applies only to coordinator issues.
 - `parallel` on a direct child issue is invalid. Stop and report that direct
@@ -210,11 +215,11 @@ or relies on an unresolved shared contract.
 
 ### Shared Contract and Child Issue Boundaries
 
-Do not invent or create seed, foundation, or shared-contract child issues. If a
-missing shared contract or foundation issue appears necessary and it does not
-already exist, stop before delegation and ask for user guidance. Create such an
-issue only when the user explicitly approves that issue mutation in a workflow
-that permits it.
+Do not require a seed-first child issue and do not invent or create foundation
+or shared-contract child issues. If a missing shared contract or foundation
+issue appears necessary and it does not already exist, stop before delegation
+and ask for user guidance. Create such an issue only when a future activated
+workflow explicitly permits it and the user approves that issue mutation.
 
 This artifact-preparation path is not used when all listed child issues are
 closed and the coordinator enters the existing sequential final pass. The final
@@ -561,8 +566,9 @@ This entrypoint must not:
   deployment changes, Git/GitHub workflow outside the approved model, or
   unresolved product, persistence, security, authorization, UX, domain,
   contract, validation, operational, or scope decisions;
-- invent or create seed, foundation, or shared-contract child issues without
-  explicit user approval in a workflow that permits issue mutation;
+- require seed-first execution or invent/create foundation or shared-contract
+  child issues without explicit user approval in a future activated workflow
+  that permits issue mutation;
 - delegate child implementation work;
 - open, update, merge, approve, or enable auto-merge on pull requests during
   preflight or artifact preparation;
@@ -687,8 +693,9 @@ Validation for this entrypoint must include:
   reporting and do not present closed child issue scope as newly implemented
   work;
 - blocker simulation proving missing shared contracts stop for user guidance;
-- review that seed, foundation, and shared-contract child issues are not
-  invented or created without explicit user approval;
+- review that seed-first execution is not required and foundation or
+  shared-contract child issues are not invented or created without explicit
+  user approval in a future activated workflow that permits issue mutation;
 - review that closed-child coordinator final passes do not use artifact
   preparation or sidecar Git rules;
 - review that no required `parallel-ready` label is introduced;
