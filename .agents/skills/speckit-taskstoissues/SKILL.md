@@ -105,8 +105,8 @@ The coordinator `Execution model` section must state all of the following:
 - Normal issues and direct child issue end-to-end requests use the current
   sequential workflow.
 - Sidecar parallel work requires an explicit `parallel` request on a clearly
-  identified coordinator issue after sidecar support exists and has passed its
-  adoption gate.
+  identified coordinator issue after #261 activates sidecar coordinator
+  routing.
 - Parallel readiness comes from coordinator preflight, child issue inspection,
   dependency classification, and source-of-truth review; do not require or
   invent a `parallel-ready` label.
@@ -142,8 +142,9 @@ Each child issue body must:
 If the handoff includes sidecar PR wording guidance, child PR wording must use
 `Related to #<child-issue>` and `Related to #<coordinator-issue>` without issue
 closing keywords. Final sidecar coordinator PR wording may close the
-coordinator issue and included child issues. A closed-child coordinator final
-pass uses normal sequential PR wording.
+coordinator issue and included child issues through closing keywords after
+merge. Codex must not separately mutate issue state. A closed-child coordinator
+final pass uses normal sequential PR wording.
 
 1. Run `.specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 1. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.

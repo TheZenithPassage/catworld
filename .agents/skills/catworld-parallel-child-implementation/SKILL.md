@@ -10,8 +10,8 @@ metadata:
 # CatWorld Parallel Child Implementation
 
 Use this sidecar skill only for one child issue that has been handed off by an
-approved sidecar coordinator parallel workflow after coordinator artifact
-preparation has completed.
+approved sidecar coordinator parallel workflow after #261 activates sidecar
+routing and coordinator artifact preparation has completed.
 
 This skill consumes prepared child artifacts. It does not create its own
 specification, plan, task list, shared contract, coordinator artifact, branch,
