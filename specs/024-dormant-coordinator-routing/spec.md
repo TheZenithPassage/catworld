@@ -36,7 +36,7 @@
 - Active sources may contain historical or dormant references to the legacy orchestrate skill; those references are acceptable only when they cannot route real coordinator execution.
 - The dormant legacy orchestrate skill itself may still contain old workflow text; this feature must not edit, stub, rewrite, reactivate, or delete that file without explicit user approval.
 - Search terms such as `seed` or `parallel mode` may appear in valid contexts; the validation review must distinguish acceptable dormant or non-routing references from active instructions.
-- Sidecar child implementation guidance may mention child issues and PRs, but it must not tell child PRs in a sidecar coordinator-parallel run to close child issues.
+- Sidecar child implementation guidance may mention child issues and PRs, but it must not tell child PRs in a coordinator-parallel run to close issues; final coordinator PR guidance may close the coordinator issue and included child issues through closing keywords.
 
 ## Requirements *(mandatory)*
 
@@ -47,7 +47,7 @@
 - **TR-003**: Active guidance MUST preserve the current sequential `catworld-implement-issue` workflow as the default path for normal implementable issues, direct child issues, and closed-child coordinator final passes.
 - **TR-004**: Active guidance MUST preserve existing coordinator guardrails while #249 and #261 remain incomplete: coordinator issues without `parallel` keep open-child and closed-child checks, non-coordinator `parallel` stops, and real sidecar product use is not activated.
 - **TR-005**: Active guidance MUST state that explicit eligible coordinator `parallel` requests will route only to the sidecar coordinator workflow after #261 activates that path.
-- **TR-006**: Active sidecar guidance MUST NOT instruct child PRs in a coordinator-parallel run to close child issues.
+- **TR-006**: Active sidecar guidance MUST distinguish sidecar child PR issue references from final coordinator PR closure: child PRs MUST use `Related to` wording and MUST NOT close issues, while the final sidecar coordinator PR to `main` MAY close the coordinator issue and included child issues through closing keywords after merge.
 - **TR-007**: Active sidecar guidance MUST NOT require automatic seed-first behavior.
 - **TR-008**: Active sidecar guidance MUST NOT allow child agents to invent shared contracts or plan product behavior; child agents must use coordinator-provided artifacts and stop on unresolved decisions.
 - **TR-009**: Validation MUST include the issue-required search command, manual review of active routing sources, confirmation that the dormant legacy file was not changed, and `git diff --check`.

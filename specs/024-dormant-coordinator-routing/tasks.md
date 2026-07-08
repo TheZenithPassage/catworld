@@ -37,13 +37,13 @@
 
 ## Phase 3: Technical Outcome 3 - Neutralize Sidecar Contradictions (Priority: P1)
 
-**Goal**: Sidecar guidance does not require automatic seed-first behavior, does not make child PRs close child issues, and does not let child agents invent shared contracts or plan product behavior.
+**Goal**: Sidecar guidance does not require automatic seed-first behavior, keeps child PRs on `Related to` issue references, allows final coordinator PR closing keywords for included child issues, and does not let child agents invent shared contracts or plan product behavior.
 
 **Verification**: Required search and manual review confirm remaining `seed`, `Closes #<child`, `close only that concrete child`, and `parallel mode` references are consistent with issue #250.
 
 - [X] T006 [TO3] Update `.agents/skills/catworld-parallel-coordinator/SKILL.md` to remove or neutralize active automatic seed-first guidance and active instructions that allow child agents to invent seed, foundation, or shared-contract child issues
 - [X] T007 [TO3] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` to remove or neutralize active guidance that lets child agents invent shared contracts, plan product behavior, or close child issues from sidecar child PRs
-- [X] T008 [P] [TO3] Update `.github/PULL_REQUEST_TEMPLATE/sidecar-child-to-coordinator.md` and `.github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md` to avoid child-issue closing language for sidecar child PR flows
+- [X] T008 [P] [TO3] Update `.github/PULL_REQUEST_TEMPLATE/sidecar-child-to-coordinator.md` and `.github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md` to keep child PR issue references as `Related to` while allowing final coordinator PR closing keywords for included child issues
 - [X] T009 [P] [TO3] Update `docs/ARCHITECTURE.md` to align sidecar coordinator documentation with dormant legacy routing, #261 future activation, no automatic seed-first behavior, and no child-agent product or shared-contract invention
 
 **Checkpoint**: Sidecar routing remains inactive for product work before #261 and no active sidecar guidance contradicts issue #250.
@@ -54,7 +54,7 @@
 
 **Purpose**: Final validation and scope review required by issue #250 and the implementation plan.
 
-- [X] T010 Run `rg -n "catworld-orchestrate-coordinator-issue|seed|Closes #<child|close only that concrete child|parallel mode" AGENTS.md .agents/skills docs/ARCHITECTURE.md .github` and manually classify remaining matches
+- [X] T010 Run `rg -n "catworld-orchestrate-coordinator-issue|seed|Closes #<child|Related to #<child|parallel mode|#261|must still stop|Git branch or worktree operations|pull request handling" AGENTS.md .agents/skills docs/ARCHITECTURE.md .github specs/024-dormant-coordinator-routing` and manually classify remaining matches
 - [X] T011 Manually review `AGENTS.md` and `.agents/skills/catworld-implement-issue/SKILL.md` to confirm normal issue and direct child issue routing still point to `catworld-implement-issue`
 - [X] T012 Manually review `AGENTS.md`, `.agents/skills/catworld-parallel-coordinator/SKILL.md`, `.agents/skills/catworld-parallel-child-implementation/SKILL.md`, `.agents/skills/speckit-taskstoissues/SKILL.md`, `docs/ARCHITECTURE.md`, and `.github/ISSUE_TEMPLATE/coordinator-parallel-planning.md` to confirm sidecar parallel is not activated before #261
 - [X] T013 Run `git diff -- .agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` to confirm the dormant legacy file has no diff

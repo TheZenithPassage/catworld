@@ -8,8 +8,8 @@ with `Related to` lines and do not close issues by default.
 
 Use `sidecar-final-coordinator-to-main.md` only for the final sidecar
 coordinator branch pull request into `main`. That final PR may close the
-coordinator issue, but child issues are referenced with `Related to` wording
-unless a separate explicit human-approved issue mutation says otherwise.
+coordinator issue and included child issues through closing keywords after
+merge. Codex must not separately mutate issue state.
 
 A coordinator with all child issues already closed that enters the existing
 sequential final-pass workflow uses normal sequential PR wording for any

@@ -1,6 +1,6 @@
 Closes #<coordinator-issue>
-Related to #<child-issue>
-Related to #<child-issue>
+Closes #<child-issue>
+Closes #<child-issue>
 
 Adds <one-sentence summary of the completed coordinator delivery>.
 
@@ -20,8 +20,8 @@ Coordinator delivery notes:
 - Source branch: `<coordinator-branch>`
 - Target branch: `main`
 - Use this template only for sidecar coordinator delivery into `main`.
-- Child issue references use `Related to` wording unless a separate explicit
-  human-approved issue mutation says otherwise.
+- Child issue closure happens through this final PR's closing keywords after
+  merge; Codex must not separately mutate issue state.
 - Normal one-issue/one-PR work and closed-child coordinator final-pass work keep normal sequential PR wording.
 - Codex reports readiness; the user performs merges.
 - GitHub issue bodies, checklists, labels, assignees, milestones, issue state, and public comments require explicit user approval before mutation.

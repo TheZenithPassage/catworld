@@ -9,10 +9,10 @@
 ## Validation Commands
 
 ```powershell
-rg -n "catworld-orchestrate-coordinator-issue|seed|Closes #<child|close only that concrete child|parallel mode" AGENTS.md .agents/skills docs/ARCHITECTURE.md .github
+rg -n "catworld-orchestrate-coordinator-issue|seed|Closes #<child|Related to #<child|parallel mode|#261|must still stop|Git branch or worktree operations|pull request handling" AGENTS.md .agents/skills docs/ARCHITECTURE.md .github specs/024-dormant-coordinator-routing
 ```
 
-Expected outcome: any remaining `catworld-orchestrate-coordinator-issue` references are dormant, historical, or explicitly non-routing; remaining `seed`, child-closing, and `parallel mode` references do not contradict issue #250.
+Expected outcome: any remaining `catworld-orchestrate-coordinator-issue` references are dormant, historical, or explicitly non-routing; remaining `seed`, child PR issue-reference, final coordinator PR closing, `parallel mode`, and #261 activation references do not contradict issue #250.
 
 ```powershell
 git diff -- .agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md
@@ -31,6 +31,7 @@ Expected outcome: no whitespace errors.
 - Confirm normal issue and direct child issue routing still points to `catworld-implement-issue`.
 - Confirm coordinator issues without active sidecar `parallel` routing keep existing open-child and closed-child guardrails.
 - Confirm explicit eligible coordinator `parallel` guidance is future-facing and depends on #261 activation.
-- Confirm sidecar child guidance does not close child issues from child PRs.
+- Confirm sidecar child guidance uses `Related to` wording and does not close issues from child PRs.
+- Confirm final sidecar coordinator PR guidance may close the coordinator issue and included child issues through closing keywords.
 - Confirm child agents must use coordinator-provided artifacts and stop on unresolved shared contracts or product behavior.
 - Confirm no active automatic seed-first behavior remains.

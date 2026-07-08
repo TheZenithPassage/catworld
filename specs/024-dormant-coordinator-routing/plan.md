@@ -84,7 +84,7 @@ Post-design re-check: Still compliant. Design artifacts keep scope documentation
 
 **New mechanism semantics**: Same source types and same sequential workflow remain active. Explicit future coordinator `parallel` guidance must identify sidecar coordinator routing as future behavior after #261, not an active route now.
 
-**Mismatch risks**: Accidentally reactivating the legacy coordinator skill, weakening normal/direct-child sequential routing, closing child issues from sidecar child PRs, requiring seed-first behavior, allowing child agents to invent shared contracts, or enabling sidecar product use before #261.
+**Mismatch risks**: Accidentally reactivating the legacy coordinator skill, weakening normal/direct-child sequential routing, closing issues from sidecar child PRs, blocking final coordinator PR closing keywords for included child issues, requiring seed-first behavior, allowing child agents to invent shared contracts, or enabling sidecar product use before #261.
 
 **Mitigation**: Edit only active routing and template text as needed; leave the legacy orchestrate skill untouched; validate with the issue search command, focused manual review, and a direct diff check against the legacy file.
 
@@ -98,7 +98,7 @@ Post-design re-check: Still compliant. Design artifacts keep scope documentation
 | Dormant legacy file unchanged (TR-002, SC-005) | Git diff for `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` | `git diff -- ...` | Rerun before final validation |
 | Sequential workflow remains default for normal and direct child issues (TR-003, SC-002) | `AGENTS.md` and `catworld-implement-issue` | Manual routing review | Rerun after any routing text edits |
 | Coordinator guardrails and no premature sidecar activation (TR-004, TR-005, SC-003) | `AGENTS.md`, sidecar coordinator skill, architecture docs, templates | Manual routing review | Rerun after any sidecar text edits |
-| No active child-closing, seed-first, or child invention guidance (TR-006, TR-007, TR-008) | Sidecar coordinator/child skills and PR/issue templates | Required `rg` search plus manual context review | Rerun after all relevant text edits |
+| Child PR references, final coordinator PR closure, no seed-first, and no child invention guidance (TR-006, TR-007, TR-008) | Sidecar coordinator/child skills and PR/issue templates | Required `rg` search plus manual context review | Rerun after all relevant text edits |
 | Markdown whitespace health (SC-004) | Git diff | `git diff --check` | Run after final text edits |
 
 ## Project Structure

@@ -566,14 +566,17 @@ exist beside the current sequential workflow.
 Issue #226 adds `.agents/skills/catworld-parallel-coordinator/SKILL.md` as the
 first sidecar coordinator entrypoint. Issue #227 extends that same sidecar
 skill with artifact preparation before delegation. The entrypoint remains
-build-out guidance until #261 activates sidecar coordinator routing. After #261,
-explicit eligible coordinator `parallel` requests route only to that sidecar
-coordinator entrypoint; before #261, active routing must stop instead of using
-sidecar parallel for real product work. Even after activation, the coordinator
-entrypoint must still stop before child implementation, Git branch or worktree
-operations, pull request handling, GitHub issue mutation or CatWorld product
-code changes. Issues #220 through #234 continue to use the current sequential
-workflow guardrails during the sidecar build-out and adoption work.
+build-out guidance until #261 activates sidecar coordinator routing. Before
+#261, active routing must stop instead of using sidecar parallel for real
+product work, and the current build-out entrypoint remains limited to the
+execution capabilities already implemented by completed sidecar child issues.
+After #261, explicit eligible coordinator `parallel` requests route only to the
+activated sidecar coordinator workflow, which may execute the approved #249
+lifecycle when safe. GitHub issue mutation outside final PR closing keywords,
+public comments, remote cleanup, PR merging, auto-merge, force-push, and
+human-only decisions remain restricted by the approved sidecar rules. Issues
+#220 through #234 continue to use the current sequential workflow guardrails
+during the sidecar build-out and adoption work.
 
 Issue #228 adds
 `.agents/skills/catworld-parallel-child-implementation/SKILL.md` as the

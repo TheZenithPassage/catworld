@@ -12,6 +12,8 @@ agent-facing routing contract.
 - Explicit eligible coordinator `parallel` requests route only to the sidecar coordinator workflow after #261 activates that path.
 - No active route invokes `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md` for real coordinator execution.
 - Sidecar child PR guidance must not close child issues from child branches.
+- The final sidecar coordinator PR to `main` may close the coordinator issue and
+  included child issues through closing keywords after merge.
 - Sidecar child execution must not invent shared contracts or plan product behavior beyond coordinator-provided artifacts.
 - Sidecar coordinator guidance must not require automatic seed-first behavior.
 
