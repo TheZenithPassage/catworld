@@ -40,14 +40,7 @@ as an end-to-end CatWorld issue implementation request.
   sidecar coordinator routing, stop with a routing error that sidecar parallel
   is not active. After #261 activates it, explicit eligible coordinator
   `parallel` requests route only to
-  `.agents/skills/catworld-parallel-coordinator/SKILL.md`, which starts or
-  resumes the sidecar lifecycle when eligible.
-- After #261 activates sidecar routing, a waiting sidecar coordinator run
-  reports exactly which child PRs the user must merge into the remote
-  coordinator branch before resuming. A resumed run refreshes from current
-  GitHub and repository evidence before continuing, and a run with all child
-  PRs integrated proceeds to integrated coordinator validation and final PR
-  delivery.
+  `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
 - If the issue is not a coordinator issue and the prompt includes `parallel`,
   stop with a routing error instead of ignoring the flag.
 - Treat `sequential` as a request to keep the current sequential workflow

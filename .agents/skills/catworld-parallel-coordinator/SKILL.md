@@ -661,7 +661,14 @@ This entrypoint must not:
 - require seed-first execution or invent/create foundation or shared-contract
   child issues without explicit user approval in a future activated workflow
   that permits issue mutation;
-- delegate child implementation work;
+- delegate child implementation work before #261 activation, during the current
+  build-out or pre-execution states, during preflight or artifact preparation,
+  outside an approved dependency-ready lifecycle state, or without valid
+  prepared child artifacts, valid branch/worktree context, dependency-ready
+  layer evidence, a valid prepared child handoff, and later approved sidecar
+  rules that permit delegation. This prohibition does not block the future
+  activated #249 lifecycle from launching dependency-ready child handoffs when
+  the approved rules permit that operation;
 - open, update, merge, approve, or enable auto-merge on pull requests during
   preflight or artifact preparation;
 - modify CatWorld product code;
