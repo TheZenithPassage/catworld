@@ -607,6 +607,12 @@ before delegation: each dependency-ready child requires an issue-numbered
 `spec.md`, `plan.md` and `tasks.md` set, coordinator-recorded preparation
 status, write-gate evidence and handoff instructions that prevent child-side
 artifact regeneration.
+Issue #254 makes the approved sidecar branch/worktree orchestration
+execution-capable for future activated coordinator runs: the coordinator owns
+coordinator branch/worktree preparation, normal non-force coordinator branch
+pushes, child branches from the coordinator branch, isolated child worktrees,
+and dirty/collision/unsafe-push stop behavior before child delivery can
+proceed.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -816,9 +822,10 @@ child issue implementation outside `parallel`, or closed-child coordinator
 final passes.
 
 Coordinator parallel work uses one coordinator integration branch created from
-current `origin/main`. CatWorld must not update local `main`, merge unrelated
-work into `main`, or use `main` as a sidecar delivery branch while preparing
-that coordinator branch.
+current `origin/main`. Codex fetches current `origin/main` without updating
+local `main`, merging unrelated work into `main`, committing on `main`, or
+using `main` as a sidecar delivery branch while preparing that coordinator
+branch.
 
 The coordinator branch/worktree is the sidecar artifact write boundary.
 Artifact paths and contents may be planned before this boundary is entered,
@@ -840,30 +847,55 @@ full local checkout/worktree paths. The local parent directory is workflow
 context, but each local sidecar directory name must use the deterministic
 component above.
 
-Before creating, switching to, merging into, or reusing a sidecar Git resource,
-the workflow must compute every target branch and checkout/worktree name.
-Branch, checkout, worktree, directory and artifact collisions stop execution
-unless the coordinator artifact or explicit user-provided context proves the
-resource is the intended sidecar resource for the same issue and slug. The
-workflow must not guess, overwrite, delete, silently reuse or automatically
-rename colliding resources.
+Before creating, switching to, merging into, pushing, writing artifacts, or
+reusing a sidecar Git resource, the workflow must compute every target branch
+and checkout/worktree name. Branch, checkout, worktree, directory and artifact
+collisions stop execution unless the coordinator artifact or explicit
+user-provided context proves the resource is the intended sidecar resource for
+the same issue, slug and run identity. The workflow must not guess, overwrite,
+delete, silently reuse or automatically rename colliding resources.
 
-Each child implementation branch starts from the coordinator branch, not from
-`main`. Each active child implementation uses an isolated local
-checkout/worktree recorded in the coordinator artifact and supplied in the child
-handoff.
+Before sidecar Git operations that require stable state, Codex checks the
+affected checkout/worktree with `git status --porcelain` or equivalent. Dirty
+paths stop branch creation, worktree creation or reuse, coordinator push,
+artifact writing, and child delivery until the dirty state is resolved by the
+user or by a workflow that explicitly permits the operation.
+
+For a new sidecar run, Codex computes the coordinator branch and worktree path,
+checks for dirty state and collisions, fetches `origin main`, creates the
+coordinator branch from `origin/main`, creates or enters one isolated
+coordinator worktree, and records the local coordinator branch ref, source ref,
+and worktree path in the coordinator artifact when artifact writing is allowed.
+On resume, Codex re-reads GitHub and repository evidence and stops if recorded
+coordinator branch/worktree state does not match current local or remote state.
+
+Before any child PR delivery can occur, the coordinator integration branch must
+be pushed to `origin` with a normal non-force push. The coordinator artifact
+records the remote coordinator branch ref and push status only after that push
+succeeds. If the coordinator branch cannot be pushed safely, Codex stops before
+child PR delivery. It must not use `--force`, `--force-with-lease`,
+rebase-push, delete-and-recreate, or any history-rewriting remote update to
+make the coordinator branch push succeed.
+
+Child branch/worktree preparation starts only when the local coordinator branch
+exists, the remote coordinator branch exists, required artifacts are prepared
+or handoff-ready, and the child layer is dependency-ready. Each child
+implementation branch starts from the coordinator branch, not from `main`.
+Each active child implementation uses an isolated local checkout/worktree
+recorded in the coordinator artifact and supplied in the child handoff. The
+coordinator artifact records each child branch name, source coordinator branch,
+checkout/worktree path, child PR target branch and isolation state.
 
 Sidecar child PR guidance must target the coordinator branch. Sidecar child PRs
-must not target `main` directly.
-Child branch/worktree preparation starts only for a dependency-ready layer.
-Hard-dependent layers wait until prerequisite child PRs are integrated and
-required coordinator or active-child refresh is complete.
+must not target `main` directly. Hard-dependent layers wait until prerequisite
+child PRs are integrated and required coordinator or active-child refresh is
+complete.
 
 After the user merges a child PR into the coordinator branch, every still-active
 sidecar child branch or worktree that needs the latest coordinator state is
 updated from the coordinator branch using fast-forward or a normal merge only.
-Sidecar branches must not be rebased, force-pushed or updated with any
-history-rewriting operation.
+Sidecar branches must not be rebased, force-pushed, updated with
+`--force-with-lease`, or updated with any history-rewriting operation.
 On resume after user merges, Codex first fetches and refreshes the local
 coordinator branch/worktree from the remote coordinator branch. Only then may
 it refresh active child branches/worktrees, launch the next dependency layer,
