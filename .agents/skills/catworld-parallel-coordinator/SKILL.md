@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
-description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#254"
+description: "Preflight CatWorld coordinator issues, prepare sidecar artifacts and Git state, and launch one dependency-ready child handoff layer for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#255"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252-254"
+  source: "issues-226-232,252-255"
 ---
 
 # CatWorld Parallel Coordinator
@@ -37,11 +37,16 @@ approved sidecar branch/worktree orchestration executable for the future
 activated sidecar coordinator lifecycle: coordinator branches and worktrees,
 normal non-force coordinator pushes, child branches from the coordinator
 branch, isolated child worktrees, and collision/dirty/unsafe-push stop behavior
-are prepared and recorded before child delivery can proceed. It still does not
-open, update, merge, approve, or enable auto-merge on pull requests, mutate
-GitHub issues, post public comments, run adoption dry-runs, or replace the
-normal sequential implementation workflow. Later #249 child issues may extend
-adoption and delivery execution pieces.
+are prepared and recorded before child delivery can proceed. Issue #255 adds
+dependency-layer fan-out for the future activated lifecycle: after prepared
+child artifacts and branch/worktree state are ready, the coordinator launches
+only the first dependency-ready layer, stops on unavailable child-agent
+capability instead of falling back to sequential work, and gives each launched
+child exactly one prepared handoff. It still does not open, update, merge,
+approve, or enable auto-merge on pull requests, mutate GitHub issues, post
+public comments, run adoption dry-runs, or replace the normal sequential
+implementation workflow. Later #249 child issues may extend adoption and
+delivery execution pieces.
 
 ## Routing Boundary
 
@@ -140,9 +145,10 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, #229, #230, #231, #232, #249, #250, #251, #252, and #253 when their routing,
-  entrypoint, artifact, lifecycle, child handoff, Git execution, PR delivery,
-  validation reporting, or resume state contracts apply.
+  #228, #229, #230, #231, #232, #249, #250, #251, #252, #253, #254, and #255
+  when their routing, entrypoint, artifact, lifecycle, child handoff, Git
+  execution, fan-out, PR delivery, validation reporting, or resume state
+  contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
@@ -168,7 +174,7 @@ blocking condition, and user action required when applicable.
 | 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed. | Cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
 | 7. Coordinator and child artifact writing | Codex is inside the coordinator branch/worktree. | Artifact write would occur outside coordinator branch/worktree; artifact conflicts with approved scope. | Child branch/worktree preparation. |
 | 8. Child branch/worktree preparation | Dependency-ready child layer exists and artifacts are written. | Child branch/worktree cannot be prepared safely from coordinator branch; collision; child target would be `main`. | Child handoff and child-agent launch for one dependency-ready layer. |
-| 9. Child handoff and child-agent launch for one dependency-ready layer | One dependency-ready layer has valid child artifacts, Git context, and handoff inputs. | Missing handoff data; hard-dependent layer would start early; child scope unresolved. | Child implementation and child PR delivery; waiting for user merges. |
+| 9. Child handoff and child-agent launch for one dependency-ready layer | One dependency-ready layer has handoff-ready child artifacts, valid Git context, validation requirements, PR target rules, out-of-scope boundaries, and available child-agent capability. | Missing handoff data; child-agent/subagent execution is unavailable; sequential fallback would be required; hard-dependent layer would start early; unresolved shared-contract blocker; non-mechanical conflict risk; child scope unresolved. | Child implementation and child PR delivery; waiting for user merges. |
 | 10. Child implementation and child PR delivery | Child agent receives valid prepared handoff and runs in prepared child context. | Child validation fails and cannot be fixed in scope; child blocker remains; PR target or issue wording violates sidecar rules. | Waiting for user merges. |
 | 11. Waiting for user merges into remote coordinator branch | One or more child PRs are ready or draft for user review. | Required child PRs remain unmerged; GitHub state cannot be read; user-owned merge is pending. | Resume after user merges. |
 | 12. Resume after user merges | User indicates child PRs were merged, or current evidence shows merge progress. | Current GitHub or repository evidence conflicts with recorded resume state. | Fetch and refresh local coordinator branch/worktree. |
@@ -183,9 +189,9 @@ blocking condition, and user action required when applicable.
 
 Codex may inspect issues and PRs read-only, plan artifacts, prepare allowed
 local branches/worktrees after #261 activation, write artifacts only inside the
-coordinator branch/worktree, launch dependency-ready child handoffs, report PR
-readiness, refresh local sidecar branches by allowed methods, and prepare
-final coordinator validation evidence.
+coordinator branch/worktree, launch dependency-ready child handoffs when
+child-agent capability is available, report PR readiness, refresh local sidecar
+branches by allowed methods, and prepare final coordinator validation evidence.
 
 The user owns all merges. Child PRs are merged by the user into the remote
 coordinator branch. The final coordinator PR is merged by the user into
@@ -195,13 +201,66 @@ that permits the operation.
 
 ### Dependency Layers
 
+Build dependency layers from child issue dependencies, conflict risks, shared
+implementation contract state, prepared artifact state, branch/worktree state,
+and current repository/coordinator branch evidence. Do not rely on issue order
+alone.
+
 Launch at most one dependency-ready layer at a time. Multiple child issues in
-the same layer may be handed off only when they are independent candidates and
-do not have unresolved conflict risk. A hard-dependent layer must wait until
+the same layer may be handed off only when they are independent candidates, all
+required child artifacts and branch/worktree context are handoff-ready, and
+there is no unresolved conflict risk. A hard-dependent layer must wait until
 all prerequisite child PRs are merged into the coordinator branch, the local
 coordinator branch/worktree has been refreshed from the remote coordinator
 branch, affected active child branches/worktrees have been refreshed by an
 allowed method, and required validation is fresh.
+
+For every child, record one launch state in the coordinator artifact:
+
+- `launched`: a prepared handoff was sent to a child agent for the current
+  dependency-ready layer;
+- `blocked`: a child-specific, coordinator-wide, shared-contract, conflict, or
+  human-only blocker prevents launch;
+- `pending`: the child is not in the current launched layer;
+- `waiting-for-dependency-merge`: the child depends on prerequisite child work
+  that has not yet been merged into the coordinator branch.
+
+Every non-launched child must include a clear reason. A later layer is not
+dependency-ready merely because its artifacts or branch/worktree already exist.
+
+### Child Handoff and Child-Agent Launch
+
+Before launching child agents for the first dependency-ready layer, verify that
+the active Codex environment exposes an approved child-agent/subagent execution
+capability, such as the multi-agent spawn tool when it is available through
+tool discovery. If child-agent/subagent execution is unavailable, stop and
+record a coordinator-wide capability blocker. Do not silently switch to the
+existing sequential issue implementation workflow.
+
+Each launched child agent receives exactly one child issue and one prepared
+handoff. The handoff must include:
+
+- coordinator issue context, child issue map, dependency layer, and coordinator
+  source references;
+- child issue number, title, body, state, labels, dependencies, source
+  references, validation requirements, and explicit out-of-scope boundaries;
+- prepared child `spec.md`, `plan.md`, and `tasks.md` paths and content
+  summaries;
+- shared implementation contract references and constraints;
+- coordinator branch local and remote refs, coordinator push status, and
+  coordinator checkout/worktree path;
+- child branch source ref, child checkout/worktree path, collision status,
+  clean-state evidence, refresh status, and cleanup eligibility;
+- child PR target rules, issue-reference wording rules, GitHub mutation/public
+  comment approval state, and remote cleanup approval state;
+- validation commands or manual evidence and freshness requirements;
+- blocker, conflict, stale-evidence, ready/draft, resume, and final-reporting
+  expectations.
+
+The handoff must instruct the child agent not to regenerate planning artifacts,
+redefine shared contracts, create sibling scope, mutate GitHub issues, or
+target `main`. Missing or contradictory handoff data blocks the affected child
+before launch.
 
 ## Sidecar Artifact Preparation
 
@@ -258,7 +317,8 @@ The coordinator artifact must include at least:
 - parent epic and source references when relevant;
 - child issue map with each child issue number, title, state, dependencies,
   source references, artifact path, required `spec.md`/`plan.md`/`tasks.md`
-  preparation status, and current handoff readiness;
+  preparation status, current handoff readiness, launch state, and non-launch
+  reason when not launched;
 - dependency layers that identify hard dependencies, independent candidates,
   conflict risks, and incomplete-context blockers;
 - unresolved blocker section that distinguishes child-specific,
@@ -285,15 +345,16 @@ The coordinator artifact must include at least:
   state after child PR merges; stale validation state; and cleanup eligibility;
 - validation plan for coordinator-level and child-level evidence;
 - resume/status table for each child issue, including artifact path, branch,
-  local checkout/worktree, PR, validation state, workflow status, blockers,
-  dependency layer, readiness, refresh state, cleanup eligibility, and required
-  validation;
+  local checkout/worktree, PR, validation state, workflow status, launch state,
+  blockers, dependency layer, readiness, refresh state, cleanup eligibility, and
+  required validation;
 - stop conditions and final coordinator PR plan.
 
-The artifact must distinguish planned, blocked, prepared, handoff-ready, ready,
-created, observed, stale, passed, failed, pending, and eligible states. It must
-not imply that a branch, checkout/worktree, PR, merge, validation result,
-readiness state, handoff readiness, or cleanup eligibility exists before that
+The artifact must distinguish planned, blocked, prepared, handoff-ready,
+launched, ready, created, observed, stale, passed, failed, pending,
+waiting-for-dependency-merge, and eligible states. It must not imply that a
+branch, checkout/worktree, PR, merge, validation result, readiness state,
+handoff launch, handoff readiness, or cleanup eligibility exists before that
 state is real.
 
 Before writing to an existing coordinator artifact path, verify the existing
@@ -306,10 +367,11 @@ reuse the artifact.
 
 Update the coordinator artifact whenever factual sidecar state changes during a
 future activated run, including blocked state, child handoff readiness, child
-PR creation, user merge observation, stale validation, next-layer readiness,
-final PR readiness, and cleanup eligibility. A blocked coordinator records the
-blocker, affected scope, evidence read, and required user action when
-applicable, and it must not launch child work.
+handoff launch, child PR creation, user merge observation, dependency-merge
+waiting state, stale validation, next-layer readiness, final PR readiness, and
+cleanup eligibility. A blocked coordinator records the blocker, affected scope,
+evidence read, and required user action when applicable, and it must not launch
+child work.
 
 Stop before delegation when the coordinator artifact cannot be prepared safely
 because coordinator context, child context, dependencies, source-of-truth
@@ -367,10 +429,12 @@ Use these child artifact preparation statuses in the coordinator artifact:
 
 Fan-out cannot start for any dependency-ready child unless the coordinator
 artifact records that child's artifact path and `handoff-ready` preparation
-status. A child handoff must include the prepared artifact paths and enough
-artifact summary for traceability, and it must instruct the child executor to
-consume those artifacts without regenerating `spec.md`, `plan.md`, or
-`tasks.md` independently.
+status, the child branch/worktree state is ready, shared-contract state is
+non-conflicting, validation and PR target rules are explicit, and child-agent
+capability is available. A child handoff must include the prepared artifact
+paths and enough artifact summary for traceability, and it must instruct the
+child executor to consume those artifacts without regenerating `spec.md`,
+`plan.md`, or `tasks.md` independently.
 
 ### Shared Contract and Child Issue Boundaries
 
@@ -830,6 +894,10 @@ Report a concise preflight result with:
   target branch, refresh status, cleanup eligibility, dirty-state blockers, and
   unresolved collision/approval blockers when Git state has been prepared or
   described;
+- dependency-layer fan-out status, including first dependency-ready layer,
+  child-agent/subagent capability state, launched children, blocked children,
+  pending children, children waiting for dependency merges, exact non-launch
+  reasons, and confirmation that no sequential fallback was used;
 - sidecar PR delivery status, including child PR target branch, child issue
   reference wording, final coordinator PR target, closure authority, GitHub
   mutation approval state, public comment approval state, and remote cleanup
@@ -851,9 +919,9 @@ Report a concise preflight result with:
   resume, or unapproved cleanup was performed.
 
 Until #261 activates sidecar coordinator routing and execution, stop after
-preflight and artifact preparation. Do not launch child execution during the
-current build-out even if the coordinator appears preflight-ready and artifacts
-are prepared.
+preflight, artifact/Git preparation, and fan-out readiness description when
+applicable. Do not launch child execution during the current build-out even if
+the coordinator appears preflight-ready and artifacts are prepared.
 
 ## Validation Expectations
 
@@ -923,6 +991,23 @@ Validation for this entrypoint must include:
   ownership;
 - simulation proving an unsafe coordinator branch push stops before child PR
   delivery and does not attempt force-push or history rewriting;
+- simulation of a coordinator with three independent children proving exactly
+  three prepared child handoffs are produced for the first dependency-ready
+  layer;
+- simulation of hard-dependent children proving only the first layer launches
+  and later children are recorded as pending or waiting for dependency merges;
+- simulation proving unresolved shared-contract blockers stop affected fan-out
+  without launching unsafe child work;
+- simulation proving unavailable child-agent/subagent capability stops fan-out
+  and does not fall back to sequential implementation;
+- review of a sample prepared child handoff proving it includes coordinator
+  context, child issue body, prepared `spec.md`, `plan.md`, `tasks.md`, shared
+  contract, dependency layer, branch/worktree context, validation requirements,
+  PR target rules, out-of-scope boundaries, and prohibitions against planning
+  regeneration, shared-contract redefinition, sibling scope, issue mutation,
+  and `main` targets;
+- review proving coordinator artifacts record launched, blocked, pending, and
+  waiting-for-dependency-merge child states with exact non-launch reasons;
 - simulation of a child PR merge into the coordinator branch followed by
   refreshing another active child branch from the coordinator branch using
   fast-forward or a normal merge;
