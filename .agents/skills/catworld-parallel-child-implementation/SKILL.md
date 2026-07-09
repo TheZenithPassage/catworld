@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#253"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#254"
 metadata:
   author: "catworld"
-  source: "issues-228-232,253"
+  source: "issues-228-232,253,254"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -23,6 +23,11 @@ when the current checkout does not match that prepared state. It also consumes
 the sidecar resume state prepared by the coordinator, including child workflow
 status, refresh state, stale validation, blockers, and cleanup eligibility, and
 must not rely on private conversation context when a child handoff is resumed.
+Issue #254 extends this requirement to executable branch/worktree handoff
+state: the child handoff must include the coordinator branch local and remote
+refs, coordinator push status, coordinator worktree path, child branch source,
+child worktree path, child PR target branch, collision checks, dirty-state
+checks, and isolation evidence prepared by the coordinator.
 
 ## Routing Boundary
 
@@ -79,14 +84,19 @@ Before any implementation work, the handoff must provide all of these inputs:
   resume, including coordinator issue, child issue, relevant PRs, coordinator
   artifact, child artifacts, branch state, checkout/worktree state, validation
   freshness, blockers, and cleanup approval state;
-- target coordinator branch, including evidence that it was created from
-  current `origin/main`;
+- target coordinator branch, including local branch ref, remote branch ref,
+  push status, and evidence that it was created from current `origin/main`;
 - target coordinator checkout/worktree, including evidence that it is the
-  coordinator branch/worktree that owns sidecar artifact writing;
-- target child branch, including evidence that it starts from the coordinator
-  branch and is not `main`;
+  coordinator branch/worktree that owns sidecar artifact writing and passed the
+  required clean-state check before handoff;
+- target child branch, including local branch ref, source coordinator branch
+  ref, and evidence that it starts from the coordinator branch and is not
+  `main`;
 - target child checkout/worktree path, isolated from every other active child
-  checkout/worktree;
+  checkout/worktree and from the coordinator checkout/worktree;
+- branch, checkout/worktree, directory, and artifact collision status showing
+  that the prepared coordinator and child Git resources are absent or proven to
+  belong to the same resumable sidecar run;
 - intended child PR target branch, which must be the coordinator branch and not
   `main`;
 - intended child PR issue-reference wording, which must use
@@ -145,6 +155,9 @@ Validate the handoff before touching implementation files:
   status.
 - The target coordinator branch, child branch, child checkout/worktree, child
   PR target, refresh status, and cleanup eligibility context are present.
+- The target coordinator branch has both local and remote refs recorded, and
+  coordinator push status proves the remote coordinator branch exists before
+  child PR delivery readiness is reported.
 - The handoff includes current GitHub and repository evidence re-read before
   resume, not private conversation context as the source of truth.
 - The handoff identifies the executable sidecar lifecycle state that produced
@@ -153,12 +166,17 @@ Validate the handoff before touching implementation files:
 - The child workflow status is explicit and distinguishes active, blocked,
   pending, paused, resume-needed, merged-to-coordinator, or complete as
   applicable.
-- The child branch starts from the coordinator branch and is not `main`.
+- The child branch starts from the coordinator branch ref recorded in the
+  handoff and is not `main`.
 - The coordinator branch/worktree is the artifact write boundary, and prepared
   artifacts were written there rather than from local `main` or from an
   invented child context.
 - The child checkout/worktree is isolated from other active child
-  checkouts/worktrees.
+  checkouts/worktrees and from the coordinator checkout/worktree.
+- Branch, checkout/worktree, directory, and artifact collision checks have
+  passed or are proven same-run resumes before the child executor starts.
+- Required clean-state checks for the prepared coordinator and child contexts
+  have passed, or any dirty paths are reported as blockers rather than hidden.
 - The intended child PR target is the coordinator branch and not `main`.
 - The intended child PR wording uses `Related to` references only and cannot
   close the child issue or coordinator issue.
@@ -329,6 +347,8 @@ This skill must not:
   local `main`;
 - create, switch, or rename sidecar branches or worktrees outside the prepared
   coordinator handoff;
+- create a child branch from `main` or treat a child branch based on `main` as
+  a valid sidecar child context;
 - resume child work from private conversation context instead of current
   GitHub and repository evidence supplied by the coordinator handoff;
 - continue from recorded resume state when current GitHub or repository
@@ -391,8 +411,13 @@ Stop and report a blocker when any of these occur:
 - the child dependency status is unresolved, blocked, or contradicted by
   current source-of-truth context;
 - shared contracts are missing, ambiguous, unsafe, or inconsistent;
-- the target context is missing, the child branch targets `main`, or the child
-  PR target is not the coordinator branch;
+- the target context is missing, the coordinator branch lacks a recorded remote
+  ref or successful push status, the child branch targets or starts from
+  `main`, or the child PR target is not the coordinator branch;
+- branch/worktree collision status is missing, contradictory, or not proven
+  same-run for an existing resource;
+- required clean-state evidence is missing or reports dirty paths that affect
+  the prepared coordinator or child context;
 - the resume state is missing, depends on private conversation context, or
   conflicts with current GitHub or repository evidence;
 - child PR issue-reference wording would close the child issue or coordinator
@@ -432,6 +457,11 @@ For each child implementation, validation must include:
 - changed-file review against the prepared source map;
 - confirmation that the child ran in the prepared child branch and isolated
   checkout/worktree from the coordinator handoff;
+- confirmation that the child branch source was the coordinator branch, the
+  remote coordinator branch existed before child PR readiness, and no child
+  branch or child PR targeted `main`;
+- confirmation that branch/worktree collision checks and clean-state checks
+  were satisfied by the coordinator handoff before the child ran;
 - confirmation that resumed child work used current GitHub and repository
   evidence from the coordinator handoff rather than private conversation
   context;

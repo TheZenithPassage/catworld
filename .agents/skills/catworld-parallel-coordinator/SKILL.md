@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#253"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#254"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252,253"
+  source: "issues-226-232,252-254"
 ---
 
 # CatWorld Parallel Coordinator
@@ -32,11 +32,16 @@ versus collision-stop handling. Issue #253 makes prepared child Spec Kit
 artifacts a coordinator responsibility before sidecar delegation: each child
 requires issue-numbered `spec.md`, `plan.md`, and `tasks.md` artifacts, explicit
 preparation status, write-gate evidence, shared-contract validation, and
-handoff instructions that forbid child-side regeneration. It still does not
+handoff instructions that forbid child-side regeneration. Issue #254 makes the
+approved sidecar branch/worktree orchestration executable for the future
+activated sidecar coordinator lifecycle: coordinator branches and worktrees,
+normal non-force coordinator pushes, child branches from the coordinator
+branch, isolated child worktrees, and collision/dirty/unsafe-push stop behavior
+are prepared and recorded before child delivery can proceed. It still does not
 open, update, merge, approve, or enable auto-merge on pull requests, mutate
 GitHub issues, post public comments, run adoption dry-runs, or replace the
 normal sequential implementation workflow. Later #249 child issues may extend
-branch/worktree, adoption, and delivery execution pieces.
+adoption and delivery execution pieces.
 
 ## Routing Boundary
 
@@ -380,7 +385,9 @@ closed and the coordinator enters the existing sequential final pass. The final
 pass must not redo closed child scope.
 
 Issue #227 adds artifact preparation only. Issue #229 adds sidecar Git
-execution rules. Issue #230 adds sidecar PR target, closure, GitHub mutation,
+execution rules. Issue #254 turns the approved sidecar Git rules into
+coordinator-owned branch/worktree preparation and remote coordinator branch
+push-gate procedures. Issue #230 adds sidecar PR target, closure, GitHub mutation,
 public comment, and remote cleanup approval rules. Issue #231 adds sidecar
 validation, blocker, conflict, stale-evidence, readiness, and human-only
 blocker reporting rules without opening real pull requests, merging pull
@@ -409,7 +416,8 @@ before modifying files.
 ### Deterministic Names and Collision Checks
 
 Compute every sidecar branch and checkout/worktree name before creating,
-switching to, merging into, or reusing any Git resource.
+switching to, merging into, pushing, writing artifacts, or reusing any Git
+resource.
 
 - Coordinator branch name component: `<coordinator-number>-coordinator-<slug>`.
 - Child branch name component: `<child-issue-number>-<child-slug>`.
@@ -421,42 +429,92 @@ switching to, merging into, or reusing any Git resource.
   removing issue title prefixes such as `[Workflow]`, `[Epic]`, `feat:`, or
   `docs:`.
 
-The coordinator artifact must record the final full branch names and full local
-checkout/worktree paths. The parent directory for local sidecar checkouts is
+The coordinator artifact must record planned and actual full branch names,
+local and remote branch refs when they exist, full local checkout/worktree
+paths, branch bases, child PR target plans, push state, refresh state, cleanup
+state, and any blockers. The parent directory for local sidecar checkouts is
 workflow context, but each sidecar directory name must use the deterministic
 component above.
 
-Stop instead of guessing, overwriting, deleting, or auto-renaming when a branch,
-checkout, worktree, directory, or artifact name collides. Reuse is clearly
-recoverable only when the coordinator artifact or explicit user-provided
-context proves the resource is the intended sidecar resource for the same issue
-and slug.
+Before reusing an existing local branch, remote branch, checkout, worktree,
+directory, or artifact path, compare it against the coordinator artifact or
+explicit user-provided same-run context. Stop instead of guessing, overwriting,
+deleting, silently reusing, or auto-renaming when ownership is not proven for
+the same coordinator issue, slug, run identity, branch name, and path.
 
-### Coordinator Branch and Checkout
+### Clean State Gate
+
+Before creating, switching, pushing, writing sidecar artifacts, refreshing, or
+preparing child delivery from any checkout/worktree, run a clean-state check
+such as `git status --porcelain` in the affected checkout/worktree. Stop and
+report dirty paths when required state is dirty. Do not hide dirty paths by
+stashing, resetting, deleting, checking out, or moving files unless the user
+explicitly requests that operation in a workflow that permits it.
+
+### Coordinator Branch and Worktree Preparation
 
 Coordinator parallel work uses exactly one coordinator integration branch
-created from current `origin/main`. Do not update local `main`, merge unrelated
-work into `main`, or use `main` as a sidecar delivery branch.
+created from current `origin/main`. Fetch current `origin/main` without
+updating local `main`, merging into local `main`, committing on local `main`,
+or using local `main` as a sidecar delivery branch.
 
-When a coordinator checkout/worktree is needed, it must be isolated from every
-active child checkout/worktree and recorded in the coordinator artifact.
-After a user-owned child PR merge, a resumed coordinator run must fetch and
-refresh the local coordinator branch/worktree from the remote coordinator
-branch before launching another dependency layer or consuming the merged child
-work as fresh evidence.
+For a new sidecar run:
 
-### Child Branches and Checkouts
+1. Compute the coordinator branch name and coordinator checkout/worktree path.
+2. Verify the current checkout and any target worktree path are clean or absent
+   as required.
+3. Verify branch, checkout/worktree, directory, and artifact collisions are
+   either absent or proven to belong to the same resumable run.
+4. Fetch `origin main` and confirm `origin/main` is available.
+5. Create the coordinator integration branch from `origin/main`.
+6. Create or enter one isolated coordinator checkout/worktree for that branch.
+7. Record the local coordinator branch ref, coordinator branch source
+   `origin/main`, coordinator checkout/worktree path, and artifact write
+   boundary in the coordinator artifact when artifact writing is allowed.
 
-Each sidecar child implementation branch starts from the coordinator branch,
-not from `main`. Each active child implementation uses an isolated local
-checkout/worktree recorded in the coordinator artifact and supplied in the
-child handoff.
+When resuming a sidecar run, re-read GitHub and repository evidence, verify the
+recorded coordinator branch/worktree still matches current local and remote
+state, and stop on mismatch instead of recreating, deleting, rebasing, or
+force-updating resources.
 
-Sidecar child PR guidance must target the coordinator branch. A sidecar child
-PR must not target `main` directly.
-Child branch/worktree preparation starts only for one dependency-ready layer.
-Hard-dependent layers wait until prerequisite child PRs are integrated and any
-required coordinator or active-child refresh is complete.
+### Coordinator Remote Push Gate
+
+After the coordinator branch/worktree exists and before any child PR delivery
+can occur, push the coordinator integration branch to `origin` with a normal
+non-force push. Record the remote coordinator branch ref and push status in the
+coordinator artifact after the push succeeds.
+
+If the normal coordinator branch push is rejected or cannot be proven safe,
+stop before child PR delivery. Do not use `--force`, `--force-with-lease`,
+rebase-push, delete-and-recreate, or any history-rewriting remote update to
+make the coordinator branch push succeed. Child PR readiness depends on the
+remote coordinator branch existing and matching the recorded coordinator state.
+
+### Child Branches and Worktrees
+
+Child branch/worktree preparation starts only after the coordinator branch is
+local, the remote coordinator branch exists, required artifacts are prepared or
+handoff-ready, and the child layer is dependency-ready.
+
+For each active child in the dependency-ready layer:
+
+1. Compute the child branch name and child checkout/worktree path before
+   creating resources.
+2. Verify branch, checkout/worktree, directory, and artifact collisions are
+   absent or proven same-run resources.
+3. Create the child branch from the coordinator integration branch, not from
+   `main`.
+4. Create one isolated child checkout/worktree for that child branch.
+5. Record the child branch name, source coordinator branch, local
+   checkout/worktree path, child PR target branch, and isolation state in the
+   coordinator artifact.
+
+Each active child implementation uses only its isolated local checkout/worktree
+recorded in the coordinator artifact and supplied in the child handoff. Sidecar
+child PR guidance must target the coordinator branch. A sidecar child PR must
+not target `main` directly. Hard-dependent layers wait until prerequisite
+child PRs are integrated and any required coordinator or active-child refresh
+is complete.
 
 ### Refresh After Child PR Merges
 
@@ -465,7 +523,8 @@ sidecar child branch or worktree that needs the latest coordinator state is
 updated from the coordinator branch using fast-forward or a normal merge only.
 
 Do not rebase sidecar branches. Do not force-push sidecar branches. Do not use
-history-rewriting updates for sidecar branches.
+`--force-with-lease`. Do not use history-rewriting updates for sidecar
+branches.
 
 The coordinator artifact must record which still-active child branches or
 worktrees need refresh, which have been refreshed, and which coordinator branch
@@ -764,10 +823,13 @@ Report a concise preflight result with:
 - artifact-preparation status, including coordinator path, child paths, and
   whether artifacts were planned, prepared, handoff-ready, described, blocked,
   or not applicable;
-- sidecar Git status, including coordinator branch, coordinator checkout or
-  worktree path, child branch names, child checkout or worktree paths, child PR
-  target branch, refresh status, cleanup eligibility, and unresolved
-  collision/approval blockers when Git state has been prepared or described;
+- sidecar Git status, including coordinator branch name, local coordinator
+  branch ref, remote coordinator branch ref, coordinator branch source ref,
+  coordinator push status, coordinator checkout or worktree path, child branch
+  names, child branch source refs, child checkout or worktree paths, child PR
+  target branch, refresh status, cleanup eligibility, dirty-state blockers, and
+  unresolved collision/approval blockers when Git state has been prepared or
+  described;
 - sidecar PR delivery status, including child PR target branch, child issue
   reference wording, final coordinator PR target, closure authority, GitHub
   mutation approval state, public comment approval state, and remote cleanup
@@ -843,9 +905,24 @@ Validation for this entrypoint must include:
 - simulation proving existing child artifact paths, same-number child prefixes,
   and duplicate child issue numbers stop before writing unless current sidecar
   state proves this is the same resumable run;
-- simulation of one coordinator branch and two child branches using a temporary
-  local Git repository, with the coordinator branch created from `origin/main`
-  and each child branch created from the coordinator branch;
+- simulation of coordinator branch creation from current `origin/main` in a
+  temporary Git repository without updating local `main`;
+- simulation of creating or entering an isolated coordinator worktree and
+  using it as the sidecar artifact write boundary;
+- simulation of normal non-force coordinator branch push to `origin` before
+  child PR delivery can be considered ready;
+- simulation of at least two child branches using a temporary local Git
+  repository, with each child branch created from the coordinator branch and
+  each active child using an isolated worktree;
+- simulation proving child PR delivery remains blocked when the remote
+  coordinator branch does not exist or cannot be pushed safely;
+- simulation proving dirty working-tree state stops sidecar branch/worktree
+  operations before writing artifacts or child delivery;
+- simulation proving existing branch/worktree names and paths stop on unproven
+  collisions and resume only when current sidecar state proves same-run
+  ownership;
+- simulation proving an unsafe coordinator branch push stops before child PR
+  delivery and does not attempt force-push or history rewriting;
 - simulation of a child PR merge into the coordinator branch followed by
   refreshing another active child branch from the coordinator branch using
   fast-forward or a normal merge;
