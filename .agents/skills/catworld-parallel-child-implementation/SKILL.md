@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#232"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#253"
 metadata:
   author: "catworld"
-  source: "issues-228-232"
+  source: "issues-228-232,253"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -13,12 +13,14 @@ Use this sidecar skill only for one child issue that has been handed off by an
 approved sidecar coordinator parallel workflow after #261 activates sidecar
 routing and coordinator artifact preparation has completed.
 
-This skill consumes prepared child artifacts. It does not create its own
-specification, plan, task list, shared contract, coordinator artifact, branch,
-worktree, pull request, issue mutation, or routing decision. It consumes the
-sidecar Git state prepared by the coordinator and refuses to run when the
-current checkout does not match that prepared state. It also consumes the
-sidecar resume state prepared by the coordinator, including child workflow
+This skill consumes prepared child artifacts: the coordinator-provided child
+`spec.md`, `plan.md`, and `tasks.md` under
+`specs/<child-issue-number>-<child-slug>/`. It does not create or regenerate
+its own specification, plan, task list, shared contract, coordinator artifact,
+branch, worktree, pull request, issue mutation, or routing decision. It
+consumes the sidecar Git state prepared by the coordinator and refuses to run
+when the current checkout does not match that prepared state. It also consumes
+the sidecar resume state prepared by the coordinator, including child workflow
 status, refresh state, stale validation, blockers, and cleanup eligibility, and
 must not rely on private conversation context when a child handoff is resumed.
 
@@ -62,6 +64,8 @@ Before any implementation work, the handoff must provide all of these inputs:
   and technology assessment state, human approval source, validation evidence
   plan, and source map;
 - prepared child `tasks.md` path and task set;
+- coordinator artifact preparation status for this child, including whether the
+  artifact set is `planned`, `blocked`, `prepared`, or `handoff-ready`;
 - shared contract references and constraints from the coordinator artifacts;
 - dependency status showing this child is ready for implementation;
 - executable sidecar lifecycle state from the coordinator, including evidence
@@ -170,6 +174,10 @@ Validate the handoff before touching implementation files:
   any delivery operation that could touch those surfaces.
 - Prepared `spec.md`, `plan.md`, and `tasks.md` exist and refer to the same
   child issue scope.
+- The coordinator artifact records this child's artifact path and
+  `handoff-ready` preparation status.
+- The handoff does not instruct the child executor to regenerate `spec.md`,
+  `plan.md`, or `tasks.md`.
 - The prepared plan has no pending human approval, unresolved major decision,
   or material conflict with the child issue or coordinator context.
 - The prepared tasks are scoped to the child issue and do not require missing
@@ -374,6 +382,10 @@ Stop and report a blocker when any of these occur:
 - the handoff identifies zero, multiple, closed, or ambiguous child issues;
 - a required handoff input is missing, incomplete, unreadable, or conflicting;
 - required prepared artifacts are missing or conflict with each other;
+- the coordinator artifact does not record this child artifact path as
+  `handoff-ready`;
+- the handoff asks the child executor to regenerate `spec.md`, `plan.md`, or
+  `tasks.md` independently;
 - the prepared plan has pending human approval or unresolved material
   decisions;
 - the child dependency status is unresolved, blocked, or contradicted by
