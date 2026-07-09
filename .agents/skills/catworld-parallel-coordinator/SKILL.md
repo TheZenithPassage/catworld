@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#232"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#252"
 metadata:
   author: "catworld"
-  source: "issues-226-232"
+  source: "issues-226-232,252"
 ---
 
 # CatWorld Parallel Coordinator
@@ -25,11 +25,14 @@ cleanup approval rules. Issue #231 adds sidecar validation, blocker, conflict,
 stale-evidence, readiness, and human-only blocker reporting rules. Issue #232
 adds resumable state tracking for paused or resumed sidecar coordinator runs,
 including child status, resume re-read evidence, refresh state, stale
-validation, and cleanup eligibility. It still does not open, update, merge,
-approve, or enable auto-merge on pull requests, mutate GitHub issues, post
-public comments, run adoption dry-runs, or replace the normal sequential
-implementation workflow. Later #220 child issues may extend adoption and
-delivery execution pieces.
+validation, and cleanup eligibility. Issue #252 makes the coordinator
+orchestration artifact execution-capable: it defines durable run identity,
+write-gated artifact creation, factual state updates, and same-run resume
+versus collision-stop handling. It still does not open, update, merge, approve,
+or enable auto-merge on pull requests, mutate GitHub issues, post public
+comments, run adoption dry-runs, or replace the normal sequential
+implementation workflow. Later #249 child issues may extend child artifact,
+branch/worktree, adoption, and delivery execution pieces.
 
 ## Routing Boundary
 
@@ -128,9 +131,9 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, #229, #230, #231, and #232 when their routing, entrypoint, artifact,
-  child handoff, Git execution, PR delivery, validation reporting, or resume
-  state contracts apply.
+  #228, #229, #230, #231, #232, #249, #250, #251, and #252 when their routing,
+  entrypoint, artifact, lifecycle, child handoff, Git execution, PR delivery,
+  validation reporting, or resume state contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
 decisions, require pending human approval, or would require changing approved
@@ -151,7 +154,7 @@ blocking condition, and user action required when applicable.
 | 1. New coordinator `parallel` run | Prompt explicitly names a coordinator issue and includes `parallel`; #261 has activated sidecar routing. | #261 is not active; issue is not a coordinator; issue is ambiguous; required context cannot be read. | Coordinator preflight. |
 | 2. Coordinator preflight | New or resumed run passes routing boundary. | Coordinator is ineligible, lacks listed children, or has unresolved source-of-truth blockers. | Source-of-truth and child issue inspection. |
 | 3. Source-of-truth and child issue inspection | Coordinator issue and listed children are known. | Child issue context is missing or contradictory; child state conflicts with requested route; governing artifacts conflict. | Artifact path/content planning; dependency-layer planning. |
-| 4. Artifact path and content planning | Required issue and source context has been read. | Target path collision; duplicate child issue number; missing source contract; unresolved blocker. | Dependency-layer planning; coordinator branch/worktree preparation. |
+| 4. Artifact path and content planning | Required issue and source context has been read. | Unresumable target path collision; duplicate child issue number; missing source contract; unresolved blocker. | Dependency-layer planning; coordinator branch/worktree preparation. |
 | 5. Dependency-layer planning | Child issue map and source maps are available. | Hard dependencies cannot be ordered; conflict risk requires user sequencing; missing shared contract. | Coordinator branch/worktree preparation; report blocker. |
 | 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed. | Cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
 | 7. Coordinator and child artifact writing | Codex is inside the coordinator branch/worktree. | Artifact write would occur outside coordinator branch/worktree; artifact conflicts with approved scope. | Child branch/worktree preparation. |
@@ -199,17 +202,21 @@ guardrails allow the sidecar coordinator path. Do not run artifact preparation
 for normal implementable issues, direct child issues, or closed-child
 coordinator final passes that enter the existing sequential workflow.
 
-Before creating or describing artifacts, apply the #225 path contract:
+Before creating or describing artifacts, apply the #225 path contract and the
+#252 same-run resume boundary:
 
 - coordinator artifacts use `specs/<coordinator-number>-coordinator-<slug>/`;
 - child implementation artifacts use `specs/<child-issue-number>-<child-slug>/`;
-- existing target paths, same-number prefixes, and duplicate child issue
-  numbers are stop conditions.
+- duplicate child issue numbers are stop conditions;
+- existing target paths or same-number prefixes may be resumed only when the
+  existing artifact's durable run identity proves it belongs to the same
+  coordinator run; otherwise they are collision stop conditions.
 
 Compute the coordinator target path and every child target path before writing
 or reusing any artifact. Stop instead of overwriting, merging, deleting,
-silently reusing, or automatically renaming artifacts when any target path
-collides or any child issue number is duplicated.
+silently reusing, or automatically renaming artifacts when an artifact
+collides, same-run identity cannot be proven, or any child issue number is
+duplicated.
 
 Artifact path and content planning may occur before coordinator branch/worktree
 preparation. Artifact file writing must not occur until Codex has created or
@@ -228,16 +235,30 @@ coordinator artifact state by writing artifacts from its own context.
 
 Prepare a coordinator orchestration artifact in the coordinator artifact path,
 or describe the exact artifact path and content when the current workflow is
-running in a dry or read-only preparation mode. The coordinator artifact must
-include:
+running in a dry or read-only preparation mode. Artifact path and content
+planning may happen before coordinator branch/worktree preparation, but
+artifact file writing must wait until Codex is inside the coordinator
+branch/worktree.
 
-- coordinator issue number, title, classification, and source references;
+The coordinator artifact must include at least:
+
+- run identity or equivalent durable state sufficient to prove same-run resume;
+- coordinator issue number, title, URL, labels, state, classification, and
+  source references;
+- inspected child issue list;
+- parent epic and source references when relevant;
 - child issue map with each child issue number, title, state, dependencies,
   source references, artifact path, and current preparation status;
 - dependency layers that identify hard dependencies, independent candidates,
   conflict risks, and incomplete-context blockers;
-- shared contract section that records cross-child contracts, source-of-truth
-  references, and unresolved shared-contract blockers;
+- unresolved blocker section that distinguishes child-specific,
+  coordinator-wide, shared-contract, conflict, and human-only blockers;
+- shared implementation contract section that records cross-child contracts,
+  source-of-truth references, and unresolved shared-contract blockers;
+- child-owned surfaces and shared surfaces requiring caution;
+- branch and worktree plan, including planned and actually-created coordinator
+  and child branches/checkouts/worktrees;
+- PR target plan, including child PR targets and final coordinator PR target;
 - sidecar Git state section that records coordinator branch, coordinator
   checkout/worktree, child branch, child checkout/worktree, child PR target,
   refresh status, cleanup status, and remote-cleanup approval state;
@@ -253,10 +274,31 @@ include:
   repository evidence to re-read before continuing; refresh-needed/refreshed
   state after child PR merges; stale validation state; and cleanup eligibility;
 - validation plan for coordinator-level and child-level evidence;
-- status table for each child issue, including artifact path, branch, local
-  checkout/worktree, PR, validation state, workflow status, blockers,
+- resume/status table for each child issue, including artifact path, branch,
+  local checkout/worktree, PR, validation state, workflow status, blockers,
   dependency layer, readiness, refresh state, cleanup eligibility, and required
-  validation.
+  validation;
+- stop conditions and final coordinator PR plan.
+
+The artifact must distinguish planned, blocked, ready, created, observed,
+stale, passed, failed, pending, and eligible states. It must not imply that a
+branch, checkout/worktree, PR, merge, validation result, readiness state, or
+cleanup eligibility exists before that state is real.
+
+Before writing to an existing coordinator artifact path, verify the existing
+artifact's durable run identity against the current coordinator issue number,
+URL, title/source context, computed artifact path, and recorded sidecar run
+identity or equivalent durable state. Resume only when the artifact is proven
+to belong to the same coordinator run. If ownership cannot be proven, stop on
+collision before writing; do not overwrite, merge, delete, rename, or silently
+reuse the artifact.
+
+Update the coordinator artifact whenever factual sidecar state changes during a
+future activated run, including blocked state, child handoff readiness, child
+PR creation, user merge observation, stale validation, next-layer readiness,
+final PR readiness, and cleanup eligibility. A blocked coordinator records the
+blocker, affected scope, evidence read, and required user action when
+applicable, and it must not launch child work.
 
 Stop before delegation when the coordinator artifact cannot be prepared safely
 because coordinator context, child context, dependencies, source-of-truth
@@ -726,8 +768,26 @@ Validation for this entrypoint must include:
   dependency classification, and source-of-truth review;
 - simulation of one coordinator with at least three child issues, including the
   coordinator artifact path and each child artifact path;
-- review that coordinator artifacts require a child issue map, dependency
-  layers, shared contract section, validation plan, and status table;
+- review that coordinator artifacts require durable run identity, coordinator
+  issue number, title, URL, labels and state, inspected child issue list,
+  parent/source references, child issue map, dependency layers, hard
+  dependencies, conflict risks, independent candidates, unresolved blockers,
+  shared implementation contract, child-owned surfaces, shared surfaces
+  requiring caution, branch and worktree plan, PR target plan, validation plan,
+  resume/status table, stop conditions and final coordinator PR plan;
+- simulation of planning the coordinator artifact while the active checkout is
+  `main`, proving no files are written and local `main` remains clean;
+- simulation of writing the coordinator artifact only after entering a
+  coordinator branch/worktree;
+- simulation of an existing same-number coordinator artifact that proves safe
+  same-run resume and stops before writing on unproven collision;
+- simulation of a blocked coordinator artifact update proving the blocker is
+  recorded without launching child work;
+- review that coordinator artifact state updates are factual and do not imply
+  branches, worktrees, PRs, merge observations, validation results, readiness or
+  cleanup eligibility before those states actually exist;
+- review that coordinator artifact writes and sidecar artifact commits never
+  land on local `main`;
 - review that child artifacts require issue-numbered `spec.md`, `plan.md`, and
   `tasks.md` preparation before delegation;
 - simulation of one coordinator branch and two child branches using a temporary

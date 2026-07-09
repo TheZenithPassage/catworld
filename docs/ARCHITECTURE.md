@@ -668,12 +668,18 @@ refreshed by an allowed method, and required validation is fresh.
 
 Before any future sidecar delegation, the coordinator entrypoint prepares or
 requires a coordinator orchestration artifact and issue-numbered child
-implementation artifacts. The coordinator artifact must contain a child issue
-map, dependency layers, shared contract section, validation plan, sidecar Git
-state, sidecar PR delivery state, sidecar validation reporting state, sidecar
-resume state and status table. Each child issue must have prepared or
-described `spec.md`, `plan.md` and `tasks.md` artifacts under the #225 child
-artifact path.
+implementation artifacts. The coordinator artifact is the durable run record.
+It must contain run identity, coordinator issue number, title, URL, labels,
+state and source references; inspected child issue list; parent/source
+references when relevant; child issue map; dependency layers; hard
+dependencies; conflict risks; independent candidates; unresolved blockers;
+shared implementation contract; child-owned surfaces; shared surfaces requiring
+caution; branch and worktree plan; PR target plan; validation plan;
+resume/status table; stop conditions; final coordinator PR plan; sidecar Git
+state; sidecar PR delivery state; sidecar validation reporting state; and
+sidecar resume state. Each child issue must have prepared or described
+`spec.md`, `plan.md` and `tasks.md` artifacts under the #225 child artifact
+path.
 
 The child status table must be detailed enough for a later session to identify
 completed, active, blocked and pending sidecar child work without private
@@ -684,11 +690,21 @@ when those values exist. Pending child rows may record not-started branch,
 checkout, PR and validation state, but they must not imply that local Git
 resources exist.
 
+The coordinator artifact is updated only with factual run state. It records
+blocked state, child handoff readiness, child PR creation, user merge
+observation, stale validation, next-layer readiness, final PR readiness and
+cleanup eligibility when those states actually occur or are observed. It must
+distinguish planned, blocked, ready, created, observed, stale, passed, failed,
+pending and eligible states, and must not imply that branches, worktrees, pull
+requests, merges, validation results or cleanup eligibility exist before they
+are real.
+
 Artifact preparation must validate child artifacts against the coordinator
 issue, child issue bodies, relevant source-of-truth documentation and shared
 contracts. It must stop before delegation when prepared artifacts are missing
-or unsafe, artifact paths collide, shared contracts are missing or unresolved,
-dependencies are unsafe, or scope conflicts remain.
+or unsafe, artifact paths collide without proven same-run identity, shared
+contracts are missing or unresolved, dependencies are unsafe, or scope
+conflicts remain.
 
 The sidecar coordinator must not require seed-first execution and must not
 invent or create foundation or shared-contract child issues unless those issues
@@ -702,8 +718,10 @@ branch/worktree preparation. Artifact file writing must not occur while the
 active checkout is `main`. Before writing coordinator or child artifacts,
 Codex must create or enter the coordinator branch/worktree. If that cannot be
 done safely, Codex stops before modifying files and reports the planned paths,
-planned content status and blocker. Local `main` must remain clean: no sidecar
-artifacts, sidecar commits or untracked sidecar files are written there.
+planned content status and blocker. A blocked coordinator records the blocker
+in the coordinator artifact only after artifact writing is allowed, and it does
+not launch child work. Local `main` must remain clean: no sidecar artifacts,
+sidecar commits or untracked sidecar files are written there.
 
 Coordinator and child artifacts are written only inside the coordinator
 branch/worktree. Child executors consume prepared handoff artifacts and do not
@@ -736,9 +754,13 @@ hyphen-separated title slug after removing issue title prefixes such as
 trim leading or trailing hyphens.
 
 Before creating sidecar artifacts, future sidecar preparation must compute the
-coordinator target path and every child target path. It must stop and report a
-collision instead of overwriting, merging, deleting, silently reusing, or
-automatically renaming artifacts when any of these are true:
+coordinator target path and every child target path. Existing same-number
+coordinator artifacts may be resumed only when durable run identity proves that
+the artifact belongs to the same coordinator run, matching the coordinator
+issue number, URL, title/source context, computed artifact path and recorded
+sidecar run identity or equivalent durable state. Otherwise the workflow must
+stop and report a collision instead of overwriting, merging, deleting, silently
+reusing or automatically renaming artifacts when any of these are true:
 
 - the exact target path already exists;
 - a coordinator artifact directory already exists with the same
