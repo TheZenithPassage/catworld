@@ -64,13 +64,16 @@ The sidecar branch/worktree flow must not:
 Validation must include:
 
 - temporary Git repository simulation covering coordinator branch creation from
-  `origin/main`;
+  fetched current `origin/main` while local `main` is stale and remains
+  unchanged, clean, and free of sidecar artifact writes;
 - temporary Git repository simulation covering normal non-force push of the
   coordinator branch to `origin` before child PR delivery;
 - temporary Git repository simulation covering at least two child branches
   created from the coordinator branch;
 - checkout/worktree isolation verification;
-- collision simulation for existing branch/worktree names and paths;
+- collision simulation that creates real existing coordinator branch,
+  coordinator worktree path, child branch, and child worktree path collisions
+  in the temporary repository;
 - dirty-working-tree simulation;
 - unsafe coordinator branch push simulation that stops before child PR
   delivery;

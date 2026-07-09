@@ -30,10 +30,11 @@ workflow Git state in sidecar artifacts only; no domain entities, persistence,
 migrations, browser storage, API payloads, or external storage change.
 
 **Testing**: Issue-required temporary Git repository simulations for
-coordinator branch creation from `origin/main`, coordinator non-force push,
-two child branches from the coordinator branch, checkout/worktree isolation,
-dirty-working-tree and collision stops, unsafe coordinator push stop behavior,
-prohibited-operation review, changed-file/source-map review, and
+coordinator branch creation from fetched current `origin/main` while local
+`main` is stale and unchanged, coordinator non-force push, two child branches
+from the coordinator branch, checkout/worktree isolation, dirty-working-tree
+stops, real branch/worktree/path collision stops, unsafe coordinator push stop
+behavior, prohibited-operation review, changed-file/source-map review, and
 `git diff --check`.
 
 **Target Platform**: CatWorld Codex workflow instructions consumed by future
@@ -205,10 +206,10 @@ sequential workflow files are not changed, and `git diff --check`.
 
 | Surface / Requirement | Responsible Layer | Evidence Type | Freshness / Manual Notes |
 |-----------------------|-------------------|---------------|--------------------------|
-| Coordinator branch from current `origin/main` and coordinator worktree isolation (TR-001, TR-003, TR-004, SC-001, SC-004) | Sidecar coordinator skill, architecture docs, temporary Git simulation | Simulation and source review | Rerun after coordinator Git wording or validation script edits |
+| Coordinator branch from fetched current `origin/main` with stale local `main` unchanged and coordinator worktree isolation (TR-001, TR-003, TR-004, SC-001, SC-004) | Sidecar coordinator skill, architecture docs, temporary Git simulation | Simulation and source review | Rerun after coordinator Git wording or validation script edits |
 | Coordinator branch normal non-force push before child PR delivery (TR-007, TR-008, TR-009, SC-002, SC-006) | Sidecar coordinator skill, contract, temporary bare remote simulation | Simulation and source review | Rerun after push/readiness wording changes |
 | Child branches from coordinator branch and isolated child worktrees (TR-010, TR-011, SC-003, SC-004) | Sidecar coordinator and child skills, temporary Git simulation | Simulation and handoff text review | Rerun after child Git context edits |
-| Deterministic names, collision handling, dirty-state stops (TR-002, TR-012, TR-013, SC-005) | Sidecar coordinator skill, validation script, contract artifact | Simulation and manual review | Rerun after naming/collision/dirty-state edits |
+| Deterministic names, real branch/worktree/path collision handling, dirty-state stops (TR-002, TR-012, TR-013, SC-005) | Sidecar coordinator skill, validation script, contract artifact | Simulation and manual review | Rerun after naming/collision/dirty-state edits |
 | Prohibited operations and local `main` safety (TR-005, TR-014, SC-007) | Sidecar skills, docs, source text review | `Select-String`/`rg` context review and changed-file review | Rerun before final report and after any workflow text edits |
 | Normal sequential workflow unchanged (TR-015, SB-002) | Existing sequential skill and legacy coordinator skill | Changed-file review | Rerun before final report |
 | Markdown whitespace health (SC-008) | Git diff | `git diff --check` | Run after final edits |

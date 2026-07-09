@@ -16,7 +16,7 @@
     1. **Given** a valid coordinator run with planned artifact paths and deterministic Git resource names, **When** coordinator Git preparation runs, **Then** it fetches current `origin/main` without updating local `main`, creates the coordinator integration branch from current `origin/main`, creates or enters the isolated coordinator checkout/worktree, and records the actual local and remote coordinator branch refs and coordinator worktree path in the coordinator artifact.
     2. **Given** the active checkout is local `main`, **When** sidecar artifact writing would occur, **Then** writing is blocked until the workflow has safely created or entered the coordinator branch/worktree.
     3. **Given** the coordinator branch cannot be pushed to `origin` with a normal non-force push, **When** child PR delivery would be next, **Then** the workflow stops before child PR delivery and records the unsafe push blocker.
-  - **Validation Evidence**: Temporary Git repository simulations for coordinator branch creation from `origin/main`, coordinator worktree isolation, normal non-force push before child PR delivery, unsafe push stop behavior, and `git diff --check`.
+  - **Validation Evidence**: Temporary Git repository simulations for coordinator branch creation from fetched current `origin/main` while local `main` is stale and remains unchanged, coordinator worktree isolation, normal non-force push before child PR delivery, unsafe push stop behavior, and `git diff --check`.
 
 - **TO-002**: A valid future sidecar coordinator run can create one isolated child branch and checkout/worktree per active child in the first dependency-ready layer, with every child branch based on the coordinator integration branch.
   - **Why this priority**: Child implementation must start from the coordinator integration state and remain isolated from sibling child worktrees, the coordinator worktree, and local `main`.
@@ -24,7 +24,7 @@
     1. **Given** the coordinator branch exists locally and remotely and the first dependency-ready layer contains at least two active child issues, **When** child Git preparation runs, **Then** each child branch is created from the coordinator branch, each child receives its own isolated checkout/worktree, and no child branch targets `main` directly.
     2. **Given** child branches and worktrees are prepared, **When** the coordinator artifact is inspected, **Then** it records each child issue's branch name, local checkout/worktree path, base coordinator branch, and PR target plan.
     3. **Given** a child branch or worktree name/path already exists, **When** current sidecar state cannot prove it belongs to the same resumable run, **Then** the workflow stops before creating or reusing that resource.
-  - **Validation Evidence**: Temporary Git repository simulations covering at least two child branches created from the coordinator branch, child checkout/worktree isolation, collision stops, and review for direct child branches from `main`.
+  - **Validation Evidence**: Temporary Git repository simulations covering at least two child branches created from the coordinator branch, child checkout/worktree isolation, real branch/worktree/path collision stops, and review for direct child branches from `main`.
 
 - **TO-003**: Sidecar Git orchestration stops safely for dirty working trees, name/path collisions, unsafe remote coordinator branch state, and prohibited history-changing operations.
   - **Why this priority**: The workflow must be resumable and safe before it can fan out child execution; history rewriting, direct `main` writes, or ambiguous resource reuse would undermine the sidecar safety model.
@@ -75,7 +75,7 @@
 - **TR-013**: The workflow MUST stop on dirty working trees before sidecar branch creation, checkout/worktree creation or reuse, push, artifact writing, or child delivery actions that require clean state.
 - **TR-014**: The sidecar flow MUST NOT rebase, force-push, force-with-lease, rewrite history, update local `main`, merge into local `main`, target child branches or child PRs directly at `main`, or delete sidecar worktrees/local branches after individual child PR merges.
 - **TR-015**: The normal sequential branch workflow MUST remain unchanged.
-- **TR-016**: Validation MUST include temporary Git repository simulations for coordinator branch creation from `origin/main`, coordinator branch non-force push before child PR delivery, at least two child branches from the coordinator branch, worktree isolation, name/path collisions, unsafe coordinator push stop behavior, prohibited-operation review, and `git diff --check`.
+- **TR-016**: Validation MUST include temporary Git repository simulations for coordinator branch creation from fetched current `origin/main` while local `main` is stale and unchanged, coordinator branch non-force push before child PR delivery, at least two child branches from the coordinator branch, worktree isolation, real branch/worktree/path collisions, unsafe coordinator push stop behavior, prohibited-operation review, and `git diff --check`.
 
 ### Scope Boundaries
 
@@ -110,11 +110,11 @@
 
 ### Measurable Outcomes
 
-- **SC-001**: A temporary Git repository simulation verifies coordinator branch creation from current `origin/main` without updating local `main`.
+- **SC-001**: A temporary Git repository simulation verifies coordinator branch creation from fetched current `origin/main` after the remote advances while local `main` remains at its stale SHA, stays clean, and receives no sidecar artifact write.
 - **SC-002**: A temporary Git repository simulation verifies the coordinator branch is pushed to `origin` with a normal non-force push before child PR delivery can occur.
 - **SC-003**: A temporary Git repository simulation verifies at least two child branches are created from the coordinator branch, not from `main`.
 - **SC-004**: Worktree/checkouts isolation verification proves active child worktrees are isolated from each other and from the coordinator worktree.
-- **SC-005**: Collision simulations verify existing branch/worktree names and paths stop safely unless same-run ownership is proven.
+- **SC-005**: Collision simulations verify real existing coordinator branch, coordinator worktree path, child branch, and child worktree path resources stop safely unless same-run ownership is proven by durable sidecar state.
 - **SC-006**: Unsafe coordinator branch push simulation verifies the workflow stops before child PR delivery and does not force-push.
 - **SC-007**: Prohibited-operation review verifies the sidecar flow contains no allowed or required use of rebase, force-push, history-rewriting update, direct child branch from `main`, sidecar write to local `main`, local `main` update, or sidecar branch/worktree deletion after individual child PR merges.
 - **SC-008**: `git diff --check` reports no whitespace errors.

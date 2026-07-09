@@ -26,9 +26,13 @@ powershell -ExecutionPolicy Bypass -File specs/028-sidecar-branch-worktree/valid
 Expected result:
 
 - a temporary remote exposes `origin/main`;
-- the coordinator branch is created from current `origin/main`;
+- local `main` starts at SHA A before the remote is advanced;
+- the remote `origin/main` advances to SHA B from another temporary clone;
+- the coordinator branch is created from fetched current `origin/main` at SHA
+  B;
 - an isolated coordinator worktree is created;
-- local `main` is not updated.
+- local `main` remains at SHA A, remains the active checkout, stays clean, and
+  receives no sidecar artifact write.
 
 ### Coordinator push gate simulation
 
@@ -62,7 +66,11 @@ powershell -ExecutionPolicy Bypass -File specs/028-sidecar-branch-worktree/valid
 
 Expected result:
 
-- same-run branch/worktree ownership may resume;
+- the temporary repository creates existing coordinator branch, coordinator
+  worktree path, child branch, and child worktree path collisions;
+- duplicate branch and worktree path creation fails for those real resources;
+- same-run branch/worktree ownership may resume only when durable sidecar state
+  proves the resources belong to the same coordinator run;
 - unproven branch/worktree name or path collisions stop before reuse or write.
 
 ### Dirty working tree stop simulation
