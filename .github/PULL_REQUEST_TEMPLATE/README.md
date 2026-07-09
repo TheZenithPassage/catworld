@@ -17,6 +17,10 @@ remaining final pass, not the sidecar final coordinator template.
 
 Codex reports sidecar PR readiness; the user performs merges. These templates
 do not authorize Codex to merge, approve or enable auto-merge on pull requests.
+When a sidecar coordinator run is waiting, Codex reports which child PRs the
+user must merge into the remote coordinator branch before resume. After those
+merges, Codex refreshes from current GitHub and repository evidence before
+continuing the sidecar lifecycle.
 
 GitHub issue body, checklist, label, assignee, milestone, issue state and
 public comment mutations require explicit user approval. Remote branch

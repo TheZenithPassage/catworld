@@ -608,6 +608,62 @@ use the existing sequential workflow. Closed-child coordinator final passes
 also stay in the existing sequential workflow and do not route into the
 sidecar child implementation skill.
 
+### Sidecar Executable Lifecycle
+
+The executable sidecar lifecycle remains dormant for real product work until
+#261 activates sidecar coordinator routing. Before #261, a valid coordinator
+`parallel` request must still stop with a routing error that sidecar parallel
+is not active. After #261, an eligible coordinator `parallel` request starts or
+resumes the lifecycle only when coordinator preflight, source-of-truth review,
+child issue inspection, dependency classification and safety checks pass.
+
+The lifecycle states are:
+
+1. New coordinator `parallel` run.
+2. Coordinator preflight.
+3. Source-of-truth and child issue inspection.
+4. Sidecar artifact path and content planning, without writing files.
+5. Dependency-layer planning.
+6. Coordinator branch/worktree preparation.
+7. Coordinator and child artifact writing inside the coordinator
+   branch/worktree.
+8. Child branch/worktree preparation.
+9. Child handoff and child-agent launch for one dependency-ready layer.
+10. Child implementation and child PR delivery.
+11. Waiting for user merges into the remote coordinator branch.
+12. Resume after user merges.
+13. Fetch and refresh local coordinator branch/worktree from the remote
+    coordinator branch.
+14. Active child branch refresh from the updated local coordinator branch by
+    fast-forward or normal merge only.
+15. Next dependency layer execution.
+16. Integrated coordinator validation.
+17. Final coordinator PR to `main`.
+18. Post-final-merge local cleanup eligibility.
+
+Each state must define entry conditions, stop conditions and allowed next
+states in the sidecar coordinator skill. If a stop condition applies, Codex
+reports the lifecycle state, evidence read, blocking condition and required
+user action when applicable.
+
+Codex-owned operations include read-only issue and PR inspection, artifact
+planning, permitted local branch/worktree preparation after #261 activation,
+artifact writing inside the coordinator branch/worktree, dependency-ready
+child handoff launch, PR readiness reporting, allowed local refresh, and
+integrated validation reporting. The user owns all merges: child PRs into the
+remote coordinator branch and the final coordinator PR into `main`. GitHub
+issue mutation, public comments, remote branch deletion, remote pruning and
+remote cleanup require explicit user approval in a workflow that permits the
+operation.
+
+The sidecar coordinator launches at most one dependency-ready layer at a time.
+Multiple child issues in the same layer may be active only when they are
+independent candidates and have no unresolved conflict risk. A hard-dependent
+layer waits until prerequisite child PRs are merged into the coordinator
+branch, the local coordinator branch/worktree has been refreshed from the
+remote coordinator branch, affected active child branches/worktrees have been
+refreshed by an allowed method, and required validation is fresh.
+
 ### Sidecar Artifact Preparation
 
 Before any future sidecar delegation, the coordinator entrypoint prepares or
@@ -640,6 +696,18 @@ already exist or the user explicitly approves creating them in a future
 activated workflow that permits issue mutation.
 Closed-child coordinator final passes remain in the existing sequential
 workflow and do not use sidecar artifact preparation.
+
+Sidecar artifact path and content planning may occur before coordinator
+branch/worktree preparation. Artifact file writing must not occur while the
+active checkout is `main`. Before writing coordinator or child artifacts,
+Codex must create or enter the coordinator branch/worktree. If that cannot be
+done safely, Codex stops before modifying files and reports the planned paths,
+planned content status and blocker. Local `main` must remain clean: no sidecar
+artifacts, sidecar commits or untracked sidecar files are written there.
+
+Coordinator and child artifacts are written only inside the coordinator
+branch/worktree. Child executors consume prepared handoff artifacts and do not
+repair missing coordinator artifact state from their own checkout/worktree.
 
 ### Sidecar Artifact Paths
 
@@ -704,6 +772,12 @@ current `origin/main`. CatWorld must not update local `main`, merge unrelated
 work into `main`, or use `main` as a sidecar delivery branch while preparing
 that coordinator branch.
 
+The coordinator branch/worktree is the sidecar artifact write boundary.
+Artifact paths and contents may be planned before this boundary is entered,
+but artifact files are written only after Codex creates or enters the
+coordinator branch/worktree. If branch/worktree preparation is unsafe or
+blocked, Codex stops before modifying files.
+
 Sidecar names are deterministic:
 
 - coordinator branch and checkout/worktree name component:
@@ -733,11 +807,19 @@ handoff.
 
 Sidecar child PR guidance must target the coordinator branch. Sidecar child PRs
 must not target `main` directly.
+Child branch/worktree preparation starts only for a dependency-ready layer.
+Hard-dependent layers wait until prerequisite child PRs are integrated and
+required coordinator or active-child refresh is complete.
 
 After the user merges a child PR into the coordinator branch, every still-active
 sidecar child branch or worktree that needs the latest coordinator state is
-updated from the coordinator branch using a normal merge. Sidecar branches must
-not be rebased, force-pushed or updated with any history-rewriting operation.
+updated from the coordinator branch using fast-forward or a normal merge only.
+Sidecar branches must not be rebased, force-pushed or updated with any
+history-rewriting operation.
+On resume after user merges, Codex first fetches and refreshes the local
+coordinator branch/worktree from the remote coordinator branch. Only then may
+it refresh active child branches/worktrees, launch the next dependency layer,
+or consume the merged child work as fresh coordinator evidence.
 
 Local sidecar branches and worktrees are not deleted after individual child PR
 merges. Local cleanup is eligible only after the final coordinator PR has been
@@ -770,6 +852,11 @@ If the current evidence conflicts with recorded resume state, Codex stops and
 reports the mismatch instead of guessing, deleting resources, rebasing,
 force-pushing or treating stale validation as fresh.
 
+When a sidecar coordinator is waiting on user merges, Codex reports exactly
+which child PRs must be merged into the remote coordinator branch before
+resume. When all child PRs are integrated, the next lifecycle state is
+integrated coordinator validation, not another child execution layer.
+
 For each child issue, sidecar resume state distinguishes completed, active,
 blocked, pending, paused and resume-needed work. It records child artifact
 path, branch, local checkout/worktree, PR, validation state, workflow status,
@@ -778,9 +865,9 @@ blockers, refresh state and cleanup eligibility when those values exist.
 After the user merges a child PR into the coordinator branch, completed child
 state remains recorded. Still-active child branches or worktrees that need the
 latest coordinator state are marked refresh-needed and are updated from the
-coordinator branch using a normal merge only. Rebase, force-push and
-history-rewriting updates remain prohibited. Validation affected by the refresh
-is stale until rerun after the merge.
+coordinator branch using fast-forward or a normal merge only. Rebase,
+force-push and history-rewriting updates remain prohibited. Validation affected
+by the refresh is stale until rerun after the update.
 
 When validation fails, is skipped, is interrupted, is partial, is stale or is
 not run before a pause, that state remains visible after resume and does not
