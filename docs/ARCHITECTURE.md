@@ -602,6 +602,11 @@ change normal sequential validation or final reporting. Issue #232 adds
 resumable state tracking for sidecar coordinator runs. That state records child
 workflow status, resume re-read evidence, refresh state, stale validation and
 cleanup eligibility, and it does not change normal sequential issue state.
+Issue #253 makes prepared child Spec Kit artifacts a coordinator responsibility
+before delegation: each dependency-ready child requires an issue-numbered
+`spec.md`, `plan.md` and `tasks.md` set, coordinator-recorded preparation
+status, write-gate evidence and handoff instructions that prevent child-side
+artifact regeneration.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -694,17 +699,31 @@ The coordinator artifact is updated only with factual run state. It records
 blocked state, child handoff readiness, child PR creation, user merge
 observation, stale validation, next-layer readiness, final PR readiness and
 cleanup eligibility when those states actually occur or are observed. It must
-distinguish planned, blocked, ready, created, observed, stale, passed, failed,
-pending and eligible states, and must not imply that branches, worktrees, pull
+distinguish planned, blocked, prepared, handoff-ready, ready, created, observed,
+stale, passed, failed, pending and eligible states, and must not imply that
+branches, worktrees, pull
 requests, merges, validation results or cleanup eligibility exist before they
 are real.
 
 Artifact preparation must validate child artifacts against the coordinator
-issue, child issue bodies, relevant source-of-truth documentation and shared
-contracts. It must stop before delegation when prepared artifacts are missing
-or unsafe, artifact paths collide without proven same-run identity, shared
-contracts are missing or unresolved, dependencies are unsafe, or scope
-conflicts remain.
+issue, child issue bodies, relevant source-of-truth documentation, current
+repository state, dependency-layer classification and shared contracts. It must
+stop before delegation when prepared artifacts are missing or unsafe, artifact
+paths collide without proven same-run identity, shared contracts are missing or
+unresolved, duplicate child issue numbers appear, dependencies are unsafe, or
+scope conflicts remain. Prepared child artifacts must preserve each child issue
+scope exactly. A child artifact that includes sibling child scope, creates work
+for sibling-owned surfaces, invents a foundation or shared-contract child issue,
+or makes human-only product, architecture, security, persistence, UX, domain,
+GitHub, deployment or workflow decisions blocks delegation.
+
+Prepared child artifact status is recorded in the coordinator artifact. Planned
+means path and content are known but no files have been written. Blocked means
+the blocker, evidence and affected child or coordinator scope are recorded.
+Prepared means the complete child `spec.md`, `plan.md` and `tasks.md` set was
+written inside the coordinator branch/worktree. Handoff-ready means the set has
+passed scope, shared-contract, dependency-layer, write-gate and source-of-truth
+checks and can be supplied to a dependency-ready child handoff.
 
 The sidecar coordinator must not require seed-first execution and must not
 invent or create foundation or shared-contract child issues unless those issues
@@ -724,8 +743,11 @@ not launch child work. Local `main` must remain clean: no sidecar artifacts,
 sidecar commits or untracked sidecar files are written there.
 
 Coordinator and child artifacts are written only inside the coordinator
-branch/worktree. Child executors consume prepared handoff artifacts and do not
-repair missing coordinator artifact state from their own checkout/worktree.
+branch/worktree. Fan-out cannot start for a dependency-ready child unless the
+coordinator artifact records that child's artifact path and handoff-ready
+preparation status. Child executors consume prepared handoff artifacts and do
+not repair missing coordinator artifact state or regenerate `spec.md`,
+`plan.md` or `tasks.md` from their own checkout/worktree.
 
 ### Sidecar Artifact Paths
 
@@ -745,6 +767,10 @@ Sidecar child implementation artifacts use:
 ```text
 specs/<child-issue-number>-<child-slug>/
 ```
+
+Each sidecar child artifact directory contains `spec.md`, `plan.md` and
+`tasks.md`. Those names are part of the sidecar child handoff contract and do
+not change normal sequential Spec Kit naming.
 
 The GitHub issue number is the authoritative uniqueness key in each sidecar
 artifact path. The slug is descriptive. Build the slug as a stable, lowercase,

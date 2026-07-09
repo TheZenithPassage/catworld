@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues and prepare sidecar artifacts and Git state for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#252"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#253"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252"
+  source: "issues-226-232,252,253"
 ---
 
 # CatWorld Parallel Coordinator
@@ -28,10 +28,14 @@ including child status, resume re-read evidence, refresh state, stale
 validation, and cleanup eligibility. Issue #252 makes the coordinator
 orchestration artifact execution-capable: it defines durable run identity,
 write-gated artifact creation, factual state updates, and same-run resume
-versus collision-stop handling. It still does not open, update, merge, approve,
-or enable auto-merge on pull requests, mutate GitHub issues, post public
-comments, run adoption dry-runs, or replace the normal sequential
-implementation workflow. Later #249 child issues may extend child artifact,
+versus collision-stop handling. Issue #253 makes prepared child Spec Kit
+artifacts a coordinator responsibility before sidecar delegation: each child
+requires issue-numbered `spec.md`, `plan.md`, and `tasks.md` artifacts, explicit
+preparation status, write-gate evidence, shared-contract validation, and
+handoff instructions that forbid child-side regeneration. It still does not
+open, update, merge, approve, or enable auto-merge on pull requests, mutate
+GitHub issues, post public comments, run adoption dry-runs, or replace the
+normal sequential implementation workflow. Later #249 child issues may extend
 branch/worktree, adoption, and delivery execution pieces.
 
 ## Routing Boundary
@@ -131,7 +135,7 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, #229, #230, #231, #232, #249, #250, #251, and #252 when their routing,
+  #228, #229, #230, #231, #232, #249, #250, #251, #252, and #253 when their routing,
   entrypoint, artifact, lifecycle, child handoff, Git execution, PR delivery,
   validation reporting, or resume state contracts apply.
 
@@ -248,7 +252,8 @@ The coordinator artifact must include at least:
 - inspected child issue list;
 - parent epic and source references when relevant;
 - child issue map with each child issue number, title, state, dependencies,
-  source references, artifact path, and current preparation status;
+  source references, artifact path, required `spec.md`/`plan.md`/`tasks.md`
+  preparation status, and current handoff readiness;
 - dependency layers that identify hard dependencies, independent candidates,
   conflict risks, and incomplete-context blockers;
 - unresolved blocker section that distinguishes child-specific,
@@ -280,10 +285,11 @@ The coordinator artifact must include at least:
   validation;
 - stop conditions and final coordinator PR plan.
 
-The artifact must distinguish planned, blocked, ready, created, observed,
-stale, passed, failed, pending, and eligible states. It must not imply that a
-branch, checkout/worktree, PR, merge, validation result, readiness state, or
-cleanup eligibility exists before that state is real.
+The artifact must distinguish planned, blocked, prepared, handoff-ready, ready,
+created, observed, stale, passed, failed, pending, and eligible states. It must
+not imply that a branch, checkout/worktree, PR, merge, validation result,
+readiness state, handoff readiness, or cleanup eligibility exists before that
+state is real.
 
 Before writing to an existing coordinator artifact path, verify the existing
 artifact's durable run identity against the current coordinator issue number,
@@ -319,18 +325,47 @@ specs/<child-issue-number>-<child-slug>/
 
 Each child artifact set must derive from:
 
+- the coordinator issue body, title, labels, state, and source references;
 - the coordinator orchestration artifact;
 - the child issue title, body, dependencies, validation requirements, and
   explicit out-of-scope boundaries;
+- parent epic context when relevant;
 - the child dependency layer and any hard-dependency or conflict-risk notes;
 - the shared contract section;
-- applicable source-of-truth documentation and existing feature artifacts.
+- applicable source-of-truth documentation, existing feature artifacts, and
+  current repository state.
+
+Prepared child artifacts must preserve the child issue scope exactly. They must
+not expand into sibling child scope, reopen sibling work, create tasks for
+sibling-owned surfaces, invent shared-contract or foundation child issues, or
+make human-only product, architecture, security, persistence, UX, domain,
+GitHub, deployment, or workflow decisions. If any of those decisions or scopes
+are unresolved, record the blocker and stop affected delegation.
 
 Validate every child artifact set against the coordinator issue, child issue
 body, relevant source-of-truth documentation, and shared contract before
 delegation. Stop before delegation when any child artifact expands beyond
 approved child scope, omits required validation, conflicts with another child,
 or relies on an unresolved shared contract.
+
+Use these child artifact preparation statuses in the coordinator artifact:
+
+- `planned`: the child path and `spec.md`/`plan.md`/`tasks.md` contents are
+  planned only; no child artifact files have been written.
+- `blocked`: preparation cannot proceed; record the blocker category, evidence,
+  affected child or coordinator scope, and required user action when applicable.
+- `prepared`: the complete child `spec.md`, `plan.md`, and `tasks.md` set has
+  been written inside the coordinator branch/worktree.
+- `handoff-ready`: the prepared set passed required scope, shared-contract,
+  dependency-layer, write-gate, and source-of-truth checks and may be supplied
+  to a dependency-ready child handoff.
+
+Fan-out cannot start for any dependency-ready child unless the coordinator
+artifact records that child's artifact path and `handoff-ready` preparation
+status. A child handoff must include the prepared artifact paths and enough
+artifact summary for traceability, and it must instruct the child executor to
+consume those artifacts without regenerating `spec.md`, `plan.md`, or
+`tasks.md` independently.
 
 ### Shared Contract and Child Issue Boundaries
 
@@ -727,7 +762,8 @@ Report a concise preflight result with:
 - child dependency and conflict classification;
 - source-of-truth documents reviewed;
 - artifact-preparation status, including coordinator path, child paths, and
-  whether artifacts were prepared, described, blocked, or not applicable;
+  whether artifacts were planned, prepared, handoff-ready, described, blocked,
+  or not applicable;
 - sidecar Git status, including coordinator branch, coordinator checkout or
   worktree path, child branch names, child checkout or worktree paths, child PR
   target branch, refresh status, cleanup eligibility, and unresolved
@@ -790,6 +826,23 @@ Validation for this entrypoint must include:
   land on local `main`;
 - review that child artifacts require issue-numbered `spec.md`, `plan.md`, and
   `tasks.md` preparation before delegation;
+- simulation of one coordinator with at least three child issues proving each
+  child has planned `spec.md`, `plan.md`, and `tasks.md` content under
+  `specs/<child-issue-number>-<child-slug>/` and a recorded coordinator
+  preparation status;
+- simulation of planning child artifacts while the active checkout is `main`,
+  proving no child artifact files or directories are written and local `main`
+  remains clean;
+- simulation of writing child artifacts only after entering a coordinator
+  branch/worktree;
+- simulation proving a missing or conflicting shared implementation contract
+  blocks delegation instead of inventing a seed, foundation, or shared-contract
+  child issue;
+- simulation proving child artifact sibling-scope leakage stops the run before
+  delegation;
+- simulation proving existing child artifact paths, same-number child prefixes,
+  and duplicate child issue numbers stop before writing unless current sidecar
+  state proves this is the same resumable run;
 - simulation of one coordinator branch and two child branches using a temporary
   local Git repository, with the coordinator branch created from `origin/main`
   and each child branch created from the coordinator branch;
