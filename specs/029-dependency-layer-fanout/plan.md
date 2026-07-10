@@ -34,10 +34,11 @@ entities, persistence, migrations, browser storage, API payloads, or external
 storage change.
 
 **Testing**: Issue-required local coordinator simulations for three independent
-children, hard dependencies across layers, shared-contract blockers,
-unavailable child-agent capability, sample child handoff content review against
-the sidecar child skill, coordinator artifact status review, prohibited
-fallback review, changed-file/source-map review, and `git diff --check`.
+children, hard dependencies across layers, shared-contract blockers, missing
+prerequisites, non-mechanical conflict risks, unavailable child-agent
+capability, sample child handoff content review against the sidecar child
+skill, coordinator artifact status review, prohibited fallback review,
+changed-file/source-map review, and `git diff --check`.
 
 **Target Platform**: CatWorld Codex workflow instructions consumed by future
 implementation agents and maintainers during the sidecar build-out.
@@ -218,7 +219,7 @@ and `git diff --check`.
 |-----------------------|-------------------|---------------|--------------------------|
 | Three independent children launch in one dependency-ready layer (TR-001, TR-002, TR-008, SC-001) | Sidecar coordinator skill and #255 simulation | Simulation and source review | Rerun after fan-out or handoff readiness edits |
 | Hard dependencies wait for dependency merge into coordinator branch (TR-003, SC-002) | Sidecar coordinator skill, architecture docs, simulation | Simulation and source review | Rerun after dependency-layer wording changes |
-| Shared-contract blockers and non-mechanical conflict risks stop affected fan-out (TR-004, TR-005, SC-003) | Sidecar coordinator skill, coordinator artifact contract, simulation | Simulation and blocker report review | Rerun after blocker/conflict wording changes |
+| Missing prerequisites, shared-contract blockers, and non-mechanical conflict risks stop affected fan-out (TR-004, TR-005, TR-007, SC-003) | Sidecar coordinator skill, coordinator artifact contract, simulation | Simulation and blocker report review | Rerun after blocker/conflict wording changes |
 | Unavailable child-agent/subagent capability stops without sequential fallback (TR-006, SC-004) | Sidecar coordinator skill and simulation | Simulation and text review | Rerun after capability-detection edits |
 | Prepared handoff contents and one-child scope (TR-007, TR-008, TR-009, TR-010, SC-005) | Sidecar coordinator and child implementation skills, fan-out contract | Sample handoff review against child skill requirements | Rerun after handoff field edits |
 | Coordinator artifact launched/blocked/pending/waiting status recording (TR-011, SC-006) | Coordinator artifact contract and simulation | Simulation and source review | Rerun after artifact status vocabulary edits |

@@ -60,18 +60,18 @@
 
 **Goal**: Fan-out stops or blocks affected children when prerequisites, shared-contract readiness, conflict-risk resolution, worktree state, or child-agent capability is missing.
 
-**Verification**: Run the `shared-contract-blocker` and `unavailable-child-agent` simulation scenarios and review coordinator text for no sequential fallback.
+**Verification**: Run the `shared-contract-blocker`, `missing-prerequisites`, `conflict-risk-blocker`, and `unavailable-child-agent` simulation scenarios and review coordinator text for no sequential fallback.
 
 ### Evidence for Technical Outcome 2
 
-- [X] T011 [TO2] Add `shared-contract-blocker` and `unavailable-child-agent` scenarios to `specs/029-dependency-layer-fanout/validation/simulate-dependency-layer-fanout.ps1`
+- [X] T011 [TO2] Add `shared-contract-blocker`, `missing-prerequisites`, `conflict-risk-blocker`, and `unavailable-child-agent` scenarios to `specs/029-dependency-layer-fanout/validation/simulate-dependency-layer-fanout.ps1`
 
 ### Implementation for Technical Outcome 2
 
 - [X] T012 [TO2] Update `.agents/skills/catworld-parallel-coordinator/SKILL.md` launch readiness rules to require prepared child artifacts, shared contract, branch/worktree context, validation requirements, PR target rules, and out-of-scope boundaries before child launch
 - [X] T013 [TO2] Update `.agents/skills/catworld-parallel-coordinator/SKILL.md` to stop on unavailable child-agent/subagent capability and explicitly prohibit sequential fallback
 - [X] T014 [TO2] Update `docs/ARCHITECTURE.md` to document shared-contract blockers, non-mechanical conflict blockers, missing-prerequisite blockers, and unavailable child-agent capability behavior
-- [X] T015 [TO2] Run `.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario shared-contract-blocker` and verify affected fan-out stops without unsafe launch
+- [X] T015 [TO2] Run `.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario shared-contract-blocker`, `.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario missing-prerequisites`, and `.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario conflict-risk-blocker` and verify affected fan-out stops without unsafe launch
 - [X] T016 [TO2] Run `.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario unavailable-child-agent` and verify the workflow reports a capability blocker without sequential fallback
 
 **Checkpoint**: TO2 is objectively verified by blocker/capability simulations and source review.

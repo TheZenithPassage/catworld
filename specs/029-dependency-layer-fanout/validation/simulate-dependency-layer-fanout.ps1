@@ -3,6 +3,8 @@ param(
         'independent',
         'hard-dependencies',
         'shared-contract-blocker',
+        'missing-prerequisites',
+        'conflict-risk-blocker',
         'unavailable-child-agent',
         'handoff-content'
     )]
@@ -69,7 +71,7 @@ function New-Child {
 
 function New-Fixture {
     param(
-        [ValidateSet('independent', 'hard-dependencies', 'shared-contract-blocker')]
+        [ValidateSet('independent', 'hard-dependencies', 'shared-contract-blocker', 'missing-prerequisites', 'conflict-risk-blocker')]
         [string] $Kind = 'independent',
         [bool] $ChildAgentAvailable = $true
     )
@@ -97,6 +99,28 @@ function New-Fixture {
                 New-Child -Number 9902 -Title '[Workflow] Child routing fixture' -SharedContractState 'blocked'
                 New-Child -Number 9903 -Title '[Workflow] Child reporting fixture' -SharedContractState 'blocked'
                 New-Child -Number 9904 -Title '[Workflow] Child resume fixture' -SharedContractState 'blocked'
+            )
+        }
+        'missing-prerequisites' {
+            $artifactChild = New-Child -Number 9902 -Title '[Workflow] Child missing artifacts fixture'
+            $artifactChild.PreparedArtifacts = $false
+
+            $gitChild = New-Child -Number 9903 -Title '[Workflow] Child missing git context fixture'
+            $gitChild.BranchReady = $false
+            $gitChild.WorktreeReady = $false
+
+            $handoffChild = New-Child -Number 9904 -Title '[Workflow] Child missing handoff context fixture'
+            $handoffChild.ValidationRequirementsReady = $false
+            $handoffChild.PrTargetRulesReady = $false
+            $handoffChild.OutOfScopeReady = $false
+
+            @($artifactChild, $gitChild, $handoffChild)
+        }
+        'conflict-risk-blocker' {
+            @(
+                New-Child -Number 9902 -Title '[Workflow] Child routing fixture' -ConflictRisk 'non-mechanical shared workflow conflict'
+                New-Child -Number 9903 -Title '[Workflow] Child reporting fixture' -ConflictRisk 'non-mechanical shared workflow conflict'
+                New-Child -Number 9904 -Title '[Workflow] Child resume fixture' -ConflictRisk 'non-mechanical shared workflow conflict'
             )
         }
     }
@@ -365,6 +389,54 @@ switch ($Scenario) {
             Result = 'passed'
             LaunchedChildren = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'launched' } | ForEach-Object { $_.Child })
             BlockedChildren = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'blocked' } | ForEach-Object { $_.Child })
+            HandoffCount = $result.Handoffs.Count
+            LaunchStatuses = $result.LaunchStatuses
+        } | ConvertTo-Json -Depth 6
+    }
+    'missing-prerequisites' {
+        $fixture = New-Fixture -Kind 'missing-prerequisites'
+        $result = Invoke-FanOut -Fixture $fixture
+        $blockedStatuses = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'blocked' })
+        $reasonText = ($blockedStatuses | ForEach-Object { $_.Reason }) -join "`n"
+
+        Assert-Condition ($result.FirstDependencyReadyLayer.Count -eq 3) 'Expected all missing-prerequisite children to be dependency-ready.'
+        Assert-Condition ($result.Handoffs.Count -eq 0) 'Expected no handoffs while launch prerequisites are missing.'
+        Assert-Condition ($blockedStatuses.Count -eq 3) 'Expected all missing-prerequisite children to be blocked.'
+        Assert-Condition (@($blockedStatuses | Where-Object { [string]::IsNullOrWhiteSpace($_.Reason) }).Count -eq 0) 'Expected every blocked missing-prerequisite child to include a reason.'
+        Assert-Condition ($reasonText -match 'prepared child artifacts') 'Expected missing prepared child artifacts to be recorded.'
+        Assert-Condition ($reasonText -match 'child branch context') 'Expected missing child branch context to be recorded.'
+        Assert-Condition ($reasonText -match 'child worktree context') 'Expected missing child worktree context to be recorded.'
+        Assert-Condition ($reasonText -match 'validation requirements') 'Expected missing validation requirements to be recorded.'
+        Assert-Condition ($reasonText -match 'PR target rules') 'Expected missing PR target rules to be recorded.'
+        Assert-Condition ($reasonText -match 'out-of-scope boundaries') 'Expected missing out-of-scope boundaries to be recorded.'
+
+        [pscustomobject]@{
+            Scenario = 'missing-prerequisites'
+            Result = 'passed'
+            FirstDependencyReadyLayer = $result.FirstDependencyReadyLayer
+            BlockedChildren = @($blockedStatuses | ForEach-Object { $_.Child })
+            BlockedReasons = @($blockedStatuses | ForEach-Object { $_.Reason })
+            HandoffCount = $result.Handoffs.Count
+            LaunchStatuses = $result.LaunchStatuses
+        } | ConvertTo-Json -Depth 6
+    }
+    'conflict-risk-blocker' {
+        $fixture = New-Fixture -Kind 'conflict-risk-blocker'
+        $result = Invoke-FanOut -Fixture $fixture
+        $blockedStatuses = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'blocked' })
+
+        Assert-Condition ($result.FirstDependencyReadyLayer.Count -eq 3) 'Expected all conflict-risk children to be dependency-ready.'
+        Assert-Condition ($result.Handoffs.Count -eq 0) 'Expected no handoffs while non-mechanical conflict risks remain.'
+        Assert-Condition ($blockedStatuses.Count -eq 3) 'Expected all conflict-risk children to be blocked.'
+        Assert-Condition (@($blockedStatuses | Where-Object { [string]::IsNullOrWhiteSpace($_.Reason) }).Count -eq 0) 'Expected every conflict-risk child to include a reason.'
+        Assert-Condition (@($blockedStatuses | Where-Object { $_.Reason -match 'Non-mechanical conflict risk' }).Count -eq 3) 'Expected every blocked child to record the conflict-risk reason.'
+
+        [pscustomobject]@{
+            Scenario = 'conflict-risk-blocker'
+            Result = 'passed'
+            FirstDependencyReadyLayer = $result.FirstDependencyReadyLayer
+            BlockedChildren = @($blockedStatuses | ForEach-Object { $_.Child })
+            BlockedReasons = @($blockedStatuses | ForEach-Object { $_.Reason })
             HandoffCount = $result.Handoffs.Count
             LaunchStatuses = $result.LaunchStatuses
         } | ConvertTo-Json -Depth 6

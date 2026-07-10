@@ -72,7 +72,7 @@
 - **TR-010**: Child handoff instructions MUST prohibit child agents from regenerating planning artifacts, redefining shared contracts, creating sibling scope, mutating GitHub issues, or targeting `main`.
 - **TR-011**: The coordinator artifact MUST record which children were launched, blocked, pending, or waiting for dependency merges, with a clear reason for each child that was not launched.
 - **TR-012**: Fan-out MUST preserve existing sequential issue implementation behavior and MUST NOT activate general sidecar coordinator routing before #261.
-- **TR-013**: Validation MUST simulate a coordinator with three independent children, hard dependencies across layers, a shared-contract blocker, unavailable child-agent capability, sample child handoff contents against sidecar child skill requirements, coordinator artifact launch-status recording, and `git diff --check`.
+- **TR-013**: Validation MUST simulate a coordinator with three independent children, hard dependencies across layers, a shared-contract blocker, missing launch prerequisites, non-mechanical conflict risk, unavailable child-agent capability, sample child handoff contents against sidecar child skill requirements, coordinator artifact launch-status recording, and `git diff --check`.
 
 ### Scope Boundaries
 
@@ -110,7 +110,7 @@
 
 - **SC-001**: A coordinator simulation with three independent children verifies three child handoffs are produced for one dependency-ready layer.
 - **SC-002**: A hard-dependency simulation verifies only the first layer is launched and later layers are recorded as pending or waiting for dependency merges.
-- **SC-003**: A shared-contract blocker simulation verifies affected fan-out stops or blocks affected children without parallelizing unsafe work.
+- **SC-003**: Shared-contract blocker, missing-prerequisite, and conflict-risk simulations verify affected fan-out stops or blocks affected children without parallelizing unsafe work.
 - **SC-004**: An unavailable child-agent capability simulation verifies the workflow stops and reports the blocker instead of falling back to sequential implementation.
 - **SC-005**: Sample child handoff review verifies each launched child receives exactly one child issue plus the required coordinator context, child issue body, prepared artifacts, shared contract, dependency layer, branch/worktree context, validation requirements, PR target rules, and out-of-scope boundaries.
 - **SC-006**: Coordinator artifact review verifies launched, blocked, pending, and waiting-for-dependency-merge statuses are recorded with clear non-launch reasons.

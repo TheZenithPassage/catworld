@@ -92,6 +92,8 @@ Validation must include:
   three child handoffs for one layer;
 - simulation of hard dependencies where only the first layer launches;
 - simulation of a shared-contract blocker that stops affected fan-out;
+- simulation of missing launch prerequisites that blocks affected handoffs;
+- simulation of a non-mechanical conflict risk that blocks affected fan-out;
 - simulation of unavailable child-agent capability that stops instead of
   falling back to sequential implementation;
 - review of sample child handoff contents against the sidecar child skill

@@ -20,6 +20,8 @@ Run each fan-out simulation after implementation:
 .\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario independent
 .\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario hard-dependencies
 .\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario shared-contract-blocker
+.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario missing-prerequisites
+.\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario conflict-risk-blocker
 .\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario unavailable-child-agent
 .\specs\029-dependency-layer-fanout\validation\simulate-dependency-layer-fanout.ps1 -Scenario handoff-content
 ```
@@ -32,6 +34,11 @@ Expected outcomes:
   pending or waiting for dependency merges.
 - `shared-contract-blocker` reports blocked fan-out for affected children and
   no unsafe launch.
+- `missing-prerequisites` reports blocked children with missing handoff,
+  branch/worktree, validation, PR target, or out-of-scope context and no
+  handoffs.
+- `conflict-risk-blocker` reports non-mechanical conflict-risk blockers and no
+  unsafe handoffs.
 - `unavailable-child-agent` reports a capability blocker and no sequential
   fallback.
 - `handoff-content` reports required child handoff fields and prohibitions.
