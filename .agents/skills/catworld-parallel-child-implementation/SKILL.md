@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#256"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#257"
 metadata:
   author: "catworld"
-  source: "issues-228-232,253-256"
+  source: "issues-228-232,253-257"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -41,6 +41,13 @@ statuses, and may commit, push normally, and open or update the child PR only
 when delivery is permitted. That child PR targets the coordinator branch, uses
 `Related to` issue references only, and is ready only with fresh passing
 validation and no unresolved blocker.
+Issue #257 extends resumed child handoffs after user-owned child PR merges:
+the coordinator must re-read current evidence, refresh local coordinator state
+from the remote coordinator branch before any active child refresh, and supply
+the refreshed coordinator branch state, active-child refresh state, integrated
+child state, stale validation, and next-layer dependency status to this skill.
+This skill consumes that evidence and must stop when it is missing or conflicts
+with current GitHub or repository state.
 
 ## Routing Boundary
 
@@ -98,11 +105,14 @@ Before any implementation work, the handoff must provide all of these inputs:
 - coordinator resume state for this child, including child artifact path,
   workflow status, blockers, validation state, refresh state, cleanup
   eligibility, and whether the child is active, blocked, pending, paused,
-  resume-needed, merged-to-coordinator, or complete;
+  resume-needed, merged-to-coordinator, integrated, ready-next-layer, or
+  complete;
 - current GitHub and repository evidence that was re-read before handoff or
   resume, including coordinator issue, child issue, relevant PRs, coordinator
-  artifact, child artifacts, branch state, checkout/worktree state, validation
-  freshness, blockers, and cleanup approval state;
+  artifact, child artifacts, child PR merge status, remote coordinator branch
+  state, local coordinator branch/worktree refresh state, active child branch
+  state, checkout/worktree state, validation freshness, blockers, and cleanup
+  approval state;
 - target coordinator branch, including local branch ref, remote branch ref,
   push status, and evidence that it was created from current `origin/main`;
 - target coordinator checkout/worktree, including evidence that it is the
@@ -123,9 +133,10 @@ Before any implementation work, the handoff must provide all of these inputs:
   must not close the child issue or coordinator issue;
 - child PR delivery permission state, including whether scoped commits,
   normal non-force push, and child PR open/update are allowed for this handoff;
-- refresh status describing whether this child branch needs fast-forward or a
-  normal merge from the coordinator branch after another child PR has been
-  merged;
+- refresh status describing whether this child branch needs a normal merge
+  from the updated local coordinator branch after another child PR has been
+  merged into the remote coordinator branch and local coordinator state has
+  been refreshed;
 - last coordinator branch state incorporated into this child branch/worktree,
   when a refresh status is relevant;
 - cleanup eligibility status for the child branch and checkout/worktree;
@@ -186,14 +197,17 @@ Validate the handoff before touching implementation files:
   child PR delivery readiness is reported.
 - The handoff includes current GitHub and repository evidence re-read before
   resume, not private conversation context as the source of truth.
+- The handoff proves that local coordinator branch/worktree state has been
+  refreshed from the remote coordinator branch before any child is marked
+  integrated or any active child refresh is requested.
 - The handoff identifies the executable sidecar lifecycle state that produced
   this child handoff, and the state is compatible with launching exactly one
   dependency-ready layer.
 - The handoff includes child-agent/subagent capability evidence from the
   coordinator and does not ask this skill to act as a sequential fallback.
 - The child workflow status is explicit and distinguishes active, blocked,
-  pending, paused, resume-needed, merged-to-coordinator, or complete as
-  applicable.
+  pending, paused, resume-needed, merged-to-coordinator, integrated,
+  ready-next-layer, or complete as applicable.
 - The child branch starts from the coordinator branch ref recorded in the
   handoff and is not `main`.
 - The coordinator branch/worktree is the artifact write boundary, and prepared
@@ -208,8 +222,9 @@ Validate the handoff before touching implementation files:
 - The intended child PR target is the coordinator branch and not `main`.
 - The intended child PR wording uses `Related to` references only and cannot
   close the child issue or coordinator issue.
-- Any required refresh from the coordinator branch is a fast-forward or normal
-  merge only.
+- Any required active-child refresh uses a normal merge from the updated local
+  coordinator branch only when needed. The handoff must not ask the child to
+  refresh from stale local coordinator state.
 - Any validation affected by refresh, coordinator branch updates, conflict
   resolution, or other relevant changes is marked stale until rerun.
 - Cleanup eligibility states that local sidecar branches/worktrees are not
@@ -252,26 +267,31 @@ When the handoff is valid:
    GitHub/repository evidence that was re-read before continuing. If current
    evidence conflicts with the recorded state, stop and return the mismatch to
    the coordinator or user.
-3. Treat the prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract,
+3. When the handoff says another child PR has merged, confirm the handoff
+   identifies the refreshed local coordinator branch state incorporated into
+   this child or reports that active-child refresh is still blocked. Do not
+   treat a merged child PR as integrated from child-side context alone.
+4. Treat the prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract,
    and validation requirements as the implementation decision contract.
-4. Execute only tasks from the prepared child `tasks.md`.
-5. Keep implementation within the prepared child source map and out-of-scope
+5. Execute only tasks from the prepared child `tasks.md`.
+6. Keep implementation within the prepared child source map and out-of-scope
    boundaries.
-6. Run the validation required by the prepared child plan, tasks, shared
+7. Run the validation required by the prepared child plan, tasks, shared
    contract, and handoff.
-7. Rerun affected validation after relevant late changes, or report affected
+8. Rerun affected validation after relevant late changes, coordinator refresh,
+   active child refresh, or conflict resolution, or report affected
    evidence as `stale` and any required rerun as `not run` instead of passed.
-8. Record each validation command, manual review, local sample artifact, and
+9. Record each validation command, manual review, local sample artifact, and
    consumed coordinator or shared-contract check as `passed`, `failed`,
    `skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
    `not run`. Failed, timed-out, skipped, interrupted, partial, stale, blocked,
    and not-run validation must never be summarized as passed.
-9. Inspect changed files against the prepared child source map before final
+10. Inspect changed files against the prepared child source map before final
    reporting.
-10. When delivery is permitted, commit only scoped child changes, push the
+11. When delivery is permitted, commit only scoped child changes, push the
     child branch with a normal non-force push, and open or update the child PR
     against the coordinator branch.
-11. Report child PR URL and readiness back to the coordinator lifecycle. The
+12. Report child PR URL and readiness back to the coordinator lifecycle. The
     user owns merges into the remote coordinator branch; this skill does not
     merge child PRs, treat unmerged child PRs as integrated, or advance a
     hard-dependent layer on its own.
@@ -339,13 +359,19 @@ never be summarized as passed.
 Validation becomes stale when coordinator branch updates, child branch
 refreshes, conflict resolution, or other relevant changes could affect the
 previous evidence. Stale evidence must be rerun before the child can be
-reported ready, or it must remain explicitly reported as stale.
+reported ready, or it must remain explicitly reported as stale. After #257,
+validation affected by refreshing local coordinator state from the remote
+coordinator branch or by refreshing this active child from the updated local
+coordinator branch is stale until rerun.
 
 When a child handoff is resumed after a pause or a new Codex session, the child
 report must identify the GitHub and repository evidence re-read before
 continuing. It must report whether the child is active, blocked, pending,
-paused, resume-needed, merged-to-coordinator, or complete, and whether the
-branch/worktree refresh state is not needed, needed, in progress, or refreshed.
+paused, resume-needed, merged-to-coordinator, integrated, ready-next-layer, or
+complete, and whether the branch/worktree refresh state is not needed, needed,
+in progress, refreshed, stale, or blocked. It must identify the refreshed
+local coordinator branch state incorporated into this child when another child
+PR has merged.
 Private conversation context is not sufficient resume evidence.
 
 A sidecar child PR may be reported as ready only when required validation is
@@ -383,8 +409,9 @@ final passes do not use sidecar resumability state.
 When the child report is part of a waiting sidecar coordinator run, it must
 name the child PR that the user must merge into the remote coordinator branch
 before the coordinator resumes. When the child handoff resumes after another
-child PR has merged, it must identify the coordinator branch state incorporated
-by fast-forward or normal merge and mark affected validation stale until rerun.
+child PR has merged, it must identify the updated local coordinator branch
+state incorporated by normal merge and mark affected validation stale until
+rerun.
 
 ## Prohibited Side Effects
 
@@ -408,6 +435,9 @@ This skill must not:
   evidence conflicts with it;
 - rebase, force-push, or perform history-rewriting updates for sidecar
   branches;
+- refresh an active child from stale local coordinator state or treat a child
+  PR as integrated before local coordinator state has been refreshed from the
+  remote coordinator branch;
 - push sidecar branches, open pull requests, update pull requests, delete
   remote branches, prune remotes, or perform remote cleanup unless approved
   sidecar PR or cleanup rules permit the operation and explicit user approval
@@ -444,10 +474,12 @@ supplies sidecar validation, blocker, conflict, stale-evidence, readiness, and
 human-only blocker reporting rules. Issue #232 supplies sidecar resume state,
 resume re-read evidence, refresh state, stale validation, cleanup eligibility,
 and normal sequential state boundary rules. Issue #256 supplies prepared child
-execution and child PR delivery rules. Later sidecar issues may add approved
-adoption or additional delivery execution rules. Until the relevant rules and
-approvals are present in the handoff and governing source-of-truth documents,
-stop before those operations.
+execution and child PR delivery rules. Issue #257 supplies merge-aware
+coordinator resume, remote coordinator refresh before active child refresh,
+integration marking, next-layer progression, and refresh-stale validation
+rules. Later sidecar issues may add approved adoption or additional delivery
+execution rules. Until the relevant rules and approvals are present in the
+handoff and governing source-of-truth documents, stop before those operations.
 
 ## Stop Conditions
 
@@ -475,12 +507,16 @@ Stop and report a blocker when any of these occur:
   the prepared coordinator or child context;
 - the resume state is missing, depends on private conversation context, or
   conflicts with current GitHub or repository evidence;
+- a child PR merge is reported but the handoff does not prove local
+  coordinator state was refreshed from the remote coordinator branch before
+  integration marking or active-child refresh;
 - child PR issue-reference wording would close the child issue or coordinator
   issue instead of using `Related to` references only;
 - the current checkout/worktree does not match the prepared child branch and
   checkout/worktree context;
-- a required refresh would use rebase, force-push, history rewriting, or any
-  method other than fast-forward or a normal merge from the coordinator branch;
+- a required active-child refresh would use stale coordinator state, rebase,
+  force-push, history rewriting, or any method other than a normal merge from
+  the updated local coordinator branch;
 - required validation is absent or impossible to run honestly;
 - required validation is failed, stale, blocked, or not run and the handoff or
   report would need to treat it as passed or ready;
@@ -523,8 +559,9 @@ For each child implementation, validation must include:
 - confirmation that child workflow status, refresh state, validation freshness,
   blockers, and cleanup eligibility were reported from the prepared resume
   state;
-- confirmation that any required active-child refresh used fast-forward or a
-  normal merge from the coordinator branch;
+- confirmation that any required active-child refresh used a normal merge from
+  the updated local coordinator branch after local coordinator state was
+  refreshed from the remote coordinator branch;
 - confirmation that sidecar child PR guidance targets the coordinator branch,
   uses `Related to` issue references only, and does not close child or
   coordinator issues;
@@ -549,7 +586,8 @@ Report:
 - coordinator branch, child branch, child PR target, and worktree context from
   the handoff;
 - child workflow status, refresh state, validation freshness, blockers, cleanup
-  eligibility, and re-read evidence from the coordinator resume state;
+  eligibility, last incorporated coordinator branch state, and re-read evidence
+  from the coordinator resume state;
 - child PR issue-reference wording and GitHub mutation/public comment approval
   state from the handoff;
 - prepared artifacts consumed;
