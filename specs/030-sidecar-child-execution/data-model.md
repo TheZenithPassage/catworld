@@ -16,8 +16,11 @@ reports these workflow concepts:
   child checkout and branch, has completed only prepared tasks, and has
   recorded blockers or remaining work.
 - **Validation Freshness State**: Per-command status using `passed`, `failed`,
-  `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
-- **Child PR Delivery State**: Coordinator-branch target, related-only issue
-  wording, ready/draft readiness, PR URL when available, and delivery blockers.
+  `skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
+  `not run`.
+- **Child PR Delivery State**: Delivery permission state, coordinator-branch
+  target, related-only issue wording, ready/draft readiness, PR URL when
+  available, skipped-delivery reason when delivery is not permitted, and
+  delivery blockers.
 
 These states are workflow/reporting artifacts, not application persistence.

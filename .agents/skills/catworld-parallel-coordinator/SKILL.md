@@ -783,11 +783,11 @@ Sidecar child reports and coordinator integration reports must list every
 required command, manual review, local sample artifact, and consumed child
 validation result. Each evidence item must use an explicit status:
 `passed`, `failed`, `skipped`, `timed out`, `interrupted`, `partial`,
-`stale`, or `not run`.
+`stale`, `blocked`, or `not run`.
 
 Failed validation is never summarized as passed. Failed, timed-out, skipped,
-interrupted, partial, stale, and not-run validation must never be summarized as
-passed. A report may contain both passed and non-passed evidence, but its
+interrupted, partial, stale, blocked, and not-run validation must never be
+summarized as passed. A report may contain both passed and non-passed evidence, but its
 summary must preserve the non-passed status and its readiness impact.
 
 Validation becomes stale when coordinator branch updates, child branch
@@ -868,8 +868,8 @@ This entrypoint must not:
 - create sidecar artifacts outside the approved artifact-preparation phase or
   when any artifact-preparation stop condition applies;
 - run artifact preparation for closed-child coordinator final passes;
-- summarize failed, timed-out, skipped, interrupted, partial, stale, or not-run
-  validation as passed;
+- summarize failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  or not-run validation as passed;
 - report a sidecar child PR or final coordinator PR as ready while required
   validation is stale or an unresolved blocker affects readiness;
 - silently resolve non-trivial conflicts affecting contract, scope,
@@ -926,7 +926,7 @@ Report a concise preflight result with:
   remote cleanup approval state when PR delivery state has been prepared,
   described, or reported by a child executor;
 - sidecar validation reporting status, including commands and reviews passed,
-  failed, skipped, timed out, interrupted, partial, stale, and not run;
+  failed, skipped, timed out, interrupted, partial, stale, blocked, and not run;
 - child PR ready/draft readiness status and final coordinator readiness status;
 - sidecar resume state status, including completed, active, blocked, pending,
   paused, and resume-needed child work; required GitHub and repository evidence
@@ -1088,9 +1088,9 @@ Validation for this entrypoint must include:
 - review that closed-child coordinator final passes use normal sequential state
   handling and do not use sidecar resumability state;
 - review that commands and reviews are reported as passed, failed, skipped,
-  timed out, interrupted, partial, stale, or not run;
-- review that failed, timed-out, skipped, interrupted, partial, stale, and
-  not-run validation is never summarized as passed;
+  timed out, interrupted, partial, stale, blocked, or not run;
+- review that failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  and not-run validation is never summarized as passed;
 - review that stale validation after coordinator branch updates or child branch
   refreshes blocks readiness until rerun or explicitly reported as stale;
 - review that sidecar child PR readiness is ready only with fresh required

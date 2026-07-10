@@ -989,10 +989,11 @@ coordinator branch using fast-forward or a normal merge only. Rebase,
 force-push and history-rewriting updates remain prohibited. Validation affected
 by the refresh is stale until rerun after the update.
 
-When validation fails, is skipped, is interrupted, is partial, is stale or is
-not run before a pause, that state remains visible after resume and does not
-support ready status. Blockers remain recorded with their category, affected
-scope, evidence and required next action or human decision.
+When validation fails, is skipped, is timed out, is interrupted, is partial, is
+stale, is blocked or is not run before a pause, that state remains visible
+after resume and does not support ready status. Blockers remain recorded with
+their category, affected scope, evidence and required next action or human
+decision.
 
 Local cleanup is not eligible after individual child PR merges. It becomes
 eligible only after the final coordinator PR has merged into `main`, and only

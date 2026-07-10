@@ -263,9 +263,9 @@ When the handoff is valid:
    evidence as `stale` and any required rerun as `not run` instead of passed.
 8. Record each validation command, manual review, local sample artifact, and
    consumed coordinator or shared-contract check as `passed`, `failed`,
-   `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
-   Failed, timed-out, skipped, interrupted, partial, stale, and not-run
-   validation must never be summarized as passed.
+   `skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
+   `not run`. Failed, timed-out, skipped, interrupted, partial, stale, blocked,
+   and not-run validation must never be summarized as passed.
 9. Inspect changed files against the prepared child source map before final
    reporting.
 10. When delivery is permitted, commit only scoped child changes, push the
@@ -331,10 +331,10 @@ blockers, conflicts, resume state, refresh state, cleanup eligibility, and
 readiness state supplied by the handoff.
 
 Each validation item must use an explicit status: `passed`, `failed`,
-`skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
-Failed validation is never summarized as passed. Failed, timed-out, skipped,
-interrupted, partial, stale, and not-run validation must never be summarized as
-passed.
+`skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
+`not run`. Failed validation is never summarized as passed. Failed, timed-out,
+skipped, interrupted, partial, stale, blocked, and not-run validation must
+never be summarized as passed.
 
 Validation becomes stale when coordinator branch updates, child branch
 refreshes, conflict resolution, or other relevant changes could affect the
@@ -413,8 +413,8 @@ This skill must not:
   sidecar PR or cleanup rules permit the operation and explicit user approval
   exists where repository rules require it. Child PR open/update is permitted
   only through the Child PR Delivery Workflow above;
-- summarize failed, timed-out, skipped, interrupted, partial, stale, or not-run
-  validation as passed;
+- summarize failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  or not-run validation as passed;
 - report a sidecar child PR as ready while required validation is stale or an
   unresolved blocker affects the child;
 - silently resolve non-trivial conflicts affecting contract, scope,
@@ -482,8 +482,8 @@ Stop and report a blocker when any of these occur:
 - a required refresh would use rebase, force-push, history rewriting, or any
   method other than fast-forward or a normal merge from the coordinator branch;
 - required validation is absent or impossible to run honestly;
-- required validation is failed, stale, or not run and the handoff or report
-  would need to treat it as passed or ready;
+- required validation is failed, stale, blocked, or not run and the handoff or
+  report would need to treat it as passed or ready;
 - a child-specific, coordinator-wide, shared-contract, conflict, or human-only
   blocker remains unresolved;
 - a non-trivial conflict affects contract, scope, persistence, security,
@@ -501,14 +501,14 @@ For each child implementation, validation must include:
 - the commands, reviews, or manual evidence required by the prepared child
   artifacts and handoff;
 - explicit status for every validation item: `passed`, `failed`, `skipped`,
-  `timed out`, `interrupted`, `partial`, `stale`, or `not run`;
+  `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or `not run`;
 - freshness status for every validation result;
 - ready/draft child PR readiness based on fresh required validation, unresolved
   blockers, and approved sidecar PR target rules;
 - child-specific, coordinator-wide, shared-contract, conflict, and human-only
   blocker status when any such condition exists;
 - confirmation that failed, timed-out, skipped, interrupted, partial, stale,
-  and not-run validation was not summarized as passed;
+  blocked, and not-run validation was not summarized as passed;
 - changed-file review against the prepared source map;
 - confirmation that the child ran in the prepared child branch and isolated
   checkout/worktree from the coordinator handoff;

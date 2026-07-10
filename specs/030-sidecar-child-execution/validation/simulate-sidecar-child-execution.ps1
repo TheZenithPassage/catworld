@@ -4,6 +4,8 @@ param(
         'missing-context',
         'wrong-checkout',
         'wrong-branch',
+        'missing-delivery-permission',
+        'delivery-denied',
         'pr-wording',
         'pr-target',
         'readiness',
@@ -98,7 +100,9 @@ function New-TempGitRepository {
 function New-PreparedHandoff {
     param(
         [bool] $Complete = $true,
-        [string] $PrTargetBranch = 'sidecar/9901-coordinator-child-execution-fixture'
+        [string] $PrTargetBranch = 'sidecar/9901-coordinator-child-execution-fixture',
+        [bool] $DeliveryPermitted = $true,
+        [bool] $IncludeDeliveryPermission = $true
     )
 
     $childTitle = '[Workflow] Child execution fixture'
@@ -124,15 +128,19 @@ function New-PreparedHandoff {
         PrTargetBranch = $PrTargetBranch
         PrIssueReferences = @('Related to #9902', 'Related to #9901')
         ValidationRequirements = @('prepared child validation', 'git diff --check')
-        DeliveryPermitted = $true
         OutOfScope = @('Sibling child scope', 'GitHub issue mutation', 'main target')
         ProhibitedOperations = @('merge', 'approve', 'enable auto-merge', 'mutate GitHub issues', 'post public comments', 'delete remote branches', 'rebase', 'force-push', 'clean local sidecar resources')
+    }
+
+    if ($IncludeDeliveryPermission) {
+        $handoff['DeliveryPermitted'] = $DeliveryPermitted
     }
 
     if (-not $Complete) {
         $handoff.Remove('PreparedTasks')
         $handoff.Remove('SharedContract')
         $handoff.Remove('ValidationRequirements')
+        $handoff.Remove('DeliveryPermitted')
     }
 
     [pscustomobject]$handoff
@@ -157,6 +165,7 @@ function Test-HandoffCompleteness {
         'PrTargetBranch',
         'PrIssueReferences',
         'ValidationRequirements',
+        'DeliveryPermitted',
         'OutOfScope',
         'ProhibitedOperations'
     )
@@ -285,6 +294,43 @@ function Get-PrReadiness {
     }
 }
 
+function Invoke-ChildDeliverySimulation {
+    param(
+        [pscustomobject] $Handoff,
+        [pscustomobject] $Readiness
+    )
+
+    Assert-Condition ($Handoff.PSObject.Properties.Name.Contains('DeliveryPermitted')) 'Missing handoff context: DeliveryPermitted'
+
+    if (-not $Handoff.DeliveryPermitted) {
+        return [pscustomobject]@{
+            DeliveryPermitted = $false
+            DeliveryAttempted = $false
+            CommitAttempted = $false
+            PushAttempted = $false
+            PrOpenOrUpdateAttempted = $false
+            IssueMutationAttempted = $false
+            FallbackWorkflowAttempted = $false
+            Result = 'delivery not permitted by prepared handoff'
+            PrReadiness = 'not-ready'
+            ReadinessReason = 'delivery was not permitted by prepared handoff'
+        }
+    }
+
+    [pscustomobject]@{
+        DeliveryPermitted = $true
+        DeliveryAttempted = $true
+        CommitAttempted = $true
+        PushAttempted = $true
+        PrOpenOrUpdateAttempted = $true
+            IssueMutationAttempted = $false
+            FallbackWorkflowAttempted = $false
+            Result = 'delivery permitted by prepared handoff'
+            PrReadiness = $Readiness.Status
+            ReadinessReason = $Readiness.Reason
+        }
+}
+
 function New-FinalReport {
     param(
         [pscustomobject] $Handoff,
@@ -342,6 +388,48 @@ function Assert-FinalReport {
     Assert-Condition (@($Report.Validation | Where-Object { [string]::IsNullOrWhiteSpace($_.Status) }).Count -eq 0) 'Each validation item must include an explicit status.'
 }
 
+function Invoke-ExpectedExecutionBlock {
+    param(
+        [string] $Repository,
+        [pscustomobject] $Handoff,
+        [string] $ExpectedBlockerPrefix
+    )
+
+    $commitBefore = (Invoke-Git $Repository @('rev-parse', 'HEAD')).Output[0]
+    $implementationBlocked = $false
+    $blockerMessage = $null
+
+    try {
+        Invoke-ChildExecution -Repository $Repository -Handoff $Handoff | Out-Null
+    }
+    catch {
+        $implementationBlocked = $true
+        $blockerMessage = $_.Exception.Message
+    }
+
+    $workFile = Join-Path $Repository "child-work-$($Handoff.ChildIssueNumber).md"
+    $changedFiles = @((Invoke-Git $Repository @('status', '--porcelain')).Output)
+    $commitAfter = (Invoke-Git $Repository @('rev-parse', 'HEAD')).Output[0]
+
+    Assert-Condition $implementationBlocked 'Expected execution to block before implementation.'
+    Assert-Condition ($blockerMessage -like "$ExpectedBlockerPrefix*") "Expected blocker '$ExpectedBlockerPrefix' but got '$blockerMessage'."
+    Assert-Condition (-not (Test-Path -LiteralPath $workFile)) 'Blocked execution must not create the prepared task output file.'
+    Assert-Condition ($changedFiles.Count -eq 0) 'Blocked execution must leave the fixture worktree unchanged.'
+    Assert-Condition ($commitBefore -eq $commitAfter) 'Blocked execution must not create commits.'
+
+    [pscustomobject]@{
+        ImplementationBlocked = $implementationBlocked
+        TasksExecuted = @()
+        ChangedFiles = @()
+        CommitAttempted = $false
+        PushAttempted = $false
+        PrOpenOrUpdateAttempted = $false
+        IssueMutationAttempted = $false
+        FallbackWorkflowAttempted = $false
+        BlockerMessage = $blockerMessage
+    }
+}
+
 switch ($Scenario) {
     'valid-handoff' {
         $fixture = New-TempGitRepository
@@ -377,17 +465,36 @@ switch ($Scenario) {
         }
     }
     'missing-context' {
-        $handoff = New-PreparedHandoff -Complete:$false
-        $missing = @(Test-HandoffCompleteness -Handoff $handoff)
-        Assert-Condition ($missing.Count -gt 0) 'Expected incomplete handoff to report missing context.'
+        $fixture = New-TempGitRepository
+        try {
+            $handoff = New-PreparedHandoff -Complete:$false
+            $handoff.ExpectedCheckout = $fixture.Root
+            $missing = @(Test-HandoffCompleteness -Handoff $handoff)
+            Assert-Condition ($missing.Count -gt 0) 'Expected incomplete handoff to report missing context.'
+            Assert-Condition ($missing -contains 'DeliveryPermitted') 'Expected incomplete handoff to report missing delivery permission.'
+            $block = Invoke-ExpectedExecutionBlock -Repository $fixture.Root -Handoff $handoff -ExpectedBlockerPrefix 'Missing handoff context:'
 
-        [pscustomobject]@{
-            Scenario = 'missing-context'
-            Result = 'passed'
-            ImplementationBlocked = $true
-            MissingFields = $missing
-            PlanningRegenerationAttempted = $false
-        } | ConvertTo-Json -Depth 5
+            [pscustomobject]@{
+                Scenario = 'missing-context'
+                Result = 'passed'
+                ImplementationBlocked = $block.ImplementationBlocked
+                MissingFields = $missing
+                TasksExecuted = $block.TasksExecuted
+                ChangedFiles = $block.ChangedFiles
+                CommitAttempted = $block.CommitAttempted
+                PushAttempted = $block.PushAttempted
+                PrOpenOrUpdateAttempted = $block.PrOpenOrUpdateAttempted
+                IssueMutationAttempted = $block.IssueMutationAttempted
+                FallbackWorkflowAttempted = $block.FallbackWorkflowAttempted
+                PlanningRegenerationAttempted = $false
+                BlockerMessage = $block.BlockerMessage
+            } | ConvertTo-Json -Depth 5
+        }
+        finally {
+            if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+            }
+        }
     }
     'wrong-checkout' {
         $fixture = New-TempGitRepository
@@ -398,15 +505,24 @@ switch ($Scenario) {
 
             Assert-Condition (-not $context.CheckoutMatches) 'Expected checkout mismatch to block child implementation.'
             Assert-Condition $context.BranchMatches 'Fixture branch should still match so the scenario isolates checkout mismatch.'
+            $block = Invoke-ExpectedExecutionBlock -Repository $fixture.Root -Handoff $handoff -ExpectedBlockerPrefix 'Current checkout must match prepared child checkout.'
 
             [pscustomobject]@{
                 Scenario = 'wrong-checkout'
                 Result = 'passed'
-                ImplementationBlocked = $true
+                ImplementationBlocked = $block.ImplementationBlocked
                 CheckoutMatches = $context.CheckoutMatches
                 BranchMatches = $context.BranchMatches
                 CurrentRoot = $context.CurrentRoot
                 ExpectedRoot = $context.ExpectedRoot
+                TasksExecuted = $block.TasksExecuted
+                ChangedFiles = $block.ChangedFiles
+                CommitAttempted = $block.CommitAttempted
+                PushAttempted = $block.PushAttempted
+                PrOpenOrUpdateAttempted = $block.PrOpenOrUpdateAttempted
+                IssueMutationAttempted = $block.IssueMutationAttempted
+                FallbackWorkflowAttempted = $block.FallbackWorkflowAttempted
+                BlockerMessage = $block.BlockerMessage
             } | ConvertTo-Json -Depth 5
         }
         finally {
@@ -426,43 +542,102 @@ switch ($Scenario) {
 
             Assert-Condition $context.CheckoutMatches 'Fixture checkout should still match so the scenario isolates branch mismatch.'
             Assert-Condition (-not $context.BranchMatches) 'Expected branch mismatch to block child implementation.'
-
-            $implementationBlocked = $false
-            $blockerMessage = $null
-            try {
-                Invoke-ChildExecution -Repository $fixture.Root -Handoff $handoff | Out-Null
-            }
-            catch {
-                $implementationBlocked = $true
-                $blockerMessage = $_.Exception.Message
-            }
-
-            $workFile = Join-Path $fixture.Root "child-work-$($handoff.ChildIssueNumber).md"
-            $changedFiles = @((Invoke-Git $fixture.Root @('status', '--porcelain')).Output)
+            $block = Invoke-ExpectedExecutionBlock -Repository $fixture.Root -Handoff $handoff -ExpectedBlockerPrefix 'Current branch must match prepared child branch.'
             $commitAfter = (Invoke-Git $fixture.Root @('rev-parse', 'HEAD')).Output[0]
-
-            Assert-Condition $implementationBlocked 'Expected branch mismatch to block before implementation.'
-            Assert-Condition ($blockerMessage -eq 'Current branch must match prepared child branch.') 'Expected prepared child branch blocker.'
-            Assert-Condition (-not (Test-Path -LiteralPath $workFile)) 'Wrong branch must not create the prepared task output file.'
-            Assert-Condition ($changedFiles.Count -eq 0) 'Wrong branch must leave the fixture worktree unchanged.'
             Assert-Condition ($commitBefore -eq $commitAfter) 'Wrong branch must not create commits.'
 
             [pscustomobject]@{
                 Scenario = 'wrong-branch'
                 Result = 'passed'
-                ImplementationBlocked = $implementationBlocked
+                ImplementationBlocked = $block.ImplementationBlocked
                 CheckoutMatches = $context.CheckoutMatches
                 BranchMatches = $context.BranchMatches
                 CurrentBranch = $context.CurrentBranch
                 ExpectedBranch = $context.ExpectedBranch
-                TasksExecuted = @()
-                ChangedFiles = @()
-                CommitAttempted = $false
-                PushAttempted = $false
-                PrOpenOrUpdateAttempted = $false
-                IssueMutationAttempted = $false
-                FallbackWorkflowAttempted = $false
-                BlockerMessage = $blockerMessage
+                TasksExecuted = $block.TasksExecuted
+                ChangedFiles = $block.ChangedFiles
+                CommitAttempted = $block.CommitAttempted
+                PushAttempted = $block.PushAttempted
+                PrOpenOrUpdateAttempted = $block.PrOpenOrUpdateAttempted
+                IssueMutationAttempted = $block.IssueMutationAttempted
+                FallbackWorkflowAttempted = $block.FallbackWorkflowAttempted
+                BlockerMessage = $block.BlockerMessage
+            } | ConvertTo-Json -Depth 5
+        }
+        finally {
+            if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+            }
+        }
+    }
+    'missing-delivery-permission' {
+        $fixture = New-TempGitRepository
+        try {
+            $handoff = New-PreparedHandoff -IncludeDeliveryPermission:$false
+            $handoff.ExpectedCheckout = $fixture.Root
+            $missing = @(Test-HandoffCompleteness -Handoff $handoff)
+            Assert-Condition ($missing -contains 'DeliveryPermitted') 'Expected missing delivery permission to block incomplete handoff.'
+            $block = Invoke-ExpectedExecutionBlock -Repository $fixture.Root -Handoff $handoff -ExpectedBlockerPrefix 'Missing handoff context: DeliveryPermitted'
+
+            [pscustomobject]@{
+                Scenario = 'missing-delivery-permission'
+                Result = 'passed'
+                ImplementationBlocked = $block.ImplementationBlocked
+                MissingFields = $missing
+                TasksExecuted = $block.TasksExecuted
+                ChangedFiles = $block.ChangedFiles
+                CommitAttempted = $block.CommitAttempted
+                PushAttempted = $block.PushAttempted
+                PrOpenOrUpdateAttempted = $block.PrOpenOrUpdateAttempted
+                IssueMutationAttempted = $block.IssueMutationAttempted
+                FallbackWorkflowAttempted = $block.FallbackWorkflowAttempted
+                BlockerMessage = $block.BlockerMessage
+            } | ConvertTo-Json -Depth 5
+        }
+        finally {
+            if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+            }
+        }
+    }
+    'delivery-denied' {
+        $fixture = New-TempGitRepository
+        try {
+            $handoff = New-PreparedHandoff -DeliveryPermitted:$false
+            $handoff.ExpectedCheckout = $fixture.Root
+            $commitBefore = (Invoke-Git $fixture.Root @('rev-parse', 'HEAD')).Output[0]
+            $execution = Invoke-ChildExecution -Repository $fixture.Root -Handoff $handoff
+            $bodyCheck = Test-PrBody -Body (New-ChildPrBody -Handoff $handoff)
+            $readiness = Get-PrReadiness -ValidationStatuses @('passed', 'passed') -PrBodyValid:(-not $bodyCheck.HasClosingKeyword) -PrTargetValid:($handoff.PrTargetBranch -eq $handoff.CoordinatorBranch)
+            $delivery = Invoke-ChildDeliverySimulation -Handoff $handoff -Readiness $readiness
+            $commitAfter = (Invoke-Git $fixture.Root @('rev-parse', 'HEAD')).Output[0]
+
+            Assert-Condition ($execution.TasksExecuted.Count -eq 1) 'Delivery-denied scenario should still complete prepared task execution.'
+            Assert-Condition (-not $delivery.DeliveryAttempted) 'Delivery-denied scenario must not attempt delivery.'
+            Assert-Condition (-not $delivery.CommitAttempted) 'Delivery-denied scenario must not attempt commit.'
+            Assert-Condition (-not $delivery.PushAttempted) 'Delivery-denied scenario must not attempt push.'
+            Assert-Condition (-not $delivery.PrOpenOrUpdateAttempted) 'Delivery-denied scenario must not attempt PR open/update.'
+            Assert-Condition (-not $delivery.IssueMutationAttempted) 'Delivery-denied scenario must not mutate issues.'
+            Assert-Condition (-not $delivery.FallbackWorkflowAttempted) 'Delivery-denied scenario must not use fallback workflow.'
+            Assert-Condition ($commitBefore -eq $commitAfter) 'Delivery-denied scenario must not create commits.'
+            Assert-Condition ($delivery.Result -eq 'delivery not permitted by prepared handoff') 'Delivery-denied result must report that delivery was not permitted.'
+            Assert-Condition ($delivery.PrReadiness -eq 'not-ready') 'Delivery-denied scenario must not report a ready PR.'
+
+            [pscustomobject]@{
+                Scenario = 'delivery-denied'
+                Result = 'passed'
+                DeliveryPermitted = $handoff.DeliveryPermitted
+                TasksExecuted = $execution.TasksExecuted
+                ChangedFiles = $execution.ChangedFiles
+                DeliveryResult = $delivery.Result
+                DeliveryAttempted = $delivery.DeliveryAttempted
+                CommitAttempted = $delivery.CommitAttempted
+                PushAttempted = $delivery.PushAttempted
+                PrOpenOrUpdateAttempted = $delivery.PrOpenOrUpdateAttempted
+                IssueMutationAttempted = $delivery.IssueMutationAttempted
+                FallbackWorkflowAttempted = $delivery.FallbackWorkflowAttempted
+                PrReadiness = $delivery.PrReadiness
+                ReadinessReason = $delivery.ReadinessReason
             } | ConvertTo-Json -Depth 5
         }
         finally {

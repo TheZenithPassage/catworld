@@ -67,11 +67,11 @@
 
 ### Evidence for Technical Outcome 2
 
-- [X] T014 [TO2] Add `pr-wording`, `pr-target`, and `readiness` scenarios to `specs/030-sidecar-child-execution/validation/simulate-sidecar-child-execution.ps1`
+- [X] T014 [TO2] Add `missing-delivery-permission`, `delivery-denied`, `pr-wording`, `pr-target`, and `readiness` scenarios to `specs/030-sidecar-child-execution/validation/simulate-sidecar-child-execution.ps1`
 
 ### Implementation for Technical Outcome 2
 
-- [X] T015 [TO2] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` delivery workflow to allow scoped commit, normal non-force push, and child PR open/update only when the prepared handoff and repository rules permit delivery
+- [X] T015 [TO2] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` delivery workflow to require explicit delivery permission before scoped commit, normal non-force push, and child PR open/update
 - [X] T016 [TO2] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` to require child PR targets to be the coordinator branch and to stop on `main` targets
 - [X] T017 [TO2] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` to require `Related to #<child-issue>` and `Related to #<coordinator-issue>` references only and to reject closing keywords
 - [X] T018 [TO2] Update `.agents/skills/catworld-parallel-child-implementation/SKILL.md` to report child PRs as ready only when required validation is fresh and passed with no unresolved blocker, otherwise draft/not-ready when review delivery is allowed
@@ -79,7 +79,7 @@
 - [X] T020 [TO2] Update `docs/ARCHITECTURE.md` to document child PR coordinator-branch targets, related-only issue wording, and draft/ready readiness rules
 - [X] T021 [TO2] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario pr-wording` and verify generated child PR text uses related-only references and no closing keywords
 - [X] T022 [TO2] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario pr-target` and verify coordinator-branch targets pass while `main` targets fail
-- [X] T023 [TO2] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario readiness` and verify failed, skipped, timed-out, interrupted, partial, stale, blocked, and not-run validation produces draft/not-ready status
+- [X] T023 [TO2] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario missing-delivery-permission`, `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario delivery-denied`, and `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario readiness` and verify missing delivery permission blocks execution, delivery-denied handoffs skip commit/push/PR operations, and failed, skipped, timed-out, interrupted, partial, stale, blocked, and not-run validation produces draft/not-ready status
 
 **Checkpoint**: TO2 is objectively verified by PR wording, PR target, and readiness simulations plus source review.
 

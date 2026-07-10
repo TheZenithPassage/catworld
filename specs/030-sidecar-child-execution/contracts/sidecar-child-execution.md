@@ -22,6 +22,8 @@ for exactly one child issue:
 - child branch ref, source coordinator branch ref, and child checkout/worktree
   path;
 - branch/worktree collision and clean-state evidence;
+- child PR delivery permission state, including whether commit, push, and PR
+  open/update are permitted for this handoff;
 - child PR target branch, which must be the coordinator branch;
 - child PR issue-reference wording rules;
 - validation commands or manual evidence and freshness requirements;
@@ -47,11 +49,18 @@ coordinator artifact state, or infer missing branch/worktree context.
 
 ## Delivery Rules
 
-When the handoff and repository rules permit delivery, the child executor may:
+When the handoff explicitly permits delivery and repository rules also permit
+delivery, the child executor may:
 
 - commit scoped child changes;
 - push the child branch with a normal non-force push;
 - open or update the child PR.
+
+If delivery permission is missing, the handoff is incomplete and execution
+blocks before prepared tasks run. If delivery permission is present but false,
+prepared task execution may complete, but the child executor must not commit,
+push, open or update a PR, mutate issues, or fall back to another workflow; the
+final report must state that delivery was not permitted.
 
 The child executor must not merge, approve, enable auto-merge, rebase,
 force-push, delete remote branches, prune remotes, clean sidecar resources,
@@ -89,10 +98,11 @@ Child final reports must include:
 - validation freshness;
 - blockers, conflicts, unresolved decisions, stale evidence, or not-run
   evidence;
+- delivery permission state and any skipped delivery reason;
 - commit hashes when available;
 - child PR URL when available;
 - PR readiness as ready or draft with the reason;
 - current checkout branch.
 
 Reports must never summarize failed, skipped, timed-out, interrupted, partial,
-stale, or not-run validation as passed.
+stale, blocked, or not-run validation as passed.

@@ -42,6 +42,8 @@
 | Child workflow is not running in the prepared child checkout or expected branch | Yes | No | Report checkout or branch mismatch blocker | Prepared handoff state preserved | Retry only after entering the prepared child checkout and branch |
 | Prepared child `spec.md`, `plan.md`, `tasks.md`, shared contract, dependency state, branch/worktree state, or validation requirements are missing | Yes | No | Report missing prepared context | Existing local state preserved; artifacts are not regenerated | Retry after coordinator prepares the missing context |
 | Child tasks request work outside the prepared child `tasks.md` | Yes for out-of-scope work | No for out-of-scope delivery | Report task-scope blocker | Prepared child scope preserved | Retry after tasks are corrected by the coordinator or issue workflow |
+| Delivery permission is missing from the prepared handoff | Yes | No | Report missing delivery permission | Prepared handoff state preserved; artifacts are not regenerated | Retry after coordinator prepares delivery permission state |
+| Delivery permission is explicitly false | No for prepared task execution; yes for delivery | No for commit, push, PR open/update, issue mutation, or fallback workflow | Report delivery not permitted | Child diff and validation evidence preserved without delivery side effects | Retry delivery only after the prepared handoff and repository rules permit it |
 | Required validation is fresh and passed, with no blocker | No | PR may be opened/updated when delivery is permitted | N/A | Validation evidence preserved in final report and PR readiness | N/A |
 | Required validation is failed, skipped, stale, timed out, interrupted, partial, not run, or blocked | No only for draft review delivery when allowed; ready delivery blocked | PR may be opened/updated only as draft/not-ready when useful and allowed | Report explicit validation status and blocker | Validation evidence preserved; status is not summarized as passed | Rerun affected validation after fixes before ready delivery |
 | Generated child PR body references child or coordinator issue with closing keywords | Yes | No | Report PR wording blocker | Child and coordinator issue references preserved as related-only intent | Regenerate body with `Related to` references only |
@@ -77,7 +79,7 @@
 - **TR-011**: Child execution and delivery MUST NOT merge, approve, enable auto-merge, mutate GitHub issues, post public comments, delete remote branches, rebase, force-push, or clean local sidecar resources.
 - **TR-012**: Child final reports MUST include changed files, validation evidence with explicit statuses, PR URL when available, PR readiness, blockers, remaining risks, branch names, commit hashes when available, and current checkout state.
 - **TR-013**: Direct child issue requests outside sidecar `parallel` MUST continue to use the normal sequential implementation workflow.
-- **TR-014**: Validation MUST include a controlled local sample child handoff execution, PR body wording verification for related-only references and no closing keywords, PR target verification against the coordinator branch, draft/not-ready behavior for failed/skipped/stale/not-run validation, confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` is not modified, and `git diff --check`.
+- **TR-014**: Validation MUST include a controlled local sample child handoff execution, missing delivery-permission blocking, delivery-denied behavior, PR body wording verification for related-only references and no closing keywords, PR target verification against the coordinator branch, draft/not-ready behavior for failed/skipped/timed-out/interrupted/partial/stale/blocked/not-run validation, confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` is not modified, and `git diff --check`.
 
 ### Scope Boundaries
 
@@ -107,7 +109,7 @@
 - **Prepared Child Handoff**: Durable sidecar context for exactly one child issue, including child issue body, prepared child Spec Kit artifacts, shared contract, dependency state, branch/worktree state, validation requirements, PR target rules, and out-of-scope boundaries.
 - **Child Worktree/Checkout State**: Local filesystem and Git branch context that proves the child agent is operating in the prepared child checkout and branch.
 - **Child Task Scope**: The explicit list of executable tasks in the prepared child `tasks.md`; work outside this list is out of scope for the child agent.
-- **Child PR Delivery State**: Whether the child branch has been committed, pushed, and delivered to the coordinator branch as a ready or draft PR, including PR URL and readiness reason.
+- **Child PR Delivery State**: Whether delivery is permitted, whether the child branch has been committed, pushed, and delivered to the coordinator branch as a ready or draft PR, including PR URL, skipped-delivery reason, and readiness reason.
 - **Validation Freshness State**: Per-command status proving whether required validation is passed, failed, skipped, stale, timed out, interrupted, partial, blocked, or not run after the latest relevant changes.
 
 ## Success Criteria *(mandatory)*

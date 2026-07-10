@@ -15,6 +15,8 @@ Implemented validation scenarios:
 - `missing-context`
 - `wrong-checkout`
 - `wrong-branch`
+- `missing-delivery-permission`
+- `delivery-denied`
 - `pr-wording`
 - `pr-target`
 - `readiness`
@@ -59,6 +61,26 @@ Verify wrong branch blocks execution:
 Expected outcome: checkout/worktree still matches, but branch mismatch blocks
 execution before prepared tasks run, leaves no changed files, and performs no
 commit, push, PR, issue mutation, or fallback behavior.
+
+Verify missing delivery permission blocks execution:
+
+```powershell
+.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario missing-delivery-permission
+```
+
+Expected outcome: a handoff without delivery permission is incomplete, blocks
+before prepared tasks run, leaves no changed files, and performs no commit,
+push, PR, issue mutation, or fallback behavior.
+
+Verify delivery denied prevents PR delivery side effects:
+
+```powershell
+.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario delivery-denied
+```
+
+Expected outcome: prepared task execution completes, but delivery permission is
+false, so no commit, push, PR open/update, issue mutation, or fallback workflow
+is attempted and the result reports that delivery was not permitted.
 
 Verify child PR wording:
 

@@ -33,10 +33,11 @@ artifacts and reports only; no domain entities, persistence, migrations,
 browser storage, API payloads, or external storage change.
 
 **Testing**: Issue-required controlled local sample child handoff execution,
-child PR body wording verification, child PR target verification, ready/draft
-readiness verification for failed/skipped/stale/not-run validation, source
-review proving `.agents/skills/catworld-implement-issue/SKILL.md` is not
-modified, changed-file/source-map review, and `git diff --check`.
+child PR body wording verification, child PR target verification, delivery
+permission blocking/denial verification, ready/draft readiness verification for
+failed/skipped/timed-out/interrupted/partial/stale/blocked/not-run validation,
+source review proving `.agents/skills/catworld-implement-issue/SKILL.md` is
+not modified, changed-file/source-map review, and `git diff --check`.
 
 **Target Platform**: CatWorld Codex workflow instructions consumed by future
 implementation agents and maintainers during the sidecar build-out.
@@ -216,7 +217,7 @@ workflow files are not changed, and `git diff --check`.
 | Prepared handoff validation and checkout/branch confirmation (TR-001, TR-002, TR-004, SC-001) | Sidecar child skill and #256 simulation | Simulation and source review | Rerun after child handoff or context-validation edits |
 | Prepared task-only execution without planning regeneration (TR-003, TR-005, SC-001, SC-005) | Sidecar child skill, prepared task fixture, source review | Simulation and text review | Rerun after task-scope wording changes |
 | Child validation statuses and freshness (TR-006, TR-010, SC-004) | Sidecar child skill and #256 simulation | Simulation of passed, failed, skipped, timed-out, interrupted, partial, stale, blocked, and not-run validation states | Rerun after validation/readiness edits |
-| Child PR target and related-only issue wording (TR-007, TR-008, TR-009, SC-002, SC-003) | Sidecar child skill, coordinator skill, architecture docs, PR sample checks | Simulation and source review | Rerun after PR delivery wording changes |
+| Child PR delivery permission, target and related-only issue wording (TR-007, TR-008, TR-009, SC-002, SC-003) | Sidecar child skill, coordinator skill, architecture docs, PR sample checks | Simulation and source review | Rerun after PR delivery permission, target, or wording changes |
 | Prohibited GitHub/Git side effects and final report contents (TR-011, TR-012) | Sidecar child skill, architecture docs, source text review | `Select-String`/`rg` context review and simulation report review | Rerun before final report and after any workflow text edits |
 | Normal sequential workflow unchanged (TR-013, SB-003, SC-005) | Existing sequential skill and changed-file review | `git diff --name-only` and source review | Rerun before final report |
 | Markdown whitespace health (SC-006) | Git diff | `git diff --check` | Run after final edits |
