@@ -632,6 +632,16 @@ active child refresh, marks affected validation stale, records integrated,
 active, blocked, pending and ready-next-layer child states, and launches a next
 dependency-ready layer only when hard dependencies are integrated into the
 updated local coordinator branch.
+Issue #258 makes the final coordinator boundary executable for a future
+activated sidecar run: after every prepared child is ancestry-proven
+integrated, the coordinator runs the complete integrated suite at `H`, commits
+only the factual finalization artifact as direct child `H2`, validates and
+normally pushes that artifact-only head, reviews the PR-equivalent scope, and
+opens one ready coordinator-to-`main` PR only while all current evidence
+remains fresh. The temporary #258 implementation PR is part of the #249
+build-out, so it instead targets `workflow/sidecar-buildout` and uses
+`Related to #258`; that build-out delivery context does not change the runtime
+coordinator-branch-to-`main` contract or its final-only closing authority.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -676,15 +686,39 @@ states in the sidecar coordinator skill. If a stop condition applies, Codex
 reports the lifecycle state, evidence read, blocking condition and required
 user action when applicable.
 
+State 16 begins only after current GitHub, repository, branch and artifact
+evidence proves that the prepared-child ledger is complete and unique; every
+child PR targeted and was merged into the coordinator branch; every delivered
+child commit is present in refreshed coordinator ancestry; and no child is
+active, blocked, pending, dependency-incomplete, missing, duplicate or
+unexpected. It stops on incomplete accounting, metadata without ancestry,
+non-passing or unavailable required validation, invalid `H`/`H2` evidence,
+target-base or head movement, or unexplained integrated scope. Once this gate
+passes and finalization starts, no new child layer may be launched.
+
+State 17 begins only after complete validation passed at `H`; `H2` is proven
+to be the direct child of `H` and changes only the allowed finalization
+artifact; every artifact-affected check passed at `H2`; a normal non-force
+push made the fetched remote coordinator ref equal `H2`; and target-base,
+merge-base, local and remote head, ancestry, scope, validation, template and
+existing-PR evidence were rechecked and remain fresh. A stale or inconsistent
+existing final PR, ambiguous same-run identity, invalid source, target,
+template, issue wording, closing authority or readiness, a failed check, a
+remote-head mismatch, or need for a draft fallback or duplicate stops final
+delivery. Cleanup remains ineligible until the user merges the runtime final
+PR into `main`.
+
 Codex-owned operations include read-only issue and PR inspection, artifact
 planning, permitted local branch/worktree preparation after #261 activation,
 artifact writing inside the coordinator branch/worktree, dependency-ready
-child handoff launch, PR readiness reporting, allowed local refresh, and
-integrated validation reporting. The user owns all merges: child PRs into the
-remote coordinator branch and the final coordinator PR into `main`. GitHub
-issue mutation, public comments, remote branch deletion, remote pruning and
-remote cleanup require explicit user approval in a workflow that permits the
-operation.
+child handoff launch, PR readiness reporting, allowed local refresh, integrated
+validation reporting, the normal non-force push of artifact-only `H2`, and
+creation or a separately permitted safe update of one ready final coordinator
+PR after every finalization gate passes. The user owns all merges: child PRs
+into the remote coordinator branch and the final coordinator PR into `main`.
+GitHub issue mutation, public comments, remote branch deletion, remote pruning
+and remote cleanup require explicit user approval in a workflow that permits
+the operation.
 
 The sidecar coordinator builds dependency layers from child issue dependencies,
 conflict risks, shared implementation contract state, prepared artifact state,
@@ -722,6 +756,39 @@ sidecar resume state. Each child issue must have prepared or described
 `spec.md`, `plan.md` and `tasks.md` artifacts under the #225 child artifact
 path.
 
+Finalization extends that durable record with:
+
+- one complete and unique terminal child-integration ledger containing each
+  prepared child's PR target, observed merge, refreshed coordinator ancestry
+  proof and terminal workflow state;
+- integrated validation accounting that preserves historical attempts and
+  records exactly one current result for every requirement, evaluated head and
+  relevant input set; consumed child results remain identified as consumed
+  evidence and never replace a required integrated coordinator check;
+- the integrated scope review, including freshly fetched `origin/main`
+  target-base SHA `B`, PR-equivalent merge base, changed paths and surfaces,
+  combined coordinator/child source-map reconciliation and any unexplained
+  scope blocker;
+- literal integrated head `H`, artifact-only `H2` identified in its own
+  artifact as `SELF/HEAD`, expected parent `H`, direct-parent and sole-path
+  proof requirements, complete canonical H results, the canonical status-free
+  H2 rerun manifest and a non-empty applicability reason for each H result
+  consumed at H2;
+- H scope state, post-H2 scope/base recheck criteria, readiness
+  `pending H2 checks`, final-template blob identity and render-input
+  requirements, remaining risks, and cleanup `ineligible` with reason
+  `pending final PR merge`; and
+- current evidence for normal non-force H2 push/fetched remote-H2 proof,
+  stable same-run final-delivery identity, observed existing final PR state,
+  resolved H2 statuses, final scope and readiness, rendered-body fingerprint
+  and GitHub-returned PR URL in final reporting.
+
+The branch-bound H2 artifact records only facts available when H2 is created.
+It must not preclaim its resolved self SHA, post-H2 statuses, final scope,
+readiness, rendered-body fingerprint or PR URL. Those facts remain current
+repository/GitHub evidence and final-report state; the workflow must not create
+an H3 merely to write them back into the artifact.
+
 The child status table must be detailed enough for a later session to identify
 completed, active, blocked and pending sidecar child work without private
 conversation context. Each child row records child artifact path, branch, local
@@ -731,15 +798,20 @@ required validation when those values exist. Pending child rows may record
 not-started branch, checkout, PR and validation state, but they must not imply
 that local Git resources exist.
 
-The coordinator artifact is updated only with factual run state. It records
-blocked state, child handoff readiness, child handoff launch, child PR creation,
-user merge observation, children waiting for dependency merges, stale
-validation, next-layer readiness, final PR readiness and cleanup eligibility
-when those states actually occur or are observed. It must distinguish planned,
-blocked, prepared, handoff-ready, launched, ready, created, observed, stale,
-passed, failed, pending, waiting-for-dependency-merge and eligible states, and
-must not imply that branches, worktrees, pull requests, launches, merges,
-validation results or cleanup eligibility exist before they are real.
+The coordinator artifact is updated only with factual run state and only until
+the artifact-only H2 commit freezes it. Before that boundary it records blocked
+state, child handoff readiness, child handoff launch, child PR creation, user
+merge observation, children waiting for dependency merges, stale validation,
+next-layer readiness, terminal child accounting, H validation completion and
+the pending H2 manifest when those states actually occur. It must distinguish
+planned, blocked, prepared, handoff-ready, launched, integrated, ready, created,
+observed, stale, passed, failed, pending, `pending-H2-checks`,
+waiting-for-dependency-merge and ineligible states, and must not imply that
+branches, worktrees, pull requests, launches, merges, validation results,
+readiness or cleanup eligibility exist before they are real. Resolved H2
+results, remote-H2 proof, final PR state and later cleanup eligibility are
+reported from current repository/GitHub evidence after H2; they do not cause an
+artifact update or H3.
 
 Artifact preparation must validate child artifacts against the coordinator
 issue, child issue bodies, relevant source-of-truth documentation, current
@@ -990,6 +1062,14 @@ must re-read current GitHub and repository evidence before continuing:
 - validation evidence, status and freshness;
 - child PR URL, target branch and ready/draft state when child delivery has
   occurred;
+- the complete prepared-child ledger, merge observations and refreshed
+  coordinator ancestry proofs;
+- fetched `origin/main` target-base SHA, PR-equivalent merge base, local and
+  remote coordinator heads, ancestry and integrated scope state;
+- `H` and `H2` finalization identity, direct-parent/sole-artifact evidence,
+  H results, H2 rerun requirements and resolved current H2 evidence;
+- final-template blob and render inputs, stable same-run final PR identity,
+  current final PR source, target, body, readiness and URL evidence;
 - blockers, conflicts and human-only decision state;
 - cleanup eligibility and remote cleanup approval state.
 
@@ -1001,7 +1081,9 @@ force-pushing or treating stale validation as fresh.
 When a sidecar coordinator is waiting on user merges, Codex reports exactly
 which child PRs must be merged into the remote coordinator branch before
 resume. When all child PRs are integrated, the next lifecycle state is
-integrated coordinator validation, not another child execution layer.
+integrated coordinator validation, not another child execution layer. Once the
+complete child ledger passes the terminal gate and finalization begins, resume
+must not launch another child layer.
 
 For each child issue, sidecar resume state distinguishes completed, integrated,
 active, blocked, pending, waiting-for-dependency-merge, ready-next-layer,
@@ -1035,6 +1117,16 @@ after resume and does not support ready status. Blockers remain recorded with
 their category, affected scope, evidence and required next action or human
 decision.
 
+Resume also records factual finalization transitions: complete integrated
+validation at H; creation of direct artifact-only H2 with required reruns still
+pending; resolved H2 check, scope, base and remote-head evidence; and creation
+or observation of the unique ready final PR. It preserves prior validation
+attempts as historical evidence while identifying exactly one current result
+for every readiness requirement and evaluated state. It never upgrades stale
+or inconsistent artifact, branch, validation or existing-PR evidence silently.
+The PR URL and resolved post-H2 state remain current evidence and final-report
+data rather than causing an H3 artifact update.
+
 Local cleanup is not eligible after individual child PR merges. It becomes
 eligible only after the final coordinator PR has merged into `main`, and only
 for local branches and worktrees created by the sidecar workflow. Remote branch
@@ -1045,6 +1137,93 @@ A closed-child coordinator final pass uses the existing sequential workflow and
 normal sequential state handling. It may reference closed child issues for
 traceability, but it must not use sidecar resumability state or present closed
 child issue scope as newly implemented work.
+
+### Integrated Coordinator Validation and Finalization
+
+This procedure applies only to a future activated sidecar run after the local
+coordinator branch has been refreshed from its remote branch. Its runtime
+target base is fetched `origin/main`. The temporary #258 implementation branch
+starts from and validates against `origin/workflow/sidecar-buildout`; its PR
+targets `workflow/sidecar-buildout` and uses `Related to #258`. That
+implementation-only base is not a runtime coordinator target.
+
+Before final validation, Codex re-reads the coordinator issue, every prepared
+child issue and dependency, every child PR target and merge state, local and
+remote coordinator refs, coordinator and child artifacts, validation evidence,
+blockers, cleanup state and existing final PR evidence. Private conversation
+context is not a source of truth. Finalization requires one complete, unique
+ledger for the prepared child set. Every child PR must target and be merged
+into the coordinator branch, and every delivered child commit must be present
+in refreshed local coordinator ancestry; merged metadata alone is insufficient.
+Every child workflow state must be `integrated`. Missing, duplicate, unexpected,
+active, blocked, pending, dependency-incomplete or conflicting child state
+stops finalization. Open child issues may remain open for the final PR's closing
+authority and do not by themselves indicate incomplete integration.
+
+Codex discovers the complete required integrated checks from the coordinator
+issue, prepared child artifacts, shared contracts, affected surfaces,
+repository instructions and combined source maps. Reports preserve historical
+attempts and record exactly one current result per requirement, evaluated head
+and relevant input set. Fresh applicable child results may be consumed only as
+identified evidence and do not replace required integrated coordinator checks.
+At literal coordinator head `H`, Codex first fetches current `origin/main`
+without updating local `main`, records that runtime target-base SHA as `B` and
+the PR-equivalent merge base for B and H, and reviews the complete
+merge-base-to-H diff against coordinator scope, child issues and PRs, approved
+artifacts, shared contracts and combined source maps. That review must pass and
+be recorded as the H scope result before the H2 artifact can cite it. The
+complete required implementation suite then runs at H; every current required
+result must be fresh and `passed` before finalization continues.
+
+Runtime finalization uses exactly two heads:
+
+- `B` is the freshly fetched `origin/main` target-base SHA;
+- `H` is the fully integrated coordinator head at which the complete required
+  implementation suite ran; and
+- `H2` is the direct child of `H` containing only the factual coordinator
+  finalization artifact update.
+
+The H2 artifact records literal B, literal H, `H2 = SELF/HEAD`, expected parent
+H, the sole allowed artifact path, complete H check results, a complete
+status-free H2 rerun manifest, and a non-empty applicability reason for every H
+result that will remain applicable. It also records H scope state, post-H2
+scope/base recheck criteria, final-template blob identity and render-input
+requirements, remaining risks, cleanup `ineligible` with reason
+`pending final PR merge`, and readiness `pending H2 checks`. It does not
+preclaim its resolved self SHA, post-H2 statuses, final H2 scope or readiness,
+rendered-body fingerprint or PR URL.
+
+After committing H2, Codex proves that H2 has exactly one parent and that the
+parent is H, and proves that the exact `H..H2` name/status delta contains only
+the explicitly allowed artifact with its expected change type. It reruns every
+artifact-affected check listed in the H2 manifest, including artifact/schema
+validation, explicit-range `git diff --check`, source-map/scope review and
+base/head checks. Resolved statuses remain current evidence and final-report
+data. An H result may be consumed at H2 only when its applicability reason
+explains why the artifact-only delta cannot invalidate it. The workflow does
+not claim that the complete suite ran at H2 unless it actually did and does not
+create H3 to store resolved evidence or the later PR URL.
+
+H2 is pushed to the remote coordinator branch only by a normal non-force push.
+Codex fetches that ref and requires it to equal H2. Rejection or mismatch stops
+delivery without force-push, force-with-lease, rebase-push, branch recreation
+or other history rewriting. Any extra parent, path or commit after H2, failed
+H2 check, missing applicability reason, remote mismatch or stale evidence also
+stops final delivery.
+
+After H2 exists, the integrated scope review is rerun as an artifact-affected
+check using B and the recorded PR-equivalent merge base. The complete
+merge-base-to-H2 diff is reconciled with coordinator scope, child issues and
+PRs, approved artifacts, shared contracts and combined source maps, and the
+workflow confirms that only the allowed finalization artifact changed since
+the passed H review. Unexplained scope or changed base/ancestry evidence is a
+blocker.
+Immediately before final PR creation or a separately permitted safe update,
+Codex re-fetches `origin/main` and the remote coordinator branch, then rechecks
+the target-base SHA, merge base, local and remote H2, ancestry, diff scope,
+validation freshness, final template and render inputs, and existing same-run
+PR evidence. Relevant movement or inconsistency makes affected evidence stale
+and stops delivery rather than silently changing readiness.
 
 ### Sidecar PR Delivery Rules
 
@@ -1068,16 +1247,44 @@ unresolved blocker affects the child. If required validation is failed,
 skipped, timed out, interrupted, partial, stale, blocked or not run, any
 review-useful child PR is draft/not-ready and the report preserves that status.
 
-The final sidecar coordinator PR targets `main` from the coordinator
-integration branch. It may close the coordinator issue and child issues in the
-sidecar set, and it should list integrated child PRs or child issue references
-clearly enough for reviewer traceability. The final coordinator PR is the only
-sidecar PR that may close the coordinator set during sidecar parallel
-delivery.
+After every integrated validation and finalization gate passes, Codex re-reads
+current PR evidence for the stable same-run final-delivery identity and creates
+at most one final coordinator PR. An existing same-run PR may be reused or
+updated only when that operation is separately permitted and every affected
+requirement is freshly revalidated. If its source, target, body, readiness,
+validation or identity is stale or inconsistent, Codex stops and reports the
+exact required user action; it does not create a duplicate, silently mutate
+readiness or use a draft as a fallback.
+
+The body is rendered from
+`.github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md` using
+current evidence. The final PR must:
+
+- be ready for review;
+- source the remote coordinator integration branch verified at H2 and target
+  `main`;
+- identify integrated child PRs or child issue references for traceability;
+- list complete checks at H and resolved artifact-affected checks at H2 with
+  explicit statuses and freshness;
+- record target-base SHA, merge base, local and remote H2, integrated scope
+  result, applicability rationale, remaining risks and cleanup `ineligible`
+  with reason `pending final PR merge`; and
+- use closing keywords only for the coordinator and delivered child issues.
+
+The final coordinator PR is the only sidecar PR that may target `main` or close
+the coordinator set during sidecar parallel delivery. This runtime authority
+does not apply to temporary #249 build-out PRs such as #258, whose target and
+non-closing issue reference remain the build-out integration branch and
+`Related to` wording. Current GitHub evidence and the final report record the
+returned final PR URL and readiness; Codex does not create H3 merely to write
+the URL, rendered-body fingerprint or resolved post-H2 evidence back into the
+coordinator artifact.
 
 Codex reports readiness for sidecar child PRs and the final coordinator PR.
-The user performs merges. Codex must not merge, approve or enable auto-merge
-on pull requests.
+The user performs every merge. Codex must not merge, approve or enable
+auto-merge on pull requests. Local cleanup remains `ineligible` with reason
+`pending final PR merge` until current evidence shows that the final
+coordinator PR has merged into `main`.
 
 GitHub issue body, checklist, label, assignee, milestone, issue state and
 public comment mutations require explicit user approval in a workflow that
@@ -1112,6 +1319,13 @@ result. Each item uses an explicit status:
 - `blocked`
 - `not run`
 
+These are the canonical sidecar validation statuses. Reports preserve prior
+attempts as historical evidence and identify exactly one current readiness
+result for each requirement, evaluated head and relevant input set. Unavailable
+or dishonest-to-run evidence is recorded as `blocked` or `not run` with a
+reason rather than omitted. Consumed child evidence is named and scoped, and
+it never substitutes for a required integrated coordinator check.
+
 Failed validation is never summarized as passed. Failed, timed-out, skipped,
 interrupted, partial, stale, blocked and not-run validation is never summarized
 as passed. A report may contain passed evidence, but the summary still
@@ -1119,10 +1333,19 @@ preserves every non-passed status and its readiness impact.
 
 Validation becomes stale when a coordinator branch update, remote coordinator
 refresh, local coordinator refresh, active child branch refresh, conflict
-resolution or other relevant change could affect previous evidence. Stale
-evidence must be rerun before sidecar readiness is reported, or it stays
-explicitly reported as stale. Coordinator readiness must not consume stale
-child evidence as fresh evidence.
+resolution, target-base or merge-base movement, artifact change or other
+relevant change could affect previous evidence. Stale evidence must be rerun
+before sidecar readiness is reported, or it stays explicitly reported as
+stale. Coordinator readiness must not consume stale child evidence as fresh
+evidence. H evidence may remain current at H2 only after direct-parent and
+sole-artifact-delta proof and a non-empty applicability rationale showing why
+the H2 artifact cannot invalidate that result.
+
+Finalization reporting distinguishes the complete suite run at H from the
+artifact-affected checks rerun at H2. It records actual statuses at their
+evaluated heads and does not claim the complete suite ran at H2 unless it did.
+It also reports target-base, merge-base, local/remote H2, scope, template,
+existing-PR and cleanup evidence from the final pre-creation recheck.
 
 A sidecar child PR is ready only when required validation is fresh and passed,
 no unresolved blocker affects the child, and the approved sidecar PR target and
@@ -1131,7 +1354,10 @@ validation is failed, skipped, timed out, interrupted, partial, stale, not run
 or blocked, unless the non-passed evidence is explicitly outside child
 readiness and the report explains why. Final coordinator readiness follows the
 same freshness and blocker principle for coordinator-level and consumed child
-evidence.
+evidence, but it has no draft fallback: any required non-passing, unavailable,
+stale, scope-drift, base/head, remote-ref or existing-PR blocker prevents final
+PR creation or an allowed update. An existing final PR is not reported ready
+while its evidence is stale or inconsistent.
 
 Sidecar reports distinguish:
 
