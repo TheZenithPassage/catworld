@@ -625,6 +625,13 @@ statuses, and may commit, push normally and open or update the child PR only
 when the handoff and repository rules permit delivery. The child PR targets
 the coordinator branch, uses `Related to` issue references only, and is ready
 only when required validation is fresh and passed with no unresolved blocker.
+Issue #257 makes coordinator resume merge-aware after user-owned child PR
+merges: Codex re-reads current GitHub and repository evidence, fetches and
+refreshes local coordinator state from the remote coordinator branch before
+active child refresh, marks affected validation stale, records integrated,
+active, blocked, pending and ready-next-layer child states, and launches a next
+dependency-ready layer only when hard dependencies are integrated into the
+updated local coordinator branch.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -658,7 +665,7 @@ The lifecycle states are:
 13. Fetch and refresh local coordinator branch/worktree from the remote
     coordinator branch.
 14. Active child branch refresh from the updated local coordinator branch by
-    fast-forward or normal merge only.
+    normal merge only when needed.
 15. Next dependency layer execution.
 16. Integrated coordinator validation.
 17. Final coordinator PR to `main`.
@@ -692,7 +699,8 @@ unresolved conflict risk or shared-contract blocker exists. A hard-dependent
 layer waits until prerequisite child PRs are merged into the coordinator
 branch, the local coordinator branch/worktree has been refreshed from the
 remote coordinator branch, affected active child branches/worktrees have been
-refreshed by an allowed method, and required validation is fresh. If
+refreshed by an allowed method, and required validation state is known. Stale
+validation remains stale until rerun and must not support ready status. If
 child-agent/subagent execution is unavailable, Codex stops and reports a
 capability blocker instead of silently falling back to sequential
 implementation.
@@ -929,15 +937,31 @@ must not target `main` directly. Hard-dependent layers wait until prerequisite
 child PRs are integrated and required coordinator or active-child refresh is
 complete.
 
-After the user merges a child PR into the coordinator branch, every still-active
-sidecar child branch or worktree that needs the latest coordinator state is
-updated from the coordinator branch using fast-forward or a normal merge only.
+After the user merges a child PR into the remote coordinator branch, Codex
+first re-reads current GitHub and repository evidence, fetches the remote
+coordinator branch, and refreshes the local coordinator branch/worktree from
+that remote branch. Local coordinator refresh may use fast-forward or a normal
+merge only. It stops on unexpected local changes, missing branch state, unsafe
+divergence, stale evidence that prevents a safe decision, failed fetch or
+conflicts. Codex must not rebase, force-push, use `--force-with-lease`,
+perform history-rewriting updates, update local `main`, merge into local
+`main`, delete resources, mutate GitHub issues or merge PRs to make refresh
+succeed.
+
+A completed child is integrated only when its PR is merged into the coordinator
+branch and local coordinator state has been refreshed from the remote
+coordinator branch containing that merge. Only after local coordinator refresh
+may Codex refresh still-active child branches/worktrees, launch the next
+dependency layer or consume merged child work as fresh coordinator evidence.
+Still-active sidecar child branches or worktrees that need the latest
+coordinator state are updated from the updated local coordinator branch using a
+normal merge only when needed. They must not refresh from stale local
+coordinator state.
+
 Sidecar branches must not be rebased, force-pushed, updated with
 `--force-with-lease`, or updated with any history-rewriting operation.
-On resume after user merges, Codex first fetches and refreshes the local
-coordinator branch/worktree from the remote coordinator branch. Only then may
-it refresh active child branches/worktrees, launch the next dependency layer,
-or consume the merged child work as fresh coordinator evidence.
+Validation affected by coordinator refresh or active child refresh is stale
+until rerun.
 
 Local sidecar branches and worktrees are not deleted after individual child PR
 merges. Local cleanup is eligible only after the final coordinator PR has been
@@ -956,10 +980,12 @@ must re-read current GitHub and repository evidence before continuing:
 
 - coordinator issue body, state, labels and listed child issues;
 - child issue bodies, states, labels, dependencies and blockers;
-- relevant child PRs and final coordinator PR state;
+- relevant child PR states, target branches, readiness, merge status and final
+  coordinator PR state;
 - coordinator artifact and child artifacts;
-- coordinator branch state;
-- active child branch state;
+- remote coordinator branch state;
+- local coordinator branch/worktree state;
+- active child branch/worktree state;
 - local checkout/worktree existence and path state;
 - validation evidence, status and freshness;
 - child PR URL, target branch and ready/draft state when child delivery has
@@ -977,17 +1003,31 @@ which child PRs must be merged into the remote coordinator branch before
 resume. When all child PRs are integrated, the next lifecycle state is
 integrated coordinator validation, not another child execution layer.
 
-For each child issue, sidecar resume state distinguishes completed, active,
-blocked, pending, paused and resume-needed work. It records child artifact
-path, branch, local checkout/worktree, PR, validation state, workflow status,
-blockers, refresh state and cleanup eligibility when those values exist.
+For each child issue, sidecar resume state distinguishes completed, integrated,
+active, blocked, pending, waiting-for-dependency-merge, ready-next-layer,
+paused and resume-needed work. It records child artifact path, branch, local
+checkout/worktree, PR, validation state, workflow status, blockers, remote
+coordinator branch state, local coordinator refresh state, active child refresh
+state and cleanup eligibility when those values exist.
 
-After the user merges a child PR into the coordinator branch, completed child
-state remains recorded. Still-active child branches or worktrees that need the
-latest coordinator state are marked refresh-needed and are updated from the
-coordinator branch using fast-forward or a normal merge only. Rebase,
-force-push and history-rewriting updates remain prohibited. Validation affected
-by the refresh is stale until rerun after the update.
+After the user merges a child PR into the remote coordinator branch, completed
+child state remains recorded but is not marked integrated until local
+coordinator state has been refreshed from the remote coordinator branch.
+Still-active child branches or worktrees that need the latest coordinator
+state are marked refresh-needed and are updated from the updated local
+coordinator branch using a normal merge only when needed. Rebase, force-push,
+force-with-lease and history-rewriting updates remain prohibited. Validation
+affected by coordinator refresh or active child refresh is stale until rerun
+after the update.
+
+After observed merges and refresh, the coordinator recomputes dependency
+layers from child dependencies, integrated child state, active/blocked/pending
+state, shared contract state, conflict risk, validation freshness and updated
+local coordinator branch state. It may launch a next dependency-ready layer
+only when every hard dependency is integrated into the updated local
+coordinator branch and no shared-contract, validation, human-only, conflict,
+unsafe dependency or child-agent capability blocker remains. Unsafe resume
+stops with blockers instead of silently switching to sequential mode.
 
 When validation fails, is skipped, is timed out, is interrupted, is partial, is
 stale, is blocked or is not run before a pause, that state remains visible
@@ -1077,9 +1117,10 @@ interrupted, partial, stale, blocked and not-run validation is never summarized
 as passed. A report may contain passed evidence, but the summary still
 preserves every non-passed status and its readiness impact.
 
-Validation becomes stale when a coordinator branch update, child branch refresh,
-conflict resolution or other relevant change could affect previous evidence.
-Stale evidence must be rerun before sidecar readiness is reported, or it stays
+Validation becomes stale when a coordinator branch update, remote coordinator
+refresh, local coordinator refresh, active child branch refresh, conflict
+resolution or other relevant change could affect previous evidence. Stale
+evidence must be rerun before sidecar readiness is reported, or it stays
 explicitly reported as stale. Coordinator readiness must not consume stale
 child evidence as fresh evidence.
 

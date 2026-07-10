@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues, prepare sidecar artifacts and Git state, and launch one dependency-ready child handoff layer for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#256"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#257"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252-256"
+  source: "issues-226-232,252-257"
 ---
 
 # CatWorld Parallel Coordinator
@@ -47,6 +47,13 @@ handoff execution-capable: a launched child validates its prepared checkout and
 branch, implements only prepared `tasks.md` work, reports explicit validation
 statuses, and may commit, push normally, and open or update a child PR against
 the coordinator branch when the handoff and repository rules permit delivery.
+Issue #257 makes coordinator resume merge-aware after user-owned child PR
+merges: the coordinator re-reads current GitHub and repository evidence,
+fetches and refreshes local coordinator state from the remote coordinator
+branch before active child refresh, marks affected validation stale, records
+integrated/active/blocked/pending/ready-next-layer child states, and launches a
+next dependency-ready layer only when hard dependencies are integrated into the
+updated local coordinator branch.
 The coordinator still does not merge, approve, enable auto-merge, mutate
 GitHub issues, post public comments, run adoption dry-runs, replace the normal
 sequential implementation workflow, or perform user-owned child PR merges.
@@ -149,9 +156,11 @@ Compare the coordinator and child issue bodies against:
 - `docs/ARCHITECTURE.md` workflow routing and sidecar artifact path guidance;
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
-  #228, #229, #230, #231, #232, #249, #250, #251, #252, #253, #254, and #255
+  #228, #229, #230, #231, #232, #249, #250, #251, #252, #253, #254, #255,
+  #256, and #257
   when their routing, entrypoint, artifact, lifecycle, child handoff, Git
-  execution, fan-out, PR delivery, validation reporting, or resume state
+  execution, fan-out, PR delivery, validation reporting, resume state, or
+  merge-aware resume
   contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
@@ -181,10 +190,10 @@ blocking condition, and user action required when applicable.
 | 9. Child handoff and child-agent launch for one dependency-ready layer | One dependency-ready layer has handoff-ready child artifacts, valid Git context, validation requirements, PR target rules, out-of-scope boundaries, and available child-agent capability. | Missing handoff data; child-agent/subagent execution is unavailable; sequential fallback would be required; hard-dependent layer would start early; unresolved shared-contract blocker; non-mechanical conflict risk; child scope unresolved. | Child implementation and child PR delivery; waiting for user merges. |
 | 10. Child implementation and child PR delivery | Child agent receives valid prepared handoff and runs in prepared child context. | Child validation fails and cannot be fixed in scope; child blocker remains; PR target or issue wording violates sidecar rules. | Waiting for user merges. |
 | 11. Waiting for user merges into remote coordinator branch | One or more child PRs are ready or draft for user review. | Required child PRs remain unmerged; GitHub state cannot be read; user-owned merge is pending. | Resume after user merges. |
-| 12. Resume after user merges | User indicates child PRs were merged, or current evidence shows merge progress. | Current GitHub or repository evidence conflicts with recorded resume state. | Fetch and refresh local coordinator branch/worktree. |
-| 13. Fetch and refresh local coordinator branch/worktree | Remote coordinator branch contains new child merges. | Fetch fails; local coordinator state cannot be fast-forwarded or safely updated from the remote coordinator branch. | Active child branch refresh; next dependency layer execution; integrated coordinator validation. |
-| 14. Active child branch refresh | Active child branches/worktrees need updated coordinator state. | Refresh would require rebase, force-push, history rewrite, or unresolved conflict. | Next dependency layer execution; waiting for user guidance. |
-| 15. Next dependency layer execution | Previous dependency layer is integrated and validation state is known. | Next layer has unresolved blockers, stale required evidence, or conflict risk. | Child branch/worktree preparation; integrated coordinator validation. |
+| 12. Resume after user merges | User indicates child PRs were merged, or current evidence shows merge progress. | Required GitHub/repository evidence is missing, stale, or conflicts with recorded coordinator artifact state; resume would depend on private conversation context. | Fetch and refresh local coordinator branch/worktree. |
+| 13. Fetch and refresh local coordinator branch/worktree | Remote coordinator branch contains or may contain user-owned child merges. | Fetch fails; local coordinator state has unexpected local changes, missing branch state, unsafe divergence, stale evidence, or conflicts; refresh would require rebase, force-push, force-with-lease, history rewriting, local `main` updates, deletion, or issue mutation. | Active child branch refresh; dependency-layer recomputation; integrated coordinator validation. |
+| 14. Active child branch refresh | Local coordinator branch/worktree has been refreshed from the remote coordinator branch and still-active child branches/worktrees need updated coordinator state. | Refresh would use stale local coordinator state; refresh would require rebase, force-push, force-with-lease, history rewrite, resource deletion, or unresolved conflict. | Dependency-layer recomputation; next dependency layer execution; waiting for user guidance. |
+| 15. Next dependency layer execution | Dependency layers have been recomputed from current issue, PR, artifact, branch, validation, and blocker evidence after observed merges and refresh. | Hard dependencies are not integrated into the updated local coordinator branch; next layer has unresolved blockers, child-agent capability blocker, stale required evidence, unsafe dependency state, or conflict risk. | Child branch/worktree preparation; integrated coordinator validation. |
 | 16. Integrated coordinator validation | All child PRs are integrated into the coordinator branch. | Required coordinator or consumed child validation is failed, stale, skipped, partial, or not run. | Final coordinator PR to `main`; report blocker. |
 | 17. Final coordinator PR to `main` | Integrated validation is fresh and passed, and no unresolved blocker remains. | PR target or closing authority violates sidecar rules; validation stale; user-owned merge remains pending. | Post-final-merge local cleanup eligibility. |
 | 18. Post-final-merge local cleanup eligibility | Final coordinator PR has been merged into `main`. | Final PR is not merged; cleanup target was not created by sidecar workflow; remote cleanup lacks explicit approval. | Report local cleanup eligibility; remote cleanup remains approval-gated. |
@@ -213,11 +222,16 @@ alone.
 Launch at most one dependency-ready layer at a time. Multiple child issues in
 the same layer may be handed off only when they are independent candidates, all
 required child artifacts and branch/worktree context are handoff-ready, and
-there is no unresolved conflict risk. A hard-dependent layer must wait until
-all prerequisite child PRs are merged into the coordinator branch, the local
-coordinator branch/worktree has been refreshed from the remote coordinator
-branch, affected active child branches/worktrees have been refreshed by an
-allowed method, and required validation is fresh.
+there is no unresolved conflict risk. After observed child PR merges, recompute
+dependency layers from current child issue dependencies, PR merge status,
+integrated child state, active/blocked/pending child state, shared contract
+state, conflict risk, validation freshness, and updated local coordinator
+branch state. A hard-dependent layer must wait until all prerequisite child PRs
+are merged into the remote coordinator branch, the local coordinator
+branch/worktree has been refreshed from that remote coordinator branch,
+affected active child branches/worktrees have been refreshed by an allowed
+method, and required validation state is known. Stale validation must remain
+reported as stale until rerun and must not support ready status.
 
 For every child, record one launch state in the coordinator artifact:
 
@@ -231,6 +245,17 @@ For every child, record one launch state in the coordinator artifact:
 
 Every non-launched child must include a clear reason. A later layer is not
 dependency-ready merely because its artifacts or branch/worktree already exist.
+
+On resume, also record workflow/integration state separately from the launch
+state when applicable:
+
+- `integrated`: the child's PR is merged into the remote coordinator branch and
+  local coordinator state has been refreshed from that remote branch;
+- `active`: the child remains in progress and may need refresh from the updated
+  local coordinator branch;
+- `ready-next-layer`: the child belongs to the next dependency-ready layer
+  after hard dependencies are integrated into the updated local coordinator
+  branch and no blocker prevents launch.
 
 ### Child Handoff and Child-Agent Launch
 
@@ -246,6 +271,11 @@ handoff. The handoff must include:
 
 - coordinator issue context, child issue map, dependency layer, and coordinator
   source references;
+- current GitHub and repository evidence re-read before resume or handoff,
+  including coordinator issue, child issues, child PR merge status, remote
+  coordinator branch state, local coordinator branch/worktree state, active
+  child branch state, artifacts, validation freshness, blockers, and cleanup
+  approval state;
 - child issue number, title, body, state, labels, dependencies, source
   references, validation requirements, and explicit out-of-scope boundaries;
 - prepared child `spec.md`, `plan.md`, and `tasks.md` paths and content
@@ -593,18 +623,40 @@ is complete.
 
 ### Refresh After Child PR Merges
 
-After the user merges a child PR into the coordinator branch, every still-active
-sidecar child branch or worktree that needs the latest coordinator state is
-updated from the coordinator branch using fast-forward or a normal merge only.
+After the user merges a child PR into the remote coordinator branch, resume
+first re-reads current GitHub and repository evidence. It then fetches the
+remote coordinator branch and refreshes the local coordinator branch/worktree
+from that remote coordinator branch before marking completed children
+integrated, refreshing active children, launching a next dependency layer, or
+consuming merged child work as fresh coordinator evidence.
+
+Refresh local coordinator state with fast-forward or a normal merge only. Stop
+when the local coordinator branch/worktree has unexpected local changes,
+missing branch state, unsafe divergence, stale evidence that prevents a safe
+decision, failed fetch, or conflicts. Do not rebase, force-push, use
+`--force-with-lease`, perform history-rewriting updates, update local `main`,
+merge into local `main`, delete resources, mutate GitHub issues, or merge PRs
+to make coordinator refresh succeed.
+
+Mark a completed child integrated only when its PR is merged into the
+coordinator branch and local coordinator state has been refreshed from the
+remote coordinator branch containing that merge.
+
+After local coordinator state is refreshed, every still-active sidecar child
+branch or worktree that needs the latest coordinator state is updated from the
+updated local coordinator branch using a normal merge only when needed. Active
+child refresh must not use stale local coordinator state.
 
 Do not rebase sidecar branches. Do not force-push sidecar branches. Do not use
 `--force-with-lease`. Do not use history-rewriting updates for sidecar
 branches.
 
-The coordinator artifact must record which still-active child branches or
-worktrees need refresh, which have been refreshed, and which coordinator branch
-state was last incorporated. Validation affected by a child branch refresh is
-stale until rerun after the fast-forward or normal merge.
+The coordinator artifact must record the remote coordinator branch state, local
+coordinator branch/worktree refresh state, observed child PR merge state,
+integrated children, still-active child branches or worktrees that need
+refresh, which have been refreshed, and which coordinator branch state was last
+incorporated. Validation affected by coordinator refresh or active child
+refresh is stale until rerun after the allowed refresh.
 
 ### Cleanup
 
@@ -643,10 +695,15 @@ For each child issue, the coordinator artifact must record:
 - child branch when created;
 - local child checkout/worktree when created;
 - child PR when opened;
+- child PR merge status in the remote coordinator branch when observed;
 - validation state and freshness;
 - workflow status;
 - blockers;
+- remote coordinator branch state and local coordinator branch/worktree refresh
+  state when child PR merges are observed;
 - refresh state after coordinator branch updates or child PR merges;
+- integration state, including whether the child is integrated, active,
+  blocked, pending, waiting for dependency merge, or ready for the next layer;
 - cleanup eligibility.
 
 Pending children must be identifiable without implying that a branch,
@@ -659,10 +716,12 @@ Codex session, re-read current evidence from GitHub and the repository:
 
 - coordinator issue body, state, labels, and listed child issues;
 - each relevant child issue body, state, labels, dependencies, and blockers;
-- relevant child PRs and final coordinator PR state;
+- relevant child PR states, target branches, readiness, merge status, and final
+  coordinator PR state;
 - coordinator artifact and child artifacts;
-- coordinator branch state;
-- active sidecar child branch state;
+- remote coordinator branch state;
+- local coordinator branch/worktree state;
+- active sidecar child branch/worktree state;
 - local checkout/worktree existence and path state;
 - validation evidence, status, and freshness;
 - blockers, conflicts, and human-only decision state;
@@ -678,9 +737,17 @@ Update the coordinator artifact when any of these events occur or are observed
 during resume:
 
 - user merges a child PR into the coordinator branch;
+- the remote coordinator branch is fetched after user-owned child PR merges;
+- local coordinator branch/worktree state is refreshed from the remote
+  coordinator branch by fast-forward or normal merge;
+- a child is marked integrated only after its PR merge is present in the
+  coordinator branch and local coordinator state has been refreshed from that
+  remote branch;
 - an active child branch/worktree needs refresh from the coordinator branch;
-- an active child branch/worktree is refreshed using fast-forward or a normal
-  merge;
+- an active child branch/worktree is refreshed from the updated local
+  coordinator branch using a normal merge when needed;
+- dependency layers are recomputed and children are marked active, blocked,
+  pending, waiting-for-dependency-merge, integrated, or ready-next-layer;
 - validation fails, is skipped, is interrupted, is partial, is stale, or is not
   run;
 - child work pauses or resumes;
@@ -930,9 +997,12 @@ Report a concise preflight result with:
 - child PR ready/draft readiness status and final coordinator readiness status;
 - sidecar resume state status, including completed, active, blocked, pending,
   paused, and resume-needed child work; required GitHub and repository evidence
-  re-read before continuing; refresh-needed/refreshed state; stale validation
-  state; child PR URL and readiness when available; cleanup eligibility; and
-  remote cleanup approval state;
+  re-read before continuing; remote coordinator branch fetch state; local
+  coordinator branch/worktree refresh state; child PR merge observations;
+  integrated child state; active child refresh-needed/refreshed state;
+  ready-next-layer child state; stale validation state; child PR URL and
+  readiness when available; cleanup eligibility; and remote cleanup approval
+  state;
 - blocker and conflict status, including child-specific blockers,
   coordinator-wide blockers, shared-contract blockers, human-only blockers, and
   user-guidance requirements;
@@ -1047,8 +1117,8 @@ Validation for this entrypoint must include:
   validation statuses, PR URL, readiness, blockers, risks, branch names, commit
   hashes, and current checkout state are reported;
 - simulation of a child PR merge into the coordinator branch followed by
-  refreshing another active child branch from the coordinator branch using
-  fast-forward or a normal merge;
+  refreshing another active child branch from the updated local coordinator
+  branch using a normal merge;
 - review that sidecar child PR guidance targets the coordinator branch and not
   `main`;
 - review that sidecar workflow text disallows rebase, force-push, and
@@ -1076,12 +1146,24 @@ Validation for this entrypoint must include:
   sidecar child work with artifact path, branch, checkout/worktree, PR,
   validation state, workflow status, blockers, refresh state, and cleanup
   eligibility;
-- simulation of resume after one child PR has merged into the coordinator
-  branch, one active child branch/worktree needs refresh, and one child issue
-  remains blocked;
-- simulation of refreshing an active child branch/worktree from the coordinator
-  branch using fast-forward or a normal merge, with affected validation marked
-  stale or rerun;
+- simulation of resume after one child PR has merged into the remote
+  coordinator branch, one active child branch/worktree needs refresh, one child
+  issue remains blocked, one child remains pending, and one child is ready for
+  the next dependency layer;
+- simulation proving resume fetches the remote coordinator branch and refreshes
+  the local coordinator branch/worktree from that remote branch before marking
+  completed children integrated, refreshing active children, or launching the
+  next dependency layer;
+- simulation of refreshing an active child branch/worktree from the updated
+  local coordinator branch using a normal merge, with affected validation
+  marked stale or rerun;
+- simulation proving unexpected local coordinator changes, unsafe divergence,
+  missing artifacts, missing branch state, unresolved human-only decisions,
+  unsafe dependency state, and conflicting resume evidence stop the run before
+  integration marking or next-layer launch;
+- review that sidecar resume never uses private conversation context as the
+  source of truth and never falls back to sequential mode when resume is
+  unsafe;
 - simulation or manual review showing local cleanup is eligible only after the
   final coordinator PR has merged into `main` and only for sidecar-created local
   branches/worktrees;
