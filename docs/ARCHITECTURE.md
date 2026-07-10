@@ -612,7 +612,12 @@ execution-capable for future activated coordinator runs: the coordinator owns
 coordinator branch/worktree preparation, normal non-force coordinator branch
 pushes, child branches from the coordinator branch, isolated child worktrees,
 and dirty/collision/unsafe-push stop behavior before child delivery can
-proceed.
+proceed. Issue #255 makes dependency-layer fan-out execution-capable for that
+future lifecycle: after prepared child artifacts and branch/worktree state are
+ready, the coordinator launches only the first dependency-ready child layer,
+stops when child-agent/subagent capability is unavailable, records launch or
+non-launch status for every child, and gives each launched child exactly one
+prepared handoff.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -667,13 +672,23 @@ issue mutation, public comments, remote branch deletion, remote pruning and
 remote cleanup require explicit user approval in a workflow that permits the
 operation.
 
+The sidecar coordinator builds dependency layers from child issue dependencies,
+conflict risks, shared implementation contract state, prepared artifact state,
+branch/worktree state and current repository/coordinator branch evidence. It
+does not treat issue order alone as proof that a child is ready.
+
 The sidecar coordinator launches at most one dependency-ready layer at a time.
 Multiple child issues in the same layer may be active only when they are
-independent candidates and have no unresolved conflict risk. A hard-dependent
+independent candidates, all required prepared artifacts and branch/worktree
+context are handoff-ready, child-agent/subagent execution is available, and no
+unresolved conflict risk or shared-contract blocker exists. A hard-dependent
 layer waits until prerequisite child PRs are merged into the coordinator
 branch, the local coordinator branch/worktree has been refreshed from the
 remote coordinator branch, affected active child branches/worktrees have been
-refreshed by an allowed method, and required validation is fresh.
+refreshed by an allowed method, and required validation is fresh. If
+child-agent/subagent execution is unavailable, Codex stops and reports a
+capability blocker instead of silently falling back to sequential
+implementation.
 
 ### Sidecar Artifact Preparation
 
@@ -695,21 +710,21 @@ path.
 The child status table must be detailed enough for a later session to identify
 completed, active, blocked and pending sidecar child work without private
 conversation context. Each child row records child artifact path, branch, local
-checkout/worktree, PR, validation state, workflow status, blockers, dependency
-layer, readiness, refresh state, cleanup eligibility and required validation
-when those values exist. Pending child rows may record not-started branch,
-checkout, PR and validation state, but they must not imply that local Git
-resources exist.
+checkout/worktree, PR, validation state, workflow status, launch status,
+blockers, dependency layer, readiness, refresh state, cleanup eligibility and
+required validation when those values exist. Pending child rows may record
+not-started branch, checkout, PR and validation state, but they must not imply
+that local Git resources exist.
 
 The coordinator artifact is updated only with factual run state. It records
-blocked state, child handoff readiness, child PR creation, user merge
-observation, stale validation, next-layer readiness, final PR readiness and
-cleanup eligibility when those states actually occur or are observed. It must
-distinguish planned, blocked, prepared, handoff-ready, ready, created, observed,
-stale, passed, failed, pending and eligible states, and must not imply that
-branches, worktrees, pull
-requests, merges, validation results or cleanup eligibility exist before they
-are real.
+blocked state, child handoff readiness, child handoff launch, child PR creation,
+user merge observation, children waiting for dependency merges, stale
+validation, next-layer readiness, final PR readiness and cleanup eligibility
+when those states actually occur or are observed. It must distinguish planned,
+blocked, prepared, handoff-ready, launched, ready, created, observed, stale,
+passed, failed, pending, waiting-for-dependency-merge and eligible states, and
+must not imply that branches, worktrees, pull requests, launches, merges,
+validation results or cleanup eligibility exist before they are real.
 
 Artifact preparation must validate child artifacts against the coordinator
 issue, child issue bodies, relevant source-of-truth documentation, current
@@ -730,6 +745,14 @@ Prepared means the complete child `spec.md`, `plan.md` and `tasks.md` set was
 written inside the coordinator branch/worktree. Handoff-ready means the set has
 passed scope, shared-contract, dependency-layer, write-gate and source-of-truth
 checks and can be supplied to a dependency-ready child handoff.
+
+Fan-out cannot start for a child unless prepared artifacts are handoff-ready,
+branch/worktree state is valid, shared-contract state is non-conflicting,
+validation requirements and PR target rules are explicit, out-of-scope
+boundaries are present and child-agent/subagent capability is available. The
+coordinator artifact records each child as `launched`, `blocked`, `pending` or
+`waiting-for-dependency-merge`, with a clear reason for every child that was not
+launched.
 
 The sidecar coordinator must not require seed-first execution and must not
 invent or create foundation or shared-contract child issues unless those issues
@@ -885,6 +908,14 @@ Each active child implementation uses an isolated local checkout/worktree
 recorded in the coordinator artifact and supplied in the child handoff. The
 coordinator artifact records each child branch name, source coordinator branch,
 checkout/worktree path, child PR target branch and isolation state.
+
+Each launched child receives exactly one prepared handoff. The handoff includes
+coordinator context, child issue body, prepared `spec.md`, `plan.md` and
+`tasks.md`, shared contract, dependency layer, branch/worktree context,
+validation requirements, child PR target rules, issue-reference wording rules
+and out-of-scope boundaries. It also prohibits child-side planning artifact
+regeneration, shared-contract redefinition, sibling scope, GitHub issue
+mutation and `main` targets.
 
 Sidecar child PR guidance must target the coordinator branch. Sidecar child PRs
 must not target `main` directly. Hard-dependent layers wait until prerequisite
@@ -1048,6 +1079,8 @@ Sidecar reports distinguish:
   set or multiple children;
 - shared-contract blockers that affect cross-child contracts or handoff
   expectations;
+- child-agent/subagent capability blockers that stop fan-out without sequential
+  fallback;
 - conflict blockers that require user guidance;
 - human-only blockers that Codex must not decide.
 

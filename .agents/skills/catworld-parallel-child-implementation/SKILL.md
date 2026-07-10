@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#254"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#255"
 metadata:
   author: "catworld"
-  source: "issues-228-232,253,254"
+  source: "issues-228-232,253-255"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -27,7 +27,11 @@ Issue #254 extends this requirement to executable branch/worktree handoff
 state: the child handoff must include the coordinator branch local and remote
 refs, coordinator push status, coordinator worktree path, child branch source,
 child worktree path, child PR target branch, collision checks, dirty-state
-checks, and isolation evidence prepared by the coordinator.
+checks, and isolation evidence prepared by the coordinator. Issue #255 extends
+the handoff with dependency-layer fan-out state: the coordinator must launch
+only one dependency-ready layer, pass exactly one child issue to this skill, and
+include launch status plus the non-launch/blocker vocabulary for sibling and
+later-layer children.
 
 ## Routing Boundary
 
@@ -64,6 +68,9 @@ Before any implementation work, the handoff must provide all of these inputs:
   references, validation requirements, and explicit out-of-scope boundaries;
 - coordinator issue number, title, relevant coordinator context, child issue
   map, dependency layer, and coordinator source references;
+- coordinator artifact launch status for this child, proving it is `launched`
+  in the current dependency-ready layer and not `blocked`, `pending`, or
+  `waiting-for-dependency-merge`;
 - prepared child `spec.md` path and content summary;
 - prepared child `plan.md` path and content summary, including architecture
   and technology assessment state, human approval source, validation evidence
@@ -73,6 +80,9 @@ Before any implementation work, the handoff must provide all of these inputs:
   artifact set is `planned`, `blocked`, `prepared`, or `handoff-ready`;
 - shared contract references and constraints from the coordinator artifacts;
 - dependency status showing this child is ready for implementation;
+- first dependency-ready layer evidence showing that no hard-dependent later
+  layer was launched early and that unresolved shared-contract blockers or
+  non-mechanical conflict risks do not affect this child;
 - executable sidecar lifecycle state from the coordinator, including evidence
   that the coordinator and child artifacts were written inside the coordinator
   branch/worktree and not while the active checkout was `main`;
@@ -111,6 +121,9 @@ Before any implementation work, the handoff must provide all of these inputs:
 - waiting/resume status showing whether this child is in the active dependency
   layer, waiting for user merge into the coordinator branch, resumed after a
   merge, refresh-needed, refreshed, or complete;
+- child-agent/subagent launch evidence showing the coordinator had an approved
+  child-agent capability available and did not fall back to sequential
+  implementation;
 - GitHub issue mutation approval status, public comment approval status, and
   remote cleanup approval status under the approved sidecar PR and Git rules;
 - expected validation commands or manual evidence, including freshness
@@ -151,6 +164,8 @@ context, or constitution.
 Validate the handoff before touching implementation files:
 
 - The handoff identifies exactly one child issue.
+- The coordinator artifact records this child as `launched` for the current
+  dependency-ready layer.
 - The child issue is dependency-ready according to the prepared dependency
   status.
 - The target coordinator branch, child branch, child checkout/worktree, child
@@ -163,6 +178,8 @@ Validate the handoff before touching implementation files:
 - The handoff identifies the executable sidecar lifecycle state that produced
   this child handoff, and the state is compatible with launching exactly one
   dependency-ready layer.
+- The handoff includes child-agent/subagent capability evidence from the
+  coordinator and does not ask this skill to act as a sequential fallback.
 - The child workflow status is explicit and distinguishes active, blocked,
   pending, paused, resume-needed, merged-to-coordinator, or complete as
   applicable.
