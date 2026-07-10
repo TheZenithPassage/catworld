@@ -21,6 +21,9 @@ Implemented validation scenarios:
 - `unexpected-local-changes`
 - `unsafe-divergence`
 - `evidence-mismatch`
+- `missing-branch-state`
+- `human-only-blocker`
+- `unsafe-dependency-state`
 - `prohibited-operations`
 
 Verify local coordinator refresh occurs before active child refresh:
@@ -90,6 +93,37 @@ Verify conflicting resume evidence blocks continuation:
 Expected outcome: current evidence conflicting with recorded coordinator
 artifact state blocks resume instead of relying on private conversation
 context.
+
+Verify missing branch/worktree evidence blocks continuation:
+
+```powershell
+.\specs\031-merge-aware-sidecar-resume\validation\simulate-merge-aware-sidecar-resume.ps1 -Scenario missing-branch-state
+```
+
+Expected outcome: missing or unreadable remote coordinator, local coordinator,
+or active child branch/worktree state blocks before fetch, refresh,
+integration marking, active-child refresh, next-layer launch, issue mutation,
+PR merge, cleanup, or sequential fallback.
+
+Verify unresolved human-only decisions block launch:
+
+```powershell
+.\specs\031-merge-aware-sidecar-resume\validation\simulate-merge-aware-sidecar-resume.ps1 -Scenario human-only-blocker
+```
+
+Expected outcome: dependency layers may be inspected, but no next-layer child
+becomes launchable while the blocker category, evidence, affected scope, and
+required human decision remain preserved.
+
+Verify unsafe dependency state blocks launch:
+
+```powershell
+.\specs\031-merge-aware-sidecar-resume\validation\simulate-merge-aware-sidecar-resume.ps1 -Scenario unsafe-dependency-state
+```
+
+Expected outcome: issue or PR metadata alone is insufficient; a dependent child
+remains waiting when its hard dependency commit is not an ancestor of the
+refreshed local coordinator branch.
 
 Verify prohibited operations stay blocked:
 

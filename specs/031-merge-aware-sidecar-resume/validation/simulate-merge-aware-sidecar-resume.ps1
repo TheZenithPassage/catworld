@@ -7,6 +7,9 @@ param(
         'unexpected-local-changes',
         'unsafe-divergence',
         'evidence-mismatch',
+        'missing-branch-state',
+        'human-only-blocker',
+        'unsafe-dependency-state',
         'prohibited-operations'
     )]
     [string] $Scenario = 'remote-refresh-order'
@@ -295,6 +298,96 @@ function Test-ResumeEvidence {
     }
 }
 
+function Test-PropertyValue {
+    param(
+        [object] $Object,
+        [string] $Name
+    )
+
+    if ($null -eq $Object -or -not $Object.PSObject.Properties.Name.Contains($Name)) {
+        return $false
+    }
+
+    $value = $Object.$Name
+    if ($null -eq $value) {
+        return $false
+    }
+
+    if ($value -is [string] -and [string]::IsNullOrWhiteSpace($value)) {
+        return $false
+    }
+
+    $true
+}
+
+function Test-BranchStateEvidence {
+    param([pscustomobject] $Evidence)
+
+    $missing = @()
+
+    if (-not (Test-PropertyValue -Object $Evidence -Name 'RemoteCoordinatorBranch')) {
+        $missing += 'RemoteCoordinatorBranch'
+    } else {
+        if (-not (Test-PropertyValue -Object $Evidence.RemoteCoordinatorBranch -Name 'Name')) {
+            $missing += 'RemoteCoordinatorBranch.Name'
+        }
+        if (-not (Test-PropertyValue -Object $Evidence.RemoteCoordinatorBranch -Name 'HeadSha')) {
+            $missing += 'RemoteCoordinatorBranch.HeadSha'
+        }
+        if ($Evidence.RemoteCoordinatorBranch.PSObject.Properties.Name.Contains('Readable') -and -not $Evidence.RemoteCoordinatorBranch.Readable) {
+            $missing += 'RemoteCoordinatorBranch.Readable'
+        }
+    }
+
+    if (-not (Test-PropertyValue -Object $Evidence -Name 'LocalCoordinatorBranch')) {
+        $missing += 'LocalCoordinatorBranch'
+    } else {
+        if (-not (Test-PropertyValue -Object $Evidence.LocalCoordinatorBranch -Name 'Name')) {
+            $missing += 'LocalCoordinatorBranch.Name'
+        }
+        if (-not (Test-PropertyValue -Object $Evidence.LocalCoordinatorBranch -Name 'HeadSha')) {
+            $missing += 'LocalCoordinatorBranch.HeadSha'
+        }
+        if (-not (Test-PropertyValue -Object $Evidence.LocalCoordinatorBranch -Name 'WorktreePath')) {
+            $missing += 'LocalCoordinatorBranch.WorktreePath'
+        }
+        if ($Evidence.LocalCoordinatorBranch.PSObject.Properties.Name.Contains('WorktreeReadable') -and -not $Evidence.LocalCoordinatorBranch.WorktreeReadable) {
+            $missing += 'LocalCoordinatorBranch.WorktreeReadable'
+        }
+    }
+
+    if (-not (Test-PropertyValue -Object $Evidence -Name 'ActiveChildBranches')) {
+        $missing += 'ActiveChildBranches'
+    } else {
+        $activeChildren = @($Evidence.ActiveChildBranches)
+        if ($activeChildren.Count -eq 0) {
+            $missing += 'ActiveChildBranches'
+        }
+        for ($i = 0; $i -lt $activeChildren.Count; $i++) {
+            $child = $activeChildren[$i]
+            if (-not (Test-PropertyValue -Object $child -Name 'Name')) {
+                $missing += "ActiveChildBranches[$i].Name"
+            }
+            if (-not (Test-PropertyValue -Object $child -Name 'HeadSha')) {
+                $missing += "ActiveChildBranches[$i].HeadSha"
+            }
+            if (-not (Test-PropertyValue -Object $child -Name 'WorktreePath')) {
+                $missing += "ActiveChildBranches[$i].WorktreePath"
+            }
+            if ($child.PSObject.Properties.Name.Contains('WorktreeReadable') -and -not $child.WorktreeReadable) {
+                $missing += "ActiveChildBranches[$i].WorktreeReadable"
+            }
+        }
+    }
+
+    [pscustomobject]@{
+        Blocked = $missing.Count -gt 0
+        BlockerCategory = 'missing-branch-worktree-state'
+        MissingEvidence = $missing
+        OperationOrder = @()
+    }
+}
+
 function New-ResumeStateModel {
     $children = @(
         [pscustomobject]@{ Child = '#9902'; Dependencies = @(); WorkflowStatus = 'completed'; Integrated = $true; Blocker = ''; Layer = 1 },
@@ -553,6 +646,145 @@ switch ($Scenario) {
             IssueMutationAttempted = $false
             CleanupAttempted = $false
         } | ConvertTo-Json -Depth 6
+    }
+    'missing-branch-state' {
+        $evidence = [pscustomobject]@{
+            RemoteCoordinatorBranch = [pscustomobject]@{
+                Name = 'origin/sidecar/9901-coordinator-merge-aware-resume'
+                HeadSha = $null
+                Readable = $false
+            }
+            LocalCoordinatorBranch = [pscustomobject]@{
+                Name = 'sidecar/9901-coordinator-merge-aware-resume'
+                HeadSha = ''
+                WorktreePath = $null
+                WorktreeReadable = $false
+            }
+            ActiveChildBranches = @(
+                [pscustomobject]@{
+                    Name = 'sidecar/9903-active-child'
+                    HeadSha = $null
+                    WorktreePath = ''
+                    WorktreeReadable = $false
+                }
+            )
+        }
+
+        $check = Test-BranchStateEvidence -Evidence $evidence
+
+        Assert-Condition $check.Blocked 'Expected missing branch/worktree state to block resume.'
+        Assert-Condition ($check.MissingEvidence -contains 'RemoteCoordinatorBranch.HeadSha') 'Expected missing remote coordinator head evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'RemoteCoordinatorBranch.Readable') 'Expected unreadable remote coordinator state evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'LocalCoordinatorBranch.HeadSha') 'Expected missing local coordinator head evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'LocalCoordinatorBranch.WorktreePath') 'Expected missing local coordinator worktree path evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'LocalCoordinatorBranch.WorktreeReadable') 'Expected unreadable local coordinator worktree evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'ActiveChildBranches[0].HeadSha') 'Expected missing active child head evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'ActiveChildBranches[0].WorktreePath') 'Expected missing active child worktree path evidence.'
+        Assert-Condition ($check.MissingEvidence -contains 'ActiveChildBranches[0].WorktreeReadable') 'Expected unreadable active child worktree evidence.'
+        Assert-Condition ($check.OperationOrder.Count -eq 0) 'Expected blocker before fetch or refresh.'
+
+        [pscustomobject]@{
+            Scenario = 'missing-branch-state'
+            Result = 'passed'
+            Blocked = $check.Blocked
+            BlockerCategory = $check.BlockerCategory
+            MissingEvidence = $check.MissingEvidence
+            OperationOrder = $check.OperationOrder
+            FetchAttempted = $false
+            RefreshAttempted = $false
+            IntegrationMarked = $false
+            ActiveChildRefreshAttempted = $false
+            NextLayerLaunchAttempted = $false
+            IssueMutationAttempted = $false
+            CleanupAttempted = $false
+            PrMergeAttempted = $false
+            SequentialFallbackAttempted = $false
+        } | ConvertTo-Json -Depth 6
+    }
+    'human-only-blocker' {
+        $blocker = [pscustomobject]@{
+            Category = 'human-only-decision'
+            Evidence = 'Open material workflow contract decision: whether a refreshed coordinator may launch child #9907 before reviewer approval of shared contract changes.'
+            AffectedScope = 'sidecar dependency-layer launch for #9907'
+            RequiredHumanDecision = 'Human reviewer must approve or reject the shared workflow contract change before next-layer handoff.'
+        }
+        $model = New-ResumeStateModel
+        $inspectedReady = @($model.ReadyNextLayer)
+        $launchable = @()
+
+        Assert-Condition ($inspectedReady -contains '#9907') 'Expected dependency layers to be inspectable.'
+        Assert-Condition ($launchable.Count -eq 0) 'Expected no launchable next layer with unresolved human-only blocker.'
+        Assert-Condition ($blocker.Category -eq 'human-only-decision') 'Expected human-only blocker category to be preserved.'
+        Assert-Condition ($blocker.Evidence -match 'workflow contract decision') 'Expected human-only blocker evidence to be preserved.'
+        Assert-Condition ($blocker.AffectedScope -match '#9907') 'Expected affected scope to be preserved.'
+        Assert-Condition ($blocker.RequiredHumanDecision -match 'Human reviewer') 'Expected required human decision to be preserved.'
+
+        [pscustomobject]@{
+            Scenario = 'human-only-blocker'
+            Result = 'passed'
+            Blocked = $true
+            DependencyLayersInspected = $model.DependencyLayersRecomputed
+            InspectedReadyNextLayer = $inspectedReady
+            LaunchableNextLayer = $launchable
+            Blocker = $blocker
+            SilentDecisionAttempted = $false
+            SequentialFallbackAttempted = $false
+            ChildLaunchAttempted = $false
+            IssueMutationAttempted = $false
+            PrMergeAttempted = $false
+            CleanupAttempted = $false
+        } | ConvertTo-Json -Depth 6
+    }
+    'unsafe-dependency-state' {
+        $fixture = New-TempSidecarResumeFixture
+        try {
+            $coordinatorRefresh = Invoke-CoordinatorRefresh -Fixture $fixture
+            $repository = $fixture.CoordinatorRepository
+
+            Invoke-Git $repository @('switch', '-q', '-c', 'sidecar/9908-unmerged-dependency') | Out-Null
+            $dependencyCommit = New-FileCommit -Repository $repository -Path 'dependency-child.md' -Content 'dependency child work not merged to coordinator' -Message 'record unmerged dependency child work'
+            Invoke-Git $repository @('switch', '-q', $fixture.CoordinatorBranch) | Out-Null
+
+            $refreshedHead = (Invoke-Git $repository @('rev-parse', 'HEAD')).Output[0]
+            $dependencyIntegrated = Test-CommitAncestor -Repository $repository -Ancestor $dependencyCommit -Descendant $refreshedHead
+            $metadataAloneSuggestsReady = $true
+            $dependentState = if ($dependencyIntegrated) { 'ready-next-layer' } else { 'waiting-for-dependency-merge' }
+            $handoffAttempted = $dependentState -eq 'ready-next-layer'
+
+            Assert-Condition $coordinatorRefresh.CoordinatorRefreshed 'Expected local coordinator to be refreshed before dependency evaluation.'
+            Assert-Condition $coordinatorRefresh.MergedChildIntegrated 'Expected already-merged child to be integrated only after local refresh.'
+            Assert-Condition (-not $dependencyIntegrated) 'Expected prerequisite child commit not to be integrated into refreshed local coordinator branch.'
+            Assert-Condition $metadataAloneSuggestsReady 'Expected metadata to appear ready so Git ancestry is required.'
+            Assert-Condition ($dependentState -eq 'waiting-for-dependency-merge') 'Expected dependent child to remain waiting for dependency merge.'
+            Assert-Condition (-not $handoffAttempted) 'Expected no child handoff or launch when dependency commit is absent from coordinator.'
+
+            [pscustomobject]@{
+                Scenario = 'unsafe-dependency-state'
+                Result = 'passed'
+                CoordinatorRefreshed = $coordinatorRefresh.CoordinatorRefreshed
+                RefreshedLocalCoordinatorHead = $refreshedHead
+                IntegratedChild = '#9902'
+                IntegratedChildCommit = $fixture.MergedChildCommit
+                PrerequisiteChild = '#9908'
+                PrerequisiteChildCommit = $dependencyCommit
+                PrerequisiteCommitAncestorOfCoordinatorHead = $dependencyIntegrated
+                DependentChild = '#9909'
+                MetadataAloneSuggestedReady = $metadataAloneSuggestsReady
+                DependentChildState = $dependentState
+                ReadyNextLayer = @()
+                HandoffAttempted = $handoffAttempted
+                ChildLaunchAttempted = $false
+                SequentialFallbackAttempted = $false
+                IssueMutationAttempted = $false
+                PrMergeAttempted = $false
+                CleanupAttempted = $false
+            } | ConvertTo-Json -Depth 6
+        }
+        finally {
+            if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+            }
+        }
     }
     'resume-states' {
         $model = New-ResumeStateModel

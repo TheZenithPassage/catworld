@@ -111,8 +111,12 @@ Validation must include:
 - proof that validation affected by coordinator or active child refresh is
   marked stale until rerun;
 - blocker simulations for unexpected local coordinator changes, unsafe
-  divergence, missing artifacts, missing branch state, unresolved human-only
-  decisions, unsafe dependency state, and conflicting resume evidence;
+  divergence, conflicting resume evidence and missing artifacts
+  (`evidence-mismatch`), missing remote coordinator/local coordinator/active
+  child branch or worktree state (`missing-branch-state`), unresolved
+  human-only decisions (`human-only-blocker`), and unsafe dependency state
+  grounded in refreshed local coordinator ancestry
+  (`unsafe-dependency-state`);
 - prohibited-operation review for rebase, force-push, force-with-lease,
   history rewriting, local `main` updates, GitHub issue mutation, PR merges,
   resource deletion, cleanup execution, and silent sequential fallback;

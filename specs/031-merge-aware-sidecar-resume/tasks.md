@@ -190,3 +190,15 @@ after all edits are complete.
 - Do not modify `.agents/skills/catworld-orchestrate-coordinator-issue/SKILL.md`.
 - Do not add product backend, frontend, persistence, migration, authorization, security, deployment, or UI behavior changes.
 - Do not perform real sidecar child PR operations, PR merges, GitHub issue mutations, public comments, force-pushes, branch cleanup, remote branch deletion, or remote cleanup as implementation validation tasks.
+
+---
+
+## Phase 7: PR Blocker Validation Follow-Up
+
+**Purpose**: Complete blocker validation coverage required by issue #257 and PR #269 review.
+
+- [X] T036 [TO1] Add `missing-branch-state` to `specs/031-merge-aware-sidecar-resume/validation/simulate-merge-aware-sidecar-resume.ps1` to prove missing or unreadable remote coordinator, local coordinator, and active-child branch/worktree state blocks before fetch, refresh, integration marking, active-child refresh, next-layer launch, issue mutation, cleanup, PR merge, or sequential fallback
+- [X] T037 [TO3] Add `human-only-blocker` to `specs/031-merge-aware-sidecar-resume/validation/simulate-merge-aware-sidecar-resume.ps1` to prove unresolved human-only decisions preserve blocker category, evidence, affected scope, and required human decision while preventing next-layer launch and sequential fallback
+- [X] T038 [TO3] Add `unsafe-dependency-state` to `specs/031-merge-aware-sidecar-resume/validation/simulate-merge-aware-sidecar-resume.ps1` to prove dependent child readiness requires each hard dependency commit to be integrated into the refreshed local coordinator branch, not merely represented by issue or PR metadata
+- [X] T039 Update `specs/031-merge-aware-sidecar-resume/spec.md`, `specs/031-merge-aware-sidecar-resume/contracts/merge-aware-sidecar-resume.md`, and `specs/031-merge-aware-sidecar-resume/quickstart.md` so scenario and evidence lists match the implemented blocker validation
+- [X] T040 Run every existing scenario plus `missing-branch-state`, `human-only-blocker`, `unsafe-dependency-state`, `git diff --check`, and `git diff --cached --check`, then manually confirm no issue mutation, PR merge, retargeting, cleanup, product change, sequential fallback, or protected workflow file change occurred
