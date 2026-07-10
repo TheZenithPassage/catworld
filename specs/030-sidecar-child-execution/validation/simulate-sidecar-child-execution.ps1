@@ -3,6 +3,7 @@ param(
         'valid-handoff',
         'missing-context',
         'wrong-checkout',
+        'wrong-branch',
         'pr-wording',
         'pr-target',
         'readiness',
@@ -406,6 +407,62 @@ switch ($Scenario) {
                 BranchMatches = $context.BranchMatches
                 CurrentRoot = $context.CurrentRoot
                 ExpectedRoot = $context.ExpectedRoot
+            } | ConvertTo-Json -Depth 5
+        }
+        finally {
+            if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+            }
+        }
+    }
+    'wrong-branch' {
+        $fixture = New-TempGitRepository
+        try {
+            $handoff = New-PreparedHandoff
+            $handoff.ExpectedCheckout = $fixture.Root
+            Invoke-Git $fixture.Root @('switch', '-q', $fixture.CoordinatorBranch) | Out-Null
+            $commitBefore = (Invoke-Git $fixture.Root @('rev-parse', 'HEAD')).Output[0]
+            $context = Test-ChildContext -Repository $fixture.Root -Handoff $handoff
+
+            Assert-Condition $context.CheckoutMatches 'Fixture checkout should still match so the scenario isolates branch mismatch.'
+            Assert-Condition (-not $context.BranchMatches) 'Expected branch mismatch to block child implementation.'
+
+            $implementationBlocked = $false
+            $blockerMessage = $null
+            try {
+                Invoke-ChildExecution -Repository $fixture.Root -Handoff $handoff | Out-Null
+            }
+            catch {
+                $implementationBlocked = $true
+                $blockerMessage = $_.Exception.Message
+            }
+
+            $workFile = Join-Path $fixture.Root "child-work-$($handoff.ChildIssueNumber).md"
+            $changedFiles = @((Invoke-Git $fixture.Root @('status', '--porcelain')).Output)
+            $commitAfter = (Invoke-Git $fixture.Root @('rev-parse', 'HEAD')).Output[0]
+
+            Assert-Condition $implementationBlocked 'Expected branch mismatch to block before implementation.'
+            Assert-Condition ($blockerMessage -eq 'Current branch must match prepared child branch.') 'Expected prepared child branch blocker.'
+            Assert-Condition (-not (Test-Path -LiteralPath $workFile)) 'Wrong branch must not create the prepared task output file.'
+            Assert-Condition ($changedFiles.Count -eq 0) 'Wrong branch must leave the fixture worktree unchanged.'
+            Assert-Condition ($commitBefore -eq $commitAfter) 'Wrong branch must not create commits.'
+
+            [pscustomobject]@{
+                Scenario = 'wrong-branch'
+                Result = 'passed'
+                ImplementationBlocked = $implementationBlocked
+                CheckoutMatches = $context.CheckoutMatches
+                BranchMatches = $context.BranchMatches
+                CurrentBranch = $context.CurrentBranch
+                ExpectedBranch = $context.ExpectedBranch
+                TasksExecuted = @()
+                ChangedFiles = @()
+                CommitAttempted = $false
+                PushAttempted = $false
+                PrOpenOrUpdateAttempted = $false
+                IssueMutationAttempted = $false
+                FallbackWorkflowAttempted = $false
+                BlockerMessage = $blockerMessage
             } | ConvertTo-Json -Depth 5
         }
         finally {

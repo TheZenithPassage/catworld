@@ -43,7 +43,7 @@
 
 ### Evidence for Technical Outcome 1
 
-- [X] T006 [TO1] Add `valid-handoff`, `missing-context`, and `wrong-checkout` scenarios to `specs/030-sidecar-child-execution/validation/simulate-sidecar-child-execution.ps1`
+- [X] T006 [TO1] Add `valid-handoff`, `missing-context`, `wrong-checkout`, and `wrong-branch` scenarios to `specs/030-sidecar-child-execution/validation/simulate-sidecar-child-execution.ps1`
 
 ### Implementation for Technical Outcome 1
 
@@ -53,7 +53,7 @@
 - [X] T010 [TO1] Update `.agents/skills/catworld-parallel-coordinator/SKILL.md` to ensure child handoffs explicitly carry the checkout/branch proof, task-scope limit, and no-regeneration instructions consumed by the child skill
 - [X] T011 [TO1] Update `docs/ARCHITECTURE.md` to mirror prepared child execution, task-only scope, and normal direct-child sequential routing boundaries
 - [X] T012 [TO1] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario valid-handoff` and verify the sample child handoff executes to a focused child branch diff from prepared tasks only
-- [X] T013 [TO1] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario missing-context` and `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario wrong-checkout` and verify the child workflow stops before implementation
+- [X] T013 [TO1] Run `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario missing-context`, `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario wrong-checkout`, and `.\specs\030-sidecar-child-execution\validation\simulate-sidecar-child-execution.ps1 -Scenario wrong-branch` and verify the child workflow stops before implementation
 
 **Checkpoint**: TO1 is objectively verified by the handoff execution and blocker simulations plus source review.
 
@@ -167,7 +167,7 @@ Task: "Run normal sequential skill unchanged check for .agents/skills/catworld-i
 
 1. Complete Phase 1 and Phase 2.
 2. Complete Phase 3 for TO1.
-3. Stop and validate `valid-handoff`, `missing-context`, and `wrong-checkout` simulations.
+3. Stop and validate `valid-handoff`, `missing-context`, `wrong-checkout`, and `wrong-branch` simulations.
 
 ### Incremental Delivery
 
