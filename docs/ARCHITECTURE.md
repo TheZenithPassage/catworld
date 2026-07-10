@@ -618,6 +618,13 @@ ready, the coordinator launches only the first dependency-ready child layer,
 stops when child-agent/subagent capability is unavailable, records launch or
 non-launch status for every child, and gives each launched child exactly one
 prepared handoff.
+Issue #256 makes that prepared child handoff executable: the child agent
+confirms the prepared child checkout and branch, implements only tasks listed
+in the prepared child `tasks.md`, runs required validation with explicit
+statuses, and may commit, push normally and open or update the child PR only
+when the handoff and repository rules permit delivery. The child PR targets
+the coordinator branch, uses `Related to` issue references only, and is ready
+only when required validation is fresh and passed with no unresolved blocker.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -955,6 +962,8 @@ must re-read current GitHub and repository evidence before continuing:
 - active child branch state;
 - local checkout/worktree existence and path state;
 - validation evidence, status and freshness;
+- child PR URL, target branch and ready/draft state when child delivery has
+  occurred;
 - blockers, conflicts and human-only decision state;
 - cleanup eligibility and remote cleanup approval state.
 
@@ -980,10 +989,11 @@ coordinator branch using fast-forward or a normal merge only. Rebase,
 force-push and history-rewriting updates remain prohibited. Validation affected
 by the refresh is stale until rerun after the update.
 
-When validation fails, is skipped, is interrupted, is partial, is stale or is
-not run before a pause, that state remains visible after resume and does not
-support ready status. Blockers remain recorded with their category, affected
-scope, evidence and required next action or human decision.
+When validation fails, is skipped, is timed out, is interrupted, is partial, is
+stale, is blocked or is not run before a pause, that state remains visible
+after resume and does not support ready status. Blockers remain recorded with
+their category, affected scope, evidence and required next action or human
+decision.
 
 Local cleanup is not eligible after individual child PR merges. It becomes
 eligible only after the final coordinator PR has merged into `main`, and only
@@ -1008,6 +1018,15 @@ issues with `Related to #<child-issue>` and
 `Related to #<coordinator-issue>` wording only. Child PRs must not close the
 child issue or coordinator issue, and they must not imply that the child PR is
 the final delivery PR to `main`.
+
+After a prepared #256 child handoff validates successfully, the child executor
+may commit scoped child changes, push the prepared child branch with a normal
+non-force push, and open or update the child PR only when the handoff and
+repository rules permit delivery. A child PR is ready only when required
+validation is fresh and passed, its target and issue wording are valid, and no
+unresolved blocker affects the child. If required validation is failed,
+skipped, timed out, interrupted, partial, stale, blocked or not run, any
+review-useful child PR is draft/not-ready and the report preserves that status.
 
 The final sidecar coordinator PR targets `main` from the coordinator
 integration branch. It may close the coordinator issue and child issues in the
@@ -1050,12 +1069,13 @@ result. Each item uses an explicit status:
 - `interrupted`
 - `partial`
 - `stale`
+- `blocked`
 - `not run`
 
 Failed validation is never summarized as passed. Failed, timed-out, skipped,
-interrupted, partial, stale and not-run validation is never summarized as
-passed. A report may contain passed evidence, but the summary still preserves
-every non-passed status and its readiness impact.
+interrupted, partial, stale, blocked and not-run validation is never summarized
+as passed. A report may contain passed evidence, but the summary still
+preserves every non-passed status and its readiness impact.
 
 Validation becomes stale when a coordinator branch update, child branch refresh,
 conflict resolution or other relevant change could affect previous evidence.

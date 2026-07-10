@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#255"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#256"
 metadata:
   author: "catworld"
-  source: "issues-228-232,253-255"
+  source: "issues-228-232,253-256"
 ---
 
 # CatWorld Parallel Child Implementation
@@ -17,12 +17,14 @@ This skill consumes prepared child artifacts: the coordinator-provided child
 `spec.md`, `plan.md`, and `tasks.md` under
 `specs/<child-issue-number>-<child-slug>/`. It does not create or regenerate
 its own specification, plan, task list, shared contract, coordinator artifact,
-branch, worktree, pull request, issue mutation, or routing decision. It
-consumes the sidecar Git state prepared by the coordinator and refuses to run
-when the current checkout does not match that prepared state. It also consumes
-the sidecar resume state prepared by the coordinator, including child workflow
-status, refresh state, stale validation, blockers, and cleanup eligibility, and
-must not rely on private conversation context when a child handoff is resumed.
+branch, worktree, issue mutation, or routing decision. It performs child PR
+delivery only when the prepared handoff and approved sidecar rules permit that
+operation. It consumes the sidecar Git state prepared by the coordinator and
+refuses to run when the current checkout does not match that prepared state. It
+also consumes the sidecar resume state prepared by the coordinator, including
+child workflow status, refresh state, stale validation, blockers, and cleanup
+eligibility, and must not rely on private conversation context when a child
+handoff is resumed.
 Issue #254 extends this requirement to executable branch/worktree handoff
 state: the child handoff must include the coordinator branch local and remote
 refs, coordinator push status, coordinator worktree path, child branch source,
@@ -32,6 +34,13 @@ the handoff with dependency-layer fan-out state: the coordinator must launch
 only one dependency-ready layer, pass exactly one child issue to this skill, and
 include launch status plus the non-launch/blocker vocabulary for sibling and
 later-layer children.
+Issue #256 makes this prepared child handoff execution-capable: the child
+executor confirms the prepared checkout and branch, implements only the
+prepared `tasks.md`, runs required validation, reports explicit validation
+statuses, and may commit, push normally, and open or update the child PR only
+when delivery is permitted. That child PR targets the coordinator branch, uses
+`Related to` issue references only, and is ready only with fresh passing
+validation and no unresolved blocker.
 
 ## Routing Boundary
 
@@ -112,6 +121,8 @@ Before any implementation work, the handoff must provide all of these inputs:
 - intended child PR issue-reference wording, which must use
   `Related to #<child-issue>` and `Related to #<coordinator-issue>` only and
   must not close the child issue or coordinator issue;
+- child PR delivery permission state, including whether scoped commits,
+  normal non-force push, and child PR open/update are allowed for this handoff;
 - refresh status describing whether this child branch needs fast-forward or a
   normal merge from the coordinator branch after another child PR has been
   merged;
@@ -252,20 +263,45 @@ When the handoff is valid:
    evidence as `stale` and any required rerun as `not run` instead of passed.
 8. Record each validation command, manual review, local sample artifact, and
    consumed coordinator or shared-contract check as `passed`, `failed`,
-   `skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
-   Failed, timed-out, skipped, interrupted, partial, stale, and not-run
-   validation must never be summarized as passed.
+   `skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
+   `not run`. Failed, timed-out, skipped, interrupted, partial, stale, blocked,
+   and not-run validation must never be summarized as passed.
 9. Inspect changed files against the prepared child source map before final
    reporting.
-10. Report child PR readiness back to the coordinator lifecycle. The user owns
-    merges into the remote coordinator branch; this skill does not merge child
-    PRs, treat unmerged child PRs as integrated, or advance a hard-dependent
-    layer on its own.
+10. When delivery is permitted, commit only scoped child changes, push the
+    child branch with a normal non-force push, and open or update the child PR
+    against the coordinator branch.
+11. Report child PR URL and readiness back to the coordinator lifecycle. The
+    user owns merges into the remote coordinator branch; this skill does not
+    merge child PRs, treat unmerged child PRs as integrated, or advance a
+    hard-dependent layer on its own.
 
 This skill may implement product or workflow code only when the prepared child
 tasks explicitly require it. It must not add product behavior, architecture,
 persistence, authorization, APIs, frontend behavior, operations, or workflow
 behavior outside the prepared child scope.
+
+## Child PR Delivery Workflow
+
+Child PR delivery is allowed only when the prepared handoff and approved
+sidecar Git/PR rules explicitly permit it. When permitted, delivery consists
+only of:
+
+1. confirming changed files remain within the prepared child source map;
+2. committing scoped child changes with a conventional commit title;
+3. pushing the prepared child branch to `origin` with a normal non-force push;
+4. opening or updating a child PR whose base is the prepared coordinator
+   branch, not `main`;
+5. writing the child PR body with `Related to #<child-issue>` and
+   `Related to #<coordinator-issue>` references only, without closing keywords;
+6. setting or reporting ready status only when required validation is fresh and
+   passed and no unresolved blocker affects the child.
+
+If required validation is failed, skipped, timed out, interrupted, partial,
+stale, blocked, or not run, any review-useful child PR must be draft/not-ready
+and the report must preserve the non-passed status. If the handoff does not
+permit PR delivery, report the child diff, validation, readiness, and blocker
+without opening or updating a PR.
 
 ## Shared Contract and Scope Rules
 
@@ -295,10 +331,10 @@ blockers, conflicts, resume state, refresh state, cleanup eligibility, and
 readiness state supplied by the handoff.
 
 Each validation item must use an explicit status: `passed`, `failed`,
-`skipped`, `timed out`, `interrupted`, `partial`, `stale`, or `not run`.
-Failed validation is never summarized as passed. Failed, timed-out, skipped,
-interrupted, partial, stale, and not-run validation must never be summarized as
-passed.
+`skipped`, `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or
+`not run`. Failed validation is never summarized as passed. Failed, timed-out,
+skipped, interrupted, partial, stale, blocked, and not-run validation must
+never be summarized as passed.
 
 Validation becomes stale when coordinator branch updates, child branch
 refreshes, conflict resolution, or other relevant changes could affect the
@@ -375,9 +411,10 @@ This skill must not:
 - push sidecar branches, open pull requests, update pull requests, delete
   remote branches, prune remotes, or perform remote cleanup unless approved
   sidecar PR or cleanup rules permit the operation and explicit user approval
-  exists where repository rules require it;
-- summarize failed, timed-out, skipped, interrupted, partial, stale, or not-run
-  validation as passed;
+  exists where repository rules require it. Child PR open/update is permitted
+  only through the Child PR Delivery Workflow above;
+- summarize failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  or not-run validation as passed;
 - report a sidecar child PR as ready while required validation is stale or an
   unresolved blocker affects the child;
 - silently resolve non-trivial conflicts affecting contract, scope,
@@ -406,8 +443,9 @@ GitHub mutation, public comment, and remote cleanup approval rules. Issue #231
 supplies sidecar validation, blocker, conflict, stale-evidence, readiness, and
 human-only blocker reporting rules. Issue #232 supplies sidecar resume state,
 resume re-read evidence, refresh state, stale validation, cleanup eligibility,
-and normal sequential state boundary rules. Later sidecar issues may add
-approved adoption or delivery execution rules. Until the relevant rules and
+and normal sequential state boundary rules. Issue #256 supplies prepared child
+execution and child PR delivery rules. Later sidecar issues may add approved
+adoption or additional delivery execution rules. Until the relevant rules and
 approvals are present in the handoff and governing source-of-truth documents,
 stop before those operations.
 
@@ -444,8 +482,8 @@ Stop and report a blocker when any of these occur:
 - a required refresh would use rebase, force-push, history rewriting, or any
   method other than fast-forward or a normal merge from the coordinator branch;
 - required validation is absent or impossible to run honestly;
-- required validation is failed, stale, or not run and the handoff or report
-  would need to treat it as passed or ready;
+- required validation is failed, stale, blocked, or not run and the handoff or
+  report would need to treat it as passed or ready;
 - a child-specific, coordinator-wide, shared-contract, conflict, or human-only
   blocker remains unresolved;
 - a non-trivial conflict affects contract, scope, persistence, security,
@@ -463,14 +501,14 @@ For each child implementation, validation must include:
 - the commands, reviews, or manual evidence required by the prepared child
   artifacts and handoff;
 - explicit status for every validation item: `passed`, `failed`, `skipped`,
-  `timed out`, `interrupted`, `partial`, `stale`, or `not run`;
+  `timed out`, `interrupted`, `partial`, `stale`, `blocked`, or `not run`;
 - freshness status for every validation result;
 - ready/draft child PR readiness based on fresh required validation, unresolved
   blockers, and approved sidecar PR target rules;
 - child-specific, coordinator-wide, shared-contract, conflict, and human-only
   blocker status when any such condition exists;
 - confirmation that failed, timed-out, skipped, interrupted, partial, stale,
-  and not-run validation was not summarized as passed;
+  blocked, and not-run validation was not summarized as passed;
 - changed-file review against the prepared source map;
 - confirmation that the child ran in the prepared child branch and isolated
   checkout/worktree from the coordinator handoff;
@@ -490,14 +528,17 @@ For each child implementation, validation must include:
 - confirmation that sidecar child PR guidance targets the coordinator branch,
   uses `Related to` issue references only, and does not close child or
   coordinator issues;
+- confirmation that child PR ready/draft status reflects fresh validation and
+  blocker state honestly;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
   modified by sidecar child execution;
 - confirmation that normal sequential routing/state handling and closed-child
   coordinator final-pass routing/state handling were not changed by the child
   execution.
 
-Validation for issue #228 itself must include one local sample child handoff,
-text review of the sidecar child skill boundaries, changed-file review, and
+Validation for issue #256 itself must include one local sample child handoff
+execution, PR body wording review, child PR target review, draft/not-ready
+readiness review for non-passed validation, changed-file review, and
 confirmation that the normal implementation skill is untouched.
 
 ## Final Report
@@ -516,10 +557,14 @@ Report:
 - changed-file summary compared with the prepared source map;
 - validation commands or reviews with explicit statuses;
 - blockers, unresolved decisions, stale evidence, or not-run evidence;
+- PR URL when delivery occurred;
+- commit hash or hashes when delivery committed scoped child changes;
+- remaining risks or limitations;
 - child PR readiness as `ready` or `draft` with the validation and blocker
   reason for that state;
 - delivery status according to the handoff and later approved sidecar Git/PR
   rules.
+- current checkout branch.
 
 Do not post public GitHub comments or mutate GitHub issues unless an approved
 sidecar workflow explicitly permits that operation and the user explicitly

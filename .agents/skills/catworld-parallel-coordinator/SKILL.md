@@ -1,10 +1,10 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues, prepare sidecar artifacts and Git state, and launch one dependency-ready child handoff layer for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#255"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#256"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252-255"
+  source: "issues-226-232,252-256"
 ---
 
 # CatWorld Parallel Coordinator
@@ -42,11 +42,15 @@ dependency-layer fan-out for the future activated lifecycle: after prepared
 child artifacts and branch/worktree state are ready, the coordinator launches
 only the first dependency-ready layer, stops on unavailable child-agent
 capability instead of falling back to sequential work, and gives each launched
-child exactly one prepared handoff. It still does not open, update, merge,
-approve, or enable auto-merge on pull requests, mutate GitHub issues, post
-public comments, run adoption dry-runs, or replace the normal sequential
-implementation workflow. Later #249 child issues may extend adoption and
-delivery execution pieces.
+child exactly one prepared handoff. Issue #256 makes the child side of that
+handoff execution-capable: a launched child validates its prepared checkout and
+branch, implements only prepared `tasks.md` work, reports explicit validation
+statuses, and may commit, push normally, and open or update a child PR against
+the coordinator branch when the handoff and repository rules permit delivery.
+The coordinator still does not merge, approve, enable auto-merge, mutate
+GitHub issues, post public comments, run adoption dry-runs, replace the normal
+sequential implementation workflow, or perform user-owned child PR merges.
+Later #249 child issues may extend adoption pieces.
 
 ## Routing Boundary
 
@@ -249,18 +253,25 @@ handoff. The handoff must include:
 - shared implementation contract references and constraints;
 - coordinator branch local and remote refs, coordinator push status, and
   coordinator checkout/worktree path;
-- child branch source ref, child checkout/worktree path, collision status,
-  clean-state evidence, refresh status, and cleanup eligibility;
-- child PR target rules, issue-reference wording rules, GitHub mutation/public
+- child branch source ref, expected child branch, expected child
+  checkout/worktree path, collision status, clean-state evidence, refresh
+  status, and cleanup eligibility;
+- prepared task scope, including that the child may execute only tasks listed
+  in the prepared child `tasks.md` and must not regenerate `spec.md`,
+  `plan.md`, or `tasks.md`;
+- child PR delivery permission state, target coordinator branch, related-only
+  issue-reference wording rules, ready/draft rules, GitHub mutation/public
   comment approval state, and remote cleanup approval state;
 - validation commands or manual evidence and freshness requirements;
 - blocker, conflict, stale-evidence, ready/draft, resume, and final-reporting
-  expectations.
+  expectations, including PR URL and commit-hash reporting when delivery
+  occurs.
 
-The handoff must instruct the child agent not to regenerate planning artifacts,
-redefine shared contracts, create sibling scope, mutate GitHub issues, or
-target `main`. Missing or contradictory handoff data blocks the affected child
-before launch.
+The handoff must instruct the child agent to confirm the prepared checkout and
+branch before editing, and not to regenerate planning artifacts, redefine
+shared contracts, create sibling scope, mutate GitHub issues, or target
+`main`. Missing or contradictory handoff data blocks the affected child before
+launch.
 
 ## Sidecar Artifact Preparation
 
@@ -712,6 +723,16 @@ Sidecar child PR descriptions use `Related to #<child-issue>` and
 issue-closing wording for the child issue or coordinator issue, and they must
 not imply that the child PR is the final delivery PR to `main`.
 
+After issue #256, a launched sidecar child executor may commit scoped child
+changes, push the prepared child branch with a normal non-force push, and open
+or update the child PR only when the prepared handoff and repository rules
+permit delivery. The coordinator records the child PR URL, target branch,
+issue-reference wording, ready/draft status, validation freshness, blockers,
+and commit hashes reported by the child. A child PR is ready only when required
+validation is fresh and passed and no unresolved blocker affects the child; it
+is draft/not-ready when required validation is failed, skipped, timed out,
+interrupted, partial, stale, blocked, or not run.
+
 ### Final Coordinator PR
 
 The final sidecar coordinator PR targets `main` from the coordinator
@@ -762,11 +783,11 @@ Sidecar child reports and coordinator integration reports must list every
 required command, manual review, local sample artifact, and consumed child
 validation result. Each evidence item must use an explicit status:
 `passed`, `failed`, `skipped`, `timed out`, `interrupted`, `partial`,
-`stale`, or `not run`.
+`stale`, `blocked`, or `not run`.
 
 Failed validation is never summarized as passed. Failed, timed-out, skipped,
-interrupted, partial, stale, and not-run validation must never be summarized as
-passed. A report may contain both passed and non-passed evidence, but its
+interrupted, partial, stale, blocked, and not-run validation must never be
+summarized as passed. A report may contain both passed and non-passed evidence, but its
 summary must preserve the non-passed status and its readiness impact.
 
 Validation becomes stale when coordinator branch updates, child branch
@@ -847,8 +868,8 @@ This entrypoint must not:
 - create sidecar artifacts outside the approved artifact-preparation phase or
   when any artifact-preparation stop condition applies;
 - run artifact preparation for closed-child coordinator final passes;
-- summarize failed, timed-out, skipped, interrupted, partial, stale, or not-run
-  validation as passed;
+- summarize failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  or not-run validation as passed;
 - report a sidecar child PR or final coordinator PR as ready while required
   validation is stale or an unresolved blocker affects readiness;
 - silently resolve non-trivial conflicts affecting contract, scope,
@@ -899,16 +920,19 @@ Report a concise preflight result with:
   pending children, children waiting for dependency merges, exact non-launch
   reasons, and confirmation that no sequential fallback was used;
 - sidecar PR delivery status, including child PR target branch, child issue
-  reference wording, final coordinator PR target, closure authority, GitHub
-  mutation approval state, public comment approval state, and remote cleanup
-  approval state when PR delivery state has been prepared or described;
+  reference wording, child PR URL when delivery occurred, child PR ready/draft
+  status, child PR validation freshness, final coordinator PR target, closure
+  authority, GitHub mutation approval state, public comment approval state, and
+  remote cleanup approval state when PR delivery state has been prepared,
+  described, or reported by a child executor;
 - sidecar validation reporting status, including commands and reviews passed,
-  failed, skipped, timed out, interrupted, partial, stale, and not run;
+  failed, skipped, timed out, interrupted, partial, stale, blocked, and not run;
 - child PR ready/draft readiness status and final coordinator readiness status;
 - sidecar resume state status, including completed, active, blocked, pending,
   paused, and resume-needed child work; required GitHub and repository evidence
   re-read before continuing; refresh-needed/refreshed state; stale validation
-  state; cleanup eligibility; and remote cleanup approval state;
+  state; child PR URL and readiness when available; cleanup eligibility; and
+  remote cleanup approval state;
 - blocker and conflict status, including child-specific blockers,
   coordinator-wide blockers, shared-contract blockers, human-only blockers, and
   user-guidance requirements;
@@ -1008,6 +1032,20 @@ Validation for this entrypoint must include:
   and `main` targets;
 - review proving coordinator artifacts record launched, blocked, pending, and
   waiting-for-dependency-merge child states with exact non-launch reasons;
+- local sample child handoff execution proving one launched child confirms the
+  prepared checkout and branch, executes only prepared `tasks.md` work, and
+  reports a focused changed-file diff;
+- local sample child PR delivery checks proving child PR descriptions use
+  `Related to #<child-issue>` and `Related to #<coordinator-issue>` only and do
+  not close issues;
+- local sample child PR target checks proving child PRs target the coordinator
+  branch and reject `main`;
+- local sample readiness checks proving failed, skipped, timed-out,
+  interrupted, partial, stale, blocked, and not-run validation creates
+  draft/not-ready child PR status;
+- local sample child final report checks proving changed files, explicit
+  validation statuses, PR URL, readiness, blockers, risks, branch names, commit
+  hashes, and current checkout state are reported;
 - simulation of a child PR merge into the coordinator branch followed by
   refreshing another active child branch from the coordinator branch using
   fast-forward or a normal merge;
@@ -1050,9 +1088,9 @@ Validation for this entrypoint must include:
 - review that closed-child coordinator final passes use normal sequential state
   handling and do not use sidecar resumability state;
 - review that commands and reviews are reported as passed, failed, skipped,
-  timed out, interrupted, partial, stale, or not run;
-- review that failed, timed-out, skipped, interrupted, partial, stale, and
-  not-run validation is never summarized as passed;
+  timed out, interrupted, partial, stale, blocked, or not run;
+- review that failed, timed-out, skipped, interrupted, partial, stale, blocked,
+  and not-run validation is never summarized as passed;
 - review that stale validation after coordinator branch updates or child branch
   refreshes blocks readiness until rerun or explicitly reported as stale;
 - review that sidecar child PR readiness is ready only with fresh required
