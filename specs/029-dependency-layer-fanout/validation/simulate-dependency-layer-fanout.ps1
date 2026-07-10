@@ -74,6 +74,7 @@ function New-Fixture {
         [bool] $ChildAgentAvailable = $true
     )
 
+    $mergedChildIssues = @()
     $children = switch ($Kind) {
         'independent' {
             @(
@@ -83,10 +84,12 @@ function New-Fixture {
             )
         }
         'hard-dependencies' {
+            $mergedChildIssues = @(9899)
             @(
                 New-Child -Number 9902 -Title '[Workflow] Child routing fixture'
                 New-Child -Number 9903 -Title '[Workflow] Child reporting fixture' -Dependencies @(9902)
                 New-Child -Number 9904 -Title '[Workflow] Child resume fixture' -Dependencies @(9903)
+                New-Child -Number 9905 -Title '[Workflow] Child later ready fixture' -Dependencies @(9899)
             )
         }
         'shared-contract-blocker' {
@@ -110,7 +113,7 @@ function New-Fixture {
         CoordinatorWorktree = '<sidecar-parent>/9901-dependency-layer-fanout-coordinator'
         SharedContract = 'Shared implementation contract is present and non-conflicting.'
         ParentReferences = @('Parent epic: #249', 'Source: issue #255 simulation')
-        MergedChildIssues = @()
+        MergedChildIssues = @($mergedChildIssues)
         ChildAgentAvailable = $ChildAgentAvailable
         Children = @($children)
     }
@@ -211,7 +214,7 @@ function Invoke-FanOut {
 
     foreach ($child in $Fixture.Children) {
         $status = 'pending'
-        $reason = 'Not in the first dependency-ready layer.'
+        $reason = 'Pending because it belongs to a later dependency-ready layer; only the first dependency-ready layer launches now.'
         $layer = if ($child.Dependencies.Count -eq 0) { 1 } else { $child.Dependencies.Count + 1 }
 
         $unmetDependencies = @($child.Dependencies | Where-Object { $Fixture.MergedChildIssues -notcontains $_ })
@@ -320,15 +323,32 @@ switch ($Scenario) {
     'hard-dependencies' {
         $fixture = New-Fixture -Kind 'hard-dependencies'
         $result = Invoke-FanOut -Fixture $fixture
+        $pendingChildren = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'pending' })
+        $pendingChild = @($pendingChildren)[0]
+        $pendingFixtureChild = @($fixture.Children | Where-Object { "#$($_.Number)" -eq $pendingChild.Child })[0]
+        $pendingUnmetDependencies = @($pendingFixtureChild.Dependencies | Where-Object { $fixture.MergedChildIssues -notcontains $_ })
+        $pendingHandoffs = @($result.Handoffs | Where-Object { "#$($_.ChildIssueNumber)" -eq $pendingChild.Child })
+        $launchedLayers = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'launched' } | ForEach-Object { $_.Layer })
+        $firstLaunchedLayer = ($launchedLayers | Measure-Object -Minimum).Minimum
 
         Assert-Condition ($result.Handoffs.Count -eq 1) 'Expected exactly one handoff for the first hard-dependency layer.'
+        Assert-Condition (@($result.LaunchStatuses | Where-Object { $_.Status -eq 'launched' }).Count -eq 1) 'Expected only the first dependency-ready layer to launch.'
         Assert-Condition (@($result.LaunchStatuses | Where-Object { $_.Status -eq 'waiting-for-dependency-merge' }).Count -eq 2) 'Expected two children waiting for dependency merges.'
+        Assert-Condition ($pendingChildren.Count -eq 1) 'Expected one later ready child to remain pending.'
+        Assert-Condition ($pendingChild.Layer -gt $firstLaunchedLayer) 'Expected pending child to belong to a later dependency-ready layer.'
+        Assert-Condition (-not [string]::IsNullOrWhiteSpace($pendingChild.Reason)) 'Expected pending child to include a non-empty reason.'
+        Assert-Condition ($pendingChild.Reason -match 'later dependency-ready layer') 'Expected pending reason to explain that a later layer was not launched.'
+        Assert-Condition ($pendingUnmetDependencies.Count -eq 0) 'Expected pending child to have no unmet dependency merges.'
+        Assert-Condition (@(Test-ChildPrerequisites -Fixture $fixture -Child $pendingFixtureChild).Count -eq 0) 'Expected pending child to be otherwise handoff-ready.'
+        Assert-Condition ($pendingHandoffs.Count -eq 0) 'Expected no handoff for the later pending child.'
 
         [pscustomobject]@{
             Scenario = 'hard-dependencies'
             Result = 'passed'
             FirstDependencyReadyLayer = $result.FirstDependencyReadyLayer
             LaunchedChildren = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'launched' } | ForEach-Object { $_.Child })
+            PendingChildren = @($pendingChildren | ForEach-Object { $_.Child })
+            PendingReasons = @($pendingChildren | ForEach-Object { $_.Reason })
             WaitingForDependencyMerge = @($result.LaunchStatuses | Where-Object { $_.Status -eq 'waiting-for-dependency-merge' } | ForEach-Object { $_.Child })
             LaunchStatuses = $result.LaunchStatuses
         } | ConvertTo-Json -Depth 6
