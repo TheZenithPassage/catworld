@@ -20,13 +20,14 @@
 **Hard dependencies**: None
 
 **Current state**: artifact preparation `handoff-ready`; launch `launched`;
-workflow `held`; implementation permission `false`; delivery
-permission `false`
+workflow `release-pending`; implementation permission recorded `true` /
+effective `false`; delivery permission recorded `true` / effective `false`
 
 **Barrier evidence**: `H = 78329c6f45793583d4d0e46a96ad54066989ba8d`;
-`R = 99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in
-this launched-evidence commit; `A` remains pending; stable child-agent identity
-is `/root/held_child_273_live`
+`R = 99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` in this
+activation/recording commit; stable identity is `/root/held_child_273_live`;
+release remains absent
 
 ## Summary
 
@@ -87,10 +88,12 @@ persistence, security, shared-contract, or operational decision remains.
 
 The artifact-preparation state, factual launch state, workflow state, and
 permissions are separate. Their current values are `handoff-ready`, `launched`,
-`held`, and false/false respectively. Exact H is
+`release-pending`, and recorded-true/effective-false respectively. Exact H is
 `78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
-`99f34e32de9702ae34301463e32ed3d8ff013932`; this `L = SELF/HEAD` commit
-records stable identity `/root/held_child_273_live`. A is not yet assigned.
+`99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; this `A = SELF/HEAD`
+commit records conditional authority for `/root/held_child_273_live`. Release
+is not yet acknowledged.
 Control report head `C2r`
 `76531c9aa0511c49dfd44eb196913a2600a044da` is separate evidence, not a
 lifecycle head or fingerprint input.
@@ -157,12 +160,13 @@ exact H `78329c6f45793583d4d0e46a96ad54066989ba8d`.
 5. Dispatch returned unambiguous stable canonical identity
    `/root/held_child_273_live`, correlated the exact handoff, and acknowledged
    zero-mutation preflight with implementation/delivery permissions false.
-6. Both first-layer held dispatches are accepted. This `L = SELF/HEAD` commit
-   records factual `launched` and both exact stable identities; one later
-   activation/recording commit `A` will store exact L and the
-   release-pending state, and permissions true subject to child revalidation.
-   Push/fetch normally, require the current remote ref to equal `A`, and prove
-   `L` is its ancestor. Effective child authority remains false.
+6. Both first-layer held dispatches are accepted. Exact L
+   `08f8588dab15ab0e1991733f43d4a74e44deda4e` records factual `launched`
+   and both stable identities and is remote-durable. This `A = SELF/HEAD`
+   activation/recording commit stores exact L, release-pending state, and
+   permissions true subject to child revalidation. Push/fetch A, require the
+   current remote ref to equal A, and prove L is its ancestor. Effective child
+   authority remains false.
 7. Only after durable remote `L`/`A` evidence, target the same #273 canonical
    identity with exact `H`, `R`, `L`, `A`, and the fingerprint. This targeted
    continuation grants only barrier work: fetch current evidence, incorporate
@@ -233,9 +237,10 @@ evidence supports ready child delivery.
   state, immutable `C2`, separate `C2r` evidence, source map, or remote
   coordinator ref is missing or inconsistent.
 - Current H is `78329c6f45793583d4d0e46a96ad54066989ba8d`, R is
-  `99f34e32de9702ae34301463e32ed3d8ff013932`, and `L = SELF/HEAD` records
-  `/root/held_child_273_live`; A remains absent. Before release, require durable
-  exact L/A, current remote equality to A, and L-to-A ancestry.
+  `99f34e32de9702ae34301463e32ed3d8ff013932`, L is
+  `08f8588dab15ab0e1991733f43d4a74e44deda4e`, and `A = SELF/HEAD`
+  records conditional authority for `/root/held_child_273_live`. Before release,
+  require durable exact A, current remote equality, and L-to-A ancestry.
 - Stop before `H` if actual Git context differs from the planned canonical
   values or recomputation does not produce
   `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`.

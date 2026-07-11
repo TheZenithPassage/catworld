@@ -14,13 +14,14 @@
 
 **Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `handoff-ready` / `launched` / `held`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `launched` / `release-pending`; recorded `true` / `true`, effective `false` / `false`
 
 **Current barrier evidence / child identity**: exact H is
 `78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
-`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
-launched-evidence commit records stable identity `/root/held_child_274_live`.
-`A` remains pending. No
+`99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` in this
+activation/recording commit records conditional authority for stable identity
+`/root/held_child_274_live`. Release remains absent. No
 result has been implemented.
 
 ## Required Release Gate (Not Prepared Task Execution)
@@ -74,10 +75,13 @@ Only after exact activation-head incorporation and release acknowledgment may th
 
 Branch creation is coordinator-owned and complete at exact initial coordinator
 head `421b2ac250c05c59eb3cade06b4056e02a6c8415`. The current artifacts are
-handoff-ready/held with launch factual `launched` and permissions false. H is
+handoff-ready/release-pending with launch factual `launched`; permissions are
+recorded true but effective false. H is
 `78329c6f45793583d4d0e46a96ad54066989ba8d`; R is
-`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` records
-`/root/held_child_274_live`. A and result remain pending. The child remains held;
+`99f34e32de9702ae34301463e32ed3d8ff013932`; L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` records
+conditional authority for `/root/held_child_274_live`. Release and result remain
+pending. The child remains held;
 preflight performs zero mutation. Targeted continuation
 after durable `L`/`A` performs only clean activation-head incorporation while
 conditional permissions are recorded true but effective authority remains

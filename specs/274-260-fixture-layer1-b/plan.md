@@ -16,13 +16,14 @@
 
 **Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `handoff-ready` / `launched` / `held`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `launched` / `release-pending`; recorded `true` / `true`, effective `false` / `false`
 
 **Current barrier evidence / child identity**: exact H is
 `78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
-`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
-launched-evidence commit records stable identity `/root/held_child_274_live`.
-`A` remains pending. No
+`99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` in this
+activation/recording commit records conditional authority for stable identity
+`/root/held_child_274_live`. Release remains absent. No
 result has been implemented.
 
 ## Summary
@@ -93,10 +94,10 @@ persistence, security, shared-contract, or operational decision remains.
 3. Held dispatch returned unambiguous stable canonical identity
    `/root/held_child_274_live`, correlated the exact envelope, and remained
    clean, preflight-only, and unable to implement or deliver.
-4. This `L = SELF/HEAD` commit records factual launched evidence with
-   permissions false. The child remains held while later activation head `A`
-   remains pending. A will store L and record permissions true subject to child
-   revalidation; effective child authority remains false.
+4. Exact L `08f8588dab15ab0e1991733f43d4a74e44deda4e` records factual
+   launched evidence with permissions false and is remote-durable. This
+   `A = SELF/HEAD` activation head stores L and records permissions true subject
+   to child revalidation; effective child authority remains false.
 5. Before release, require current remote equality to exact `A` plus ancestry
    proof that `A` contains `L`. Through targeted continuation of the same held
    child, fetch `A`, update the still-clean child branch by allowed fast-forward
@@ -139,7 +140,7 @@ are excluded from the fingerprint and retained as separate correlation evidence.
 | Point | Preparation | Launch | Workflow | Implementation / Delivery | Required evidence |
 |-------|-------------|--------|----------|---------------------------|-------------------|
 | Initial artifact at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false | Immutable control revision and planned fingerprint before child Git creation |
-| Current L launched evidence; A pending | `handoff-ready` | `launched` | `held` | false / false | H/R literal; `L = SELF/HEAD`; `/root/held_child_274_live`; zero-edit proof |
+| Current A activation evidence; release pending | `handoff-ready` | `launched` | `release-pending` | recorded true / effective false | H/R/L literal; `A = SELF/HEAD`; `/root/held_child_274_live` |
 | Remote handoff ready | `handoff-ready` | `pending` | `held-preflight` | false / false | Exact `H`; current remote equals later `R`; `R` stores and contains `H` |
 | Held dispatch accepted | `handoff-ready` | `pending` | `held-preflight` | false / false | Stable canonical child identity; zero-edit proof |
 | Factual launch pushed, activation pending | `handoff-ready` | `launched` | `held` | false / false | Exact `L`; failure to push `A` retains launch but grants no permission |

@@ -20,13 +20,15 @@
 **Hard dependencies**: None
 
 **Current prepared state**: artifact preparation `handoff-ready`; launch
-`launched`; workflow `held`; implementation permission `false`;
-delivery permission `false`
+`launched`; workflow `release-pending`; implementation permission recorded
+`true` / effective `false`; delivery permission recorded `true` / effective
+`false`
 
 **Barrier evidence**: `H = 78329c6f45793583d4d0e46a96ad54066989ba8d`;
-`R = 99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in
-this launched-evidence commit; `A` remains pending; stable child-agent identity
-is `/root/held_child_273_live`
+`R = 99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` in this
+activation/recording commit; stable child-agent identity is
+`/root/held_child_273_live`; release remains absent
 
 ## Goal
 
@@ -41,8 +43,8 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
    the authoritative fingerprint is recomputed immediately before H, **then** it equals
    `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
    while `C2r` remains separate evidence and the current state is
-   `handoff-ready` / `launched` / `held` with both permissions false, literal
-   H/R, `L = SELF/HEAD`, no A, and stable identity
+   `handoff-ready` / `launched` / `release-pending`, with both permissions
+   recorded true but effective false, literal H/R/L, `A = SELF/HEAD`, and stable identity
    `/root/held_child_273_live`.
 2. **Given** coordinator #272 has committed and pushed exact handoff-ready
    evidence `H` and a later recording head `R` containing `H`, **when** current
@@ -102,12 +104,13 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
   `sidecar/273-260-fixture-layer1-a`, and exact child worktree
   `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a`.
 - **FR-009**: The current state MUST remain artifact preparation
-  `handoff-ready`, launch `launched`, workflow `held`, and
-  implementation/delivery permissions false. Exact H is
+  `handoff-ready`, launch `launched`, workflow `release-pending`, and
+  implementation/delivery permissions recorded true but effective false. Exact H is
   `78329c6f45793583d4d0e46a96ad54066989ba8d`, exact R is
-  `99f34e32de9702ae34301463e32ed3d8ff013932`, and this `L = SELF/HEAD`
-  launched-evidence commit records accepted stable identity
-  `/root/held_child_273_live`. A and release remain absent.
+  `99f34e32de9702ae34301463e32ed3d8ff013932`, exact L is
+  `08f8588dab15ab0e1991733f43d4a74e44deda4e`, and this `A = SELF/HEAD`
+  activation commit records conditional authority for accepted stable identity
+  `/root/held_child_273_live`. Release remains absent.
 - **FR-010**: The canonical `sidecar-prepared-handoff-v1` fingerprint MUST use
   exactly the 21 ordered fields, serialization, UTF-8 encoding, and lowercase
   SHA-256 procedure below. Its authoritative value, recomputed from the actual
@@ -204,7 +207,7 @@ canonical payload immediately before exact H
 | Barrier point | Preparation | Launch | Workflow | Implementation / delivery |
 |---------------|-------------|--------|----------|---------------------------|
 | Initial artifact state at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false |
-| Current L launched evidence; A pending | `handoff-ready` | `launched` | `held` | false / false |
+| Current A activation evidence; release pending | `handoff-ready` | `launched` | `release-pending` | recorded true / effective false |
 | Future remote `H`/`R` verified | `handoff-ready` | `pending` | `held-preflight` | false / false |
 | Stable dispatch accepted | `handoff-ready` | factual dispatch accepted; durable record still `pending` | `held-preflight` | false / false |
 | Future remote `L`/`A` verified | `handoff-ready` | `launched` | `release-pending` | recorded true / effective false; child revalidation and release remain required |

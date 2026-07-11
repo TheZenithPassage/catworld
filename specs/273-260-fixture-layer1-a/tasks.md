@@ -17,31 +17,37 @@
 
 **Dependency layer**: 1; no hard dependencies
 
-## Current Launched-Held State (No Task Execution)
+## Current Activation-Pending State (No Task Execution)
 
 Artifact preparation is `handoff-ready`, launch is `launched`, workflow is
-`held`, and implementation/delivery permissions are false. Exact H is
+`release-pending`, and implementation/delivery permissions are recorded true
+but effective false. Exact H is
 `78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
-`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
-launched-evidence commit records stable identity `/root/held_child_273_live`.
-A remains pending. `C2r` is separate control-report evidence, not a fingerprint
+`99f34e32de9702ae34301463e32ed3d8ff013932`; exact L is
+`08f8588dab15ab0e1991733f43d4a74e44deda4e`; `A = SELF/HEAD` in this
+activation/recording commit records conditional authority for stable identity
+`/root/held_child_273_live`. Release remains absent. `C2r` is separate
+control-report evidence, not a fingerprint
 input or a sidecar lifecycle head. The literal fingerprint is authoritative:
 the actual child Git context exists, every canonical field was revalidated, and
 coordinator #272 recomputed it immediately before `H`.
 
 ## Required Held-Dispatch Gate (Not Prepared Task Execution)
 
-No checkbox task below may begin until all of this evidence is current:
+No checkbox task below may begin until current activation/release evidence
+passes and the complete historical predispatch evidence remains recorded:
 
-- the actual coordinator/child branch and worktree context matches the exact
-  planned Git identities, all three prepared artifact contents pass separate
-  validation, and coordinator #272 recomputes the canonical fingerprint before
-  creating `H`;
-- coordinator #272 has committed/pushed exact handoff-ready evidence `H`, then
-  committed/pushed later recording head `R` containing literal `H`; the fetched
-  remote coordinator ref equals exact `R` and proves `H` in ancestry;
-- preparation is `handoff-ready`, launch is `pending`, workflow is
-  `held-preflight`, and implementation/delivery permissions are false;
+- the historical prepared-handoff record proves the actual coordinator/child
+  branch and worktree context matched the exact planned Git identities, all
+  three artifact contents passed separate validation, and coordinator #272
+  recomputed the canonical fingerprint before creating `H`;
+- the historical dispatch gate proves coordinator #272 committed/pushed exact
+  handoff-ready evidence `H`, then committed/pushed recording head `R` containing
+  literal H; immediately before dispatch, the fetched remote coordinator ref
+  equaled exact R and proved H in ancestry;
+- that historical predispatch lifecycle state was preparation `handoff-ready`,
+  launch `pending`, workflow `held-preflight`, and implementation/delivery
+  permissions false;
 - the `sidecar-prepared-handoff-v1` PowerShell `[ordered]` payload has exactly
   these 21 fields in order: `Schema`, `RunId`, `CoordinatorIssueNumber`,
   `ChildIssueNumber`, `CoordinatorBranch`, `CoordinatorRemoteBranch`,
@@ -60,7 +66,8 @@ No checkbox task below may begin until all of this evidence is current:
   child branch/worktree `sidecar/273-260-fixture-layer1-a` and
   `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a`, and `C2`
   `db175fe0a1911e9ea2a1931ae808b9771f874b57`;
-- its remaining values are prepared paths
+- its remaining canonical-preimage values, which are identity inputs rather
+  than current lifecycle values, are prepared paths
   `specs/273-260-fixture-layer1-a/spec.md`,
   `specs/273-260-fixture-layer1-a/plan.md`, and
   `specs/273-260-fixture-layer1-a/tasks.md`, layer integer `1`, ascending integer
