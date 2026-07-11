@@ -3,11 +3,11 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: approved launch-barrier correction
+- **Current stage**: immutable control correction recorded; preserved runtime artifact reconciliation is next
 - **Current checkpoint**: not reached
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: control-plane correction and fresh validation in progress; runtime child dispatch is not yet authorized
+- **Readiness**: runtime artifacts remain stale/not handoff-ready until reconciled against the exact control revision below; child dispatch is not yet authorized
 - **Cleanup**: ineligible; runtime final PR does not exist
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
@@ -248,6 +248,16 @@ The bounded resolution preserves the approved invariant without broadening the a
 
 The recording commits are ordinary bounded coordinator artifact updates. They add no transaction system, lock, queue, daemon, IPC, polling, random attempt identity, or generic state subsystem.
 
+### Immutable Control-Plane Source Revision
+
+- Correction commit `C`: `a19af010dfe63eaf27b68717ce9b38042372f973` (`fix(workflow): add held child dispatch barrier`).
+- Branch: `chore/260-live-controlled-sidecar-dry-run`.
+- Normal push: passed; the remote branch was newly created without force.
+- Fetched equality: passed; local `C` and `origin/chore/260-live-controlled-sidecar-dry-run` both resolved to `a19af010dfe63eaf27b68717ce9b38042372f973` immediately after the push.
+- Recording commit: `SELF/HEAD`; this bounded report/task update stores literal `C` but is not the workflow source revision.
+- Runtime rule: every reconciled prepared child handoff must name exact `C`, even if the control branch later contains report-only evidence commits.
+- Final #260 pull request: not opened.
+
 ## Mandatory Pause 1
 
 Not reached.
@@ -310,6 +320,7 @@ Not reached.
 | Managed-pointer check calibration | current `AGENTS.md` | two case-insensitive `Select-String` wrappers | failed | historical false positives matched the repository's ordinary phrase “active feature plan”; exact marker/path `-SimpleMatch` rerun passed |
 | Final control prerequisite/task/checklist gate | current `specs/034` and `AGENTS.md` | `check-prerequisites.ps1 -RequireTasks -IncludeTasks`, contiguous task scan, checklist scan, exact managed-pointer marker/path scan | passed | 56 contiguous task IDs, checklist 21/21, temporary pointer absent |
 | Final control diff whitespace | current correction bytes | `git diff --check` | passed | line-ending notices only; no whitespace error |
+| Immutable control correction publication | `C=a19af010dfe63eaf27b68717ce9b38042372f973` | commit, normal push, fetch, local/remote equality | passed | exact `C` is the sole workflow source revision for runtime handoffs; final #260 PR remains unopened |
 | Fixture wording update transport | issues #273–#275 | attempted `gh issue view`, then connected GitHub fetch/update/re-fetch | passed | `gh` unavailable was a tooling attempt, not a mutation; connector performed only authorized body replacements |
 | Preserved runtime artifacts after control correction | exact ten staged runtime blobs listed above | read-only state comparison | pending | intentionally still preserve pre-correction bytes and are not handoff-ready; reconciliation is blocked until the corrected control-plane commit is pushed and recorded |
 
