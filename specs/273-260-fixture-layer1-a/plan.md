@@ -19,13 +19,14 @@
 
 **Hard dependencies**: None
 
-**Current state**: artifact preparation `handoff-ready`; launch `pending`;
-workflow `held-preflight`; implementation permission `false`; delivery
+**Current state**: artifact preparation `handoff-ready`; launch `launched`;
+workflow `held`; implementation permission `false`; delivery
 permission `false`
 
 **Barrier evidence**: `H = 78329c6f45793583d4d0e46a96ad54066989ba8d`;
-`R = SELF/HEAD` in this recording commit stores literal H; `L`, `A`, and the
-stable child-agent identity remain pending
+`R = 99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in
+this launched-evidence commit; `A` remains pending; stable child-agent identity
+is `/root/held_child_273_live`
 
 ## Summary
 
@@ -85,10 +86,11 @@ persistence, security, shared-contract, or operational decision remains.
 ## Handoff and Execution Design
 
 The artifact-preparation state, factual launch state, workflow state, and
-permissions are separate. Their current values are `handoff-ready`, `pending`,
-`held-preflight`, and false/false respectively. Exact H is
-`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
-commit stores H. `L`, `A`, and a child-agent identity are not yet assigned.
+permissions are separate. Their current values are `handoff-ready`, `launched`,
+`held`, and false/false respectively. Exact H is
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; this `L = SELF/HEAD` commit
+records stable identity `/root/held_child_273_live`. A is not yet assigned.
 Control report head `C2r`
 `76531c9aa0511c49dfd44eb196913a2600a044da` is separate evidence, not a
 lifecycle head or fingerprint input.
@@ -143,23 +145,21 @@ exact H `78329c6f45793583d4d0e46a96ad54066989ba8d`.
 2. Handoff-ready evidence `H = 78329c6f45793583d4d0e46a96ad54066989ba8d`
    is normally pushed and fetched-equal; launch remains `pending` and
    implementation/delivery permissions remain false.
-3. This bounded recording commit `R = SELF/HEAD` stores exact `H` and the already
-   recomputed prepared-handoff fingerprint. Push/fetch `R`, require the current
-   remote coordinator ref to equal `R`, and prove `H` is its ancestor. Neither
+3. Bounded recording head `R = 99f34e32de9702ae34301463e32ed3d8ff013932`
+   stores exact H and the recomputed fingerprint. R was pushed/fetched, the
+   remote coordinator ref equaled R, and H was proven its direct parent. Neither
    `H` nor `R` changes or enters the fingerprint preimage.
-4. The exact child branch/worktree may still be clean and behind `R`. Dispatch
-   it once through the stable preflight-only capability. It may read and verify
-   the immutable identity and evidence only; it performs zero repository or
-   GitHub mutation, changes no branch/worktree state, and executes no prepared
+4. The exact child branch/worktree stayed clean and behind R. It was dispatched
+   once through the stable preflight-only capability to read and verify
+   the immutable identity and evidence only; it performed zero repository or
+   GitHub mutation, changed no branch/worktree state, and executed no prepared
    task. Its workflow state is the standard `held-preflight`.
-5. Accept dispatch only when it returns one unambiguous stable canonical
-   child/task identity correlated to that exact handoff and the child
-   acknowledges preflight with implementation/delivery permissions false.
-   Rejection records a factual blocker; ambiguity stops without retry or
-   duplicate.
-6. After both first-layer held dispatches are accepted, coordinator #272 records
-   factual `launched` and the exact stable identities in evidence commit `L`,
-   then uses one later activation/recording commit `A` to store exact `L`, the
+5. Dispatch returned unambiguous stable canonical identity
+   `/root/held_child_273_live`, correlated the exact handoff, and acknowledged
+   zero-mutation preflight with implementation/delivery permissions false.
+6. Both first-layer held dispatches are accepted. This `L = SELF/HEAD` commit
+   records factual `launched` and both exact stable identities; one later
+   activation/recording commit `A` will store exact L and the
    release-pending state, and permissions true subject to child revalidation.
    Push/fetch normally, require the current remote ref to equal `A`, and prove
    `L` is its ancestor. Effective child authority remains false.
@@ -232,11 +232,10 @@ evidence supports ready child delivery.
 - Stop if the handoff, checkout, branch, issue identities, run ID, dependency
   state, immutable `C2`, separate `C2r` evidence, source map, or remote
   coordinator ref is missing or inconsistent.
-- Current H is `78329c6f45793583d4d0e46a96ad54066989ba8d` and this recording
-  commit is `R = SELF/HEAD`; `L`, `A`, and child-agent identity remain absent.
-  Before held dispatch, stop if literal-H recording evidence is not durable, the
-  current remote ref does not equal named R, or H-to-R ancestry fails. Apply the
-  equivalent current-head and ancestry checks again for later L/A evidence.
+- Current H is `78329c6f45793583d4d0e46a96ad54066989ba8d`, R is
+  `99f34e32de9702ae34301463e32ed3d8ff013932`, and `L = SELF/HEAD` records
+  `/root/held_child_273_live`; A remains absent. Before release, require durable
+  exact L/A, current remote equality to A, and L-to-A ancestry.
 - Stop before `H` if actual Git context differs from the planned canonical
   values or recomputation does not produce
   `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`.

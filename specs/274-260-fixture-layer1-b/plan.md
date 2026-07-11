@@ -16,11 +16,13 @@
 
 **Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `handoff-ready` / `pending` / `held-preflight`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `launched` / `held`; `false` / `false`
 
 **Current barrier evidence / child identity**: exact H is
-`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
-commit stores literal H. `L`, `A`, and the stable child/task/agent identity remain pending. No
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
+launched-evidence commit records stable identity `/root/held_child_274_live`.
+`A` remains pending. No
 result has been implemented.
 
 ## Summary
@@ -85,18 +87,16 @@ persistence, security, shared-contract, or operational decision remains.
    prepared-handoff fingerprint were verified. The fingerprint was recomputed
    from the exact ordered `sidecar-prepared-handoff-v1` payload immediately
    before exact H `78329c6f45793583d4d0e46a96ad54066989ba8d`.
-2. Receive exact handoff-ready evidence commit `H` and later recording head `R`
-   that stores `H`. Read current remote state without editing: require the
-   coordinator remote ref to equal `R` and require Git ancestry to prove `R`
-   contains `H`.
-3. Accept held dispatch only when the child-agent capability returns one
-   unambiguous stable canonical child/task identity correlated with the exact
-   dispatch envelope. The child may be behind `H`/`R`; it must remain clean,
-   preflight-only, and unable to implement or deliver.
-4. After accepted dispatch, remain held while the coordinator records factual
-   launched evidence `L` with permissions false and later activation head `A`
-   that stores `L` and records permissions true subject to child revalidation;
-   effective child authority remains false.
+2. Exact H `78329c6f45793583d4d0e46a96ad54066989ba8d` and recording head R
+   `99f34e32de9702ae34301463e32ed3d8ff013932` are remote-durable; R stores
+   H, remote equality to R passed, and H is R's direct parent.
+3. Held dispatch returned unambiguous stable canonical identity
+   `/root/held_child_274_live`, correlated the exact envelope, and remained
+   clean, preflight-only, and unable to implement or deliver.
+4. This `L = SELF/HEAD` commit records factual launched evidence with
+   permissions false. The child remains held while later activation head `A`
+   remains pending. A will store L and record permissions true subject to child
+   revalidation; effective child authority remains false.
 5. Before release, require current remote equality to exact `A` plus ancestry
    proof that `A` contains `L`. Through targeted continuation of the same held
    child, fetch `A`, update the still-clean child branch by allowed fast-forward
@@ -139,7 +139,7 @@ are excluded from the fingerprint and retained as separate correlation evidence.
 | Point | Preparation | Launch | Workflow | Implementation / Delivery | Required evidence |
 |-------|-------------|--------|----------|---------------------------|-------------------|
 | Initial artifact at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false | Immutable control revision and planned fingerprint before child Git creation |
-| Current R recording evidence; push/fetch pending | `handoff-ready` | `pending` | `held-preflight` | false / false | H `78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD`; no child identity |
+| Current L launched evidence; A pending | `handoff-ready` | `launched` | `held` | false / false | H/R literal; `L = SELF/HEAD`; `/root/held_child_274_live`; zero-edit proof |
 | Remote handoff ready | `handoff-ready` | `pending` | `held-preflight` | false / false | Exact `H`; current remote equals later `R`; `R` stores and contains `H` |
 | Held dispatch accepted | `handoff-ready` | `pending` | `held-preflight` | false / false | Stable canonical child identity; zero-edit proof |
 | Factual launch pushed, activation pending | `handoff-ready` | `launched` | `held` | false / false | Exact `L`; failure to push `A` retains launch but grants no permission |

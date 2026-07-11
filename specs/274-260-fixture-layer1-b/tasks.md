@@ -14,11 +14,13 @@
 
 **Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `handoff-ready` / `pending` / `held-preflight`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `launched` / `held`; `false` / `false`
 
 **Current barrier evidence / child identity**: exact H is
-`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
-commit stores literal H. `L`, `A`, and the stable child/task/agent identity remain pending. No
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
+launched-evidence commit records stable identity `/root/held_child_274_live`.
+`A` remains pending. No
 result has been implemented.
 
 ## Required Release Gate (Not Prepared Task Execution)
@@ -72,9 +74,10 @@ Only after exact activation-head incorporation and release acknowledgment may th
 
 Branch creation is coordinator-owned and complete at exact initial coordinator
 head `421b2ac250c05c59eb3cade06b4056e02a6c8415`. The current artifacts are
-handoff-ready/held-preflight with launch pending and permissions false. H is
-`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD`. `L`, `A`, child
-identity, and result remain pending. Held
+handoff-ready/held with launch factual `launched` and permissions false. H is
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` records
+`/root/held_child_274_live`. A and result remain pending. The child remains held;
 preflight performs zero mutation. Targeted continuation
 after durable `L`/`A` performs only clean activation-head incorporation while
 conditional permissions are recorded true but effective authority remains

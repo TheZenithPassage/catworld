@@ -20,13 +20,15 @@
 
 **Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current preparation / launch / workflow state**: `handoff-ready` / `pending` / `held-preflight`
+**Current preparation / launch / workflow state**: `handoff-ready` / `launched` / `held`
 
 **Current implementation / delivery permission**: `false` / `false`
 
 **Current barrier evidence / child identity**: exact H is
-`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
-commit stores literal H. `L`, `A`, and the stable child/task/agent identity remain pending. The
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; `L = SELF/HEAD` in this
+launched-evidence commit records stable identity `/root/held_child_274_live`.
+`A` remains pending. The
 result is not implemented.
 
 ## Goal
@@ -169,9 +171,10 @@ finally {
 The authoritative lowercase 64-hex value, recomputed from the actual Git
 context immediately before H, is
 `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`.
-Exact H is `78329c6f45793583d4d0e46a96ad54066989ba8d`; this recording commit
-is `R = SELF/HEAD`. The fingerprint remains independent of H/R/L/A and stable
-child identity.
+Exact H is `78329c6f45793583d4d0e46a96ad54066989ba8d`; exact R is
+`99f34e32de9702ae34301463e32ed3d8ff013932`; this launched-evidence
+commit is `L = SELF/HEAD`. The fingerprint remains independent of H/R/L/A and
+stable child identity.
 
 Prepared artifact content is validated separately. Artifact-content hashes,
 the fingerprint itself, C2r, `H`, `R`, `L`, `A`, and stable child/task/agent
