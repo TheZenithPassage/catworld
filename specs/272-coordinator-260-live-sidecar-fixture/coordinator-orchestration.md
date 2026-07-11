@@ -12,8 +12,8 @@
 - **parent epic**: [#249](https://github.com/TheZenithPassage/catworld/issues/249)
 - **classification**: workflow-only sidecar coordinator
 - **stable final-delivery identity**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb:272:main`
-- **current lifecycle state**: preserved artifact reconciliation validated against immutable canonical control revision; initial runtime commit pending
-- **current readiness**: artifacts validated but not handoff-ready; coordinator push and child Git preparation remain pending
+- **current lifecycle state**: layer-1 Git contexts created from the remotely durable initial runtime head; handoff-ready evidence `H = SELF/HEAD` is being established
+- **current readiness**: #273 and #274 are handoff-ready but held with permissions false; dispatch remains prohibited until later `R` stores literal `H` and remote equality/ancestry pass; #275 remains dependency-blocked
 
 This exact `run_id` is immutable. It identifies same-run resume and the later Git-common-directory cleanup journal; it must not be derived, shortened, renamed, or guessed.
 
@@ -37,7 +37,7 @@ The control and runtime contexts are intentionally separate.
 |---------|------------|-----|-------------------|---------|
 | #260 immutable workflow source `C2` | `chore/260-live-controlled-sidecar-dry-run`, based on `origin/workflow/sidecar-buildout` | `db175fe0a1911e9ea2a1931ae808b9771f874b57` | `C:\Users\moshe\Desktop\catworld` | Canonical corrected coordinator/child skills, #255/#256 contracts and validators, routing exception, architecture, and #260 decision artifacts consumed by every handoff |
 | Runtime coordinator source | `origin/main` | `047569718767859289b9f48d68b635b8f7b7f1ac` | source ref only; local `main` is not checked out | Required runtime base |
-| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `047569718767859289b9f48d68b635b8f7b7f1ac` at creation | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree |
+| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | base `047569718767859289b9f48d68b635b8f7b7f1ac`; initial artifact head `421b2ac250c05c59eb3cade06b4056e02a6c8415`; `H = SELF/HEAD` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree |
 
 The 89-path build-out delta from `origin/main` to `origin/workflow/sidecar-buildout` is not merged, cherry-picked, or copied wholesale into the runtime branch. Immutable control revision `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57` is pushed and fetched-equal at `origin/chore/260-live-controlled-sidecar-dry-run`. Later report-only recording head `C2r=76531c9aa0511c49dfd44eb196913a2600a044da` stores literal `C2`, is also pushed/fetched-equal, and does not replace `C2` as the workflow source or fingerprint input. The control context supplies governing workflow instructions; runtime worktrees supply Git execution state and tracked fixture artifacts.
 
@@ -70,15 +70,33 @@ The 89-path build-out delta from `origin/main` to `origin/workflow/sidecar-build
 
 The #260 control checkout is clean at pushed report-recording head `C2r=76531c9aa0511c49dfd44eb196913a2600a044da`, whose ancestry contains `C2`. It is not a runtime sidecar checkout and is not used to write runtime artifacts. Every runtime handoff and canonical fingerprint names immutable workflow source `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57` rather than consuming stale instructions from runtime `main` or using `C2r` as the control revision.
 
+The reconciled ten-file set was committed as initial runtime head
+`I=421b2ac250c05c59eb3cade06b4056e02a6c8415`, normally pushed, fetched, and
+proved equal to `origin/sidecar/272-coordinator-260-live-sidecar-fixture` before
+either child Git context was created. Both approved layer-1 child branches and
+worktrees were then created from exact `I`; both were clean at creation. No
+#275 branch or worktree was created, and no layer-1 child remote ref existed.
+
 ## Inspected Child Issue Map
 
 | Child | URL / State | Dependencies | Artifact / owned path | Preparation | Workflow / launch | Permissions | Dispatch/evidence | Non-launch reason |
 |-------|-------------|--------------|-----------------------|-------------|-------------------|-------------|-------------------|-------------------|
-| #273 layer1-a | `https://github.com/TheZenithPassage/catworld/issues/273` / open | none | `specs/273-260-fixture-layer1-a/`; `samples/result.md` | prepared; reconciled to `C2`; not handoff-ready | pending / pending | implementation false; delivery false | expected canonical F `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`; no child identity; H/R/L/A absent | initial runtime commit/push and actual child Git context pending |
-| #274 layer1-b | `https://github.com/TheZenithPassage/catworld/issues/274` / open | none | `specs/274-260-fixture-layer1-b/`; `samples/result.md` | prepared; reconciled to `C2`; not handoff-ready | pending / pending | implementation false; delivery false | expected canonical F `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`; no child identity; H/R/L/A absent | initial runtime commit/push and actual child Git context pending |
+| #273 layer1-a | `https://github.com/TheZenithPassage/catworld/issues/273` / open | none | `specs/273-260-fixture-layer1-a/`; `samples/result.md` | handoff-ready; actual Git context and content validated against `C2` | held-preflight / pending | implementation false; delivery false | authoritative canonical F `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`; `H = SELF/HEAD`; R/L/A and child identity pending | push/fetch H, then publish literal-H recording head R before held dispatch |
+| #274 layer1-b | `https://github.com/TheZenithPassage/catworld/issues/274` / open | none | `specs/274-260-fixture-layer1-b/`; `samples/result.md` | handoff-ready; actual Git context and content validated against `C2` | held-preflight / pending | implementation false; delivery false | authoritative canonical F `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`; `H = SELF/HEAD`; R/L/A and child identity pending | push/fetch H, then publish literal-H recording head R before held dispatch |
 | #275 layer2-summary | `https://github.com/TheZenithPassage/catworld/issues/275` / open | hard-depends on #273 and #274 | `specs/275-260-fixture-layer2-summary/`; `samples/result.md` | prepared; reconciled to `C2`; not handoff-ready | waiting-for-dependency-merge / waiting-for-dependency-merge | implementation false; delivery false | authoritative fingerprint not computed; no child Git context/identity; H/R/L/A absent | both first-layer commits must be ancestry-proven integrated after remote/local coordinator refresh |
 
 The child set is complete and unique. No duplicate issue number, same-number artifact prefix, sibling-owned surface, or unexpected child exists.
+
+### Layer 1 Handoff Evidence
+
+| Child | Exact child Git context | Canonical fingerprint | H | R | L / A / identity |
+|-------|-------------------------|-----------------------|---|---|------------------|
+| #273 | `sidecar/273-260-fixture-layer1-a@421b2ac250c05c59eb3cade06b4056e02a6c8415`; exact planned worktree; clean; no remote ref | `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`, freshly recomputed from the exact 21-field payload after Git creation | `SELF/HEAD`; this commit contains the complete immutable handoff-ready evidence | pending separate recording commit that stores literal H | pending / pending / none |
+| #274 | `sidecar/274-260-fixture-layer1-b@421b2ac250c05c59eb3cade06b4056e02a6c8415`; exact planned worktree; clean; no remote ref | `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`, freshly recomputed from the exact 21-field payload after Git creation | `SELF/HEAD`; this commit contains the complete immutable handoff-ready evidence | pending separate recording commit that stores literal H | pending / pending / none |
+
+No held child has been dispatched. H itself cannot contain its own literal SHA;
+the immediately following bounded recording commit R resolves exact H. Dispatch
+requires fetched current remote equality to R and ancestry proof from H to R.
 
 ## Dependency Layers and Conflict Classification
 
@@ -172,9 +190,9 @@ Each result is a small Markdown sample artifact. No child may redefine this cont
 
 | Resource | Branch | Source | Exact worktree | Local state | Remote state | Same-run ownership |
 |----------|--------|--------|----------------|-------------|--------------|--------------------|
-| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | created at source SHA; artifact writes in progress | not created/pushed yet | recorded for this run |
-| Child #273 | `sidecar/273-260-fixture-layer1-a` | coordinator branch after prepared artifact commit | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a` | planned; no branch/worktree yet | none | planned only; not yet owned as created |
-| Child #274 | `sidecar/274-260-fixture-layer1-b` | coordinator branch after prepared artifact commit | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\274-260-fixture-layer1-b` | planned; no branch/worktree yet | none | planned only; not yet owned as created |
+| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | initial artifact head `421b2ac250c05c59eb3cade06b4056e02a6c8415` published; H is `SELF/HEAD` | initial head fetched-equal before H; H push pending | recorded for this run |
+| Child #273 | `sidecar/273-260-fixture-layer1-a` | exact initial coordinator artifact head `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a` | created at exact source; clean; behind pending H/R by design | none | recorded for this run |
+| Child #274 | `sidecar/274-260-fixture-layer1-b` | exact initial coordinator artifact head `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\274-260-fixture-layer1-b` | created at exact source; clean; behind pending H/R by design | none | recorded for this run |
 | Child #275 | `sidecar/275-260-fixture-layer2-summary` | refreshed coordinator branch after layer 1 integration | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\275-260-fixture-layer2-summary` | planned; no branch/worktree yet | none | planned only; not yet owned as created |
 
 No child branch starts from `main`. No branch/worktree may be renamed, guessed, auto-recovered, deleted, rebased, or force-updated.
@@ -226,9 +244,11 @@ Historical attempts are preserved. Current readiness uses exactly one result per
 | Canonical immutable control correction | `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57`, `C2r=76531c9aa0511c49dfd44eb196913a2600a044da` | both push/fetch equality checks, identical 21-field schema audit, #255 12-scenario and #256 19-scenario matrices, protected operations, task/checklist/diff gates | passed | sole runtime workflow source; content validation is separate; self/H/R/L/A/identity inputs excluded; held preflight and targeted incorporation are distinct |
 | Historical child artifact completeness/scope | original exact nine child artifact files | exact-file-set, run-ID, placeholder, task-syntax, premature-result, and source-map review | passed | historical; superseded by in-place barrier reconciliation |
 | Historical coordinator artifact completeness/factual state | original coordinator artifact | required-section, exact run identity, and factual-state review | passed | historical; superseded by this in-place barrier reconciliation |
-| Reconciled ten-file artifact set | exact ten current files over preserved index blobs | exact path/index identity, canonical 21-field order, F273/F274 recomputation, independent content validation, state/permission vocabulary, H/R/L/A absence, exact PR blocks, 8/18/13 unchecked task sequences, premature-result and child-resource absence, cached/working/combined diff checks | passed | current before initial runtime commit; #273/#274 fingerprints are expected until actual Git context revalidation; #275 remains without an authoritative fingerprint |
-| Remote coordinator push | coordinator branch | normal push plus fetched ref equality | not run | remote ref does not yet exist |
-| Child Git context | layer 1 branches/worktrees | exact branch/source/path/clean/isolation review | not run | resources not created yet |
+| Reconciled ten-file artifact set | exact ten files committed at `421b2ac250c05c59eb3cade06b4056e02a6c8415` over preserved index blobs | exact path/index identity, canonical 21-field order, F273/F274 recomputation, independent content validation, state/permission vocabulary, H/R/L/A absence, exact PR blocks, 8/18/13 unchecked task sequences, premature-result and child-resource absence, cached/working/combined diff checks | passed | immutable initial runtime evidence; #275 remains without an authoritative fingerprint |
+| Initial remote coordinator publication | `421b2ac250c05c59eb3cade06b4056e02a6c8415` | normal push, fetch, local/fetched-remote equality | passed | completed before layer-1 child Git creation |
+| Child Git context | layer 1 branches/worktrees | exact branch/source/path/clean/isolation and remote-absence review | passed | #273 and #274 created clean at exact initial head; #275 absent |
+| Layer-1 canonical handoff identity | actual #273/#274 Git contexts plus separately validated prepared content | exact ordered 21-field payload recomputation | passed | F273/F274 equal the authoritative values recorded above immediately before H |
+| Layer-1 handoff evidence H | `SELF/HEAD` | changed-file, state/permission, exact fingerprint, no-result, no-identity review | passed | push/fetch and literal-H recording head R remain required before dispatch |
 | Child implementation validation | layer 1 child heads | owned-file diff, explicit-range whitespace, marker/run checks | not run | no handoff launched |
 | Integrated coordinator validation | literal H | complete live runtime checks | not run | terminal child gate not reached |
 | H2 affected checks | literal H2 | pending manifest | not run | H2 does not exist |
@@ -254,8 +274,8 @@ Current evidence must be re-read before every resume. Private conversation is no
 
 | Child | Preparation | Branch / Worktree | PR | Layer | Workflow / launch | Permissions | H/R/L/A and child identity | Validation / refresh | Cleanup |
 |-------|-------------|-------------------|----|-------|-------------------|-------------|----------------------------|----------------------|---------|
-| #273 | prepared; reconciled; not handoff-ready | planned / planned | none | 1 | prepared / pending | false / false | absent; no dispatch identity | not run / not needed | ineligible: pending final PR merge |
-| #274 | prepared; reconciled; not handoff-ready | planned / planned | none | 1 | prepared / pending | false / false | absent; no dispatch identity | not run / not needed | ineligible: pending final PR merge |
+| #273 | handoff-ready; actual context validated | created clean at `421b2ac250c05c59eb3cade06b4056e02a6c8415` / exact recorded path | none | 1 | held-preflight / pending | false / false | H `SELF/HEAD`; R/L/A pending; no dispatch identity | H precommit checks passed / release not started | ineligible: pending final PR merge |
+| #274 | handoff-ready; actual context validated | created clean at `421b2ac250c05c59eb3cade06b4056e02a6c8415` / exact recorded path | none | 1 | held-preflight / pending | false / false | H `SELF/HEAD`; R/L/A pending; no dispatch identity | H precommit checks passed / release not started | ineligible: pending final PR merge |
 | #275 | prepared; reconciled; not handoff-ready | planned / planned | none | 2 | waiting-for-dependency-merge / waiting-for-dependency-merge | false / false | absent; no dispatch identity | not run / not needed | ineligible: pending final PR merge |
 
 Before H2, update this artifact when factual state changes: artifact readiness, branch/worktree creation, H/R publication, dispatch acceptance/rejection/ambiguity and stable identity, L/A publication, release success/failure, held-preflight zero-mutation and barrier-only incorporation evidence, PR creation, user merge observation, stale validation, coordinator/active-child refresh, integration, next-layer readiness, blockers, terminal child accounting, H results, and pending H2 manifest.
@@ -314,9 +334,7 @@ The first live attempt stopped before runtime commit, push, child Git creation, 
 
 ### Pending Prerequisites (not claimed as blockers)
 
-- commit and normally push the reconciled initial coordinator artifact set;
-- create and validate the two layer-1 child branch/worktree contexts while #275 remains waiting;
-- commit/push/fetch exact H then R with permissions false;
+- normally push/fetch exact H, then commit/push/fetch R storing literal H with permissions false;
 - dispatch #273/#274 once each in stable preflight-only mode, persist/fetch exact L then A for the accepted batch, and release only those same identities after clean incorporation and verification.
 
 If factual coordinator-artifact bookkeeping causes an unresolvable validation/target-base loop, stop as a concrete workflow defect and preserve all state.

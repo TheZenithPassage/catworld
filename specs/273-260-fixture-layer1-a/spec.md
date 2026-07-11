@@ -12,16 +12,20 @@
 **Control report head (`C2r`, separate evidence)**:
 `76531c9aa0511c49dfd44eb196913a2600a044da`
 
-**Expected prepared-handoff fingerprint**:
+**Authoritative prepared-handoff fingerprint**:
 `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
 
 **Dependency layer**: 1
 
 **Hard dependencies**: None
 
-**Current prepared state**: artifact preparation `prepared`; launch `pending`;
-workflow `pending`; implementation permission `false`; delivery permission
-`false`; no `H`, `R`, `L`, `A`, or child-agent identity exists
+**Current prepared state**: artifact preparation `handoff-ready`; launch
+`pending`; workflow `held-preflight`; implementation permission `false`;
+delivery permission `false`
+
+**Barrier evidence**: `H = SELF/HEAD` in this handoff evidence commit; exact
+literal `H` will be stored by later recording head `R`; `R`, `L`, `A`, and the
+stable child-agent identity remain pending
 
 ## Goal
 
@@ -32,12 +36,12 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
 ## Acceptance Scenarios
 
 1. **Given** the prepared trio names immutable control revision `C2`, the exact
-   planned Git and PR identities, and the canonical v1 payload, **when** the
-   expected fingerprint is recomputed, **then** it equals
+   actual/planned Git and PR identities, and the canonical v1 payload, **when**
+   the authoritative fingerprint is recomputed immediately before H, **then** it equals
    `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
-   while `C2r` remains separate evidence and the current state remains
-   `prepared` / `pending` / `pending` with both permissions false and no
-   `H`/`R`/`L`/`A` or child-agent identity.
+   while `C2r` remains separate evidence and the current state is
+   `handoff-ready` / `pending` / `held-preflight` with both permissions false,
+   `H = SELF/HEAD`, and no `R`/`L`/`A` or child-agent identity.
 2. **Given** coordinator #272 has committed and pushed exact handoff-ready
    evidence `H` and a later recording head `R` containing `H`, **when** current
    fetched remote equality to `R` and ancestry from `H` are proven, **then** one
@@ -95,19 +99,18 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
   `db175fe0a1911e9ea2a1931ae808b9771f874b57`, exact child branch
   `sidecar/273-260-fixture-layer1-a`, and exact child worktree
   `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a`.
-- **FR-009**: The current state MUST remain artifact preparation `prepared`,
-  launch `pending`, workflow `pending`, and implementation/delivery permissions
-  false, with no `H`, `R`, `L`, `A`, or child-agent identity. Only after the
-  actual child Git context exists and the canonical payload is revalidated may
-  future handoff-ready evidence `H` and later recording head `R` advance the
-  child to zero-mutation `held-preflight`; the fetched remote ref MUST equal
-  `R`, and `R` MUST contain `H` by ancestry.
+- **FR-009**: The current state MUST remain artifact preparation
+  `handoff-ready`, launch `pending`, workflow `held-preflight`, and
+  implementation/delivery permissions false. Exact H is this commit's
+  `SELF/HEAD`; only a later recording head `R` that stores literal H, fetched
+  remote equality to R, and H-to-R ancestry may authorize zero-mutation held
+  dispatch. `L`, `A`, and child-agent identity remain absent before acceptance.
 - **FR-010**: The canonical `sidecar-prepared-handoff-v1` fingerprint MUST use
   exactly the 21 ordered fields, serialization, UTF-8 encoding, and lowercase
-  SHA-256 procedure below. Its expected/planned value is
+  SHA-256 procedure below. Its authoritative value, recomputed from the actual
+  Git context immediately before H, is
   `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
-  until actual Git context is present and the payload is revalidated
-  immediately before `H`.
+  and remains independent of H/R/L/A and agent identity.
 - **FR-011**: A held dispatch MUST be accepted only with one unambiguous stable
   canonical child/task identity correlated to the exact fingerprint, `H`, and
   `R`. During held preflight and before durable `L`/`A` continuation, that child
@@ -187,16 +190,17 @@ the fingerprint itself or another artifact self-identity, `H`, `R`, `L`, `A`,
 and any child-agent or dispatch identity are never inputs. Prepared artifact
 content is validated separately from this identity fingerprint.
 
-The literal fingerprint in these prepared artifacts is expected/planned, not
-runtime evidence. Before creating `H`, coordinator #272 MUST verify the actual
-branch and worktree context matches every planned Git field and recompute the
-same fingerprint from the exact canonical payload.
+The literal fingerprint in these handoff-ready artifacts is authoritative
+runtime identity evidence: coordinator #272 verified the actual branch and
+worktree context against every planned Git field and recomputed the exact
+canonical payload immediately before this `H = SELF/HEAD` commit.
 
 ## Dispatch State Contract
 
 | Barrier point | Preparation | Launch | Workflow | Implementation / delivery |
 |---------------|-------------|--------|----------|---------------------------|
-| Current artifact state | `prepared` | `pending` | `pending` | false / false |
+| Initial artifact state at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false |
+| Current H evidence; R pending | `handoff-ready` | `pending` | `held-preflight` | false / false |
 | Future remote `H`/`R` verified | `handoff-ready` | `pending` | `held-preflight` | false / false |
 | Stable dispatch accepted | `handoff-ready` | factual dispatch accepted; durable record still `pending` | `held-preflight` | false / false |
 | Future remote `L`/`A` verified | `handoff-ready` | `launched` | `release-pending` | recorded true / effective false; child revalidation and release remain required |

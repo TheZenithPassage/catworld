@@ -12,16 +12,20 @@
 **Control report head (`C2r`, separate evidence)**:
 `76531c9aa0511c49dfd44eb196913a2600a044da`
 
-**Expected prepared-handoff fingerprint**:
+**Authoritative prepared-handoff fingerprint**:
 `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
 
 **Dependency layer**: 1
 
 **Hard dependencies**: None
 
-**Current state**: artifact preparation `prepared`; launch `pending`; workflow
-`pending`; implementation permission `false`; delivery permission `false`; no
-`H`, `R`, `L`, `A`, or child-agent identity exists
+**Current state**: artifact preparation `handoff-ready`; launch `pending`;
+workflow `held-preflight`; implementation permission `false`; delivery
+permission `false`
+
+**Barrier evidence**: `H = SELF/HEAD` in this handoff evidence commit; exact
+literal `H` will be stored by later recording head `R`; `R`, `L`, `A`, and the
+stable child-agent identity remain pending
 
 ## Summary
 
@@ -81,13 +85,14 @@ persistence, security, shared-contract, or operational decision remains.
 ## Handoff and Execution Design
 
 The artifact-preparation state, factual launch state, workflow state, and
-permissions are separate. Their current values are `prepared`, `pending`,
-`pending`, and false/false respectively. `H`, `R`, `L`, `A`, and a child-agent
-identity are not yet assigned. Control report head `C2r`
+permissions are separate. Their current values are `handoff-ready`, `pending`,
+`held-preflight`, and false/false respectively. `H` is `SELF/HEAD` in this
+evidence commit; `R`, `L`, `A`, and a child-agent identity are not yet assigned.
+Control report head `C2r`
 `76531c9aa0511c49dfd44eb196913a2600a044da` is separate evidence, not a
 lifecycle head or fingerprint input.
 
-### Canonical planned handoff identity
+### Canonical authoritative handoff identity
 
 The canonical payload contains exactly these 21 properties in this order:
 `Schema`, `RunId`, `CoordinatorIssueNumber`, `ChildIssueNumber`,
@@ -97,7 +102,7 @@ The canonical payload contains exactly these 21 properties in this order:
 `PrTargetBranch`, `PrRelatedReferences`, `ArtifactPreparationState`,
 `LaunchState`, `ImplementationPermission`, `DeliveryPermission`.
 
-The exact planned values are:
+The exact actual and planned values are:
 
 - schema `sidecar-prepared-handoff-v1`, run
   `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`, coordinator integer `272`,
@@ -120,23 +125,23 @@ The exact planned values are:
 
 Build those fields as the exact PowerShell `[ordered]` object recorded in
 `spec.md`, serialize with `ConvertTo-Json -Compress -Depth 4`, hash its UTF-8
-bytes with SHA-256, and render lowercase 64-hex. The expected/planned result is
+bytes with SHA-256, and render lowercase 64-hex. The authoritative recomputed result is
 `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`.
 Artifact content/blob hashes, artifact self-identity or the fingerprint itself,
 `C2r`, `H`, `R`, `L`, `A`, and agent/dispatch identity are not inputs;
 prepared artifact content is validated separately.
 
-The literal fingerprint remains expected/planned until the actual branch and
-worktree context exists. Coordinator #272 must match every actual Git identity
-to the planned value and recompute the canonical fingerprint immediately before
-creating `H`.
+The literal fingerprint is authoritative because the actual branch and
+worktree context exists. Coordinator #272 matched every actual Git identity to
+the planned value and recomputed the canonical fingerprint immediately before
+this `H = SELF/HEAD` evidence commit.
 
-1. After actual child Git context exists, validate exact child/run/branch/
-   worktree/artifact identities, validate the artifact contents separately, and
-   recompute the canonical fingerprint. Any mismatch stops before `H`.
-2. Commit/push future handoff-ready evidence `H` while launch remains `pending`
-   and implementation/delivery permissions remain false. Resolve literal `H`
-   only after commit creation.
+1. The actual child Git context now exists; exact child/run/branch/worktree/
+   artifact identities and artifact contents were validated separately, and the
+   canonical fingerprint was recomputed without mismatch.
+2. This commit is handoff-ready evidence `H = SELF/HEAD`; launch remains
+   `pending`, implementation/delivery permissions remain false, and literal H
+   is resolved only after commit creation.
 3. In one later bounded recording commit `R`, store exact `H` and the already
    recomputed prepared-handoff fingerprint. Push/fetch `R`, require the current
    remote coordinator ref to equal `R`, and prove `H` is its ancestor. Neither
@@ -226,10 +231,10 @@ evidence supports ready child delivery.
 - Stop if the handoff, checkout, branch, issue identities, run ID, dependency
   state, immutable `C2`, separate `C2r` evidence, source map, or remote
   coordinator ref is missing or inconsistent.
-- The current absence of `H`, `R`, `L`, `A`, and child-agent identity is the
-  factual prepared state. Once a future barrier phase begins, stop if its
-  required evidence is missing, the current remote ref does not equal the named
-  current recording/activation head, or required ancestry fails.
+- Current `H = SELF/HEAD`; `R`, `L`, `A`, and child-agent identity remain absent.
+  Before held dispatch, stop if literal-H recording evidence is missing, the
+  current remote ref does not equal named R, or H-to-R ancestry fails. Apply the
+  equivalent current-head and ancestry checks again for later L/A evidence.
 - Stop before `H` if actual Git context differs from the planned canonical
   values or recomputation does not produce
   `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`.

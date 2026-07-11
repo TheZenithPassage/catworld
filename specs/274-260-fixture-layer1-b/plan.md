@@ -14,12 +14,14 @@
 
 **Control report head (C2r; separate evidence)**: `76531c9aa0511c49dfd44eb196913a2600a044da`
 
-**Prepared-handoff fingerprint (expected/planned)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
+**Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `prepared` / `pending` / `pending`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `pending` / `held-preflight`; `false` / `false`
 
-**Current barrier evidence / child identity**: No `H`, `R`, `L`, `A`, or stable
-child/task/agent identity exists yet. No result has been implemented.
+**Current barrier evidence / child identity**: `H = SELF/HEAD` in this handoff
+evidence commit; exact literal `H` will be stored by later recording head `R`.
+`R`, `L`, `A`, and the stable child/task/agent identity remain pending. No
+result has been implemented.
 
 ## Summary
 
@@ -78,11 +80,11 @@ persistence, security, shared-contract, or operational decision remains.
 
 ## Handoff and Execution Design
 
-1. Verify the exact run, child/coordinator issues, layer, branch, worktree,
-   control revision, artifact paths, one-file source map, and deterministic
-   prepared-handoff fingerprint. Recompute it from the exact ordered
-   `sidecar-prepared-handoff-v1` payload immediately before `H`; it is only
-   expected/planned until actual child context exists.
+1. The exact run, child/coordinator issues, layer, branch, worktree, control
+   revision, artifact paths, one-file source map, and deterministic
+   prepared-handoff fingerprint were verified. The fingerprint was recomputed
+   from the exact ordered `sidecar-prepared-handoff-v1` payload immediately
+   before this `H = SELF/HEAD` evidence commit.
 2. Receive exact handoff-ready evidence commit `H` and later recording head `R`
    that stores `H`. Read current remote state without editing: require the
    coordinator remote ref to equal `R` and require Git ancestry to prove `R`
@@ -120,7 +122,7 @@ exists.
 The exact ordered 21-field PowerShell payload and all literal values are defined
 in `spec.md`. It is serialized only with
 `ConvertTo-Json -Compress -Depth 4`; SHA-256 is computed over its UTF-8 bytes
-and rendered as lowercase 64-hex. The expected value is
+and rendered as lowercase 64-hex. The authoritative recomputed value is
 `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`.
 The payload binds schema, run and issue integers, coordinator branch/remote/
 worktree, child branch/worktree, C2, the exact three prepared artifact paths,
@@ -136,7 +138,8 @@ are excluded from the fingerprint and retained as separate correlation evidence.
 
 | Point | Preparation | Launch | Workflow | Implementation / Delivery | Required evidence |
 |-------|-------------|--------|----------|---------------------------|-------------------|
-| Current preserved artifact | `prepared` | `pending` | `pending` | false / false | Immutable control revision and expected fingerprint; actual Git context still absent |
+| Initial artifact at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false | Immutable control revision and planned fingerprint before child Git creation |
+| Current H evidence; R pending | `handoff-ready` | `pending` | `held-preflight` | false / false | `H = SELF/HEAD`; actual context and authoritative fingerprint validated; no child identity |
 | Remote handoff ready | `handoff-ready` | `pending` | `held-preflight` | false / false | Exact `H`; current remote equals later `R`; `R` stores and contains `H` |
 | Held dispatch accepted | `handoff-ready` | `pending` | `held-preflight` | false / false | Stable canonical child identity; zero-edit proof |
 | Factual launch pushed, activation pending | `handoff-ready` | `launched` | `held` | false / false | Exact `L`; failure to push `A` retains launch but grants no permission |

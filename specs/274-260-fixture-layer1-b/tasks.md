@@ -12,12 +12,14 @@
 
 **Control report head (C2r; separate evidence)**: `76531c9aa0511c49dfd44eb196913a2600a044da`
 
-**Prepared-handoff fingerprint (expected/planned)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
+**Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current state / permissions**: `prepared` / `pending` / `pending`; `false` / `false`
+**Current state / permissions**: `handoff-ready` / `pending` / `held-preflight`; `false` / `false`
 
-**Current barrier evidence / child identity**: No `H`, `R`, `L`, `A`, or stable
-child/task/agent identity exists yet. No result has been implemented.
+**Current barrier evidence / child identity**: `H = SELF/HEAD` in this handoff
+evidence commit; exact literal `H` will be stored by later recording head `R`.
+`R`, `L`, `A`, and the stable child/task/agent identity remain pending. No
+result has been implemented.
 
 ## Required Release Gate (Not Prepared Task Execution)
 
@@ -68,9 +70,11 @@ Only after exact activation-head incorporation and release acknowledgment may th
 
 ## Delivery Boundary
 
-Branch creation is coordinator-owned. The current artifacts are prepared/pending,
-permissions are false, and no `H`, `R`, `L`, `A`, child identity, or result is
-claimed. Future held preflight performs zero mutation. Targeted continuation
+Branch creation is coordinator-owned and complete at exact initial coordinator
+head `421b2ac250c05c59eb3cade06b4056e02a6c8415`. The current artifacts are
+handoff-ready/held-preflight with launch pending and permissions false. `H` is
+`SELF/HEAD`; `R`, `L`, `A`, child identity, and result remain pending. Held
+preflight performs zero mutation. Targeted continuation
 after durable `L`/`A` performs only clean activation-head incorporation while
 conditional permissions are recorded true but effective authority remains
 false; same-child release acknowledgment makes them effective and enables work.

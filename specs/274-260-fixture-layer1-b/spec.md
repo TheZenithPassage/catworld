@@ -18,14 +18,16 @@
 
 **Child worktree**: `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\274-260-fixture-layer1-b`
 
-**Prepared-handoff fingerprint (expected/planned)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
+**Prepared-handoff fingerprint (authoritative)**: `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`
 
-**Current preparation / launch / workflow state**: `prepared` / `pending` / `pending`
+**Current preparation / launch / workflow state**: `handoff-ready` / `pending` / `held-preflight`
 
 **Current implementation / delivery permission**: `false` / `false`
 
-**Current barrier evidence / child identity**: No `H`, `R`, `L`, `A`, or
-stable child/task/agent identity exists yet. The result is not implemented.
+**Current barrier evidence / child identity**: `H = SELF/HEAD` in this handoff
+evidence commit; exact literal `H` will be stored by later recording head `R`.
+`R`, `L`, `A`, and the stable child/task/agent identity remain pending. The
+result is not implemented.
 
 ## Goal
 
@@ -164,10 +166,11 @@ finally {
 }
 ```
 
-The expected lowercase 64-hex value is
+The authoritative lowercase 64-hex value, recomputed from the actual Git
+context immediately before H, is
 `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`.
-It remains expected/planned until the actual child context exists and must be
-recomputed and matched immediately before creating `H`.
+This commit is `H = SELF/HEAD`; the fingerprint remains independent of
+H/R/L/A and stable child identity.
 
 Prepared artifact content is validated separately. Artifact-content hashes,
 the fingerprint itself, C2r, `H`, `R`, `L`, `A`, and stable child/task/agent

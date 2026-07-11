@@ -12,19 +12,21 @@
 **Control report head (`C2r`, separate evidence)**:
 `76531c9aa0511c49dfd44eb196913a2600a044da`
 
-**Expected prepared-handoff fingerprint**:
+**Authoritative prepared-handoff fingerprint**:
 `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
 
 **Dependency layer**: 1; no hard dependencies
 
-## Current Prepared State (No Task Execution)
+## Current Handoff-Ready State (No Task Execution)
 
-Artifact preparation is `prepared`, launch is `pending`, workflow is `pending`,
-and implementation/delivery permissions are false. No `H`, `R`, `L`, `A`, or
-child-agent identity exists. `C2r` is separate control-report evidence, not a
-fingerprint input or a sidecar lifecycle head. The literal fingerprint is only
-expected/planned until actual child Git context exists and coordinator #272
-revalidates every canonical field immediately before `H`.
+Artifact preparation is `handoff-ready`, launch is `pending`, workflow is
+`held-preflight`, and implementation/delivery permissions are false. `H` is
+`SELF/HEAD` in this handoff evidence commit; exact literal `H` will be stored by
+later recording head `R`. `R`, `L`, `A`, and the stable child-agent identity
+remain pending. `C2r` is separate control-report evidence, not a fingerprint
+input or a sidecar lifecycle head. The literal fingerprint is authoritative:
+the actual child Git context exists, every canonical field was revalidated, and
+coordinator #272 recomputed it immediately before `H`.
 
 ## Required Held-Dispatch Gate (Not Prepared Task Execution)
 
