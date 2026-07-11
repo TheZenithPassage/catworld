@@ -23,8 +23,8 @@
 `pending`; workflow `held-preflight`; implementation permission `false`;
 delivery permission `false`
 
-**Barrier evidence**: `H = SELF/HEAD` in this handoff evidence commit; exact
-literal `H` will be stored by later recording head `R`; `R`, `L`, `A`, and the
+**Barrier evidence**: `H = 78329c6f45793583d4d0e46a96ad54066989ba8d`;
+`R = SELF/HEAD` in this recording commit stores literal H; `L`, `A`, and the
 stable child-agent identity remain pending
 
 ## Goal
@@ -41,7 +41,7 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
    `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`
    while `C2r` remains separate evidence and the current state is
    `handoff-ready` / `pending` / `held-preflight` with both permissions false,
-   `H = SELF/HEAD`, and no `R`/`L`/`A` or child-agent identity.
+   literal H, `R = SELF/HEAD`, and no `L`/`A` or child-agent identity.
 2. **Given** coordinator #272 has committed and pushed exact handoff-ready
    evidence `H` and a later recording head `R` containing `H`, **when** current
    fetched remote equality to `R` and ancestry from `H` are proven, **then** one
@@ -101,9 +101,9 @@ must contain the stable run ID and the shared marker `layer1-a-complete`.
   `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a`.
 - **FR-009**: The current state MUST remain artifact preparation
   `handoff-ready`, launch `pending`, workflow `held-preflight`, and
-  implementation/delivery permissions false. Exact H is this commit's
-  `SELF/HEAD`; only a later recording head `R` that stores literal H, fetched
-  remote equality to R, and H-to-R ancestry may authorize zero-mutation held
+  implementation/delivery permissions false. Exact H is
+  `78329c6f45793583d4d0e46a96ad54066989ba8d`; this `R = SELF/HEAD` commit stores
+  literal H. Only fetched remote equality to R and H-to-R ancestry may authorize zero-mutation held
   dispatch. `L`, `A`, and child-agent identity remain absent before acceptance.
 - **FR-010**: The canonical `sidecar-prepared-handoff-v1` fingerprint MUST use
   exactly the 21 ordered fields, serialization, UTF-8 encoding, and lowercase
@@ -193,14 +193,15 @@ content is validated separately from this identity fingerprint.
 The literal fingerprint in these handoff-ready artifacts is authoritative
 runtime identity evidence: coordinator #272 verified the actual branch and
 worktree context against every planned Git field and recomputed the exact
-canonical payload immediately before this `H = SELF/HEAD` commit.
+canonical payload immediately before exact H
+`78329c6f45793583d4d0e46a96ad54066989ba8d`.
 
 ## Dispatch State Contract
 
 | Barrier point | Preparation | Launch | Workflow | Implementation / delivery |
 |---------------|-------------|--------|----------|---------------------------|
 | Initial artifact state at `421b2ac250c05c59eb3cade06b4056e02a6c8415` | `prepared` | `pending` | `pending` | false / false |
-| Current H evidence; R pending | `handoff-ready` | `pending` | `held-preflight` | false / false |
+| Current R recording evidence; push/fetch pending | `handoff-ready` | `pending` | `held-preflight` | false / false |
 | Future remote `H`/`R` verified | `handoff-ready` | `pending` | `held-preflight` | false / false |
 | Stable dispatch accepted | `handoff-ready` | factual dispatch accepted; durable record still `pending` | `held-preflight` | false / false |
 | Future remote `L`/`A` verified | `handoff-ready` | `launched` | `release-pending` | recorded true / effective false; child revalidation and release remain required |

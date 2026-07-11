@@ -24,9 +24,9 @@
 
 **Current implementation / delivery permission**: `false` / `false`
 
-**Current barrier evidence / child identity**: `H = SELF/HEAD` in this handoff
-evidence commit; exact literal `H` will be stored by later recording head `R`.
-`R`, `L`, `A`, and the stable child/task/agent identity remain pending. The
+**Current barrier evidence / child identity**: exact H is
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
+commit stores literal H. `L`, `A`, and the stable child/task/agent identity remain pending. The
 result is not implemented.
 
 ## Goal
@@ -169,8 +169,9 @@ finally {
 The authoritative lowercase 64-hex value, recomputed from the actual Git
 context immediately before H, is
 `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`.
-This commit is `H = SELF/HEAD`; the fingerprint remains independent of
-H/R/L/A and stable child identity.
+Exact H is `78329c6f45793583d4d0e46a96ad54066989ba8d`; this recording commit
+is `R = SELF/HEAD`. The fingerprint remains independent of H/R/L/A and stable
+child identity.
 
 Prepared artifact content is validated separately. Artifact-content hashes,
 the fingerprint itself, C2r, `H`, `R`, `L`, `A`, and stable child/task/agent

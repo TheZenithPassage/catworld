@@ -20,10 +20,10 @@
 ## Current Handoff-Ready State (No Task Execution)
 
 Artifact preparation is `handoff-ready`, launch is `pending`, workflow is
-`held-preflight`, and implementation/delivery permissions are false. `H` is
-`SELF/HEAD` in this handoff evidence commit; exact literal `H` will be stored by
-later recording head `R`. `R`, `L`, `A`, and the stable child-agent identity
-remain pending. `C2r` is separate control-report evidence, not a fingerprint
+`held-preflight`, and implementation/delivery permissions are false. Exact H is
+`78329c6f45793583d4d0e46a96ad54066989ba8d`; `R = SELF/HEAD` in this recording
+commit stores literal H. `L`, `A`, and the stable child-agent identity remain
+pending. `C2r` is separate control-report evidence, not a fingerprint
 input or a sidecar lifecycle head. The literal fingerprint is authoritative:
 the actual child Git context exists, every canonical field was revalidated, and
 coordinator #272 recomputed it immediately before `H`.
