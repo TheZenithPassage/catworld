@@ -115,11 +115,10 @@ accepts that dispatch, the preflight handoff must provide all of these inputs:
 - exact pushed handoff-ready evidence commit SHA, plus the remote coordinator
   ref and exact current fetched preflight recording-head SHA; the recording
   head must contain the evidence commit by ancestry and need not equal it;
-- a deterministic handoff fingerprint covering at least the run ID, child and
-  coordinator issue numbers, exact branch and worktree identities, immutable
-  control revision, handoff-ready evidence commit, artifact paths, dependency
-  layer, and preflight permission state (all false); the later commit that
-  records this fingerprint is not an input to the fingerprint;
+- the exact deterministic `sidecar-prepared-handoff-v1` identity fingerprint
+  defined below. Because the fingerprint exists before the handoff-ready
+  evidence commit, neither that evidence SHA nor its later recording head is a
+  fingerprint input; both are correlated separately in the dispatch envelope;
 - the stable canonical child-agent identity that must accept preflight and
   later receive the release; the handoff must not substitute a display label,
   branch name, process ID, or a newly created replacement executor for this
@@ -205,6 +204,45 @@ accepts that dispatch, the preflight handoff must provide all of these inputs:
 - final report and delivery boundaries provided by the coordinator and approved
   sidecar Git/PR rules, including that Codex reports readiness and the user
   performs merges.
+
+### Canonical Prepared-Handoff Fingerprint
+
+`sidecar-prepared-handoff-v1` is an identity fingerprint for the immutable
+pre-evidence dispatch envelope. Construct one PowerShell `[ordered]` object with
+these properties in this exact order and with these exact types:
+
+1. `Schema` = string `sidecar-prepared-handoff-v1`;
+2. `RunId` = string;
+3. `CoordinatorIssueNumber` = integer;
+4. `ChildIssueNumber` = integer;
+5. `CoordinatorBranch` = string;
+6. `CoordinatorRemoteBranch` = string;
+7. `CoordinatorWorktree` = string;
+8. `ChildBranch` = string;
+9. `ChildWorktree` = string;
+10. `ControlRevision` = exact 40-hex pushed workflow-source SHA string;
+11. `PreparedSpec` = repository-relative path string;
+12. `PreparedPlan` = repository-relative path string;
+13. `PreparedTasks` = repository-relative path string;
+14. `DependencyLayer` = integer;
+15. `HardDependencies` = integer array sorted ascending, including an empty
+    array for no dependencies;
+16. `PrTargetBranch` = exact coordinator-branch string;
+17. `PrRelatedReferences` = exact two-string array in child-then-coordinator
+    order;
+18. `ArtifactPreparationState` = string `handoff-ready`;
+19. `LaunchState` = string `pending`;
+20. `ImplementationPermission` = Boolean `false`;
+21. `DeliveryPermission` = Boolean `false`.
+
+Serialize that ordered object with `ConvertTo-Json -Compress -Depth 4`, hash
+the resulting JSON's UTF-8 bytes with SHA-256, and encode the digest as 64
+lowercase hexadecimal characters. Do not add a prefix. Do not include the
+fingerprint itself, artifact content/blob hashes, handoff-ready or launched
+evidence SHAs, recording/activation heads, or child-agent identity. Prepared
+artifact paths and content are still validated separately; excluding artifact
+content hashes avoids making an artifact that records the fingerprint depend
+recursively on its own blob.
 
 If any required input is absent, incomplete, unreadable, contradictory, or not
 applicable to exactly one child issue, stop before implementation and report a

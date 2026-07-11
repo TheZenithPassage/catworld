@@ -961,6 +961,19 @@ evidence SHA, so readiness is proven by ancestry, never by requiring the current
 remote ref to equal that earlier evidence commit. This bounded pattern creates
 no recursive metadata-commit chain or generic state subsystem.
 
+The prepared-handoff identity uses canonical schema
+`sidecar-prepared-handoff-v1`. It is SHA-256 over UTF-8 bytes of one PowerShell
+ordered object serialized by `ConvertTo-Json -Compress -Depth 4`. Its exact
+ordered fields are: schema, run ID, coordinator and child issue integers,
+coordinator branch/remote/worktree, child branch/worktree, exact 40-hex control
+revision, prepared spec/plan/tasks paths, dependency-layer integer, ascending
+hard-dependency integer array, PR target, exact child-then-coordinator related
+reference array, `handoff-ready`, `pending`, and false implementation/delivery
+Booleans. The digest is 64 lowercase hex without a prefix. Artifact content is
+validated separately. The fingerprint itself, artifact blob/content hashes,
+evidence SHAs, recording/activation heads and child-agent identity are excluded,
+preventing either an evidence-commit or self-containing artifact cycle.
+
 For one dependency-ready layer, the barrier proceeds in this order:
 
 1. The coordinator records complete `handoff-ready` evidence while factual
@@ -981,11 +994,12 @@ For one dependency-ready layer, the barrier proceeds in this order:
    handoff-ready evidence SHA, current recording head and prepared-handoff
    identity or fingerprint. A later unrelated invocation is not the same held
    child.
-4. Before release, that child may validate only its run and child identity,
-   branch/worktree identity, prepared artifacts, dependency layer, the
-   handoff-ready evidence/recording pair and false permissions. It performs zero
-   repository or GitHub edits: no file edit, staging, prepared task execution,
-   commit, push, PR open/update or GitHub mutation.
+4. During held preflight and until targeted durable continuation begins, that
+   child may validate only its run and child identity, branch/worktree identity,
+   prepared artifacts, dependency layer, the handoff-ready evidence/recording
+   pair and false permissions. It performs zero repository or GitHub edits: no
+   file edit, staging, prepared task execution, commit, push, PR open/update or
+   GitHub mutation.
 5. Only after accepted dispatch may the coordinator create the factual launched
    evidence commit for that exact child. That commit records `launched` and the
    current implementation and delivery permissions, using `SELF/HEAD` or an
@@ -996,14 +1010,17 @@ For one dependency-ready layer, the barrier proceeds in this order:
    it need not equal the launched evidence SHA. Every accepted child in the
    batch remains held and non-editing until this evidence and required recording
    state are durable.
-6. The same held child fetches and incorporates the current remote
-   activation/record head into its still-clean child branch by a normal
-   fast-forward or normal merge without rewriting history. It verifies the
+6. Targeted durable continuation authorizes only the same held child to fetch
+   and incorporate the current remote activation/record head into its
+   still-clean child branch by a normal fast-forward or normal merge without
+   rewriting history while implementation and delivery remain false. It
+   verifies the
    factual launched evidence commit in ancestry, plus run ID, child issue,
    branch, worktree, prepared-handoff identity, factual `launched` state and
    current permissions. The coordinator releases only that correlated stable
    child identity. After the child confirms that its worktree stayed clean
-   through the barrier, it may begin the prepared tasks. Delivery remains
+   through the barrier and acknowledges release, it may begin the prepared
+   tasks. Delivery remains
    separately gated by completed tasks, current permission, fresh passing
    validation, correct target and exact PR wording.
 

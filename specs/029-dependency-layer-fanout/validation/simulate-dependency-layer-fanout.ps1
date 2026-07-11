@@ -147,6 +147,7 @@ function New-Fixture {
         CoordinatorBranch = 'sidecar/9901-dependency-layer-fanout-coordinator'
         CoordinatorRemoteBranch = 'origin/sidecar/9901-dependency-layer-fanout-coordinator'
         CoordinatorWorktree = '<sidecar-parent>/9901-dependency-layer-fanout-coordinator'
+        ControlRevision = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         SharedContract = 'Shared implementation contract is present and non-conflicting.'
         ParentReferences = @('Parent epic: #249', 'Source: issue #255 simulation')
         MergedChildIssues = @($mergedChildIssues)
@@ -181,6 +182,48 @@ function Test-ChildPrerequisites {
     $missing
 }
 
+function Get-CanonicalPreparedHandoffFingerprint {
+    param([pscustomobject] $Source)
+
+    $payload = [ordered]@{
+        Schema = 'sidecar-prepared-handoff-v1'
+        RunId = [string]$Source.RunId
+        CoordinatorIssueNumber = [int]$Source.CoordinatorIssueNumber
+        ChildIssueNumber = [int]$Source.ChildIssueNumber
+        CoordinatorBranch = [string]$Source.CoordinatorBranch
+        CoordinatorRemoteBranch = [string]$Source.CoordinatorRemoteBranch
+        CoordinatorWorktree = [string]$Source.CoordinatorWorktree
+        ChildBranch = [string]$Source.ChildBranch
+        ChildWorktree = [string]$Source.ChildWorktree
+        ControlRevision = [string]$Source.ControlRevision
+        PreparedSpec = [string]$Source.PreparedSpec
+        PreparedPlan = [string]$Source.PreparedPlan
+        PreparedTasks = [string]$Source.PreparedTasks
+        DependencyLayer = [int]$Source.DependencyLayer
+        HardDependencies = [int[]]@($Source.HardDependencies | Sort-Object)
+        PrTargetBranch = [string]$Source.PrTargetBranch
+        PrRelatedReferences = [string[]]@($Source.PrRelatedReferences)
+        ArtifactPreparationState = 'handoff-ready'
+        LaunchState = 'pending'
+        ImplementationPermission = $false
+        DeliveryPermission = $false
+    }
+    $serializedPayload = $payload | ConvertTo-Json -Compress -Depth 4
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $fingerprintBytes = [System.Text.Encoding]::UTF8.GetBytes($serializedPayload)
+        $fingerprint = ([System.BitConverter]::ToString($sha256.ComputeHash($fingerprintBytes))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+
+    [pscustomobject]@{
+        Payload = $payload
+        SerializedPayload = $serializedPayload
+        Fingerprint = $fingerprint
+    }
+}
+
 function New-PreparedHandoff {
     param(
         [pscustomobject] $Fixture,
@@ -190,6 +233,12 @@ function New-PreparedHandoff {
 
     $childBranch = "sidecar/$($Child.Number)-$(ConvertTo-SidecarSlug $Child.Title)"
     $childWorktree = "<sidecar-parent>/$($Child.Number)-$(ConvertTo-SidecarSlug $Child.Title)"
+    $hardDependencies = [int[]]@($Child.Dependencies | Sort-Object)
+    $prTargetBranch = $Fixture.CoordinatorBranch
+    $prRelatedReferences = [string[]]@(
+        "Related to #$($Child.Number)",
+        "Related to #$($Fixture.CoordinatorNumber)"
+    )
     $validationRequirements = @('Run prepared child validation', 'Run git diff --check')
     $prTargetRules = 'Child PR targets the coordinator branch and uses Related to wording only.'
     $outOfScopeBoundaries = @('Sibling child scope', 'GitHub issue mutation', 'main-targeted child PR')
@@ -200,46 +249,30 @@ function New-PreparedHandoff {
         'Do not mutate GitHub issues, labels, comments, milestones, or assignees.',
         'Do not target main for sidecar child branches or child PRs.'
     )
-    $fingerprintSource = [ordered]@{
+    $fingerprintInputs = [pscustomobject]@{
         RunId = $Fixture.RunId
-        ChildIssueNumber = $Child.Number
-        ChildIssueTitle = $Child.Title
-        ChildIssueBody = $Child.Body
-        ChildIssueState = $Child.State
-        ChildIssueLabels = @($Child.Labels)
-        ChildDependencies = @($Child.Dependencies)
-        ChildSourceReferences = @($Child.SourceReferences)
         CoordinatorIssueNumber = $Fixture.CoordinatorNumber
-        CoordinatorContext = "Coordinator #$($Fixture.CoordinatorNumber): $($Fixture.CoordinatorTitle)"
-        CoordinatorSourceReferences = @($Fixture.ParentReferences)
-        PreparedSpec = $Child.SpecPath
-        PreparedPlan = $Child.PlanPath
-        PreparedTasks = $Child.TasksPath
-        PreparedArtifactPath = $Child.ArtifactPath
-        SharedContract = $Fixture.SharedContract
-        DependencyLayer = $DependencyLayer
-        ArtifactPreparationState = 'handoff-ready'
-        InitialLaunchState = 'pending'
-        ImplementationPermission = $false
-        DeliveryPermission = $false
-        HeldDispatchRequired = $true
+        ChildIssueNumber = $Child.Number
         CoordinatorBranch = $Fixture.CoordinatorBranch
         CoordinatorRemoteBranch = $Fixture.CoordinatorRemoteBranch
         CoordinatorWorktree = $Fixture.CoordinatorWorktree
         ChildBranch = $childBranch
         ChildWorktree = $childWorktree
-        ValidationRequirements = $validationRequirements
-        PrTargetRules = $prTargetRules
-        OutOfScopeBoundaries = $outOfScopeBoundaries
-        Prohibitions = $prohibitions
-    } | ConvertTo-Json -Compress -Depth 8
-    $sha256 = [System.Security.Cryptography.SHA256]::Create()
-    try {
-        $fingerprintBytes = [System.Text.Encoding]::UTF8.GetBytes($fingerprintSource)
-        $preparedHandoffFingerprint = ([System.BitConverter]::ToString($sha256.ComputeHash($fingerprintBytes))).Replace('-', '').ToLowerInvariant()
-    } finally {
-        $sha256.Dispose()
+        ControlRevision = $Fixture.ControlRevision
+        PreparedSpec = $Child.SpecPath
+        PreparedPlan = $Child.PlanPath
+        PreparedTasks = $Child.TasksPath
+        DependencyLayer = $DependencyLayer
+        HardDependencies = $hardDependencies
+        PrTargetBranch = $prTargetBranch
+        PrRelatedReferences = $prRelatedReferences
+        ArtifactPreparationState = 'handoff-ready'
+        LaunchState = 'pending'
+        ImplementationPermission = $false
+        DeliveryPermission = $false
     }
+    $canonicalFingerprint = Get-CanonicalPreparedHandoffFingerprint -Source $fingerprintInputs
+    $preparedHandoffFingerprint = $canonicalFingerprint.Fingerprint
 
     [pscustomobject]@{
         RunId = $Fixture.RunId
@@ -259,10 +292,14 @@ function New-PreparedHandoff {
         PreparedArtifactPath = $Child.ArtifactPath
         SharedContract = $Fixture.SharedContract
         DependencyLayer = $DependencyLayer
+        HardDependencies = $hardDependencies
         ArtifactPreparationState = 'handoff-ready'
         InitialLaunchState = 'pending'
+        LaunchState = 'pending'
         HandoffReadyEvidenceSha = $Fixture.HandoffReadyEvidenceSha
         HandoffReadyRecordingHead = $Fixture.HandoffReadyRecordingHead
+        ControlRevision = $Fixture.ControlRevision
+        PreparedHandoffFingerprintSchema = 'sidecar-prepared-handoff-v1'
         PreparedHandoffFingerprint = $preparedHandoffFingerprint
         ImplementationPermission = $false
         DeliveryPermission = $false
@@ -272,6 +309,8 @@ function New-PreparedHandoff {
         CoordinatorWorktree = $Fixture.CoordinatorWorktree
         ChildBranch = $childBranch
         ChildWorktree = $childWorktree
+        PrTargetBranch = $prTargetBranch
+        PrRelatedReferences = $prRelatedReferences
         ValidationRequirements = $validationRequirements
         PrTargetRules = $prTargetRules
         OutOfScopeBoundaries = $outOfScopeBoundaries
@@ -651,8 +690,11 @@ function Assert-HandoffContent {
         'PreparedTasks',
         'SharedContract',
         'DependencyLayer',
+        'ControlRevision',
+        'PreparedHandoffFingerprintSchema',
         'ArtifactPreparationState',
         'InitialLaunchState',
+        'LaunchState',
         'HandoffReadyEvidenceSha',
         'HandoffReadyRecordingHead',
         'PreparedHandoffFingerprint',
@@ -664,6 +706,8 @@ function Assert-HandoffContent {
         'CoordinatorWorktree',
         'ChildBranch',
         'ChildWorktree',
+        'PrTargetBranch',
+        'PrRelatedReferences',
         'ValidationRequirements',
         'PrTargetRules',
         'OutOfScopeBoundaries',
@@ -683,6 +727,66 @@ function Assert-HandoffContent {
     Assert-Condition (-not $Handoff.ImplementationPermission) 'Prepared handoff must deny implementation before durable launched evidence.'
     Assert-Condition (-not $Handoff.DeliveryPermission) 'Prepared handoff must deny delivery before durable launched evidence.'
     Assert-Condition $Handoff.HeldDispatchRequired 'Prepared handoff must require held dispatch.'
+    Assert-Condition ($Handoff.ControlRevision -cmatch '^[0-9a-f]{40}$') 'Control revision must be an exact 40-hex string.'
+    Assert-Condition ($Handoff.PreparedHandoffFingerprintSchema -ceq 'sidecar-prepared-handoff-v1') 'Prepared-handoff fingerprint schema must be canonical v1.'
+    Assert-Condition ($Handoff.PreparedHandoffFingerprint -cmatch '^[0-9a-f]{64}$') 'Prepared-handoff fingerprint must be lowercase SHA-256 hex.'
+    Assert-Condition ($Handoff.PrTargetBranch -ceq $Handoff.CoordinatorBranch) 'Canonical PR target must equal the coordinator branch.'
+    $expectedReferences = @("Related to #$($Handoff.ChildIssueNumber)", "Related to #$($Handoff.CoordinatorIssueNumber)")
+    Assert-Condition (($Handoff.PrRelatedReferences -join "`n") -ceq ($expectedReferences -join "`n")) 'Canonical PR references must contain exactly child then coordinator Related to lines.'
+    $expectedHardDependencies = [int[]]@($Handoff.ChildDependencies | Sort-Object)
+    Assert-Condition (($Handoff.HardDependencies -join ',') -ceq ($expectedHardDependencies -join ',')) 'Canonical hard dependencies must be a sorted integer array.'
+
+    $recomputed = Get-CanonicalPreparedHandoffFingerprint -Source $Handoff
+    Assert-Condition ($recomputed.Fingerprint -ceq $Handoff.PreparedHandoffFingerprint) 'Canonical prepared-handoff fingerprint recomputation must match.'
+    $expectedPayloadFields = @(
+        'Schema',
+        'RunId',
+        'CoordinatorIssueNumber',
+        'ChildIssueNumber',
+        'CoordinatorBranch',
+        'CoordinatorRemoteBranch',
+        'CoordinatorWorktree',
+        'ChildBranch',
+        'ChildWorktree',
+        'ControlRevision',
+        'PreparedSpec',
+        'PreparedPlan',
+        'PreparedTasks',
+        'DependencyLayer',
+        'HardDependencies',
+        'PrTargetBranch',
+        'PrRelatedReferences',
+        'ArtifactPreparationState',
+        'LaunchState',
+        'ImplementationPermission',
+        'DeliveryPermission'
+    )
+    Assert-Condition ((@($recomputed.Payload.Keys) -join '|') -ceq ($expectedPayloadFields -join '|')) 'Canonical payload fields and order must match v1 exactly.'
+    Assert-Condition ($recomputed.Payload.CoordinatorIssueNumber -is [int]) 'Coordinator issue number must serialize from an integer.'
+    Assert-Condition ($recomputed.Payload.ChildIssueNumber -is [int]) 'Child issue number must serialize from an integer.'
+    Assert-Condition ($recomputed.Payload.DependencyLayer -is [int]) 'Dependency layer must serialize from an integer.'
+    Assert-Condition ($recomputed.Payload.HardDependencies -is [int[]]) 'Hard dependencies must serialize from an integer array.'
+    Assert-Condition ($recomputed.Payload.ImplementationPermission -is [bool] -and -not $recomputed.Payload.ImplementationPermission) 'Implementation permission must be Boolean false.'
+    Assert-Condition ($recomputed.Payload.DeliveryPermission -is [bool] -and -not $recomputed.Payload.DeliveryPermission) 'Delivery permission must be Boolean false.'
+    $excludedFingerprintFields = @(
+        'HandoffReadyEvidenceSha',
+        'HandoffReadyRecordingHead',
+        'LaunchedEvidenceSha',
+        'LaunchedActivationHead',
+        'DispatchTaskIdentity',
+        'StableDispatchIdentity',
+        'PreparedHandoffFingerprint',
+        'ChildIssueBody',
+        'SharedContract',
+        'ValidationRequirements',
+        'Prohibitions'
+    )
+    foreach ($excludedField in $excludedFingerprintFields) {
+        Assert-Condition (-not @($recomputed.Payload.Keys).Contains($excludedField)) "Canonical fingerprint payload must exclude $excludedField."
+    }
+    Assert-Condition (-not $recomputed.SerializedPayload.Contains($Handoff.HandoffReadyEvidenceSha)) 'Handoff-ready evidence SHA must remain separate from the fingerprint payload.'
+    Assert-Condition (-not $recomputed.SerializedPayload.Contains($Handoff.HandoffReadyRecordingHead)) 'Handoff-ready recording head must remain separate from the fingerprint payload.'
+    Assert-Condition (-not $recomputed.SerializedPayload.Contains($Handoff.PreparedHandoffFingerprint)) 'Fingerprint must not contain itself.'
     $prohibitionText = $Handoff.Prohibitions -join "`n"
     Assert-Condition ($prohibitionText -match 'regenerate') 'Handoff must prohibit planning artifact regeneration.'
     Assert-Condition ($prohibitionText -match 'shared contracts') 'Handoff must prohibit shared contract redefinition.'

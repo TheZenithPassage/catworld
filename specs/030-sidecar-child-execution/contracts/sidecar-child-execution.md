@@ -22,11 +22,11 @@ handoff provides all of these values for exactly one child issue:
 - artifact preparation state `handoff-ready`, factual non-launched state
   (normally `pending`), implementation permission `false`, and delivery
   permission `false`;
-- exact pushed coordinator commit containing the handoff-ready evidence, the
-  later recorded remote coordinator head, and a stable prepared-handoff
-  identity or fingerprint; the current remote coordinator ref must equal that
-  later recording head while Git ancestry separately proves that the recording
-  head contains the exact earlier evidence commit;
+- a canonical prepared-handoff fingerprint computed before handoff-ready
+  evidence exists, plus the exact pushed evidence commit and later recorded
+  remote coordinator head as separate correlation fields; the current remote
+  coordinator ref must equal that later recording head while Git ancestry
+  separately proves it contains the exact earlier evidence commit;
 - coordinator branch local and remote refs, coordinator push status, and
   coordinator checkout/worktree path;
 - child branch ref, source coordinator branch ref, and child checkout/worktree
@@ -42,6 +42,46 @@ handoff provides all of these values for exactly one child issue:
 Missing, contradictory, unreadable, or multi-child handoff data is a blocker.
 The child executor must not create replacement planning artifacts, repair
 coordinator artifact state, or infer missing branch/worktree context.
+
+## Canonical Prepared-Handoff Fingerprint
+
+The fingerprint schema is `sidecar-prepared-handoff-v1`. Build one PowerShell
+`[ordered]` object with exactly these fields, order, and types:
+
+1. `Schema` = `sidecar-prepared-handoff-v1` (string)
+2. `RunId` (string)
+3. `CoordinatorIssueNumber` (integer)
+4. `ChildIssueNumber` (integer)
+5. `CoordinatorBranch` (string)
+6. `CoordinatorRemoteBranch` (string)
+7. `CoordinatorWorktree` (string)
+8. `ChildBranch` (string)
+9. `ChildWorktree` (string)
+10. `ControlRevision` (40-hex string)
+11. `PreparedSpec` (string)
+12. `PreparedPlan` (string)
+13. `PreparedTasks` (string)
+14. `DependencyLayer` (integer)
+15. `HardDependencies` (sorted integer array; empty is valid)
+16. `PrTargetBranch` (string equal to `CoordinatorBranch`)
+17. `PrRelatedReferences` (exact ordered string array
+    `Related to #<child>`, `Related to #<coordinator>`)
+18. `ArtifactPreparationState` = `handoff-ready` (string)
+19. `LaunchState` = `pending` (string)
+20. `ImplementationPermission` = `false` (Boolean)
+21. `DeliveryPermission` = `false` (Boolean)
+
+Serialize that object exactly with `ConvertTo-Json -Compress -Depth 4`, hash
+the UTF-8 bytes with SHA-256, and render lowercase 64-hex with no prefix. The
+fingerprint exists before the handoff-ready evidence commit. Handoff-ready
+evidence/recording SHAs, launched evidence/activation SHAs, child-agent
+identity, and the fingerprint value itself are never hash inputs; they are
+separate correlation evidence. Prepared artifact content is validated
+separately and is not placed into a self-containing content hash.
+
+Held preflight and pre-release revalidation must recompute the canonical
+fingerprint and require exact equality before implementation or delivery can
+proceed.
 
 ## Two-Phase Held Dispatch Barrier
 

@@ -77,6 +77,100 @@ function ConvertTo-SidecarSlug {
     $clean.Trim('-')
 }
 
+function Get-CanonicalPreparedHandoffPayload {
+    param([pscustomobject] $Handoff)
+
+    $hardDependencies = [int[]]@($Handoff.HardDependencies | ForEach-Object { [int]$_ } | Sort-Object)
+    $relatedReferences = [string[]]@($Handoff.PrRelatedReferences | ForEach-Object { [string]$_ })
+
+    [ordered]@{
+        Schema = 'sidecar-prepared-handoff-v1'
+        RunId = [string]$Handoff.RunId
+        CoordinatorIssueNumber = [int]$Handoff.CoordinatorIssueNumber
+        ChildIssueNumber = [int]$Handoff.ChildIssueNumber
+        CoordinatorBranch = [string]$Handoff.CoordinatorBranch
+        CoordinatorRemoteBranch = [string]$Handoff.CoordinatorRemoteBranch
+        CoordinatorWorktree = [string]$Handoff.CoordinatorWorktree
+        ChildBranch = [string]$Handoff.ChildBranch
+        ChildWorktree = [string]$Handoff.ChildWorktree
+        ControlRevision = [string]$Handoff.ControlRevision
+        PreparedSpec = [string]$Handoff.PreparedSpec
+        PreparedPlan = [string]$Handoff.PreparedPlan
+        PreparedTasks = [string]$Handoff.PreparedTasks
+        DependencyLayer = [int]$Handoff.DependencyLayer
+        HardDependencies = $hardDependencies
+        PrTargetBranch = [string]$Handoff.PrTargetBranch
+        PrRelatedReferences = $relatedReferences
+        ArtifactPreparationState = [string]$Handoff.ArtifactPreparationState
+        LaunchState = [string]$Handoff.LaunchState
+        ImplementationPermission = [bool]$Handoff.ImplementationPermission
+        DeliveryPermission = [bool]$Handoff.DeliveryPermission
+    }
+}
+
+function Get-PreparedHandoffFingerprint {
+    param([pscustomobject] $Handoff)
+
+    $payload = Get-CanonicalPreparedHandoffPayload -Handoff $Handoff
+    $canonicalJson = $payload | ConvertTo-Json -Compress -Depth 4
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        ([System.BitConverter]::ToString(
+            $sha256.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($canonicalJson))
+        )).Replace('-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha256.Dispose()
+    }
+}
+
+function Assert-CanonicalPreparedHandoffFingerprint {
+    param([pscustomobject] $Handoff)
+
+    $expectedFields = @(
+        'Schema', 'RunId', 'CoordinatorIssueNumber', 'ChildIssueNumber',
+        'CoordinatorBranch', 'CoordinatorRemoteBranch', 'CoordinatorWorktree',
+        'ChildBranch', 'ChildWorktree', 'ControlRevision', 'PreparedSpec',
+        'PreparedPlan', 'PreparedTasks', 'DependencyLayer', 'HardDependencies',
+        'PrTargetBranch', 'PrRelatedReferences', 'ArtifactPreparationState',
+        'LaunchState', 'ImplementationPermission', 'DeliveryPermission'
+    )
+    $payload = Get-CanonicalPreparedHandoffPayload -Handoff $Handoff
+    Assert-Condition (($payload.Keys -join ',') -ceq ($expectedFields -join ',')) 'Canonical prepared-handoff field order must match sidecar-prepared-handoff-v1.'
+    Assert-Condition ($payload.CoordinatorIssueNumber -is [int]) 'Canonical coordinator issue number must be an integer.'
+    Assert-Condition ($payload.ChildIssueNumber -is [int]) 'Canonical child issue number must be an integer.'
+    Assert-Condition ($payload.DependencyLayer -is [int]) 'Canonical dependency layer must be an integer.'
+    Assert-Condition ($payload.HardDependencies -is [int[]]) 'Canonical hard dependencies must be an integer array.'
+    Assert-Condition ($payload.PrRelatedReferences -is [string[]]) 'Canonical PR references must be a string array.'
+    Assert-Condition ($payload.ImplementationPermission -is [bool]) 'Canonical implementation permission must be Boolean.'
+    Assert-Condition ($payload.DeliveryPermission -is [bool]) 'Canonical delivery permission must be Boolean.'
+    Assert-Condition ($payload.ControlRevision -cmatch '^[0-9a-f]{40}$') 'Canonical control revision must be lowercase 40-hex.'
+    Assert-Condition ($payload.PrTargetBranch -ceq $payload.CoordinatorBranch) 'Canonical child PR target must equal the coordinator branch.'
+    $expectedReferences = @("Related to #$($payload.ChildIssueNumber)", "Related to #$($payload.CoordinatorIssueNumber)")
+    Assert-Condition (($payload.PrRelatedReferences -join "`n") -ceq ($expectedReferences -join "`n")) 'Canonical PR references must be exactly child then coordinator Related to lines.'
+    Assert-Condition ($payload.ArtifactPreparationState -ceq 'handoff-ready') 'Canonical artifact preparation state must be handoff-ready.'
+    Assert-Condition ($payload.LaunchState -ceq 'pending') 'Canonical launch state must be pending.'
+    Assert-Condition (-not $payload.ImplementationPermission) 'Canonical implementation permission must be false.'
+    Assert-Condition (-not $payload.DeliveryPermission) 'Canonical delivery permission must be false.'
+    $sortedDependencies = @($payload.HardDependencies | Sort-Object)
+    Assert-Condition (($payload.HardDependencies -join ',') -ceq ($sortedDependencies -join ',')) 'Canonical hard dependencies must be sorted integers.'
+
+    $recomputed = Get-PreparedHandoffFingerprint -Handoff $Handoff
+    Assert-Condition ($Handoff.PreparedHandoffFingerprint -cmatch '^[0-9a-f]{64}$') 'Prepared-handoff fingerprint must be lowercase 64-hex.'
+    Assert-Condition ($Handoff.PreparedHandoffFingerprint -ceq $recomputed) 'Prepared-handoff fingerprint must equal canonical v1 recomputation.'
+
+    $excludedMutation = $Handoff | Select-Object *
+    $excludedMutation.HandoffReadyCoordinatorSha = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+    $excludedMutation.HandoffReadyRemoteHead = 'dddddddddddddddddddddddddddddddddddddddd'
+    $excludedMutation.LaunchedCoordinatorSha = 'cccccccccccccccccccccccccccccccccccccccc'
+    $excludedMutation.LaunchedRemoteActivationHead = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    $excludedMutation.DispatchTaskIdentity = 'excluded-agent-identity'
+    $excludedMutation.PreparedHandoffFingerprint = 'excluded-self-value'
+    Assert-Condition ((Get-PreparedHandoffFingerprint -Handoff $excludedMutation) -ceq $recomputed) 'H/R/L/A SHAs, agent identity, and fingerprint itself must not affect canonical v1.'
+
+    $recomputed
+}
+
 function New-TempGitRepository {
     $root = Join-Path ([System.IO.Path]::GetTempPath()) ("catworld-sidecar-child-execution-" + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $root | Out-Null
@@ -101,7 +195,11 @@ function New-TempGitRepository {
     $childBranch = 'sidecar/9902-child-execution-fixture'
     Invoke-Git $root @('switch', '-q', '-c', $coordinatorBranch) | Out-Null
     $rootNormalized = $root -replace '\\', '/'
-    $preparedFingerprint = 'sha256:9901-9902-prepared-handoff'
+    $fingerprintHandoff = New-PreparedHandoff -BarrierState 'handoff-ready'
+    $fingerprintHandoff.ExpectedCheckout = $root
+    $fingerprintHandoff.ChildWorktree = $rootNormalized
+    $fingerprintHandoff.CoordinatorWorktree = $rootNormalized
+    $preparedFingerprint = Get-PreparedHandoffFingerprint -Handoff $fingerprintHandoff
     $coordinatorState = @(
         'RunId=sidecar-child-execution-fixture-run'
         'ChildIssueNumber=9902'
@@ -137,6 +235,8 @@ function New-TempGitRepository {
         CoordinatorBranch = $coordinatorBranch
         ChildBranch = $childBranch
         ChildBaseSha = $childBaseSha
+        CoordinatorWorktree = $rootNormalized
+        ChildWorktree = $rootNormalized
         HandoffReadyCoordinatorSha = $handoffReadyCoordinatorSha
         HandoffReadyRemoteHead = $handoffReadyRemoteHead
         PreparedHandoffFingerprint = $preparedFingerprint
@@ -171,7 +271,11 @@ function New-PreparedHandoff {
         CoordinatorIssueNumber = 9901
         CoordinatorContext = 'Coordinator #9901 child execution fixture'
         DependencyLayer = 1
+        HardDependencies = @()
         ArtifactPreparationState = 'handoff-ready'
+        LaunchState = 'pending'
+        ImplementationPermission = $false
+        DeliveryPermission = $false
         LaunchStatus = if ($isDispatched) { 'launched' } else { 'pending' }
         DispatchAccepted = $isDispatched
         DispatchTaskIdentity = $dispatchTaskIdentity
@@ -185,7 +289,7 @@ function New-PreparedHandoff {
         LaunchedCoordinatorSha = $launchedSha
         LaunchedRemoteActivationHead = $launchedRemoteActivationHead
         RemoteCoordinatorSha = if ($isDurable) { $launchedRemoteActivationHead } else { $handoffReadyRemoteHead }
-        PreparedHandoffFingerprint = 'sha256:9901-9902-prepared-handoff'
+        PreparedHandoffFingerprint = ''
         PreparedSpec = "specs/9902-$slug/spec.md"
         PreparedPlan = "specs/9902-$slug/plan.md"
         PreparedTasks = "specs/9902-$slug/tasks.md"
@@ -194,10 +298,14 @@ function New-PreparedHandoff {
         ExpectedCheckout = '<fixture>'
         ExpectedBranch = 'sidecar/9902-child-execution-fixture'
         ChildBranch = 'sidecar/9902-child-execution-fixture'
+        ChildWorktree = '<fixture>'
         CoordinatorBranch = 'sidecar/9901-coordinator-child-execution-fixture'
         CoordinatorRemoteBranch = 'origin/sidecar/9901-coordinator-child-execution-fixture'
+        CoordinatorWorktree = '<coordinator-fixture>'
+        ControlRevision = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
         PrTargetBranch = $PrTargetBranch
         PrIssueReferences = @('Related to #9902', 'Related to #9901')
+        PrRelatedReferences = @('Related to #9902', 'Related to #9901')
         ValidationRequirements = @('prepared child validation', 'git diff --check')
         OutOfScope = @('Sibling child scope', 'GitHub issue mutation', 'main target')
         ProhibitedOperations = @('merge', 'approve', 'enable auto-merge', 'mutate GitHub issues', 'post public comments', 'delete remote branches', 'rebase', 'force-push', 'clean local sidecar resources')
@@ -206,6 +314,8 @@ function New-PreparedHandoff {
     if ($IncludeDeliveryPermission) {
         $handoff['DeliveryPermitted'] = $isDurable -and $DeliveryPermitted
     }
+
+    $handoff['PreparedHandoffFingerprint'] = Get-PreparedHandoffFingerprint -Handoff ([pscustomobject]$handoff)
 
     if (-not $Complete) {
         $handoff.Remove('PreparedTasks')
@@ -226,8 +336,10 @@ function Set-HandoffFixtureContext {
     $Handoff.ExpectedCheckout = $Fixture.Root
     $Handoff.ExpectedBranch = $Fixture.ChildBranch
     $Handoff.ChildBranch = $Fixture.ChildBranch
+    $Handoff.ChildWorktree = $Fixture.ChildWorktree
     $Handoff.CoordinatorBranch = $Fixture.CoordinatorBranch
     $Handoff.CoordinatorRemoteBranch = "origin/$($Fixture.CoordinatorBranch)"
+    $Handoff.CoordinatorWorktree = $Fixture.CoordinatorWorktree
     $Handoff.PrTargetBranch = $Fixture.CoordinatorBranch
     $Handoff.ArtifactPreparationState = 'handoff-ready'
     $Handoff.LaunchStatus = 'pending'
@@ -243,7 +355,8 @@ function Set-HandoffFixtureContext {
     $Handoff.LaunchedCoordinatorSha = ''
     $Handoff.LaunchedRemoteActivationHead = ''
     $Handoff.RemoteCoordinatorSha = $Fixture.HandoffReadyRemoteHead
-    $Handoff.PreparedHandoffFingerprint = $Fixture.PreparedHandoffFingerprint
+    $Handoff.PreparedHandoffFingerprint = Get-PreparedHandoffFingerprint -Handoff $Handoff
+    Assert-Condition ($Handoff.PreparedHandoffFingerprint -ceq $Fixture.PreparedHandoffFingerprint) 'Fixture and handoff canonical fingerprints must match.'
     if ($Handoff.PSObject.Properties.Name.Contains('DeliveryPermitted')) {
         $Handoff.DeliveryPermitted = $false
     }
@@ -297,9 +410,14 @@ function New-HeldChildIdentity {
     [pscustomobject]@{
         TaskHandle = "sidecar-child-$($Handoff.CoordinatorIssueNumber)-$($Handoff.ChildIssueNumber)"
         RunId = $Handoff.RunId
+        CoordinatorIssueNumber = $Handoff.CoordinatorIssueNumber
         ChildIssueNumber = $Handoff.ChildIssueNumber
+        CoordinatorBranch = $Handoff.CoordinatorBranch
         ChildBranch = $Handoff.ChildBranch
         ExpectedCheckout = $Handoff.ExpectedCheckout -replace '\\', '/'
+        CoordinatorWorktree = $Handoff.CoordinatorWorktree
+        ChildWorktree = $Handoff.ChildWorktree
+        ControlRevision = $Handoff.ControlRevision
         HandoffReadyCoordinatorSha = $Handoff.HandoffReadyCoordinatorSha
         HandoffReadyRemoteHead = $Handoff.HandoffReadyRemoteHead
         PreparedHandoffFingerprint = $Handoff.PreparedHandoffFingerprint
@@ -315,9 +433,14 @@ function Assert-HeldChildIdentity {
 
     Assert-Condition (-not [string]::IsNullOrWhiteSpace($Identity.TaskHandle)) 'Held dispatch must return a stable child task identity.'
     Assert-Condition ($Identity.RunId -eq $Handoff.RunId) 'Held child run ID must match the prepared handoff.'
+    Assert-Condition ($Identity.CoordinatorIssueNumber -eq $Handoff.CoordinatorIssueNumber) 'Held coordinator issue must match the prepared handoff.'
     Assert-Condition ($Identity.ChildIssueNumber -eq $Handoff.ChildIssueNumber) 'Held child issue must match the prepared handoff.'
+    Assert-Condition ($Identity.CoordinatorBranch -eq $Handoff.CoordinatorBranch) 'Held coordinator branch must match the prepared handoff.'
     Assert-Condition ($Identity.ChildBranch -eq $Handoff.ChildBranch) 'Held child branch must match the prepared handoff.'
     Assert-Condition (($Identity.ExpectedCheckout -replace '\\', '/') -eq ($Handoff.ExpectedCheckout -replace '\\', '/')) 'Held child worktree must match the prepared handoff.'
+    Assert-Condition ($Identity.CoordinatorWorktree -eq $Handoff.CoordinatorWorktree) 'Held coordinator worktree must match the prepared handoff.'
+    Assert-Condition ($Identity.ChildWorktree -eq $Handoff.ChildWorktree) 'Held child worktree identity must match the prepared handoff.'
+    Assert-Condition ($Identity.ControlRevision -eq $Handoff.ControlRevision) 'Held control revision must match the prepared handoff.'
     Assert-Condition ($Identity.HandoffReadyCoordinatorSha -eq $Handoff.HandoffReadyCoordinatorSha) 'Held child handoff-ready coordinator SHA must match the prepared handoff.'
     Assert-Condition ($Identity.HandoffReadyRemoteHead -eq $Handoff.HandoffReadyRemoteHead) 'Held child recorded handoff-ready remote head must match the prepared handoff.'
     Assert-Condition ($Identity.PreparedHandoffFingerprint -eq $Handoff.PreparedHandoffFingerprint) 'Held child prepared-handoff identity must match.'
@@ -335,6 +458,9 @@ function Test-HeldPreflightCompleteness {
         'CoordinatorIssueNumber',
         'DependencyLayer',
         'ArtifactPreparationState',
+        'LaunchState',
+        'ImplementationPermission',
+        'DeliveryPermission',
         'LaunchStatus',
         'ImplementationPermitted',
         'DeliveryPermitted',
@@ -347,14 +473,23 @@ function Test-HeldPreflightCompleteness {
         'ExpectedCheckout',
         'ExpectedBranch',
         'ChildBranch',
+        'ChildWorktree',
         'CoordinatorBranch',
-        'CoordinatorRemoteBranch'
+        'CoordinatorRemoteBranch',
+        'CoordinatorWorktree',
+        'ControlRevision',
+        'PrTargetBranch',
+        'PrRelatedReferences'
     )
 
-    @($required | Where-Object {
+    $missing = @($required | Where-Object {
         -not $Handoff.PSObject.Properties.Name.Contains($_) -or
         [string]::IsNullOrWhiteSpace([string]$Handoff.$_)
     })
+    if (-not $Handoff.PSObject.Properties.Name.Contains('HardDependencies')) {
+        $missing += 'HardDependencies'
+    }
+    $missing
 }
 
 function Invoke-HeldChildPreflight {
@@ -369,6 +504,7 @@ function Invoke-HeldChildPreflight {
     $missing = @(Test-HeldPreflightCompleteness -Handoff $Handoff)
     Assert-Condition ($missing.Count -eq 0) "Missing held-preflight context: $($missing -join ', ')"
     Assert-Condition ($statusBefore.Count -eq 0) 'Held preflight requires a clean child worktree.'
+    $canonicalFingerprint = Assert-CanonicalPreparedHandoffFingerprint -Handoff $Handoff
 
     $context = Test-ChildContext -Repository $Repository -Handoff $Handoff
     Assert-Condition $context.CheckoutMatches 'Held child checkout must match prepared child checkout.'
@@ -398,6 +534,9 @@ function Invoke-HeldChildPreflight {
         CurrentRemoteCoordinatorSha = $remoteSha
         HandoffReadyEvidenceSha = $Handoff.HandoffReadyCoordinatorSha
         HandoffReadyRecordedHead = $Handoff.HandoffReadyRemoteHead
+        PreparedHandoffFingerprint = $canonicalFingerprint
+        FingerprintRecomputed = $true
+        BarrierFieldsExcludedFromFingerprint = $true
         RemoteContainsHandoffReadyEvidence = $remoteContainsHandoffReadyEvidence
         ChildHeadEqualsHandoffReadyEvidence = $headBefore -eq $Handoff.HandoffReadyCoordinatorSha
         ChangedFiles = @()
@@ -540,6 +679,7 @@ function Invoke-HeldChildRelease {
     $headBefore = (Invoke-Git $Repository @('rev-parse', 'HEAD')).Output[0]
     $statusBefore = @((Invoke-Git $Repository @('status', '--porcelain')).Output)
     Assert-Condition ($statusBefore.Count -eq 0) 'Held child worktree must remain clean before release.'
+    $canonicalFingerprint = Assert-CanonicalPreparedHandoffFingerprint -Handoff $Handoff
     Assert-HeldChildIdentity -Handoff $Handoff -Identity $Identity -RequireRecordedIdentity
     Assert-Condition $Handoff.DispatchAccepted 'Release requires accepted held dispatch.'
     Assert-Condition ($Handoff.LaunchStatus -eq 'launched') 'Release requires factual launched state.'
@@ -632,6 +772,9 @@ function Invoke-HeldChildRelease {
         HeadAfter = $headAfterRefresh
         FactualLaunchedEvidenceSha = $Handoff.LaunchedCoordinatorSha
         CurrentRemoteActivationHead = $remoteSha
+        PreparedHandoffFingerprint = $canonicalFingerprint
+        FingerprintRecomputed = $true
+        BarrierFieldsExcludedFromFingerprint = $true
         LaunchedCoordinatorHeadVerified = $true
         ChangedFiles = @()
         ImplementationAttempted = $false
@@ -669,7 +812,11 @@ function Test-HandoffCompleteness {
         'ChildIssueNumber',
         'CoordinatorIssueNumber',
         'DependencyLayer',
+        'HardDependencies',
         'ArtifactPreparationState',
+        'LaunchState',
+        'ImplementationPermission',
+        'DeliveryPermission',
         'LaunchStatus',
         'DispatchAccepted',
         'DispatchTaskIdentity',
@@ -692,10 +839,14 @@ function Test-HandoffCompleteness {
         'ExpectedCheckout',
         'ExpectedBranch',
         'ChildBranch',
+        'ChildWorktree',
         'CoordinatorBranch',
         'CoordinatorRemoteBranch',
+        'CoordinatorWorktree',
+        'ControlRevision',
         'PrTargetBranch',
         'PrIssueReferences',
+        'PrRelatedReferences',
         'ValidationRequirements',
         'DeliveryPermitted',
         'OutOfScope',
@@ -711,7 +862,7 @@ function Test-HandoffCompleteness {
 
         $value = $Handoff.$field
         if ($value -is [array]) {
-            if ($value.Count -eq 0) { $missing += $field }
+            if ($value.Count -eq 0 -and $field -ne 'HardDependencies') { $missing += $field }
         } elseif ([string]::IsNullOrWhiteSpace([string]$value)) {
             $missing += $field
         }
@@ -748,6 +899,7 @@ function Invoke-ChildExecution {
 
     $missing = @(Test-HandoffCompleteness -Handoff $Handoff)
     Assert-Condition ($missing.Count -eq 0) "Missing handoff context: $($missing -join ', ')"
+    Assert-CanonicalPreparedHandoffFingerprint -Handoff $Handoff | Out-Null
 
     $context = Test-ChildContext -Repository $Repository -Handoff $Handoff
     Assert-Condition $context.CheckoutMatches 'Current checkout must match prepared child checkout.'
@@ -1367,6 +1519,9 @@ switch ($Scenario) {
             Assert-Condition ($preflight.ChangedFiles.Count -eq 0) 'Held preflight must make zero edits.'
             Assert-Condition (-not $preflight.ImplementationAttempted) 'Held preflight must not attempt implementation.'
             Assert-Condition (-not $preflight.DeliveryAttempted) 'Held preflight must not attempt delivery.'
+            Assert-Condition $preflight.FingerprintRecomputed 'Held preflight must recompute the canonical prepared-handoff fingerprint.'
+            Assert-Condition ($preflight.PreparedHandoffFingerprint -ceq $handoff.PreparedHandoffFingerprint) 'Held preflight recomputation must equal the prepared fingerprint.'
+            Assert-Condition $preflight.BarrierFieldsExcludedFromFingerprint 'Held preflight must keep barrier evidence and agent identity separate from the fingerprint.'
             Assert-Condition ($handoff.LaunchStatus -eq 'pending') 'Held preflight must not preclaim launched.'
             Assert-Condition (-not $handoff.ImplementationPermitted) 'Implementation must be false before durable launched evidence.'
             Assert-Condition (-not $handoff.DeliveryPermitted) 'Delivery must be false before durable launched evidence.'
@@ -1382,6 +1537,9 @@ switch ($Scenario) {
                 HeadUnchanged = $preflight.HeadBefore -eq $preflight.HeadAfter
                 ChildHeadWasBehindHandoffReadyEvidence = -not $preflight.ChildHeadEqualsHandoffReadyEvidence
                 RemoteContainsHandoffReadyEvidence = $preflight.RemoteContainsHandoffReadyEvidence
+                PreparedHandoffFingerprint = $preflight.PreparedHandoffFingerprint
+                FingerprintRecomputed = $preflight.FingerprintRecomputed
+                BarrierFieldsExcludedFromFingerprint = $preflight.BarrierFieldsExcludedFromFingerprint
                 ChangedFiles = $preflight.ChangedFiles
                 ImplementationAttempted = $preflight.ImplementationAttempted
                 DeliveryAttempted = $preflight.DeliveryAttempted
@@ -1472,6 +1630,9 @@ switch ($Scenario) {
             Assert-Condition (-not $preReleaseDelivery.DeliveryAttempted) 'Delivery must remain blocked before exact-child release.'
             Assert-Condition $release.Released 'The exact accepted child must be released.'
             Assert-Condition ($release.TaskHandle -eq $identity.TaskHandle) 'Release must preserve the accepted stable child identity.'
+            Assert-Condition $release.FingerprintRecomputed 'Pre-release validation must recompute the canonical prepared-handoff fingerprint.'
+            Assert-Condition ($release.PreparedHandoffFingerprint -ceq $preflight.PreparedHandoffFingerprint) 'Pre-release recomputation must equal the held-preflight fingerprint after H/R/L/A and identity changes.'
+            Assert-Condition $release.BarrierFieldsExcludedFromFingerprint 'Pre-release validation must keep H/R/L/A evidence and agent identity separate from the fingerprint.'
             Assert-Condition ($release.HeadAfter -eq $handoff.RemoteCoordinatorSha) 'Child must incorporate the current launched activation head before editing.'
             Assert-Condition (Test-GitAncestor -Repository $fixture.Root -Ancestor $handoff.LaunchedCoordinatorSha -Descendant $release.HeadAfter) 'Incorporated activation head must contain the exact factual launched-evidence commit.'
             Assert-Condition $handoff.LaunchedCoordinatorHeadVerified 'Child must verify launched evidence before editing.'
@@ -1491,6 +1652,10 @@ switch ($Scenario) {
                 PreflightChangedFiles = $preflight.ChangedFiles
                 PreReleaseImplementationBlocked = $preReleaseBlock.ImplementationBlocked
                 PreReleaseDeliveryAttempted = $preReleaseDelivery.DeliveryAttempted
+                PreparedHandoffFingerprint = $release.PreparedHandoffFingerprint
+                PreflightFingerprintRecomputed = $preflight.FingerprintRecomputed
+                ReleaseFingerprintRecomputed = $release.FingerprintRecomputed
+                BarrierFieldsExcludedFromFingerprint = $release.BarrierFieldsExcludedFromFingerprint
                 LaunchedCoordinatorHeadVerified = $handoff.LaunchedCoordinatorHeadVerified
                 ReleaseStatus = $handoff.ReleaseStatus
                 TasksExecuted = $execution.TasksExecuted

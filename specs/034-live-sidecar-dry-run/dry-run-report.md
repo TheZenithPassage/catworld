@@ -3,11 +3,11 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: immutable control correction recorded; preserved runtime artifact reconciliation is next
+- **Current stage**: canonical fingerprint correction and independent review passed; immutable `C2` publication remains pending
 - **Current checkpoint**: not reached
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: runtime artifacts remain stale/not handoff-ready until reconciled against the exact control revision below; child dispatch is not yet authorized
+- **Readiness**: runtime artifacts remain stale/not handoff-ready until reconciled against the superseding exact control revision below; child dispatch is not yet authorized
 - **Cleanup**: ineligible; runtime final PR does not exist
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
@@ -248,14 +248,25 @@ The bounded resolution preserves the approved invariant without broadening the a
 
 The recording commits are ordinary bounded coordinator artifact updates. They add no transaction system, lock, queue, daemon, IPC, polling, random attempt identity, or generic state subsystem.
 
+### Prepared-Handoff Fingerprint Finding
+
+Runtime artifact reconciliation exposed a second, narrower self-reference before any runtime commit, push, child branch/worktree creation, or dispatch.
+
+- **Actual**: the published child skill described the deterministic prepared-handoff fingerprint as including the exact handoff-ready evidence commit SHA, even though the fingerprint must already exist inside that later evidence commit. The coordinator procedure and focused validators computed the fingerprint before that SHA existed.
+- **Independent pre-commit finding**: the first draft fix still said artifact content identities were fingerprint inputs while tracked artifacts record the fingerprint, and #255/#256 did not share one exact field order/serialization. That would either create another self-containing hash or let coordinator and child recomputation diverge. The same review also found that the spec's read-only phase extended ambiguously across the required activation-head incorporation.
+- **Expected**: one executable canonical identity-envelope fingerprint covers only immutable inputs already available before evidence creation; prepared content is validated separately. Later handoff-ready/launched evidence and recording/activation heads remain mandatory separate correlation fields. Held preflight is read-only; only after launched evidence is durable may targeted continuation perform the clean barrier Git incorporation, still without implementation permission, before release acknowledgment.
+- **Impact**: treating either inconsistent wording as executable would make the live identity unverifiable or the release sequence contradictory. The ten preserved runtime files therefore remain uncommitted and no child dispatch is authorized under the first correction or an unvalidated draft.
+- **Smallest correction**: define `sidecar-prepared-handoff-v1` once across the coordinator/child, #255/#256, architecture, and #260 surfaces; use exact ordered PowerShell JSON plus SHA-256; exclude self/content/evidence fields; validate content independently; narrow the preflight wording; rerun complete control validation; publish one superseding immutable control revision; and reconcile the same preserved runtime files. No routing, topology, branch, issue, PR, framework, or permission behavior changes.
+
 ### Immutable Control-Plane Source Revision
 
-- Correction commit `C`: `a19af010dfe63eaf27b68717ce9b38042372f973` (`fix(workflow): add held child dispatch barrier`).
+- First correction commit `C1` (historical): `a19af010dfe63eaf27b68717ce9b38042372f973` (`fix(workflow): add held child dispatch barrier`).
+- First report recording head (historical): `0dd0e867cc52320875a1dd6c2928024f4e512c21` (`docs(workflow): record issue 260 control revision`).
 - Branch: `chore/260-live-controlled-sidecar-dry-run`.
-- Normal push: passed; the remote branch was newly created without force.
-- Fetched equality: passed; local `C` and `origin/chore/260-live-controlled-sidecar-dry-run` both resolved to `a19af010dfe63eaf27b68717ce9b38042372f973` immediately after the push.
-- Recording commit: `SELF/HEAD`; this bounded report/task update stores literal `C` but is not the workflow source revision.
-- Runtime rule: every reconciled prepared child handoff must name exact `C`, even if the control branch later contains report-only evidence commits.
+- First normal push/fetched equality: passed without force; local and remote each reached the two historical heads above in sequence.
+- Superseding correction commit `C2`: `SELF/HEAD` (validated; pending commit and normal push).
+- Superseding report recording head: `SELF/HEAD` (pending after literal `C2` exists).
+- Runtime rule: `C1` and its recording head remain historical evidence but are not valid runtime workflow sources after the fingerprint finding. Every reconciled prepared child handoff must name exact pushed `C2`; runtime mutation remains held until its later report recording head is also pushed and fetched equal.
 - Final #260 pull request: not opened.
 
 ## Mandatory Pause 1
@@ -289,7 +300,7 @@ Not reached.
 | Build-out implementation availability | `origin/main..origin/workflow/sidecar-buildout` | `git log` and merged PR reads #263–#271 | passed | current at preparation capture |
 | Fixture collision search | GitHub issue/PR/branch search | connected GitHub search | passed | current before fixture creation; rerun before resource creation |
 | Controlled fixture creation | #272–#275 | connected GitHub create/update plus current fetch | passed | current after exact body/path update |
-| Fixture issue identity and topology | current bodies for #272–#275 | body marker/run ID/child-map/dependency review and SHA-256 fingerprints | passed | current after wording-only re-read at #273 `20:30:15Z`, #274 `20:30:16Z`, #275 `20:30:17Z` |
+| Fixture issue identity and topology | current bodies for #272–#275 | connected GitHub re-read, body marker/run ID/child-map/dependency review and SHA-256 fingerprints | passed | refreshed before `C2`; all four fixture issues open, zero comments, child wording unchanged |
 | Controlled child PR wording | current bodies for #273–#275 | connected GitHub body-only updates followed by exact-line/reference review | passed | each future PR requires exactly child + #272 `Related to`; no third #260 PR-body reference; open state, zero comments, empty labels/assignees/milestone preserved |
 | Deterministic resource collision gate | exact artifacts/branches/worktrees | `git show-ref`, `git ls-remote`, `git ls-tree`, `Test-Path`, `git worktree list --porcelain` | passed | current before runtime resource creation |
 | Exact temporary routing matrix | current #272 body plus five routing sources | ten positive/negative cases | passed | fresh after routing edits |
@@ -303,26 +314,33 @@ Not reached.
 | Current source refs and planned remote absence | local/remote main, build-out, four planned runtime branches/PRs | fetch/rev-parse, `git ls-remote --heads`, connected GitHub PR search | passed | fresh before continuation edits |
 | Stable held-dispatch capability | `/root/dispatch_barrier_capability_proof` | preflight-only `spawn_agent`, unchanged-state proof, targeted `followup_task`, unchanged-state proof | passed | same canonical identity; zero repository actions |
 | Commit-SHA self-reference analysis | corrected barrier sources | cross-artifact review of tracked evidence fields, commit identity, current remote equality, and Git ancestry | passed | exact evidence SHA is stored only by a later bounded recording commit; behind-child preflight is permitted |
-| #255 PowerShell parser | current `simulate-dependency-layer-fanout.ps1` | PowerShell AST parser | passed | fresh after final evidence/recording-head edits |
+| #255 PowerShell parser | current `simulate-dependency-layer-fanout.ps1` | PowerShell AST parser | passed | fresh after canonical v1 fingerprint edits |
 | #255 complete focused matrix | pre-final-audit #255 contract/validator | all 10 scenarios: seven legacy plus held barrier, rejected dispatch, ambiguous dispatch | passed (historical) | later audit found missing H→R and L→A recording-push failure coverage; superseded before commit |
-| #255 expanded focused matrix | current #255 contract/validator | all 12 scenarios: prior 10 plus `handoff-recording-failure` and `launch-activation-failure` | passed | fresh root rerun; exact R/A current-head equality, H/L ancestry, zero edit/delivery/release, and #275-equivalent later child waiting all proven |
-| #256 PowerShell parser | current `simulate-sidecar-child-execution.ps1` | PowerShell AST parser | passed | fresh after final behind-child/ancestry edits |
+| #255 expanded focused matrix | current #255 contract/validator | all 12 scenarios: prior 10 plus `handoff-recording-failure` and `launch-activation-failure` | passed | fresh root rerun after canonical schema bytes; exact v1 recomputation/exclusions, R/A current-head equality, H/L ancestry, zero edit/delivery/release, and later-child waiting proven |
+| #256 PowerShell parser | current `simulate-sidecar-child-execution.ps1` | PowerShell AST parser | passed | fresh after canonical v1 fingerprint edits |
 | #256 complete focused matrix | pre-final-audit #256 contract/validator | all 17 scenarios: 11 legacy plus held preflight, stable identity, durable release, launch-push failure, refresh/verification failure, release failure | passed (historical) | later audit found missing exact current recording-head equality and L-durable/A-push-failure coverage; superseded before commit |
-| #256 expanded focused matrix | current #256 contract/validator | all 19 scenarios: prior 17 plus `unexpected-remote-descendant` and `activation-push-failure` | passed | fresh root rerun; exact Rr/Lr equality, H/L ancestry, behind-child preflight, durable L with failed Lr, zero unauthorized work all proven |
-| Protected final-delivery operations | current coordinator/child sources and templates | `specs/032-final-coordinator-delivery/validation/simulate-final-coordinator-delivery.ps1 -Scenario prohibited-operations` | passed | all prohibited-operation flags false |
+| #256 expanded focused matrix | current #256 contract/validator | all 19 scenarios: prior 17 plus `unexpected-remote-descendant` and `activation-push-failure` | passed | fresh root rerun after canonical schema bytes; exact v1 recomputation/exclusions, Rr/Lr equality, H/L ancestry, behind-child preflight, durable L with failed Lr, and zero unauthorized work proven |
+| Protected final-delivery operations | current coordinator/child sources and templates | `specs/032-final-coordinator-delivery/validation/simulate-final-coordinator-delivery.ps1 -Scenario prohibited-operations` | passed | fresh after canonical correction; every prohibited-operation flag false |
 | Protected-check wrapper calibration | same passing protected-operation JSON | two attempted `Out-String`/`ConvertFrom-Json` wrapper assertions | failed | historical wrapper false negatives: the validator writes its JSON outside the captured success stream; direct invocation then passed with `result=passed` and every operation flag false |
 | Control-plane semantic audit calibration | current corrected sources | two initial ad hoc regex assertion runs | failed | historical false negatives from literal phrase/line-wrap expectations (`own SHA`, zero-mutation wording); no source invariant failed |
 | Control-plane semantic audit | pre-final-review coordinator/child skills, #255/#256 contracts, architecture, #260 spec/tasks | flexible semantic assertions, sequential-scope check, legacy-skill diff, task/checklist integrity | partial | assertions passed, but independent final review then found stale “launched child receives handoff,” preparation/workflow/launch-state conflation, and two recording-head validator gaps; correction required before commit |
 | Spec Kit cross-artifact analysis | current `spec.md`, `plan.md`, `tasks.md`, research, data model, quickstart, contract | requirement/task coverage, terminology, ordering, scope, constitution and ambiguity review | partial | commit-SHA self-reference was fixed; final audit surfaced the four concrete state/coverage gaps above and reopened T017/T018/T020 |
 | Independent pre-commit findings | final-review control sources | review of state vocabulary plus exact-current-head and recording-push coverage | passed | stale launched-before-handoff phrase and state conflation corrected; #255/#256 gaps closed by the 12/19-scenario matrices |
-| Final control-plane semantic and Spec Kit audit | current correction bytes | cross-source semantic/stale-phrase assertions plus requirement/task/constitution review | passed | no unresolved critical/high finding; sequential skill routing-only and legacy coordinator skill unchanged |
+| Final control-plane semantic and Spec Kit audit | first correction bytes | cross-source semantic/stale-phrase assertions plus requirement/task/constitution review | passed (historical) | later runtime reconciliation found the child-fingerprint self-reference; superseded before runtime use |
 | Full control diff whitespace | pre-final-review #260 checkout | `git diff --check` | passed (historical) | line-ending notices only; rerun required after audit corrections |
 | Managed-pointer check calibration | current `AGENTS.md` | two case-insensitive `Select-String` wrappers | failed | historical false positives matched the repository's ordinary phrase “active feature plan”; exact marker/path `-SimpleMatch` rerun passed |
-| Final control prerequisite/task/checklist gate | current `specs/034` and `AGENTS.md` | `check-prerequisites.ps1 -RequireTasks -IncludeTasks`, contiguous task scan, checklist scan, exact managed-pointer marker/path scan | passed | 56 contiguous task IDs, checklist 21/21, temporary pointer absent |
-| Final control diff whitespace | current correction bytes | `git diff --check` | passed | line-ending notices only; no whitespace error |
-| Immutable control correction publication | `C=a19af010dfe63eaf27b68717ce9b38042372f973` | commit, normal push, fetch, local/remote equality | passed | exact `C` is the sole workflow source revision for runtime handoffs; final #260 PR remains unopened |
+| Final control prerequisite/task/checklist gate | first correction `specs/034` and `AGENTS.md` | `check-prerequisites.ps1 -RequireTasks -IncludeTasks`, contiguous task scan, checklist scan, exact managed-pointer marker/path scan | passed (historical) | must be rerun after the fingerprint correction |
+| Final control diff whitespace | first correction bytes | `git diff --check` | passed (historical) | must be rerun after the fingerprint correction |
+| First immutable control correction publication | `C1=a19af010dfe63eaf27b68717ce9b38042372f973`, recording head `0dd0e867cc52320875a1dd6c2928024f4e512c21` | two commits, normal pushes, fetches, local/remote equality | passed (historical) | preserved publication evidence; runtime reconciliation later found its child-fingerprint wording self-referential, so `C1` is superseded before runtime use |
+| Initial prepared-handoff fingerprint reconciliation | first uncommitted correction draft | pre-evidence input review plus separate H/R and L/A correlation review | partial | independent pre-commit review found missing canonical serialization, self-containing artifact-content risk, validator mismatch, and ambiguous preflight/incorporation wording; no runtime action occurred |
+| Canonical prepared-handoff fingerprint reconciliation | current correction bytes | exact v1 field/order/type/serialization review, independent content validation, self-input exclusion, separate H/R and L/A correlation | passed | both validators expose identical 21-field order; ordered JSON depth 4, UTF-8, lowercase SHA-256, and preflight/continuation boundary assertions passed |
+| Independent final correction review | current coordinator/child skills, #255/#256 contracts/validators, architecture, and #260 spec | targeted re-review of canonical fingerprint and held-preflight/continuation boundaries | passed | both prior high findings resolved; no new critical/high contradiction |
+| Current control semantic and Spec Kit gate | current correction bytes | cross-source canonical-schema/stale-phrase audit, prerequisite script, 56-task sequence, 21/21 checklist, managed-pointer check, sequential/legacy scope review | passed | no unresolved semantic contradiction; independent re-review passed |
+| Current control diff whitespace | current correction bytes | `git diff --check` | passed | line-ending notices only; no whitespace error |
+| Planned runtime PR collision refresh | four planned coordinator/child heads | connected GitHub PR searches | passed | no current or historical PR found for any planned runtime head before `C2` publication |
+| Superseding control correction publication | `C2=SELF/HEAD` | commit, normal push, fetch, local/remote equality, bounded report recording commit | pending | no runtime commit, push, child branch/worktree, or dispatch is authorized until this passes |
 | Fixture wording update transport | issues #273–#275 | attempted `gh issue view`, then connected GitHub fetch/update/re-fetch | passed | `gh` unavailable was a tooling attempt, not a mutation; connector performed only authorized body replacements |
-| Preserved runtime artifacts after control correction | exact ten staged runtime blobs listed above | read-only state comparison | pending | intentionally still preserve pre-correction bytes and are not handoff-ready; reconciliation is blocked until the corrected control-plane commit is pushed and recorded |
+| Preserved runtime artifacts after control correction | exact ten staged runtime blobs listed above | read-only state comparison | pending | staged originals plus in-place unstaged reconciliation remain uncommitted and are not handoff-ready; final reconciliation is blocked until superseding `C2` is pushed and recorded |
 
 ## Prohibited Operations Record
 

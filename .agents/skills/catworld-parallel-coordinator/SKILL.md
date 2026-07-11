@@ -335,17 +335,40 @@ blocker. Do not silently switch to sequential implementation, a fire-and-forget
 child, indefinite polling, a filesystem lock, an ad hoc queue, a daemon, a
 generic IPC service, or a transaction framework.
 
+#### Canonical Prepared-Handoff Fingerprint
+
+Before creating handoff-ready evidence, compute the exact
+`sidecar-prepared-handoff-v1` fingerprint shared with the child contract. Build
+a PowerShell `[ordered]` object with these properties in exact order and type:
+`Schema` string; `RunId` string; `CoordinatorIssueNumber` integer;
+`ChildIssueNumber` integer; `CoordinatorBranch` string;
+`CoordinatorRemoteBranch` string; `CoordinatorWorktree` string; `ChildBranch`
+string; `ChildWorktree` string; `ControlRevision` exact 40-hex string;
+`PreparedSpec`, `PreparedPlan`, and `PreparedTasks` repository-relative path
+strings; `DependencyLayer` integer; `HardDependencies` ascending integer array;
+`PrTargetBranch` string; `PrRelatedReferences` exact child-then-coordinator
+two-string array; `ArtifactPreparationState` string `handoff-ready`;
+`LaunchState` string `pending`; and Boolean `ImplementationPermission` and
+`DeliveryPermission`, both false.
+
+Serialize with `ConvertTo-Json -Compress -Depth 4`, hash the JSON's UTF-8 bytes
+with SHA-256, and encode 64 lowercase hexadecimal characters without a prefix.
+The fingerprint, artifact content/blob hashes, evidence SHAs, recording or
+activation heads, and child-agent identity are not inputs. Validate prepared
+artifact content independently; this prevents a tracked artifact that records
+the fingerprint from depending on its own blob identity.
+
 #### Two-Phase Held-Dispatch Barrier
 
 This barrier is ordered and explicitly non-atomic. For one dependency-ready
 layer:
 
 1. Complete each selected child's prepared handoff and Git context.
-2. Record preparation `handoff-ready`, launch `pending`, implementation
-   permission false, delivery permission false, exact child/run/Git identity,
-   prepared-handoff content fingerprint, and exact immutable control-plane
-   source revision. Do not guess or self-reference the not-yet-created commit
-   SHA.
+2. Compute the canonical v1 fingerprint, then record preparation
+   `handoff-ready`, launch `pending`, implementation permission false, delivery
+   permission false, exact child/run/Git identity, that prepared-handoff
+   identity fingerprint, and exact immutable control-plane source revision. Do
+   not guess or self-reference the not-yet-created commit SHA.
 3. Commit and normally push that handoff-ready evidence commit `R`. Fetch the
    remote coordinator ref and prove exact equality to `R`.
 4. In one bounded coordinator recording update, store exact `R` as the
@@ -416,8 +439,8 @@ handoff. The handoff and later continuation together must include:
   references, validation requirements, and explicit out-of-scope boundaries;
 - prepared child `spec.md`, `plan.md`, and `tasks.md` paths and content
   summaries;
-- exact immutable control-plane source revision and prepared-handoff content
-  fingerprint;
+- exact immutable control-plane source revision and canonical prepared-handoff
+  identity fingerprint;
 - shared implementation contract references and constraints;
 - coordinator branch local and remote refs, coordinator push status, and
   coordinator checkout/worktree path;
@@ -430,8 +453,9 @@ handoff. The handoff and later continuation together must include:
   contains it when durable, and evidence that targeted continuation addresses
   the same identity;
 - launch state, implementation permission, delivery permission, each
-  permission's remote-head activation condition, and proof that the held child
-  performed no repository or GitHub mutation before release;
+  permission's remote-head activation condition, proof that held preflight made
+  zero repository or GitHub mutation, and proof that targeted continuation made
+  only the allowed clean activation-head incorporation before release;
 - prepared task scope, including that the child may execute only tasks listed
   in the prepared child `tasks.md` and must not regenerate `spec.md`,
   `plan.md`, or `tasks.md`;
@@ -466,11 +490,12 @@ launched child held and blocks implementation and delivery.
 - Targeted release failure after launched evidence is durable: retain factual
   `launched`, record/report blocked or resume-needed state, and perform no child
   delivery. Do not roll launch state back to pending.
-- Parent interruption before release: the bounded child remains preflight-only
-  or idle. On resume, re-read current repository/GitHub evidence and the exact
-  child-agent identity. If launched is recorded but no matching child is
-  verifiably available, do not dispatch a replacement blindly; stop on ambiguous
-  active-child state.
+- Parent interruption before release: the bounded child remains held with
+  implementation/delivery false, whether idle in preflight or partway through
+  targeted barrier incorporation. On resume, re-read current repository/GitHub
+  and Git-state evidence plus the exact child-agent identity. If launched is
+  recorded but no matching child is verifiably available, do not dispatch a
+  replacement blindly; stop on ambiguous active-child state.
 - Child failure after release: retain factual `launched`; derive blocked,
   paused, or resume-needed state from current branch/worktree/validation/agent
   evidence and never summarize partial work as complete.

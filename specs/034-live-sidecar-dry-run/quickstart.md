@@ -8,6 +8,7 @@
 - Record the original local-main SHA and empty `git status --porcelain` result.
 - Treat every user merge as an external checkpoint; do not poll or merge on the user's behalf.
 - Before runtime resume, prove the environment can retain one stable named child-agent identity across a preflight-only turn and a targeted continuation with zero repository actions.
+- Require a normally pushed/fetched superseding immutable control revision `C2` plus its later report-only recording head before reconciling runtime fingerprints; preserve the earlier `C1`/`C1r` only as historical evidence.
 
 ## Preparation checks
 
@@ -51,13 +52,13 @@ git diff --exit-code origin/workflow/sidecar-buildout -- .agents/skills/catworld
 
 The barrier is ordered and explicitly non-atomic:
 
-1. Commit and normally push handoff-ready evidence `R` with each selected child non-launched, implementation/delivery false, prepared-handoff identity, and immutable control-plane source revision. Resolve its literal SHA only after the commit exists.
-2. Store exact `R` in one later bounded recording commit `Rr`, push/fetch it, prove the remote ref equals `Rr`, and prove `R` is in its ancestry. Do not require a commit to contain its own SHA.
+1. Compute each canonical `sidecar-prepared-handoff-v1` identity fingerprint from the exact ordered run/issues, coordinator/child Git context, control revision, prepared artifact paths, dependency layer/list, PR target/references, `handoff-ready`, `pending`, and false permission fields. Serialize the PowerShell ordered object with `ConvertTo-Json -Compress -Depth 4`, hash its UTF-8 bytes with SHA-256, and encode 64 lowercase hex. Validate prepared content separately; never include artifact hashes, the fingerprint, child identity, or future evidence/recording fields. Then commit and normally push handoff-ready evidence `R`. Resolve literal `R` only after it exists.
+2. Store exact `R` in one later bounded recording commit `Rr`, push/fetch it, prove the remote ref equals `Rr`, and prove `R` is in its ancestry. Correlate `R` and `Rr` separately beside the unchanged fingerprint. Do not require a commit or earlier fingerprint to contain a future SHA.
 3. Dispatch the child in preflight-only mode. Accept only an unambiguous canonical child/task identity; do not release it or allow repository mutation. The clean child branch may remain behind `Rr` during this read-only preflight.
 4. Record factual `launched` plus that identity in evidence commit `L` and normally push it. Resolve exact `L`, store it with activation permissions in one later bounded recording commit `Lr`, push/fetch `Lr`, prove remote equality to `Lr`, and prove `L` is in its ancestry.
 5. Target only that same identity with continuation. The child fetches and incorporates `Lr` by fast-forward or normal merge, verifies it contains `L`, proves the worktree stayed clean, acknowledges release, and revalidates effective implementation/delivery permission before executing tasks.
 
-Run the complete focused #255 and #256 simulation surfaces, including every newly added barrier failure and behind-child case, and parse both scripts before treating them as fresh evidence. Rejected or ambiguous dispatch, failed evidence/recording push, failed child refresh/ancestry verification, and release failure must all produce zero implementation edits and zero delivery. An ambiguous dispatch must not create a replacement child.
+Run the complete focused #255 and #256 simulation surfaces, including every newly added barrier failure and behind-child case, and parse both scripts before treating them as fresh evidence. Recompute the canonical v1 payload in both validators, prove the exact ordered fields/types/serialization agree, and prove no self-input, artifact content hash, child identity, handoff-ready/launched evidence, or recording/activation SHA enters the payload. Rejected or ambiguous dispatch, failed evidence/recording push, failed child refresh/ancestry verification, and release failure must all produce zero implementation edits and zero delivery. An ambiguous dispatch must not create a replacement child.
 
 The harmless capability proof uses `spawn_agent` for preflight-only dispatch and `followup_task` against the returned canonical task name for targeted continuation. A separate `spawn_agent` call is a different child and cannot be substituted.
 
@@ -65,7 +66,7 @@ The harmless capability proof uses `spawn_agent` for preflight-only dispatch and
 
 At each stage, update durable factual evidence before returning:
 
-1. Pause 1: handoff-ready/launched evidence SHAs and their containing recording/activation heads, stable dispatch identities, proof of zero pre-release edits, two ready first-layer PR URLs/branches/commits/validation, unchanged local-main proof, and an instruction to merge exactly one selected PR with GitHub's merge-commit strategy.
+1. Pause 1: canonical prepared-handoff identity fingerprints plus independent content validation, separately correlated handoff-ready/launched evidence SHAs and their containing recording/activation heads, stable dispatch identities, proof of zero pre-release implementation edits, two ready first-layer PR URLs/branches/commits/validation, unchanged local-main proof, and an instruction to merge exactly one selected PR with GitHub's merge-commit strategy.
 2. Pause 2: one merged child proof, refreshed coordinator SHA, active-child normal-merge proof, rerun validation, remaining PR URL, and an instruction to merge that PR with GitHub's merge-commit strategy.
 3. Pause 3: both first-layer ancestry proofs, the ready dependent-child PR URL, and an instruction to merge it with GitHub's merge-commit strategy.
 4. Pause 4: H/H2, integrated and artifact-affected checks, remote H2 equality, final ready PR URL/source/target, risks, and exact user merge action.

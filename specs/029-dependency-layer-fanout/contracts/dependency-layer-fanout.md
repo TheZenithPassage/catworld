@@ -36,10 +36,48 @@ prepared child artifacts as exact handoff-ready evidence `H`. Once `H` exists,
 one later bounded recording commit `R` stores its literal SHA. Before dispatch,
 the fetched remote ref must equal `R` and Git ancestry must prove that `R`
 contains `H`. The dispatch envelope binds the run ID, child issue, child branch
-and worktree, exact `H`, current `R`, and the prepared-content fingerprint. No
+and worktree, exact `H`, current `R`, and the canonical prepared-handoff identity
+fingerprint. No
 commit is required to contain its own SHA. The approved child-agent capability
 must return unambiguous acceptance plus a stable child/task identity for the
 same logical child that will later be released.
+
+### Canonical Prepared-Handoff Fingerprint v1
+
+The prepared-handoff fingerprint is computed before evidence commit `H`. Its
+canonical payload is one PowerShell `[ordered]` object with exactly these fields
+in this order and with these types:
+
+| Field | Type / value |
+|-------|--------------|
+| `Schema` | string literal `sidecar-prepared-handoff-v1` |
+| `RunId` | string |
+| `CoordinatorIssueNumber` | integer |
+| `ChildIssueNumber` | integer |
+| `CoordinatorBranch` | string |
+| `CoordinatorRemoteBranch` | string |
+| `CoordinatorWorktree` | string |
+| `ChildBranch` | string |
+| `ChildWorktree` | string |
+| `ControlRevision` | 40-hex string |
+| `PreparedSpec` | string |
+| `PreparedPlan` | string |
+| `PreparedTasks` | string |
+| `DependencyLayer` | integer |
+| `HardDependencies` | sorted integer array |
+| `PrTargetBranch` | string equal to the coordinator branch |
+| `PrRelatedReferences` | exact ordered string array `Related to #<child>`, `Related to #<coordinator>` |
+| `ArtifactPreparationState` | string literal `handoff-ready` |
+| `LaunchState` | string literal `pending` |
+| `ImplementationPermission` | Boolean `false` |
+| `DeliveryPermission` | Boolean `false` |
+
+Serialize that object exactly with `ConvertTo-Json -Compress -Depth 4`, encode
+the result as UTF-8 bytes, and compute SHA-256 as 64 lowercase hexadecimal
+characters. Evidence/recording SHAs `H`, `R`, `L`, and `A`, child-agent or
+dispatch identity, and the fingerprint itself are never payload fields; they
+are correlated separately. Prepared artifact content is validated separately
+and is not embedded in a self-containing fingerprint payload.
 
 | Barrier point | Artifact preparation | Factual launch state | Implementation / delivery permission | Required evidence and allowed child action |
 |---------------|----------------------|----------------------|--------------------------------------|--------------------------------------------|
@@ -121,15 +159,16 @@ unambiguous dispatch acceptance. The handoff includes:
 - validation commands or manual evidence;
 - explicit blocker, freshness, refresh, and cleanup reporting expectations.
 
-Before release, the held child may validate only its run and child identity,
-branch/worktree, prepared artifacts, dependency layer, handoff-ready evidence
-SHA and containing record head, fingerprint, and false
-implementation/delivery permissions. It must not edit,
-stage, execute prepared tasks, commit, push, open or update a PR, or mutate
-GitHub. After factual launched evidence and its activation/recording head are
-remotely durable, the same child must incorporate the activation head by an
-allowed normal fast-forward or normal merge, verify the launched evidence in
-ancestry and continued clean worktree, and receive a targeted release before
+During held preflight and until targeted durable continuation begins, the child
+may validate only its run and child identity, branch/worktree, prepared
+artifacts, dependency layer, handoff-ready evidence SHA and containing record
+head, fingerprint, and false implementation/delivery permissions. It must not
+edit, stage, execute prepared tasks, commit, push, open or update a PR, or
+mutate GitHub. After factual launched evidence and its activation/recording head
+are remotely durable, targeted continuation authorizes only the same child to
+incorporate the activation head by an allowed normal fast-forward or normal
+merge while implementation/delivery remain false, verify the launched evidence
+in ancestry and continued clean worktree, and acknowledge release before
 implementation begins. Its child branch may remain behind during read-only
 preflight.
 
@@ -184,6 +223,10 @@ Validation must include:
 - review proving no evidence commit is required to contain its own SHA and
   current remote equality is evaluated against the later recording/activation
   head while ancestry validates the earlier evidence SHA;
+- focused canonical-fingerprint recomputation using the exact v1 ordered payload,
+  JSON serialization, UTF-8 encoding, and lowercase SHA-256 contract, including
+  proof that `H`, `R`, `L`, `A`, agent identity, and the fingerprint itself are
+  excluded and remain separate correlation fields;
 - simulations that rejected and ambiguous dispatches record no launched state
   for the affected child, attempt no duplicate dispatch, release no child, and
   perform zero child repository edits;
