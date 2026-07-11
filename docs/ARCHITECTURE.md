@@ -642,6 +642,16 @@ remains fresh. The temporary #258 implementation PR is part of the #249
 build-out, so it instead targets `workflow/sidecar-buildout` and uses
 `Related to #258`; that build-out delivery context does not change the runtime
 coordinator-branch-to-`main` contract or its final-only closing authority.
+Issue #259 makes the post-final-merge local cleanup boundary executable. It
+keeps H2 and the tracked finalization artifact frozen, records cleanup state in
+a minimal journal beneath the repository's Git common directory, and permits
+only explicitly authorized removal of clean local branches and worktrees whose
+exact ownership is proven for the same stable sidecar run. The temporary #259
+implementation branch starts from `origin/workflow/sidecar-buildout`, its PR
+targets `workflow/sidecar-buildout`, and it uses `Related to #259`. That
+build-out delivery context does not change the future runtime rule that a
+coordinator branch starts from current `origin/main` and its final PR targets
+`main`.
 
 Direct child issues requested outside coordinator `parallel` execution still
 use the existing sequential workflow. Closed-child coordinator final passes
@@ -679,7 +689,8 @@ The lifecycle states are:
 15. Next dependency layer execution.
 16. Integrated coordinator validation.
 17. Final coordinator PR to `main`.
-18. Post-final-merge local cleanup eligibility.
+18. Post-final-merge local cleanup evaluation and explicitly authorized local
+    execution.
 
 Each state must define entry conditions, stop conditions and allowed next
 states in the sidecar coordinator skill. If a stop condition applies, Codex
@@ -708,17 +719,32 @@ remote-head mismatch, or need for a draft fallback or duplicate stops final
 delivery. Cleanup remains ineligible until the user merges the runtime final
 PR into `main`.
 
+State 18 first resolves the repository Git common directory and writes the
+same-run local cleanup journal. A known-unmerged final PR remains ineligible;
+missing, stale or inconsistent merge evidence blocks cleanup. Eligibility
+requires one unique same-run final PR whose expected coordinator source and H2
+head, `main` base, merged state and current `origin/main` merge evidence all
+agree. Eligibility alone never deletes anything: destructive local cleanup
+also requires explicit current authority. Unknown ownership, an inconsistent
+Git common directory, dirty candidate worktree state, an unsafe control
+checkout or a journal-write failure stops before the first deletion. During an
+authorized attempt, an owned worktree is removed before its associated local
+branch is deleted non-force; every attempt is journaled, and any failure stops
+the remaining operations with a truthful blocked or partial result.
+
 Codex-owned operations include read-only issue and PR inspection, artifact
 planning, permitted local branch/worktree preparation after #261 activation,
 artifact writing inside the coordinator branch/worktree, dependency-ready
 child handoff launch, PR readiness reporting, allowed local refresh, integrated
 validation reporting, the normal non-force push of artifact-only `H2`, and
 creation or a separately permitted safe update of one ready final coordinator
-PR after every finalization gate passes. The user owns all merges: child PRs
-into the remote coordinator branch and the final coordinator PR into `main`.
-GitHub issue mutation, public comments, remote branch deletion, remote pruning
-and remote cleanup require explicit user approval in a workflow that permits
-the operation.
+PR after every finalization gate passes. After final merge, Codex may perform
+the explicitly authorized, same-run local cleanup defined below. The user owns
+all merges: child PRs into the remote coordinator branch and the final
+coordinator PR into `main`. The sidecar local cleanup phase never mutates
+GitHub issues or comments, merges or approves PRs, enables auto-merge, deletes
+or otherwise cleans up remote branches, or prunes remotes or remote-tracking
+refs.
 
 The sidecar coordinator builds dependency layers from child issue dependencies,
 conflict risks, shared implementation contract state, prepared artifact state,
@@ -744,7 +770,8 @@ implementation.
 Before any future sidecar delegation, the coordinator entrypoint prepares or
 requires a coordinator orchestration artifact and issue-numbered child
 implementation artifacts. The coordinator artifact is the durable run record.
-It must contain run identity, coordinator issue number, title, URL, labels,
+It must contain one exact stable `run_id`, coordinator issue number, title,
+URL, labels,
 state and source references; inspected child issue list; parent/source
 references when relevant; child issue map; dependency layers; hard
 dependencies; conflict risks; independent candidates; unresolved blockers;
@@ -752,7 +779,11 @@ shared implementation contract; child-owned surfaces; shared surfaces requiring
 caution; branch and worktree plan; PR target plan; validation plan;
 resume/status table; stop conditions; final coordinator PR plan; sidecar Git
 state; sidecar PR delivery state; sidecar validation reporting state; and
-sidecar resume state. Each child issue must have prepared or described
+sidecar resume state. Before H2 freezes the artifact, its sidecar Git state
+must identify the normalized repository Git common directory and the exact
+local branch and worktree path associations created for that `run_id`; names
+or live Git state alone are not ownership evidence. Each child issue must have
+prepared or described
 `spec.md`, `plan.md` and `tasks.md` artifacts under the #225 child artifact
 path.
 
@@ -781,13 +812,17 @@ Finalization extends that durable record with:
 - current evidence for normal non-force H2 push/fetched remote-H2 proof,
   stable same-run final-delivery identity, observed existing final PR state,
   resolved H2 statuses, final scope and readiness, rendered-body fingerprint
-  and GitHub-returned PR URL in final reporting.
+  and GitHub-returned PR URL in final reporting; post-final-merge cleanup state
+  belongs in the local Git-common-dir journal described below.
 
 The branch-bound H2 artifact records only facts available when H2 is created.
 It must not preclaim its resolved self SHA, post-H2 statuses, final scope,
-readiness, rendered-body fingerprint or PR URL. Those facts remain current
-repository/GitHub evidence and final-report state; the workflow must not create
-an H3 merely to write them back into the artifact.
+readiness, rendered-body fingerprint, PR URL or later cleanup result. Those
+facts remain current repository/GitHub evidence, local cleanup-journal state
+and final-report state. H2 and
+`specs/032-final-coordinator-delivery/finalization.md` remain immutable; the
+workflow must not create H3, H4 or any other coordinator-branch commit merely
+to persist post-H2 or cleanup evidence.
 
 The child status table must be detailed enough for a later session to identify
 completed, active, blocked and pending sidecar child work without private
@@ -809,9 +844,10 @@ observed, stale, passed, failed, pending, `pending-H2-checks`,
 waiting-for-dependency-merge and ineligible states, and must not imply that
 branches, worktrees, pull requests, launches, merges, validation results,
 readiness or cleanup eligibility exist before they are real. Resolved H2
-results, remote-H2 proof, final PR state and later cleanup eligibility are
-reported from current repository/GitHub evidence after H2; they do not cause an
-artifact update or H3.
+results, remote-H2 proof and final PR state remain current
+repository/GitHub evidence after H2. Later cleanup eligibility, attempts and
+results are persisted in the local cleanup journal and may be reported, but
+they do not cause an artifact update, H3 or H4.
 
 Artifact preparation must validate child artifacts against the coordinator
 issue, child issue bodies, relevant source-of-truth documentation, current
@@ -897,10 +933,11 @@ trim leading or trailing hyphens.
 
 Before creating sidecar artifacts, future sidecar preparation must compute the
 coordinator target path and every child target path. Existing same-number
-coordinator artifacts may be resumed only when durable run identity proves that
+coordinator artifacts may be resumed only when their exact stable `run_id`
+proves that
 the artifact belongs to the same coordinator run, matching the coordinator
 issue number, URL, title/source context, computed artifact path and recorded
-sidecar run identity or equivalent durable state. Otherwise the workflow must
+sidecar run identity. Otherwise the workflow must
 stop and report a collision instead of overwriting, merging, deleting, silently
 reusing or automatically renaming artifacts when any of these are true:
 
@@ -1035,11 +1072,93 @@ Sidecar branches must not be rebased, force-pushed, updated with
 Validation affected by coordinator refresh or active child refresh is stale
 until rerun.
 
-Local sidecar branches and worktrees are not deleted after individual child PR
-merges. Local cleanup is eligible only after the final coordinator PR has been
-merged into `main`, and only for local branches and worktrees created by the
-sidecar workflow. Remote branch deletion, remote pruning and any remote cleanup
-require explicit user approval.
+### Sidecar Local Cleanup Journal and Execution
+
+Local sidecar branches and worktrees are retained after individual child PR
+merges. Cleanup remains ineligible until current evidence identifies exactly
+one same-run final coordinator PR and confirms that its expected coordinator
+source and H2 head, `main` base, merged state and merge evidence in current
+`origin/main` evidence all agree. A known-unmerged final PR records an
+ineligible outcome. Missing, stale, ambiguous or inconsistent merge evidence
+blocks cleanup. The evidence refresh needed to make this decision is evidence
+collection, not remote cleanup.
+
+Cleanup state is stored outside every tracked worktree. From repository
+context, the coordinator resolves and normalizes the result of
+`git rev-parse --git-common-dir`, then uses the exact stable `run_id` already
+recorded in the coordinator artifact to write:
+
+```text
+<git-common-dir>/catworld-sidecar/runs/<run-id>/cleanup-state.json
+```
+
+Schema version 1 has exactly these top-level fields:
+
+- `schema_version`;
+- `run_id`;
+- `eligibility`;
+- `owned_resources`;
+- `skipped_reasons`;
+- `attempted_operations`;
+- `result`; and
+- `updated_at_utc`.
+
+The journal is local operational state, not independent merge, ownership or
+cleanup-authority evidence. It is never committed or written back into H2. The
+frozen coordinator artifact supplies the same-run ownership ledger. Every
+candidate must match that ledger's exact normalized worktree path, exact local
+branch, recorded repository Git common directory and live Git association.
+Branch-name prefixes, directory-name patterns and live Git state alone never
+prove ownership. An absent stable `run_id`, unknown resource, unmatched path or
+branch, different Git common directory, unsafe control checkout or other
+inconsistency blocks the complete cleanup batch before its first deletion.
+
+Eligibility does not authorize deletion automatically. Destructive local
+cleanup additionally requires explicit current authority consistent with the
+repository operation rules. Before the first deletion, the coordinator
+preflights every candidate worktree for staged, unstaged and untracked changes;
+all candidates must be clean at the same batch boundary. It must also persist
+the eligible in-progress journal successfully. Any dirty candidate or failed
+pre-destructive journal write blocks the entire batch without deleting a local
+resource.
+
+Authorized execution removes each owned worktree through standard non-force
+Git worktree removal before attempting standard non-force deletion of its
+associated local branch. The journal is updated after every attempted local
+operation. Execution stops on the first failure. If nothing was removed, the
+result is `blocked`; if an earlier operation succeeded, the result is
+`partial`, with only actual attempts and outcomes recorded. `completed` is
+valid only after every approved local target was removed successfully. The
+state pairs are:
+
+- known-unmerged final PR: `eligibility = ineligible`,
+  `result = ineligible`;
+- missing, stale or inconsistent final-merge evidence:
+  `eligibility = ineligible`, `result = blocked`;
+- confirmed final merge without explicit current cleanup authority:
+  `eligibility = eligible`, `result = not_started`;
+- dirty, unknown or inconsistent candidate state after confirmed merge:
+  `eligibility = eligible`, `result = blocked`;
+- authorized execution after all preflight gates:
+  `eligibility = eligible`, `result = in_progress`;
+- all approved operations succeeded: `eligibility = eligible`,
+  `result = completed`; and
+- an operation failed after an earlier success: `eligibility = eligible`,
+  `result = partial`.
+
+`partial` and `completed` are factual terminal records for #259. A later
+session reports them and does not automatically retry, continue or infer
+missing-resource ownership from the journal; elaborate recovery remains out of
+scope.
+
+Local cleanup never changes H2 or
+`specs/032-final-coordinator-delivery/finalization.md`, creates H3/H4 or another
+repository commit, force-removes a worktree, force-deletes a branch, deletes or
+otherwise cleans up a remote branch, prunes remotes or remote-tracking refs,
+mutates GitHub issues or comments, merges or approves PRs, or enables
+auto-merge. Issue #259 validates this boundary with one compact shared
+temporary-Git fixture and the seven focused cleanup cases. Issue #260 owns the
+complete sidecar end-to-end and cross-workflow validation.
 
 ### Sidecar Resume State Tracking
 
@@ -1071,7 +1190,8 @@ must re-read current GitHub and repository evidence before continuing:
 - final-template blob and render inputs, stable same-run final PR identity,
   current final PR source, target, body, readiness and URL evidence;
 - blockers, conflicts and human-only decision state;
-- cleanup eligibility and remote cleanup approval state.
+- the local cleanup journal when it exists, its exact `run_id`, eligibility,
+  execution result and explicit current cleanup-authority state.
 
 Resume must not rely on private conversation context as the source of truth.
 If the current evidence conflicts with recorded resume state, Codex stops and
@@ -1125,13 +1245,12 @@ attempts as historical evidence while identifying exactly one current result
 for every readiness requirement and evaluated state. It never upgrades stale
 or inconsistent artifact, branch, validation or existing-PR evidence silently.
 The PR URL and resolved post-H2 state remain current evidence and final-report
-data rather than causing an H3 artifact update.
-
-Local cleanup is not eligible after individual child PR merges. It becomes
-eligible only after the final coordinator PR has merged into `main`, and only
-for local branches and worktrees created by the sidecar workflow. Remote branch
-deletion, remote pruning and remote cleanup still require explicit user
-approval.
+data rather than causing an H3 or H4 artifact update. Post-final-merge cleanup
+eligibility, skipped reasons, attempts and results are written to the local
+Git-common-dir journal, not the frozen coordinator artifact. Cleanup remains
+ineligible after individual child PR merges; after the final coordinator PR is
+proven merged into `main`, only explicitly authorized, exact same-run-owned,
+clean local resources may be removed under the cleanup contract above.
 
 A closed-child coordinator final pass uses the existing sequential workflow and
 normal sequential state handling. It may reference closed child issues for
@@ -1142,10 +1261,13 @@ child issue scope as newly implemented work.
 
 This procedure applies only to a future activated sidecar run after the local
 coordinator branch has been refreshed from its remote branch. Its runtime
-target base is fetched `origin/main`. The temporary #258 implementation branch
-starts from and validates against `origin/workflow/sidecar-buildout`; its PR
-targets `workflow/sidecar-buildout` and uses `Related to #258`. That
-implementation-only base is not a runtime coordinator target.
+target base is fetched `origin/main`. Temporary #249 build-out implementation
+branches for #258 and #259 instead start from and validate against
+`origin/workflow/sidecar-buildout`; their PRs target
+`workflow/sidecar-buildout` and use `Related to #258` or `Related to #259` as
+applicable. That implementation-only base is not a runtime coordinator target
+and does not replace the future `origin/main` branch origin or `main` final-PR
+target.
 
 Before final validation, Codex re-reads the coordinator issue, every prepared
 child issue and dependency, every child PR target and merge state, local and
@@ -1273,25 +1395,27 @@ current evidence. The final PR must:
 
 The final coordinator PR is the only sidecar PR that may target `main` or close
 the coordinator set during sidecar parallel delivery. This runtime authority
-does not apply to temporary #249 build-out PRs such as #258, whose target and
-non-closing issue reference remain the build-out integration branch and
-`Related to` wording. Current GitHub evidence and the final report record the
-returned final PR URL and readiness; Codex does not create H3 merely to write
-the URL, rendered-body fingerprint or resolved post-H2 evidence back into the
-coordinator artifact.
+does not apply to temporary #249 build-out PRs such as #258 and #259, whose
+target and non-closing issue reference remain the build-out integration branch
+and `Related to` wording. Current GitHub evidence and the final report record
+the returned final PR URL and readiness; Codex does not create H3 or H4 merely
+to write the URL, rendered-body fingerprint, resolved post-H2 evidence or
+cleanup evidence back into the coordinator artifact.
 
 Codex reports readiness for sidecar child PRs and the final coordinator PR.
 The user performs every merge. Codex must not merge, approve or enable
 auto-merge on pull requests. Local cleanup remains `ineligible` with reason
 `pending final PR merge` until current evidence shows that the final
-coordinator PR has merged into `main`.
+coordinator PR has merged into `main`; eligibility still does not supply
+destructive cleanup authority.
 
 GitHub issue body, checklist, label, assignee, milestone, issue state and
 public comment mutations require explicit user approval in a workflow that
 permits the operation. PR description wording is not permission to separately
 modify issue metadata, issue bodies, checklists, issue state or public
 comments. Remote branch deletion, remote pruning and remote cleanup also
-require explicit user approval.
+require a separate explicitly approved workflow and are never part of the
+sidecar local cleanup phase.
 
 Normal one-issue sequential PR behavior keeps its current target and closure
 behavior. Direct child issue work outside explicit sidecar `parallel` mode also
@@ -1345,7 +1469,9 @@ Finalization reporting distinguishes the complete suite run at H from the
 artifact-affected checks rerun at H2. It records actual statuses at their
 evaluated heads and does not claim the complete suite ran at H2 unless it did.
 It also reports target-base, merge-base, local/remote H2, scope, template,
-existing-PR and cleanup evidence from the final pre-creation recheck.
+existing-PR and cleanup-ineligibility evidence from the final pre-creation
+recheck. Later cleanup reporting reads the local Git-common-dir journal and
+does not rewrite H2 or the finalization artifact.
 
 A sidecar child PR is ready only when required validation is fresh and passed,
 no unresolved blocker affects the child, and the approved sidecar PR target and

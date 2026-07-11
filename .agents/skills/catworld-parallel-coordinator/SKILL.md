@@ -61,11 +61,18 @@ direct child `H2`, proves and validates that artifact-only delta, pushes H2
 normally and verifies the remote coordinator ref, reviews the PR-equivalent
 scope, and opens one ready coordinator-to-`main` PR only when current evidence
 remains fresh.
+Issue #259 makes post-final-merge local cleanup executable without changing
+tracked coordinator history: it resolves one minimal cleanup journal beneath
+the Git common directory, requires an exact stable run identity and current
+same-run final-merge evidence, fails closed on missing authority, unknown
+ownership, dirty worktrees, or inconsistent state, removes owned worktrees
+before associated non-force local branch deletion, and records factual skipped,
+attempted, partial, and final outcomes. Issue #260 retains complete end-to-end
+and cross-workflow validation of the assembled sidecar lifecycle.
 The coordinator still does not merge, approve, enable auto-merge, mutate
 GitHub issues, post public comments, run adoption dry-runs, replace the normal
 sequential implementation workflow, or perform user-owned child PR merges.
-Later #249 child issues may extend cleanup, controlled dry-run, and activation
-pieces.
+Later #249 child issues may extend controlled dry-run and activation pieces.
 
 ## Routing Boundary
 
@@ -204,8 +211,8 @@ blocking condition, and user action required when applicable.
 | 14. Active child branch refresh | Local coordinator branch/worktree has been refreshed from the remote coordinator branch and still-active child branches/worktrees need updated coordinator state. | Refresh would use stale local coordinator state; refresh would require rebase, force-push, force-with-lease, history rewrite, resource deletion, or unresolved conflict. | Dependency-layer recomputation; next dependency layer execution; waiting for user guidance. |
 | 15. Next dependency layer execution | Dependency layers have been recomputed from current issue, PR, artifact, branch, validation, and blocker evidence after observed merges and refresh. | Hard dependencies are not integrated into the updated local coordinator branch; next layer has unresolved blockers, child-agent capability blocker, stale required evidence, unsafe dependency state, or conflict risk. | Child branch/worktree preparation; integrated coordinator validation. |
 | 16. Integrated coordinator validation | Current GitHub/repository evidence has been re-read; the prepared-child ledger is complete and unique; every child PR targets and is merged into the coordinator branch; every child commit is present in refreshed coordinator ancestry; no child is active, blocked, pending, dependency-incomplete, missing, duplicate, or unexpected. | Evidence conflicts with the artifact; child accounting or ancestry is incomplete; another child layer remains possible; any required or consumed validation is failed, skipped, timed out, interrupted, partial, stale, blocked, not run, unavailable, or dishonest to claim; `H`/`H2` evidence is invalid; target base/head evidence moved; integrated scope contains an unexplained change. | Final coordinator PR to `main`; report blocker. |
-| 17. Final coordinator PR to `main` | Complete checks passed at `H`; `H2` is the direct artifact-only child; all H2-affected checks passed in current evidence; the remote coordinator ref equals H2 after a normal non-force push; target-base, merge-base, local/remote head, ancestry, scope, validation, template, and existing-PR evidence were rechecked and remain fresh. | A final PR already exists with stale or inconsistent state; same-run identity is ambiguous; source, target, template, issue wording, closing authority, or readiness is invalid; a required check regressed; push was rejected or remote ref differs; a draft fallback or duplicate would be required. | Post-final-merge local cleanup eligibility; report blocker. |
-| 18. Post-final-merge local cleanup eligibility | Final coordinator PR has been merged into `main`. | Final PR is not merged; cleanup target was not created by sidecar workflow; remote cleanup lacks explicit approval. | Report local cleanup eligibility; remote cleanup remains approval-gated. |
+| 17. Final coordinator PR to `main` | Complete checks passed at `H`; `H2` is the direct artifact-only child; all H2-affected checks passed in current evidence; the remote coordinator ref equals H2 after a normal non-force push; target-base, merge-base, local/remote head, ancestry, scope, validation, template, and existing-PR evidence were rechecked and remain fresh. | A final PR already exists with stale or inconsistent state; same-run identity is ambiguous; source, target, template, issue wording, closing authority, or readiness is invalid; a required check regressed; push was rejected or remote ref differs; a draft fallback or duplicate would be required. | Post-final-merge local cleanup; report blocker. |
+| 18. Post-final-merge local cleanup | Current read-only evidence identifies exactly one same-run final coordinator PR with the expected coordinator source and H2 head, `main` base, merged state, and corroborating merge evidence in current `origin/main`; an exact stable run ID and the artifact-owned local resource records are available. | Merge, run-identity, ownership, Git-common-directory, live resource, cleanliness, control-checkout, cleanup-authority, or journal evidence is missing, stale, unknown, dirty, unwritable, or inconsistent; a local removal or required journal update fails. | Report `ineligible`, `not_started`, `blocked`, `partial`, or `completed` local cleanup state; no remote cleanup transition exists. |
 
 ### Operation Ownership
 
@@ -215,13 +222,21 @@ coordinator branch/worktree, launch dependency-ready child handoffs when
 child-agent capability is available, report PR readiness, refresh local sidecar
 branches by allowed methods, prepare final coordinator validation evidence, push
 the artifact-only H2 normally, and create or safely update one ready final
-coordinator PR only after the detailed finalization gate passes.
+coordinator PR only after the detailed finalization gate passes. After current
+evidence confirms the final merge, Codex may evaluate local cleanup and, only
+with explicit current cleanup authority and every cleanup preflight gate passed,
+remove the exact same-run-owned local worktrees and branches through the local
+cleanup procedure below. Eligibility alone never authorizes deletion.
 
 The user owns all merges. Child PRs are merged by the user into the remote
 coordinator branch. The final coordinator PR is merged by the user into
 `main`. GitHub issue mutations, public comments, remote branch deletion,
 remote pruning, and remote cleanup require explicit user approval in a workflow
 that permits the operation.
+
+The #259 local cleanup phase never deletes or otherwise cleans up remote
+branches, prunes remotes or remote-tracking refs, or mutates GitHub state.
+Read-only GitHub and repository evidence collection remains allowed.
 
 ### Dependency Layers
 
@@ -362,7 +377,8 @@ branch/worktree.
 
 The coordinator artifact must include at least:
 
-- run identity or equivalent durable state sufficient to prove same-run resume;
+- one exact stable `run_id` sufficient to prove same-run resume and to identify
+  the later Git-common-directory cleanup journal without derivation or guessing;
 - coordinator issue number, title, URL, labels, state, classification, and
   source references;
 - inspected child issue list;
@@ -378,8 +394,10 @@ The coordinator artifact must include at least:
 - shared implementation contract section that records cross-child contracts,
   source-of-truth references, and unresolved shared-contract blockers;
 - child-owned surfaces and shared surfaces requiring caution;
-- branch and worktree plan, including planned and actually-created coordinator
-  and child branches/checkouts/worktrees;
+- branch and worktree plan, including the normalized repository Git common
+  directory and the exact planned and actually-created coordinator and child
+  branch names, refs, normalized checkout/worktree paths, and same-`run_id`
+  ownership associations;
 - PR target plan, including child PR targets and final coordinator PR target;
 - sidecar Git state section that records coordinator branch, coordinator
   checkout/worktree, child branch, child checkout/worktree, child PR target,
@@ -443,11 +461,19 @@ accounting, H validation completion, and the pending H2 manifest and recheck
 criteria. After H2 exists, do not update the branch-bound artifact: resolved H2
 checks, final scope/readiness, normal H2 push and fetched remote-H2 proof,
 existing or created final PR state, rendered-body fingerprint, returned PR URL,
-and post-merge cleanup eligibility remain current repository/GitHub evidence and
-final-report state. Do not create H3 merely to persist them. A blocked
-coordinator records the blocker, affected scope, evidence read, and required
-user action when applicable before the freeze, or reports it externally after
-the freeze, and it must not launch child work.
+and final-PR merge confirmation remain current repository/GitHub evidence and
+final-report state. Post-final-merge local cleanup eligibility, skipped reasons,
+owned-resource state, attempted operations, partial failure, and final result
+are recorded separately in the Git-common-directory cleanup journal. That local
+journal is outside tracked worktree content, never updates the coordinator
+artifact, and is not independent proof of merge, ownership, or cleanup
+authority. Do not create H3 or H4 merely to persist any post-H2 evidence. A
+blocked coordinator records the blocker, affected scope, evidence read, and
+required user action when applicable before the freeze, reports final-delivery
+blockers externally after the freeze, and records cleanup blockers in the local
+journal when it can be written safely. A journal-write failure is reported
+externally and stops cleanup; it never permits an artifact update or another
+coordinator commit. A blocked coordinator must not launch child work.
 
 Stop before delegation when the coordinator artifact cannot be prepared safely
 because coordinator context, child context, dependencies, source-of-truth
@@ -569,12 +595,16 @@ resource.
   removing issue title prefixes such as `[Workflow]`, `[Epic]`, `feat:`, or
   `docs:`.
 
-The coordinator artifact must record planned and actual full branch names,
-local and remote branch refs when they exist, full local checkout/worktree
-paths, branch bases, child PR target plans, push state, refresh state, cleanup
-state, and any blockers. The parent directory for local sidecar checkouts is
-workflow context, but each sidecar directory name must use the deterministic
-component above.
+The coordinator artifact must record its exact stable `run_id`, the normalized
+repository Git common directory, planned and actual full branch names, local
+and remote branch refs when they exist, normalized full local
+checkout/worktree paths, exact branch/worktree ownership associations, branch
+bases, child PR target plans, push state, refresh state, cleanup state, and any
+blockers. Record those ownership facts before H2 freezes the artifact; an
+artifact missing them cannot proceed to finalization because cleanup must not
+derive ownership later from names or live Git state. The parent directory for
+local sidecar checkouts is workflow context, but each sidecar directory name
+must use the deterministic component above.
 
 Before reusing an existing local branch, remote branch, checkout, worktree,
 directory, or artifact path, compare it against the coordinator artifact or
@@ -696,12 +726,139 @@ refresh is stale until rerun after the allowed refresh.
 ### Cleanup
 
 Do not delete local sidecar branches or worktrees after individual child PR
-merges. Local cleanup is eligible only after the final coordinator PR has been
-merged into `main`, and only for local branches and worktrees created by the
-sidecar workflow.
+merges. Post-final-merge cleanup is a local-only, explicitly authorized phase;
+eligibility by itself never deletes or authorizes deletion of a resource.
 
-Remote branch deletion, remote pruning, or any remote cleanup requires explicit
-user approval.
+#### Journal Location and State
+
+Use the exact stable `run_id` already recorded by the coordinator artifact. Do
+not derive, regenerate, shorten, rename, or guess it during cleanup. Reject an
+empty run ID, `.` or `..`, or a value containing `/` or `\` instead of using it
+as a path component.
+
+From a valid non-target checkout belonging to the repository, run
+`git rev-parse --git-common-dir`, resolve a relative result against that
+repository context, and normalize it to the actual Git common directory. Use
+exactly this journal path:
+
+```text
+<git-common-dir>/catworld-sidecar/runs/<run-id>/cleanup-state.json
+```
+
+Schema version 1 contains exactly these top-level fields and no others:
+
+- `schema_version`;
+- `run_id`;
+- `eligibility`;
+- `owned_resources`;
+- `skipped_reasons`;
+- `attempted_operations`;
+- `result`;
+- `updated_at_utc`.
+
+The journal is local operational evidence outside tracked worktree content. It
+is not independent evidence of final merge, resource ownership, or cleanup
+authority. Its ownership entries copy only the minimal exact worktree path,
+local branch association, resource kind, and factual local state needed for the
+cleanup record. Do not require or invent a journal `head_sha`; corroborate
+ownership from the frozen same-run coordinator artifact, the normalized Git
+common directory, and current exact path/branch/worktree association instead.
+An existing `ineligible` or `not_started` journal with no attempted operations
+may be updated only when its schema, exact run ID, and resource snapshot remain
+consistent with the same-run artifact and current local evidence. Report an
+existing `partial` or `completed` journal as factual prior state; do not
+automatically retry or continue it in #259. Any other inconsistency stops
+without overwriting or resetting the journal.
+
+#### Eligibility and Cleanup Authority
+
+Re-read current evidence without mutating GitHub state. Cleanup eligibility
+requires all of the following evidence to agree:
+
+- exactly one final coordinator PR belongs to the same stable run identity;
+- its source is the expected remote coordinator branch at the expected H2 head;
+- its base is `main`;
+- its current state is merged; and
+- current `origin/main` evidence contains the expected final-merge evidence.
+
+A final PR known not to be merged records `eligibility = ineligible` and
+`result = ineligible`. Missing, stale, duplicate, or inconsistent final-merge
+evidence records `eligibility = ineligible` and `result = blocked`, with the
+exact skipped reason. Neither state permits a local deletion.
+
+Confirmed final merge records `eligibility = eligible`, but still does not
+authorize cleanup. Without explicit current authority to perform this local
+destructive operation under repository rules, record `result = not_started`,
+no attempted operations, and the authority reason in `skipped_reasons`. Only
+continue when current cleanup authority is explicit and all preflight gates
+below pass.
+
+#### Complete-Batch Preflight
+
+Before the first local deletion:
+
+1. Load the exact coordinator and child local branches and worktree paths
+   recorded as owned by this run in the frozen coordinator artifact. A branch
+   name, directory name, deterministic prefix, journal entry, or sidecar-like
+   appearance alone is not ownership evidence.
+2. Corroborate every candidate against current local refs and
+   `git worktree list --porcelain`. Require the same normalized Git common
+   directory, exact normalized worktree path, exact local branch, and exact live
+   worktree/branch association recorded for this run. Unknown ownership,
+   missing resources, duplicate candidates, or any conflicting live association
+   blocks the whole batch. A prior `partial` journal is reported rather than
+   used to infer why a resource is absent or to resume deletion automatically.
+3. Check every candidate worktree for staged, unstaged, and untracked changes
+   with `git status --porcelain` or an equivalent complete status check. If any
+   candidate is dirty or cannot be inspected, block the whole batch before the
+   first deletion and record the exact worktree and reason.
+4. Verify the control checkout belongs to the same Git common directory and is
+   not any cleanup target. Cleanup must never remove the worktree from which its
+   commands are running.
+5. Persist the journal with the factual owned-resource snapshot, eligibility,
+   skipped reasons, and no unattempted operation presented as attempted. A
+   preflight blocker records `eligibility = eligible` and `result = blocked`.
+   If the journal cannot be created or updated, stop before deletion and report
+   the write failure externally.
+6. Only after every candidate passes together and cleanup is explicitly
+   authorized, persist `eligibility = eligible` and `result = in_progress`
+   before the first destructive command.
+
+Do not partially preflight and then begin deletion. This full-batch gate is a
+point-in-time safety check, not a concurrency lock or transaction guarantee.
+
+#### Local Cleanup Execution
+
+For each approved worktree/branch association:
+
+1. Remove the exact owned worktree with
+   `git worktree remove -- <exact-path>`. Do not use `--force` or filesystem
+   deletion.
+2. Append the exact `remove_worktree` attempt and its `succeeded` or `failed`
+   outcome to `attempted_operations`, update the resource state and
+   `updated_at_utc`, and persist the journal before continuing.
+3. Only after the associated worktree is absent, attempt standard non-force
+   local deletion with `git branch -d -- <exact-branch>`. A branch with no
+   worktree candidate may be attempted only after current evidence confirms no
+   worktree remains associated with it.
+4. Append the exact `delete_branch` attempt and outcome, update resource state
+   and `updated_at_utc`, and persist the journal before continuing.
+
+Stop immediately after a failed local operation or required journal update. If
+no earlier local removal succeeded, record `result = blocked` when the journal
+can be updated safely. If any earlier removal succeeded, record
+`result = partial`, retain exact failure and unattempted-resource reasons, and
+do not claim completion. Record `result = completed` only after every approved
+worktree and branch was removed successfully. Do not retry automatically or
+introduce transaction, locking, or crash-recovery behavior.
+
+This cleanup phase never changes H2,
+`specs/032-final-coordinator-delivery/finalization.md`, or any tracked
+coordinator artifact; creates H3, H4, or another repository commit; deletes or
+updates remote branches; prunes remotes or remote-tracking refs; mutates GitHub
+issues or comments; merges or approves a pull request; or enables auto-merge.
+Read-only evidence collection is allowed. Remote cleanup, if ever separately
+approved by a future workflow, remains outside this local cleanup phase.
 
 Direct child issue work outside `parallel` keeps the normal sequential Git
 workflow. A closed-child coordinator final pass also keeps the normal
@@ -719,10 +876,14 @@ designed, validated, and adopted.
 
 ### Durable Resume State
 
-The coordinator artifact is the durable resume source. A later session must be
-able to identify completed, active, blocked, pending, paused, and
-resume-needed child work from repository artifacts and GitHub/repository state
-without private conversation context.
+The coordinator artifact is the durable tracked resume source through H2 and
+remains the post-H2 ownership source. A later session must be able to identify
+completed, active, blocked, pending, paused, and resume-needed child work from
+repository artifacts and GitHub/repository state without private conversation
+context. After H2, the Git-common-directory cleanup journal is the separate
+durable local record of cleanup evaluation and attempted execution only. It does
+not replace the coordinator artifact or current merge, ownership, or authority
+evidence.
 
 For each child issue, the coordinator artifact must record:
 
@@ -767,7 +928,10 @@ Codex session, re-read current evidence from GitHub and the repository:
 - existing same-run final PR identity, source, target, body/readiness state,
   and returned URL when already observed;
 - blockers, conflicts, and human-only decision state;
-- cleanup eligibility and remote cleanup approval state.
+- exact stable cleanup run ID, cleanup eligibility, explicit current local
+  cleanup authority, and the local cleanup journal when it exists;
+- live same-run local resource ownership and cleanliness evidence when cleanup
+  has been evaluated.
 
 If the current evidence conflicts with recorded resume state, stop and report
 the mismatch instead of guessing, deleting resources, rebasing, force-pushing,
@@ -801,14 +965,27 @@ these events occur or are observed during resume:
 - the factual finalization artifact creates direct child H2 and records required
   post-H2 checks without preclaiming their results.
 
-H2 freezes the branch-bound artifact. After that commit, record these events
-only in current repository/GitHub evidence and final reporting:
+H2 freezes the branch-bound artifact. After that commit, keep these
+final-delivery events in current repository/GitHub evidence and final reporting:
 
 - post-H2 checks, scope/base rechecks, and normal remote H2 push are observed in
   current evidence;
 - a unique ready final PR is created or an existing same-run PR is observed;
-- final coordinator PR merge makes local cleanup eligible;
-- explicit user approval for remote cleanup is present or absent.
+- current evidence confirms or does not confirm that the unique same-run final
+  PR with the expected source/H2 head and `main` base has merged into current
+  `origin/main` evidence.
+
+Do not write those facts back to the frozen coordinator artifact. When local
+cleanup is evaluated, record its factual `eligibility`, `owned_resources`,
+`skipped_reasons`, `attempted_operations`, `result`, and update time in the
+Git-common-directory cleanup journal. The journal records `eligible` with
+`not_started` when final merge is confirmed but current cleanup authority is
+absent; it does not turn eligibility into automatic deletion. A later cleanup
+evaluation must re-read and corroborate the journal against the exact run ID,
+frozen ownership evidence, live Git state, current final-merge evidence, and
+current cleanup authority. A prior `partial` or `completed` result is reported,
+not retried automatically. Inconsistency stops without guessing, retrying,
+resetting the journal, or creating H3/H4.
 
 After a child PR merge into the coordinator branch, local sidecar branches and
 worktrees are still retained. Local cleanup remains `ineligible` with reason
@@ -1125,6 +1302,18 @@ This entrypoint must not:
 - delete local sidecar branches or worktrees after individual child PR merges;
 - clean local sidecar branches or worktrees before the final coordinator PR has
   been merged into `main`;
+- treat the cleanup journal or eligibility alone as final-merge, ownership, or
+  cleanup-authority evidence;
+- begin cleanup before one exact stable run ID, explicit current cleanup
+  authority, full-batch same-run ownership corroboration, every-candidate
+  clean-state check, non-target control checkout, and writable journal are all
+  proven;
+- remove an associated local branch before its owned worktree, force-remove a
+  worktree, force-delete a branch, continue after a failed cleanup operation or
+  required journal update, or claim completion after partial work;
+- delete or update a remote branch, prune a remote or remote-tracking ref,
+  mutate a GitHub issue or comment, merge or approve a PR, or enable auto-merge
+  as part of local cleanup;
 - create sidecar artifacts outside the approved artifact-preparation phase or
   when any artifact-preparation stop condition applies;
 - run artifact preparation for closed-child coordinator final passes;
@@ -1138,8 +1327,9 @@ This entrypoint must not:
 - proceed when the terminal child ledger, B/H/H2 relationship, artifact-only
   delta, H2 affected checks, remote H2 ref, target-base, merge-base, scope,
   validation freshness, or existing final PR evidence is invalid or stale;
-- create H3 or another coordinator-branch commit solely to store the final PR
-  URL, rendered-body fingerprint, or resolved post-H2 evidence;
+- create H3, H4, or another coordinator-branch commit solely to store the final
+  PR URL, rendered-body fingerprint, resolved post-H2 evidence, or local cleanup
+  state;
 - mark cleanup eligible before the final coordinator PR is observed merged into
   `main`;
 - silently resolve non-trivial conflicts affecting contract, scope,
@@ -1247,6 +1437,24 @@ When an activated run reaches finalization, report:
   cleanup, force/history rewrite, draft fallback, duplicate PR, or URL-recording
   branch commit occurred.
 
+## Local Cleanup Output
+
+When a future activated run evaluates or executes post-final-merge local
+cleanup, report:
+
+- the exact stable run ID and resolved Git-common-directory journal path;
+- the unique same-run final PR, expected source/H2 head, `main` base, merged
+  state, and current `origin/main` merge-evidence result;
+- explicit current cleanup-authority state, including `eligible/not_started`
+  when authority is absent;
+- every artifact-owned candidate and its exact ownership, live-association, and
+  clean-state preflight result;
+- factual skipped reasons and ordered attempted worktree/branch operations;
+- final `ineligible`, `not_started`, `blocked`, `partial`, or `completed` result;
+- confirmation that H2, the finalization artifact, tracked coordinator history,
+  remotes, remote-tracking refs, GitHub issues/comments, and PR merge/approval or
+  auto-merge state were not changed by cleanup.
+
 ## Validation Expectations
 
 Validation for this entrypoint must include:
@@ -1353,11 +1561,21 @@ Validation for this entrypoint must include:
   `main`;
 - review that sidecar workflow text disallows rebase, force-push, and
   history-rewriting updates;
-- simulation or manual review showing local cleanup remains ineligible after an
-  individual child PR merge and becomes eligible only after the final
-  coordinator PR has merged into `main`;
-- review that remote branch deletion, remote pruning, and remote cleanup require
-  explicit user approval;
+- #259 focused table-driven validation, using exactly one PowerShell script and
+  one shared temporary-Git fixture, for cleanup blocked before final merge,
+  eligible after final merge without automatic authority, dirty-worktree block,
+  unknown-ownership block, successful worktree-then-branch cleanup, truthful
+  partial failure, and absent prohibited remote/GitHub operations;
+- #259 assertions that the blocked-before-merge case records
+  `ineligible/ineligible`, the eligible-after-merge case records
+  `eligible/not_started` with no attempts, every journal has exactly the eight
+  approved top-level fields beneath the resolved Git common directory, and H2,
+  `specs/032-final-coordinator-delivery/finalization.md`, H3, and H4 remain
+  untouched;
+- review that the local cleanup phase contains no remote branch deletion or
+  update, remote or remote-tracking pruning, GitHub mutation, PR merge/approval,
+  or auto-merge operation; any separately approved future remote-cleanup
+  workflow remains outside #259;
 - local sample child PR descriptions for two child issues that target the
   coordinator branch, use `Related to` issue references only, and do not close
   issues;
@@ -1394,9 +1612,8 @@ Validation for this entrypoint must include:
 - review that sidecar resume never uses private conversation context as the
   source of truth and never falls back to sequential mode when resume is
   unsafe;
-- simulation or manual review showing local cleanup is eligible only after the
-  final coordinator PR has merged into `main` and only for sidecar-created local
-  branches/worktrees;
+- review that #259 does not duplicate the #254, #257, or #258 harnesses and that
+  complete end-to-end and cross-workflow validation remains assigned to #260;
 - review that closed-child coordinator final passes use normal sequential state
   handling and do not use sidecar resumability state;
 - review that commands and reviews are reported as passed, failed, skipped,
