@@ -3,11 +3,11 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: canonical fingerprint correction and independent review passed; immutable `C2` publication remains pending
+- **Current stage**: immutable canonical correction and bounded recording head published; preserved runtime artifact reconciliation is next
 - **Current checkpoint**: not reached
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: runtime artifacts remain stale/not handoff-ready until reconciled against the superseding exact control revision below; child dispatch is not yet authorized
+- **Readiness**: runtime artifacts remain stale/not handoff-ready until reconciled and validated against exact `C2`; child dispatch is not yet authorized
 - **Cleanup**: ineligible; runtime final PR does not exist
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
@@ -264,9 +264,10 @@ Runtime artifact reconciliation exposed a second, narrower self-reference before
 - First report recording head (historical): `0dd0e867cc52320875a1dd6c2928024f4e512c21` (`docs(workflow): record issue 260 control revision`).
 - Branch: `chore/260-live-controlled-sidecar-dry-run`.
 - First normal push/fetched equality: passed without force; local and remote each reached the two historical heads above in sequence.
-- Superseding correction commit `C2`: `SELF/HEAD` (validated; pending commit and normal push).
-- Superseding report recording head: `SELF/HEAD` (pending after literal `C2` exists).
-- Runtime rule: `C1` and its recording head remain historical evidence but are not valid runtime workflow sources after the fingerprint finding. Every reconciled prepared child handoff must name exact pushed `C2`; runtime mutation remains held until its later report recording head is also pushed and fetched equal.
+- Superseding correction commit `C2`: `db175fe0a1911e9ea2a1931ae808b9771f874b57` (`fix(workflow): canonicalize handoff fingerprint`).
+- `C2` normal push/fetched equality: passed; local and `origin/chore/260-live-controlled-sidecar-dry-run` both resolved to exact `C2` before this bounded report update.
+- Superseding report recording head `C2r`: `SELF/HEAD`; this bounded report/task commit stores literal `C2` and is not the workflow source. Its exact identity is current external Git evidence after normal push/fetch, so the tracked commit is not required to contain its own SHA.
+- Runtime rule: `C1` and `C1r` remain historical evidence but are not valid runtime workflow sources. Every reconciled prepared child handoff and canonical fingerprint must name exact pushed `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57`; runtime mutation remains held until current fetched remote equality to this `C2r` recording head is proven.
 - Final #260 pull request: not opened.
 
 ## Mandatory Pause 1
@@ -338,9 +339,9 @@ Not reached.
 | Current control semantic and Spec Kit gate | current correction bytes | cross-source canonical-schema/stale-phrase audit, prerequisite script, 56-task sequence, 21/21 checklist, managed-pointer check, sequential/legacy scope review | passed | no unresolved semantic contradiction; independent re-review passed |
 | Current control diff whitespace | current correction bytes | `git diff --check` | passed | line-ending notices only; no whitespace error |
 | Planned runtime PR collision refresh | four planned coordinator/child heads | connected GitHub PR searches | passed | no current or historical PR found for any planned runtime head before `C2` publication |
-| Superseding control correction publication | `C2=SELF/HEAD` | commit, normal push, fetch, local/remote equality, bounded report recording commit | pending | no runtime commit, push, child branch/worktree, or dispatch is authorized until this passes |
+| Superseding control correction publication | `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57`, `C2r=SELF/HEAD` | correction commit, normal push/fetch equality, bounded report recording commit, normal push/fetch equality | passed | exact `C2` is the sole runtime workflow source; `C2r` stores it without self-reference; final #260 PR remains unopened |
 | Fixture wording update transport | issues #273–#275 | attempted `gh issue view`, then connected GitHub fetch/update/re-fetch | passed | `gh` unavailable was a tooling attempt, not a mutation; connector performed only authorized body replacements |
-| Preserved runtime artifacts after control correction | exact ten staged runtime blobs listed above | read-only state comparison | pending | staged originals plus in-place unstaged reconciliation remain uncommitted and are not handoff-ready; final reconciliation is blocked until superseding `C2` is pushed and recorded |
+| Preserved runtime artifacts after control correction | exact ten staged runtime blobs listed above | read-only state comparison | pending | staged originals plus in-place unstaged reconciliation remain uncommitted and are not handoff-ready; reconciliation may now continue only against exact `C2` after `C2r` fetched equality |
 
 ## Prohibited Operations Record
 
