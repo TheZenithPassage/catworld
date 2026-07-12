@@ -1508,7 +1508,7 @@ function Invoke-ProhibitedOperationsScenario {
         Assert-Condition $matched "Coordinator source must explicitly prohibit $($entry.Key)."
         $sourceMatches[$entry.Key] = $matched
     }
-    Assert-Condition ($coordinator -match '(?i)#261' -and $coordinator -match '(?i)dormant|not active|activation') 'Coordinator source must preserve the #261 routing activation gate.'
+    Assert-Condition ($coordinator -match '(?is)(controlled.{0,80}explicit|explicit.{0,80}controlled)' -and $coordinator -match '(?is)fail(?:s)?[- ]closed') 'Coordinator source must require current controlled explicit routing and fail closed on unsafe context.'
     Assert-Condition ($coordinator -match '(?i)SELF/HEAD' -and $coordinator -match '(?i)pending final PR merge') 'Coordinator source must contain the two-head and cleanup-ineligible contract.'
     Assert-Condition ($combinedTemplateSources -match '(?i)user performs merges|user performs the merge') 'Actual template sources must reserve merge control for the user.'
     Assert-Condition ($combinedTemplateSources -match '(?i)do not authorize.*merge|must not merge|does not merge') 'Actual template sources must not authorize Codex merge behavior.'

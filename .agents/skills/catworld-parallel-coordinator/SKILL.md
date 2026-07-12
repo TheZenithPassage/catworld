@@ -1,19 +1,20 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues, prepare sidecar artifacts and Git state, and launch one dependency-ready child handoff layer for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#260"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#261"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252-260"
+  source: "issues-226-232,252-261"
 ---
 
 # CatWorld Parallel Coordinator
 
 Use this sidecar entrypoint only for an explicit CatWorld coordinator issue
-request that includes the `parallel` keyword and satisfies the Routing
-Boundary's `routing-authorized run` definition. Sidecar routing remains dormant
-before #261 except for the one controlled #260 fixture admitted by that
-definition.
+request that includes the `parallel` keyword. Such a request may enter the
+read-only authorization preflight defined by the Routing Boundary, but it does
+not become a `routing-authorized run` and must not perform a sidecar mutation
+until every required preflight and safety check passes. Sidecar routing is a
+controlled explicit opt-in and never replaces the sequential default.
 
 This skill began as the preflight-only sidecar entrypoint introduced by issue
 #226. Issue #227 extends the same sidecar skill with coordinator and child
@@ -33,12 +34,12 @@ artifacts a coordinator responsibility before sidecar delegation: each child
 requires issue-numbered `spec.md`, `plan.md`, and `tasks.md` artifacts, explicit
 preparation status, write-gate evidence, shared-contract validation, and
 handoff instructions that forbid child-side regeneration. Issue #254 makes the
-approved sidecar branch/worktree orchestration executable for the future
-activated sidecar coordinator lifecycle: coordinator branches and worktrees,
+approved sidecar branch/worktree orchestration executable for the activated
+sidecar coordinator lifecycle: coordinator branches and worktrees,
 normal non-force coordinator pushes, child branches from the coordinator
 branch, isolated child worktrees, and collision/dirty/unsafe-push stop behavior
 are prepared and recorded before child delivery can proceed. Issue #255 adds
-dependency-layer fan-out for the future activated lifecycle: after prepared
+dependency-layer fan-out for the activated lifecycle: after prepared
 child artifacts and branch/worktree state are ready, the coordinator launches
 only the first dependency-ready layer, stops on unavailable child-agent
 capability instead of falling back to sequential work, and gives each selected
@@ -68,13 +69,13 @@ the Git common directory, requires an exact stable run identity and current
 same-run final-merge evidence, fails closed on missing authority, unknown
 ownership, dirty worktrees, or inconsistent state, removes owned worktrees
 before associated non-force local branch deletion, and records factual skipped,
-attempted, partial, and final outcomes. Issue #260 runs complete end-to-end and
-cross-workflow validation of the assembled sidecar lifecycle through the one
-controlled routing exception below. The coordinator still does not merge,
+attempted, partial, and final outcomes. Issue #260 completed end-to-end and
+cross-workflow validation of the assembled sidecar lifecycle through its
+controlled dry-run fixture. The coordinator still does not merge,
 approve, enable auto-merge, mutate GitHub issues, post public comments, run any
-other adoption dry-run, replace the normal sequential implementation workflow,
-or perform user-owned child PR merges. Issue #261 remains the general sidecar
-routing activation point.
+other live dry-run, replace the normal sequential implementation workflow, or
+perform user-owned child PR merges. Issue #261 replaces the former fixture-only
+gate with the general controlled routing boundary below.
 
 The first controlled #260 attempt exposed a launch-state circularity: factual
 `launched` required a real dispatch, while the child required durable launched
@@ -86,38 +87,40 @@ a lock, queue, daemon, IPC service, transaction framework, or polling system.
 
 ## Routing Boundary
 
-A **routing-authorized run** is either an eligible coordinator run after #261
-activates general sidecar routing, or the one temporary pre-#261 exception for
-issue #260. That exception is valid only while current GitHub and repository
-evidence agrees on all of these exact facts:
+An explicit coordinator `parallel` request is a **routing candidate** only when
+current issue evidence clearly identifies exactly one coordinator issue and the
+issue is not in the permanent #220 through #234 parallel exclusion. The
+candidate may enter read-only authorization preflight in this skill.
 
-- the coordinator is issue #272;
-- its canonical URL is
-  `https://github.com/TheZenithPassage/catworld/issues/272`;
-- its exact stable run ID is
-  `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`; and
-- its issue body explicitly states that it is the sole controlled sidecar
-  dry-run fixture authorized by #260 before #261.
+A candidate becomes a **routing-authorized run** only after current coordinator,
+child, dependency, source-of-truth, child-agent capability, repository, and
+GitHub evidence is complete, consistent, unambiguous, and safe. Labels, titles,
+branch prefixes, prior fixture identity, stale artifacts, or private
+conversation do not substitute for that predicate. Missing, stale, ambiguous,
+duplicate, unrelated, contradictory, unavailable, or unsafe evidence fails closed
+with an explicit blocker.
 
-Missing, stale, ambiguous, duplicate, unrelated, or inconsistent evidence fails
-closed. A title, branch prefix, or private conversation alone cannot establish
-the exception.
+Until the predicate passes, allow only read-only evidence collection,
+classification, dependency analysis, and artifact path/content planning. Stop
+before artifact writing, branch or worktree creation or mutation, pushes, child
+dispatch, implementation, pull-request operations, issue mutation, or cleanup.
 
 - Normal implementable issues use the existing sequential workflow.
 - Direct child issues use the existing sequential workflow.
-- Before #261 activates general sidecar coordinator routing, every explicit
-  coordinator `parallel` request other than the exact routing-authorized #272
-  fixture must stop with a routing error instead of using this skill.
-- A routing-authorized run starts or resumes the executable sidecar lifecycle
-  in this skill only when coordinator preflight, source-of-truth review, child
-  issue inspection, dependency classification, and safety checks pass.
 - `parallel` on a non-coordinator issue is invalid. Stop and report that
   parallel mode applies only to coordinator issues.
 - `parallel` on a direct child issue is invalid. Stop and report that direct
-  child issues run through the existing sequential workflow.
-- Issues #220 through #234 must not route through parallel mode while the
-  sidecar workflow is being designed, validated, and adopted. Use the current
+  child requests cannot self-select sidecar execution; a separate direct-child
+  request without `parallel` uses the existing sequential workflow.
+- Issues #220 through #234 must not route through parallel mode. Use the current
   sequential workflow guardrails for those issues.
+- A routing candidate starts or resumes the executable sidecar lifecycle only
+  after coordinator preflight, source-of-truth review, child issue inspection,
+  dependency classification, capability review, and repository/GitHub safety
+  checks authorize the run.
+- An unsafe routing candidate stops at the failing authorization check with the
+  exact blocker and no downstream mutation. It must not fall back silently to
+  sequential implementation.
 - Coordinator end-to-end requests without `parallel` are not handled by this
   sidecar entrypoint. Apply the existing routing contract:
   - if any listed child issue is still open, stop with the existing coordinator
@@ -164,17 +167,22 @@ Stop with a routing error when:
 
 ## Preflight Readiness
 
-Parallel readiness is a preflight result, not an issue label. Do not require,
-invent, add, or route based on a required `parallel-ready` label.
+Parallel readiness is an authorization result, not an issue label. Do not
+require, invent, add, or route based on a required `parallel-ready` label.
 
 Determine readiness through:
 
 - coordinator issue inspection;
 - child issue inspection;
 - dependency classification;
-- source-of-truth review.
+- source-of-truth review;
+- stable child-agent capability review; and
+- current repository and GitHub safety review.
 
-Classify child issue relationships before any future parallel execution:
+All required authorization evidence must pass before artifact writing or any
+Git, GitHub, dispatch, implementation, delivery, or cleanup mutation.
+
+Classify child issue relationships before any parallel execution:
 
 - **Hard dependency**: one child requires another child's result before it can
   be implemented safely. Do not parallelize blindly.
@@ -183,8 +191,9 @@ Classify child issue relationships before any future parallel execution:
   global styles, or other cross-cutting surfaces. Stop or require explicit
   sequencing before parallel execution.
 - **Independent candidate**: children appear to touch disjoint source maps and
-  have no unresolved dependency or source-of-truth conflict. This is only a
-  preflight classification in issue #226, not permission to launch execution.
+  have no unresolved dependency or source-of-truth conflict. This classification
+  alone is not authorization to launch execution; every routing predicate and
+  lifecycle gate must still pass.
 - **Incomplete context**: child issue data, feature artifacts, source maps, or
   governing documentation are missing or contradictory. Stop.
 
@@ -198,11 +207,11 @@ Compare the coordinator and child issue bodies against:
 - relevant `spec.md`, `plan.md`, and `tasks.md` artifacts when present;
 - issue #220 sidecar architecture and issues #221, #222, #225, #226, #227,
   #228, #229, #230, #231, #232, #249, #250, #251, #252, #253, #254, #255,
-  #256, #257, and #258
+  #256, #257, #258, #259, #260, and #261
   when their routing, entrypoint, artifact, lifecycle, child handoff, Git
   execution, fan-out, PR delivery, validation reporting, resume state, or
-  merge-aware resume, integrated validation, two-head finalization, or final
-  coordinator delivery
+  merge-aware resume, integrated validation, two-head finalization, final
+  coordinator delivery, cleanup, held-dispatch correction, or activation
   contracts apply.
 
 Stop when source-of-truth documents conflict, contain unresolved blocking
@@ -211,9 +220,11 @@ scope.
 
 ## Executable Run Lifecycle
 
-This lifecycle is executable behavior only for a routing-authorized run. It
-remains build-out documentation for every request that does not satisfy that
-boundary, including ordinary coordinator `parallel` requests before #261.
+The read-only authorization stages below apply to a routing candidate. The
+mutation-capable lifecycle is executable only after the candidate becomes a
+routing-authorized run. States 1 through 5 must stop at any failed predicate;
+State 6 and every later mutation-capable state are unavailable until all
+authorization evidence passes.
 
 Each state has explicit entry conditions, stop conditions, and allowed next
 states. If a stop condition applies, report the current state, evidence read,
@@ -221,12 +232,12 @@ blocking condition, and user action required when applicable.
 
 | State | Entry Conditions | Stop Conditions | Allowed Next States |
 |-------|------------------|-----------------|---------------------|
-| 1. New coordinator `parallel` run | Prompt explicitly names a coordinator issue and includes `parallel`; the run satisfies the routing-authorized definition. | The run is not routing-authorized; issue is not a coordinator; issue is ambiguous; required context cannot be read. | Coordinator preflight. |
-| 2. Coordinator preflight | New or resumed run passes routing boundary. | Coordinator is ineligible, lacks listed children, or has unresolved source-of-truth blockers. | Source-of-truth and child issue inspection. |
+| 1. New coordinator `parallel` run | Prompt explicitly names one coordinator issue, includes `parallel`, and is not in the #220 through #234 exclusion. | Issue is not a coordinator; issue is ambiguous; required context cannot be read; request is excluded. | Read-only coordinator authorization preflight. |
+| 2. Coordinator authorization preflight | New or resumed routing candidate passes the initial routing boundary. | Coordinator is ineligible, lacks listed children, or has missing, stale, contradictory, unavailable, or unsafe authorization evidence. Stop before mutation. | Source-of-truth and child issue inspection. |
 | 3. Source-of-truth and child issue inspection | Coordinator issue and listed children are known. | Child issue context is missing or contradictory; child state conflicts with requested route; governing artifacts conflict. | Artifact path/content planning; dependency-layer planning. |
 | 4. Artifact path and content planning | Required issue and source context has been read. | Unresumable target path collision; duplicate child issue number; missing source contract; unresolved blocker. | Dependency-layer planning; coordinator branch/worktree preparation. |
 | 5. Dependency-layer planning | Child issue map and source maps are available. | Hard dependencies cannot be ordered; conflict risk requires user sequencing; missing shared contract. | Coordinator branch/worktree preparation; report blocker. |
-| 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed. | Cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
+| 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed; every authorization predicate has passed and the run is routing-authorized. | Authorization is incomplete or stale; cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
 | 7. Coordinator and child artifact writing | Codex is inside the coordinator branch/worktree. | Artifact write would occur outside coordinator branch/worktree; artifact conflicts with approved scope. | Child branch/worktree preparation. |
 | 8. Child branch/worktree preparation | Dependency-ready child layer exists and artifacts are written. | Child branch/worktree cannot be prepared safely from coordinator branch; collision; child target would be `main`. | Child handoff and child-agent launch for one dependency-ready layer. |
 | 9. Two-phase child handoff and held dispatch for one dependency-ready layer | One dependency-ready layer has handoff-ready child artifacts, valid Git context, validation requirements, PR target rules, out-of-scope boundaries, an exact pushed handoff-ready evidence SHA plus a current remote recording head that contains it, and stable held-child capability. | Missing handoff data; held child capability is unavailable or ambiguous; handoff-ready evidence/recording state is not durable; sequential fallback or replacement identity would be required; a hard-dependent layer would start early; unresolved shared-contract blocker; non-mechanical conflict risk; child scope unresolved. | Factual launch-state persistence; targeted release; child implementation and child PR delivery; report blocker. |
@@ -729,22 +740,22 @@ contain its own SHA.
 Do not require a seed-first child issue and do not invent or create foundation
 or shared-contract child issues. If a missing shared contract or foundation
 issue appears necessary and it does not already exist, stop before delegation
-and ask for user guidance. Create such an issue only when a future activated
+and ask for user guidance. Create such an issue only when a separately approved
 workflow explicitly permits it and the user approves that issue mutation.
 
 This artifact-preparation path is not used when all listed child issues are
 closed and the coordinator enters the existing sequential final pass. The final
 pass must not redo closed child scope.
 
-Issue #227 adds artifact preparation only. Issue #229 adds sidecar Git
-execution rules. Issue #254 turns the approved sidecar Git rules into
+Issue #227 added artifact preparation only. Issue #229 added sidecar Git
+execution rules. Issue #254 turned the approved sidecar Git rules into
 coordinator-owned branch/worktree preparation and remote coordinator branch
-push-gate procedures. Issue #230 adds sidecar PR target, closure, GitHub mutation,
-public comment, and remote cleanup approval rules. Issue #231 adds sidecar
+push-gate procedures. Issue #230 added sidecar PR target, closure, GitHub mutation,
+public comment, and remote cleanup approval rules. Issue #231 added sidecar
 validation, blocker, conflict, stale-evidence, readiness, and human-only
-blocker reporting rules without opening real pull requests, merging pull
-requests, mutating GitHub issues, posting public comments, running adoption
-dry-runs, or changing CatWorld product code. Issue #232 adds resumable
+blocker reporting rules. At that historical stage it did not open real pull
+requests, merge pull requests, mutate GitHub issues, post public comments, run
+live dry-runs, or change CatWorld product code. Issue #232 added resumable
 coordinator state tracking without running background work, posting GitHub
 comments, changing normal issue workflow state, changing CatWorld product code,
 or performing cleanup.
@@ -754,9 +765,8 @@ or performing cleanup.
 Apply these rules only after routing guardrails allow an explicit coordinator
 `parallel` request and after coordinator preflight, source-of-truth review,
 dependency classification, artifact preparation, and shared-contract validation
-have succeeded. Issues #220 through #234 still use the current sequential
-workflow guardrails while the sidecar workflow is being designed, validated,
-and adopted.
+have succeeded. Issues #220 through #234 remain excluded from parallel routing
+and use the current sequential workflow guardrails.
 
 The coordinator branch/worktree is the sidecar artifact write boundary. Before
 writing coordinator or child artifact files, Codex must create or enter the
@@ -1055,7 +1065,7 @@ coordinator artifact; creates H3, H4, or another repository commit; deletes or
 updates remote branches; prunes remotes or remote-tracking refs; mutates GitHub
 issues or comments; merges or approves a pull request; or enables auto-merge.
 Read-only evidence collection is allowed. Remote cleanup, if ever separately
-approved by a future workflow, remains outside this local cleanup phase.
+approved by another workflow, remains outside this local cleanup phase.
 
 Direct child issue work outside `parallel` keeps the normal sequential Git
 workflow. A closed-child coordinator final pass also keeps the normal
@@ -1067,9 +1077,9 @@ Apply these resume state rules only to sidecar coordinator parallel execution
 after routing guardrails, coordinator preflight, source-of-truth review,
 dependency classification, artifact preparation, shared-contract validation,
 sidecar Git state validation, sidecar PR delivery validation, and sidecar
-validation reporting rules have succeeded. Issues #220 through #234 still use
-the current sequential workflow guardrails while the sidecar workflow is being
-designed, validated, and adopted.
+validation reporting rules have succeeded. Issues #220 through #234 remain
+excluded from parallel routing and use the current sequential workflow
+guardrails.
 
 ### Durable Resume State
 
@@ -1331,8 +1341,8 @@ Apply these PR delivery rules only to sidecar coordinator parallel execution
 after routing guardrails, coordinator preflight, source-of-truth review,
 dependency classification, artifact preparation, shared-contract validation,
 and sidecar Git state validation have succeeded. Issues #220 through #234
-still use the current sequential workflow guardrails while the sidecar workflow
-is being designed, validated, and adopted.
+remain excluded from parallel routing and use the current sequential workflow
+guardrails.
 
 ### Child PR Target and Issue References
 
@@ -1424,9 +1434,8 @@ Apply these reporting rules only to sidecar coordinator parallel execution
 after routing guardrails, coordinator preflight, source-of-truth review,
 dependency classification, artifact preparation, shared-contract validation,
 sidecar Git state validation, and sidecar PR delivery validation have
-succeeded. Issues #220 through #234 still use the current sequential workflow
-guardrails while the sidecar workflow is being designed, validated, and
-adopted.
+succeeded. Issues #220 through #234 remain excluded from parallel routing and
+use the current sequential workflow guardrails.
 
 ### Validation Evidence and Freshness
 
@@ -1574,14 +1583,14 @@ This entrypoint must not:
   unresolved product, persistence, security, authorization, UX, domain,
   contract, validation, operational, or scope decisions;
 - require seed-first execution or invent/create foundation or shared-contract
-  child issues without explicit user approval in a future activated workflow
+  child issues without explicit user approval in a separately approved workflow
   that permits issue mutation;
 - delegate child implementation work before the run is routing-authorized,
-  including ordinary pre-#261 build-out or pre-execution states, during
+  including authorization-pending or other pre-execution states, during
   preflight or artifact preparation,
   outside an approved dependency-ready lifecycle state, or without valid
   prepared child artifacts, valid branch/worktree context, dependency-ready
-  layer evidence, a valid prepared child handoff, and later approved sidecar
+  layer evidence, a valid prepared child handoff, and current approved sidecar
   rules that permit delegation. This prohibition does not block a
   routing-authorized lifecycle from launching dependency-ready child handoffs
   when the approved rules permit that operation;
@@ -1654,16 +1663,17 @@ Report a concise preflight result with:
 - blocker and conflict status, including child-specific blockers,
   coordinator-wide blockers, shared-contract blockers, human-only blockers, and
   user-guidance requirements;
-- readiness status: `blocked`, `not adopted`, or `preflight-ready`;
+- readiness status: `authorization-pending`, `blocked`, or
+  `routing-authorized`;
 - specific stop reasons or remaining prerequisites;
 - confirmation that no child implementation, PR operation, issue mutation,
   public comment, product code change, prohibited Git operation, private-context
   resume, or unapproved cleanup was performed.
 
-When a run is not routing-authorized, stop after preflight, artifact/Git
-preparation, and fan-out readiness description when applicable. Do not launch
-child execution merely because the coordinator appears preflight-ready and
-artifacts are prepared.
+When an authorization predicate fails, stop at that read-only preflight step
+and report the exact blocker before artifact writing, Git/worktree mutation,
+fan-out, or child execution. Planned artifact paths or a favorable dependency
+classification alone never authorize the mutation-capable lifecycle.
 
 ## Finalization Output
 
@@ -1856,7 +1866,7 @@ Validation for this entrypoint must include:
   untouched;
 - review that the local cleanup phase contains no remote branch deletion or
   update, remote or remote-tracking pruning, GitHub mutation, PR merge/approval,
-  or auto-merge operation; any separately approved future remote-cleanup
+  or auto-merge operation; any separately approved remote-cleanup
   workflow remains outside #259;
 - local sample child PR descriptions for two child issues that target the
   coordinator branch, use `Related to` issue references only, and do not close
@@ -1895,7 +1905,8 @@ Validation for this entrypoint must include:
   source of truth and never falls back to sequential mode when resume is
   unsafe;
 - review that #259 does not duplicate the #254, #257, or #258 harnesses and that
-  complete end-to-end and cross-workflow validation remains assigned to #260;
+  the complete end-to-end and cross-workflow validation completed by #260
+  remains regression evidence;
 - review that closed-child coordinator final passes use normal sequential state
   handling and do not use sidecar resumability state;
 - review that commands and reviews are reported as passed, failed, skipped,
@@ -1923,12 +1934,12 @@ Validation for this entrypoint must include:
 - blocker simulation proving missing shared contracts stop for user guidance;
 - review that seed-first execution is not required and foundation or
   shared-contract child issues are not invented or created without explicit
-  user approval in a future activated workflow that permits issue mutation;
+  user approval in a separately approved workflow that permits issue mutation;
 - review that closed-child coordinator final passes do not use artifact
   preparation or sidecar Git rules;
 - review that no required `parallel-ready` label is introduced;
 - changed-file review proving the existing sequential implementation lifecycle
-  is unchanged, any #260 change to that skill is limited to routing-boundary
+  is unchanged, any #261 change to that skill is limited to routing-boundary
   wording, and the existing coordinator/orchestration skill is unchanged;
 - changed-file review proving no product code, real CatWorld sidecar worktrees,
   real CatWorld sidecar branches, real pull request operations, GitHub issue

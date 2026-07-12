@@ -510,10 +510,11 @@ The frontend workflow:
 
 CatWorld uses two Codex workflow paths at the repository level: the current
 sequential issue implementation workflow and the sidecar coordinator parallel
-workflow, whose general routing remains gated by #261 with the sole temporary
-#260 fixture exception defined below. This section documents routing only; it
-does not change CatWorld product behavior, application architecture,
-persistence, authorization, APIs, frontend behavior or operations.
+workflow. Sidecar routing is a controlled explicit opt-in for clearly identified
+coordinator requests that include `parallel` and pass the current fail-closed
+preflight. This section documents routing only; it does not change CatWorld
+product behavior, application architecture, persistence, authorization, APIs,
+frontend behavior or operations.
 
 `AGENTS.md` keeps the short, mandatory routing guardrails. This document is the
 longer source-of-truth explanation for maintainers and future Codex sessions.
@@ -526,8 +527,8 @@ Use the existing sequential workflow for:
 
 - a normal implementable issue requested end-to-end;
 - a direct child issue requested end-to-end;
-- issues #220 through #234 while the sidecar parallel workflow is still being
-  designed, validated and adopted.
+- issues #220 through #234, which remain excluded from sidecar parallel
+  routing.
 
 Direct child issues do not need coordinator orchestration when the user asks to
 implement them one by one. They are treated like ordinary implementable issues
@@ -542,26 +543,20 @@ Parallel mode is valid only when all of these are true:
 
 - the prompt explicitly includes `parallel`;
 - the issue is clearly a coordinator issue;
-- the request is a `routing-authorized run`.
+- the issue is not within the permanent #220 through #234 exclusion; and
+- current coordinator, child, dependency, source-of-truth, repository and
+  capability evidence is complete, consistent and safe.
 
-A `routing-authorized run` means exactly one of these:
+A request satisfying that predicate is a `routing-authorized run`. The
+predicate fails closed: missing, ambiguous, duplicated, stale, contradictory,
+unavailable or unsafe evidence stops routing before artifact writes, Git or
+worktree mutation, fan-out or child dispatch. A title, label, branch prefix,
+prior fixture identity or private conversation does not establish current
+authorization.
 
-- after #261 activates general sidecar coordinator routing, an eligible
-  coordinator `parallel` request whose normal preflight and safety checks pass;
-- before #261, only the exact verified #260 fixture: coordinator issue #272 at
-  `https://github.com/TheZenithPassage/catworld/issues/272`, with run ID
-  `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`, whose current GitHub issue
-  body explicitly states that it is the sole controlled sidecar dry-run fixture
-  authorized by #260 before #261, and whose normal preflight and safety checks
-  pass.
-
-The temporary branch of that definition fails closed. A title, label, branch
-prefix or private conversation does not establish fixture identity. Missing,
-ambiguous, duplicated, stale, unsafe or inconsistent current evidence stops
-routing. Issue #261 remains the sole general activation: the #272 exception
-does not authorize any other pre-#261 request or weaken the stops for
-non-coordinator `parallel` requests, direct child requests, non-`parallel`
-coordinator requests with open children, or issues #220 through #234.
+Issue #260's controlled dry-run was the accepted pre-activation validation
+stage. Its preserved evidence under `specs/034-live-sidecar-dry-run/` is
+historical and is not an active routing gate or authority for current runs.
 
 Parallel readiness is determined by the sidecar workflow's own safety review,
 not by an issue label. The readiness decision must come from:
@@ -583,30 +578,30 @@ The sidecar workflow owns its operating rules. The sequential skill may route a
 qualifying request to the sidecar entrypoint, but it must not duplicate the
 sidecar lifecycle, artifact, Git, handoff, resume, validation or delivery rules.
 
-Issue #226 adds `.agents/skills/catworld-parallel-coordinator/SKILL.md` as the
-first sidecar coordinator entrypoint. Issue #227 extends that same sidecar
-skill with artifact preparation before delegation. The entrypoint remains
-build-out guidance for requests that are not routing-authorized. Before #261,
-every coordinator `parallel` request except the exact verified #272 fixture must
-stop instead of using sidecar parallel. After #261 activates general routing,
-eligible coordinator `parallel` requests route only to the sidecar coordinator
-workflow. A routing-authorized run may execute the approved #249 lifecycle when
-safe. GitHub issue mutation outside final PR closing keywords, public comments,
+During the sidecar build-out, issue #226 added
+`.agents/skills/catworld-parallel-coordinator/SKILL.md` as the first sidecar
+coordinator entrypoint, and issue #227 added artifact preparation before
+delegation. Issue #260 then completed the accepted controlled dry-run, and
+issue #261 activated the assembled workflow. Current eligible coordinator
+`parallel` requests route only to the sidecar coordinator workflow. A
+routing-authorized run may execute the approved #249 lifecycle when safe.
+GitHub issue mutation outside final PR closing keywords, public comments,
 remote cleanup, PR merging, auto-merge, force-push, and human-only decisions
 remain restricted by the approved sidecar rules. Issues #220 through #234
-continue to use the current sequential workflow guardrails during the sidecar
-build-out and adoption work.
+continue to use the current sequential workflow guardrails.
 
-Issue #228 adds
-`.agents/skills/catworld-parallel-child-implementation/SKILL.md` as the
-separate sidecar child implementation skill. That skill is a prepared child
-handoff consumer only: it requires a child issue body, coordinator context,
-prepared `spec.md`, `plan.md`, `tasks.md`, shared contract, validation
+Issue #228 originally added
+`.agents/skills/catworld-parallel-child-implementation/SKILL.md` as a prepared
+child handoff consumer. At that issue stage it did not open pull requests;
+issue #256 later made implementation and child PR delivery executable under the
+durable launch, release, validation, delivery and repository gates described
+below. The current skill still requires a child issue body, coordinator
+context, prepared `spec.md`, `plan.md`, `tasks.md`, shared contract, validation
 requirements, dependency status and target coordinator branch/worktree context
 from the sidecar coordinator artifacts before it can implement anything. It
 does not perform coordinator preflight, create planning artifacts, redefine
-shared contracts, create branches or worktrees, open pull requests, mutate
-GitHub issues or replace the normal sequential workflow.
+shared contracts, create branches or worktrees, mutate GitHub issues or replace
+the normal sequential workflow.
 
 Issue #229 adds sidecar Git execution rules for coordinator branch, child
 branch, isolated checkout/worktree, merge-only refresh and cleanup boundaries.
@@ -651,24 +646,25 @@ active child refresh, marks affected validation stale, records integrated,
 active, blocked, pending and ready-next-layer child states, and launches a next
 dependency-ready layer only when hard dependencies are integrated into the
 updated local coordinator branch.
-Issue #258 makes the final coordinator boundary executable for a future
+Issue #258 made the final coordinator boundary executable for a
 routing-authorized run: after every prepared child is ancestry-proven
 integrated, the coordinator runs the complete integrated suite at `H`, commits
 only the factual finalization artifact as direct child `H2`, validates and
 normally pushes that artifact-only head, reviews the PR-equivalent scope, and
 opens one ready coordinator-to-`main` PR only while all current evidence
-remains fresh. The temporary #258 implementation PR is part of the #249
-build-out, so it instead targets `workflow/sidecar-buildout` and uses
-`Related to #258`; that build-out delivery context does not change the runtime
-coordinator-branch-to-`main` contract or its final-only closing authority.
-Issue #259 makes the post-final-merge local cleanup boundary executable. It
+remains fresh. Historically, the #258 implementation PR was part of the #249
+build-out, so it targeted `workflow/sidecar-buildout` and used
+`Related to #258`; that issue-stage delivery context does not change the current
+runtime coordinator-branch-to-`main` contract or its final-only closing
+authority. Issue #259 made the post-final-merge local cleanup boundary
+executable. It
 keeps H2 and the tracked finalization artifact frozen, records cleanup state in
 a minimal journal beneath the repository's Git common directory, and permits
 only explicitly authorized removal of clean local branches and worktrees whose
-exact ownership is proven for the same stable sidecar run. The temporary #259
-implementation branch starts from `origin/workflow/sidecar-buildout`, its PR
-targets `workflow/sidecar-buildout`, and it uses `Related to #259`. That
-build-out delivery context does not change the future runtime rule that a
+exact ownership is proven for the same stable sidecar run. Historically, the
+#259 implementation branch started from `origin/workflow/sidecar-buildout`, its
+PR targeted `workflow/sidecar-buildout`, and it used `Related to #259`. That
+issue-stage delivery context does not change the current runtime rule that a
 coordinator branch starts from current `origin/main` and its final PR targets
 `main`.
 
@@ -679,13 +675,12 @@ sidecar child implementation skill.
 
 ### Sidecar Executable Lifecycle
 
-The executable sidecar lifecycle starts or resumes only for a
-`routing-authorized run`. Before #261, that means solely the exact verified
-#272 fixture; every other coordinator `parallel` request must stop with a
-routing error that sidecar parallel is not active. Issue #261 remains the
-general activation boundary. Regardless of which branch of the authorization
-definition applies, coordinator preflight, source-of-truth review, child issue
-inspection, dependency classification and safety checks must pass.
+The executable sidecar lifecycle starts or resumes only for a current
+`routing-authorized run`: a clearly identified, non-excluded coordinator request
+that explicitly includes `parallel` and passes coordinator preflight,
+source-of-truth review, child issue inspection, dependency classification and
+all safety checks. Any missing, stale, inconsistent or unsafe prerequisite stops
+before downstream mutation and reports the explicit blocker.
 
 The lifecycle states are:
 
@@ -1310,9 +1305,10 @@ Local cleanup never changes H2 or
 repository commit, force-removes a worktree, force-deletes a branch, deletes or
 otherwise cleans up a remote branch, prunes remotes or remote-tracking refs,
 mutates GitHub issues or comments, merges or approves PRs, or enables
-auto-merge. Issue #259 validates this boundary with one compact shared
-temporary-Git fixture and the seven focused cleanup cases. Issue #260 owns the
-complete sidecar end-to-end and cross-workflow validation.
+auto-merge. Issue #259 validated this boundary with one compact shared
+temporary-Git fixture and the seven focused cleanup cases. Issue #260 completed
+the accepted sidecar end-to-end and cross-workflow validation; its dry-run
+evidence remains historical rather than current routing authority.
 
 ### Sidecar Resume State Tracking
 
@@ -1433,13 +1429,13 @@ child issue scope as newly implemented work.
 
 This procedure applies only to a routing-authorized run after the local
 coordinator branch has been refreshed from its remote branch. Its runtime
-target base is fetched `origin/main`. Temporary #249 build-out implementation
-branches for #258 and #259 instead start from and validate against
-`origin/workflow/sidecar-buildout`; their PRs target
-`workflow/sidecar-buildout` and use `Related to #258` or `Related to #259` as
-applicable. That implementation-only base is not a runtime coordinator target
-and does not replace the future `origin/main` branch origin or `main` final-PR
-target.
+target base is fetched `origin/main`. Historically, the #249 build-out
+implementation branches for #258 and #259 instead started from and validated
+against `origin/workflow/sidecar-buildout`; their PRs targeted
+`workflow/sidecar-buildout` and used `Related to #258` or `Related to #259` as
+applicable. That issue-stage implementation base is not a runtime coordinator
+target and does not replace the current `origin/main` branch origin or `main`
+final-PR target.
 
 Before final validation, Codex re-reads the coordinator issue, every prepared
 child issue and dependency, every child PR target and merge state, local and
@@ -1711,9 +1707,9 @@ read-only before workflow selection. The listed sub-issues decide whether the
 request can proceed.
 
 If any listed sub-issue is still open, Codex must stop with a routing error.
-The user can either run the coordinator with explicit `parallel` once the
-sidecar workflow is available, or implement the open sub-issues directly
-through the sequential workflow.
+The user can either run the coordinator with explicit `parallel` through the
+current sidecar workflow when preflight is safe, or implement the open
+sub-issues directly through the sequential workflow.
 
 If all listed sub-issues are closed, Codex enters the existing sequential
 workflow for a coordinator final pass. This is not a separate workflow.

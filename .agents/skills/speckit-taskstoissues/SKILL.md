@@ -104,16 +104,23 @@ The coordinator `Execution model` section must state all of the following:
 - Issue splitting does not activate parallel mode by itself.
 - Normal issues and direct child issue end-to-end requests use the current
   sequential workflow.
-- Sidecar parallel work requires an explicit `parallel` request on a clearly
-  identified coordinator issue after #261 activates sidecar coordinator
-  routing.
+- A `parallel` request on a normal issue or direct child issue is invalid and
+  must stop with a routing error.
+- Controlled sidecar parallel work is available only through an explicit
+  `parallel` request on a clearly identified coordinator issue outside the
+  permanent #220-#234 exclusion.
+- An eligible coordinator `parallel` request routes to the sidecar coordinator
+  workflow when current preflight and source-of-truth checks are safe; unsafe,
+  incomplete, ambiguous, stale, or contradictory context must stop with an
+  explicit blocker.
 - Parallel readiness comes from coordinator preflight, child issue inspection,
   dependency classification, and source-of-truth review; do not require or
   invent a `parallel-ready` label.
-- A coordinator end-to-end request while any listed child issue is still open
-  must stop for routing.
+- A coordinator end-to-end request without `parallel` while any listed child
+  issue is still open must stop for routing.
 - A coordinator with all listed child issues closed may enter the existing
-  sequential workflow for final verification and delivery.
+  sequential workflow for final verification and delivery when requested
+  without `parallel`.
 - Coordinator finalization is not a separate workflow and must not reimplement
   closed child issue scope.
 

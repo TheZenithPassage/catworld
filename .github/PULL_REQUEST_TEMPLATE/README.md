@@ -6,15 +6,15 @@ Use `sidecar-child-to-coordinator.md` only for a sidecar child branch pull
 request into a coordinator branch. Child PRs target that coordinator branch,
 reference both issues with `Related to` lines, and do not close issues.
 
-Use `sidecar-final-coordinator-to-main.md` only for the future activated
-sidecar runtime's final coordinator-branch pull request into `main`. This is
-the sole sidecar PR boundary that may use closing keywords for the coordinator
-and delivered child issues. Codex must not separately mutate issue state.
+Use `sidecar-final-coordinator-to-main.md` only for the current controlled
+sidecar runtime's final coordinator-branch pull request into `main`. This is the
+sole sidecar PR boundary that may use closing keywords for the coordinator and
+delivered child issues. Codex must not separately mutate issue state.
 
-The current #258 build-out delivery is deliberately different: its
-implementation PR targets `workflow/sidecar-buildout` and uses only
-`Related to #258`. The temporary integration branch is not the runtime final
-target and does not replace the coordinator-branch-to-`main` contract.
+Historically, the #258 build-out delivery was deliberately different: its
+implementation PR targeted `workflow/sidecar-buildout` and used only
+`Related to #258`. That issue-stage integration branch was not the runtime final
+target and did not replace the coordinator-branch-to-`main` contract.
 
 ## Runtime final coordinator prerequisites
 
