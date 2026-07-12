@@ -29,18 +29,24 @@ as an end-to-end CatWorld issue implementation request.
 
 - Fetch and inspect the issue read-only before choosing the workflow.
 - Use this skill for normal implementable issues and direct child issues.
-- For coordinator issues requested end-to-end, inspect listed sub-issues
-  read-only before workflow selection. If any listed sub-issue is still open,
-  stop with a routing error. If all listed sub-issues are closed, use this skill
-  for the existing sequential end-to-end workflow as a final pass.
+- For coordinator issues requested end-to-end without `parallel`, inspect
+  listed sub-issues read-only before workflow selection. If any listed
+  sub-issue is still open, stop with a routing error. If all listed sub-issues
+  are closed, use this skill for the existing sequential end-to-end workflow
+  as a final pass.
 - The closed-sub-issue coordinator final pass is not a separate workflow and
   must not redo closed sub-issue scope.
 - Treat `parallel` as reserved for clearly identified coordinator issues only.
   It must not route to legacy coordinator orchestration. Until #261 activates
   sidecar coordinator routing, stop with a routing error that sidecar parallel
-  is not active. After #261 activates it, explicit eligible coordinator
-  `parallel` requests route only to
-  `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
+  is not active, except for the exact temporary #260-controlled fixture defined
+  by `AGENTS.md`: issue #272 at
+  `https://github.com/TheZenithPassage/catworld/issues/272`, run ID
+  `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`, with current issue-body and
+  safety evidence satisfying that routing predicate. The verified exception,
+  and after #261 any eligible coordinator `parallel` request, routes only to
+  `.agents/skills/catworld-parallel-coordinator/SKILL.md` and is outside this
+  sequential skill.
 - If the issue is not a coordinator issue and the prompt includes `parallel`,
   stop with a routing error instead of ignoring the flag.
 - Treat `sequential` as a request to keep the current sequential workflow
@@ -59,12 +65,16 @@ This skill implements one concrete CatWorld issue, including a normal
 implementable issue, a direct child issue, or a coordinator final pass after all
 listed sub-issues are closed.
 
-If the issue body clearly indicates a coordinator issue, do not prepare an issue
-branch until listed sub-issues have been inspected read-only. Stop with a
-routing error when any listed sub-issue is still open. When all listed
-sub-issues are closed, continue with this skill as the existing sequential
-end-to-end workflow for a final pass only, without redoing closed sub-issue
-scope.
+A coordinator `parallel` request routed to the sidecar skill by the exact
+`AGENTS.md` predicate is outside this skill. Do not copy sidecar lifecycle,
+artifact, Git, handoff, resume, validation, or PR-delivery behavior here.
+
+If an issue body clearly indicates a coordinator issue and the request remains
+in this sequential skill, do not prepare an issue branch until listed
+sub-issues have been inspected read-only. Stop with a routing error when any
+listed sub-issue is still open. When all listed sub-issues are closed, continue
+with this skill as the existing sequential end-to-end workflow for a final pass
+only, without redoing closed sub-issue scope.
 
 Fetch or read the issue body read-only before branch preparation when needed to
 decide this boundary.

@@ -20,19 +20,26 @@ CatWorld issue implementation request.
   read-only.
 * Normal implementable issues and direct child issues use
   `.agents/skills/catworld-implement-issue/SKILL.md`.
-* Coordinator issues requested end-to-end must be inspected read-only for listed
-  sub-issues before workflow selection. If any listed sub-issue is still open,
-  stop with a routing error. If all listed sub-issues are closed, use
-  `.agents/skills/catworld-implement-issue/SKILL.md` for the existing sequential
-  end-to-end workflow as a final pass.
+* Coordinator issues requested end-to-end without `parallel` must be inspected
+  read-only for listed sub-issues before workflow selection. If any listed
+  sub-issue is still open, stop with a routing error. If all listed sub-issues
+  are closed, use `.agents/skills/catworld-implement-issue/SKILL.md` for the
+  existing sequential end-to-end workflow as a final pass.
 * The closed-sub-issue coordinator final pass is not a separate workflow and
   must not redo closed sub-issue scope.
 * The `parallel` keyword is reserved for a clearly identified coordinator issue
   and must not route to legacy coordinator orchestration. Until #261 activates
   sidecar coordinator routing, stop with a routing error that sidecar parallel
-  is not active. After #261 activates it, explicit eligible coordinator
-  `parallel` requests route only to
-  `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
+  is not active, except for the one temporary #260-controlled fixture recorded
+  as issue #272 (`https://github.com/TheZenithPassage/catworld/issues/272`) with
+  run ID `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`. That exception is
+  valid only while current GitHub evidence shows the exact issue body explicitly
+  identifies itself as the sole controlled sidecar dry-run fixture authorized
+  by #260 before #261 and all normal sidecar safety checks pass. A title, label,
+  branch prefix, or private conversation is insufficient; missing, ambiguous,
+  duplicated, stale, unsafe, or inconsistent evidence stops. After #261
+  activates general routing, explicit eligible coordinator `parallel` requests
+  route only to `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
 * If the issue is not a coordinator issue and the prompt includes `parallel`,
   stop with a routing error instead of ignoring the flag.
 * The `sequential` keyword keeps normal implementable issues and direct child
@@ -41,7 +48,8 @@ CatWorld issue implementation request.
 * Never infer parallel mode from a bare issue number, issue reference, or issue
   URL.
 * Issues #220 through #234 must not route through parallel mode; use the current
-  sequential workflow guardrails only.
+  sequential workflow guardrails only. This exclusion overrides the temporary
+  #260 fixture exception.
 * If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
 * If the issue cannot be classified as a normal implementable issue or a
@@ -49,8 +57,8 @@ CatWorld issue implementation request.
 
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request.
-* Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
+* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or the exact recorded branch/worktree operations of a routing-authorized sidecar run. Before #261, only the verified #272 fixture above can be routing-authorized this way.
+* Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed or required by the exact recorded control/runtime refs of a routing-authorized sidecar run.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
 

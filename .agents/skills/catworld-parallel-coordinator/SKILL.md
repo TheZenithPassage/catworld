@@ -1,19 +1,19 @@
 ---
 name: "catworld-parallel-coordinator"
 description: "Preflight CatWorld coordinator issues, prepare sidecar artifacts and Git state, and launch one dependency-ready child handoff layer for explicit opt-in parallel execution without changing the existing sequential implementation workflow."
-compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#258"
+compatibility: "Requires the CatWorld repository, GitHub issue context, and the sidecar workflow guardrails from issues #220-#260"
 metadata:
   author: "catworld"
-  source: "issues-226-232,252-258"
+  source: "issues-226-232,252-260"
 ---
 
 # CatWorld Parallel Coordinator
 
 Use this sidecar entrypoint only for an explicit CatWorld coordinator issue
-request that includes the `parallel` keyword, after #261 activates repository
-routing guardrails for sidecar parallel use. Until #261 activates that route,
-this skill is sidecar build-out text and must not be used for real product
-work.
+request that includes the `parallel` keyword and satisfies the Routing
+Boundary's `routing-authorized run` definition. Sidecar routing remains dormant
+before #261 except for the one controlled #260 fixture admitted by that
+definition.
 
 This skill began as the preflight-only sidecar entrypoint introduced by issue
 #226. Issue #227 extends the same sidecar skill with coordinator and child
@@ -41,12 +41,13 @@ are prepared and recorded before child delivery can proceed. Issue #255 adds
 dependency-layer fan-out for the future activated lifecycle: after prepared
 child artifacts and branch/worktree state are ready, the coordinator launches
 only the first dependency-ready layer, stops on unavailable child-agent
-capability instead of falling back to sequential work, and gives each launched
+capability instead of falling back to sequential work, and gives each selected
 child exactly one prepared handoff. Issue #256 makes the child side of that
-handoff execution-capable: a launched child validates its prepared checkout and
-branch, implements only prepared `tasks.md` work, reports explicit validation
-statuses, and may commit, push normally, and open or update a child PR against
-the coordinator branch when the handoff and repository rules permit delivery.
+handoff execution-capable once its launch and permissions are durable: the
+released child validates its prepared checkout and branch, implements only
+prepared `tasks.md` work, reports explicit validation statuses, and may commit,
+push normally, and open or update a child PR against the coordinator branch
+when the handoff and repository rules permit delivery.
 Issue #257 makes coordinator resume merge-aware after user-owned child PR
 merges: the coordinator re-reads current GitHub and repository evidence,
 fetches and refreshes local coordinator state from the remote coordinator
@@ -67,24 +68,49 @@ the Git common directory, requires an exact stable run identity and current
 same-run final-merge evidence, fails closed on missing authority, unknown
 ownership, dirty worktrees, or inconsistent state, removes owned worktrees
 before associated non-force local branch deletion, and records factual skipped,
-attempted, partial, and final outcomes. Issue #260 retains complete end-to-end
-and cross-workflow validation of the assembled sidecar lifecycle.
-The coordinator still does not merge, approve, enable auto-merge, mutate
-GitHub issues, post public comments, run adoption dry-runs, replace the normal
-sequential implementation workflow, or perform user-owned child PR merges.
-Later #249 child issues may extend controlled dry-run and activation pieces.
+attempted, partial, and final outcomes. Issue #260 runs complete end-to-end and
+cross-workflow validation of the assembled sidecar lifecycle through the one
+controlled routing exception below. The coordinator still does not merge,
+approve, enable auto-merge, mutate GitHub issues, post public comments, run any
+other adoption dry-run, replace the normal sequential implementation workflow,
+or perform user-owned child PR merges. Issue #261 remains the general sidecar
+routing activation point.
+
+The first controlled #260 attempt exposed a launch-state circularity: factual
+`launched` required a real dispatch, while the child required durable launched
+evidence before it could accept the handoff. The explicitly approved #260
+continuation resolves only that bounded defect with the two-phase held-dispatch
+barrier below. The barrier uses one stable named child identity from preflight
+through targeted continuation; it is not an atomic transaction and does not add
+a lock, queue, daemon, IPC service, transaction framework, or polling system.
 
 ## Routing Boundary
 
+A **routing-authorized run** is either an eligible coordinator run after #261
+activates general sidecar routing, or the one temporary pre-#261 exception for
+issue #260. That exception is valid only while current GitHub and repository
+evidence agrees on all of these exact facts:
+
+- the coordinator is issue #272;
+- its canonical URL is
+  `https://github.com/TheZenithPassage/catworld/issues/272`;
+- its exact stable run ID is
+  `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`; and
+- its issue body explicitly states that it is the sole controlled sidecar
+  dry-run fixture authorized by #260 before #261.
+
+Missing, stale, ambiguous, duplicate, unrelated, or inconsistent evidence fails
+closed. A title, branch prefix, or private conversation alone cannot establish
+the exception.
+
 - Normal implementable issues use the existing sequential workflow.
 - Direct child issues use the existing sequential workflow.
-- Until #261 activates sidecar coordinator routing, explicit coordinator
-  `parallel` requests must stop with a routing error instead of using this
-  skill for real product work.
-- After #261 activates sidecar coordinator routing, an eligible coordinator
-  `parallel` request starts or resumes the executable sidecar lifecycle in
-  this skill when coordinator preflight, source-of-truth review, child issue
-  inspection, dependency classification, and safety checks pass.
+- Before #261 activates general sidecar coordinator routing, every explicit
+  coordinator `parallel` request other than the exact routing-authorized #272
+  fixture must stop with a routing error instead of using this skill.
+- A routing-authorized run starts or resumes the executable sidecar lifecycle
+  in this skill only when coordinator preflight, source-of-truth review, child
+  issue inspection, dependency classification, and safety checks pass.
 - `parallel` on a non-coordinator issue is invalid. Stop and report that
   parallel mode applies only to coordinator issues.
 - `parallel` on a direct child issue is invalid. Stop and report that direct
@@ -100,10 +126,10 @@ Later #249 child issues may extend controlled dry-run and activation pieces.
     end-to-end workflow for the coordinator final pass;
   - the closed-child coordinator final pass is not a separate workflow and must
     not redo closed child scope.
-- When a valid future sidecar run is waiting for user-owned merges, report the
+- When a routing-authorized run is waiting for user-owned merges, report the
   exact child PRs that must be merged into the remote coordinator branch before
   resume.
-- When a valid future sidecar run resumes after user-owned merges, re-read
+- When a routing-authorized run resumes after user-owned merges, re-read
   current GitHub and repository evidence before continuing from recorded state.
 
 ## Required Context
@@ -185,9 +211,9 @@ scope.
 
 ## Executable Run Lifecycle
 
-This lifecycle is executable behavior only after #261 activates sidecar
-coordinator routing. Until then, it is build-out documentation and must not be
-used for real product work.
+This lifecycle is executable behavior only for a routing-authorized run. It
+remains build-out documentation for every request that does not satisfy that
+boundary, including ordinary coordinator `parallel` requests before #261.
 
 Each state has explicit entry conditions, stop conditions, and allowed next
 states. If a stop condition applies, report the current state, evidence read,
@@ -195,7 +221,7 @@ blocking condition, and user action required when applicable.
 
 | State | Entry Conditions | Stop Conditions | Allowed Next States |
 |-------|------------------|-----------------|---------------------|
-| 1. New coordinator `parallel` run | Prompt explicitly names a coordinator issue and includes `parallel`; #261 has activated sidecar routing. | #261 is not active; issue is not a coordinator; issue is ambiguous; required context cannot be read. | Coordinator preflight. |
+| 1. New coordinator `parallel` run | Prompt explicitly names a coordinator issue and includes `parallel`; the run satisfies the routing-authorized definition. | The run is not routing-authorized; issue is not a coordinator; issue is ambiguous; required context cannot be read. | Coordinator preflight. |
 | 2. Coordinator preflight | New or resumed run passes routing boundary. | Coordinator is ineligible, lacks listed children, or has unresolved source-of-truth blockers. | Source-of-truth and child issue inspection. |
 | 3. Source-of-truth and child issue inspection | Coordinator issue and listed children are known. | Child issue context is missing or contradictory; child state conflicts with requested route; governing artifacts conflict. | Artifact path/content planning; dependency-layer planning. |
 | 4. Artifact path and content planning | Required issue and source context has been read. | Unresumable target path collision; duplicate child issue number; missing source contract; unresolved blocker. | Dependency-layer planning; coordinator branch/worktree preparation. |
@@ -203,8 +229,8 @@ blocking condition, and user action required when applicable.
 | 6. Coordinator branch/worktree preparation | Artifact paths and contents are planned; branch/worktree targets are computed. | Cannot create or enter coordinator branch/worktree safely; target collision; operation would modify local `main`. | Coordinator and child artifact writing. |
 | 7. Coordinator and child artifact writing | Codex is inside the coordinator branch/worktree. | Artifact write would occur outside coordinator branch/worktree; artifact conflicts with approved scope. | Child branch/worktree preparation. |
 | 8. Child branch/worktree preparation | Dependency-ready child layer exists and artifacts are written. | Child branch/worktree cannot be prepared safely from coordinator branch; collision; child target would be `main`. | Child handoff and child-agent launch for one dependency-ready layer. |
-| 9. Child handoff and child-agent launch for one dependency-ready layer | One dependency-ready layer has handoff-ready child artifacts, valid Git context, validation requirements, PR target rules, out-of-scope boundaries, and available child-agent capability. | Missing handoff data; child-agent/subagent execution is unavailable; sequential fallback would be required; hard-dependent layer would start early; unresolved shared-contract blocker; non-mechanical conflict risk; child scope unresolved. | Child implementation and child PR delivery; waiting for user merges. |
-| 10. Child implementation and child PR delivery | Child agent receives valid prepared handoff and runs in prepared child context. | Child validation fails and cannot be fixed in scope; child blocker remains; PR target or issue wording violates sidecar rules. | Waiting for user merges. |
+| 9. Two-phase child handoff and held dispatch for one dependency-ready layer | One dependency-ready layer has handoff-ready child artifacts, valid Git context, validation requirements, PR target rules, out-of-scope boundaries, an exact pushed handoff-ready evidence SHA plus a current remote recording head that contains it, and stable held-child capability. | Missing handoff data; held child capability is unavailable or ambiguous; handoff-ready evidence/recording state is not durable; sequential fallback or replacement identity would be required; a hard-dependent layer would start early; unresolved shared-contract blocker; non-mechanical conflict risk; child scope unresolved. | Factual launch-state persistence; targeted release; child implementation and child PR delivery; report blocker. |
+| 10. Child implementation and child PR delivery | The exact held child has been factually launched; exact launched evidence and its current activation/recording head are normally pushed, fetched, ancestry-proven, and identity-correlated; that same child incorporated the activation head and verified the launched evidence while clean before release. | Launch evidence/recording push, equality or ancestry, child identity, refresh, clean-state, release, validation, PR target, or issue wording is invalid; child blocker remains. | Waiting for user merges; report blocked/resume-needed state. |
 | 11. Waiting for user merges into remote coordinator branch | One or more child PRs are ready or draft for user review. | Required child PRs remain unmerged; GitHub state cannot be read; user-owned merge is pending. | Resume after user merges. |
 | 12. Resume after user merges | User indicates child PRs were merged, or current evidence shows merge progress. | Required GitHub/repository evidence is missing, stale, or conflicts with recorded coordinator artifact state; resume would depend on private conversation context. | Fetch and refresh local coordinator branch/worktree. |
 | 13. Fetch and refresh local coordinator branch/worktree | Remote coordinator branch contains or may contain user-owned child merges. | Fetch fails; local coordinator state has unexpected local changes, missing branch state, unsafe divergence, stale evidence, or conflicts; refresh would require rebase, force-push, force-with-lease, history rewriting, local `main` updates, deletion, or issue mutation. | Active child branch refresh; dependency-layer recomputation; integrated coordinator validation. |
@@ -217,12 +243,15 @@ blocking condition, and user action required when applicable.
 ### Operation Ownership
 
 Codex may inspect issues and PRs read-only, plan artifacts, prepare allowed
-local branches/worktrees after #261 activation, write artifacts only inside the
-coordinator branch/worktree, launch dependency-ready child handoffs when
-child-agent capability is available, report PR readiness, refresh local sidecar
-branches by allowed methods, prepare final coordinator validation evidence, push
-the artifact-only H2 normally, and create or safely update one ready final
-coordinator PR only after the detailed finalization gate passes. After current
+local branches/worktrees after routing authorization, write artifacts only
+inside the coordinator branch/worktree, commit/push handoff-ready evidence,
+dispatch dependency-ready children in held preflight-only mode when stable
+child-agent capability is available, persist factual launch evidence, target
+the same stable identities for release, report PR readiness, refresh local
+sidecar branches by allowed methods, prepare final coordinator validation
+evidence, push the artifact-only H2 normally, and create or safely update one
+ready final coordinator PR only after the detailed finalization gate passes.
+After current
 evidence confirms the final merge, Codex may evaluate local cleanup and, only
 with explicit current cleanup authority and every cleanup preflight gate passed,
 remove the exact same-run-owned local worktrees and branches through the local
@@ -261,8 +290,10 @@ reported as stale until rerun and must not support ready status.
 
 For every child, record one launch state in the coordinator artifact:
 
-- `launched`: a prepared handoff was sent to a child agent for the current
-  dependency-ready layer;
+- `launched`: the approved capability accepted one prepared handoff for the
+  current dependency-ready layer and returned one unambiguous stable canonical
+  child identity; this factual state does not by itself grant implementation or
+  delivery permission;
 - `blocked`: a child-specific, coordinator-wide, shared-contract, conflict, or
   human-only blocker prevents launch;
 - `pending`: the child is not in the current launched layer;
@@ -271,6 +302,10 @@ For every child, record one launch state in the coordinator artifact:
 
 Every non-launched child must include a clear reason. A later layer is not
 dependency-ready merely because its artifacts or branch/worktree already exist.
+`handoff-ready` remains an artifact-preparation state, not a factual launch
+state. Before dispatch, a selected child is normally `handoff-ready` with
+launch state `pending`, implementation permission false, delivery permission
+false, and a non-launch reason that the held dispatch barrier is pending.
 
 On resume, also record workflow/integration state separately from the launch
 state when applicable:
@@ -287,13 +322,111 @@ state when applicable:
 
 Before launching child agents for the first dependency-ready layer, verify that
 the active Codex environment exposes an approved child-agent/subagent execution
-capability, such as the multi-agent spawn tool when it is available through
-tool discovery. If child-agent/subagent execution is unavailable, stop and
-record a coordinator-wide capability blocker. Do not silently switch to the
-existing sequential issue implementation workflow.
+capability that retains one stable child/task identity across a preflight-only
+dispatch and a later targeted continuation. The capability must make the child
+unable to enter implementation before continuation. In the #260 environment,
+`spawn_agent` returns the stable canonical child identity and `followup_task`
+targets that same identity after the preflight-only turn. A second
+`spawn_agent` call is another child and must not be treated as a continuation.
 
-Each launched child agent receives exactly one child issue and one prepared
-handoff. The handoff must include:
+If stable held dispatch or targeted continuation is unavailable, ambiguous, or
+cannot be proven harmless, stop and record a coordinator-wide capability
+blocker. Do not silently switch to sequential implementation, a fire-and-forget
+child, indefinite polling, a filesystem lock, an ad hoc queue, a daemon, a
+generic IPC service, or a transaction framework.
+
+#### Canonical Prepared-Handoff Fingerprint
+
+Before creating handoff-ready evidence, compute the exact
+`sidecar-prepared-handoff-v1` fingerprint shared with the child contract. Build
+a PowerShell `[ordered]` object with these properties in exact order and type:
+`Schema` string; `RunId` string; `CoordinatorIssueNumber` integer;
+`ChildIssueNumber` integer; `CoordinatorBranch` string;
+`CoordinatorRemoteBranch` string; `CoordinatorWorktree` string; `ChildBranch`
+string; `ChildWorktree` string; `ControlRevision` exact 40-hex string;
+`PreparedSpec`, `PreparedPlan`, and `PreparedTasks` repository-relative path
+strings; `DependencyLayer` integer; `HardDependencies` ascending integer array;
+`PrTargetBranch` string; `PrRelatedReferences` exact child-then-coordinator
+two-string array; `ArtifactPreparationState` string `handoff-ready`;
+`LaunchState` string `pending`; and Boolean `ImplementationPermission` and
+`DeliveryPermission`, both false.
+
+Serialize with `ConvertTo-Json -Compress -Depth 4`, hash the JSON's UTF-8 bytes
+with SHA-256, and encode 64 lowercase hexadecimal characters without a prefix.
+The fingerprint, artifact content/blob hashes, evidence SHAs, recording or
+activation heads, and child-agent identity are not inputs. Validate prepared
+artifact content independently; this prevents a tracked artifact that records
+the fingerprint from depending on its own blob identity.
+
+#### Two-Phase Held-Dispatch Barrier
+
+This barrier is ordered and explicitly non-atomic. For one dependency-ready
+layer:
+
+1. Complete each selected child's prepared handoff and Git context.
+2. Compute the canonical v1 fingerprint, then record preparation
+   `handoff-ready`, launch `pending`, implementation permission false, delivery
+   permission false, exact child/run/Git identity, that prepared-handoff
+   identity fingerprint, and exact immutable control-plane source revision. Do
+   not guess or self-reference the not-yet-created commit SHA.
+3. Commit and normally push that handoff-ready evidence commit `R`. Fetch the
+   remote coordinator ref and prove exact equality to `R`.
+4. In one bounded coordinator recording update, store exact `R` as the
+   handoff-ready evidence SHA. Commit and normally push recording head `Rr`,
+   fetch it, prove the remote ref equals `Rr`, and prove `R` is its ancestor.
+   This second commit resolves the otherwise impossible requirement for a
+   tracked commit to contain its own SHA; it is not another state subsystem.
+5. Dispatch each selected child exactly once in preflight-only mode. The child
+   may read and validate only the prepared identity, artifacts, dependency
+   layer, branch/worktree, clean state, existing fetched remote handoff-ready
+   evidence, and disabled permissions. It must not edit, stage, execute prepared
+   tasks, commit, push, open/update a PR, or mutate GitHub state.
+6. Treat dispatch as accepted only when the capability returns one unambiguous
+   stable canonical child/task identity and that exact child acknowledges the
+   preflight-only handoff with implementation permission false. Correlate the
+   identity to the run ID, child issue, exact child branch/worktree,
+   handoff-ready evidence SHA, containing recording head, and prepared-handoff
+   fingerprint.
+7. Never record `launched` for a rejected, missing, or ambiguous dispatch. Do
+   not retry an ambiguous dispatch or create a replacement child blindly.
+8. After accepted dispatch, `launched` is factual because the prepared handoff
+   was sent through the approved child-agent capability. Keep the child held.
+9. Update the coordinator artifact with factual `launched`, the stable dispatch
+   identity, exact `R`, and the launched-head activation contract. Commit and
+   normally push factual launched evidence commit `L`. Implementation and
+   delivery remain unavailable to the held child while `L` is local or
+   unverified.
+10. Fetch the remote coordinator ref and prove exact equality to `L`.
+11. In one bounded coordinator recording update, store exact `L` as the factual
+    launched evidence SHA and set permissions true subject to child
+    revalidation. Commit and normally push activation/recording head `Lr`, fetch
+    it, prove the remote ref equals `Lr`, and prove `L` is its ancestor. Do not
+    require `L` to contain its own SHA.
+12. Target only the same stable child/task identity with continuation. Supply
+    exact `R`, exact `L`, current remote activation head `Lr`, and current
+    permission evidence.
+13. Require that child to fetch current remote coordinator evidence, update its
+    still-clean child branch to `Lr` by allowed fast-forward or normal merge,
+    verify that `Lr` contains `L`, verify the run/child/Git/handoff/dispatch
+    identity, factual `launched`, effective implementation and delivery
+    permissions, and prove the worktree remained clean through the barrier.
+14. Only after that verification may the child acknowledge release and begin
+    prepared implementation tasks. Delivery remains additionally gated by
+    scoped completion, fresh passing validation, correct target/wording, and no
+    blocker.
+15. For a multi-child layer, keep every selected child non-editing until factual
+    launched evidence and its activation/recording head for all successfully
+    accepted children are durable; release only exact identities whose current
+    evidence passes every gate.
+
+The prepared handoff exists before dispatch and therefore carries non-launched
+state and disabled permissions. The targeted continuation carries both the
+exact factual launched evidence SHA and current remote activation/recording head
+that contains it, and activates execution only for the same stable identity.
+Private conversation alone is never launch or release evidence.
+
+Each selected child agent receives exactly one child issue and one prepared
+handoff. The handoff and later continuation together must include:
 
 - coordinator issue context, child issue map, dependency layer, and coordinator
   source references;
@@ -306,12 +439,23 @@ handoff. The handoff must include:
   references, validation requirements, and explicit out-of-scope boundaries;
 - prepared child `spec.md`, `plan.md`, and `tasks.md` paths and content
   summaries;
+- exact immutable control-plane source revision and canonical prepared-handoff
+  identity fingerprint;
 - shared implementation contract references and constraints;
 - coordinator branch local and remote refs, coordinator push status, and
   coordinator checkout/worktree path;
 - child branch source ref, expected child branch, expected child
   checkout/worktree path, collision status, clean-state evidence, refresh
   status, and cleanup eligibility;
+- exact pushed handoff-ready evidence SHA and current remote recording head that
+  contains it, stable dispatch identity when accepted, exact pushed factual
+  launched evidence SHA and current remote activation/recording head that
+  contains it when durable, and evidence that targeted continuation addresses
+  the same identity;
+- launch state, implementation permission, delivery permission, each
+  permission's remote-head activation condition, proof that held preflight made
+  zero repository or GitHub mutation, and proof that targeted continuation made
+  only the allowed clean activation-head incorporation before release;
 - prepared task scope, including that the child may execute only tasks listed
   in the prepared child `tasks.md` and must not regenerate `spec.md`,
   `plan.md`, or `tasks.md`;
@@ -324,10 +468,37 @@ handoff. The handoff must include:
   occurs.
 
 The handoff must instruct the child agent to confirm the prepared checkout and
-branch before editing, and not to regenerate planning artifacts, redefine
+branch during preflight without editing, and not to regenerate planning artifacts, redefine
 shared contracts, create sibling scope, mutate GitHub issues, or target
-`main`. Missing or contradictory handoff data blocks the affected child before
-launch.
+`main`. Missing or contradictory preflight data blocks dispatch acceptance;
+missing or contradictory launched-evidence, activation-head, or release data keeps a factually
+launched child held and blocks implementation and delivery.
+
+#### Barrier Failure and Interruption Semantics
+
+- Rejected dispatch: record no `launched`; mark the child blocked with the
+  factual capability/dispatch reason; perform no child edit or delivery.
+- Ambiguous dispatch: record no `launched`; release no affected child; do not
+  retry or create a duplicate; stop with exact identity evidence.
+- Launch-evidence or activation/recording commit or normal push failure after
+  accepted dispatch: keep the child held; distinguish any factually pushed
+  evidence from the missing current activation record, perform no child edit or
+  delivery, and stop if normal persistence cannot be completed safely.
+- Child refresh, clean-state, activation-head incorporation, or launched-
+  evidence ancestry verification failure: keep the child unreleased and perform
+  no implementation or delivery.
+- Targeted release failure after launched evidence is durable: retain factual
+  `launched`, record/report blocked or resume-needed state, and perform no child
+  delivery. Do not roll launch state back to pending.
+- Parent interruption before release: the bounded child remains held with
+  implementation/delivery false, whether idle in preflight or partway through
+  targeted barrier incorporation. On resume, re-read current repository/GitHub
+  and Git-state evidence plus the exact child-agent identity. If launched is
+  recorded but no matching child is verifiably available, do not dispatch a
+  replacement blindly; stop on ambiguous active-child state.
+- Child failure after release: retain factual `launched`; derive blocked,
+  paused, or resume-needed state from current branch/worktree/validation/agent
+  evidence and never summarize partial work as complete.
 
 ## Sidecar Artifact Preparation
 
@@ -387,6 +558,14 @@ The coordinator artifact must include at least:
   source references, artifact path, required `spec.md`/`plan.md`/`tasks.md`
   preparation status, current handoff readiness, launch state, and non-launch
   reason when not launched;
+- exact immutable control-plane source revision used by every prepared handoff;
+- per-child two-phase dispatch state: prepared-handoff fingerprint, exact
+  pushed handoff-ready evidence SHA and current remote recording head containing
+  it, implementation/delivery permission, stable dispatch identity when
+  accepted, factual launched state, exact pushed launched evidence SHA and
+  current remote activation/recording head containing it, targeted-release
+  state, pre-release clean/zero-edit evidence, and failure/resume reason when
+  applicable;
 - dependency layers that identify hard dependencies, independent candidates,
   conflict risks, and incomplete-context blockers;
 - unresolved blocker section that distinguishes child-specific,
@@ -438,6 +617,7 @@ The coordinator artifact must include at least:
 
 The artifact must distinguish planned, blocked, prepared, handoff-ready,
 launched, integrated, ready, created, observed, stale, passed, failed, pending,
+held-preflight, release-pending, released, resume-needed,
 pending-H2-checks, waiting-for-dependency-merge, and ineligible states. It must
 not imply that a
 branch, checkout/worktree, PR, merge, validation result, readiness state,
@@ -453,7 +633,7 @@ collision before writing; do not overwrite, merge, delete, rename, or silently
 reuse the artifact.
 
 Update the coordinator artifact whenever factual sidecar state changes during a
-future activated run only until the artifact-only H2 commit freezes it. Before
+routing-authorized run only until the artifact-only H2 commit freezes it. Before
 that boundary, updates may record blocked state, child handoff readiness, child
 handoff launch, child PR creation, user merge observation, dependency-merge
 waiting state, stale validation, next-layer readiness, terminal child
@@ -536,7 +716,13 @@ non-conflicting, validation and PR target rules are explicit, and child-agent
 capability is available. A child handoff must include the prepared artifact
 paths and enough artifact summary for traceability, and it must instruct the
 child executor to consume those artifacts without regenerating `spec.md`,
-`plan.md`, or `tasks.md` independently.
+`plan.md`, or `tasks.md` independently. Handoff-ready state must be committed and
+normally pushed as exact evidence, then its SHA must be stored by a bounded
+recording update that is also pushed and fetched. Before held dispatch, prove
+the current remote ref equals that recording head and contains the recorded
+evidence SHA by ancestry. It must not preclaim `launched` or
+implementation/delivery permission, and no tracked commit may be required to
+contain its own SHA.
 
 ### Shared Contract and Child Issue Boundaries
 
@@ -678,6 +864,17 @@ For each active child in the dependency-ready layer:
 5. Record the child branch name, source coordinator branch, local
    checkout/worktree path, child PR target branch, and isolation state in the
    coordinator artifact.
+
+After those factual child Git resources exist, record their exact identities in
+the coordinator artifact and complete the prepared handoffs with implementation
+and delivery permission false. Commit and normally push exact handoff-ready
+evidence, then commit/push its exact-SHA recording update; fetch the remote
+coordinator branch, require equality to the current recording head and ancestry
+containment of the evidence SHA before dispatch. Child branches may be behind
+these coordinator commits; they must remain clean and later incorporate the
+current launched activation/recording head and verify its launched evidence SHA
+by allowed fast-forward or normal merge before implementation. Coordinator
+bookkeeping movement never authorizes a held child to edit early.
 
 Each active child implementation uses only its isolated local checkout/worktree
 recorded in the coordinator artifact and supplied in the child handoff. Sidecar
@@ -894,6 +1091,11 @@ For each child issue, the coordinator artifact must record:
 - child PR merge status in the remote coordinator branch when observed;
 - validation state and freshness;
 - workflow status;
+- handoff-ready evidence SHA and containing remote recording head,
+  prepared-handoff fingerprint, implementation and delivery permission state,
+  held-dispatch acceptance, stable canonical child identity, launched evidence
+  SHA and containing remote activation/recording head, targeted-release state,
+  and pre-release zero-edit/clean-state evidence when those states exist;
 - blockers;
 - remote coordinator branch state and local coordinator branch/worktree refresh
   state when child PR merges are observed;
@@ -918,6 +1120,9 @@ Codex session, re-read current evidence from GitHub and the repository:
 - remote coordinator branch state;
 - local coordinator branch/worktree state;
 - active sidecar child branch/worktree state;
+- held or released child-agent identity and current availability state, plus
+  handoff-ready/launched evidence SHAs, their containing remote recording heads,
+  and permission activation evidence;
 - local checkout/worktree existence and path state;
 - validation evidence, status, and freshness;
 - complete prepared-child ledger, child PR target/merge observations, and
@@ -941,6 +1146,19 @@ or silently treating stale validation as fresh.
 
 Before the artifact-only H2 commit, update the coordinator artifact when any of
 these events occur or are observed during resume:
+
+- a child's handoff-ready evidence commit and exact-SHA recording update are
+  committed/pushed, with remote equality to the current recording head and
+  ancestry containment of the evidence SHA proven before dispatch;
+- a held dispatch is accepted, rejected, or ambiguous and the exact stable
+  identity or blocker is known;
+- factual launched evidence and its exact-SHA activation/recording update are
+  committed/pushed, with current remote equality and evidence ancestry proven
+  while the child remains held;
+- targeted release succeeds or fails for the exact stable child identity;
+- the released child incorporates the current activation/recording head and
+  verifies the factual launched evidence SHA while clean, or that
+  refresh/verification becomes blocked;
 
 - user merges a child PR into the coordinator branch;
 - the remote coordinator branch is fetched after user-owned child PR merges;
@@ -1004,9 +1222,9 @@ child issue scope as newly implemented work.
 
 ## Integrated Coordinator Validation and Finalization
 
-Apply this procedure only after an activated sidecar run has refreshed the
-local coordinator branch from the remote coordinator branch and recomputed all
-child state from current GitHub, repository, branch, and artifact evidence.
+Apply this procedure only after a routing-authorized sidecar run has refreshed
+the local coordinator branch from the remote coordinator branch and recomputed
+all child state from current GitHub, repository, branch, and artifact evidence.
 
 ### Current Evidence and Terminal Child Gate
 
@@ -1126,10 +1344,17 @@ Sidecar child PR descriptions use `Related to #<child-issue>` and
 issue-closing wording for the child issue or coordinator issue, and they must
 not imply that the child PR is the final delivery PR to `main`.
 
-After issue #256, a launched sidecar child executor may commit scoped child
-changes, push the prepared child branch with a normal non-force push, and open
-or update the child PR only when the prepared handoff and repository rules
-permit delivery. The coordinator records the child PR URL, target branch,
+After issue #256 and the approved #260 barrier correction, factual `launched`
+alone is necessary but insufficient for implementation or delivery. A sidecar
+child executor may commit scoped child changes, push the prepared child branch
+with a normal non-force push, and open or update the child PR only when exact
+factual launched evidence and its containing activation/recording head are
+durable on the fetched remote coordinator ref, the same stable held child has
+received targeted release, its clean child branch has incorporated the
+activation head and verified the launched-evidence ancestry, current
+implementation and delivery permission are true, and all prepared
+handoff/repository rules pass.
+The coordinator records the child PR URL, target branch,
 issue-reference wording, ready/draft status, validation freshness, blockers,
 and commit hashes reported by the child. A child PR is ready only when required
 validation is fresh and passed and no unresolved blocker affects the child; it
@@ -1229,11 +1454,20 @@ explicitly reported as stale. Coordinator readiness must not consume stale
 child or H evidence as fresh evidence. H evidence may be consumed at H2 only
 after direct-parent/sole-artifact proof and a non-empty applicability reason.
 
+Child readiness evidence must also include the current two-phase barrier state:
+exact handoff-ready and launched evidence SHAs, their current containing remote
+recording heads, accepted stable child identity, targeted release to that same
+identity, clean incorporation of the activation head and verification of the
+launched evidence, and effective implementation and delivery permissions. Any
+missing, failed, ambiguous, interrupted, or stale barrier evidence blocks ready
+status even when implementation validation otherwise passes.
+
 ### Ready and Draft Reporting
 
-A sidecar child PR may be reported as ready only when required validation is
-fresh and passed, no unresolved blocker affects the child, and the approved
-sidecar PR target and issue-reference rules are satisfied.
+A sidecar child PR may be reported as ready only when the exact same held child
+passed every release gate, required validation is fresh and passed, no
+unresolved blocker affects the child, and the approved sidecar PR target and
+issue-reference rules are satisfied.
 
 A sidecar child PR must be reported as draft when required validation is
 failed, skipped, timed out, interrupted, partial, stale, not run, or blocked,
@@ -1342,14 +1576,28 @@ This entrypoint must not:
 - require seed-first execution or invent/create foundation or shared-contract
   child issues without explicit user approval in a future activated workflow
   that permits issue mutation;
-- delegate child implementation work before #261 activation, during the current
-  build-out or pre-execution states, during preflight or artifact preparation,
+- delegate child implementation work before the run is routing-authorized,
+  including ordinary pre-#261 build-out or pre-execution states, during
+  preflight or artifact preparation,
   outside an approved dependency-ready lifecycle state, or without valid
   prepared child artifacts, valid branch/worktree context, dependency-ready
   layer evidence, a valid prepared child handoff, and later approved sidecar
-  rules that permit delegation. This prohibition does not block the future
-  activated #249 lifecycle from launching dependency-ready child handoffs when
-  the approved rules permit that operation;
+  rules that permit delegation. This prohibition does not block a
+  routing-authorized lifecycle from launching dependency-ready child handoffs
+  when the approved rules permit that operation;
+- allow a held child to edit, stage, execute prepared tasks, commit, push,
+  open/update a PR, or mutate GitHub before the exact launched update is durable
+  on the fetched remote coordinator ref, the same stable canonical child has
+  cleanly incorporated or verified it, and targeted release has succeeded;
+- record `launched` for rejected, missing, or ambiguous dispatch, retry an
+  ambiguous dispatch blindly, or substitute another child identity for a
+  factually launched held child whose identity cannot be verified;
+- activate implementation or delivery permission from an unpushed local
+  launch-state commit, or roll factual `launched` state back to `pending` merely
+  because persistence, refresh, verification, or release failed;
+- introduce a generic transaction framework, lock protocol, queue, daemon, IPC
+  service, indefinite polling loop, or other infrastructure mechanism for the
+  bounded two-phase held-dispatch barrier;
 - open, update, merge, approve, or enable auto-merge on pull requests during
   preflight or artifact preparation;
 - modify CatWorld product code;
@@ -1376,9 +1624,14 @@ Report a concise preflight result with:
   unresolved collision/approval blockers when Git state has been prepared or
   described;
 - dependency-layer fan-out status, including first dependency-ready layer,
-  child-agent/subagent capability state, launched children, blocked children,
-  pending children, children waiting for dependency merges, exact non-launch
-  reasons, and confirmation that no sequential fallback was used;
+  child-agent/subagent capability state, exact handoff-ready evidence SHA and
+  containing remote recording head, prepared-handoff fingerprint, held
+  preflight acceptance and stable canonical child identity, factual launched
+  state, exact launched evidence SHA and containing remote activation/recording
+  head, targeted-release and effective-permission state, pre-release clean/zero-edit
+  evidence, launched children, blocked children, pending children, children
+  waiting for dependency merges, exact non-launch or held reason, and
+  confirmation that no sequential fallback was used;
 - sidecar PR delivery status, including child PR target branch, child issue
   reference wording, child PR URL when delivery occurred, child PR ready/draft
   status, child PR validation freshness, final coordinator PR target, closure
@@ -1407,14 +1660,14 @@ Report a concise preflight result with:
   public comment, product code change, prohibited Git operation, private-context
   resume, or unapproved cleanup was performed.
 
-Until #261 activates sidecar coordinator routing and execution, stop after
-preflight, artifact/Git preparation, and fan-out readiness description when
-applicable. Do not launch child execution during the current build-out even if
-the coordinator appears preflight-ready and artifacts are prepared.
+When a run is not routing-authorized, stop after preflight, artifact/Git
+preparation, and fan-out readiness description when applicable. Do not launch
+child execution merely because the coordinator appears preflight-ready and
+artifacts are prepared.
 
 ## Finalization Output
 
-When an activated run reaches finalization, report:
+When a routing-authorized run reaches finalization, report:
 
 - the complete prepared-child ledger, each child PR target/merge observation,
   refreshed ancestry proof, and confirmation that no child remains active,
@@ -1439,7 +1692,7 @@ When an activated run reaches finalization, report:
 
 ## Local Cleanup Output
 
-When a future activated run evaluates or executes post-final-merge local
+When a routing-authorized run evaluates or executes post-final-merge local
 cleanup, report:
 
 - the exact stable run ID and resolved Git-common-directory journal path;
@@ -1526,6 +1779,35 @@ Validation for this entrypoint must include:
 - simulation of a coordinator with three independent children proving exactly
   three prepared child handoffs are produced for the first dependency-ready
   layer;
+- simulation proving handoff-ready state and disabled permissions are committed
+  and normally pushed as exact evidence, a later pushed recording update stores
+  that SHA, and the current fetched remote ref equals the recording head and
+  contains the evidence commit before any real child dispatch;
+- simulation of one dependency-ready layer proving each real child accepts in
+  preflight-only mode under one stable canonical identity, performs zero edits,
+  and remains held until the factual launched update for the accepted layer is
+  durably pushed;
+- simulation proving only the same accepted child identity may fetch and cleanly
+  incorporate the current activation/recording head, verify that it contains
+  the exact factual launched evidence SHA, acknowledge targeted release, and
+  then begin implementation;
+- simulation proving a child branch may remain behind the coordinator recording
+  heads during zero-edit preflight and advances only during release;
+- review proving no tracked commit is required to contain its own SHA and that
+  every evidence SHA is stored only by a later bounded recording commit;
+- simulation proving rejected or ambiguous dispatch records no `launched`,
+  starts no implementation, performs no delivery, and does not blindly retry or
+  create a replacement identity;
+- simulation proving launch evidence/recording commit or push failure,
+  activation-head refresh or launched-evidence verification failure, and
+  targeted-release failure all preserve truthful
+  factual state while permitting zero pre-release edits or delivery;
+- interruption/resume simulation proving a held child remains idle or
+  preflight-only and that an unverifiable factually launched identity blocks
+  replacement dispatch;
+- review proving the barrier is a bounded ordered non-atomic protocol and adds
+  no transaction framework, lock protocol, queue, daemon, IPC service, or
+  indefinite polling loop;
 - simulation of hard-dependent children proving only the first layer launches
   and later children are recorded as pending or waiting for dependency merges;
 - simulation proving unresolved shared-contract blockers stop affected fan-out
@@ -1622,10 +1904,12 @@ Validation for this entrypoint must include:
   and not-run validation is never summarized as passed;
 - review that stale validation after coordinator branch updates or child branch
   refreshes blocks readiness until rerun or explicitly reported as stale;
-- review that sidecar child PR readiness is ready only with fresh required
-  validation, no unresolved child blocker, and approved sidecar PR target
-  rules, and draft when required validation is failed, incomplete, stale, not
-  run, or blocked;
+- review that sidecar child PR readiness is ready only after the exact accepted
+  child passes the durable launched-evidence, activation-head incorporation,
+  ancestry-verification, and targeted-release gates, with fresh required
+  validation, no unresolved child
+  blocker, and approved sidecar PR target rules, and draft when required barrier
+  or validation evidence is failed, incomplete, stale, not run, or blocked;
 - review that child-specific blockers, coordinator-wide blockers, and
   shared-contract blockers are distinguishable and that shared-contract
   blockers stop affected sidecar work;
@@ -1643,8 +1927,9 @@ Validation for this entrypoint must include:
 - review that closed-child coordinator final passes do not use artifact
   preparation or sidecar Git rules;
 - review that no required `parallel-ready` label is introduced;
-- changed-file review proving the existing sequential implementation skill and
-  existing coordinator/orchestration skill are unchanged;
+- changed-file review proving the existing sequential implementation lifecycle
+  is unchanged, any #260 change to that skill is limited to routing-boundary
+  wording, and the existing coordinator/orchestration skill is unchanged;
 - changed-file review proving no product code, real CatWorld sidecar worktrees,
   real CatWorld sidecar branches, real pull request operations, GitHub issue
   mutations, public comments, or unapproved remote cleanup are part of sidecar

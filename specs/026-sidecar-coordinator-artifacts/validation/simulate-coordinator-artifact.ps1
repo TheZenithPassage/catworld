@@ -208,9 +208,10 @@ $blockerText
 function Test-RequiredSections {
     param([string] $Content)
 
+    $normalizedContent = $Content -replace "`r`n?", "`n"
     $missing = @()
     foreach ($section in $RequiredSections) {
-        if ($Content -notmatch "(?m)^## $([regex]::Escape($section))$") {
+        if ($normalizedContent -notmatch "(?m)^## $([regex]::Escape($section))$") {
             $missing += $section
         }
     }
@@ -319,13 +320,21 @@ switch ($Scenario) {
     'valid' {
         $content = New-CoordinatorArtifactText -Fixture $fixture
         $missing = Test-RequiredSections -Content $content
+        $lfContent = $content -replace "`r`n?", "`n"
+        $crlfContent = $lfContent -replace "`n", "`r`n"
+        $lfMissing = Test-RequiredSections -Content $lfContent
+        $crlfMissing = Test-RequiredSections -Content $crlfContent
         Assert-Condition ($missing.Count -eq 0) "Missing required sections: $($missing -join ', ')"
+        Assert-Condition ($lfMissing.Count -eq 0) "LF content is missing required sections: $($lfMissing -join ', ')"
+        Assert-Condition ($crlfMissing.Count -eq 0) "CRLF content is missing required sections: $($crlfMissing -join ', ')"
 
         [pscustomobject]@{
             Scenario = 'valid'
             ArtifactPath = Get-ArtifactRelativePath $fixture
             RequiredSections = $RequiredSections.Count
             MissingSections = $missing.Count
+            LfMissingSections = $lfMissing.Count
+            CrlfMissingSections = $crlfMissing.Count
             ChildIssueCount = $fixture.Children.Count
             Result = 'passed'
         } | ConvertTo-Json -Depth 5
