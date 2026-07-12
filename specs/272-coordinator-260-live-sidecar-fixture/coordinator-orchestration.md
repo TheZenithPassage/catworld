@@ -12,8 +12,8 @@
 - **parent epic**: [#249](https://github.com/TheZenithPassage/catworld/issues/249)
 - **classification**: workflow-only sidecar coordinator
 - **stable final-delivery identity**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb:272:main`
-- **current lifecycle state**: layer 1 complete after remote-first refresh to PR #277 merge `30b077a8f4e948475731224d71a71b95607881fe`; #273 and #274 are uniquely integrated; integration record `I2 = SELF/HEAD`
-- **current readiness**: #275 is the sole `ready-next-layer` child; affected validation is explicitly `stale` and dispatch remains held until the required rerun passes and exact child Git context plus H/R evidence exist
+- **current lifecycle state**: layer 1 complete; #275 Git context is prepared from exact integration head `I2=5e5eab3912673491806145855151e8976deda160`; fresh validation passed; layer-2 immutable handoff evidence `H275 = SELF/HEAD`
+- **current readiness**: #275 is `handoff-ready` but remains `held-preflight` with factual launch `pending`, implementation/delivery false, no dispatch identity, and no implementation mutation until R is durable and the one stable preflight child accepts
 
 This exact `run_id` is immutable. It identifies same-run resume and the later Git-common-directory cleanup journal; it must not be derived, shortened, renamed, or guessed.
 
@@ -37,7 +37,7 @@ The control and runtime contexts are intentionally separate.
 |---------|------------|-----|-------------------|---------|
 | #260 immutable workflow source `C2` | `chore/260-live-controlled-sidecar-dry-run`, based on `origin/workflow/sidecar-buildout` | `db175fe0a1911e9ea2a1931ae808b9771f874b57` | `C:\Users\moshe\Desktop\catworld` | Canonical corrected coordinator/child skills, #255/#256 contracts and validators, routing exception, architecture, and #260 decision artifacts consumed by every handoff |
 | Runtime coordinator source | `origin/main` | `047569718767859289b9f48d68b635b8f7b7f1ac` | source ref only; local `main` is not checked out | Required runtime base |
-| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | base `047569718767859289b9f48d68b635b8f7b7f1ac`; I `421b2ac250c05c59eb3cade06b4056e02a6c8415`; H `78329c6f45793583d4d0e46a96ad54066989ba8d`; R `99f34e32de9702ae34301463e32ed3d8ff013932`; L `08f8588dab15ab0e1991733f43d4a74e44deda4e`; A `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e`; M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; R1 `11fa667018294cd7d9486fb188b67ede14df3fe4`; P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686`; M277 `30b077a8f4e948475731224d71a71b95607881fe`; `I2 = SELF/HEAD` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree |
+| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | base `047569718767859289b9f48d68b635b8f7b7f1ac`; I `421b2ac250c05c59eb3cade06b4056e02a6c8415`; H `78329c6f45793583d4d0e46a96ad54066989ba8d`; R `99f34e32de9702ae34301463e32ed3d8ff013932`; L `08f8588dab15ab0e1991733f43d4a74e44deda4e`; A `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e`; M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; R1 `11fa667018294cd7d9486fb188b67ede14df3fe4`; P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686`; M277 `30b077a8f4e948475731224d71a71b95607881fe`; I2 `5e5eab3912673491806145855151e8976deda160`; `H275 = SELF/HEAD` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree |
 
 The 89-path build-out delta from `origin/main` to `origin/workflow/sidecar-buildout` is not merged, cherry-picked, or copied wholesale into the runtime branch. Immutable control revision `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57` is pushed and fetched-equal at `origin/chore/260-live-controlled-sidecar-dry-run`. Later report-only recording head `C2r=76531c9aa0511c49dfd44eb196913a2600a044da` stores literal `C2`, is also pushed/fetched-equal, and does not replace `C2` as the workflow source or fingerprint input. The control context supplies governing workflow instructions; runtime worktrees supply Git execution state and tracked fixture artifacts.
 
@@ -83,7 +83,7 @@ worktrees were then created from exact `I`; both were clean at creation. No
 |-------|-------------|--------------|-----------------------|-------------|-------------------|-------------|-------------------|-------------------|
 | #273 layer1-a | `https://github.com/TheZenithPassage/catworld/issues/273` / open | none | `specs/273-260-fixture-layer1-a/`; `samples/result.md` | handoff-ready; released; owned result integrated | integrated / launched | implementation true; delivery true | F `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`; exact H/R/L/A; `/root/held_child_273_live`; commit `831a8e674f7615d8ceace182c89a29cefbefb45f`; PR #276; merge `a3490b5f938b2f5285fb9dbb421d48a61eda4852` | integrated after fetched merge and local coordinator fast-forward; no child refresh or cleanup |
 | #274 layer1-b | `https://github.com/TheZenithPassage/catworld/issues/274` / open | none | `specs/274-260-fixture-layer1-b/`; `samples/result.md` | handoff-ready; released; owned result integrated | integrated / launched | implementation true; delivery true | F `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`; exact H/R/L/A preserved without replay; `/root/held_child_274_live`; refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12`; PR #277; merge `30b077a8f4e948475731224d71a71b95607881fe` | uniquely integrated after fetched merge and clean local coordinator fast-forward; affected validation stale pending rerun |
-| #275 layer2-summary | `https://github.com/TheZenithPassage/catworld/issues/275` / open | hard-depends on #273 and #274 | `specs/275-260-fixture-layer2-summary/`; `samples/result.md` | prepared; reconciled to `C2`; not handoff-ready | ready-next-layer / pending | implementation false; delivery false | authoritative fingerprint not computed; no child Git context/identity; H/R/L/A absent | sole dependency-ready child; held for fresh validation and the full two-phase barrier |
+| #275 layer2-summary | `https://github.com/TheZenithPassage/catworld/issues/275` / open | hard-depends on #273 and #274 | `specs/275-260-fixture-layer2-summary/`; `samples/result.md` | handoff-ready; reconciled to `C2`; result absent | held-preflight / pending | implementation false; delivery false | F `8ddfc990418b0eaf8bd2adad0d193cbf1317c17db2c54e0921c88826a66f5e86`; exact branch/worktree at I2; `H275 = SELF/HEAD`; R/L/A and identity absent | wait for H push/fetch equality, exact-SHA R, then exactly one held preflight dispatch |
 
 The child set is complete and unique. No duplicate issue number, same-number artifact prefix, sibling-owned surface, or unexpected child exists.
 
@@ -93,6 +93,12 @@ The child set is complete and unique. No duplicate issue number, same-number art
 |-------|-------------------------|-----------------------|---|---|------------------|
 | #273 | `sidecar/273-260-fixture-layer1-a@831a8e674f7615d8ceace182c89a29cefbefb45f`; exact worktree clean; remote child ref equal | `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811`, recomputed independently by coordinator and child | `78329c6f45793583d4d0e46a96ad54066989ba8d`; pushed/fetched-equal | `99f34e32de9702ae34301463e32ed3d8ff013932`; stores H; pushed/fetched-equal; H direct parent | L `08f8588dab15ab0e1991733f43d4a74e44deda4e`; A `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; `/root/held_child_273_live`; release accepted; PR #276 ready |
 | #274 | `sidecar/274-260-fixture-layer1-b@cb59c1b245999d44a98c31864113fcb948f00bc0`; exact worktree clean; remote child ref equal | `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba`, recomputed independently by coordinator and child | `78329c6f45793583d4d0e46a96ad54066989ba8d`; pushed/fetched-equal | `99f34e32de9702ae34301463e32ed3d8ff013932`; stores H; pushed/fetched-equal; H direct parent | L `08f8588dab15ab0e1991733f43d4a74e44deda4e`; A `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; `/root/held_child_274_live`; release accepted; PR #277 ready |
+
+### Layer 2 Handoff Evidence
+
+| Child | Exact child Git context | Canonical fingerprint | H | R | L / A / identity |
+|-------|-------------------------|-----------------------|---|---|------------------|
+| #275 | `sidecar/275-260-fixture-layer2-summary@5e5eab3912673491806145855151e8976deda160`; exact recorded worktree clean; no remote child ref | `8ddfc990418b0eaf8bd2adad0d193cbf1317c17db2c54e0921c88826a66f5e86`, recomputed from the actual 21-field Git context immediately before H | `H275 = SELF/HEAD`; push/fetch pending | absent; must later store literal H275 | absent; no child identity; launch pending; permissions false |
 
 ### Historical Partial Layer-1 Resume Evidence
 
@@ -259,10 +265,10 @@ Each result is a small Markdown sample artifact. No child may redefine this cont
 
 | Resource | Branch | Source | Exact worktree | Local state | Remote state | Same-run ownership |
 |----------|--------|--------|----------------|-------------|--------------|--------------------|
-| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | clean at M277 `30b077a8f4e948475731224d71a71b95607881fe`; `I2 = SELF/HEAD` artifact-only integration update | fetched remote equaled M277 before I2; I2 push pending | recorded for this run |
+| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | I2 `5e5eab3912673491806145855151e8976deda160`; `H275 = SELF/HEAD` artifact-only handoff update | I2 pushed/fetched-equal before child creation; H275 push pending | recorded for this run |
 | Child #273 | `sidecar/273-260-fixture-layer1-a` | activation head `A=e8d7bea2033d598a13f826ea11ee791492eb4f3b` after clean fast-forward | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a` | retained clean at `831a8e674f7615d8ceace182c89a29cefbefb45f`; no refresh required | remote equal to local; PR #276 merged into coordinator as M276 | recorded for this run |
 | Child #274 | `sidecar/274-260-fixture-layer1-b` | activation head `A=e8d7bea2033d598a13f826ea11ee791492eb4f3b` after clean fast-forward; normally merged pushed R1 | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\274-260-fixture-layer1-b` | retained clean at refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` | remote equal to local; PR #277 merged as M277 | recorded for this run |
-| Child #275 | `sidecar/275-260-fixture-layer2-summary` | integration record I2 after refreshed M277 | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\275-260-fixture-layer2-summary` | planned; no branch/worktree yet | none | ready-next-layer; not yet owned as created |
+| Child #275 | `sidecar/275-260-fixture-layer2-summary` | exact I2 `5e5eab3912673491806145855151e8976deda160` after fresh validation | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\275-260-fixture-layer2-summary` | created clean at exact I2; no upstream; result absent | remote ref absent | recorded for this run; held-preflight |
 
 No child branch starts from `main`. No branch/worktree may be renamed, guessed, auto-recovered, deleted, rebased, or force-updated.
 
@@ -333,13 +339,14 @@ Historical attempts are preserved. Current readiness uses exactly one result per
 | Local coordinator refresh | clean P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e` to fetched M276 | `git fetch`, clean-state gate, `git merge --ff-only`, local/remote equality, ancestry and result-content checks | passed | remote-first refresh completed before integration marking or active-child refresh; local `main` untouched |
 | Historical PR #277 pre-refresh state | PR #277 at `cb59c1b245999d44a98c31864113fcb948f00bc0` against fetched M276 | current GitHub state/draft/mergeability/base/head/body/file read plus local PR-equivalent name-only and whitespace checks | stale | preserved stale attempt: PR itself was open, non-draft, mergeable and one-file with exact wording, but coordinator movement invalidated readiness until the current rerun |
 | Active-child #274 normal-merge refresh | refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` | exact preserved identity, clean pre-state, fetched R1 equality, `git merge --no-ff`, exact two-parent inspection, R1/M276/#273/#274/H/R/L/A ancestry, no-conflict and one-path review | passed | ordered parents are exact pre-refresh child `cb59c1b245999d44a98c31864113fcb948f00bc0` then R1 `11fa667018294cd7d9486fb188b67ede14df3fe4`; H/R/L/A were not replayed |
-| Complete #257 merge-aware resume matrix | unchanged C2 simulator blob `341b1549d2e205e1137f5fb75e1922fbe8f56ecd` | `remote-refresh-order`, `active-child-refresh`, `resume-states`, `validation-staleness`, `unexpected-local-changes`, `unsafe-divergence`, `evidence-mismatch`, `missing-branch-state`, `human-only-blocker`, `unsafe-dependency-state`, `prohibited-operations` | stale | historical 11/11 pass at the #274 refresh; M277 coordinator movement requires a formal rerun before #275 dispatch |
+| Complete #257 merge-aware resume matrix | unchanged C2 simulator blob `341b1549d2e205e1137f5fb75e1922fbe8f56ecd` | `remote-refresh-order`, `active-child-refresh`, `resume-states`, `validation-staleness`, `unexpected-local-changes`, `unsafe-divergence`, `evidence-mismatch`, `missing-branch-state`, `human-only-blocker`, `unsafe-dependency-state`, `prohibited-operations` | passed | stale state was persisted at I2 before rerun; fresh 11/11 passed at exact I2, with no prohibited operation attempted |
 | Refreshed #274 child validation | `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` against exact R1 | 39 continuity, identity, branch/worktree, parent, ancestry, source-map, whitespace, token, prepared-artifact, #275-absence and clean-state checks | stale | historical 39/39 pass remains delivery evidence; current readiness applicability is stale after M277 until dependency-layer validation reruns |
 | Refreshed #274 publication | local/remote `sidecar/274-260-fixture-layer1-b` at `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` | normal push, fetch, local/remote equality, clean upstream `+0/-0`, coordinator remote unchanged at R1 | passed | existing branch and PR only; no PR metadata/body, issue, comment, or coordinator mutation by the child |
 | PR #277 post-refresh readiness | GitHub PR #277 before merge plus fetched refs | state/draft/mergeability, base/head, commits/files, exact body/diff/comments, local merge parents and PR-equivalent scope | stale | historical ready result superseded by user merge; current integration evidence is recorded separately |
 | PR #277 merge observation | PR #277 plus M277 `30b077a8f4e948475731224d71a71b95607881fe` | current GitHub fetch, exact ordered-parent inspection, child ancestry, one-path delta, content and explicit-range whitespace | passed | merged at `2026-07-12T11:17:25Z`; exact parents P2 then refreshed #274; original #274 and #273 commits remain ancestors |
 | Second local coordinator refresh | clean P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686` to fetched M277 | remote-first fetch, clean-state gate, `git merge --ff-only`, equality, ancestry, result-token checks | passed | completed before integration marking; both dependency results are now local; `main` unchanged |
-| Complete layer-1 integration and next-layer gate | exact M277 plus current issue/PR/ref/artifact state | unique child ledger, hard-dependency recomputation, blocker and #275-absence review | stale | both children are factually integrated and #275 is sole ready-next-layer; formal affected validation has not yet rerun |
+| Complete layer-1 integration and next-layer gate | exact pushed/fetched I2 over M277 plus current issue/PR/ref/artifact state | 41 live ancestry, source-map, marker, prepared-blob, absence, branch/worktree, main-isolation, cleanup, task-count and explicit-range checks | passed | stale state was persisted before rerun; 41/41 passed; both children uniquely integrated, no blocker, #275 sole ready-next-layer |
+| #275 Git-context and fingerprint gate | actual child branch/worktree at exact I2 plus canonical 21-field payload | collision/absence/source/branch/path/clean/result/task checks and UTF-8 SHA-256 recomputation | passed | F275 `8ddfc990418b0eaf8bd2adad0d193cbf1317c17db2c54e0921c88826a66f5e86`; branch/worktree clean; 13/13 tasks unchecked; no remote or PR |
 | Local-main isolation at Pause 2 | local/fetched `main=047569718767859289b9f48d68b635b8f7b7f1ac` | fetch without local update, ref equality, no attached main worktree, runtime path/child ancestry isolation, clean control/runtime worktrees | passed | local main unchanged; #275 resources and cleanup journal absent; cleanup ineligible |
 | Local-main isolation at Pause 1 | local/fetched `main=047569718767859289b9f48d68b635b8f7b7f1ac` | fetch without local update, ref equality, no attached main worktree, tree-path absence, child-commit non-ancestry | passed | local main unchanged; no runtime path or child commit present |
 | Pause-1 bookkeeping applicability | P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e` | sole changed path is this coordinator artifact; child commits remain direct children of A and owned paths are disjoint | passed | historical Pause-1 evidence; superseded for resume decisions by current fetched M276 and R1 |
@@ -370,7 +377,7 @@ Current evidence must be re-read before every resume. Private conversation is no
 |-------|-------------|-------------------|----|-------|-------------------|-------------|----------------------------|----------------------|---------|
 | #273 | handoff-ready; released; implementation complete | retained clean at `831a8e674f7615d8ceace182c89a29cefbefb45f` / exact recorded path | #276 merged by M276 | 1 | integrated / launched | true / true | exact H/R/L/A; `/root/held_child_273_live`; release accepted | child validation passed at A; merge/ref/ancestry validation passed at M276 / no child refresh needed | ineligible: pending final PR merge |
 | #274 | handoff-ready; released; implementation complete and refreshed | retained clean at `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` / exact recorded path | #277 merged by M277 | 1 | integrated / launched | true / true | exact H/R/L/A preserved; `/root/held_child_274_live`; release accepted; normal refresh merge from R1 | delivery checks historically passed; current readiness applicability stale after M277 / no child refresh needed | ineligible: pending final PR merge |
-| #275 | prepared; reconciled; not handoff-ready | planned / planned; no resource exists | none | 2 | ready-next-layer / pending | false / false | absent; no dispatch identity | stale / required before Git-context preparation and dispatch | ineligible: pending final PR merge |
+| #275 | handoff-ready; reconciled; result absent | exact branch/worktree clean at I2; remote absent | none | 2 | held-preflight / pending | false / false | F275 exact; `H275 = SELF/HEAD`; R/L/A and dispatch identity absent | 11/11 simulator plus 41/41 live checks passed; H publication pending | ineligible: pending final PR merge |
 
 Before H2, update this artifact when factual state changes: artifact readiness, branch/worktree creation, H/R publication, dispatch acceptance/rejection/ambiguity and stable identity, L/A publication, release success/failure, held-preflight zero-mutation and barrier-only incorporation evidence, PR creation, user merge observation, stale validation, coordinator/active-child refresh, integration, next-layer readiness, blockers, terminal child accounting, H results, and pending H2 manifest.
 
@@ -473,12 +480,33 @@ This checkpoint is now historical and satisfied by current GitHub/ref evidence.
   no blocker;
 - **staleness transition**: all M277-affected validation is explicitly `stale`
   before the formal rerun; no child resource or dispatch was created first;
-- **integration recording head**: `I2 = SELF/HEAD`; this commit changes only
-  this coordinator artifact and must be normally pushed, fetched, and proven
-  equal before #275 Git-context creation;
+- **integration recording head**: exact I2
+  `5e5eab3912673491806145855151e8976deda160`; its sole M277-to-I2 delta is
+  this coordinator artifact; normal push/fetch equality passed before #275
+  Git-context creation;
 - **local main / cleanup**: local and fetched main remain exact
   `047569718767859289b9f48d68b635b8f7b7f1ac`; cleanup remains `ineligible`
   with reason `pending final PR merge`, and no same-run cleanup state exists.
+
+## Layer-2 Held Dispatch Barrier
+
+- **fresh validation**: after I2 durably recorded all affected results as
+  `stale`, the unchanged C2 #257 simulator blob
+  `341b1549d2e205e1137f5fb75e1922fbe8f56ecd` passed all 11 scenarios and the
+  live dependency/integration suite passed 41/41 checks;
+- **prepared Git context**: `sidecar/275-260-fixture-layer2-summary` and its
+  exact recorded worktree were created clean from I2. No remote ref, result,
+  PR, upstream, or dispatch identity exists;
+- **canonical fingerprint**: F275
+  `8ddfc990418b0eaf8bd2adad0d193cbf1317c17db2c54e0921c88826a66f5e86`,
+  computed from exactly 21 ordered v1 fields with integer layer/dependencies,
+  exact C2, child-then-coordinator PR references, launch `pending`, and Boolean
+  false permissions;
+- **handoff-ready evidence**: `H275 = SELF/HEAD`; it changes only this
+  coordinator artifact. Dispatch is prohibited until H275 is normally pushed,
+  fetched equal, and a later artifact-only R275 stores its literal SHA;
+- **current authority**: workflow `held-preflight`, factual launch `pending`,
+  implementation false, delivery false. No child task or mutation is allowed.
 
 ## Integrated Scope Review State
 
