@@ -12,8 +12,8 @@
 - **parent epic**: [#249](https://github.com/TheZenithPassage/catworld/issues/249)
 - **classification**: workflow-only sidecar coordinator
 - **stable final-delivery identity**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb:272:main`
-- **current lifecycle state**: all three prepared children are terminal and uniquely integrated after the remote-first fast-forward to exact PR #278 merge `9ee8613ad63d97b4cefebcedeb2c75c60eee9e50`; this factual terminal-integration/staleness record is `I3 = SELF/HEAD`
-- **current readiness**: finalization has started, but every M278-affected integrated-validation result is explicitly `stale` before rerun; `I3` becomes literal H only if the complete current suite passes at that exact commit
+- **current lifecycle state**: all three prepared children are terminal and uniquely integrated; complete validation passed at literal H `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`; this direct artifact-only finalization commit is `H2 = SELF/HEAD`
+- **current readiness**: `pending H2 checks`; H2 freezes the branch-bound artifact, and no final coordinator-to-`main` PR existed when H2 was prepared
 
 This exact `run_id` is immutable. It identifies same-run resume and the later Git-common-directory cleanup journal; it must not be derived, shortened, renamed, or guessed.
 
@@ -37,7 +37,7 @@ The control and runtime contexts are intentionally separate.
 |---------|------------|-----|-------------------|---------|
 | #260 immutable workflow source `C2` | `chore/260-live-controlled-sidecar-dry-run`, based on `origin/workflow/sidecar-buildout` | source `db175fe0a1911e9ea2a1931ae808b9771f874b57`; current pushed report head C5 `db67286faab0051df55b45945d6b306c5025a47b` | `C:\Users\moshe\Desktop\catworld` | Canonical corrected coordinator/child skills, #255/#256 contracts and validators, routing exception, architecture, and #260 decision artifacts consumed by every handoff; later report commits do not replace C2 |
 | Runtime coordinator source | `origin/main` | `047569718767859289b9f48d68b635b8f7b7f1ac` | source ref only; local `main` is not checked out | Required runtime base |
-| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | base `047569718767859289b9f48d68b635b8f7b7f1ac`; I `421b2ac250c05c59eb3cade06b4056e02a6c8415`; H `78329c6f45793583d4d0e46a96ad54066989ba8d`; R `99f34e32de9702ae34301463e32ed3d8ff013932`; L `08f8588dab15ab0e1991733f43d4a74e44deda4e`; A `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e`; M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; R1 `11fa667018294cd7d9486fb188b67ede14df3fe4`; P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686`; M277 `30b077a8f4e948475731224d71a71b95607881fe`; I2 `5e5eab3912673491806145855151e8976deda160`; H275 `cc29c5469ebddc848f221c345f5d6589c5d67543`; R275 `73944ba1ff8287b02110a79240fcb050c7d0efd2`; L275 `aaef4dee4479bbe826cd0f06e5993af9ea6c06c8`; A275 `26de0e8e157081571235279f476f13486be7c028`; P3 `56ccee16600c95a79b17d8d503a47e9f49d655f1`; M278 `9ee8613ad63d97b4cefebcedeb2c75c60eee9e50`; `I3 = SELF/HEAD` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree; I3 is the candidate H pending exact-head validation |
+| Runtime coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | base/B `047569718767859289b9f48d68b635b8f7b7f1ac`; I `421b2ac250c05c59eb3cade06b4056e02a6c8415`; held-dispatch H/R/L/A `78329c6f45793583d4d0e46a96ad54066989ba8d` / `99f34e32de9702ae34301463e32ed3d8ff013932` / `08f8588dab15ab0e1991733f43d4a74e44deda4e` / `e8d7bea2033d598a13f826ea11ee791492eb4f3b`; P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e`; M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; R1 `11fa667018294cd7d9486fb188b67ede14df3fe4`; P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686`; M277 `30b077a8f4e948475731224d71a71b95607881fe`; I2 `5e5eab3912673491806145855151e8976deda160`; H275/R275/L275/A275 `cc29c5469ebddc848f221c345f5d6589c5d67543` / `73944ba1ff8287b02110a79240fcb050c7d0efd2` / `aaef4dee4479bbe826cd0f06e5993af9ea6c06c8` / `26de0e8e157081571235279f476f13486be7c028`; P3 `56ccee16600c95a79b17d8d503a47e9f49d655f1`; M278 `9ee8613ad63d97b4cefebcedeb2c75c60eee9e50`; final implementation H `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`; `H2 = SELF/HEAD` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | Artifact write boundary and integration worktree; H2 must directly parent H and freeze this artifact |
 
 The 89-path build-out delta from `origin/main` to `origin/workflow/sidecar-buildout` is not merged, cherry-picked, or copied wholesale into the runtime branch. Immutable control revision `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57` is contained by the normally pushed/fetched-equal control report chain through current C5 `db67286faab0051df55b45945d6b306c5025a47b`. Historical report head `C2r=76531c9aa0511c49dfd44eb196913a2600a044da` and later report-only commits do not replace `C2` as the workflow source or fingerprint input. The control context supplies governing workflow instructions; runtime worktrees supply Git execution state and tracked fixture artifacts.
 
@@ -265,7 +265,7 @@ Each result is a small Markdown sample artifact. No child may redefine this cont
 
 | Resource | Branch | Source | Exact worktree | Local state | Remote state | Same-run ownership |
 |----------|--------|--------|----------------|-------------|--------------|--------------------|
-| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | fast-forwarded cleanly through P3 `56ccee16600c95a79b17d8d503a47e9f49d655f1` to M278 `9ee8613ad63d97b4cefebcedeb2c75c60eee9e50`; `I3 = SELF/HEAD` artifact-only terminal/stale record | fetched remote exact M278; I3 normal push/fetch pending | recorded for this run |
+| Coordinator | `sidecar/272-coordinator-260-live-sidecar-fixture` | `origin/main@047569718767859289b9f48d68b635b8f7b7f1ac` | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\272-coordinator-260-live-sidecar-fixture` | literal H `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` passed complete validation; `H2 = SELF/HEAD` is its direct artifact-only child | H pushed/fetched-equal; H2 normal push/fetch and affected checks pending | recorded for this run |
 | Child #273 | `sidecar/273-260-fixture-layer1-a` | activation head `A=e8d7bea2033d598a13f826ea11ee791492eb4f3b` after clean fast-forward | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\273-260-fixture-layer1-a` | retained clean at `831a8e674f7615d8ceace182c89a29cefbefb45f`; no refresh required | remote equal to local; PR #276 merged into coordinator as M276 | recorded for this run |
 | Child #274 | `sidecar/274-260-fixture-layer1-b` | activation head `A=e8d7bea2033d598a13f826ea11ee791492eb4f3b` after clean fast-forward; normally merged pushed R1 | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\274-260-fixture-layer1-b` | retained clean at refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` | remote equal to local; PR #277 merged as M277 | recorded for this run |
 | Child #275 | `sidecar/275-260-fixture-layer2-summary` | clean fast-forward from I2 to exact A275 after same-identity verification/release | `C:\Users\moshe\Desktop\catworld-sidecar-worktrees\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\275-260-fixture-layer2-summary` | clean at result commit `9e111b2a22194abcc1594fc410c01bde0e0af5d6`; upstream `+0/-0` | fetched remote equal; PR #278 merged into coordinator as M278 | recorded for this run; retained pending final PR merge |
@@ -362,8 +362,8 @@ Historical attempts are preserved. Current readiness uses exactly one result per
 | Local-main isolation at Pause 1 | local/fetched `main=047569718767859289b9f48d68b635b8f7b7f1ac` | fetch without local update, ref equality, no attached main worktree, tree-path absence, child-commit non-ancestry | passed | local main unchanged; no runtime path or child commit present |
 | Pause-1 bookkeeping applicability | P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e` | sole changed path is this coordinator artifact; child commits remain direct children of A and owned paths are disjoint | passed | historical Pause-1 evidence; superseded for resume decisions by current fetched M276 and R1 |
 | Active-child #274 validation after coordinator movement | pre-refresh child `cb59c1b245999d44a98c31864113fcb948f00bc0`; coordinator input R1 | complete #257 merge-aware resume matrix plus child source-map, diff, content, PR, ref, ancestry and clean-state validation | passed | prior evidence was explicitly stale; the required rerun completed at refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` and is represented by the current rows above |
-| Terminal child ledger and integrated coordinator validation | candidate H at `I3 = SELF/HEAD` | complete current #258/#260 scenario, live evidence, scope, template, main-isolation, prohibited-operation and cleanup checks | stale | M278 coordinator movement explicitly invalidated all affected current evidence before rerun; the terminal child gate is reached, but no result is fresh until the complete suite passes at literal I3 |
-| H2 affected checks | literal H2 | pending manifest | not run | H2 does not exist |
+| Terminal child ledger and integrated coordinator validation | literal H `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` | 13 canonical #258 scenarios, 42 supplemental #255–#257 scenarios, 77 corrected live assertions, independent scope/topology audit, current GitHub evidence and commit-status review | passed | 55/55 immutable-C2 simulations and 77/77 live assertions passed; independent audit passed; GitHub has no external status contexts and no final PR |
+| H2 affected checks | `H2 = SELF/HEAD` | exact eight-ID status-free manifest recorded below | not run | readiness remains `pending H2 checks`; resolved results, remote equality, body fingerprint and PR URL remain external and must not create H3/H4 |
 
 ### Child Focused Validation Contract
 
@@ -390,7 +390,7 @@ Current evidence must be re-read before every resume. Private conversation is no
 | #274 | handoff-ready; released; implementation complete and refreshed | retained clean at `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` / exact recorded path | #277 merged by M277 | 1 | integrated / launched | true / true | exact H/R/L/A preserved; `/root/held_child_274_live`; release accepted; normal refresh merge from R1 | historical delivery/refresh/integration checks passed; M278-affected integrated validation stale pending H rerun / no child refresh needed | ineligible: pending final PR merge |
 | #275 | handoff-ready; released; implementation complete | clean at `9e111b2a22194abcc1594fc410c01bde0e0af5d6` / exact worktree; fetched remote equal | #278 merged by M278 | 2 | integrated / launched | true / true | exact H275/R275/L275/A275; `/root/held_child_275_live`; release accepted | historical child/readiness checks passed; exact merge/ref/ancestry observation passed; M278-affected integrated validation stale pending H rerun / no child refresh needed | ineligible: pending final PR merge |
 
-Before H2, update this artifact when factual state changes: artifact readiness, branch/worktree creation, H/R publication, dispatch acceptance/rejection/ambiguity and stable identity, L/A publication, release success/failure, held-preflight zero-mutation and barrier-only incorporation evidence, PR creation, user merge observation, stale validation, coordinator/active-child refresh, integration, next-layer readiness, blockers, terminal child accounting, H results, and pending H2 manifest.
+This H2 commit freezes the branch-bound artifact after recording artifact readiness, branch/worktree creation, H/R publication, dispatch identity, L/A publication, release, child PRs and merges, stale transitions, coordinator/active-child refresh, terminal accounting, complete H results, and the pending H2 manifest. Later H2 results and final PR evidence remain external.
 
 ## Prepared Child Integration Ledger
 
@@ -590,9 +590,10 @@ This checkpoint is now historical and satisfied by current GitHub/ref evidence.
 - **staleness transition**: coordinator movement from P3 to M278 explicitly
   makes all affected integrated-validation evidence `stale` before any rerun;
   no H result is claimed by this record;
-- **pre-H recording head**: `I3 = SELF/HEAD` changes only this coordinator
-  artifact. After normal push/fetch equality, the complete suite will run at
-  literal I3; I3 is designated H only if every required current check passes;
+- **pre-H recording head**: I3
+  `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` changes only this coordinator
+  artifact. Normal push/fetch equality and every required current check passed,
+  so exact I3 is the final implementation head H;
 - **main / final PR / cleanup**: freshly fetched `origin/main`, local `main`,
   and the preserved runtime base all equal
   `047569718767859289b9f48d68b635b8f7b7f1ac`; no coordinator-to-`main` PR
@@ -601,27 +602,144 @@ This checkpoint is now historical and satisfied by current GitHub/ref evidence.
 
 ## Integrated Scope Review State
 
-- **runtime B**: current fetched `origin/main` is exact `047569718767859289b9f48d68b635b8f7b7f1ac`, equal to unchanged local `main` and the creation base; re-fetch immediately before H validation;
-- **PR-equivalent merge base**: pending at H;
-- **expected runtime paths before H2**: this coordinator artifact, nine prepared child artifact files, and three child result files;
-- **product paths**: none;
-- **current scope result**: terminal integration reached; complete B-to-I3 reconciliation remains stale/pending until literal I3 exists;
-- **unexplained scope blocker**: none observed yet; final review pending.
+- **runtime B**: `047569718767859289b9f48d68b635b8f7b7f1ac`; freshly fetched `origin/main`, unchanged local `main`, and the creation base were equal at H
+- **literal H**: `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`; local, tracking, and live remote coordinator refs were equal and clean
+- **PR-equivalent merge base**: `047569718767859289b9f48d68b635b8f7b7f1ac`, exactly B
+- **reviewed ranges**: both `B...H` and `B..H`
+- **scope result at H**: `passed`; both ranges contain the same exact 13-path source map
+- **product or workflow-source paths**: none
+- **unexplained unrelated changes**: none
+
+Exact integrated source map:
+
+1. `specs/272-coordinator-260-live-sidecar-fixture/coordinator-orchestration.md`
+2. `specs/273-260-fixture-layer1-a/spec.md`
+3. `specs/273-260-fixture-layer1-a/plan.md`
+4. `specs/273-260-fixture-layer1-a/tasks.md`
+5. `specs/273-260-fixture-layer1-a/samples/result.md`
+6. `specs/274-260-fixture-layer1-b/spec.md`
+7. `specs/274-260-fixture-layer1-b/plan.md`
+8. `specs/274-260-fixture-layer1-b/tasks.md`
+9. `specs/274-260-fixture-layer1-b/samples/result.md`
+10. `specs/275-260-fixture-layer2-summary/spec.md`
+11. `specs/275-260-fixture-layer2-summary/plan.md`
+12. `specs/275-260-fixture-layer2-summary/tasks.md`
+13. `specs/275-260-fixture-layer2-summary/samples/result.md`
 
 ## Finalization State
 
-- **B**: current fetched candidate is `047569718767859289b9f48d68b635b8f7b7f1ac`; final H gate must re-fetch and require exact equality
-- **H**: candidate `I3 = SELF/HEAD`; becomes literal H only after I3 is pushed/fetched and every complete H check passes at that exact commit
-- **H2 identity**: `SELF/HEAD` only after the direct artifact-only commit exists
-- **expected H2 parent**: pending literal H
+- **B**: `047569718767859289b9f48d68b635b8f7b7f1ac`
+- **H**: `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`
+- **H2 identity**: `SELF/HEAD`
+- **expected H2 parent**: `c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`
 - **sole H..H2 path**: `specs/272-coordinator-260-live-sidecar-fixture/coordinator-orchestration.md`
-- **complete H checks**: explicitly `stale` before rerun; no H pass is claimed here
-- **status-free H2 rerun manifest**: pending
-- **per-H-check applicability reasons**: pending
-- **readiness**: pending H and H2 checks
-- **final template**: approved immutable C2 control blob `df6f433ed1466f5db2d93f0addf3b1df149d89b2`; runtime-main blob difference is reviewed and non-conflicting, with identities/applicability to be rechecked at H/H2
-- **remaining risk**: after delivery the ready final PR remains user-owned and unmerged until Mandatory Pause 4; cleanup therefore remains unavailable
+- **complete H checks**: exact 19-ID canonical manifest below; every current result is `passed`
+- **status-free H2 rerun manifest**: exact eight-ID canonical manifest below
+- **readiness**: `pending H2 checks`
+- **final template**: immutable C2 path `.github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md`, blob `df6f433ed1466f5db2d93f0addf3b1df149d89b2`
+- **stable final-delivery identity**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb:272:main`
+- **remaining risks**: live base/PR state must be rechecked after H2; the eventual ready PR remains user-owned and unmerged until Mandatory Pause 4
 - **cleanup**: `ineligible`; reason `pending final PR merge`
+
+### Complete H Check Results
+
+Each canonical H check has exactly one current result at literal H.
+
+| Check ID | Status | Exact evidence at H |
+|----------|--------|---------------------|
+| `scenario-all-integrated` | `passed` | immutable C2 #258 simulator blob `30374edfca8d8b811bc5c65dc16180c3dffe6a32`; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-incomplete-children` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-evidence-mismatch` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-integrated-validation` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-validation-readiness` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-validation-staleness` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-two-head-finalization` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-scope-drift` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-final-pr-delivery` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-existing-final-pr` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-artifact-final-state` | `passed` | same immutable simulator plus verifier blob `9924f3e334bb904dfb378f5d1d7f4a4f69a685c9`; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-closing-keyword-isolation` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `scenario-prohibited-operations` | `passed` | same immutable simulator; isolated invocation returned exit 0 and JSON `passed` |
+| `coordinator-source-review` | `passed` | current #260/#272–#275 and PR #276–#278 evidence, exact merge topology, unique terminal ledger, all result markers, clean refs/worktrees, no final PR, 77/77 live assertions and independent audit |
+| `architecture-template-source-review` | `passed` | immutable C2/C5 source review; approved final-template blob `df6f433ed1466f5db2d93f0addf3b1df149d89b2`; runtime B/H blob `73fe872fa434a0c9f5dbb758bd89d6797fa2dd36` reviewed as a real non-conflicting context difference |
+| `protected-skills-range-review-at-h` | `passed` | `B...H` contains no `.agents`, `.github`, architecture, frontend, or backend path; critical C2-to-C5 sources are unchanged |
+| `source-map-range-review-at-h` | `passed` | `B...H` and `B..H` both equal the exact 13-path integrated source map above |
+| `diff-check-b-h` | `passed` | `git diff --check 047569718767859289b9f48d68b635b8f7b7f1ac...c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` exited zero |
+| `tasks-complete` | `passed` | T042–T044 runtime requirements and all terminal child task evidence are complete; prepared child task checkboxes remain intentionally unchanged by contract, with exact unchecked counts 8/18/13 |
+
+Supplemental current evidence at H:
+
+- immutable-C2 #255 dependency/fanout matrix: 12/12 passed;
+- immutable-C2 #256 child-execution matrix: 19/19 passed;
+- immutable-C2 #257 merge-aware-resume matrix: 11/11 passed;
+- immutable-C2 #258 canonical H matrix: 13/13 passed;
+- corrected live topology/scope/artifact/result/template/main/cleanup suite: 77/77 passed;
+- independent read-only H scope/topology audit: passed;
+- H artifact Git blob: `117b286cf184fd1a50e61d6a88c8409bd4ff8f16`;
+  SHA-256: `0a26fe6ef351639dcae2c7709bd572e01f1f7dbb88e1b4316bc0405931934fc6`;
+- GitHub commit status contexts at H: none; no required external context is missing or non-passing.
+
+### Per-H-Check Applicability at H2
+
+| H check ID | Non-empty applicability reason |
+|------------|----------------------------------|
+| `scenario-all-integrated` | H2 changes only the runtime coordinator artifact; the immutable C2 simulator and all integrated child commits are unchanged. |
+| `scenario-incomplete-children` | H2 cannot change the terminal Git/PR ancestry ledger; the simulator source is outside `H..H2`. |
+| `scenario-evidence-mismatch` | Immutable C2 mismatch detection remains applicable; H2's concrete identities are checked by the H2 artifact verifier. |
+| `scenario-integrated-validation` | H remains an immutable exact commit with its complete results; H2 records rather than alters those implementation surfaces. |
+| `scenario-validation-readiness` | The C2 readiness model is unchanged; actual H2 readiness remains pending until the status-free manifest is executed. |
+| `scenario-validation-staleness` | H2's artifact-only movement is explicitly handled by the affected-check manifest, so no stale result is silently retained. |
+| `scenario-two-head-finalization` | H2 is required to be the direct artifact-only child of literal H and is verified by the H2 parent/scope checks. |
+| `scenario-scope-drift` | H2 modifies a path already present in the exact H source map; `B...H2` is nevertheless re-reconciled. |
+| `scenario-final-pr-delivery` | No PR exists at H2 preparation; delivery is gated on the post-H2 base/head/body/readiness recheck. |
+| `scenario-existing-final-pr` | The no-existing-PR result is re-read after H2 so a concurrent same-run PR cannot create a duplicate. |
+| `scenario-artifact-final-state` | The model source is unchanged, while the concrete H2 artifact is intentionally affected and must pass `finalization-evidence-verifier`. |
+| `scenario-closing-keyword-isolation` | H2 changes no child PR or template; rendered final wording is checked only after H2. |
+| `scenario-prohibited-operations` | H2 authorizes only one artifact commit and normal push; prohibited-state checks are repeated before delivery. |
+| `coordinator-source-review` | The artifact portion is affected and is not retained blindly; the H2 verifier plus base/head/PR recheck refresh this review. |
+| `architecture-template-source-review` | Architecture and template paths are outside `H..H2`; template blob identities are still rechecked at H2. |
+| `protected-skills-range-review-at-h` | No protected source can change in the sole-artifact H2 delta; `B...H2` is re-reviewed explicitly. |
+| `source-map-range-review-at-h` | H2 modifies the already-approved coordinator artifact only; `B...H2` must still equal the same 13-path set. |
+| `diff-check-b-h` | The exact H result remains historical evidence at immutable H; H2 receives fresh `H..H2` and `B...H2` whitespace checks. |
+| `tasks-complete` | H2 cannot alter integrated child/task surfaces; the final artifact's own completeness is covered by the H2 verifier. |
+
+### Status-Free H2 Rerun Manifest
+
+This manifest intentionally records no result field. Resolved results remain external evidence after the commit exists.
+
+| Check ID | Command or review to execute after H2 exists |
+|----------|----------------------------------------------|
+| `finalization-evidence-verifier` | verify exact B/H/H2-self/parent/path/check-ID/manifest/applicability/scope/template/render-input/readiness/risk/cleanup fields and rerun the immutable C2 artifact-final-state model |
+| `diff-check-h-h2` | run explicit-range `git diff --check H..H2` and require the sole artifact path |
+| `diff-check-b-h2` | run `git diff --check B...H2` |
+| `protected-skills-range-review-b-h2` | require zero protected workflow, architecture, application, or product paths in `B...H2` |
+| `source-map-range-review-b-h2` | require `B...H2` to equal the same exact 13-path integrated source map |
+| `runtime-template-source-review-h2` | re-prove immutable C2 template blob, runtime B/H2 blob, source decision, and all seven render-input requirements |
+| `remote-head-h2-verification` | normally push H2, fetch the coordinator ref, and require local/tracking/live remote equality |
+| `base-head-merge-base-pr-recheck` | re-fetch `origin/main`, recheck B, merge base, H2 ancestry/head, complete scope/readiness freshness, and same-run final PR absence/consistency |
+
+Required H2 scope recheck IDs are exactly:
+
+- `target-base`
+- `merge-base`
+- `scope-diff`
+- `head`
+- `ancestry`
+
+### Final Template and Delivery Identity
+
+- **template source revision**: immutable C2 `db175fe0a1911e9ea2a1931ae808b9771f874b57`
+- **template path**: `.github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md`
+- **template blob**: `df6f433ed1466f5db2d93f0addf3b1df149d89b2`
+- **runtime B/H template blob**: `73fe872fa434a0c9f5dbb758bd89d6797fa2dd36`; reviewed and not substituted for the governing control blob
+- **render-input requirements**: exactly `coordinator-issue`, `integrated-child-traceability`, `complete-h-validation`, `resolved-h2-validation`, `scope-review`, `remaining-risks`, and `source-target-readiness`
+- **delivery identity**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb:272:main`
+- **source / target**: `sidecar/272-coordinator-260-live-sidecar-fixture` -> `main`
+- **closing authority**: exactly `Closes #272`, `Closes #273`, `Closes #274`, and `Closes #275`; trace parent dry-run only as `Related to #260`
+- **integrated child traceability**: PR #276 / D273 `831a8e674f7615d8ceace182c89a29cefbefb45f` / M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; PR #277 / refreshed D274 `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` / M277 `30b077a8f4e948475731224d71a71b95607881fe`; PR #278 / D275 `9e111b2a22194abcc1594fc410c01bde0e0af5d6` / M278 `9ee8613ad63d97b4cefebcedeb2c75c60eee9e50`
+- **existing same-run final PR at H2 preparation**: none
+- **remaining risks**: live `origin/main` or same-run PR state could change before delivery and therefore must be rechecked; after creation the final PR remains user-owned and unmerged
+- **cleanup**: `ineligible`; reason `pending final PR merge`; same-run cleanup state absent
 
 H2 will freeze this branch-bound artifact. Resolved H2 statuses, remote H2 equality, rendered-body fingerprint, final PR URL/state, final merge confirmation, and cleanup journal results remain external evidence; no H3 or H4 may be created to record them.
 
@@ -641,15 +759,14 @@ The first live attempt stopped before runtime commit, push, child Git creation, 
 
 ### Pending Prerequisites (not claimed as blockers)
 
-- commit only this factual terminal-integration/staleness update as
-  `I3 = SELF/HEAD`, normally push it, fetch the remote coordinator ref, and
-  prove exact equality plus the M278/P3/D275 and complete child ancestry chain;
-- re-fetch `origin/main`, establish literal B and PR-equivalent merge base,
-  reconcile complete scope, and run every required current check at literal I3;
-  designate I3 as H only if every result passes;
-- create the direct artifact-only H2 from H with complete H results and a
-  status-free affected-check manifest, then satisfy all H2 and final-delivery
-  gates without any H3/H4 artifact write.
+- prove this H2 commit has exact parent H and only the recorded artifact delta,
+  then execute every exact H2 manifest item and applicability review;
+- normally push H2, fetch the coordinator ref, and prove local/tracking/live
+  equality while `origin/main` still equals B and no inconsistent final PR
+  exists;
+- render the immutable C2 final template with current external H2 results,
+  create exactly one ready coordinator-to-`main` PR, and stop at Mandatory
+  Pause 4 without any H3/H4 artifact write or cleanup.
 
 If factual coordinator-artifact bookkeeping causes an unresolvable validation/target-base loop, stop as a concrete workflow defect and preserve all state.
 
