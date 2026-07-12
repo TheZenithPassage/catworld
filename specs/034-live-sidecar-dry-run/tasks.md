@@ -160,16 +160,16 @@
 
 ### Post-Merge Evidence for Technical Outcome 5
 
-- [ ] T049 [TO5] After the user reports the final runtime merge, re-read current final PR, issue, ref, H2, and `origin/main` evidence; prove the expected merge and record the external final state in `specs/034-live-sidecar-dry-run/dry-run-report.md` without modifying frozen H2
-- [ ] T050 [TO5] Prove local `main` remains at its original SHA with no direct sidecar artifact or commit; if it has an attached worktree require empty status, otherwise record no-main-worktree evidence, clean statuses for every existing run checkout, and local-main tree inspection in `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T051 [TO5] Evaluate cleanup eligibility through the approved Git-common-directory journal and, absent separate destructive authority, record `eligible/not_started`, exactly eight top-level fields, empty attempted operations, and the missing-authority reason without deleting any local or remote resource
+- [X] T049 [TO5] After the user reports the final runtime merge, re-read current final PR, issue, ref, H2, and `origin/main` evidence; prove the expected merge and record the external final state in `specs/034-live-sidecar-dry-run/dry-run-report.md` without modifying frozen H2
+- [X] T050 [TO5] Prove local `main` remains at its original SHA with no direct sidecar artifact or commit; if it has an attached worktree require empty status, otherwise record no-main-worktree evidence, clean statuses for every existing run checkout, and local-main tree inspection in `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T051 [TO5] Evaluate cleanup eligibility through the approved Git-common-directory journal and, absent separate destructive authority, record `eligible/not_started`, exactly eight top-level fields, empty attempted operations, and the missing-authority reason without deleting any local or remote resource
 
 ### Final #260 Build-Out Delivery for Technical Outcome 5
 
-- [ ] T052 [TO5] Complete the accepted staged evidence, actual issue/branch/worktree/PR URLs, validation history/freshness, defects or remaining risks, and cleanup journal outcome in `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T053 [TO5] Run every applicable existing #250–#259 focused regression named by the final evidence plan plus the complete #260 routing/live-evidence reviews; record fresh canonical results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T054 [TO5] Review all changed paths against `specs/034-live-sidecar-dry-run/plan.md` and justify or remove any unplanned surface while keeping the managed Spec Kit pointer absent from committed delivery state
-- [ ] T055 [TO5] Run final `git diff --check`, status, diff-summary, constitution, contract, routing, protected-operation, and validation-freshness checks on the #260 build-out branch; record results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T052 [TO5] Complete the accepted staged evidence, actual issue/branch/worktree/PR URLs, validation history/freshness, defects or remaining risks, and cleanup journal outcome in `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T053 [TO5] Run every applicable existing #250–#259 focused regression named by the final evidence plan plus the complete #260 routing/live-evidence reviews; record fresh canonical results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T054 [TO5] Review all changed paths against `specs/034-live-sidecar-dry-run/plan.md` and justify or remove any unplanned surface while keeping the managed Spec Kit pointer absent from committed delivery state
+- [X] T055 [TO5] Run final `git diff --check`, status, diff-summary, constitution, contract, routing, protected-operation, and validation-freshness checks on the #260 build-out branch; record results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
 - [ ] T056 [TO5] Commit the accepted post-runtime #260 evidence as a follow-up control-plane commit, normally push `chore/260-live-controlled-sidecar-dry-run`, and open one ready PR to `workflow/sidecar-buildout` using `Related to #260`; record and report the actual URL without merging it
 
 **Checkpoint**: #260 is delivered for review; no fixture or build-out PR has been merged by Codex and no cleanup beyond eligibility evaluation has occurred.

@@ -3,12 +3,12 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: all three children uniquely integrated; complete H/H2 finalization and ready coordinator delivery complete; stopped at Mandatory Pause 4
-- **Current checkpoint**: Mandatory Pause 4 reached with runtime `B=047569718767859289b9f48d68b635b8f7b7f1ac`, `H=c383fef1bb10e54e54dbd25de82dbd61b0d3f73a`, `H2=df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`, and ready [PR #279](https://github.com/TheZenithPassage/catworld/pull/279)
+- **Current stage**: the complete H/H2 runtime delivery was accepted through the user-owned merge of [PR #279](https://github.com/TheZenithPassage/catworld/pull/279); post-merge evidence and cleanup eligibility are recorded; the bounded #252 portability correction, complete T053 regression/live-evidence rerun, T054 scope convergence, and T055 final gate are complete
+- **Current checkpoint**: Mandatory Pause 4 satisfied by merge commit `d46968fd0914f632e2b4eb5914547dfc7921c17d`, with ordered parents runtime `B=047569718767859289b9f48d68b635b8f7b7f1ac` then `H2=df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`; literal implementation `H=c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` remains H2's direct parent
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: PRs #276–#278 are uniquely integrated; [PR #279](https://github.com/TheZenithPassage/catworld/pull/279) is the sole open, non-draft, mergeable, ready coordinator-to-`main` PR with exact H2 head, B base, 13 approved files, four controlled closing lines, and `Related to #260`
-- **Cleanup**: `ineligible`; reason `pending final PR merge`; same-run cleanup state remains absent
+- **Readiness**: every required validation and pre-delivery gate through T055 is current and `passed`; factual T056 commit/push/ready-PR delivery remains pending, and no final #260 PR exists
+- **Cleanup**: `eligible/not_started`; the same-run Git-common-directory journal contains exactly eight top-level fields, eight retained resource entries, reason `cleanup-authority-missing`, and zero attempted operations
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
 
@@ -88,14 +88,14 @@ Result: a fresh controlled four-issue fixture set is collision-free at this evid
 
 ### Current Fixture Issues
 
-All four issues were created without labels, assignees, milestones, comments, or state changes beyond their initial open state. After GitHub assigned their numbers, only these same controlled issue bodies were updated to record exact topology and paths; coordinator #272's title was narrowed to its deterministic slug source.
+All four issues were created without labels, assignees, milestones, comments, or state changes beyond their initial open state. After GitHub assigned their numbers, only these same controlled issue bodies were updated to record exact topology and paths; coordinator #272's title was narrowed to its deterministic slug source. The current post-merge re-read reports all four closed by PR #279's controlled closing lines, with zero comments.
 
 | Role | Issue | Title | State | Body SHA-256 | Layer / Dependencies |
 |------|-------|-------|-------|-------------|----------------------|
-| Coordinator | [#272](https://github.com/TheZenithPassage/catworld/issues/272) | `[Workflow] #260 live sidecar fixture` | open | `a44dd1d1557cb7ed50fc52124ba18e2e899c70fafbb67b0a13199493e3682029` | coordinator; lists #273, #274, #275 |
-| First layer A | [#273](https://github.com/TheZenithPassage/catworld/issues/273) | `[Workflow] #260 fixture layer1-a` | open | `59d8afda5fccf794afb670b86287b011f7f67f2b7f840e2641c3ffd10258ccef` | layer 1; none |
-| First layer B | [#274](https://github.com/TheZenithPassage/catworld/issues/274) | `[Workflow] #260 fixture layer1-b` | open | `2bd009a1438676c82b807cecc11e7a16a81536d3ee19c670b201cfd662221c17` | layer 1; none |
-| Dependent summary | [#275](https://github.com/TheZenithPassage/catworld/issues/275) | `[Workflow] #260 fixture layer2-summary` | open | `248d7f85038b53bff559d2d88882f526bb36035b17ca95f7aaa9237ea5e6844a` | layer 2; hard-depends on #273 and #274 |
+| Coordinator | [#272](https://github.com/TheZenithPassage/catworld/issues/272) | `[Workflow] #260 live sidecar fixture` | closed/completed | `a44dd1d1557cb7ed50fc52124ba18e2e899c70fafbb67b0a13199493e3682029` | coordinator; lists #273, #274, #275 |
+| First layer A | [#273](https://github.com/TheZenithPassage/catworld/issues/273) | `[Workflow] #260 fixture layer1-a` | closed/completed | `59d8afda5fccf794afb670b86287b011f7f67f2b7f840e2641c3ffd10258ccef` | layer 1; none |
+| First layer B | [#274](https://github.com/TheZenithPassage/catworld/issues/274) | `[Workflow] #260 fixture layer1-b` | closed/completed | `2bd009a1438676c82b807cecc11e7a16a81536d3ee19c670b201cfd662221c17` | layer 1; none |
+| Dependent summary | [#275](https://github.com/TheZenithPassage/catworld/issues/275) | `[Workflow] #260 fixture layer2-summary` | closed/completed | `248d7f85038b53bff559d2d88882f526bb36035b17ca95f7aaa9237ea5e6844a` | layer 2; hard-depends on #273 and #274 |
 
 Current-evidence re-read passed:
 
@@ -417,13 +417,21 @@ tracking, and live `main` remained
 - Exactly one final [PR #279](https://github.com/TheZenithPassage/catworld/pull/279)
   was created ready from
   `sidecar/272-coordinator-260-live-sidecar-fixture@df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`
-  to `main@047569718767859289b9f48d68b635b8f7b7f1ac`. Current GitHub evidence
-  reports open, non-draft, mergeable, 23 commits, exactly 13 changed files,
-  zero comments, exact body, four closing lines for #272–#275, and only
-  `Related to #260` for the parent dry-run.
-- Local/tracking/live `main` remains exact B with no attached worktree or
-  runtime path. All retained worktrees remain clean. Cleanup remains
-  `ineligible` with reason `pending final PR merge`; the journal is absent.
+  to `main@047569718767859289b9f48d68b635b8f7b7f1ac`. GitHub now reports it
+  merged at `2026-07-12T13:52:05Z` as
+  `d46968fd0914f632e2b4eb5914547dfc7921c17d`; it remains non-draft, has 23
+  commits, exactly 13 changed files, zero comments, the exact body, four
+  closing lines for #272–#275, and only `Related to #260` for the parent
+  dry-run.
+- The fetched merge commit has exactly ordered parents B then H2, its tree
+  equals H2, its first-parent delta is the exact approved 13-path runtime
+  source map, and H2 is an ancestor of current `origin/main`. The local
+  `main` ref remains exact B with no attached worktree or direct sidecar
+  artifact/commit; `origin/main` alone advanced to the merge commit.
+- All five retained worktrees remain clean and every exact owned local and
+  remote branch remains present. Cleanup is `eligible/not_started`; the local
+  journal has exactly eight fields and eight retained resource records, reason
+  `cleanup-authority-missing`, and no attempted operation.
 
 - Pause-1 report/task recording head `C3`:
   `7e87598e9a2b30e1ea322eee07a699b323c7ec03`; it records literal P1 and does
@@ -436,10 +444,11 @@ tracking, and live `main` remained
   `db67286faab0051df55b45945d6b306c5025a47b`; it records literal
   M277/I2/H275/R275/L275/A275/#275 result/PR #278/P3 and T037-T041 only. It
   does not replace C2 as the workflow source.
-- Pause-4 report/task recording head `C6`: `SELF/HEAD`; it records literal
+- Pause-4 report/task recording head `C6`:
+  `e957935e769da32a2cc2c97e106e6e4fd572dfe8`; it records literal
   M278/H/H2, complete H/H2 evidence, PR #279, Mandatory Pause 4, and T042-T048
   only. It does not replace C2 as the workflow source.
-- Runtime final coordinator PR: [#279](https://github.com/TheZenithPassage/catworld/pull/279), open and ready; user merge pending.
+- Runtime final coordinator PR: [#279](https://github.com/TheZenithPassage/catworld/pull/279), merged by exact two-parent `d46968fd0914f632e2b4eb5914547dfc7921c17d`.
 - Final #260 PR: not opened.
 
 ### Historical Partial Merge Resume and Active-Child Refresh
@@ -559,23 +568,173 @@ Reached and satisfied by the user's merge of PR #278 through exact merge commit
 
 ## Mandatory Pause 4
 
-Reached. The user must now:
-
-1. review and merge exactly [PR #279](https://github.com/TheZenithPassage/catworld/pull/279)
-   from `sidecar/272-coordinator-260-live-sidecar-fixture` to `main` using
-   GitHub's **merge commit** strategy;
-2. do not squash, rebase, edit the frozen runtime branch, or merge any other PR
-   as a substitute;
-3. report that exact merge before any cleanup eligibility evaluation or T049
-   resume.
-
-Do not merge or approve PR #279 through Codex, enable auto-merge, create H3/H4,
-activate #261, perform cleanup, or begin the final #260 build-out PR.
+Reached and satisfied by the user's GitHub merge-commit of
+[PR #279](https://github.com/TheZenithPassage/catworld/pull/279) as
+`d46968fd0914f632e2b4eb5914547dfc7921c17d`. Codex did not merge or approve the
+PR, enable auto-merge, create H3/H4, activate #261, or clean any resource.
 
 ## Post-Merge and Cleanup Evidence
 
-Not reached. Cleanup remains `ineligible` with reason
-`pending final PR merge`; no cleanup journal exists.
+Reached after a strict no-mutation resume preflight, followed by explicit
+remote-tracking fetches that did not update local `main`.
+
+- [PR #279](https://github.com/TheZenithPassage/catworld/pull/279) is the one
+  same-run final PR. Its base is `main` at exact prior head
+  `047569718767859289b9f48d68b635b8f7b7f1ac`, its source is exact H2
+  `df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`, and its GitHub merge commit is
+  `d46968fd0914f632e2b4eb5914547dfc7921c17d`.
+- `git rev-list --parents -n 1` proves the merge has exactly ordered parents B
+  then H2. `git merge-base --is-ancestor H2 origin/main` passes, the merge tree
+  equals H2, the H2 direct parent remains literal H, and the B-to-merge delta is
+  exactly the approved 13 Markdown paths with `git diff --check` passing.
+- Current GitHub evidence reports #272, #273, #274, and #275 closed/completed
+  with zero comments; #260 remains open with zero comments. The PR body has
+  exactly one `Closes` line for each controlled fixture issue and exactly one
+  `Related to #260`, with no closing keyword for #260. Exact-head/base searches
+  return only PR #279.
+- `refs/heads/main` remains exact B and has no attached worktree. Fetched
+  `refs/remotes/origin/main` equals the merge commit. The local-main tree did
+  not move, all five existing run checkouts have empty staged, unstaged, and
+  untracked status, and all four run-owned local, tracking, and live remote
+  sidecar branches remain.
+- The frozen runtime H2 artifact was not edited. It remains at Git blob
+  `19ae211ccb35e3d879bf3cf702914c2787c3f288` with no H3/H4 or post-H2 runtime
+  commit.
+- Cleanup eligibility was evaluated from current final-merge evidence and the
+  exact frozen same-run ownership ledger. Separate destructive authority is
+  absent, so no deletion or cleanup command ran.
+- Journal:
+  `C:\Users\moshe\Desktop\catworld\.git\catworld-sidecar\runs\sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb\cleanup-state.json`.
+  It has SHA-256
+  `9bfc24a993a4868ff61cc463a3d4d4c53cbf98a604afb23dd5eef325b9613672`,
+  schema version 1, the exact run ID, `eligibility = eligible`, eight retained
+  worktree/branch resource entries, skipped reason `cleanup-authority-missing`,
+  an empty `attempted_operations` array, `result = not_started`, and timestamp
+  `2026-07-12T13:59:40.0660379Z`. Its top level contains exactly the eight
+  approved fields and it remains untracked beneath the Git common directory.
+
+Remaining runtime risks are bounded: local runtime resources intentionally
+remain present until separate destructive authority is provided; the frozen H2
+artifact necessarily describes the pre-merge checkpoint and is superseded for
+  current status by this external evidence; and #261 activation remains out of
+  scope. The stopped validation attempt and its separate current rerun follow.
+
+## Historical Final Validation Blocker
+
+T053 began against the final source bytes and stopped on a required non-passing
+#252 focused regression, as required by the continuation contract. No attempted
+result is promoted to `passed`, T053 remains unchecked, and T054–T056 did not
+start.
+
+- PowerShell parsing of
+  `specs/026-sidecar-coordinator-artifacts/validation/simulate-coordinator-artifact.ps1`
+  passed with zero parser errors.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File
+  specs/026-sidecar-coordinator-artifacts/validation/simulate-coordinator-artifact.ps1`
+  (`valid`) exited 1. Explicit `-Scenario write-after-branch` also exited 1.
+  Both report all 18 visibly generated `##` headings as missing.
+- The other four #252 scenarios passed: `plan-on-main`, `existing-artifact`,
+  `blocked`, and `main-cleanliness`. Canonical #252 result: `failed` (4/6).
+- The defect is deterministic on both Windows PowerShell 5.1 and PowerShell
+  7.5. The worktree script has 432 LF bytes and every one is preceded by CR.
+  Its exact-end test
+  `(?m)^## $([regex]::Escape($section))$` does not match a CRLF heading because
+  `\r` remains before `$`; the same probe matches after LF normalization.
+- The smallest likely correction is to make the heading assertion CRLF-aware,
+  for example `(?m)^## $([regex]::Escape($section))\r?$`. That script is a #252
+  artifact and is not in the strict T049–T056 or #260 planned changed-file set,
+  so it was not edited or normalized in place.
+- Focused suites completed before the stop retain their factual results: #253
+  passed 7/7, #254 passed 6/6, #255 passed 12/12, #256 passed 19/19, and #257
+  passed 11/11. Every script parsed, and the 55 passing temporary-fixture
+  scenarios left control/runtime refs, the real cleanup journal, and tracked
+  source bytes unchanged.
+- The corrected semantic #260 routing review passed 10/10 and the #250/#251
+  lifecycle-boundary review passed 8/8 with the sole #260/#272 exception kept
+  explicit. An initial over-literal ad hoc string probe produced false negatives
+  before those predicates were corrected; it is preserved as a superseded
+  failed probe rather than counted as the canonical routing result.
+- The Spec Kit prerequisite command resolved the exact
+  `specs/034-live-sidecar-dry-run` feature directory. #258, #259, the remaining
+  final live reviews, T054 scope convergence, T055 final gates, and T056
+  delivery are `not run` after the stop.
+
+Impact: the accepted runtime merge and eligible/not-started cleanup evidence
+remain valid, but the required final validation set is not all passing. No
+control commit, push, ready #260 PR, destructive cleanup, H2 change, local-main
+update, #261 activation, or other attempted workaround followed the failure.
+
+## Current Final Acceptance Rerun
+
+The authorized correction is confined to
+`specs/026-sidecar-coordinator-artifacts/validation/simulate-coordinator-artifact.ps1`.
+`Test-RequiredSections` now converts CRLF and remaining CR to LF in one local
+`$normalizedContent` value and applies the unchanged exact heading regex to that
+value. The existing `valid` scenario constructs explicit LF and CRLF forms and
+requires zero missing sections for both. The six-scenario surface is unchanged;
+no artifact requirement, substring match, repository-wide normalization,
+`.gitattributes`, workflow, runtime, H/H2, or cleanup behavior changed.
+
+Current required results after those final validator bytes:
+
+- PowerShell AST parsing passed with zero errors for the changed #252 validator
+  in Windows PowerShell 5.1 and PowerShell 7.5.8. The validator-only semantic
+  diff is 10 additions and 1 deletion, and targeted `git diff --check` passed.
+- #252 passed 6/6 in Windows PowerShell 5.1 and 6/6 in PowerShell 7.5.8:
+  `valid`, `plan-on-main`, `write-after-branch`, `existing-artifact`, `blocked`,
+  and `main-cleanliness`. Both `valid` results report 18 required sections,
+  `MissingSections = 0`, `LfMissingSections = 0`, and
+  `CrlfMissingSections = 0`; `write-after-branch` reports zero missing sections.
+- The complete applicable focused plan passed on its prescribed shells: #253
+  7/7, #254 6/6, #255 12/12, #256 19/19, #257 11/11, #258
+  13/13, and #259 7/7. The #255–#258 plan uses PowerShell 7.5.8; the existing
+  #259 table-driven cleanup fixture uses Windows PowerShell 5.1. All 62
+  #255–#259 scenario/case results parsed as exact `passed` JSON with exit 0 and
+  empty stderr, and all applicable scripts plus the #258 verifier parsed with
+  zero AST errors.
+- The final five-source routing matrix passed 10/10 and the #250/#251 lifecycle
+  boundary passed 8/8 with exactly 18 lifecycle states. The exact #260/#272
+  exception remains fail-closed, normal/direct-child sequential behavior and
+  the #220–#234 exclusion remain intact, the legacy coordinator skill and
+  #250/#251 artifacts are unchanged, and open #261 remains the sole general
+  activation boundary.
+- The final prohibited-operation scenario passed with every operation flag
+  false. Current GitHub evidence reports #260 and #261 open, #272–#275
+  closed/completed, PR #279 merged at exact M279, zero relevant comments, and
+  zero existing control PRs from the #260 branch to `workflow/sidecar-buildout`.
+- The fresh live topology/acceptance review passed 38/38: M279 retains ordered
+  parents B then H2 and the H2 tree; H2 retains direct parent H and artifact blob
+  `19ae211ccb35e3d879bf3cf702914c2787c3f288`; all four runtime branches,
+  tracking refs, remote refs, worktree associations, and clean worktree states
+  remain exact; local `main` remains B with no attached worktree or runtime
+  path; and the control checkout contains only the validator/report/tasks
+  continuation paths with an empty index.
+- The cleanup journal remains untracked and unstaged at SHA-256
+  `9bfc24a993a4868ff61cc463a3d4d4c53cbf98a604afb23dd5eef325b9613672`,
+  with exactly eight fields, the exact run ID, `eligible/not_started`, eight
+  retained ownership entries, only `cleanup-authority-missing`, and zero
+  attempted operations.
+- Spec Kit prerequisites resolved the exact `specs/034-live-sidecar-dry-run`
+  feature with required tasks; the task sequence is contiguous T001–T056; the
+  specification checklist passed 21/21; the managed pointer is absent; the full
+  range contains 19 justified paths; `.gitattributes` is unchanged; and full
+  `git diff --check` passed.
+
+The 19-path range is the approved #260 routing, held-dispatch, child-execution,
+and evidence set plus this explicitly authorized #252 validator correction.
+The correction is the sole new surface beyond the original plan and directly
+repairs the required final regression. No product, runtime artifact, H2, local
+main, cleanup journal, retained resource, #261 activation, or unrelated surface
+is present. T053, T054, and T055 are complete; T056 has not started.
+
+Non-required diagnostic shell probes are preserved separately from the
+canonical plan results: Windows PowerShell 5.1 produced `failed` results for the
+Git-backed #256 (5/19) and #257 (6/11) scenarios because it promotes native Git
+warnings to terminating errors under those existing validators, while a
+PowerShell 7 #259 probe produced `failed` after automatic ISO timestamp
+conversion. These broader cross-shell probes do not replace the prescribed
+PowerShell 7 #255–#258 and Windows PowerShell #259 matrices above, all of which
+passed; no correction outside the authorized #252 scope was made.
 
 ## Validation History
 
@@ -684,16 +843,48 @@ Not reached. Cleanup remains `ineligible` with reason
 | Ready final coordinator PR | [#279](https://github.com/TheZenithPassage/catworld/pull/279) | sole-PR search, create once, current state/draft/mergeability/base/head/title/body/commits/files/comments and body-equality review | passed | open, non-draft, mergeable, exact B/H2, 23 commits, 13 files, zero comments, exact four closes plus `Related to #260` |
 | Local-main isolation at Pause 4 | local/tracking/live `main=047569718767859289b9f48d68b635b8f7b7f1ac` | final fetch/ref/tree/ancestry/worktree/scope review | passed | unchanged; no attached main worktree or runtime path; all five worktrees clean |
 | Cleanup state at Pause 4 | stable run | final PR state plus journal/run-directory review | passed | cleanup `ineligible`, reason `pending final PR merge`; state absent; no cleanup attempted |
-| Pause-4 control recording | `C6=SELF/HEAD` | report/tasks-only diff, T001-T048/T049-T056 boundary, checklist/control/runtime-frozen/diff checks, normal push/fetch required | pending publication | records literal M278/H/H2/PR #279/Pause 4 and checks only T042-T048; C2 remains workflow source |
+| Pause-4 control recording | `C6=e957935e769da32a2cc2c97e106e6e4fd572dfe8` | report/tasks-only diff, T001-T048/T049-T056 boundary, checklist/control/runtime-frozen/diff checks, normal push/fetch equality | passed | records literal M278/H/H2/PR #279/Pause 4 and checks only T042-T048; C2 remains workflow source |
+| Final-resume no-mutation preflight | current PR #279, #260/#272–#275, live refs, all five worktrees, local/tracking main, H/H2, cleanup state, and final-PR searches | connected GitHub re-read, `git ls-remote`, exact local ref/worktree/status/journal review, plus independent GitHub and local audits | passed | PR #279 merge identified without trusting the user report; no inconsistency, duplicate PR, deleted branch, dirty checkout, or pre-existing journal |
+| PR #279 user merge | `d46968fd0914f632e2b4eb5914547dfc7921c17d` | GitHub merged state/time/body/issues plus explicit fetch, exact ordered-parent/tree/ancestry/source-map/whitespace inspection | passed | parents exact B then H2; merge tree equals H2; #272–#275 closed while #260 remains open; no Codex merge/approval/auto-merge |
+| Post-merge local-main isolation | local `main=B`; fetched `origin/main=d46968fd0914f632e2b4eb5914547dfc7921c17d` | explicit ref resolution, no-main-worktree inventory, local tree/ref comparison, all-worktree status, branch/ref retention, H/H2 relation | passed | local main never advanced or attached; all five checkouts clean; all exact owned local/tracking/live branches retained; H2 frozen |
+| Cleanup eligibility journal | exact stable run and eight same-run-owned resource entries | current merge/ownership evidence, Git-common-directory path resolution, exact JSON schema/content re-read, live association/cleanliness checks | passed | `eligible/not_started`; SHA-256 `9bfc24a993a4868ff61cc463a3d4d4c53cbf98a604afb23dd5eef325b9613672`; reason `cleanup-authority-missing`; zero attempts; no local or remote cleanup |
+| Superseded final routing string probe | first ad hoc exact-string predicates | ten routing and eight lifecycle source checks | failed | over-literal single-line predicates produced false negatives against wrapped Markdown; no repository behavior failed; predicates were corrected before the canonical review |
+| Final #260 routing and lifecycle review | final five routing sources, controlled contract, and current fixture identity | corrected semantic-pattern matrix, #250/#251 focused searches, legacy-skill diff | passed | routing 10/10 and lifecycle boundaries 8/8; exact #260/#272 exception only; #261 remains the sole general activation; legacy coordinator skill unchanged |
+| Final #252 coordinator-artifact focused suite | current Windows worktree script, six declared scenarios | parser plus default and explicit scenario invocations in Windows PowerShell 5.1 and reproduction in PowerShell 7.5 | failed | 4/6 passed; `valid` and `write-after-branch` exit 1 because exact-end heading regex rejects CRLF and reports all 18 headings missing |
+| Final #253 prepared-child-artifact focused suite | current script | parser plus all seven scenarios | passed | 7/7; temporary fixtures only; no real runtime or GitHub mutation |
+| Final #254 branch/worktree focused suite | current script | parser plus all six scenarios | passed | 6/6; temporary repositories/local bare remote only; no real branch/worktree mutation |
+| Final #255 fan-out focused suite | immutable current script blob `f2c0a0382584858f47a296ce3b0055cc33d432a7` | parser plus all declared scenarios in fresh child processes | passed | 12/12; exact scenario identity and JSON result checked; no stderr |
+| Final #256 child-execution focused suite | immutable current script blob `1c2b6256ccfabbe8fae2479c21e9732e8f48dbed` | parser plus all declared scenarios in fresh child processes | passed | 19/19; exact scenario identity and JSON result checked; no stderr |
+| Final #257 merge-aware-resume focused suite | immutable current script blob `341b1549d2e205e1137f5fb75e1922fbe8f56ecd` | parser plus all declared scenarios in fresh child processes | passed | 11/11; exact scenario identity and JSON result checked; no stderr |
+| Remaining T053 final validation | #258, #259, remaining final live reviews and final source bytes | stopped after required #252 failure | not run | continuation contract requires an immediate stop when a required check is not passing; no stale result is substituted |
+| T054–T056 scope/final gate/delivery | final #260 build-out | not started because T053 is non-passing | blocked | no final commit, push, or #260 PR; exact runtime/local resources and current evidence changes preserved |
+| Bounded #252 portability correction | current validator working bytes | exact local CRLF/CR-to-LF normalization, unchanged heading regex, explicit LF/CRLF assertions, validator-only diff review | passed | one validator; 10 additions/1 deletion; six scenarios retained; no global normalization or `.gitattributes` change |
+| Corrected #252 Windows PowerShell rerun | final validator bytes; Windows PowerShell 5.1.26100.8655 | AST parser plus six fresh explicit scenarios | passed | 6/6; explicit LF and CRLF missing-section counts both zero; empty stderr |
+| Corrected #252 PowerShell 7 rerun | final validator bytes; PowerShell 7.5.8 | AST parser plus six fresh explicit scenarios | passed | 6/6; explicit LF and CRLF missing-section counts both zero; empty stderr |
+| Current #253/#254 focused rerun | final source bytes | parser plus every declared scenario in Windows PowerShell | passed | #253 7/7 and #254 6/6; temporary fixtures only |
+| Current #255–#258 focused rerun | final source bytes; plan-prescribed PowerShell 7.5.8 | parser plus every declared scenario in fresh child processes | passed | #255 12/12, #256 19/19, #257 11/11, #258 13/13; combined 55/55; exact JSON identity/result and empty stderr |
+| Current #259 cleanup focused rerun | final source bytes; Windows PowerShell 5.1 | one table-driven temporary-Git fixture | passed | 7/7 approved cases; real journal/runtime refs untouched |
+| Non-required shell portability diagnostics | existing #256/#257/#259 validators on alternate shells | broader Windows PowerShell #256/#257 and PowerShell 7 #259 probes | failed | non-canonical diagnostics only: native Git warning promotion and ISO-date auto-conversion; prescribed-shell results above remain the required current evidence |
+| Current #260 routing and lifecycle review | final five routing sources and exact current fixture evidence | whitespace-tolerant ten-case routing and eight-case lifecycle assertions | passed | routing 10/10; lifecycle 8/8; 18 states; #261 still open/inactive; legacy and #250/#251 boundaries unchanged |
+| Current prohibited-operation review | final coordinator skill/templates and #258 simulator | `simulate-final-coordinator-delivery.ps1 -Scenario prohibited-operations` | passed | every prohibited-operation and activation flag false |
+| Current GitHub/runtime acceptance review | #260/#261/#272–#275, PR #279, M279/B/H/H2 and retained resources | connected GitHub re-read plus exact ref/tree/ancestry/worktree assertions | passed | issue/PR state exact; live topology 38/38; H2 frozen; local main B; all retained resources present and clean |
+| Current cleanup-journal review | exact same-run journal | schema, path, ownership, hash, eligibility, skipped reason, attempt and tracking checks | passed | exact eight fields; `eligible/not_started`; eight retained entries; zero attempts; untracked/unstaged |
+| T054 final range convergence | `origin/workflow/sidecar-buildout` through current working tree | 19-path plan/source-map review, explicit #252 exception justification, pointer and `.gitattributes` checks | passed | every path justified; no product/runtime/H2/journal/unrelated path; managed Spec Kit pointer absent |
+| T055 local assertion calibration | first ad hoc final-gate wrapper | literal shared-contract/run-ID and duplicate-default scenario-count assertions | failed | wrapper false negatives only: the shared contract is intentionally parameterized and the parser counted the default `valid` twice; no contract or validator invariant failed |
+| T055 final control gate | final report/task recording bytes | corrected 30-check constitution/contract/scope/freshness gate plus routing, protected operations, prerequisites, task/checklist/pointer, status, diff summary and full whitespace review | passed | 30/30 corrected assertions; full `git diff --check`; 19 justified range paths; three intended working paths; empty index; T001–T056 contiguous |
 
 ## Prohibited Operations Record
 
 - No issue #220 through #234 was edited.
 - No unrelated issue, label, assignee, milestone, checklist, state, or public comment was mutated.
-- Codex merged, approved, or configured auto-merge on no PR. The only observed
-  child PR merges are the user's merge-commits of PRs #276, #277, and #278.
+- Codex merged, approved, or configured auto-merge on no PR. The observed
+  runtime PR merges are the user's merge-commits of PRs #276, #277, #278, and
+  #279.
 - Runtime coordinator H2 remains exact
   `df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`; no H3/H4 or post-H2 runtime
-  artifact write exists. PR #279 is open and unmerged.
+  artifact write exists. PR #279 was merged externally as exact two-parent
+  `d46968fd0914f632e2b4eb5914547dfc7921c17d`.
 - No rebase, force-push, force-with-lease, branch deletion, remote deletion, or remote cleanup occurred.
-- No local or remote cleanup occurred.
+- No local or remote cleanup occurred. The only cleanup mutation is the required
+  local Git-common-directory `eligible/not_started` journal write with zero
+  attempted operations.
