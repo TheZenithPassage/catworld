@@ -119,11 +119,11 @@
 
 ### Complete Layer 1 and Launch Layer 2 for Technical Outcome 3
 
-- [ ] T037 [TO3] After the user reports the remaining first-layer merge, re-read current evidence, refresh the coordinator from its remote, prove both first-layer commits in ancestry, and record both children uniquely integrated
-- [ ] T038 [TO3] Recompute dependency layers from current evidence and mark only the dependent child ready-next-layer after both hard dependencies are integrated; preserve all stale/blocker states honestly in the coordinator artifact
-- [ ] T039 [TO3] Create the dependent child branch/worktree from refreshed coordinator state, compute its immutable pre-evidence fingerprint using exact `C2`, commit/push handoff-ready evidence and its later exact-SHA recording head as separate correlated fields, dispatch one stable preflight-only child, persist/push factual launched evidence and its later exact-SHA activation/recording head, release only that identity after clean activation-head incorporation and launched-evidence ancestry verification, implement only its prepared `samples/result.md` while consuming both layer-1 markers, validate, commit/push, and open one ready PR with exactly `Related to #275` and `Related to #272`
-- [ ] T040 [TO3] Re-read and record the dependent PR URL, commit, target, exact body, dispatch identity, fingerprint, separately correlated barrier heads, readiness, validation, and still-ineligible cleanup state in the coordinator artifact and `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T041 [TO3] Stop at Mandatory Pause 3 and instruct the user to merge the dependent PR with GitHub's merge-commit strategy
+- [X] T037 [TO3] After the user reports the remaining first-layer merge, re-read current evidence, refresh the coordinator from its remote, prove both first-layer commits in ancestry, and record both children uniquely integrated
+- [X] T038 [TO3] Recompute dependency layers from current evidence and mark only the dependent child ready-next-layer after both hard dependencies are integrated; preserve all stale/blocker states honestly in the coordinator artifact
+- [X] T039 [TO3] Create the dependent child branch/worktree from refreshed coordinator state, compute its immutable pre-evidence fingerprint using exact `C2`, commit/push handoff-ready evidence and its later exact-SHA recording head as separate correlated fields, dispatch one stable preflight-only child, persist/push factual launched evidence and its later exact-SHA activation/recording head, release only that identity after clean activation-head incorporation and launched-evidence ancestry verification, implement only its prepared `samples/result.md` while consuming both layer-1 markers, validate, commit/push, and open one ready PR with exactly `Related to #275` and `Related to #272`
+- [X] T040 [TO3] Re-read and record the dependent PR URL, commit, target, exact body, dispatch identity, fingerprint, separately correlated barrier heads, readiness, validation, and still-ineligible cleanup state in the coordinator artifact and `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T041 [TO3] Stop at Mandatory Pause 3 and instruct the user to merge the dependent PR with GitHub's merge-commit strategy
 
 **Checkpoint**: Mandatory Pause 3. Do not poll or continue until the user reports the dependent PR merged.
 
