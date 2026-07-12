@@ -137,16 +137,16 @@
 
 ### Integrated Validation for Technical Outcome 4
 
-- [ ] T042 [TO4] After the user reports the dependent merge, re-read all current issues, PRs, refs, artifacts, worktrees, validation, blockers, existing final PRs, and cleanup state; refresh the local coordinator from its remote and build the complete unique terminal child ledger in the coordinator artifact
-- [ ] T043 [TO4] Fetch current `origin/main` as runtime B without updating local `main`, compute the PR-equivalent merge base, reconcile every merge-base-to-H path with the coordinator/child source maps, and record the passed scope state or stop on drift
-- [ ] T044 [TO4] Run the complete required live integrated validation at literal H, including child target/merge/ancestry accounting, all three result markers and dependent references, artifact schema/content, prohibited operations, local-main proof, and explicit-range `git diff --check`; record exactly one current canonical result per requirement in the coordinator artifact
+- [x] T042 [TO4] After the user reports the dependent merge, re-read all current issues, PRs, refs, artifacts, worktrees, validation, blockers, existing final PRs, and cleanup state; refresh the local coordinator from its remote and build the complete unique terminal child ledger in the coordinator artifact
+- [x] T043 [TO4] Fetch current `origin/main` as runtime B without updating local `main`, compute the PR-equivalent merge base, reconcile every merge-base-to-H path with the coordinator/child source maps, and record the passed scope state or stop on drift
+- [x] T044 [TO4] Run the complete required live integrated validation at literal H, including child target/merge/ancestry accounting, all three result markers and dependent references, artifact schema/content, prohibited operations, local-main proof, and explicit-range `git diff --check`; record exactly one current canonical result per requirement in the coordinator artifact
 
 ### Two-Head Finalization and Delivery for Technical Outcome 4
 
-- [ ] T045 [TO4] Update only the recorded coordinator finalization artifact with literal B, literal H, `H2 = SELF/HEAD`, expected parent H, complete H results, status-free H2 rerun manifest, applicability reasons, template identity/render inputs, remaining risks, pending-H2 readiness, and cleanup ineligibility; commit it as H2
-- [ ] T046 [TO4] Prove H2 has exactly parent H and only the allowed artifact delta, run every H2-affected check and applicability review, recheck base/scope/template/existing-PR evidence, normally push H2, fetch the remote coordinator ref, and prove equality without creating H3
-- [ ] T047 [TO4] Render the approved final coordinator template from the recorded control context with current runtime evidence and open exactly one ready PR from the runtime coordinator branch to `main` using closing keywords only for the controlled fixture issue set
-- [ ] T048 [TO4] Stop immediately at Mandatory Pause 4 and report H/H2, complete and affected validation, final PR URL/source/target/readiness, remaining risks, and the exact user merge action in `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [x] T045 [TO4] Update only the recorded coordinator finalization artifact with literal B, literal H, `H2 = SELF/HEAD`, expected parent H, complete H results, status-free H2 rerun manifest, applicability reasons, template identity/render inputs, remaining risks, pending-H2 readiness, and cleanup ineligibility; commit it as H2
+- [x] T046 [TO4] Prove H2 has exactly parent H and only the allowed artifact delta, run every H2-affected check and applicability review, recheck base/scope/template/existing-PR evidence, normally push H2, fetch the remote coordinator ref, and prove equality without creating H3
+- [x] T047 [TO4] Render the approved final coordinator template from the recorded control context with current runtime evidence and open exactly one ready PR from the runtime coordinator branch to `main` using closing keywords only for the controlled fixture issue set
+- [x] T048 [TO4] Stop immediately at Mandatory Pause 4 and report H/H2, complete and affected validation, final PR URL/source/target/readiness, remaining risks, and the exact user merge action in `specs/034-live-sidecar-dry-run/dry-run-report.md`
 
 **Checkpoint**: Mandatory Pause 4. Do not poll, merge, or claim completion until the user reports the final runtime PR merged.
 
