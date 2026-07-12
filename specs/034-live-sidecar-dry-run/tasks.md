@@ -112,10 +112,10 @@
 
 ### Partial Merge Resume for Technical Outcome 3
 
-- [ ] T033 [TO3] After the user reports exactly one first-layer merge, re-read current coordinator/child issues, PRs, refs, artifacts, worktrees, validation, blockers, and cleanup state; record the resume evidence in the coordinator artifact and `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T034 [TO3] Fetch and refresh the local coordinator branch/worktree from its remote by fast-forward or normal merge, prove the reported child commit is in refreshed ancestry, and record the integrated/stale state before touching the active child
-- [ ] T035 [TO3] Merge the refreshed coordinator head normally into the still-active child branch/worktree, prove the two-parent refresh evidence, rerun every affected focused validation, normally push the child update, and update its existing PR only as permitted
-- [ ] T036 [TO3] Stop at Mandatory Pause 2 and report the merged-child proof, refreshed coordinator SHA, active-child refresh merge, rerun validation, remaining PR URL, and instruction to merge that PR with GitHub's merge-commit strategy
+- [X] T033 [TO3] After the user reports exactly one first-layer merge, re-read current coordinator/child issues, PRs, refs, artifacts, worktrees, validation, blockers, and cleanup state; record the resume evidence in the coordinator artifact and `specs/034-live-sidecar-dry-run/dry-run-report.md`
+- [X] T034 [TO3] Fetch and refresh the local coordinator branch/worktree from its remote by fast-forward or normal merge, prove the reported child commit is in refreshed ancestry, and record the integrated/stale state before touching the active child
+- [X] T035 [TO3] Merge the refreshed coordinator head normally into the still-active child branch/worktree, prove the two-parent refresh evidence, rerun every affected focused validation, normally push the child update, and update its existing PR only as permitted
+- [X] T036 [TO3] Stop at Mandatory Pause 2 and report the merged-child proof, refreshed coordinator SHA, active-child refresh merge, rerun validation, remaining PR URL, and instruction to merge that PR with GitHub's merge-commit strategy
 
 ### Complete Layer 1 and Launch Layer 2 for Technical Outcome 3
 

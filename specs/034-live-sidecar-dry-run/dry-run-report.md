@@ -3,11 +3,11 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: real first-layer fan-out and ready child delivery complete; stopped at Mandatory Pause 1
-- **Current checkpoint**: Mandatory Pause 1 reached at runtime coordinator `P1=c308be8a47755bd99f2cc4fc4ff5642172f0467e`
+- **Current stage**: partial first-layer merge resume and active-child refresh complete; stopped at Mandatory Pause 2
+- **Current checkpoint**: Mandatory Pause 2 reached at runtime coordinator `P2=6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686`
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: PR #276 and PR #277 are open, ready, mergeable one-file child PRs; merge exactly #276 by GitHub merge commit and leave #277 open
+- **Readiness**: PR #276 is integrated through exact merge commit `a3490b5f938b2f5285fb9dbb421d48a61eda4852`; PR #277 is open, non-draft, mergeable and ready at refreshed head `8c4a200db75a44cc28a3e89b9dd256ca4c422e12`; merge exactly PR #277 by GitHub merge commit
 - **Cleanup**: ineligible; runtime final PR does not exist
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
@@ -285,6 +285,10 @@ The original failed ordering evidence remains historical above.
 | Factual launched evidence `L` | `08f8588dab15ab0e1991733f43d4a74e44deda4e` | both accepted stable identities; zero-edit proofs; permissions false |
 | Activation/recording head `A` | `e8d7bea2033d598a13f826ea11ee791492eb4f3b` | stores L; conditional permissions true/effective false; current equality and L direct-parent/ancestry passed |
 | Mandatory Pause 1 bookkeeping `P1` | `c308be8a47755bd99f2cc4fc4ff5642172f0467e` | direct child of A; sole delta is the runtime coordinator artifact; normal push/fetched equality passed |
+| PR #276 merge commit `M276` | `a3490b5f938b2f5285fb9dbb421d48a61eda4852` | exact ordered parents P1 then delivered #273 commit; current GitHub merge observation, fetched remote equality, ancestry, one-result delta, whitespace and marker checks passed |
+| Partial-resume recording head `R1` | `11fa667018294cd7d9486fb188b67ede14df3fe4` | direct artifact-only child of M276; records #273 integrated and #274 stale/refresh-needed; normal push/fetched equality passed |
+| #274 active-child refresh merge | `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` | normal two-parent merge with ordered parents pre-refresh #274 `cb59c1b245999d44a98c31864113fcb948f00bc0` then R1; no conflict/unexpected path; normal child push/fetched equality passed |
+| Mandatory Pause 2 bookkeeping `P2` | `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686` | direct artifact-only child of R1; records refreshed #274 and Pause 2; normal push/fetched equality and bounded post-P2 PR applicability passed |
 
 The Phase-5 task labels `R`/`Rr` map to runtime artifact names H/R, and
 `L`/`Lr` map to L/A. They are the same required evidence/recording roles; the
@@ -292,14 +296,16 @@ fingerprint excludes all four later SHAs and agent identity.
 
 | Child | Canonical fingerprint | Stable identity / release | Delivered commit and path | Ready PR |
 |-------|-----------------------|---------------------------|----------------------------|----------|
-| #273 | `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811` | `/root/held_child_273_live`; held preflight accepted with zero mutation; clean A incorporation and release acknowledged before work | `831a8e674f7615d8ceace182c89a29cefbefb45f`; only `specs/273-260-fixture-layer1-a/samples/result.md` | [#276](https://github.com/TheZenithPassage/catworld/pull/276) |
-| #274 | `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba` | `/root/held_child_274_live`; held preflight accepted with zero mutation; clean A incorporation and release acknowledged before work | `cb59c1b245999d44a98c31864113fcb948f00bc0`; only `specs/274-260-fixture-layer1-b/samples/result.md` | [#277](https://github.com/TheZenithPassage/catworld/pull/277) |
+| #273 | `32fe5281412d44861c0b040e4d9a7fe96cea10b00bdc8dcdfa035e9ff5d56811` | `/root/held_child_273_live`; held preflight accepted with zero mutation; clean A incorporation and release acknowledged before work | `831a8e674f7615d8ceace182c89a29cefbefb45f`; only `specs/273-260-fixture-layer1-a/samples/result.md`; integrated by M276 | [#276](https://github.com/TheZenithPassage/catworld/pull/276), merged by GitHub merge commit |
+| #274 | `37c8c99634ae0216c0f2e556f390728c90cc99b0905719efd3099a67b10268ba` | preserved `/root/held_child_274_live`; no replacement dispatch or H/R/L/A replay; normal R1 merge refresh and full rerun | original result `cb59c1b245999d44a98c31864113fcb948f00bc0`; refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12`; PR diff still only `specs/274-260-fixture-layer1-b/samples/result.md` | [#277](https://github.com/TheZenithPassage/catworld/pull/277), open/ready |
 
-Both child commits directly parent A. Each local/remote child ref is equal, each
-worktree is clean, exact run/marker checks pass, and explicit A...child
-name-only/whitespace validation contains exactly its one owned result. No child
-edited prepared artifacts, sibling/coordinator/shared/product paths, issues,
-comments, or PR metadata.
+Both original child implementation commits directly parent A. After resume,
+#273 remains integrated through M276 and the current #274 branch head is the
+two-parent refresh merge recorded above. Each local/remote child ref is equal,
+each worktree is clean, exact run/marker checks pass, and the current
+R1-to-#274 and P2-to-#274 PR-equivalent name-only/whitespace validation contains
+exactly its one owned result. No child edited prepared artifacts,
+sibling/coordinator/shared/product paths, issues, comments, or PR metadata.
 
 Both PRs were created ready, not draft, against
 `sidecar/272-coordinator-260-live-sidecar-fixture` with exactly one commit, one
@@ -329,30 +335,83 @@ diff rather than misreporting that snapshot as P1.
 Layer-2 child #275 remains `waiting-for-dependency-merge`: no local branch,
 worktree, remote ref, result, or PR exists. Local and fetched `main` both remain
 `047569718767859289b9f48d68b635b8f7b7f1ac`; local main has no attached
-worktree, no runtime artifact path, and neither child commit in ancestry. The
-control, coordinator, and both existing child worktrees were clean at the pause
-evidence gate. Cleanup remains ineligible. No PR was merged, approved, or given
-auto-merge, and no issue/comment/label/assignee/milestone/state mutation occurred.
+worktree, no runtime artifact path, and no runtime child integration in its
+ancestry. The control, coordinator, and both existing child worktrees were
+clean at the Pause-2 evidence gate. Cleanup remains ineligible. PR #276 was
+merged only by the user; Codex merged, approved, or enabled auto-merge on no PR
+and performed no issue/comment/label/assignee/milestone/state mutation.
 
-- Pause report/task recording head `C3`: `SELF/HEAD`; it records literal P1 and
-  does not replace C2 as the workflow source.
+- Pause-1 report/task recording head `C3`:
+  `7e87598e9a2b30e1ea322eee07a699b323c7ec03`; it records literal P1 and does
+  not replace C2 as the workflow source.
+- Pause-2 report/task recording head `C4`: `SELF/HEAD`; it records literal
+  M276, R1, the #274 refresh merge, P2, and T033-T036 only. It does not replace
+  C2 as the workflow source.
 - Final #260 PR: not opened.
+
+### Partial Merge Resume and Active-Child Refresh
+
+The resume re-read current issues #260 and #272-#275, PRs #276/#277, remote and
+local refs, coordinator and child artifacts, all existing worktrees, validation
+freshness, blockers, local-main state, #275 absence, and cleanup ineligibility.
+An independent read-only audit agreed with the primary preflight.
+
+- PR #276 is merged at `2026-07-12T04:34:48Z` through exact GitHub merge commit
+  `a3490b5f938b2f5285fb9dbb421d48a61eda4852`. The commit has exactly two
+  ordered parents: P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e`
+  and delivered #273 commit
+  `831a8e674f7615d8ceace182c89a29cefbefb45f`. The merge is the fetched remote
+  coordinator head before resume recording; P1 and #273 are ancestors; its
+  P1 delta is only the #273 result and passes explicit whitespace/run/marker
+  checks.
+- The clean local coordinator fast-forwarded from P1 to that exact merge before
+  #273 was marked integrated or #274 was touched. The factual artifact-only
+  resume record R1 `11fa667018294cd7d9486fb188b67ede14df3fe4` then
+  normally pushed/fetched-equal with M276 as its sole parent.
+- Prior #274 readiness evidence became `stale`. The same preserved identity
+  `/root/held_child_274_live`, without replacement dispatch or H/R/L/A replay,
+  normally merged exact R1 into the existing clean #274 branch. Refresh merge
+  `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` has exactly ordered parents
+  `cb59c1b245999d44a98c31864113fcb948f00bc0` then R1, contains R1/M276/#273
+  plus the original #274 result, and has no conflict or unexpected path.
+- The complete unchanged-C2 #257 matrix passed 11/11 scenarios:
+  `remote-refresh-order`, `active-child-refresh`, `resume-states`,
+  `validation-staleness`, `unexpected-local-changes`, `unsafe-divergence`,
+  `evidence-mismatch`, `missing-branch-state`, `human-only-blocker`,
+  `unsafe-dependency-state`, and `prohibited-operations`. The simulator blob is
+  exact C2 blob `341b1549d2e205e1137f5fb75e1922fbe8f56ecd`.
+- All 39 affected #274 continuity, identity, branch/worktree, exact-parent,
+  ancestry, source-map, whitespace, token, prepared-artifact, #275-absence and
+  clean-state checks passed. Both `R1..HEAD` and `R1...HEAD` contain only
+  `specs/274-260-fixture-layer1-b/samples/result.md`. A normal push and fetch
+  proved the local and remote child refs equal the refresh merge with clean
+  upstream `+0/-0`.
+- P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686` is the direct
+  artifact-only child of R1, normally pushed and fetched-equal. Its bounded
+  applicability check found merge base R1, exactly the #274 result in
+  `P2...child`, no merge-tree conflict, and—after GitHub recomputation—PR #277
+  open, non-draft, mergeable, base branch coordinator, head exact refresh
+  merge, two commits, one changed file, zero comments, and exact body unchanged.
+- Local and fetched main remain exact
+  `047569718767859289b9f48d68b635b8f7b7f1ac`; #275 branch/worktree/remote
+  ref/result/PR and the cleanup journal remain absent. Cleanup is ineligible.
 
 ## Mandatory Pause 1
 
-Reached. The user must now:
-
-1. merge exactly [PR #276](https://github.com/TheZenithPassage/catworld/pull/276)
-   with GitHub's **merge commit** strategy;
-2. leave [PR #277](https://github.com/TheZenithPassage/catworld/pull/277) open;
-3. report that exact one-PR merge before any resume.
-
-Do not squash, rebase, merge both PRs, launch #275, update/merge the final
-coordinator PR, activate #261, or perform cleanup.
+Reached and satisfied by the user's merge of PR #276 through exact merge commit
+`a3490b5f938b2f5285fb9dbb421d48a61eda4852` while PR #277 remained open.
 
 ## Mandatory Pause 2
 
-Not reached.
+Reached. The user must now:
+
+1. merge exactly [PR #277](https://github.com/TheZenithPassage/catworld/pull/277)
+   with GitHub's **merge commit** strategy;
+2. do not squash or rebase the PR;
+3. report that exact merge before any resume.
+
+Do not launch #275, begin T037, create or update the final coordinator PR,
+activate #261, or perform cleanup.
 
 ## Mandatory Pause 3
 
@@ -424,16 +483,31 @@ Not reached.
 | Stable held preflights | `/root/held_child_273_live`, `/root/held_child_274_live` | exact envelope/fingerprint/artifact/Git/GitHub correlation and before/after zero-mutation proof | passed | each dispatched exactly once; no task/result/repository/GitHub mutation |
 | L/A activation barrier | L `08f8588dab15ab0e1991733f43d4a74e44deda4e`, A `e8d7bea2033d598a13f826ea11ee791492eb4f3b` | factual identity record, activation record, normal pushes/fetches, A current equality, L direct-parent/ancestry | passed | conditional permissions remained ineffective through clean A incorporation |
 | Same-child release and implementation | #273/#274 exact identities and child heads | clean I→A fast-forwards, complete revalidation, release acknowledgments, one-path commits, explicit diff/check/token/status validation, normal pushes/fetched equality | passed | commits `831a8e674f7615d8ceace182c89a29cefbefb45f` and `cb59c1b245999d44a98c31864113fcb948f00bc0` |
-| Ready child PRs | #276 and #277 | connected GitHub create then repeated fetch of state/draft/mergeability/base/head/body/diff/comments | passed | both open, non-draft, mergeable, one commit/file, zero comments, exact child+#272 bodies |
+| Historical Pause-1 ready child PRs | #276 and #277 | connected GitHub create then repeated fetch of state/draft/mergeability/base/head/body/diff/comments | passed | both were open, non-draft, mergeable, one commit/file, zero comments, exact child+#272 bodies before the user merge |
 | P1 artifact-only applicability | P1 `c308be8a47755bd99f2cc4fc4ff5642172f0467e` | direct A child, sole coordinator-artifact delta, normal push/fetch equality, current refs, A merge bases, P1...child scope/check, live PR re-read | passed | both ready PRs remain one-result mergeable deliveries after target movement |
 | Local-main isolation at Pause 1 | local/fetched `main=047569718767859289b9f48d68b635b8f7b7f1ac` | ref equality, no attached main worktree, runtime-tree absence, child non-ancestry | passed | local main unchanged and isolated |
 | Layer-2 waiting state | #275 | local branch/worktree/result, remote ref, and PR searches | passed | all absent; `waiting-for-dependency-merge` preserved |
-| Pause-1 control recording | `C3=SELF/HEAD` | report/task-only diff, task sequence/checklist/control checks, normal push/fetch required | pending publication | records literal P1; does not replace C2 as workflow source |
+| Pause-1 control recording | `C3=7e87598e9a2b30e1ea322eee07a699b323c7ec03` | report/task-only diff, task sequence/checklist/control checks, normal push/fetch equality | passed | records literal P1; does not replace C2 as workflow source |
+| Pause-2 resume preflight | current #260/#272-#275 issues, PRs #276/#277, refs, artifacts, worktrees, agents, blockers, local main and cleanup | connected GitHub re-read, independent audit, `git ls-remote`, clean-state/worktree/ref/path/identity review | passed | exact routing identity/topology preserved; #276 merged, #277 open at pre-refresh head, #275 absent, all existing worktrees clean |
+| PR #276 user merge | M276 `a3490b5f938b2f5285fb9dbb421d48a61eda4852` | GitHub merged state/time, fetched coordinator equality, exact two-parent commit inspection, ancestry, one-path delta, whitespace/run/marker review | passed | ordered parents P1 then delivered #273; user-owned merge only |
+| Remote-first local coordinator refresh | P1 to M276 | normal fetch, pre-refresh clean gate, `git merge --ff-only`, local/remote equality, #273 ancestry and #274 non-ancestry | passed | completed before integration marking or active-child refresh; no local-main update |
+| Factual partial-resume record | R1 `11fa667018294cd7d9486fb188b67ede14df3fe4` | direct M276 parent, sole coordinator-artifact delta, normal push/fetch equality, M276/P1/#273 ancestry | passed | records #273 integrated and #274 stale/refresh-needed |
+| Preserved #274 active-child refresh | refresh merge `8c4a200db75a44cc28a3e89b9dd256ca4c422e12` under `/root/held_child_274_live` | clean pre-state, exact R1 fetch, normal `--no-ff` merge, ordered-parent/ancestry/conflict/scope review | passed | parents exact `cb59c1b...` then R1; no replacement dispatch, H/R/L/A replay, rebase or history rewrite |
+| Complete #257 resume matrix | unchanged C2 simulator blob `341b1549d2e205e1137f5fb75e1922fbe8f56ecd` | all 11 scenarios named in the resume evidence section | passed | 11/11 passed after refresh merge |
+| Refreshed #274 validation | refresh merge against R1 | 39 continuity, identity, parent, ancestry, source-map, whitespace, token, artifact, #275-absence and clean-state checks | passed | 39/39 passed; R1 two-dot and three-dot diffs contain exactly the #274 result |
+| Refreshed #274 publication and PR | local/remote child `8c4a200db75a44cc28a3e89b9dd256ca4c422e12`; PR #277 | normal push/fetch equality, clean upstream, GitHub state/draft/mergeability/base/head/body/commits/files/comments | passed | existing branch/PR only; open, non-draft, mergeable, exact body, two commits, one result file, zero comments |
+| Mandatory Pause 2 artifact | P2 `6b8b2ea79d96010bed1f4181b47bcc9d9e2f0686` | direct R1 parent, sole coordinator-artifact delta, normal push/fetch equality, R1/M276/P1/#273 ancestry | passed | no H3-style bookkeeping loop; child head remains separate |
+| Bounded post-P2 applicability | P2 target and #274 refresh head | merge base R1, P2 three-dot name-only/whitespace, merge-tree conflict check, final connected GitHub PR re-read | passed | one #274 result, no conflict, final PR #277 open/non-draft/mergeable with exact head/body after GitHub recomputation |
+| Local-main isolation at Pause 2 | local/fetched `main=047569718767859289b9f48d68b635b8f7b7f1ac` | fetch without local update, ref equality, worktree inventory, runtime-path/ancestry review, clean control/coordinator/child states | passed | unchanged; no main worktree, runtime artifact, or runtime child integration on local main |
+| Layer-2 waiting state at Pause 2 | #275 | local branch/worktree/result, remote ref, dispatch identity and PR searches | passed | all absent; only #273 is integrated; #275 remains `waiting-for-dependency-merge` |
+| Cleanup state at Pause 2 | stable run | final-PR and journal path review | passed | final runtime PR absent; cleanup ineligible; journal absent; no local or remote cleanup |
+| Pause-2 control recording | `C4=SELF/HEAD` | report/tasks-only diff, T001-T036/T037-T056 boundary, checklist/control/diff checks, normal push/fetch required | pending publication | records literal M276/R1/#274 refresh/P2 and checks only T033-T036; C2 remains workflow source |
 
 ## Prohibited Operations Record
 
 - No issue #220 through #234 was edited.
 - No unrelated issue, label, assignee, milestone, checklist, state, or public comment was mutated.
-- No PR was merged, approved, or configured for auto-merge.
+- Codex merged, approved, or configured auto-merge on no PR. The only observed
+  PR merge is the user's merge-commit of PR #276.
 - No rebase, force-push, force-with-lease, branch deletion, remote deletion, or remote cleanup occurred.
 - No local or remote cleanup occurred.
