@@ -170,7 +170,7 @@
 - [X] T053 [TO5] Run every applicable existing #250–#259 focused regression named by the final evidence plan plus the complete #260 routing/live-evidence reviews; record fresh canonical results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
 - [X] T054 [TO5] Review all changed paths against `specs/034-live-sidecar-dry-run/plan.md` and justify or remove any unplanned surface while keeping the managed Spec Kit pointer absent from committed delivery state
 - [X] T055 [TO5] Run final `git diff --check`, status, diff-summary, constitution, contract, routing, protected-operation, and validation-freshness checks on the #260 build-out branch; record results in `specs/034-live-sidecar-dry-run/dry-run-report.md`
-- [ ] T056 [TO5] Commit the accepted post-runtime #260 evidence as a follow-up control-plane commit, normally push `chore/260-live-controlled-sidecar-dry-run`, and open one ready PR to `workflow/sidecar-buildout` using `Related to #260`; record and report the actual URL without merging it
+- [X] T056 [TO5] Commit the accepted post-runtime #260 evidence as a follow-up control-plane commit, normally push `chore/260-live-controlled-sidecar-dry-run`, and open one ready PR to `workflow/sidecar-buildout` using `Related to #260`; record and report the actual URL without merging it
 
 **Checkpoint**: #260 is delivered for review; no fixture or build-out PR has been merged by Codex and no cleanup beyond eligibility evaluation has occurred.
 

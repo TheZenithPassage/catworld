@@ -3,11 +3,11 @@
 ## Run State
 
 - **Issue**: [#260](https://github.com/TheZenithPassage/catworld/issues/260)
-- **Current stage**: the complete H/H2 runtime delivery was accepted through the user-owned merge of [PR #279](https://github.com/TheZenithPassage/catworld/pull/279); post-merge evidence and cleanup eligibility are recorded; the bounded #252 portability correction, complete T053 regression/live-evidence rerun, T054 scope convergence, and T055 final gate are complete
+- **Current stage**: the complete H/H2 runtime delivery was accepted through the user-owned merge of [PR #279](https://github.com/TheZenithPassage/catworld/pull/279); post-merge evidence and cleanup eligibility are recorded; the bounded #252 portability correction and T053–T055 acceptance gates passed; T056 delivered ready [PR #280](https://github.com/TheZenithPassage/catworld/pull/280) without merging it
 - **Current checkpoint**: Mandatory Pause 4 satisfied by merge commit `d46968fd0914f632e2b4eb5914547dfc7921c17d`, with ordered parents runtime `B=047569718767859289b9f48d68b635b8f7b7f1ac` then `H2=df9fb2a8c80d3b8a0f5fb555f4b202cc99722481`; literal implementation `H=c383fef1bb10e54e54dbd25de82dbd61b0d3f73a` remains H2's direct parent
 - **Stable run ID**: `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`
 - **Controlled coordinator issue**: [#272](https://github.com/TheZenithPassage/catworld/issues/272)
-- **Readiness**: every required validation and pre-delivery gate through T055 is current and `passed`; factual T056 commit/push/ready-PR delivery remains pending, and no final #260 PR exists
+- **Readiness**: every required result is current and `passed`; [PR #280](https://github.com/TheZenithPassage/catworld/pull/280) is the sole open, non-draft, mergeable, ready #260 PR from `chore/260-live-controlled-sidecar-dry-run` to `workflow/sidecar-buildout`
 - **Cleanup**: `eligible/not_started`; the same-run Git-common-directory journal contains exactly eight top-level fields, eight retained resource entries, reason `cleanup-authority-missing`, and zero attempted operations
 
 This report is the #260 build-out evidence record. Runtime coordinator and child artifacts are recorded in their separate coordinator branch/worktree. Planned or pending values below are not evidence that a resource or validation result exists.
@@ -268,7 +268,7 @@ Runtime artifact reconciliation exposed a second, narrower self-reference before
 - `C2` normal push/fetched equality: passed; local and `origin/chore/260-live-controlled-sidecar-dry-run` both resolved to exact `C2` before this bounded report update.
 - Superseding report recording head `C2r`: `76531c9aa0511c49dfd44eb196913a2600a044da`; this bounded report/task commit stores literal `C2`, is pushed/fetched-equal, and is not the workflow source.
 - Runtime rule: `C1` and `C1r` remain historical evidence but are not valid runtime workflow sources. Every reconciled prepared child handoff and canonical fingerprint named exact pushed `C2=db175fe0a1911e9ea2a1931ae808b9771f874b57`; current fetched remote equality to `C2r` passed before runtime reconciliation resumed.
-- Final #260 pull request: not opened.
+- Final #260 pull request: [#280](https://github.com/TheZenithPassage/catworld/pull/280), opened ready after all current acceptance gates passed; no closing keyword and no Codex merge.
 
 ### Live Runtime Resume and Layered Delivery
 
@@ -449,7 +449,7 @@ tracking, and live `main` remained
   M278/H/H2, complete H/H2 evidence, PR #279, Mandatory Pause 4, and T042-T048
   only. It does not replace C2 as the workflow source.
 - Runtime final coordinator PR: [#279](https://github.com/TheZenithPassage/catworld/pull/279), merged by exact two-parent `d46968fd0914f632e2b4eb5914547dfc7921c17d`.
-- Final #260 PR: not opened.
+- Final #260 PR: [#280](https://github.com/TheZenithPassage/catworld/pull/280), open, non-draft, mergeable, and ready from the control branch to `workflow/sidecar-buildout`.
 
 ### Historical Partial Merge Resume and Active-Child Refresh
 
@@ -725,7 +725,7 @@ and evidence set plus this explicitly authorized #252 validator correction.
 The correction is the sole new surface beyond the original plan and directly
 repairs the required final regression. No product, runtime artifact, H2, local
 main, cleanup journal, retained resource, #261 activation, or unrelated surface
-is present. T053, T054, and T055 are complete; T056 has not started.
+is present. T053 through T056 are complete.
 
 Non-required diagnostic shell probes are preserved separately from the
 canonical plan results: Windows PowerShell 5.1 produced `failed` results for the
@@ -735,6 +735,24 @@ PowerShell 7 #259 probe produced `failed` after automatic ISO timestamp
 conversion. These broader cross-shell probes do not replace the prescribed
 PowerShell 7 #255–#258 and Windows PowerShell #259 matrices above, all of which
 passed; no correction outside the authorized #252 scope was made.
+
+## Final #260 Build-Out Delivery
+
+- Acceptance commit: `9c2c0eaa2f23eade781538eadcff91e79d0a9a94`
+  (`fix(workflow): complete live sidecar acceptance`). It contains exactly the
+  #252 validator, this report, and `tasks.md`; the cached whitespace check
+  passed, and the cleanup journal was neither tracked nor staged.
+- The branch was normally pushed, explicitly fetched, and proven equal at the
+  local, tracking, and live remote refs before PR creation.
+- A fresh exact head/base search returned zero existing PRs. Exactly one ready
+  [PR #280](https://github.com/TheZenithPassage/catworld/pull/280) was then
+  opened from `chore/260-live-controlled-sidecar-dry-run` to
+  `workflow/sidecar-buildout` with body opening `Related to #260`, no closing
+  keyword, and draft false. The refreshed GitHub result reports it open,
+  mergeable, ready, and with zero comments.
+- This bounded report/task recording stores the returned URL after creation; it
+  does not change any validator, runtime resource, H2, local-main, cleanup, or
+  #261 evidence and does not merge the PR.
 
 ## Validation History
 
@@ -872,6 +890,7 @@ passed; no correction outside the authorized #252 scope was made.
 | T054 final range convergence | `origin/workflow/sidecar-buildout` through current working tree | 19-path plan/source-map review, explicit #252 exception justification, pointer and `.gitattributes` checks | passed | every path justified; no product/runtime/H2/journal/unrelated path; managed Spec Kit pointer absent |
 | T055 local assertion calibration | first ad hoc final-gate wrapper | literal shared-contract/run-ID and duplicate-default scenario-count assertions | failed | wrapper false negatives only: the shared contract is intentionally parameterized and the parser counted the default `valid` twice; no contract or validator invariant failed |
 | T055 final control gate | final report/task recording bytes | corrected 30-check constitution/contract/scope/freshness gate plus routing, protected operations, prerequisites, task/checklist/pointer, status, diff summary and full whitespace review | passed | 30/30 corrected assertions; full `git diff --check`; 19 justified range paths; three intended working paths; empty index; T001–T056 contiguous |
+| T056 ready #260 delivery | acceptance commit `9c2c0eaa2f23eade781538eadcff91e79d0a9a94`; [PR #280](https://github.com/TheZenithPassage/catworld/pull/280) | scoped commit, normal push, fetch/local-tracking-live equality, zero-duplicate search, one ready PR create and current metadata re-read | passed | source `chore/260-live-controlled-sidecar-dry-run`; target `workflow/sidecar-buildout`; `Related to #260`; no closing keyword; open/non-draft/mergeable; zero comments; not merged |
 
 ## Prohibited Operations Record
 
