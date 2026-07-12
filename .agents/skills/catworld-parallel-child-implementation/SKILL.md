@@ -1,28 +1,23 @@
 ---
 name: "catworld-parallel-child-implementation"
 description: "Implement one prepared CatWorld sidecar child issue from coordinator-provided artifacts without changing the existing sequential issue implementation workflow."
-compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#260"
+compatibility: "Requires the CatWorld repository, an explicit sidecar child handoff prepared by the sidecar coordinator workflow, and the sidecar workflow guardrails from issues #220-#261"
 metadata:
   author: "catworld"
-  source: "issues-228-232,253-257,260"
+  source: "issues-228-232,253-257,260-261"
 ---
 
 # CatWorld Parallel Child Implementation
 
 Use this sidecar skill only for one child issue that has been handed off by a
 routing-authorized sidecar coordinator parallel run after coordinator artifact
-preparation has completed. General routing authorization begins only after
-#261 activates sidecar routing. Before #261, accept a prepared handoff only
-when current GitHub evidence verifies all of these exact fixture values:
-
-- coordinator issue #272;
-- coordinator URL
-  `https://github.com/TheZenithPassage/catworld/issues/272`;
-- run ID `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`;
-- a current coordinator issue body that explicitly identifies #272 as the sole
-  controlled sidecar dry-run fixture authorized by #260.
-
-Stop on any mismatch. A title, branch prefix, label, stale artifact, or private
+preparation has completed. A routing-authorized run begins with an explicit
+`parallel` request for a clearly identified coordinator issue outside the
+permanent #220-#234 exclusion and proceeds only after current coordinator
+preflight, source-of-truth review, child inspection, dependency classification,
+and safety checks pass. This child skill does not make or infer that routing
+decision. Stop when the prepared handoff lacks current, consistent evidence of
+that authorization. A title, branch prefix, label, stale artifact, or private
 conversation is not routing authorization.
 
 This skill consumes prepared child artifacts: the coordinator-provided child
@@ -50,8 +45,8 @@ Issue #256 makes this prepared child handoff execution-capable: the child
 executor confirms the prepared checkout and branch, implements only the
 prepared `tasks.md`, runs required validation, reports explicit validation
 statuses, and may commit, push normally, and open or update the child PR only
-when delivery is permitted after the issue #260 release barrier. That child PR
-targets the coordinator branch, uses
+when delivery is permitted after the durable two-phase release barrier. That
+child PR targets the coordinator branch, uses
 `Related to` issue references only, and is ready only with fresh passing
 validation and no unresolved blocker.
 Issue #257 extends resumed child handoffs after user-owned child PR merges:
@@ -61,10 +56,11 @@ the refreshed coordinator branch state, active-child refresh state, integrated
 child state, stale validation, and next-layer dependency status to this skill.
 This skill consumes that evidence and must stop when it is missing or conflicts
 with current GitHub or repository state.
-Issue #260 corrects the child-dispatch boundary with a narrowly scoped,
-non-atomic two-phase held barrier. The same real child executor first accepts a
-preflight-only handoff with implementation and delivery permissions false. The
-coordinator may record `launched` only after that acceptance, commit and push
+The accepted issue #260 dry run corrected the child-dispatch boundary with a
+narrowly scoped, non-atomic two-phase held barrier. The same real child executor
+first accepts a preflight-only handoff with implementation and delivery
+permissions false. The coordinator may record `launched` only after that
+acceptance, commit and push
 the factual launch update, and target the same exact child executor with the
 durable launched evidence. The child may implement only after it fetches,
 incorporates, and verifies that exact remote coordinator head cleanly and then
@@ -84,8 +80,8 @@ Use `.agents/skills/catworld-implement-issue/SKILL.md` instead for:
   routing-authorized coordinator run; those requests remain sequential, while
   a direct-child request with `parallel` remains invalid;
 - coordinator final passes after all listed child issues are closed;
-- issues #220 through #234 while the sidecar workflow is still being designed,
-  validated, and adopted through the current sequential guardrails.
+- issues #220 through #234, which remain permanently excluded from sidecar
+  parallel routing and continue through the current sequential guardrails.
 
 Use `.agents/skills/catworld-parallel-coordinator/SKILL.md` instead for:
 
@@ -175,8 +171,8 @@ accepts that dispatch, the preflight handoff must provide all of these inputs:
 - intended child PR issue-reference wording, which must use
   exactly `Related to #<child-issue>` and
   `Related to #<coordinator-issue>` as its two issue-reference lines, must not
-  add a control-issue reference such as #260, and must not close the child issue
-  or coordinator issue;
+  add another control-issue reference, and must not close the child issue or
+  coordinator issue;
 - explicit preflight permission state proving implementation edits, artifact
   edits, commits, pushes, child PR open/update, and every other delivery action
   are false while the child is held;
@@ -387,8 +383,8 @@ Validate the handoff without touching implementation or artifact files:
   have passed, or any dirty paths are reported as blockers rather than hidden.
 - The intended child PR target is the coordinator branch and not `main`.
 - The intended child PR wording uses exactly the child and coordinator
-  `Related to` reference lines, contains no additional control-issue reference
-  such as #260, and cannot close the child issue or coordinator issue.
+  `Related to` reference lines, contains no additional control-issue reference,
+  and cannot close the child issue or coordinator issue.
 - Any required active-child refresh uses a normal merge from the updated local
   coordinator branch only when needed. The handoff must not ask the child to
   refresh from stale local coordinator state.
@@ -549,8 +545,7 @@ commit, push, or PR authority. When permitted, delivery consists only of:
    branch, not `main`;
 6. writing the child PR body with exactly these two issue-reference lines,
    `Related to #<child-issue>` and `Related to #<coordinator-issue>`, without
-   closing keywords or an additional coordinator-control issue reference such
-   as #260;
+   closing keywords or an additional coordinator-control issue reference;
 7. setting or reporting ready status only when required validation is fresh and
    passed and no unresolved blocker affects the child.
 
@@ -744,9 +739,10 @@ and normal sequential state boundary rules. Issue #256 supplies prepared child
 execution and child PR delivery rules. Issue #257 supplies merge-aware
 coordinator resume, remote coordinator refresh before active child refresh,
 integration marking, next-layer progression, and refresh-stale validation
-rules. Later sidecar issues may add approved adoption or additional delivery
-execution rules. Until the relevant rules and approvals are present in the
-handoff and governing source-of-truth documents, stop before those operations.
+rules. Current controlled sidecar execution follows these approved rules. Any
+additional delivery operation outside them still requires explicit approval in
+the handoff and governing source-of-truth documents; stop before an operation
+that lacks that authority.
 
 ## Stop Conditions
 
@@ -865,8 +861,8 @@ For each child implementation, validation must include:
   refreshed from the remote coordinator branch;
 - confirmation that sidecar child PR guidance targets the coordinator branch,
   uses exactly the two `Related to` issue-reference lines for the child and
-  coordinator, includes no additional control-issue reference such as #260,
-  and does not close child or coordinator issues;
+  coordinator, includes no additional control-issue reference, and does not
+  close child or coordinator issues;
 - confirmation that child PR ready/draft status reflects fresh validation and
   blocker state honestly;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
@@ -880,8 +876,9 @@ execution, PR body wording review, child PR target review, draft/not-ready
 readiness review for non-passed validation, changed-file review, and
 confirmation that the normal implementation skill is untouched.
 
-Validation for issue #260's correction must cover accepted held preflight with
-zero edits, rejected and ambiguous dispatch, stable exact-child identity,
+The regression coverage introduced for the accepted issue #260 correction must
+continue to cover accepted held preflight with zero edits, rejected and
+ambiguous dispatch, stable exact-child identity,
 durable launched-evidence ancestry through a possibly later remote
 activation/record head, clean incorporation of that recording head,
 launch-push failure, fetch/verification/incorporation failure, release-message

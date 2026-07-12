@@ -28,28 +28,24 @@ CatWorld issue implementation request.
 * The closed-sub-issue coordinator final pass is not a separate workflow and
   must not redo closed sub-issue scope.
 * The `parallel` keyword is reserved for a clearly identified coordinator issue
-  and must not route to legacy coordinator orchestration. Until #261 activates
-  sidecar coordinator routing, stop with a routing error that sidecar parallel
-  is not active, except for the one temporary #260-controlled fixture recorded
-  as issue #272 (`https://github.com/TheZenithPassage/catworld/issues/272`) with
-  run ID `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`. That exception is
-  valid only while current GitHub evidence shows the exact issue body explicitly
-  identifies itself as the sole controlled sidecar dry-run fixture authorized
-  by #260 before #261 and all normal sidecar safety checks pass. A title, label,
-  branch prefix, or private conversation is insufficient; missing, ambiguous,
-  duplicated, stale, unsafe, or inconsistent evidence stops. After #261
-  activates general routing, explicit eligible coordinator `parallel` requests
-  route only to `.agents/skills/catworld-parallel-coordinator/SKILL.md`.
-* If the issue is not a coordinator issue and the prompt includes `parallel`,
-  stop with a routing error instead of ignoring the flag.
+  and must not route to legacy coordinator orchestration. An explicit
+  coordinator `parallel` request routes only to
+  `.agents/skills/catworld-parallel-coordinator/SKILL.md` for its controlled
+  read-only classification and preflight. The sidecar workflow may proceed only
+  when that preflight establishes complete, current, consistent, and safe
+  context. Missing, ambiguous, duplicated, stale, unsafe, or inconsistent
+  evidence stops with an explicit blocker before downstream sidecar mutation.
+* If the issue is not a coordinator issue, including when it is a direct child,
+  and the prompt includes `parallel`, stop with a routing error instead of
+  ignoring the flag or falling back to sequential execution.
 * The `sequential` keyword keeps normal implementable issues and direct child
   issues on the existing sequential workflow. For coordinator issues, apply the
   open-sub-issue and closed-sub-issue guardrails above.
 * Never infer parallel mode from a bare issue number, issue reference, or issue
   URL.
 * Issues #220 through #234 must not route through parallel mode; use the current
-  sequential workflow guardrails only. This exclusion overrides the temporary
-  #260 fixture exception.
+  sequential workflow guardrails only. This exclusion remains in force after
+  controlled sidecar routing activation.
 * If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
 * If the issue cannot be classified as a normal implementable issue or a
@@ -57,7 +53,7 @@ CatWorld issue implementation request.
 
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or the exact recorded branch/worktree operations of a routing-authorized sidecar run. Before #261, only the verified #272 fixture above can be routing-authorized this way.
+* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or the exact recorded branch/worktree operations of a routing-authorized sidecar run.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed or required by the exact recorded control/runtime refs of a routing-authorized sidecar run.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.

@@ -37,16 +37,12 @@ as an end-to-end CatWorld issue implementation request.
 - The closed-sub-issue coordinator final pass is not a separate workflow and
   must not redo closed sub-issue scope.
 - Treat `parallel` as reserved for clearly identified coordinator issues only.
-  It must not route to legacy coordinator orchestration. Until #261 activates
-  sidecar coordinator routing, stop with a routing error that sidecar parallel
-  is not active, except for the exact temporary #260-controlled fixture defined
-  by `AGENTS.md`: issue #272 at
-  `https://github.com/TheZenithPassage/catworld/issues/272`, run ID
-  `sidecar-260-5522748a7cd34cc0b35d29b9c10fc8bb`, with current issue-body and
-  safety evidence satisfying that routing predicate. The verified exception,
-  and after #261 any eligible coordinator `parallel` request, routes only to
+  It must not route to legacy coordinator orchestration. After read-only issue
+  classification identifies an eligible coordinator, an explicit `parallel`
+  request routes only to
   `.agents/skills/catworld-parallel-coordinator/SKILL.md` and is outside this
-  sequential skill.
+  sequential skill. If sidecar preflight blocks, do not fall back to sequential
+  implementation.
 - If the issue is not a coordinator issue and the prompt includes `parallel`,
   stop with a routing error instead of ignoring the flag.
 - Treat `sequential` as a request to keep the current sequential workflow
@@ -65,7 +61,7 @@ This skill implements one concrete CatWorld issue, including a normal
 implementable issue, a direct child issue, or a coordinator final pass after all
 listed sub-issues are closed.
 
-A coordinator `parallel` request routed to the sidecar skill by the exact
+A coordinator `parallel` request routed to the sidecar skill by the active
 `AGENTS.md` predicate is outside this skill. Do not copy sidecar lifecycle,
 artifact, Git, handoff, resume, validation, or PR-delivery behavior here.
 
@@ -135,20 +131,20 @@ Examples:
 - `fix/201-stay-date-validation`
 - `docs/210-update-operations-guide`
 
-## Future Sub-Issue Compatibility
+## Sidecar Sub-Issue Compatibility
 
 This skill does not implement full multi-agent orchestration, automatic
 worktree management, or branch-to-branch integration between work branches.
-However, do not word issue implementation rules in a way that blocks a future
-explicitly designed principal-agent workflow.
+Those concerns belong to the separately defined sidecar workflow for eligible
+explicit coordinator `parallel` requests, not this sequential workflow.
 
 - Coordinator issues may split work into sub-issues when dependencies and
   conflict risks are understood.
 - Do not route coordinator issues to a separate orchestration workflow by
-  default. A future explicitly designed sidecar workflow may define that
-  behavior, but it is not implemented here.
+  default. Only an eligible explicit coordinator `parallel` request routes to
+  the sidecar coordinator workflow.
 - Hard-dependent sub-issues must not be parallelized blindly.
-- Future sub-agents must inherit the same governing context as the principal
+- Sidecar child agents must inherit the same governing context as the principal
   agent, including repository instructions, Spec Kit artifacts, issue body,
   linked sub-issues, parent/coordinator issue, relevant documentation, and
   current `main`.
