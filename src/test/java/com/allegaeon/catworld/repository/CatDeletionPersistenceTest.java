@@ -77,51 +77,66 @@ class CatDeletionPersistenceTest {
     }
 
     @Test
-    void foreignKeyBlocksDeletionAndPreservesEveryKindOfStayHistory() {
-        UserAccount creator = saveCreator("referenced-cat-creator");
-        Owner owner = saveOwner(creator);
-        Vet vet = saveVet(creator);
-        Cat cat = saveCat("Luna", owner, vet, creator);
+    void futureStayHistoryBlocksDeletionAndIsPreserved() {
         LocalDateTime now = LocalDateTime.now();
 
-        Stay futureStay = saveStay(
-                cat,
-                owner,
-                creator,
+        assertHistoryBlocksDeletion(
+                "future-stay-cat",
                 now.plusDays(1),
                 now.plusDays(2),
-                null);
-        Stay cancelledStay = saveStay(
-                cat,
-                owner,
-                creator,
+                null,
+                StayStatus.RESERVED);
+    }
+
+    @Test
+    void cancelledStayHistoryBlocksDeletionAndIsPreserved() {
+        LocalDateTime now = LocalDateTime.now();
+
+        assertHistoryBlocksDeletion(
+                "cancelled-stay-cat",
                 now.minusDays(3),
                 now.minusDays(2),
-                now.minusDays(2));
-        Stay historicalStay = saveStay(
-                cat,
-                owner,
-                creator,
+                now.minusDays(2),
+                StayStatus.CANCELLED);
+    }
+
+    @Test
+    void historicalStayHistoryBlocksDeletionAndIsPreserved() {
+        LocalDateTime now = LocalDateTime.now();
+
+        assertHistoryBlocksDeletion(
+                "historical-stay-cat",
                 now.minusDays(10),
                 now.minusDays(5),
-                null);
+                null,
+                StayStatus.CHECKED_OUT);
+    }
+
+    private void assertHistoryBlocksDeletion(
+            String fixtureKey,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            LocalDateTime cancelledAt,
+            StayStatus expectedStatus) {
+        UserAccount creator = saveCreator(fixtureKey + "-creator");
+        Owner owner = saveOwner(creator);
+        Vet vet = saveVet(creator);
+        Cat cat = saveCat(fixtureKey, owner, vet, creator);
+        Stay stay = saveStay(cat, owner, creator, startAt, endAt, cancelledAt);
 
         UUID catId = cat.getId();
-        assertEquals(StayStatus.RESERVED, futureStay.getStatus());
-        assertEquals(StayStatus.CANCELLED, cancelledStay.getStatus());
-        assertEquals(StayStatus.CHECKED_OUT, historicalStay.getStatus());
+        assertEquals(expectedStatus, stay.getStatus());
         assertTrue(stayCatRepository.existsByCat_Id(catId));
-        assertEquals(3, countStayCatRows(catId));
+        assertEquals(1, countStayCatRows(catId));
 
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> jdbcTemplate.update("delete from cats where id = ?", catId));
 
         assertEquals(1, countCatRows(catId));
-        assertEquals(3, countStayCatRows(catId));
-        assertTrue(stayRepository.findById(futureStay.getId()).isPresent());
-        assertTrue(stayRepository.findById(cancelledStay.getId()).isPresent());
-        assertTrue(stayRepository.findById(historicalStay.getId()).isPresent());
+        assertEquals(1, countStayCatRows(catId));
+        assertTrue(stayCatRepository.existsByCat_Id(catId));
+        assertTrue(stayRepository.findById(stay.getId()).isPresent());
         assertTrue(ownerRepository.findById(owner.getId()).isPresent());
         assertTrue(vetRepository.findById(vet.getId()).isPresent());
         assertTrue(userAccountRepository.findById(creator.getId()).isPresent());
