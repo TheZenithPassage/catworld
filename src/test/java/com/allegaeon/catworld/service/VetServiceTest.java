@@ -2,7 +2,9 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
+import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.VetMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
@@ -13,13 +15,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,10 +34,13 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class VetServiceTest {
+
+    private static final Instant CREATED_AT = Instant.parse("2026-07-05T11:50:00Z");
 
     @Mock
     private VetRepository vetRepository;
@@ -51,84 +61,211 @@ class VetServiceTest {
     private ArgumentCaptor<Vet> vetCaptor;
 
     @Test
-    void createVetAssignsAuthenticatedCreator() {
-        UserAccount creator = UserAccount.builder()
-                .id(UUID.randomUUID())
-                .username("staff")
-                .build();
-
+    void createVetAssignsAuthenticatedCreatorAndCalculatesCanDelete() {
+        UserAccount creator = creator();
         VetRequestDTO request = VetRequestDTO.builder()
                 .name("Central Vet")
                 .phoneNumber("123456789")
                 .build();
-
-        Vet mappedVet = Vet.builder()
-                .name(request.getName())
-                .phoneNumber(request.getPhoneNumber())
-                .build();
-
+        Vet mappedVet = vet(UUID.randomUUID(), creator);
         VetResponseDTO expectedResponse = VetResponseDTO.builder()
-                .id(UUID.randomUUID())
+                .id(mappedVet.getId())
                 .name(request.getName())
                 .phoneNumber(request.getPhoneNumber())
+                .canDelete(true)
                 .build();
 
         when(vetMapper.toEntity(request)).thenReturn(mappedVet);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
         when(vetRepository.save(any(Vet.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(vetMapper.toResponseDTO(any(Vet.class))).thenReturn(expectedResponse);
+        when(deletionAuthorizationPolicy.canDelete(creator, CREATED_AT)).thenReturn(true);
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(mappedVet.getId())).thenReturn(false);
+        when(vetMapper.toResponseDTO(mappedVet, true)).thenReturn(expectedResponse);
 
         VetResponseDTO result = service.createVet(request);
 
         assertSame(expectedResponse, result);
-
         verify(vetRepository).save(vetCaptor.capture());
         assertSame(creator, vetCaptor.getValue().getCreatedBy());
+        verify(vetMapper).toResponseDTO(mappedVet, true);
     }
 
     @Test
-    void deleteVetAuthorizesBeforeDeletingVet() {
+    void getAllVetsCalculatesCanDeleteForEachVet() {
+        Vet deletable = vet(UUID.randomUUID(), creator());
+        Vet unauthorized = vet(UUID.randomUUID(), creator());
+        VetResponseDTO deletableResponse = VetResponseDTO.builder()
+                .id(deletable.getId())
+                .canDelete(true)
+                .build();
+        VetResponseDTO unauthorizedResponse = VetResponseDTO.builder()
+                .id(unauthorized.getId())
+                .canDelete(false)
+                .build();
+
+        when(vetRepository.findAll()).thenReturn(List.of(deletable, unauthorized));
+        when(deletionAuthorizationPolicy.canDelete(deletable.getCreatedBy(), CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(unauthorized.getCreatedBy(), CREATED_AT)).thenReturn(false);
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(deletable.getId())).thenReturn(false);
+        when(vetMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(vetMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
+
+        List<VetResponseDTO> result = service.getAllVets();
+
+        assertEquals(List.of(deletableResponse, unauthorizedResponse), result);
+        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(unauthorized.getId());
+    }
+
+    @Test
+    void getVetReportsCanDeleteFalseWhenAuthorizedVetIsReferenced() {
         UUID vetId = UUID.randomUUID();
-        UserAccount creator = UserAccount.builder()
-                .id(UUID.randomUUID())
-                .username("staff")
-                .build();
-        Instant createdAt = Instant.parse("2026-07-05T11:50:00Z");
-        Vet vet = Vet.builder()
+        Vet vet = vet(vetId, creator());
+        VetResponseDTO expectedResponse = VetResponseDTO.builder()
                 .id(vetId)
-                .createdBy(creator)
+                .canDelete(false)
                 .build();
-        vet.setCreatedAt(createdAt);
 
         when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(deletionAuthorizationPolicy.canDelete(vet.getCreatedBy(), CREATED_AT)).thenReturn(true);
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(true);
+        when(vetMapper.toResponseDTO(vet, false)).thenReturn(expectedResponse);
+
+        VetResponseDTO result = service.getVet(vetId);
+
+        assertSame(expectedResponse, result);
+    }
+
+    @Test
+    void updateVetCalculatesCanDeleteForSavedVet() {
+        UUID vetId = UUID.randomUUID();
+        VetRequestDTO request = VetRequestDTO.builder()
+                .name("Updated Vet")
+                .build();
+        Vet vet = vet(vetId, creator());
+        VetResponseDTO expectedResponse = VetResponseDTO.builder()
+                .id(vetId)
+                .name(request.getName())
+                .canDelete(true)
+                .build();
+
+        when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(vetMapper.updateEntity(vet, request)).thenReturn(vet);
+        when(vetRepository.save(vet)).thenReturn(vet);
+        when(deletionAuthorizationPolicy.canDelete(vet.getCreatedBy(), CREATED_AT)).thenReturn(true);
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(false);
+        when(vetMapper.toResponseDTO(vet, true)).thenReturn(expectedResponse);
+
+        VetResponseDTO result = service.updateVet(vetId, request);
+
+        assertSame(expectedResponse, result);
+        verify(vetMapper).toResponseDTO(vet, true);
+    }
+
+    @Test
+    void deleteVetStopsAfterMissingLookup() {
+        UUID vetId = UUID.randomUUID();
+        when(vetRepository.findById(vetId)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> service.deleteVet(vetId));
+
+        verifyNoInteractions(deletionAuthorizationPolicy);
+        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(vetId);
+        verify(vetRepository, never()).delete(any(Vet.class));
+        verify(vetRepository, never()).flush();
+    }
+
+    @Test
+    void deleteVetAuthorizesAndChecksReferencesBeforeDeletingAndFlushing() {
+        UUID vetId = UUID.randomUUID();
+        Vet vet = vet(vetId, creator());
+        when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(false);
 
         service.deleteVet(vetId);
 
-        var inOrder = inOrder(deletionAuthorizationPolicy, vetRepository);
-        inOrder.verify(deletionAuthorizationPolicy).authorize(creator, createdAt);
-        inOrder.verify(vetRepository).delete(vet);
+        InOrder ordered = inOrder(vetRepository, deletionAuthorizationPolicy);
+        ordered.verify(vetRepository).findById(vetId);
+        ordered.verify(deletionAuthorizationPolicy).authorize(vet.getCreatedBy(), CREATED_AT);
+        ordered.verify(vetRepository).existsByIdAndCatsIsNotEmpty(vetId);
+        ordered.verify(vetRepository).delete(vet);
+        ordered.verify(vetRepository).flush();
     }
 
     @Test
-    void deleteVetDoesNotDeleteWhenAuthorizationFails() {
+    void deleteVetDoesNotProbeReferencesWhenAuthorizationFails() {
         UUID vetId = UUID.randomUUID();
-        UserAccount creator = UserAccount.builder()
-                .id(UUID.randomUUID())
-                .username("staff")
-                .build();
-        Instant createdAt = Instant.parse("2026-07-05T11:00:00Z");
-        Vet vet = Vet.builder()
-                .id(vetId)
-                .createdBy(creator)
-                .build();
-        vet.setCreatedAt(createdAt);
-
+        Vet vet = vet(vetId, creator());
         when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
         doThrow(new ForbiddenException("Forbidden"))
-                .when(deletionAuthorizationPolicy).authorize(creator, createdAt);
+                .when(deletionAuthorizationPolicy).authorize(vet.getCreatedBy(), CREATED_AT);
 
         assertThrows(ForbiddenException.class, () -> service.deleteVet(vetId));
 
+        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(vetId);
         verify(vetRepository, never()).delete(any(Vet.class));
+        verify(vetRepository, never()).flush();
+    }
+
+    @Test
+    void deleteVetRejectsReferencedVetWithoutDeleting() {
+        UUID vetId = UUID.randomUUID();
+        Vet vet = vet(vetId, creator());
+        when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> service.deleteVet(vetId));
+
+        InOrder ordered = inOrder(vetRepository, deletionAuthorizationPolicy);
+        ordered.verify(vetRepository).findById(vetId);
+        ordered.verify(deletionAuthorizationPolicy).authorize(vet.getCreatedBy(), CREATED_AT);
+        ordered.verify(vetRepository).existsByIdAndCatsIsNotEmpty(vetId);
+        verify(vetRepository, never()).delete(any(Vet.class));
+        verify(vetRepository, never()).flush();
+    }
+
+    @Test
+    void deleteVetTranslatesDataIntegrityFailureFromDelete() {
+        UUID vetId = UUID.randomUUID();
+        Vet vet = vet(vetId, creator());
+        when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(false);
+        doThrow(new DataIntegrityViolationException("constraint"))
+                .when(vetRepository).delete(vet);
+
+        assertThrows(ConflictException.class, () -> service.deleteVet(vetId));
+
+        verify(vetRepository, never()).flush();
+    }
+
+    @Test
+    void deleteVetTranslatesOptimisticFailureFromFlush() {
+        UUID vetId = UUID.randomUUID();
+        Vet vet = vet(vetId, creator());
+        when(vetRepository.findById(vetId)).thenReturn(Optional.of(vet));
+        when(vetRepository.existsByIdAndCatsIsNotEmpty(vetId)).thenReturn(false);
+        doThrow(new OptimisticLockingFailureException("stale"))
+                .when(vetRepository).flush();
+
+        assertThrows(ConflictException.class, () -> service.deleteVet(vetId));
+
+        verify(vetRepository).delete(vet);
+        verify(vetRepository).flush();
+    }
+
+    private UserAccount creator() {
+        return UserAccount.builder()
+                .id(UUID.randomUUID())
+                .username("staff")
+                .build();
+    }
+
+    private Vet vet(UUID id, UserAccount creator) {
+        Vet vet = Vet.builder()
+                .id(id)
+                .name("Central Vet")
+                .createdBy(creator)
+                .build();
+        vet.setCreatedAt(CREATED_AT);
+        return vet;
     }
 }

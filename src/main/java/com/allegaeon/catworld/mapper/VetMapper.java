@@ -10,11 +10,18 @@ public class VetMapper {
 
     public VetResponseDTO toResponseDTO(Vet vet) {
 
+        return toResponseDTO(vet, false);
+
+    }
+
+    public VetResponseDTO toResponseDTO(Vet vet, boolean canDelete) {
+
         return VetResponseDTO.builder()
                 .id(vet.getId())
                 .name(vet.getName())
                 .address(vet.getAddress())
                 .phoneNumber(vet.getPhoneNumber())
+                .canDelete(canDelete)
                 .build();
 
     }

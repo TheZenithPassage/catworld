@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IVetService;
@@ -55,12 +56,18 @@ public class VetControllerTest {
                     .id(vetId)
                     .name("Vet Clinic")
                     .phoneNumber("123456789")
+                    .canDelete(true)
                     .build());
 
             mockMvc.perform(get("/api/vets/{id}", vetId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(vetId.toString()))
-                    .andExpect(jsonPath("$.name").value("Vet Clinic"));
+                    .andExpect(jsonPath("$.name").value("Vet Clinic"))
+                    .andExpect(jsonPath("$.canDelete").value(true))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(vetService).getVet(vetId);
         }
@@ -94,6 +101,7 @@ public class VetControllerTest {
                     .id(vetId)
                     .name("Vet Clinic")
                     .phoneNumber("123456789")
+                    .canDelete(false)
                     .build());
 
             mockMvc.perform(post("/api/vets")
@@ -102,6 +110,7 @@ public class VetControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(vetId.toString()))
                     .andExpect(jsonPath("$.name").value("Vet Clinic"))
+                    .andExpect(jsonPath("$.canDelete").value(false))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -192,6 +201,31 @@ public class VetControllerTest {
             mockMvc.perform(delete("/api/vets/{id}", vetId))
                     .andExpect(status().isForbidden())
                     .andExpect(content().string("Forbidden"));
+
+            verify(vetService).deleteVet(vetId);
+        }
+
+        @Test
+        void shouldReturnNotFound_whenDeletedVetDoesNotExist() throws Exception {
+            UUID vetId = UUID.randomUUID();
+
+            doThrow(new ResourceNotFoundException("Vet", vetId)).when(vetService).deleteVet(vetId);
+
+            mockMvc.perform(delete("/api/vets/{id}", vetId))
+                    .andExpect(status().isNotFound());
+
+            verify(vetService).deleteVet(vetId);
+        }
+
+        @Test
+        void shouldReturnConflict_whenVetCannotBeDeleted() throws Exception {
+            UUID vetId = UUID.randomUUID();
+
+            doThrow(new ConflictException("Vet cannot be deleted")).when(vetService).deleteVet(vetId);
+
+            mockMvc.perform(delete("/api/vets/{id}", vetId))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().string("Vet cannot be deleted"));
 
             verify(vetService).deleteVet(vetId);
         }
