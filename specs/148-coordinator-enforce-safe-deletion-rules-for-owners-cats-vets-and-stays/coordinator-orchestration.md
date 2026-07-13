@@ -12,7 +12,7 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | layer 1 integrated; #197 is ready-next-layer and awaits Git resource preparation plus the held-dispatch barrier |
+| Current phase | layer 1 integrated; #197 is handoff-ready with launch pending and implementation/delivery permissions false |
 | Artifact freeze | not reached; H2 does not exist |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
@@ -67,7 +67,7 @@ journal. No resource from another run may be inferred from a matching name.
 | #195 Safe stay deletion | closed | preserved completed scope | none | specs/010-safe-stay-deletion/ | existing and preserved | not applicable | not applicable | Closed scope is already integrated and must not be reimplemented. |
 | #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | integrated | launched | PR #283 was user-merged with Create a merge commit; exact delivered head is in refreshed coordinator ancestry. |
 | #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | integrated | launched | PR #284 was user-merged with Create a merge commit; exact delivered head is in refreshed coordinator ancestry. |
-| #197 Block owner deletion while cats or stays reference it | open | layer 2 implementation and combined architecture summary | #196, #198 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | prepared | ready-next-layer | pending | Both hard dependencies are integrated; deterministic branch/worktree preparation and the two-phase held-dispatch barrier remain pending. |
+| #197 Block owner deletion while cats or stays reference it | open | layer 2 implementation and combined architecture summary | #196, #198 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | handoff-ready | handoff-ready | pending | Both hard dependencies are integrated and deterministic Git resources exist; durable R/Rr plus the two-phase held-dispatch barrier remain pending. |
 
 The prepared open-child set is exactly #196, #197, and #198. Issue #195 is
 accounted for once as preserved terminal context. Its implementation is present
@@ -136,7 +136,7 @@ Entity-specific blocking relationships:
 | Coordinator-wide | none | Classification, paths, merge policy, and control revision are established. |
 | Shared-contract | none | Effective canDelete and DELETE ordering are fixed above. |
 | Conflict | controlled | Repository and documentation ownership is split by layer and source map. |
-| Human-only | none | Required layer 1 user merges were observed and ancestry-proven; the next transition is coordinator-owned preparation of #197. |
+| Human-only | none | Required layer 1 user merges were observed and ancestry-proven; #197 remains held until the durable two-phase dispatch barrier passes. |
 
 ## Child-owned source maps
 
@@ -177,7 +177,7 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | fetched and proven equal to refreshed local coordinator head 9d57e2e62f985c9ed045049c84acfbe596dc52b3 before this bounded integration-state record |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | fetched and proven equal to local coordinator integration record 335d6ed1895a66b48c501dc9b23e892fb05f2409 before this bounded handoff-ready record |
 | Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created, clean, exact branch association, artifact write boundary |
 | #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | created by normal non-force push; local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c |
@@ -185,9 +185,9 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | #198 local branch | sidecar/198-block-vet-deletion-while-cats-reference-it | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #198 remote branch | origin/sidecar/198-block-vet-deletion-while-cats-reference-it | created by normal non-force push; local/remote equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 |
 | #198 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\198-block-vet-deletion-while-cats-reference-it | retained and clean at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697; exact branch/run association; PR #284 is merged into the coordinator branch |
-| #197 local branch | sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | deterministic planned branch; creation is now dependency-eligible but remains pending until this integration record is durable |
+| #197 local branch | sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | created from exact coordinator integration record 335d6ed1895a66b48c501dc9b23e892fb05f2409; exact run-owned association |
 | #197 remote branch | origin/sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | absent; child delivery has not occurred |
-| #197 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\197-block-owner-deletion-while-cats-or-stays-reference-it | planned and absent |
+| #197 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\197-block-owner-deletion-while-cats-or-stays-reference-it | created and clean at 335d6ed1895a66b48c501dc9b23e892fb05f2409; exact branch/run association; implementation remains held |
 
 The first attempted coordinator parent under
 C:\\Users\\moshe\\Desktop\\catworld-sidecar-worktrees was rejected by Git
@@ -248,15 +248,23 @@ or merge permission is implied.
 
 ### #197
 
-- Artifact state: prepared; workflow ready-next-layer.
+- Artifact state: handoff-ready; factual launch pending.
 - Dependency layer: 2; hard dependencies: #196 and #198.
-- Dispatch and all barrier evidence: pending deterministic branch/worktree preparation; hard dependencies are integrated.
+- Prepared-handoff fingerprint: 2cd9ca6c9e1b4262cf0946249a85a22a6c413fb9321ec5f060e00a3bf1c34e10.
+- Handoff-ready evidence SHA R: pending this bounded commit and normal push.
+- Remote recording head Rr containing R: pending the bounded literal-R record.
+- Stable held dispatch identity: pending exactly one preflight-only launch.
+- Held preflight zero-edit result: pending.
+- Factual launch state: pending.
+- Launched evidence SHA L: pending.
+- Remote activation/recording head Lr containing L: pending.
+- Branch/worktree preparation: local branch and clean worktree created from exact coordinator integration record 335d6ed1895a66b48c501dc9b23e892fb05f2409; remote child branch remains absent.
 - Implementation permission: false.
 - Delivery permission: false.
 
-Canonical fingerprints will use the workflow-defined ordered 21-field payload,
-UTF-8 compact JSON, and lowercase SHA-256. They will be computed only after the
-actual child branch/worktree associations exist.
+Canonical fingerprints use the workflow-defined ordered 21-field payload,
+UTF-8 compact JSON, and lowercase SHA-256. The #197 fingerprint was computed
+only after the actual local child branch/worktree associations existed.
 
 ## Pull request delivery contract
 
@@ -346,18 +354,18 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 | #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
 | #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / integrated | retained clean child worktree at 6237930c41a3afba9d5953e88238f0919891152c | merged PR #283 / coordinator branch | delivered-head checks passed; stale for integrated readiness after coordinator refresh | none; exact delivered commit and merge commit are in refreshed ancestry | integrated | coordinator refreshed to 9d57e2e62f985c9ed045049c84acfbe596dc52b3; terminal child refresh not needed | ineligible | covered next by #197 focused/full integrated evidence and final coordinator validation |
 | #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / integrated | retained clean child worktree at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | merged PR #284 / coordinator branch | delivered-head checks passed; stale for integrated readiness after coordinator refresh | none; exact delivered commit and merge commit are in refreshed ancestry | integrated | coordinator refreshed to 9d57e2e62f985c9ed045049c84acfbe596dc52b3; terminal child refresh not needed | ineligible | covered next by #197 focused/full integrated evidence and final coordinator validation |
-| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / ready-next-layer | branch and worktree intentionally uncreated before this integration record | none / coordinator branch | focused, verify, Docker: not run | deterministic Git preparation and held-dispatch evidence remain pending | ready-next-layer | hard dependencies integrated at refreshed coordinator 9d57e2e62f985c9ed045049c84acfbe596dc52b3 | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
+| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / handoff-ready | local branch/worktree clean at coordinator integration record 335d6ed1895a66b48c501dc9b23e892fb05f2409; remote branch absent | none / coordinator branch | focused, verify, Docker: not run | durable R/Rr and held-dispatch evidence remain pending | handoff-ready | hard dependencies integrated; child Git resources prepared from the pushed integration record | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: safely fast-forwarded from
-  0a03f4af4cb69ee93a06274418f508b178238ecd to fetched remote head
-  9d57e2e62f985c9ed045049c84acfbe596dc52b3 and proven clean/equal before this
-  bounded integration-state record.
+- Coordinator local branch/worktree: integration-state record
+  335d6ed1895a66b48c501dc9b23e892fb05f2409 was normally pushed, fetched, and
+  proven clean/equal before this bounded handoff-ready record.
 - Child branches/worktrees: #196 is clean and local/remote equal at
   6237930c41a3afba9d5953e88238f0919891152c; #198 is clean and local/remote
   equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697. They remain retained and
-  terminal; #197 is intentionally uncreated until this integration record is durable.
+  terminal; #197 is locally created and clean at
+  335d6ed1895a66b48c501dc9b23e892fb05f2409 with no remote child branch.
 - Child PR targets: merged PR #283 and merged PR #284 both targeted the
   coordinator branch; no final coordinator PR exists.
 - Refresh status: completed at 9d57e2e62f985c9ed045049c84acfbe596dc52b3;
@@ -371,7 +379,7 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 | #195 | completed and preserved | not sidecar-owned | existing historical delivery | present on main | b4fc5fb trace recorded | terminal | not applicable | ineligible |
 | #196 | integrated | retained clean/pushed at 6237930c41a3afba9d5953e88238f0919891152c | #283 merged | merge commit 8b4651f4b8127724a04fe30c73c0c6e3b7f07f4b observed | exact delivered commit is an ancestor of refreshed coordinator head | terminal | coordinator refreshed; terminal child refresh not needed | ineligible |
 | #198 | integrated | retained clean/pushed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | #284 merged | merge commit 9d57e2e62f985c9ed045049c84acfbe596dc52b3 observed | exact delivered commit is an ancestor of refreshed coordinator head | terminal | coordinator refreshed; terminal child refresh not needed | ineligible |
-| #197 | ready-next-layer | planned branch/worktree still absent | none | hard dependencies merged | dependency heads and merge commits present in refreshed coordinator ancestry | ready-next-layer | branch/worktree and held-dispatch preparation pending | ineligible |
+| #197 | handoff-ready | local branch/worktree clean at 335d6ed1895a66b48c501dc9b23e892fb05f2409; remote absent | none | hard dependencies merged | dependency heads and merge commits present in the child start-point ancestry | handoff-ready | durable R/Rr and held-dispatch barrier pending | ineligible |
 
 Before any resume transition, re-read current issue/PR state, fetch the remote
 coordinator ref, prove exact local/remote branch associations and clean states,
@@ -420,9 +428,8 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next allowed transition is coordinator-owned: normally push this factual
-integration-state record, prove fetched remote equality, then create the exact
-#197 branch/worktree from the refreshed coordinator branch. Compute and durably
-record the canonical handoff fingerprint with permissions false, execute the
-two-phase held-dispatch barrier for one stable #197 child identity, and only
-release that same child after every evidence and clean-state gate passes.
+The next allowed transition is coordinator-owned: commit and normally push this
+handoff-ready evidence as R, prove fetched remote equality, record literal R in
+the bounded Rr commit, then execute the two-phase held-dispatch barrier for one
+stable #197 child identity. Release only that same child after every evidence,
+ancestry, fingerprint, and clean-state gate passes.
