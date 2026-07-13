@@ -12,7 +12,7 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | prepared artifacts complete; initial coordinator commit pending |
+| Current phase | layer 1 handoff-ready evidence; held preflight not yet dispatched |
 | Artifact freeze | not reached; H2 does not exist |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
@@ -65,8 +65,8 @@ journal. No resource from another run may be inferred from a matching name.
 | Issue | State | Role | Hard dependencies | Artifact path | Preparation | Handoff | Launch | Non-launch reason |
 |---|---|---|---|---|---|---|---|---|
 | #195 Safe stay deletion | closed | preserved completed scope | none | specs/010-safe-stay-deletion/ | existing and preserved | not applicable | not applicable | Closed scope is already integrated and must not be reimplemented. |
-| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | prepared | pending | pending | Initial coordinator push, child Git context, and durable held-dispatch barrier are pending. |
-| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | prepared | pending | pending | Initial coordinator push, child Git context, and durable held-dispatch barrier are pending. |
+| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | handoff-ready / held-preflight | pending | Exact handoff-ready evidence and recording heads must be pushed and proven before dispatch. |
+| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | handoff-ready / held-preflight | pending | Exact handoff-ready evidence and recording heads must be pushed and proven before dispatch. |
 | #197 Block owner deletion while cats or stays reference it | open | layer 2 implementation and combined architecture summary | #196, #198 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | prepared | pending | pending | Waits for both layer 1 PRs to be user-merged into the coordinator branch. |
 
 The prepared open-child set is exactly #196, #197, and #198. Issue #195 is
@@ -177,14 +177,14 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | pending initial normal non-force push |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created by normal non-force push; fetched equality at preparation head c1637a789533f7a0ab654caa09033ffebc30a982 |
 | Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created, clean, exact branch association, artifact write boundary |
-| #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | planned from the pushed coordinator preparation head |
+| #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | planned; absent |
-| #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | planned and absent |
-| #198 local branch | sidecar/198-block-vet-deletion-while-cats-reference-it | planned from the pushed coordinator preparation head |
+| #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | created, clean at c1637a789533f7a0ab654caa09033ffebc30a982; exact branch/run association |
+| #198 local branch | sidecar/198-block-vet-deletion-while-cats-reference-it | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #198 remote branch | origin/sidecar/198-block-vet-deletion-while-cats-reference-it | planned; absent |
-| #198 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\198-block-vet-deletion-while-cats-reference-it | planned and absent |
+| #198 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\198-block-vet-deletion-while-cats-reference-it | created, clean at c1637a789533f7a0ab654caa09033ffebc30a982; exact branch/run association |
 | #197 local branch | sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | planned only after layer 1 integration |
 | #197 remote branch | origin/sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | planned only after layer 1 integration; absent |
 | #197 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\197-block-owner-deletion-while-cats-or-stays-reference-it | planned and absent |
@@ -205,9 +205,9 @@ identity checks pass.
 
 ### #196
 
-- Artifact state: prepared.
+- Artifact state: handoff-ready; workflow held-preflight; factual launch pending.
 - Dependency layer: 1; hard dependencies: empty.
-- Prepared-handoff fingerprint: pending.
+- Prepared-handoff fingerprint: f3252b3a16fb76b6494a1e3599258e882a9bc1d8f4d68c5211ce7bdd565f22dd.
 - Handoff-ready evidence SHA R: pending.
 - Remote recording head Rr containing R: pending.
 - Stable held dispatch identity: pending.
@@ -221,9 +221,9 @@ identity checks pass.
 
 ### #198
 
-- Artifact state: prepared.
+- Artifact state: handoff-ready; workflow held-preflight; factual launch pending.
 - Dependency layer: 1; hard dependencies: empty.
-- Prepared-handoff fingerprint: pending.
+- Prepared-handoff fingerprint: c965558afc8382260c79485673bafbd3ad3f719173b4f8959a8337f7724a4818.
 - Handoff-ready evidence SHA R: pending.
 - Remote recording head Rr containing R: pending.
 - Stable held dispatch identity: pending.
@@ -300,16 +300,18 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | pending / prepared | branch and worktree planned | none / coordinator branch | focused, verify, Docker: not run | initial push, child Git context, and held barrier pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | pending / prepared | branch and worktree planned | none / coordinator branch | focused, verify, Docker: not run | initial push, child Git context, and held barrier pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | R/Rr evidence and held acceptance pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | R/Rr evidence and held acceptance pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
 | #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / waiting-for-dependency-merge | branch and worktree intentionally uncreated | none / coordinator branch | focused, verify, Docker: not run | #196 and #198 must be user-merged and integrated | not ready | required after layer 1 merges | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: created and clean at the immutable control
-  revision; initial artifact commit and remote push are pending.
-- Child branches/worktrees: #196 and #198 are dependency-ready but still
-  planned; #197 is intentionally uncreated pending integration.
+- Coordinator local branch/worktree: created and clean; preparation head
+  c1637a789533f7a0ab654caa09033ffebc30a982 was normally pushed, fetched, and
+  proven equal to the remote coordinator ref.
+- Child branches/worktrees: #196 and #198 are created, clean, and exactly based
+  on c1637a789533f7a0ab654caa09033ffebc30a982; their remote branches remain
+  absent until released delivery. #197 is intentionally uncreated.
 - Child PR target for every prepared child: the coordinator branch.
 - Refresh status: not needed before layer 1; mandatory after user-owned layer 1
   merge commits and before layer 2 preparation.
@@ -320,8 +322,8 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Workflow state | Branch/worktree | PR | Merge observation | Coordinator ancestry | Readiness | Refresh | Cleanup eligibility |
 |---|---|---|---|---|---|---|---|---|
 | #195 | completed and preserved | not sidecar-owned | existing historical delivery | present on main | b4fc5fb trace recorded | terminal | not applicable | ineligible |
-| #196 | pending preparation | planned | none | none | none | not ready | not needed | ineligible |
-| #198 | pending preparation | planned | none | none | none | not ready | not needed | ineligible |
+| #196 | held-preflight; factual launch pending | created and clean | none | none | base c1637a789533f7a0ab654caa09033ffebc30a982 | not ready | not needed | ineligible |
+| #198 | held-preflight; factual launch pending | created and clean | none | none | base c1637a789533f7a0ab654caa09033ffebc30a982 | not ready | not needed | ineligible |
 | #197 | waiting for dependency merge | planned only | none | none | none | not ready | required after layer 1 merges | ineligible |
 
 Before any resume transition, re-read current issue/PR state, fetch the remote
@@ -368,9 +370,9 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next allowed transition is: validate all prepared child artifact sets,
-commit and normally push the coordinator preparation head, create only the
-dependency-ready #196 and #198 branches/worktrees from that head, then persist
-and remotely prove handoff-ready evidence before held preflight. #197 remains
-uncreated until both layer 1 PRs are user-merged and the coordinator is safely
-refreshed.
+The next allowed transition is: commit and normally push this handoff-ready
+evidence as R, fetch and prove exact remote equality, record literal R in one
+bounded update Rr, push/fetch/prove Rr and R ancestry, then dispatch #196 and
+#198 exactly once in preflight-only mode with all permissions false. #197
+remains uncreated until both layer 1 PRs are user-merged and the coordinator is
+safely refreshed.
