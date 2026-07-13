@@ -8,4 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface StayRepository extends JpaRepository<Stay, UUID> {
+
+    boolean existsByOwner_Id(UUID ownerId);
 }
