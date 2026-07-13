@@ -12,8 +12,8 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | all prepared children integrated; terminal child ledger complete; final coordinator H validation pending |
-| Artifact freeze | not reached; H2 does not exist |
+| Current phase | literal integrated head H validated; single artifact-only H2 is SELF/HEAD; pending H2 checks |
+| Artifact freeze | reached at SELF/HEAD; no H3 or H4 finalization commit is permitted |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
 dispatch record, resume check, and any later Git-common-directory cleanup
@@ -177,8 +177,8 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | fetched at exact PR #285 merge commit 07a232e930cacf9af973a900ddf4ae4d7ab7368e before this bounded terminal-integration record; all three delivered child heads are in ancestry |
-| Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | exact branch association; safely fast-forwarded and clean at 07a232e930cacf9af973a900ddf4ae4d7ab7368e before this bounded update; currently modified only at the artifact write boundary |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | freshly fetched and proven equal to literal H 77852060a99873b16566006907ba9b00fcce1c2c immediately before the H2 write boundary |
+| Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | exact branch association; clean at literal H before this write; the only H2 delta is this coordinator artifact |
 | #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | created by normal non-force push; local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c |
 | #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | retained and clean at 6237930c41a3afba9d5953e88238f0919891152c; exact branch/run association; PR #283 is merged into the coordinator branch |
@@ -285,8 +285,10 @@ only after the actual local child branch/worktree associations existed.
   head is fresh and passed with no blocker. Otherwise they are draft/not-ready.
 - User merge method for every child PR: Create a merge commit. Squash and rebase
   merges are prohibited.
-- Final coordinator PR base: main. Its closure authority is Closes #148 only
-  after every child is terminal and integrated and all final gates pass.
+- Final coordinator PR base: main. Its closure authority is exactly Closes #148,
+  Closes #196, Closes #198, and Closes #197 after every child is terminal and
+  integrated and all final gates pass. Already-closed preserved issue #195 is
+  not closed again.
 - Codex will not merge, approve, enable auto-merge, mutate issues, post public
   comments, or delete remote branches.
 
@@ -308,8 +310,8 @@ Current delivery and integration evidence:
   child-then-coordinator Related to lines, and were user-merged with Create a
   merge commit.
 - The fetched remote coordinator ref and local coordinator worktree were proven
-  equal and clean at 07a232e930cacf9af973a900ddf4ae4d7ab7368e before this
-  bounded terminal-integration record.
+  equal and clean at literal H 77852060a99873b16566006907ba9b00fcce1c2c
+  immediately before the H2 artifact write boundary.
 
 ## Validation plan and reporting
 
@@ -320,31 +322,31 @@ summarized as passing.
 
 | Scope | Required current evidence | Current status |
 |---|---|---|
-| #196 | focused cat service/controller/mapper/persistence tests | stale for integrated readiness after coordinator refresh; delivered-head result passed at 6237930c41a3afba9d5953e88238f0919891152c with 37 tests |
-| #196 | ./mvnw verify | stale for integrated readiness after coordinator refresh; delivered-head result passed at 6237930c41a3afba9d5953e88238f0919891152c with 141 tests |
-| #196 | clean MySQL/Flyway Docker startup and FK behavior | stale for integrated readiness after coordinator refresh; delivered-head isolated result passed with MySQL/Flyway V1-V3, HTTP 200, fk_stay_cat_cat NO ACTION, MySQL 1451 preservation, and clean teardown |
-| #198 | focused vet service/controller/mapper/persistence tests | stale for integrated readiness after coordinator refresh; delivered-head result passed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 with 24 tests |
-| #198 | ./mvnw verify | stale for integrated readiness after coordinator refresh; delivered-head result passed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 with 134 tests |
-| #198 | clean MySQL/Flyway Docker startup and FK behavior | stale for integrated readiness after coordinator refresh; delivered-head isolated result passed with MySQL/Flyway V1-V3, fk_cats_vet NO ACTION, raw/API 409 preservation, HTTP 200, and clean teardown |
-| #197 | focused owner service/controller/mapper/persistence tests | stale for integrated readiness after coordinator refresh; delivered-head result passed at 4570d13336e92eab0e32e5decfb718865a8e16df with 36 tests, 0 failures/errors/skips |
-| #197 | ./mvnw verify | stale for integrated readiness after coordinator refresh; delivered-head result passed at 4570d13336e92eab0e32e5decfb718865a8e16df with 171 tests |
-| #197 | clean MySQL/Flyway Docker startup and both FK paths | stale for integrated readiness after coordinator refresh; delivered-head isolated result passed in project cw148197 with Flyway V1-V3, HTTP/API 204 and 409 paths, full-rule canDelete, both owner FKs, MySQL 1451 preservation, clean teardown, and six pre-existing containers unchanged |
-| Coordinator | combined source-map and unexplained-scope review | pending |
-| Coordinator | integrated ./mvnw verify | pending |
-| Coordinator | integrated clean MySQL/Flyway Docker startup | pending |
-| Coordinator | final canonical H checks and status-free H2 rerun manifest | pending |
+| #196 | focused cat service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #196 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
+| #196 | clean MySQL/Flyway Docker startup and FK behavior | passed at H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_stay_cat_cat NO ACTION, raw MySQL 1451 preservation, and clean teardown |
+| #198 | focused vet service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #198 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
+| #198 | clean MySQL/Flyway Docker startup and FK behavior | passed at H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_cats_vet NO ACTION, raw MySQL 1451 preservation, and clean teardown |
+| #197 | focused owner service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #197 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
+| #197 | clean MySQL/Flyway Docker startup and both FK paths | passed at H in isolated project cw148h7d6b1d4d with API canDelete/204/409, fk_cats_owner and fk_stays_owner NO ACTION, independent raw MySQL 1451 preservation, and clean teardown |
+| Coordinator | combined source-map and unexplained-scope review | passed at H for the exact 36-path merge-base range; no unexplained or prohibited surface |
+| Coordinator | integrated ./mvnw verify | passed at H with 171 tests, 0 failures/errors/skips |
+| Coordinator | integrated clean MySQL/Flyway Docker startup | passed at H; authenticated backend and frontend HTTP 200, Flyway V1-V3, all four real FKs, stay rollback/removal, and isolated teardown |
+| Coordinator | final canonical H checks and status-free H2 rerun manifest | H checks passed; H2 manifest and applicability are recorded below; readiness remains pending H2 checks |
 
 Docker validation uses fixed shared ports and must be serialized by the
 coordinator. Maven/focused validation may run independently where it does not
 share mutable external state. Validation becomes stale after a relevant branch
 refresh or integration update and must be rerun or reported stale.
 
-The stale layer 1 delivery results did not block #197's dependency gate because
-the exact delivered commits and merge commits were ancestry-proven. #197's
-delivered-head focused suite, full verify, and serialized Docker run supplied
-combined delivery evidence before merge. All child delivery evidence is now
-stale for final integrated readiness after PR #285 merged; final coordinator
-validation must rerun against one literal integrated head H.
+The earlier child delivery results became stale after integration and remain
+historical evidence. They were superseded for final readiness by the complete
+fresh integrated checks at literal H 77852060a99873b16566006907ba9b00fcce1c2c.
+H2 changes only this orchestration artifact; the applicability table below
+states which H results may be consumed and which artifact-affected checks must
+be rerun.
 
 Historical attempts remain non-passing evidence rather than being rewritten:
 
@@ -366,26 +368,27 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / integrated | retained clean child worktree at 6237930c41a3afba9d5953e88238f0919891152c | merged PR #283 / coordinator branch | delivered-head checks passed; stale for integrated readiness after coordinator refresh | none; exact delivered commit and merge commit are in refreshed ancestry | integrated | coordinator current through 07a232e930cacf9af973a900ddf4ae4d7ab7368e; terminal child refresh not needed | ineligible | final coordinator focused/full/Docker/scope validation pending at literal H |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / integrated | retained clean child worktree at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | merged PR #284 / coordinator branch | delivered-head checks passed; stale for integrated readiness after coordinator refresh | none; exact delivered commit and merge commit are in refreshed ancestry | integrated | coordinator current through 07a232e930cacf9af973a900ddf4ae4d7ab7368e; terminal child refresh not needed | ineligible | final coordinator focused/full/Docker/scope validation pending at literal H |
-| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | launched / integrated | retained clean child worktree and local/remote refs equal at 4570d13336e92eab0e32e5decfb718865a8e16df | merged PR #285 / coordinator branch | delivered-head checks passed; stale for integrated readiness after coordinator refresh | none; exact delivered commit and merge commit are in refreshed ancestry | integrated | coordinator refreshed to 07a232e930cacf9af973a900ddf4ae4d7ab7368e; terminal child refresh not needed | ineligible | final coordinator focused/full/Docker/scope validation pending at literal H |
+| #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | integrated stay regression passed at H in focused, full, and Docker/API checks | closed and already integrated | terminal | not applicable | ineligible | completed at H; H2 applicability recorded below |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / integrated | retained clean child worktree at 6237930c41a3afba9d5953e88238f0919891152c | merged PR #283 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / integrated | retained clean child worktree at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | merged PR #284 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
+| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | launched / integrated | retained clean child worktree and local/remote refs equal at 4570d13336e92eab0e32e5decfb718865a8e16df | merged PR #285 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: safely fast-forwarded to fetched PR #285
-  merge commit 07a232e930cacf9af973a900ddf4ae4d7ab7368e and proven clean/equal
-  with all exact delivered child heads in ancestry before this bounded record.
+- Coordinator local branch/worktree: clean and local/remote equal at literal H
+  77852060a99873b16566006907ba9b00fcce1c2c immediately before the sole H2
+  artifact write; all exact delivered and merge commits are in H ancestry.
 - Child branches/worktrees: #196 is clean and local/remote equal at
   6237930c41a3afba9d5953e88238f0919891152c; #198 is clean and local/remote
   equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697. They remain retained and
   terminal; #197 is clean and local/remote equal at
   4570d13336e92eab0e32e5decfb718865a8e16df and is terminal/integrated.
 - Child PR targets: merged PR #283, merged PR #284, and merged PR #285 all
-  target the coordinator branch; no final coordinator PR exists.
-- Refresh status: all three integrations are current through
-  07a232e930cacf9af973a900ddf4ae4d7ab7368e; child delivery validation is stale
-  and complete integrated validation remains pending.
+  target the coordinator branch; a fresh H-time search found no existing
+  coordinator-to-main final PR for this run.
+- Refresh status: all three integrations and complete validation are current
+  through literal H; H2 artifact-affected checks remain to be resolved
+  externally after SELF/HEAD is committed.
 - Cleanup status: ineligible for all run-owned resources. No final PR merge has
   occurred and no cleanup authority exists.
 - Remote-cleanup approval: false.
@@ -406,37 +409,150 @@ resume authority.
 ## Integrated scope review
 
 - Initial fetched origin/main target-base SHA: a36164a2d50f4d797f147f8885abee03ebc4c8cf.
-- Runtime final target base B: pending a fresh finalization fetch.
-- PR-equivalent merge base: pending finalization; layer 1 integration range used recorded pre-merge head 0a03f4af4cb69ee93a06274418f508b178238ecd through refreshed head 9d57e2e62f985c9ed045049c84acfbe596dc52b3.
-- Combined expected product surfaces: the three child source maps above plus the
-  #197-owned architecture summary.
-- Changed-path reconciliation: passed for the 16 integrated layer 1 paths and
-  for the exact 10-path first-parent #197 integration range
-  76da659b20ebcd76f0d01a63ff3a94bc10976356 through
-  07a232e930cacf9af973a900ddf4ae4d7ab7368e; explicit-range `git diff --check`
-  and independent source-map reviews passed.
-- Unexplained scope: none in any child integration range; final full
-  merge-base-through-H scope review remains pending.
+- Runtime final target base B: a36164a2d50f4d797f147f8885abee03ebc4c8cf,
+  freshly fetched from origin/main without updating local main.
+- PR-equivalent merge base: a36164a2d50f4d797f147f8885abee03ebc4c8cf.
+- Literal reviewed head H: 77852060a99873b16566006907ba9b00fcce1c2c.
+- Combined expected surfaces: the three prepared spec/plan/task sets, this
+  coordinator artifact, the three exact child production/test source maps, and
+  the #197-owned architecture summary; exactly 36 paths.
+- Changed-path reconciliation: passed over
+  a36164a2d50f4d797f147f8885abee03ebc4c8cf...77852060a99873b16566006907ba9b00fcce1c2c;
+  `git diff --check` passed and no caution or prohibited surface changed.
+- Unexplained scope: none. Independent integrated implementation and scope
+  reviews found no actionable finding.
 
 ## Finalization state
 
-- Literal validated head H: pending.
-- Artifact-only child H2 as SELF/HEAD: pending.
-- Expected H2 parent H: pending.
-- Direct-parent and sole-artifact delta proof: pending.
-- Canonical H checks: pending.
-- Canonical status-free H2 rerun manifest and per-check applicability: pending.
+- Literal validated head H: 77852060a99873b16566006907ba9b00fcce1c2c.
+- Artifact-only child H2: SELF/HEAD.
+- Expected H2 parent H: 77852060a99873b16566006907ba9b00fcce1c2c.
+- Sole allowed H..H2 path:
+  specs/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays/coordinator-orchestration.md.
 - Readiness: pending H2 checks.
-- Final scope result from H: pending.
-- Post-H2 recheck criteria: target base, merge base, local/remote head equality,
-  ancestry, scope, validation freshness, template identity, existing PR state,
-  and final rendered body must all remain current.
+- Final scope result from H: passed; exact 36-path source-map/artifact set and
+  no unexplained or prohibited change.
+- Final template path:
+  .github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md.
 - Final template blob identity:
   7fce414494c942c9979f5ac11cdd53985423de3a.
-- Stable same-run final-delivery identity and external result locations: pending.
-- Remaining risks: concurrent relationship insertion is handled only when
-  delete plus flush is exercised; MySQL/Flyway evidence must remain fresh.
+- Final template file SHA-256:
+  d8878b4bd1980e737a503fd0938609bae21cb1b58be27a7449f21d81b67c6336.
+- Stable same-run final-delivery identity: source branch
+  sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays,
+  target main, ready-only PR boundary.
 - Final cleanup eligibility: ineligible; reason pending final PR merge.
+
+### Canonical H evidence
+
+Every result below was run or rechecked at the same clean literal H and has
+current status `passed`:
+
+1. Terminal ledger, merge topology, and ancestry: #196 delivered
+   6237930c41a3afba9d5953e88238f0919891152c through PR #283 merge
+   8b4651f4b8127724a04fe30c73c0c6e3b7f07f4b; #198 delivered
+   c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 through PR #284 merge
+   9d57e2e62f985c9ed045049c84acfbe596dc52b3; #197 delivered
+   4570d13336e92eab0e32e5decfb718865a8e16df through PR #285 merge
+   07a232e930cacf9af973a900ddf4ae4d7ab7368e. All exact commits are in H
+   ancestry; every prepared child is integrated with no active, pending,
+   blocked, missing, duplicate, or unexpected child.
+2. Fresh source/target identity: local and fetched remote coordinator refs
+   equaled H; fetched B and the PR-equivalent merge base both equaled
+   a36164a2d50f4d797f147f8885abee03ebc4c8cf; local main was not updated.
+3. Full scope and whitespace: the exact 36 expected paths reconciled over
+   B...H; `git diff --check B...H` passed; no unrelated or prohibited surface
+   appeared.
+4. Focused integrated deletion suite:
+   `.\\mvnw.cmd "-Dtest=DeletionAuthorizationPolicyTest,StayServiceTest,StayControllerTest,StayMapperTest,StayDeletionPersistenceTest,CatServiceTest,CatControllerTest,CatMapperTest,CatDeletionPersistenceTest,VetServiceTest,VetControllerTest,VetMapperTest,VetDeletionPersistenceTest,OwnerServiceTest,OwnerControllerTest,OwnerMapperTest,OwnerDeletionPersistenceTest" test`
+   ran 131 tests with 0 failures, 0 errors, and 0 skipped.
+5. Full backend regression: `.\\mvnw.cmd verify` ran 171 tests with 0
+   failures, 0 errors, and 0 skipped and produced the packaged application.
+6. Serialized Docker/MySQL/Flyway/API validation used isolated project
+   `cw148h7d6b1d4d` on database/backend/frontend ports 33306/18080/14200.
+   The clean images built; MySQL became healthy; Flyway successfully validated
+   and applied V1, V2, and V3; Hibernate schema validation and application
+   startup completed; authenticated backend and frontend returned 200 and an
+   unauthenticated login returned 401.
+7. The integrated API graph proved backend-calculated `canDelete`, 409 for
+   referenced cat, vet, cat-referenced owner, stay-only-referenced owner, and a
+   constraint-blocked cancelled stay; it proved 204 for permanent stay, cat,
+   vet, and owner deletion. The stay conflict rolled back with stay/link counts
+   1/1; successful stay deletion removed the stay and owned link to counts 0/0;
+   cancellation remained distinct from permanent deletion.
+8. Real MySQL metadata reported NO ACTION for `fk_stay_cat_cat`,
+   `fk_cats_vet`, `fk_cats_owner`, and `fk_stays_owner`. Independent raw delete
+   attempts returned MySQL 1451 naming each exact constraint and preserved all
+   fixture records. The validation-only stay conflict guard was dropped; the
+   isolated stack, volume, and network were removed; all five pre-existing
+   containers retained the same IDs and remained running.
+9. Independent integrated production/documentation and source-map reviews found
+   no actionable finding. The final template blob/hash matched the recorded
+   identities, and a fresh GitHub search found no existing same-run final PR.
+
+### Canonical status-free H2 rerun manifest
+
+The following manifest intentionally carries no result status. Resolve it only
+after committing H2 as the direct artifact-only child of H:
+
+1. One-parent commit shape and `H2^ = H` identity.
+2. Exact `H..H2` sole modified path and artifact-only content classification.
+3. Runtime artifact structure: required B, merge base, H, SELF/HEAD, expected
+   parent, sole path, H results, applicability, readiness, template identity,
+   risks, and cleanup fields; absence of a resolved self SHA, post-H2 result
+   claims, final-ready claim, body fingerprint, or PR URL.
+4. `git diff --check H..H2`.
+5. `git diff --check B...H2`.
+6. Exact full B...H2 36-path reconciliation and prohibited-surface review.
+7. Fresh B, merge base, delivered/merge ancestry, local/remote coordinator
+   equality, clean worktree, and normal non-force H2 push/fetch identity.
+8. Final template path, blob, SHA-256, closing-authority set, and render inputs.
+9. Current same-run final-PR search and external final-body rendering with no
+   unresolved placeholder.
+
+### H-result applicability at H2
+
+| Consumed H result | Applicability reason |
+|---|---|
+| Terminal child ledger and ancestry | H2 adds no child implementation or merge commit; exact ancestry and unique terminal rows are explicitly rechecked by the H2 manifest. |
+| H 36-path scope and manual contract review | H remains immutable; H2 changes only the declared orchestration Markdown, while the complete B...H2 path set and prohibited surfaces are separately rechecked. |
+| Focused 131-test Maven suite | H2 changes no source, test, resource, dependency, plugin, or build input, so the exact compiled/tested inputs are byte-identical to H. |
+| Full 171-test Maven verify | H2 changes no pom, source, test, resource, packaging, or runtime input, so the full regression and packaged application inputs are byte-identical to H. |
+| Docker/Flyway/API/FK validation | H2 changes no Dockerfile, Compose file, migration, configuration, entity, repository, service, controller, DTO, mapper, or frontend input. |
+| Independent implementation/documentation review | H2 changes neither implementation nor docs/ARCHITECTURE.md; only this evidence artifact changes. |
+| Template identity and H-time no-PR result | H2 does not change the template; its identity and current GitHub PR state are explicitly rechecked before rendering and delivery. |
+
+### Final PR render inputs
+
+- Title: `feat(backend): enforce safe deletion rules`.
+- Source: exact fetched remote coordinator branch at SELF/HEAD.
+- Target: `main` at the still-current fetched B.
+- State: ready for review; never a draft fallback.
+- Closing lines: `Closes #148`, `Closes #196`, `Closes #198`, and
+  `Closes #197`; no closing line for already-closed #195.
+- Child trace: PR #283 / #196 delivered 6237930c41a3afba9d5953e88238f0919891152c
+  and integrated as 8b4651f4b8127724a04fe30c73c0c6e3b7f07f4b; PR #284 / #198
+  delivered c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 and integrated as
+  9d57e2e62f985c9ed045049c84acfbe596dc52b3; PR #285 / #197 delivered
+  4570d13336e92eab0e32e5decfb718865a8e16df and integrated as
+  07a232e930cacf9af973a900ddf4ae4d7ab7368e.
+- Summary: enforce authorization-first, relationship-safe permanent deletion
+  for stays, cats, vets, and owners with rendering-only `canDelete`, stable
+  404/403/409 behavior, explicit flush conflict translation, and final FK
+  protection.
+- Required merge method: the user selects GitHub Create a merge commit; squash
+  and rebase merges are prohibited so exact SELF/HEAD remains in main ancestry.
+
+### Remaining risks and limitations
+
+- A true timing-controlled concurrent relationship insertion was not stress
+  scheduled. Explicit flush conflict translation, API constraint rollback, and
+  all four real MySQL FK failures were validated as the deterministic race
+  protection.
+- Per-entity existence-query performance was not benchmarked; correctness and
+  scope were prioritized, matching the approved child plans.
+- Cleanup remains ineligible with reason `pending final PR merge`; no local or
+  remote branch/worktree cleanup is authorized at this stage.
 
 ## Stop conditions and next transition
 
@@ -446,9 +562,9 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next transition is coordinator-owned finalization: commit and normally push
-this bounded terminal-integration record, fetch the current target base without
-updating local main, select one literal coordinator head H, reconcile the full
-merge-base-through-H scope, and run every required integrated check at H. Only
-fresh passing H evidence may be recorded in the single artifact-only H2 child
-before post-H2 rechecks and final coordinator PR preparation.
+The next transition is fixed: commit exactly this sole artifact as H2, then make
+no further repository edit or commit. Resolve the status-free H2 manifest,
+normally push H2 only after proving its direct-parent/sole-artifact shape,
+refetch B and the coordinator ref, render the current final template externally,
+and create or reuse exactly one ready coordinator-to-main PR only if every gate
+remains current and passing. The user alone performs its Create a merge commit.
