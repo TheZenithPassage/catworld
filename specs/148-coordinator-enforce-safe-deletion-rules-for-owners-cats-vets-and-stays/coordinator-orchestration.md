@@ -177,7 +177,7 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | fetched and proven equal to local coordinator integration record 335d6ed1895a66b48c501dc9b23e892fb05f2409 before this bounded handoff-ready record |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | fetched and proven equal to handoff-ready evidence R 3afa6d42662e7bb044da4dd69b578af60c942884 before this bounded literal-R record |
 | Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created, clean, exact branch association, artifact write boundary |
 | #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | created by normal non-force push; local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c |
@@ -251,8 +251,8 @@ or merge permission is implied.
 - Artifact state: handoff-ready; factual launch pending.
 - Dependency layer: 2; hard dependencies: #196 and #198.
 - Prepared-handoff fingerprint: 2cd9ca6c9e1b4262cf0946249a85a22a6c413fb9321ec5f060e00a3bf1c34e10.
-- Handoff-ready evidence SHA R: pending this bounded commit and normal push.
-- Remote recording head Rr containing R: pending the bounded literal-R record.
+- Handoff-ready evidence SHA R: 3afa6d42662e7bb044da4dd69b578af60c942884; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
+- Remote recording head Rr containing R: pending this bounded literal-R commit and normal push.
 - Stable held dispatch identity: pending exactly one preflight-only launch.
 - Held preflight zero-edit result: pending.
 - Factual launch state: pending.
@@ -358,9 +358,9 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: integration-state record
-  335d6ed1895a66b48c501dc9b23e892fb05f2409 was normally pushed, fetched, and
-  proven clean/equal before this bounded handoff-ready record.
+- Coordinator local branch/worktree: handoff-ready evidence R
+  3afa6d42662e7bb044da4dd69b578af60c942884 was normally pushed, fetched, and
+  proven clean/equal before this bounded literal-R record.
 - Child branches/worktrees: #196 is clean and local/remote equal at
   6237930c41a3afba9d5953e88238f0919891152c; #198 is clean and local/remote
   equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697. They remain retained and
@@ -429,7 +429,7 @@ validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
 The next allowed transition is coordinator-owned: commit and normally push this
-handoff-ready evidence as R, prove fetched remote equality, record literal R in
-the bounded Rr commit, then execute the two-phase held-dispatch barrier for one
+literal-R record as Rr, prove fetched remote equality and R ancestry, then
+execute the preflight-only phase of the two-phase held-dispatch barrier for one
 stable #197 child identity. Release only that same child after every evidence,
 ancestry, fingerprint, and clean-state gate passes.
