@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IOwnerService;
@@ -38,11 +39,26 @@ public class OwnerControllerTest {
 
         @Test
         void shouldReturnOk_whenGettingAllOwners() throws Exception {
-            when(ownerService.getAllOwners()).thenReturn(List.of());
+            UUID deletableId = UUID.randomUUID();
+            UUID blockedId = UUID.randomUUID();
+            when(ownerService.getAllOwners()).thenReturn(List.of(
+                    OwnerResponseDTO.builder()
+                            .id(deletableId)
+                            .fullName("Deletable Owner")
+                            .canDelete(true)
+                            .build(),
+                    OwnerResponseDTO.builder()
+                            .id(blockedId)
+                            .fullName("Referenced Owner")
+                            .canDelete(false)
+                            .build()));
 
             mockMvc.perform(get("/api/owners"))
                     .andExpect(status().isOk())
-                    .andExpect(content().json("[]"));
+                    .andExpect(jsonPath("$[0].id").value(deletableId.toString()))
+                    .andExpect(jsonPath("$[0].canDelete").value(true))
+                    .andExpect(jsonPath("$[1].id").value(blockedId.toString()))
+                    .andExpect(jsonPath("$[1].canDelete").value(false));
 
             verify(ownerService).getAllOwners();
         }
@@ -55,12 +71,14 @@ public class OwnerControllerTest {
                     .id(ownerId)
                     .fullName("John Owner")
                     .primaryPhone("123456789")
+                    .canDelete(true)
                     .build());
 
             mockMvc.perform(get("/api/owners/{id}", ownerId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(ownerId.toString()))
-                    .andExpect(jsonPath("$.fullName").value("John Owner"));
+                    .andExpect(jsonPath("$.fullName").value("John Owner"))
+                    .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(ownerService).getOwner(ownerId);
         }
@@ -94,6 +112,7 @@ public class OwnerControllerTest {
                     .id(ownerId)
                     .fullName("John Owner")
                     .primaryPhone("123456789")
+                    .canDelete(true)
                     .build());
 
             mockMvc.perform(post("/api/owners")
@@ -102,6 +121,7 @@ public class OwnerControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(ownerId.toString()))
                     .andExpect(jsonPath("$.fullName").value("John Owner"))
+                    .andExpect(jsonPath("$.canDelete").value(true))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -142,6 +162,7 @@ public class OwnerControllerTest {
                     .id(ownerId)
                     .fullName("Updated Owner")
                     .primaryPhone("987654321")
+                    .canDelete(false)
                     .build());
 
             mockMvc.perform(put("/api/owners/{id}", ownerId)
@@ -149,7 +170,8 @@ public class OwnerControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(ownerId.toString()))
-                    .andExpect(jsonPath("$.fullName").value("Updated Owner"));
+                    .andExpect(jsonPath("$.fullName").value("Updated Owner"))
+                    .andExpect(jsonPath("$.canDelete").value(false));
 
             verify(ownerService).updateOwner(eq(ownerId), any(OwnerRequestDTO.class));
         }
@@ -194,6 +216,33 @@ public class OwnerControllerTest {
             mockMvc.perform(delete("/api/owners/{id}", ownerId))
                     .andExpect(status().isForbidden())
                     .andExpect(content().string("Forbidden"));
+
+            verify(ownerService).deleteOwner(ownerId);
+        }
+
+        @Test
+        void shouldReturnNotFound_whenDeleteOwnerIsMissing() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+
+            doThrow(new ResourceNotFoundException("Owner", ownerId))
+                    .when(ownerService).deleteOwner(ownerId);
+
+            mockMvc.perform(delete("/api/owners/{id}", ownerId))
+                    .andExpect(status().isNotFound());
+
+            verify(ownerService).deleteOwner(ownerId);
+        }
+
+        @Test
+        void shouldReturnConflict_whenOwnerIsReferencedOrDeleteRaces() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+
+            doThrow(new ConflictException("Owner cannot be deleted while cats reference it"))
+                    .when(ownerService).deleteOwner(ownerId);
+
+            mockMvc.perform(delete("/api/owners/{id}", ownerId))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().string("Owner cannot be deleted while cats reference it"));
 
             verify(ownerService).deleteOwner(ownerId);
         }

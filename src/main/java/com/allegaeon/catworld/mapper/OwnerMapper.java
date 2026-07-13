@@ -12,6 +12,12 @@ public class OwnerMapper {
 
     public OwnerResponseDTO toResponseDTO(Owner owner) {
 
+        return toResponseDTO(owner, false);
+
+    }
+
+    public OwnerResponseDTO toResponseDTO(Owner owner, boolean canDelete) {
+
         return OwnerResponseDTO.builder()
                 .id(owner.getId())
                 .fullName(owner.getFullName())
@@ -21,6 +27,7 @@ public class OwnerMapper {
                 .secondaryPhoneName(owner.getSecondaryPhoneName())
                 .instagram(owner.getInstagram())
                 .facebook(owner.getFacebook())
+                .canDelete(canDelete)
                 .build();
 
     }

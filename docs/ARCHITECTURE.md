@@ -273,9 +273,26 @@ authorization denial to `403 Forbidden`; Angular does not calculate or enforce
 this rule. Entity lookup, relationship and state checks stay in the responsible
 services outside the shared authorization policy.
 
-Stay responses expose a backend-calculated `canDelete` rendering hint for the
-current authenticated user. The hint uses the same shared deletion policy, but
-the backend still rechecks authorization for every DELETE request.
+Owner, cat, vet and stay responses expose a backend-calculated `canDelete`
+rendering hint for the current authenticated user. The hint combines the shared
+deletion policy with entity-specific integrity rules: an owner must have no cat
+or direct stay references, a cat must have no `StayCat` history, and a vet must
+have no cat references. Stay deletion has no additional relationship blocker
+because it owns and removes only its `StayCat` links. Authorization failure
+short-circuits relationship probing, and these hints remain advisory; every
+DELETE request recomputes the current server-side rules.
+
+Permanent deletion follows lookup, authorization, relationship checks where
+applicable, delete and explicit flush in that order. Missing records return
+`404 Not Found`, authorization denial returns `403 Forbidden` before protected
+relationships are queried, and a known reference or delete/flush race returns
+`409 Conflict`. Any cat or direct stay reference blocks owner deletion; any
+historical, cancelled, active or future `StayCat` reference blocks cat
+deletion; and any cat reference blocks vet deletion. Authorized stay deletion
+removes the stay and its links while preserving owners, cats, vets and
+application accounts. Existing foreign keys remain the final integrity
+protection, and no dependent record is cascaded, detached or reassigned merely
+to make owner, cat or vet deletion succeed.
 
 ## Frontend UI Foundation
 
