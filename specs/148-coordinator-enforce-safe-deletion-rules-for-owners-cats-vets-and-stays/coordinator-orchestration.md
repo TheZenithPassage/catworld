@@ -12,7 +12,7 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | both exact held preflights accepted; factual launched evidence L pending push |
+| Current phase | factual launched evidence L pushed and proven; Lr activation update pending |
 | Artifact freeze | not reached; H2 does not exist |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
@@ -65,8 +65,8 @@ journal. No resource from another run may be inferred from a matching name.
 | Issue | State | Role | Hard dependencies | Artifact path | Preparation | Handoff | Launch | Non-launch reason |
 |---|---|---|---|---|---|---|---|---|
 | #195 Safe stay deletion | closed | preserved completed scope | none | specs/010-safe-stay-deletion/ | existing and preserved | not applicable | not applicable | Closed scope is already integrated and must not be reimplemented. |
-| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | preflight-accepted / release-pending | launched, held | Exact L/Lr activation evidence and targeted release are pending; permissions remain false. |
-| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | preflight-accepted / release-pending | launched, held | Exact L/Lr activation evidence and targeted release are pending; permissions remain false. |
+| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | preflight-accepted / release-pending | launched, held | Lr activation proof, clean incorporation, and same-identity release acknowledgment are pending. |
+| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | preflight-accepted / release-pending | launched, held | Lr activation proof, clean incorporation, and same-identity release acknowledgment are pending. |
 | #197 Block owner deletion while cats or stays reference it | open | layer 2 implementation and combined architecture summary | #196, #198 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | prepared | pending | pending | Waits for both layer 1 PRs to be user-merged into the coordinator branch. |
 
 The prepared open-child set is exactly #196, #197, and #198. Issue #195 is
@@ -213,10 +213,10 @@ identity checks pass.
 - Stable held dispatch identity: /root/held_child_196_148; no separate agent ID was exposed.
 - Held preflight zero-edit result: preflight-accepted; fingerprint independently reproduced; coordinator and child worktrees remained clean; zero repository or GitHub mutations.
 - Factual launch state: launched and held; accepted dispatch is factual but grants no permission.
-- Launched evidence SHA L: pending.
+- Launched evidence SHA L: c9650ef0887f04cb9c6f365724d253f153f26905; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote activation/recording head Lr containing L: pending.
-- Implementation permission: false.
-- Delivery permission: false.
+- Implementation permission: conditionally true only after this exact child fetches, incorporates, and verifies Lr and acknowledges release; currently not effective.
+- Delivery permission: conditionally true after the same release acknowledgment and later scoped completion/fresh validation; currently not effective.
 - Targeted release: not sent; same canonical identity required.
 
 ### #198
@@ -229,10 +229,10 @@ identity checks pass.
 - Stable held dispatch identity: /root/held_child_198_148; no separate agent ID was exposed.
 - Held preflight zero-edit result: preflight-accepted; fingerprint independently reproduced; coordinator and child worktrees remained clean; zero repository or GitHub mutations.
 - Factual launch state: launched and held; accepted dispatch is factual but grants no permission.
-- Launched evidence SHA L: pending.
+- Launched evidence SHA L: c9650ef0887f04cb9c6f365724d253f153f26905; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote activation/recording head Lr containing L: pending.
-- Implementation permission: false.
-- Delivery permission: false.
+- Implementation permission: conditionally true only after this exact child fetches, incorporates, and verifies Lr and acknowledges release; currently not effective.
+- Delivery permission: conditionally true after the same release acknowledgment and later scoped completion/fresh validation; currently not effective.
 - Targeted release: not sent; same canonical identity required.
 
 ### #197
@@ -300,8 +300,8 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched-held / release-pending | exact branch/worktree clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | L/Lr activation and same-identity release pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched-held / release-pending | exact branch/worktree clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | L/Lr activation and same-identity release pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched-held / release-pending | exact branch/worktree clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | Lr activation and same-identity release pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched-held / release-pending | exact branch/worktree clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | Lr activation and same-identity release pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
 | #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / waiting-for-dependency-merge | branch and worktree intentionally uncreated | none / coordinator branch | focused, verify, Docker: not run | #196 and #198 must be user-merged and integrated | not ready | required after layer 1 merges | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
 
 ### Sidecar Git state
@@ -370,10 +370,8 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next allowed transition is: commit and normally push this factual launched
-evidence as L, fetch and prove exact remote equality, record literal L and
-conditional permissions in bounded activation update Lr, push/fetch/prove Lr
-and L ancestry, then target only /root/held_child_196_148 and
-/root/held_child_198_148 for clean incorporation and release. #197 remains
-uncreated until both layer 1 PRs are user-merged and the coordinator is safely
-refreshed.
+The next allowed transition is: commit and normally push this bounded activation
+update as Lr, fetch and prove exact remote equality plus L ancestry, then target
+only /root/held_child_196_148 and /root/held_child_198_148 with exact R, Rr, L,
+and Lr for clean incorporation and release. #197 remains uncreated until both
+layer 1 PRs are user-merged and the coordinator is safely refreshed.
