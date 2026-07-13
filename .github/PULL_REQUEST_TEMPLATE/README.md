@@ -54,15 +54,19 @@ Do not write the URL into the branch-bound artifact or create an `H3`/`H4`
 commit solely to record it.
 
 Cleanup remains `ineligible` with reason `pending final PR merge` until the
-runtime final coordinator PR is observed merged into `main`. Codex reports
-sidecar PR readiness; the user performs merges.
+runtime final coordinator PR is observed merged into `main` with exact `H2` in
+current fetched `origin/main` ancestry. For sidecar child and final coordinator
+PRs, Codex reports readiness; the user performs the merges and selects GitHub's
+**"Create a merge commit"**; **"Squash and merge"** and **"Rebase and merge"**
+are prohibited.
 
 A coordinator with all child issues already closed that enters the existing
 sequential final-pass workflow uses normal sequential PR wording for any
 remaining final pass, not the sidecar final coordinator template.
 
 These templates do not authorize Codex to merge or approve pull requests,
-enable auto-merge, mutate issue bodies, checklists, labels, assignees,
+enable auto-merge, change repository merge settings, mutate issue bodies,
+checklists, labels, assignees,
 milestones, issue state, or public comments, start another child layer after
 final validation begins, delete branches or worktrees, prune remotes, perform
 cleanup, rebase, force-push, or rewrite history. They also do not activate

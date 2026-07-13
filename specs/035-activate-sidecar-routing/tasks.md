@@ -131,7 +131,7 @@ Task: "Update .github/ISSUE_TEMPLATE/coordinator-parallel-planning.md"
 1. Activate the route and verify the exact matrix (TO1).
 2. Align architecture/templates and eliminate stale active gates while preserving history (TO2).
 3. Prove sequential implementation isolation (TO3).
-4. Run all 81 unique existing regression scenarios/cases, required searches, scope review, and final freshness gates.
+4. Run all 82 current regression scenarios/cases, required searches, scope review, and final freshness gates.
 
 ## Notes
 

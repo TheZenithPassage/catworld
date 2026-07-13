@@ -119,6 +119,18 @@ function Get-GitCommonDirectory {
     ConvertTo-NormalizedPath -Path (Join-Path $Repository $raw)
 }
 
+function Test-CommitAncestor {
+    param(
+        [string] $Repository,
+        [string] $Ancestor,
+        [string] $Descendant
+    )
+
+    (Invoke-Git -WorkingDirectory $Repository -Arguments @(
+        'merge-base', '--is-ancestor', $Ancestor, $Descendant
+    ) -AllowFailure).ExitCode -eq 0
+}
+
 function New-CleanupFixture {
     $root = Join-Path ([IO.Path]::GetTempPath()) (
         'catworld-sidecar-cleanup-' + [guid]::NewGuid().ToString('N')
@@ -135,13 +147,27 @@ function New-CleanupFixture {
     Set-Content -LiteralPath (Join-Path $repository 'fixture.txt') -Value 'fixture' -NoNewline
     Invoke-Git -WorkingDirectory $repository -Arguments @('add', 'fixture.txt') | Out-Null
     Invoke-Git -WorkingDirectory $repository -Arguments @('commit', '-q', '-m', 'seed cleanup fixture') | Out-Null
+    $h2 = [string](Invoke-Git -WorkingDirectory $repository -Arguments @('rev-parse', 'HEAD')).Output[0]
+    Invoke-Git -WorkingDirectory $repository -Arguments @(
+        'update-ref', 'refs/remotes/origin/main', $h2
+    ) | Out-Null
+
+    Invoke-Git -WorkingDirectory $repository -Arguments @(
+        'switch', '-q', '-c', 'sidecar/non-ancestral-h2'
+    ) | Out-Null
+    Set-Content -LiteralPath (Join-Path $repository 'non-ancestral-h2.txt') -Value 'not merged to main' -NoNewline
+    Invoke-Git -WorkingDirectory $repository -Arguments @('add', 'non-ancestral-h2.txt') | Out-Null
+    Invoke-Git -WorkingDirectory $repository -Arguments @('commit', '-q', '-m', 'record non-ancestral H2') | Out-Null
+    $nonAncestralH2 = [string](Invoke-Git -WorkingDirectory $repository -Arguments @('rev-parse', 'HEAD')).Output[0]
+    Invoke-Git -WorkingDirectory $repository -Arguments @('switch', '-q', 'main') | Out-Null
 
     [pscustomobject]@{
         Root = ConvertTo-NormalizedPath -Path $root
         Repository = ConvertTo-NormalizedPath -Path $repository
         Worktrees = ConvertTo-NormalizedPath -Path $worktrees
         CommonDirectory = Get-GitCommonDirectory -Repository $repository
-        H2 = [string](Invoke-Git -WorkingDirectory $repository -Arguments @('rev-parse', 'HEAD')).Output[0]
+        H2 = $h2
+        NonAncestralH2 = $nonAncestralH2
     }
 }
 
@@ -427,6 +453,7 @@ function New-FinalMergeEvidence {
 function Get-FinalMergeGate {
     param(
         [AllowNull()][pscustomobject] $Evidence,
+        [string] $Repository,
         [string] $RunId,
         [string] $ExpectedSourceBranch,
         [string] $ExpectedH2
@@ -460,6 +487,10 @@ function Get-FinalMergeGate {
         $Evidence.origin_main_contains_merge_evidence -ne $true) {
         return [pscustomobject]@{ Status = 'blocked'; Reason = 'final-merge-evidence-missing-or-inconsistent' }
     }
+    if (-not (Test-CommitAncestor -Repository $Repository -Ancestor $ExpectedH2 `
+        -Descendant 'refs/remotes/origin/main')) {
+        return [pscustomobject]@{ Status = 'blocked'; Reason = 'h2-not-in-origin-main-ancestry' }
+    }
 
     [pscustomobject]@{ Status = 'eligible'; Reason = '' }
 }
@@ -485,7 +516,7 @@ function Invoke-CleanupSimulation {
     )
 
     $state = New-JournalState -RunId $RunId -Pairs $Pairs
-    $gate = Get-FinalMergeGate -Evidence $Evidence -RunId $RunId `
+    $gate = Get-FinalMergeGate -Evidence $Evidence -Repository $Fixture.Repository -RunId $RunId `
         -ExpectedSourceBranch $ExpectedSourceBranch -ExpectedH2 $ExpectedH2
 
     if ($gate.Status -eq 'ineligible') {
@@ -789,6 +820,7 @@ try {
             continue
         }
 
+        $h2AncestryBlockProven = $false
         $pairs = @()
         for ($index = 0; $index -lt $case.ResourceCount; $index++) {
             $pairs += New-OwnedPair -Fixture $fixture -CaseKey $case.Key -RunId $case.RunId `
@@ -853,6 +885,25 @@ try {
             Assert-Condition ($blocked.Journal.result -eq 'blocked') `
                 'Missing or inconsistent final-merge evidence must record blocked.'
             Assert-NoCleanupAttempts -Journal $blocked.Journal
+
+            $script:CaseEvents = New-Object System.Collections.ArrayList
+            $nonAncestralEvidence = New-FinalMergeEvidence -RunId $case.RunId `
+                -SourceBranch $expectedSource -H2 $fixture.NonAncestralH2 -State 'MERGED'
+            $nonAncestral = Invoke-CleanupSimulation -Fixture $fixture -RunId $case.RunId `
+                -ExpectedSourceBranch $expectedSource -ExpectedH2 $fixture.NonAncestralH2 `
+                -Evidence $nonAncestralEvidence -Pairs $pairs -CleanupAuthority $true
+            Assert-Condition ($nonAncestral.Journal.result -eq 'blocked') `
+                'Merged metadata with H2 absent from origin/main ancestry must remain blocked.'
+            Assert-Condition (@($nonAncestral.Journal.skipped_reasons) -contains 'h2-not-in-origin-main-ancestry') `
+                'Missing H2 ancestry must record the exact blocker.'
+            Assert-NoCleanupAttempts -Journal $nonAncestral.Journal
+            foreach ($pair in $pairs) {
+                Assert-Condition (Test-Path -LiteralPath $pair.WorktreePath -PathType Container) `
+                    'Missing H2 ancestry must retain every worktree.'
+                Assert-Condition (Test-LocalBranchExists -Fixture $fixture -Branch $pair.Branch) `
+                    'Missing H2 ancestry must retain every local branch.'
+            }
+            $h2AncestryBlockProven = $true
         }
         elseif ($case.Name -eq 'eligible-after-final-merge') {
             Assert-Condition (@($outcome.Journal.skipped_reasons) -contains 'cleanup-authority-missing') `
@@ -893,6 +944,7 @@ try {
             eligibility = $outcome.Journal.eligibility
             cleanup_result = $outcome.Journal.result
             attempted_operations = @($outcome.Journal.attempted_operations).Count
+            h2_absent_from_origin_main_blocked = $h2AncestryBlockProven
         }
     }
 

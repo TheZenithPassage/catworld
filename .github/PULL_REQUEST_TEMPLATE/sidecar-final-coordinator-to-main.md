@@ -58,6 +58,8 @@ Coordinator delivery rules:
 - If an existing same-run final PR is stale or inconsistent, stop and report the blocker without creating a duplicate or silently mutating readiness.
 - This is the only sidecar PR boundary that targets `main` or uses closing keywords. Child PRs target the coordinator branch and use `Related to` references only.
 - Report the observed PR URL and ready state from current GitHub evidence in the final report. Do not write the URL into the branch-bound artifact or create an `H3`/`H4` finalization commit.
-- Cleanup remains `ineligible` with reason `pending final PR merge` until this runtime final PR is observed merged into `main`.
-- Codex must not merge or approve this PR, enable auto-merge, separately mutate GitHub issues, or perform branch/worktree cleanup.
+- Cleanup remains `ineligible` with reason `pending final PR merge` until this runtime final PR is observed merged and current fetched `origin/main` contains exact `H2` by ancestry; merged metadata alone is insufficient.
+- Required merge method: the user performs the merge and selects GitHub's **"Create a merge commit"**.
+- **"Squash and merge"** and **"Rebase and merge"** are prohibited because exact `H2` must remain in `main` ancestry so standard non-force local branch deletion can complete.
+- Codex must not merge or approve this PR, enable auto-merge, change repository merge settings, separately mutate GitHub issues, or perform branch/worktree cleanup.
 - The temporary #258 build-out PR is different: it targets `workflow/sidecar-buildout` and uses `Related to #258`; it does not use this runtime closing-authority template.

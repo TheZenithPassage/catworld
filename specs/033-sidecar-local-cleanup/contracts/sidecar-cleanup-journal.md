@@ -2,7 +2,7 @@
 
 ## Entry gate
 
-Cleanup may be evaluated only for a valid sidecar coordinator state with an exact stable `run_id`. It is eligible only when current evidence identifies one unique same-run final coordinator PR and confirms its expected coordinator source and H2 head, `main` base, merged state, and merge evidence in current `origin/main` evidence. Eligibility never triggers automatic deletion: local cleanup execution also requires explicit current cleanup authority. The local journal never substitutes for merge, ownership, or authority evidence.
+Cleanup may be evaluated only for a valid sidecar coordinator state with an exact stable `run_id`. It is eligible only when current evidence identifies one unique same-run final coordinator PR, confirms its expected coordinator source and H2 head, `main` base and merged state, and proves exact H2 is an ancestor of current fetched `origin/main`. GitHub merged metadata alone is insufficient. Eligibility never triggers automatic deletion: local cleanup execution also requires explicit current cleanup authority. The local journal never substitutes for merge, ancestry, ownership, or authority evidence.
 
 ## Journal location and schema
 
@@ -26,7 +26,8 @@ The journal is local operational evidence. It is never added to a worktree, comm
 
 Before the first deletion:
 
-- prove current final-merge evidence;
+- prove `git merge-base --is-ancestor <H2> origin/main` against current fetched
+  `origin/main`; merged metadata without that ancestry remains blocked;
 - load exact same-run-owned local resources from the coordinator artifact;
 - compare every candidate copied from the coordinator ownership ledger with live `git worktree list --porcelain`, local refs, normalized paths, exact branch associations, and the repository Git common directory;
 - verify every candidate worktree has empty staged, unstaged, and untracked status;

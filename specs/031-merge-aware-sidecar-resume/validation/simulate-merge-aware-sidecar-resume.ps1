@@ -1,6 +1,7 @@
 param(
     [ValidateSet(
         'remote-refresh-order',
+        'merge-method-ancestry',
         'active-child-refresh',
         'resume-states',
         'validation-staleness',
@@ -112,6 +113,11 @@ function New-FileCommit {
 }
 
 function New-TempSidecarResumeFixture {
+    param(
+        [ValidateSet('merge-commit', 'squash', 'rebase')]
+        [string] $IntegrationStyle = 'merge-commit'
+    )
+
     $root = Join-Path ([System.IO.Path]::GetTempPath()) ("catworld-sidecar-resume-" + [guid]::NewGuid().ToString('N'))
     $remote = Join-Path $root 'origin.git'
     $seed = Join-Path $root 'seed'
@@ -151,7 +157,19 @@ function New-TempSidecarResumeFixture {
     Invoke-Git $merger @('switch', '-q', '-c', $mergedChildBranch) | Out-Null
     $mergedChildCommit = New-FileCommit -Repository $merger -Path 'merged-child.md' -Content 'merged child work' -Message 'record merged child work'
     Invoke-Git $merger @('switch', '-q', $coordinatorBranch) | Out-Null
-    Invoke-Git $merger @('merge', '--no-ff', '-m', 'merge child into coordinator', $mergedChildBranch) | Out-Null
+    switch ($IntegrationStyle) {
+        'merge-commit' {
+            Invoke-Git $merger @('merge', '--no-ff', '-m', 'merge child into coordinator', $mergedChildBranch) | Out-Null
+        }
+        'squash' {
+            Invoke-Git $merger @('merge', '--squash', $mergedChildBranch) | Out-Null
+            Invoke-Git $merger @('commit', '-q', '-m', 'squash child into coordinator') | Out-Null
+        }
+        'rebase' {
+            Invoke-Git $merger @('cherry-pick', '--no-commit', $mergedChildCommit) | Out-Null
+            Invoke-Git $merger @('commit', '-q', '-m', 'reapply child onto coordinator') | Out-Null
+        }
+    }
     $remoteCoordinatorCommit = (Invoke-Git $merger @('rev-parse', 'HEAD')).Output[0]
     Invoke-Git $merger @('push', '-q', 'origin', $coordinatorBranch) | Out-Null
 
@@ -166,6 +184,7 @@ function New-TempSidecarResumeFixture {
         MergedChildCommit = $mergedChildCommit
         ActiveChildCommit = $activeChildCommit
         RemoteCoordinatorCommit = $remoteCoordinatorCommit
+        IntegrationStyle = $IntegrationStyle
     }
 }
 
@@ -505,6 +524,49 @@ switch ($Scenario) {
                 Remove-Item -LiteralPath $fixture.Root -Recurse -Force
             }
         }
+    }
+    'merge-method-ancestry' {
+        $styleResults = @()
+        foreach ($style in @('squash', 'rebase')) {
+            $fixture = $null
+            try {
+                $fixture = New-TempSidecarResumeFixture -IntegrationStyle $style
+                $reportedPrMerged = $true
+                $result = Invoke-CoordinatorRefresh -Fixture $fixture
+                $exactChildInAncestry = Test-CommitAncestor -Repository $fixture.CoordinatorRepository `
+                    -Ancestor $fixture.MergedChildCommit -Descendant $result.LocalHeadAfter
+                $integrationMarked = $result.OperationOrder -contains 'mark-child-integrated'
+
+                Assert-Condition $reportedPrMerged "Expected $style fixture to model merged PR metadata."
+                Assert-Condition $result.CoordinatorRefreshed "Expected $style fixture coordinator refresh to complete."
+                Assert-Condition (-not $exactChildInAncestry) "Expected $style-style rewrite to omit the original delivered child commit."
+                Assert-Condition (-not $result.MergedChildIntegrated) "Merged metadata must not integrate a $style-style rewritten child."
+                Assert-Condition (-not $integrationMarked) "Terminal integration marking must remain blocked for $style-style ancestry."
+
+                $styleResults += [ordered]@{
+                    merge_style = $style
+                    pr_reported_merged = $reportedPrMerged
+                    refreshed_coordinator_head = $result.LocalHeadAfter
+                    original_delivered_child_commit = $fixture.MergedChildCommit
+                    original_commit_in_ancestry = $exactChildInAncestry
+                    child_integrated = $result.MergedChildIntegrated
+                    terminal_gate_satisfied = $integrationMarked
+                }
+            }
+            finally {
+                if ($fixture -and (Test-Path -LiteralPath $fixture.Root)) {
+                    Remove-Item -LiteralPath $fixture.Root -Recurse -Force
+                }
+            }
+        }
+
+        [pscustomobject]@{
+            Scenario = 'merge-method-ancestry'
+            Result = 'passed'
+            RequiredMergeMethod = 'Create a merge commit'
+            RewrittenStyles = $styleResults
+            MergedMetadataAcceptedWithoutAncestry = $false
+        } | ConvertTo-Json -Depth 7
     }
     'active-child-refresh' {
         $fixture = New-TempSidecarResumeFixture

@@ -45,6 +45,20 @@ explicit blocker, not sequential fallback.
   released child handoff. It does not classify or self-authorize requests.
 - Architecture and GitHub templates must describe the same active boundary.
 
+## Sidecar Merge-Method Contract
+
+This contract applies only to sidecar child PRs targeting a coordinator
+integration branch and final sidecar coordinator PRs targeting `main`. The user
+must merge both with GitHub's **"Create a merge commit"** method. **"Squash and
+merge"** and **"Rebase and merge"** are prohibited.
+
+The terminal child gate requires each exact delivered child commit to remain in
+refreshed coordinator ancestry, and post-final-merge cleanup requires exact H2
+to remain in current fetched `origin/main` ancestry. GitHub merged metadata alone
+is insufficient for either gate. The user remains the only merge authority;
+Codex must not merge, approve, enable auto-merge, or modify repository merge
+settings. Normal non-sidecar PR merge behavior is unchanged.
+
 ## Preserved Guardrails
 
 - Parallel mode is never inferred from a bare issue reference or URL.
@@ -62,4 +76,7 @@ explicit blocker, not sequential fallback.
 All eight matrix rows must be reviewed against every active routing authority.
 The #252-#259 focused regressions, stale-wording search, sequential-skill diff
 review, historical-path check, and `git diff --check` must be fresh after the
-last relevant change.
+last relevant change. Focused regressions must also prove that rewritten
+squash/rebase-style child ancestry cannot satisfy integration, both sidecar PR
+templates state the required merge method, and cleanup blocks when exact H2 is
+absent from current `origin/main` ancestry.

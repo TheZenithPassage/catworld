@@ -18,7 +18,8 @@ if ($LASTEXITCODE -ne 0) { throw 'The #261 branch does not descend from the acce
 ## Complete Routing Matrix
 
 Review `AGENTS.md`, the sequential routing boundary, both sidecar skills,
-`docs/ARCHITECTURE.md`, and the coordinator template against
+`docs/ARCHITECTURE.md`, the coordinator template, and both sidecar PR templates
+against
 `contracts/active-sidecar-routing.md`. Record one current result for each row:
 
 1. normal issue -> sequential;
@@ -30,8 +31,22 @@ Review `AGENTS.md`, the sequential routing boundary, both sidecar skills,
 7. coordinator with `parallel`, safe preflight -> sidecar coordinator;
 8. coordinator with `parallel`, unsafe preflight -> explicit blocker.
 
-Also confirm the #220-#234 exclusion, ambiguous/multiple-issue stop, and the rule
-that an unavailable child-agent capability never triggers sequential fallback.
+Re-review these seven protected guards after the last relevant change:
+
+1. sequential remains the default, including the #220-#234 exclusion and
+   explicit `sequential` requests;
+2. ambiguous, multiple-issue, unsafe-preflight, and unavailable-child-agent
+   states fail closed without sequential fallback;
+3. the two-phase held-dispatch barrier still blocks implementation and delivery
+   before durable launch evidence and targeted release;
+4. stale or otherwise non-passing required validation cannot support readiness;
+5. exact child ancestry and the two-head `H`/`H2` finalization gates remain
+   authoritative;
+6. cleanup still requires exact same-run ownership, explicit authority, and H2
+   ancestry in current fetched `origin/main`;
+7. the user remains the only merge authority, sidecar child and final PRs
+   require **"Create a merge commit"**, and Codex cannot merge, approve, enable
+   auto-merge, or change merge settings.
 
 ## Existing Sidecar Regressions
 
@@ -95,7 +110,7 @@ foreach ($suite in $suites.GetEnumerator()) {
 $suites = [ordered]@{
   'specs/029-dependency-layer-fanout/validation/simulate-dependency-layer-fanout.ps1' = @('independent','hard-dependencies','shared-contract-blocker','missing-prerequisites','conflict-risk-blocker','unavailable-child-agent','handoff-content','held-dispatch-barrier','handoff-recording-failure','launch-activation-failure','rejected-dispatch','ambiguous-dispatch')
   'specs/030-sidecar-child-execution/validation/simulate-sidecar-child-execution.ps1' = @('valid-handoff','missing-context','wrong-checkout','wrong-branch','missing-delivery-permission','delivery-denied','pr-wording','pr-target','readiness','final-report','prohibited-operations','held-preflight','stable-child-identity','durable-launched-release','launch-push-failure','refresh-verification-failure','release-failure','unexpected-remote-descendant','activation-push-failure')
-  'specs/031-merge-aware-sidecar-resume/validation/simulate-merge-aware-sidecar-resume.ps1' = @('remote-refresh-order','active-child-refresh','resume-states','validation-staleness','unexpected-local-changes','unsafe-divergence','evidence-mismatch','missing-branch-state','human-only-blocker','unsafe-dependency-state','prohibited-operations')
+  'specs/031-merge-aware-sidecar-resume/validation/simulate-merge-aware-sidecar-resume.ps1' = @('remote-refresh-order','merge-method-ancestry','active-child-refresh','resume-states','validation-staleness','unexpected-local-changes','unsafe-divergence','evidence-mismatch','missing-branch-state','human-only-blocker','unsafe-dependency-state','prohibited-operations')
   'specs/032-final-coordinator-delivery/validation/simulate-final-coordinator-delivery.ps1' = @('all-integrated','incomplete-children','evidence-mismatch','integrated-validation','validation-readiness','validation-staleness','two-head-finalization','scope-drift','final-pr-delivery','existing-final-pr','artifact-final-state','closing-keyword-isolation','prohibited-operations')
 }
 foreach ($suite in $suites.GetEnumerator()) {
@@ -114,8 +129,10 @@ if ($LASTEXITCODE -ne 0) { throw '#259 cleanup simulation failed.' }
 ```
 
 The #259 command validates a table-driven temporary fixture. It must not touch
-the accepted live #260 run, its journal, branches, worktrees, or remote refs.
-The complete suite contains 81 unique scenarios/cases; the six #252 scenarios
+the accepted live #260 run, its journal, branches, worktrees, or remote refs. Its
+blocked-before-merge case also proves that merged metadata with H2 absent from
+current `origin/main` ancestry attempts no cleanup.
+The complete suite contains 82 unique scenarios/cases; the six #252 scenarios
 run once in each prescribed shell.
 
 ## Required Stale-Wording Search

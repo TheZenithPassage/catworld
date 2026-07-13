@@ -247,9 +247,9 @@ blocking condition, and user action required when applicable.
 | 13. Fetch and refresh local coordinator branch/worktree | Remote coordinator branch contains or may contain user-owned child merges. | Fetch fails; local coordinator state has unexpected local changes, missing branch state, unsafe divergence, stale evidence, or conflicts; refresh would require rebase, force-push, force-with-lease, history rewriting, local `main` updates, deletion, or issue mutation. | Active child branch refresh; dependency-layer recomputation; integrated coordinator validation. |
 | 14. Active child branch refresh | Local coordinator branch/worktree has been refreshed from the remote coordinator branch and still-active child branches/worktrees need updated coordinator state. | Refresh would use stale local coordinator state; refresh would require rebase, force-push, force-with-lease, history rewrite, resource deletion, or unresolved conflict. | Dependency-layer recomputation; next dependency layer execution; waiting for user guidance. |
 | 15. Next dependency layer execution | Dependency layers have been recomputed from current issue, PR, artifact, branch, validation, and blocker evidence after observed merges and refresh. | Hard dependencies are not integrated into the updated local coordinator branch; next layer has unresolved blockers, child-agent capability blocker, stale required evidence, unsafe dependency state, or conflict risk. | Child branch/worktree preparation; integrated coordinator validation. |
-| 16. Integrated coordinator validation | Current GitHub/repository evidence has been re-read; the prepared-child ledger is complete and unique; every child PR targets and is merged into the coordinator branch; every child commit is present in refreshed coordinator ancestry; no child is active, blocked, pending, dependency-incomplete, missing, duplicate, or unexpected. | Evidence conflicts with the artifact; child accounting or ancestry is incomplete; another child layer remains possible; any required or consumed validation is failed, skipped, timed out, interrupted, partial, stale, blocked, not run, unavailable, or dishonest to claim; `H`/`H2` evidence is invalid; target base/head evidence moved; integrated scope contains an unexplained change. | Final coordinator PR to `main`; report blocker. |
+| 16. Integrated coordinator validation | Current GitHub/repository evidence has been re-read; the prepared-child ledger is complete and unique; every child PR targets and is merged into the coordinator branch; every exact delivered child commit is present in refreshed coordinator ancestry; no child is active, blocked, pending, dependency-incomplete, missing, duplicate, or unexpected. | Evidence conflicts with the artifact; child accounting or exact ancestry is incomplete; another child layer remains possible; any required or consumed validation is failed, skipped, timed out, interrupted, partial, stale, blocked, not run, unavailable, or dishonest to claim; `H`/`H2` evidence is invalid; target base/head evidence moved; integrated scope contains an unexplained change. | Final coordinator PR to `main`; report blocker. |
 | 17. Final coordinator PR to `main` | Complete checks passed at `H`; `H2` is the direct artifact-only child; all H2-affected checks passed in current evidence; the remote coordinator ref equals H2 after a normal non-force push; target-base, merge-base, local/remote head, ancestry, scope, validation, template, and existing-PR evidence were rechecked and remain fresh. | A final PR already exists with stale or inconsistent state; same-run identity is ambiguous; source, target, template, issue wording, closing authority, or readiness is invalid; a required check regressed; push was rejected or remote ref differs; a draft fallback or duplicate would be required. | Post-final-merge local cleanup; report blocker. |
-| 18. Post-final-merge local cleanup | Current read-only evidence identifies exactly one same-run final coordinator PR with the expected coordinator source and H2 head, `main` base, merged state, and corroborating merge evidence in current `origin/main`; an exact stable run ID and the artifact-owned local resource records are available. | Merge, run-identity, ownership, Git-common-directory, live resource, cleanliness, control-checkout, cleanup-authority, or journal evidence is missing, stale, unknown, dirty, unwritable, or inconsistent; a local removal or required journal update fails. | Report `ineligible`, `not_started`, `blocked`, `partial`, or `completed` local cleanup state; no remote cleanup transition exists. |
+| 18. Post-final-merge local cleanup | Current read-only evidence identifies exactly one same-run final coordinator PR with the expected coordinator source and H2 head, `main` base, merged state, and exact proof that H2 is an ancestor of current fetched `origin/main`; an exact stable run ID and the artifact-owned local resource records are available. | Merge metadata exists without H2 ancestry, or merge, run-identity, ownership, Git-common-directory, live resource, cleanliness, control-checkout, cleanup-authority, or journal evidence is missing, stale, unknown, dirty, unwritable, or inconsistent; a local removal or required journal update fails. | Report `ineligible`, `not_started`, `blocked`, `partial`, or `completed` local cleanup state; no remote cleanup transition exists. |
 
 ### Operation Ownership
 
@@ -268,9 +268,14 @@ with explicit current cleanup authority and every cleanup preflight gate passed,
 remove the exact same-run-owned local worktrees and branches through the local
 cleanup procedure below. Eligibility alone never authorizes deletion.
 
-The user owns all merges. Child PRs are merged by the user into the remote
-coordinator branch. The final coordinator PR is merged by the user into
-`main`. GitHub issue mutations, public comments, remote branch deletion,
+The user owns all merges. For sidecar child PRs into the remote coordinator
+branch and the final sidecar coordinator PR into `main`, the user must select
+GitHub's **"Create a merge commit"** method. **"Squash and merge"** and
+**"Rebase and merge"** are prohibited because the exact delivered child commit
+and exact H2, respectively, must remain in downstream ancestry. This is a
+sidecar operator contract only; normal non-sidecar PR merge behavior is
+unchanged. Codex must not merge, approve, enable auto-merge, or modify repository
+merge settings. GitHub issue mutations, public comments, remote branch deletion,
 remote pruning, and remote cleanup require explicit user approval in a workflow
 that permits the operation.
 
@@ -895,12 +900,13 @@ is complete.
 
 ### Refresh After Child PR Merges
 
-After the user merges a child PR into the remote coordinator branch, resume
-first re-reads current GitHub and repository evidence. It then fetches the
-remote coordinator branch and refreshes the local coordinator branch/worktree
-from that remote coordinator branch before marking completed children
-integrated, refreshing active children, launching a next dependency layer, or
-consuming merged child work as fresh coordinator evidence.
+After the user merges a child PR into the remote coordinator branch using
+GitHub's **"Create a merge commit"** method, resume first re-reads current
+GitHub and repository evidence. It then fetches the remote coordinator branch
+and refreshes the local coordinator branch/worktree from that remote
+coordinator branch before marking completed children integrated, refreshing
+active children, launching a next dependency layer, or consuming merged child
+work as fresh coordinator evidence.
 
 Refresh local coordinator state with fast-forward or a normal merge only. Stop
 when the local coordinator branch/worktree has unexpected local changes,
@@ -911,8 +917,12 @@ merge into local `main`, delete resources, mutate GitHub issues, or merge PRs
 to make coordinator refresh succeed.
 
 Mark a completed child integrated only when its PR is merged into the
-coordinator branch and local coordinator state has been refreshed from the
-remote coordinator branch containing that merge.
+coordinator branch, local coordinator state has been refreshed from the remote
+coordinator branch containing that merge, and the exact recorded delivered
+child commit is an ancestor of the refreshed coordinator head. GitHub merged
+metadata alone is insufficient. A **"Squash and merge"** or **"Rebase and
+merge"** result that rewrites the delivered child commit must remain
+non-integrated and blocks the terminal child gate.
 
 After local coordinator state is refreshed, every still-active sidecar child
 branch or worktree that needs the latest coordinator state is updated from the
@@ -986,7 +996,12 @@ requires all of the following evidence to agree:
 - its source is the expected remote coordinator branch at the expected H2 head;
 - its base is `main`;
 - its current state is merged; and
-- current `origin/main` evidence contains the expected final-merge evidence.
+- `git merge-base --is-ancestor <H2> origin/main` succeeds against current
+  fetched `origin/main`.
+
+GitHub merged metadata alone is insufficient. If H2 is absent from current
+`origin/main` ancestry, cleanup remains blocked and no local deletion may be
+attempted or reported successful.
 
 A final PR known not to be merged records `eligibility = ineligible` and
 `result = ineligible`. Missing, stale, duplicate, or inconsistent final-merge
@@ -1175,8 +1190,9 @@ these events occur or are observed during resume:
 - local coordinator branch/worktree state is refreshed from the remote
   coordinator branch by fast-forward or normal merge;
 - a child is marked integrated only after its PR merge is present in the
-  coordinator branch and local coordinator state has been refreshed from that
-  remote branch;
+  coordinator branch, local coordinator state has been refreshed from that
+  remote branch, and the exact delivered child commit is present in refreshed
+  coordinator ancestry;
 - an active child branch/worktree needs refresh from the coordinator branch;
 - an active child branch/worktree is refreshed from the updated local
   coordinator branch using a normal merge when needed;
@@ -1200,8 +1216,8 @@ final-delivery events in current repository/GitHub evidence and final reporting:
   current evidence;
 - a unique ready final PR is created or an existing same-run PR is observed;
 - current evidence confirms or does not confirm that the unique same-run final
-  PR with the expected source/H2 head and `main` base has merged into current
-  `origin/main` evidence.
+  PR with the expected source/H2 head and `main` base has merged and that exact
+  H2 is an ancestor of current fetched `origin/main`.
 
 Do not write those facts back to the frozen coordinator artifact. When local
 cleanup is evaluated, record its factual `eligibility`, `owned_resources`,
@@ -1247,9 +1263,11 @@ Before final validation:
    of truth.
 2. Build one complete, unique ledger for the prepared child set. Missing,
    duplicate, or unexpected child identities are blockers.
-3. Require every child PR to target the coordinator branch, be merged there,
-   and have its child commit present in refreshed local coordinator ancestry.
-   Merged metadata alone is insufficient.
+3. Require every child PR to target the coordinator branch, be merged there by
+   the user with GitHub's **"Create a merge commit"** method, and have its exact
+   delivered child commit present in refreshed local coordinator ancestry.
+   Merged metadata alone is insufficient. **"Squash and merge"** and
+   **"Rebase and merge"** rewrite that identity and cannot satisfy this gate.
 4. Require every child workflow state to be `integrated`. An open GitHub child
    issue is expected until final closing keywords take effect and does not prove
    incomplete work; a closed issue does not prove integration.
@@ -1349,6 +1367,12 @@ guardrails.
 Sidecar child PR guidance must target the coordinator integration branch. A
 sidecar child PR must not target `main` directly.
 
+Every sidecar child PR must tell the user to merge it with GitHub's **"Create a
+merge commit"** method. **"Squash and merge"** and **"Rebase and merge"** are
+prohibited because the exact delivered child commit must remain in refreshed
+coordinator ancestry. If the required method is unavailable, stop and report
+the operator blocker; Codex must not change repository merge settings.
+
 Sidecar child PR descriptions use `Related to #<child-issue>` and
 `Related to #<coordinator-issue>` issue references only. They must not use
 issue-closing wording for the child issue or coordinator issue, and they must
@@ -1389,6 +1413,9 @@ current evidence. The final PR must:
   incomplete readiness;
 - source the remote coordinator integration branch verified at H2;
 - target `main`;
+- require the user to select GitHub's **"Create a merge commit"** method and
+  prohibit **"Squash and merge"** and **"Rebase and merge"** so exact H2
+  remains in `main` ancestry;
 - identify integrated child PRs or child issue references for traceability;
 - list complete checks at H and resolved artifact-affected checks at H2 with
   explicit statuses and freshness;
@@ -1407,8 +1434,10 @@ coordinator branch.
 
 Codex may create or safely update the one ready final coordinator PR only after
 the approved finalization procedure passes. Codex reports readiness for sidecar
-child PRs and the final coordinator PR. The user performs every merge. Codex
-must not merge, approve, or enable auto-merge on pull requests.
+child PRs and the final coordinator PR. The user performs every merge using the
+required sidecar **"Create a merge commit"** method. If that method is
+unavailable, Codex stops and reports the blocker. Codex must not merge, approve,
+enable auto-merge, or modify repository merge settings.
 
 GitHub issue body, checklist, label, assignee, milestone, issue state, and
 public comment mutation requires explicit user approval in a workflow that
@@ -1574,7 +1603,9 @@ This entrypoint must not:
   PR URL, rendered-body fingerprint, resolved post-H2 evidence, or local cleanup
   state;
 - mark cleanup eligible before the final coordinator PR is observed merged into
-  `main`;
+  `main` with exact H2 present in current fetched `origin/main` ancestry;
+- modify repository merge settings to make a required sidecar merge method
+  available;
 - silently resolve non-trivial conflicts affecting contract, scope,
   persistence, security, authorization, UX, or domain behavior;
 - silently decide human-only blocker categories such as significant
@@ -1836,8 +1867,9 @@ Validation for this entrypoint must include:
   prepared checkout and branch, executes only prepared `tasks.md` work, and
   reports a focused changed-file diff;
 - local sample child PR delivery checks proving child PR descriptions use
-  `Related to #<child-issue>` and `Related to #<coordinator-issue>` only and do
-  not close issues;
+  `Related to #<child-issue>` and `Related to #<coordinator-issue>` only, do not
+  close issues, and require GitHub's **"Create a merge commit"** method while
+  prohibiting squash and rebase merge;
 - local sample child PR target checks proving child PRs target the coordinator
   branch and reject `main`;
 - local sample readiness checks proving failed, skipped, timed-out,
@@ -1864,6 +1896,9 @@ Validation for this entrypoint must include:
   approved top-level fields beneath the resolved Git common directory, and H2,
   `specs/032-final-coordinator-delivery/finalization.md`, H3, and H4 remain
   untouched;
+- #259 regression proving merged PR metadata with exact H2 absent from current
+  `origin/main` ancestry remains blocked, retains every local resource, and
+  attempts no non-force branch deletion;
 - review that the local cleanup phase contains no remote branch deletion or
   update, remote or remote-tracking pruning, GitHub mutation, PR merge/approval,
   or auto-merge operation; any separately approved remote-cleanup
@@ -1894,6 +1929,9 @@ Validation for this entrypoint must include:
   the local coordinator branch/worktree from that remote branch before marking
   completed children integrated, refreshing active children, or launching the
   next dependency layer;
+- simulation proving reported merged metadata with squash- or rebase-style
+  rewritten ancestry does not mark the original delivered child commit
+  integrated or satisfy the terminal child gate;
 - simulation of refreshing an active child branch/worktree from the updated
   local coordinator branch using a normal merge, with affected validation
   marked stale or rerun;
@@ -1967,7 +2005,8 @@ Validation for this entrypoint must include:
   scope blocks readiness;
 - #258 actual-template rendering proving one ready coordinator-to-`main` PR has
   H/H2 validation, remote H2 proof, integrated child traceability, scope review,
-  risks, final-only closing keywords, and cleanup ineligibility;
+  risks, final-only closing keywords, the required **"Create a merge commit"**
+  instruction, and cleanup ineligibility;
 - #258 existing-final-PR simulation proving same-run reuse avoids duplication
   and stale/inconsistent state stops without draft fallback or silent readiness
   mutation;

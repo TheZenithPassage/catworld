@@ -1466,6 +1466,15 @@ function Invoke-ClosingKeywordIsolationScenario {
     Assert-Condition ($childTemplate.Text -match '(?i)Target coordinator branch') 'Child template must target the coordinator branch.'
     Assert-Condition ($childTemplate.Text -match '(?i)not the final delivery PR to `main`') 'Child template must explicitly reject main delivery.'
     Assert-Condition ($finalTemplate.Text -match '(?i)Target branch:\s*`main`') 'Final template must target main.'
+    Assert-Condition ($childTemplate.Text -match '(?i)Create a merge commit') 'Child template must require Create a merge commit.'
+    Assert-Condition ($finalTemplate.Text -match '(?i)Create a merge commit') 'Final template must require Create a merge commit.'
+    Assert-Condition ($childTemplate.Text -match '(?i)Squash and merge' -and $childTemplate.Text -match '(?i)Rebase and merge') 'Child template must prohibit squash and rebase merge.'
+    Assert-Condition ($finalTemplate.Text -match '(?i)Squash and merge' -and $finalTemplate.Text -match '(?i)Rebase and merge') 'Final template must prohibit squash and rebase merge.'
+    Assert-Condition ($childTemplate.Text -match '(?i)exact delivered child commit' -and $childTemplate.Text -match '(?i)merged metadata alone is insufficient') 'Child template must require exact child ancestry rather than merged metadata.'
+    Assert-Condition ($finalTemplate.Text -match '(?i)exact `?H2`?' -and $finalTemplate.Text -match '(?i)`?main`? ancestry') 'Final template must require exact H2 in main ancestry.'
+    Assert-Condition ($finalTemplate.Text -match '(?i)standard non-force local branch deletion') 'Final template must explain the non-force cleanup dependency.'
+    Assert-Condition ($childTemplate.Text -match '(?i)user performs the merge' -and $finalTemplate.Text -match '(?i)user performs the merge') 'Both sidecar templates must preserve the user as merge actor.'
+    Assert-Condition ($childTemplate.Text -match '(?i)repository merge settings' -and $finalTemplate.Text -match '(?i)repository merge settings') 'Both sidecar templates must prohibit repository merge-setting changes.'
 
     [ordered]@{
         scenario = 'closing-keyword-isolation'
@@ -1477,6 +1486,10 @@ function Invoke-ClosingKeywordIsolationScenario {
         child_related_references_only = $true
         child_target = 'coordinator branch'
         final_target = 'main'
+        required_merge_method = 'Create a merge commit'
+        squash_and_rebase_prohibited = $true
+        exact_child_and_h2_ancestry_required = $true
+        user_merge_authority_preserved = $true
         buildout_pr_wording = 'Related to #258'
     }
 }

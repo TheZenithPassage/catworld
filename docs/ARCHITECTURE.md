@@ -716,10 +716,11 @@ user action when applicable.
 
 State 16 begins only after current GitHub, repository, branch and artifact
 evidence proves that the prepared-child ledger is complete and unique; every
-child PR targeted and was merged into the coordinator branch; every delivered
-child commit is present in refreshed coordinator ancestry; and no child is
-active, blocked, pending, dependency-incomplete, missing, duplicate or
-unexpected. It stops on incomplete accounting, metadata without ancestry,
+child PR targeted and was merged into the coordinator branch with GitHub's
+**"Create a merge commit"** method; every exact delivered child commit is
+present in refreshed coordinator ancestry; and no child is active, blocked,
+pending, dependency-incomplete, missing, duplicate or unexpected. It stops on
+incomplete accounting, metadata without exact ancestry,
 non-passing or unavailable required validation, invalid `H`/`H2` evidence,
 target-base or head movement, or unexplained integrated scope. Once this gate
 passes and finalization starts, no new child layer may be launched.
@@ -740,14 +741,15 @@ State 18 first resolves the repository Git common directory and writes the
 same-run local cleanup journal. A known-unmerged final PR remains ineligible;
 missing, stale or inconsistent merge evidence blocks cleanup. Eligibility
 requires one unique same-run final PR whose expected coordinator source and H2
-head, `main` base, merged state and current `origin/main` merge evidence all
-agree. Eligibility alone never deletes anything: destructive local cleanup
-also requires explicit current authority. Unknown ownership, an inconsistent
-Git common directory, dirty candidate worktree state, an unsafe control
-checkout or a journal-write failure stops before the first deletion. During an
-authorized attempt, an owned worktree is removed before its associated local
-branch is deleted non-force; every attempt is journaled, and any failure stops
-the remaining operations with a truthful blocked or partial result.
+head, `main` base and merged state all agree, and exact H2 is an ancestor of
+current fetched `origin/main`. GitHub merged metadata alone is insufficient.
+Eligibility alone never deletes anything: destructive local cleanup also
+requires explicit current authority. Unknown ownership, an inconsistent Git
+common directory, dirty candidate worktree state, an unsafe control checkout or
+a journal-write failure stops before the first deletion. During an authorized
+attempt, an owned worktree is removed before its associated local branch is
+deleted non-force; every attempt is journaled, and any failure stops the
+remaining operations with a truthful blocked or partial result.
 
 Codex-owned operations include read-only issue and PR inspection, artifact
 planning, permitted local branch/worktree preparation for a routing-authorized
@@ -758,11 +760,14 @@ the normal non-force push of artifact-only `H2`, and creation or a separately
 permitted safe update of one ready final coordinator PR after every finalization
 gate passes. After final merge, Codex may perform
 the explicitly authorized, same-run local cleanup defined below. The user owns
-all merges: child PRs into the remote coordinator branch and the final
-coordinator PR into `main`. The sidecar local cleanup phase never mutates
-GitHub issues or comments, merges or approves PRs, enables auto-merge, deletes
-or otherwise cleans up remote branches, or prunes remotes or remote-tracking
-refs.
+all merges. Sidecar child PRs into the remote coordinator branch and the final
+sidecar coordinator PR into `main` require GitHub's **"Create a merge commit"**
+method; **"Squash and merge"** and **"Rebase and merge"** are prohibited because
+the exact child commit and H2 must remain in downstream ancestry. This does not
+change merge behavior for normal non-sidecar PRs. Codex does not merge, approve,
+enable auto-merge, or change repository merge settings. The sidecar local
+cleanup phase never mutates GitHub issues or comments, deletes or otherwise
+cleans up remote branches, or prunes remotes or remote-tracking refs.
 
 The sidecar coordinator builds dependency layers from child issue dependencies,
 conflict risks, shared implementation contract state, prepared artifact state,
@@ -1191,7 +1196,10 @@ commit, current activation/record head and targeted release are governed by the
 held-dispatch barrier above.
 
 Sidecar child PR guidance must target the coordinator branch. Sidecar child PRs
-must not target `main` directly. Hard-dependent layers wait until prerequisite
+must not target `main` directly, and the user must merge them with GitHub's
+**"Create a merge commit"** method. **"Squash and merge"** and **"Rebase and
+merge"** are prohibited because the exact delivered child commit must remain in
+refreshed coordinator ancestry. Hard-dependent layers wait until prerequisite
 child PRs are integrated and required coordinator or active-child refresh is
 complete.
 
@@ -1207,10 +1215,13 @@ perform history-rewriting updates, update local `main`, merge into local
 succeed.
 
 A completed child is integrated only when its PR is merged into the coordinator
-branch and local coordinator state has been refreshed from the remote
-coordinator branch containing that merge. Only after local coordinator refresh
-may Codex refresh still-active child branches/worktrees, launch the next
-dependency layer or consume merged child work as fresh coordinator evidence.
+branch, local coordinator state has been refreshed from the remote coordinator
+branch containing that merge, and the exact recorded delivered child commit is
+an ancestor of the refreshed coordinator head. GitHub merged metadata alone is
+insufficient, and squash- or rebase-style rewritten ancestry remains
+non-integrated. Only after local coordinator refresh may Codex refresh
+still-active child branches/worktrees, launch the next dependency layer or
+consume merged child work as fresh coordinator evidence.
 Still-active sidecar child branches or worktrees that need the latest
 coordinator state are updated from the updated local coordinator branch using a
 normal merge only when needed. They must not refresh from stale local
@@ -1226,11 +1237,12 @@ until rerun.
 Local sidecar branches and worktrees are retained after individual child PR
 merges. Cleanup remains ineligible until current evidence identifies exactly
 one same-run final coordinator PR and confirms that its expected coordinator
-source and H2 head, `main` base, merged state and merge evidence in current
-`origin/main` evidence all agree. A known-unmerged final PR records an
-ineligible outcome. Missing, stale, ambiguous or inconsistent merge evidence
-blocks cleanup. The evidence refresh needed to make this decision is evidence
-collection, not remote cleanup.
+source and H2 head, `main` base and merged state all agree, and exact H2 is an
+ancestor of current fetched `origin/main`. A known-unmerged final PR records an
+ineligible outcome. Missing, stale, ambiguous or inconsistent evidence,
+including merged metadata without H2 ancestry, blocks cleanup. The evidence
+refresh needed to make this decision is evidence collection, not remote
+cleanup.
 
 Cleanup state is stored outside every tracked worktree. From repository
 context, the coordinator resolves and normalizes the result of
@@ -1443,8 +1455,11 @@ remote coordinator refs, coordinator and child artifacts, validation evidence,
 blockers, cleanup state and existing final PR evidence. Private conversation
 context is not a source of truth. Finalization requires one complete, unique
 ledger for the prepared child set. Every child PR must target and be merged
-into the coordinator branch, and every delivered child commit must be present
-in refreshed local coordinator ancestry; merged metadata alone is insufficient.
+into the coordinator branch with GitHub's **"Create a merge commit"** method,
+and every exact delivered child commit must be present in refreshed local
+coordinator ancestry; merged metadata alone is insufficient. **"Squash and
+merge"** and **"Rebase and merge"** cannot satisfy this terminal gate because
+they rewrite the delivered commit identity.
 Every child workflow state must be `integrated`. Missing, duplicate, unexpected,
 active, blocked, pending, dependency-incomplete or conflicting child state
 stops finalization. Open child issues may remain open for the final PR's closing
@@ -1533,6 +1548,12 @@ Related to #<coordinator-issue>
 Child PRs must not use closing keywords for either issue or imply that the child
 PR is the final delivery PR to `main`.
 
+The child PR body must tell the user to select GitHub's **"Create a merge
+commit"**. **"Squash and merge"** and **"Rebase and merge"** are prohibited so
+the exact delivered child commit remains in refreshed coordinator ancestry. If
+the required method is unavailable, the workflow stops and reports the operator
+blocker; Codex does not change repository merge settings.
+
 After the same held #256 child has incorporated the current remote
 activation/record head, verified the immutable launched evidence commit in its
 ancestry, received targeted release, completed its prepared tasks and validated
@@ -1563,6 +1584,9 @@ current evidence. The final PR must:
 - be ready for review;
 - source the remote coordinator integration branch verified at H2 and target
   `main`;
+- require the user to select GitHub's **"Create a merge commit"** method and
+  prohibit **"Squash and merge"** and **"Rebase and merge"** so exact H2 remains
+  in `main` ancestry;
 - identify integrated child PRs or child issue references for traceability;
 - list complete checks at H and resolved artifact-affected checks at H2 with
   explicit statuses and freshness;
@@ -1581,11 +1605,12 @@ to write the URL, rendered-body fingerprint, resolved post-H2 evidence or
 cleanup evidence back into the coordinator artifact.
 
 Codex reports readiness for sidecar child PRs and the final coordinator PR.
-The user performs every merge. Codex must not merge, approve or enable
-auto-merge on pull requests. Local cleanup remains `ineligible` with reason
-`pending final PR merge` until current evidence shows that the final
-coordinator PR has merged into `main`; eligibility still does not supply
-destructive cleanup authority.
+The user performs every merge with the required sidecar **"Create a merge
+commit"** method. Codex must not merge, approve, enable auto-merge, or change
+repository merge settings. Local cleanup remains `ineligible` with reason
+`pending final PR merge` until current evidence shows that the final coordinator
+PR has merged and exact H2 is an ancestor of current fetched `origin/main`;
+eligibility still does not supply destructive cleanup authority.
 
 GitHub issue body, checklist, label, assignee, milestone, issue state and
 public comment mutations require explicit user approval in a workflow that

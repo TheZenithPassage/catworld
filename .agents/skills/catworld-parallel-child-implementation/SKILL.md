@@ -517,9 +517,10 @@ preflight alone is never sufficient.
     child branch with a normal non-force push, and open or update the child PR
     against the coordinator branch.
 13. Report child PR URL and readiness back to the coordinator lifecycle. The
-    user owns merges into the remote coordinator branch; this skill does not
-    merge child PRs, treat unmerged child PRs as integrated, or advance a
-    hard-dependent layer on its own.
+    user owns merges into the remote coordinator branch and must use GitHub's
+    **"Create a merge commit"** method; this skill does not merge child PRs,
+    treat unmerged child PRs as integrated, or advance a hard-dependent layer
+    on its own.
 
 This skill may implement product or workflow code only when the prepared child
 tasks explicitly require it. It must not add product behavior, architecture,
@@ -547,7 +548,14 @@ commit, push, or PR authority. When permitted, delivery consists only of:
    `Related to #<child-issue>` and `Related to #<coordinator-issue>`, without
    closing keywords or an additional coordinator-control issue reference;
 7. setting or reporting ready status only when required validation is fresh and
-   passed and no unresolved blocker affects the child.
+   passed and no unresolved blocker affects the child;
+8. ensuring the child PR body tells the user to select GitHub's **"Create a
+   merge commit"** method and prohibits **"Squash and merge"** and **"Rebase and
+   merge"**, because the exact delivered child commit must remain in refreshed
+   coordinator ancestry.
+
+If **"Create a merge commit"** is unavailable, report the operator blocker and
+stop. Codex must not merge the PR or modify repository merge settings.
 
 If required validation is failed, skipped, timed out, interrupted, partial,
 stale, blocked, or not run, any review-useful child PR must be draft/not-ready
@@ -618,10 +626,10 @@ Private conversation context is not sufficient resume evidence.
 
 A sidecar child PR may be reported as ready only when required validation is
 fresh and passed, no unresolved blocker affects the child, and the approved
-sidecar PR target and issue-reference rules are satisfied. The exact child must
-also have incorporated the exact remote activation/record head, verified that
-it contains the factual launched-evidence commit, and acknowledged release with
-the required delivery permissions. A sidecar child PR
+sidecar PR target, issue-reference, and merge-method instructions are satisfied.
+The exact child must also have incorporated the exact remote activation/record
+head, verified that it contains the factual launched-evidence commit, and
+acknowledged release with the required delivery permissions. A sidecar child PR
 must be reported as draft when required validation is failed, skipped, timed
 out, interrupted, partial, stale, not run, or blocked, unless the non-passed
 evidence is explicitly outside child readiness and the report explains why.
@@ -653,10 +661,10 @@ final passes do not use sidecar resumability state.
 
 When the child report is part of a waiting sidecar coordinator run, it must
 name the child PR that the user must merge into the remote coordinator branch
-before the coordinator resumes. When the child handoff resumes after another
-child PR has merged, it must identify the updated local coordinator branch
-state incorporated by normal merge and mark affected validation stale until
-rerun.
+with GitHub's **"Create a merge commit"** method before the coordinator resumes.
+When the child handoff resumes after another child PR has merged, it must
+identify the updated local coordinator branch state incorporated by normal
+merge and mark affected validation stale until rerun.
 
 ## Prohibited Side Effects
 
@@ -722,6 +730,8 @@ This skill must not:
 - open, update, merge, approve, label, or enable auto-merge on pull requests
   unless the prepared handoff and approved sidecar PR rules explicitly permit
   the operation; Codex still must not merge, approve, or enable auto-merge;
+- modify repository merge settings to make the required sidecar merge method
+  available;
 - create, modify, close, label, assign, milestone, update checklists, change
   issue state, or comment publicly on GitHub issues without explicit user
   approval in a workflow that permits that operation;
@@ -861,8 +871,9 @@ For each child implementation, validation must include:
   refreshed from the remote coordinator branch;
 - confirmation that sidecar child PR guidance targets the coordinator branch,
   uses exactly the two `Related to` issue-reference lines for the child and
-  coordinator, includes no additional control-issue reference, and does not
-  close child or coordinator issues;
+  coordinator, includes no additional control-issue reference, does not close
+  child or coordinator issues, and requires GitHub's **"Create a merge
+  commit"** method while prohibiting squash and rebase merge;
 - confirmation that child PR ready/draft status reflects fresh validation and
   blocker state honestly;
 - confirmation that `.agents/skills/catworld-implement-issue/SKILL.md` was not
@@ -905,7 +916,8 @@ Report:
   eligibility, last incorporated coordinator branch state, and re-read evidence
   from the coordinator resume state;
 - child PR issue-reference wording and GitHub mutation/public comment approval
-  state from the handoff;
+  state from the handoff, plus the required **"Create a merge commit"** operator
+  instruction;
 - prepared artifacts consumed;
 - tasks completed and any tasks left incomplete;
 - changed-file summary compared with the prepared source map;

@@ -24,6 +24,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$script:RepositoryRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../../..')).Path
 
 function Assert-Condition {
     param(
@@ -1413,6 +1414,8 @@ switch ($Scenario) {
         $body = New-ChildPrBody -Handoff $handoff
         $check = Test-PrBody -Body $body -ChildIssueNumber $handoff.ChildIssueNumber -CoordinatorIssueNumber $handoff.CoordinatorIssueNumber
         $extraReferenceCheck = Test-PrBody -Body ($body + "`nRelated to #260") -ChildIssueNumber $handoff.ChildIssueNumber -CoordinatorIssueNumber $handoff.CoordinatorIssueNumber
+        $templatePath = Join-Path $script:RepositoryRoot '.github/PULL_REQUEST_TEMPLATE/sidecar-child-to-coordinator.md'
+        $template = Get-Content -LiteralPath $templatePath -Raw
 
         Assert-Condition $check.HasTwoRelatedReferences 'Expected exactly two Related to issue references.'
         Assert-Condition $check.HasExactRelatedReferences 'Expected only the exact child and coordinator Related to references.'
@@ -1420,6 +1423,12 @@ switch ($Scenario) {
         Assert-Condition ($check.RelatedReferences -contains 'Related to #9901') 'Expected coordinator issue Related to reference.'
         Assert-Condition (-not $check.HasClosingKeyword) 'Expected no closing keywords.'
         Assert-Condition (-not $extraReferenceCheck.HasExactRelatedReferences) 'Any third issue reference must invalidate child PR wording.'
+        Assert-Condition ($template -match '(?i)Create a merge commit') 'Child PR template must require Create a merge commit.'
+        Assert-Condition ($template -match '(?i)Squash and merge' -and $template -match '(?i)Rebase and merge') 'Child PR template must prohibit squash and rebase merge.'
+        Assert-Condition ($template -match '(?i)exact delivered child commit' -and $template -match '(?i)coordinator ancestry') 'Child PR template must explain exact child-commit ancestry.'
+        Assert-Condition ($template -match '(?i)merged metadata alone is insufficient') 'Child PR template must reject merged metadata as ancestry proof.'
+        Assert-Condition ($template -match '(?i)user performs the merge' -and $template -match '(?i)must not merge') 'Child PR template must preserve user-only merge authority.'
+        Assert-Condition ($template -match '(?i)must not.*modify repository merge settings') 'Child PR template must prohibit repository merge-setting changes.'
 
         [pscustomobject]@{
             Scenario = 'pr-wording'
@@ -1429,6 +1438,10 @@ switch ($Scenario) {
             HasExactRelatedReferences = $check.HasExactRelatedReferences
             ThirdIssueReferenceBlocked = -not $extraReferenceCheck.HasExactRelatedReferences
             HasClosingKeyword = $check.HasClosingKeyword
+            TemplatePath = '.github/PULL_REQUEST_TEMPLATE/sidecar-child-to-coordinator.md'
+            RequiredMergeMethod = 'Create a merge commit'
+            SquashAndRebaseProhibited = $true
+            ExactChildAncestryRequired = $true
             Body = $body
         } | ConvertTo-Json -Depth 5
     }
