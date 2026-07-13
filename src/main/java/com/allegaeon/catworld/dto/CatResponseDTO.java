@@ -32,5 +32,6 @@ public class CatResponseDTO {
     private String ownerName;
     private UUID vetId;
     private String vetName;
+    private boolean canDelete;
 
 }

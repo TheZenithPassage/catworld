@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Sex;
@@ -59,12 +60,18 @@ public class CatControllerTest {
                     .birthDate(LocalDate.of(2020, 1, 1))
                     .sex(Sex.MALE)
                     .ownerId(UUID.randomUUID())
+                    .canDelete(true)
                     .build());
 
             mockMvc.perform(get("/api/cats/{id}", catId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(catId.toString()))
-                    .andExpect(jsonPath("$.name").value("Milo"));
+                    .andExpect(jsonPath("$.name").value("Milo"))
+                    .andExpect(jsonPath("$.canDelete").value(true))
+                    .andExpect(jsonPath("$.creator").doesNotExist())
+                    .andExpect(jsonPath("$.creatorId").doesNotExist())
+                    .andExpect(jsonPath("$.createdBy").doesNotExist())
+                    .andExpect(jsonPath("$.createdById").doesNotExist());
 
             verify(catService).getCat(catId);
         }
@@ -212,6 +219,32 @@ public class CatControllerTest {
             mockMvc.perform(delete("/api/cats/{id}", catId))
                     .andExpect(status().isForbidden())
                     .andExpect(content().string("Forbidden"));
+
+            verify(catService).deleteCat(catId);
+        }
+
+        @Test
+        void shouldReturnNotFound_whenDeletingMissingCat() throws Exception {
+            UUID catId = UUID.randomUUID();
+
+            doThrow(new ResourceNotFoundException("Cat", catId)).when(catService).deleteCat(catId);
+
+            mockMvc.perform(delete("/api/cats/{id}", catId))
+                    .andExpect(status().isNotFound());
+
+            verify(catService).deleteCat(catId);
+        }
+
+        @Test
+        void shouldReturnConflict_whenStayHistoryBlocksDeletion() throws Exception {
+            UUID catId = UUID.randomUUID();
+
+            doThrow(new ConflictException("Cat cannot be deleted because it has stay history"))
+                    .when(catService).deleteCat(catId);
+
+            mockMvc.perform(delete("/api/cats/{id}", catId))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().string("Cat cannot be deleted because it has stay history"));
 
             verify(catService).deleteCat(catId);
         }
