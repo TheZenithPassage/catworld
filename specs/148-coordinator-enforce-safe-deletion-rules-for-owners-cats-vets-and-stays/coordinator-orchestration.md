@@ -12,7 +12,7 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | layer 1 handoff-ready evidence; held preflight not yet dispatched |
+| Current phase | handoff-ready evidence R pushed and proven; Rr recording update pending |
 | Artifact freeze | not reached; H2 does not exist |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
@@ -208,7 +208,7 @@ identity checks pass.
 - Artifact state: handoff-ready; workflow held-preflight; factual launch pending.
 - Dependency layer: 1; hard dependencies: empty.
 - Prepared-handoff fingerprint: f3252b3a16fb76b6494a1e3599258e882a9bc1d8f4d68c5211ce7bdd565f22dd.
-- Handoff-ready evidence SHA R: pending.
+- Handoff-ready evidence SHA R: 250341a6d9cbfb784c0858f731462c2ecdd169f4; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote recording head Rr containing R: pending.
 - Stable held dispatch identity: pending.
 - Held preflight zero-edit result: pending.
@@ -224,7 +224,7 @@ identity checks pass.
 - Artifact state: handoff-ready; workflow held-preflight; factual launch pending.
 - Dependency layer: 1; hard dependencies: empty.
 - Prepared-handoff fingerprint: c965558afc8382260c79485673bafbd3ad3f719173b4f8959a8337f7724a4818.
-- Handoff-ready evidence SHA R: pending.
+- Handoff-ready evidence SHA R: 250341a6d9cbfb784c0858f731462c2ecdd169f4; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote recording head Rr containing R: pending.
 - Stable held dispatch identity: pending.
 - Held preflight zero-edit result: pending.
@@ -300,8 +300,8 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | R/Rr evidence and held acceptance pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | R/Rr evidence and held acceptance pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | Rr recording head and held acceptance pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | pending / held-preflight | exact branch/worktree created and clean at c1637a789533f7a0ab654caa09033ffebc30a982 | none / coordinator branch | focused, verify, Docker: not run | Rr recording head and held acceptance pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
 | #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / waiting-for-dependency-merge | branch and worktree intentionally uncreated | none / coordinator branch | focused, verify, Docker: not run | #196 and #198 must be user-merged and integrated | not ready | required after layer 1 merges | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
 
 ### Sidecar Git state
@@ -370,9 +370,8 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next allowed transition is: commit and normally push this handoff-ready
-evidence as R, fetch and prove exact remote equality, record literal R in one
-bounded update Rr, push/fetch/prove Rr and R ancestry, then dispatch #196 and
-#198 exactly once in preflight-only mode with all permissions false. #197
-remains uncreated until both layer 1 PRs are user-merged and the coordinator is
-safely refreshed.
+The next allowed transition is: commit and normally push this bounded recording
+update as Rr, fetch and prove exact remote equality plus ancestry from R, then
+dispatch #196 and #198 exactly once in preflight-only mode with all permissions
+false. #197 remains uncreated until both layer 1 PRs are user-merged and the
+coordinator is safely refreshed.
