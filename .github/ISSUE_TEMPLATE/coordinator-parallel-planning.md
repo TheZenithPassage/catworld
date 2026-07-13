@@ -28,12 +28,33 @@ assignees: ""
 
 This template does not activate parallel mode by itself.
 
-- Normal issues and direct child issue end-to-end requests use the current sequential workflow.
-- Sidecar parallel work requires an explicit `parallel` request on a clearly identified coordinator issue after #261 activates sidecar coordinator routing.
-- Parallel readiness comes from coordinator preflight, child issue inspection, dependency classification, and source-of-truth review; do not require or invent a `parallel-ready` label.
-- A coordinator end-to-end request while any listed child issue is still open must stop for routing.
-- A coordinator with all listed child issues closed may enter the existing sequential workflow for final verification and delivery.
-- Coordinator finalization is not a separate workflow and must not reimplement closed child issue scope.
+- Normal issues and direct child issue end-to-end requests use the current
+  sequential workflow.
+- A `parallel` request on a normal issue or direct child issue is invalid and
+  must stop with a routing error.
+- Controlled sidecar parallel work requires an explicit `parallel` request on
+  a clearly identified coordinator issue outside the permanent #220-#234
+  exclusion.
+- An eligible coordinator `parallel` request starts or resumes the sidecar
+  lifecycle when current preflight and source-of-truth checks are safe.
+- Unsafe, incomplete, ambiguous, stale, or contradictory coordinator context
+  must stop with an explicit blocker before sidecar mutation or child release.
+- A sidecar run waiting for user-owned merges must report the child PRs that
+  must be merged into the remote coordinator branch before resume.
+- A resumed sidecar run must refresh from current GitHub and repository
+  evidence before continuing.
+- A sidecar run with all child PRs integrated proceeds to integrated
+  coordinator validation and final coordinator PR delivery.
+- Parallel readiness comes from coordinator preflight, child issue inspection,
+  dependency classification, and source-of-truth review; do not require or
+  invent a `parallel-ready` label.
+- A coordinator end-to-end request without `parallel` while any listed child
+  issue is still open must stop for routing.
+- A coordinator requested without `parallel` after all listed child issues
+  close may enter the existing sequential workflow for final verification and
+  delivery.
+- Coordinator finalization is not a separate workflow and must not reimplement
+  closed child issue scope.
 
 ## Validation
 
@@ -47,6 +68,8 @@ This template does not activate parallel mode by itself.
 <!-- List work this coordinator must not perform. -->
 
 - Replacing the current sequential workflow.
-- Activating parallel mode before #261 or without an explicit eligible request.
+- Treating parallel mode as the default, bypassing the explicit-request or
+  safe-preflight gates, or routing issues #220 through #234 through sidecar
+  parallel execution.
 - Reimplementing closed child issue scope during coordinator finalization.
 - PR description templates.
