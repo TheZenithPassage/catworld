@@ -12,7 +12,7 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | layer 1 released to exact identities; implementation active; Docker/delivery held for serialization |
+| Current phase | layer 1 child PRs ready; waiting for user-owned merge commits |
 | Artifact freeze | not reached; H2 does not exist |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
@@ -65,8 +65,8 @@ journal. No resource from another run may be inferred from a matching name.
 | Issue | State | Role | Hard dependencies | Artifact path | Preparation | Handoff | Launch | Non-launch reason |
 |---|---|---|---|---|---|---|---|---|
 | #195 Safe stay deletion | closed | preserved completed scope | none | specs/010-safe-stay-deletion/ | existing and preserved | not applicable | not applicable | Closed scope is already integrated and must not be reimplemented. |
-| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | released / active | launched | Implementation and Maven validation are active; Docker, push, and PR delivery remain coordinator-held. |
-| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | released / active | launched | Implementation and Maven validation are active; Docker, push, and PR delivery remain coordinator-held. |
+| #196 Block cat deletion when stay history exists | open | layer 1 implementation | none | specs/196-block-cat-deletion-when-stay-history-exists/ | handoff-ready | released / PR ready / waiting-for-user-merge | launched | Ready PR #283 must be user-merged with Create a merge commit. |
+| #198 Block vet deletion while cats reference it | open | layer 1 implementation | none | specs/198-block-vet-deletion-while-cats-reference-it/ | handoff-ready | released / PR ready / waiting-for-user-merge | launched | Ready PR #284 must be user-merged with Create a merge commit. |
 | #197 Block owner deletion while cats or stays reference it | open | layer 2 implementation and combined architecture summary | #196, #198 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | prepared | pending | pending | Waits for both layer 1 PRs to be user-merged into the coordinator branch. |
 
 The prepared open-child set is exactly #196, #197, and #198. Issue #195 is
@@ -136,7 +136,7 @@ Entity-specific blocking relationships:
 | Coordinator-wide | none | Classification, paths, merge policy, and control revision are established. |
 | Shared-contract | none | Effective canDelete and DELETE ordering are fixed above. |
 | Conflict | controlled | Repository and documentation ownership is split by layer and source map. |
-| Human-only | pending later | User must review and merge child PRs with Create a merge commit. |
+| Human-only | waiting-for-user-merge | User must merge ready PRs #283 and #284 with Create a merge commit; squash and rebase merges are prohibited. |
 
 ## Child-owned source maps
 
@@ -177,14 +177,14 @@ evidence exposes a blocker and the coordinator records a new authorized scope.
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created by normal non-force push; fetched equality at preparation head c1637a789533f7a0ab654caa09033ffebc30a982 |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created by normal non-force push; fetched equality at release-record head d31bac20b57f29f3707bf7c8b32409d1e853be41 before this bounded delivery-state record, whose normal push will advance the ref |
 | Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created, clean, exact branch association, artifact write boundary |
 | #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
-| #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | planned; absent |
-| #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | created, clean at c1637a789533f7a0ab654caa09033ffebc30a982; exact branch/run association |
+| #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | created by normal non-force push; local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c |
+| #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | created and clean at 6237930c41a3afba9d5953e88238f0919891152c; exact branch/run association; ready PR #283 targets the coordinator branch |
 | #198 local branch | sidecar/198-block-vet-deletion-while-cats-reference-it | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
-| #198 remote branch | origin/sidecar/198-block-vet-deletion-while-cats-reference-it | planned; absent |
-| #198 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\198-block-vet-deletion-while-cats-reference-it | created, clean at c1637a789533f7a0ab654caa09033ffebc30a982; exact branch/run association |
+| #198 remote branch | origin/sidecar/198-block-vet-deletion-while-cats-reference-it | created by normal non-force push; local/remote equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 |
+| #198 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\198-block-vet-deletion-while-cats-reference-it | created and clean at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697; exact branch/run association; ready PR #284 targets the coordinator branch |
 | #197 local branch | sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | planned only after layer 1 integration |
 | #197 remote branch | origin/sidecar/197-block-owner-deletion-while-cats-or-stays-reference-it | planned only after layer 1 integration; absent |
 | #197 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\197-block-owner-deletion-while-cats-or-stays-reference-it | planned and absent |
@@ -199,13 +199,14 @@ unchanged.
 
 ## Two-phase dispatch ledger
 
-No implementation or delivery permission is granted by this artifact state.
-Every permission remains false until exact remote evidence and stable held-child
-identity checks pass.
+Implementation and delivery permission was granted only to the exact released
+identities after the durable barrier passed. Both children have now exercised
+that scoped permission and reached ready child PR state; no further child work
+or merge permission is implied.
 
 ### #196
 
-- Artifact state: handoff-ready; workflow release-pending; factual launch launched and held.
+- Artifact state: handoff-ready; workflow waiting-for-user-merge; factual launch launched.
 - Dependency layer: 1; hard dependencies: empty.
 - Prepared-handoff fingerprint: f3252b3a16fb76b6494a1e3599258e882a9bc1d8f4d68c5211ce7bdd565f22dd.
 - Handoff-ready evidence SHA R: 250341a6d9cbfb784c0858f731462c2ecdd169f4; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
@@ -216,12 +217,16 @@ identity checks pass.
 - Launched evidence SHA L: c9650ef0887f04cb9c6f365724d253f153f26905; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote activation/recording head Lr containing L: 0074d6a8fd696f8673972b60718676d82e31ee22; normally pushed/fetched, remote equality proven, and L ancestry passed.
 - Implementation permission: true for /root/held_child_196_148 after release-accepted.
-- Delivery permission: true under the release contract but push/PR use is coordinator-held until serialized Docker and readiness gates complete.
+- Delivery permission: exercised after all readiness gates passed.
 - Targeted release: release-accepted by the same canonical identity after fingerprint recheck, exact Lr fetch, L ancestry proof, clean fast-forward to Lr, artifact re-read, and clean-state proof.
+- Delivered commits: 7c445827a3d695a77cc2943c933a1c229546ea7d and additive review fix 6237930c41a3afba9d5953e88238f0919891152c; no history rewrite.
+- Remote child branch: origin/sidecar/196-block-cat-deletion-when-stay-history-exists equals 6237930c41a3afba9d5953e88238f0919891152c; local worktree is clean and equal.
+- Child PR: https://github.com/TheZenithPassage/catworld/pull/283; open, non-draft, mergeable, exact coordinator base, exact child head, template/reference checks passed.
+- Review state: one P2 test-fidelity finding was resolved by the additive test-only commit before readiness.
 
 ### #198
 
-- Artifact state: handoff-ready; workflow release-pending; factual launch launched and held.
+- Artifact state: handoff-ready; workflow waiting-for-user-merge; factual launch launched.
 - Dependency layer: 1; hard dependencies: empty.
 - Prepared-handoff fingerprint: c965558afc8382260c79485673bafbd3ad3f719173b4f8959a8337f7724a4818.
 - Handoff-ready evidence SHA R: 250341a6d9cbfb784c0858f731462c2ecdd169f4; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
@@ -232,8 +237,12 @@ identity checks pass.
 - Launched evidence SHA L: c9650ef0887f04cb9c6f365724d253f153f26905; normally pushed, fetched, and proven equal to the remote coordinator ref before this bounded update.
 - Remote activation/recording head Lr containing L: 0074d6a8fd696f8673972b60718676d82e31ee22; normally pushed/fetched, remote equality proven, and L ancestry passed.
 - Implementation permission: true for /root/held_child_198_148 after release-accepted.
-- Delivery permission: true under the release contract but push/PR use is coordinator-held until serialized Docker and readiness gates complete.
+- Delivery permission: exercised after all readiness gates passed.
 - Targeted release: release-accepted by the same canonical identity after fingerprint recheck, exact Lr fetch, L ancestry proof, clean fast-forward to Lr, artifact re-read, and clean-state proof.
+- Delivered commit: c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697.
+- Remote child branch: origin/sidecar/198-block-vet-deletion-while-cats-reference-it equals c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697; local worktree is clean and equal.
+- Child PR: https://github.com/TheZenithPassage/catworld/pull/284; open, non-draft, mergeable, exact coordinator base, exact child head, template/reference checks passed.
+- Review state: independent read-only review found no production or test finding.
 
 ### #197
 
@@ -265,6 +274,15 @@ actual child branch/worktree associations exist.
 - Codex will not merge, approve, enable auto-merge, mutate issues, post public
   comments, or delete remote branches.
 
+Current delivery evidence:
+
+- #196: PR https://github.com/TheZenithPassage/catworld/pull/283, ready and
+  mergeable at delivered head 6237930c41a3afba9d5953e88238f0919891152c.
+- #198: PR https://github.com/TheZenithPassage/catworld/pull/284, ready and
+  mergeable at delivered head c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697.
+- Both PRs target the coordinator branch, contain exactly their child-then-
+  coordinator Related to lines, and await user-owned Create a merge commit.
+
 ## Validation plan and reporting
 
 Each child must record exactly one current status for every requirement at its
@@ -274,12 +292,12 @@ summarized as passing.
 
 | Scope | Required current evidence | Current status |
 |---|---|---|
-| #196 | focused cat service/controller/mapper/persistence tests | not run |
-| #196 | ./mvnw verify | not run |
-| #196 | clean MySQL/Flyway Docker startup and FK behavior | not run |
-| #198 | focused vet service/controller/mapper/persistence tests | not run |
-| #198 | ./mvnw verify | not run |
-| #198 | clean MySQL/Flyway Docker startup and FK behavior | not run |
+| #196 | focused cat service/controller/mapper/persistence tests | passed at 6237930c41a3afba9d5953e88238f0919891152c: 37 tests |
+| #196 | ./mvnw verify | passed at 6237930c41a3afba9d5953e88238f0919891152c: 141 tests |
+| #196 | clean MySQL/Flyway Docker startup and FK behavior | passed at 6237930c41a3afba9d5953e88238f0919891152c: isolated MySQL healthy, V1-V3 applied, app/frontend HTTP 200, fk_stay_cat_cat NO ACTION and MySQL 1451 preservation proof; isolated teardown passed |
+| #198 | focused vet service/controller/mapper/persistence tests | passed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697: 24 tests |
+| #198 | ./mvnw verify | passed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697: 134 tests |
+| #198 | clean MySQL/Flyway Docker startup and FK behavior | passed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697: isolated MySQL healthy, V1-V3 applied, app/frontend healthy, fk_cats_vet NO ACTION and MySQL/API 409 preservation proof; isolated teardown passed |
 | #197 | focused owner service/controller/mapper/persistence tests | not run |
 | #197 | ./mvnw verify | not run |
 | #197 | clean MySQL/Flyway Docker startup and both FK paths | not run |
@@ -293,6 +311,17 @@ coordinator. Maven/focused validation may run independently where it does not
 share mutable external state. Validation becomes stale after a relevant branch
 refresh or integration update and must be rerun or reported stale.
 
+Historical attempts remain non-passing evidence rather than being rewritten:
+
+- #196 had one unquoted PowerShell focused-command parse failure before Maven;
+  the corrected quoted command passed at both delivered heads.
+- #198 had two focused failures in a test-only timestamp precision assertion;
+  the persisted-value assertion correction then passed focused and full suites.
+- The #196 independent review found mixed-fixture coverage did not independently
+  prove cancelled-only and historical-only history. Additive commit 6237930c
+  introduced isolated future-only, cancelled-only, and historical-only
+  persistence cases, after which all current validation was rerun and passed.
+
 ## Resume state and child integration ledger
 
 ### Complete child resume/status table
@@ -300,19 +329,22 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | consumed precedent; not rerun | closed and already integrated | terminal | not applicable | ineligible | no child rerun; integrated regression later |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / released-active | fast-forwarded cleanly to Lr before implementation | none / coordinator branch | focused and verify active; Docker not run | serialized Docker and delivery checkpoint pending | not ready | not needed | ineligible | focused cat tests, ./mvnw verify, serialized MySQL/Flyway |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / released-active | fast-forwarded cleanly to Lr before implementation | none / coordinator branch | focused and verify active; Docker not run | serialized Docker and delivery checkpoint pending | not ready | not needed | ineligible | focused vet tests, ./mvnw verify, serialized MySQL/Flyway |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / waiting-for-user-merge | clean and local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c | PR #283 / coordinator branch | focused 37, verify 141, Docker/FK: passed | user Create a merge commit pending | ready | refresh required after merge | ineligible | all child validation passed; rerun after relevant refresh if stale |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / waiting-for-user-merge | clean and local/remote equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | PR #284 / coordinator branch | focused 24, verify 134, Docker/FK: passed | user Create a merge commit pending | ready | refresh required after merge | ineligible | all child validation passed; rerun after relevant refresh if stale |
 | #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | pending / waiting-for-dependency-merge | branch and worktree intentionally uncreated | none / coordinator branch | focused, verify, Docker: not run | #196 and #198 must be user-merged and integrated | not ready | required after layer 1 merges | ineligible | focused owner tests, docs review, ./mvnw verify, serialized MySQL/Flyway |
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: created and clean; preparation head
-  c1637a789533f7a0ab654caa09033ffebc30a982 was normally pushed, fetched, and
-  proven equal to the remote coordinator ref.
-- Child branches/worktrees: #196 and #198 are created, clean, and exactly based
-  on c1637a789533f7a0ab654caa09033ffebc30a982; their remote branches remain
-  absent until released delivery. #197 is intentionally uncreated.
-- Child PR target for every prepared child: the coordinator branch.
+- Coordinator local branch/worktree: created; release-record head
+  d31bac20b57f29f3707bf7c8b32409d1e853be41 was normally pushed, fetched, and
+  proven equal to the remote coordinator ref before this bounded delivery-state
+  record, which will be committed and pushed normally.
+- Child branches/worktrees: #196 is clean and local/remote equal at
+  6237930c41a3afba9d5953e88238f0919891152c; #198 is clean and local/remote
+  equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697. #197 is intentionally
+  uncreated.
+- Child PR targets: ready PR #283 and ready PR #284 both target the coordinator
+  branch and await user-owned merge commits.
 - Refresh status: not needed before layer 1; mandatory after user-owned layer 1
   merge commits and before layer 2 preparation.
 - Cleanup status: ineligible for all run-owned resources. No final PR merge has
@@ -322,8 +354,8 @@ refresh or integration update and must be rerun or reported stale.
 | Issue | Workflow state | Branch/worktree | PR | Merge observation | Coordinator ancestry | Readiness | Refresh | Cleanup eligibility |
 |---|---|---|---|---|---|---|---|---|
 | #195 | completed and preserved | not sidecar-owned | existing historical delivery | present on main | b4fc5fb trace recorded | terminal | not applicable | ineligible |
-| #196 | released-active | incorporated Lr; implementation active | none | none | Lr plus child work pending | not ready | not needed | ineligible |
-| #198 | released-active | incorporated Lr; implementation active | none | none | Lr plus child work pending | not ready | not needed | ineligible |
+| #196 | waiting-for-user-merge | clean/pushed at 6237930c41a3afba9d5953e88238f0919891152c | #283 ready | pending user merge | delivered commit not yet in coordinator ancestry | ready | required after merge | ineligible |
+| #198 | waiting-for-user-merge | clean/pushed at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | #284 ready | pending user merge | delivered commit not yet in coordinator ancestry | ready | required after merge | ineligible |
 | #197 | waiting for dependency merge | planned only | none | none | none | not ready | required after layer 1 merges | ineligible |
 
 Before any resume transition, re-read current issue/PR state, fetch the remote
@@ -370,9 +402,9 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next allowed transition is: allow both released identities to complete only
-their prepared implementation, focused Maven evidence, full ./mvnw verify,
-scope review, and a local scoped commit. Keep Docker, push, and PR creation held.
-Then grant one serialized Docker/delivery continuation at a time to the same
-canonical identity. #197 remains uncreated until both layer 1 PRs are
-user-merged and the coordinator is safely refreshed.
+The next allowed transition is human-only: the user reviews PR #283 and PR #284
+and merges each into the coordinator branch with GitHub Create a merge commit.
+Squash and rebase merges are prohibited. Until both merges are observed through
+fresh GitHub evidence, exact delivered commits are proven in refreshed
+coordinator ancestry, and the local coordinator worktree is safely refreshed,
+#197 remains uncreated and no next layer may launch.
