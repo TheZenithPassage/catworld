@@ -12,8 +12,8 @@
 | Control checkout state | clean; unchanged at a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Immutable control-plane source revision | a36164a2d50f4d797f147f8885abee03ebc4c8cf |
 | Source ref | fetched origin/main |
-| Current phase | literal integrated head H validated; single artifact-only H2 is SELF/HEAD; pending H2 checks |
-| Artifact freeze | reached at SELF/HEAD; no H3 or H4 finalization commit is permitted |
+| Current phase | corrected implementation head H-prime validated; single artifact-only H2-prime is SELF/HEAD; pending H2-prime checks |
+| Artifact freeze | re-established at SELF/HEAD; no H3, H4, or post-H2-prime finalization commit is permitted |
 
 This exact run ID is the ownership key for every branch, worktree, artifact,
 dispatch record, resume check, and any later Git-common-directory cleanup
@@ -91,8 +91,11 @@ decision:
    409.
 5. Existing foreign keys remain the final integrity protection. There is no
    cascade cleanup, entity relationship redesign, or migration in this scope.
-6. DeletionAuthorizationPolicy, GlobalExceptionHandler, SecurityConfig, shared
-   exceptions, and completed stay deletion behavior are reused unchanged.
+6. DeletionAuthorizationPolicy semantics and existing entry points,
+   GlobalExceptionHandler, SecurityConfig, shared exceptions, and completed stay
+   deletion behavior remain unchanged. The authorized H-prime correction adds
+   only a compatible pure policy overload that accepts an already-resolved
+   current account.
 7. Issue #153 photo cleanup is not applicable to #196 at this control revision
    because the photo-storage feature has not landed. The child must preserve it
    if it appears after an authorized refresh, but must not invent it now.
@@ -171,14 +174,16 @@ Shared caution surfaces are DeletionAuthorizationPolicy, exception mapping,
 SecurityConfig, CatRepository, entities, Flyway migrations, stay deletion code,
 frontend code, and the PR templates. No child may change them unless current
 evidence exposes a blocker and the coordinator records a new authorized scope.
+The H-prime review correction is that later explicit authorization for the
+compatible policy overload; it does not authorize any other caution surface.
 
 ## Branch and worktree plan
 
 | Resource | Planned or actual value | State and ownership |
 |---|---|---|
 | Coordinator local branch | sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | created from exact origin/main a36164a2d50f4d797f147f8885abee03ebc4c8cf; owned by this run |
-| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | freshly fetched and proven equal to literal H 77852060a99873b16566006907ba9b00fcce1c2c immediately before the H2 write boundary |
-| Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | exact branch association; clean at literal H before this write; the only H2 delta is this coordinator artifact |
+| Coordinator remote branch | origin/sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | freshly fetched and proven equal to superseded historical H2 959a692ac37f546dc2b79d39ef26876de291aa8a before the authorized correction; normal non-force delivery of H-prime/H2-prime remains pending the H2-prime gates |
+| Coordinator worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays | exact branch association; clean at H-prime e427568ccd536c5cf9e6859b19dc628ee28b86e0 before this write; the only H-prime..SELF/HEAD delta is this coordinator artifact |
 | #196 local branch | sidecar/196-block-cat-deletion-when-stay-history-exists | created from coordinator preparation head c1637a789533f7a0ab654caa09033ffebc30a982; exact run-owned association |
 | #196 remote branch | origin/sidecar/196-block-cat-deletion-when-stay-history-exists | created by normal non-force push; local/remote equal at 6237930c41a3afba9d5953e88238f0919891152c |
 | #196 worktree | C:\\cw-sidecars\\sidecar-148-7d6b1d4d638a41fc9cd78df9edc10be6\\196-block-cat-deletion-when-stay-history-exists | retained and clean at 6237930c41a3afba9d5953e88238f0919891152c; exact branch/run association; PR #283 is merged into the coordinator branch |
@@ -310,31 +315,33 @@ Current delivery and integration evidence:
   child-then-coordinator Related to lines, and were user-merged with Create a
   merge commit.
 - The fetched remote coordinator ref and local coordinator worktree were proven
-  equal and clean at literal H 77852060a99873b16566006907ba9b00fcce1c2c
-  immediately before the H2 artifact write boundary.
+  equal and clean at superseded historical H2
+  959a692ac37f546dc2b79d39ef26876de291aa8a before the authorized additive
+  correction. H-prime is its direct child; no history was rewritten.
 
 ## Validation plan and reporting
 
-Each child must record exactly one current status for every requirement at its
-evaluated head. Allowed statuses are passed, failed, skipped, timed out,
-interrupted, partial, stale, blocked, and not run. Non-passing evidence is never
-summarized as passing.
+Each evidence row records exactly one status and distinguishes current H-prime
+evidence from superseded historical evidence. Allowed statuses are passed,
+failed, skipped, timed out, interrupted, partial, stale, blocked, and not run.
+Non-passing evidence is never summarized as passing.
 
-| Scope | Required current evidence | Current status |
+| Scope | Required evidence | Evidence status |
 |---|---|---|
-| #196 | focused cat service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
-| #196 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
-| #196 | clean MySQL/Flyway Docker startup and FK behavior | passed at H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_stay_cat_cat NO ACTION, raw MySQL 1451 preservation, and clean teardown |
-| #198 | focused vet service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
-| #198 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
-| #198 | clean MySQL/Flyway Docker startup and FK behavior | passed at H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_cats_vet NO ACTION, raw MySQL 1451 preservation, and clean teardown |
-| #197 | focused owner service/controller/mapper/persistence tests | passed at H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
-| #197 | ./mvnw verify | passed at H in the 171-test full backend regression; 0 failures/errors/skips |
-| #197 | clean MySQL/Flyway Docker startup and both FK paths | passed at H in isolated project cw148h7d6b1d4d with API canDelete/204/409, fk_cats_owner and fk_stays_owner NO ACTION, independent raw MySQL 1451 preservation, and clean teardown |
-| Coordinator | combined source-map and unexplained-scope review | passed at H for the exact 36-path merge-base range; no unexplained or prohibited surface |
-| Coordinator | integrated ./mvnw verify | passed at H with 171 tests, 0 failures/errors/skips |
-| Coordinator | integrated clean MySQL/Flyway Docker startup | passed at H; authenticated backend and frontend HTTP 200, Flyway V1-V3, all four real FKs, stay rollback/removal, and isolated teardown |
-| Coordinator | final canonical H checks and status-free H2 rerun manifest | H checks passed; H2 manifest and applicability are recorded below; readiness remains pending H2 checks |
+| #196 | focused cat service/controller/mapper/persistence tests | historical: passed at superseded H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #196 | ./mvnw verify | historical: passed at superseded H in the 171-test full backend regression; 0 failures/errors/skips |
+| #196 | clean MySQL/Flyway Docker startup and FK behavior | historical only: passed at superseded H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_stay_cat_cat NO ACTION, raw MySQL 1451 preservation, and clean teardown |
+| #198 | focused vet service/controller/mapper/persistence tests | historical: passed at superseded H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #198 | ./mvnw verify | historical: passed at superseded H in the 171-test full backend regression; 0 failures/errors/skips |
+| #198 | clean MySQL/Flyway Docker startup and FK behavior | historical only: passed at superseded H in isolated project cw148h7d6b1d4d with Flyway V1-V3, API canDelete/204/409, fk_cats_vet NO ACTION, raw MySQL 1451 preservation, and clean teardown |
+| #197 | focused owner service/controller/mapper/persistence tests | historical: passed at superseded H as part of the 131-test integrated deletion suite; 0 failures/errors/skips |
+| #197 | ./mvnw verify | historical: passed at superseded H in the 171-test full backend regression; 0 failures/errors/skips |
+| #197 | clean MySQL/Flyway Docker startup and both FK paths | historical only: passed at superseded H in isolated project cw148h7d6b1d4d with API canDelete/204/409, fk_cats_owner and fk_stays_owner NO ACTION, independent raw MySQL 1451 preservation, and clean teardown |
+| Coordinator | corrected batching-focused Maven suite | current: passed at exact H-prime with 60 tests, 0 failures/errors/skips |
+| Coordinator | .\\mvnw.cmd verify | current: passed at exact H-prime with 179 tests, 0 failures/errors/skips |
+| Coordinator | corrected scope and whitespace review | current: passed at exact H-prime; the 15-path correction is authorized, old-H2..H-prime and B...H-prime `git diff --check` passed, and B...H-prime reconciles to 38 expected paths |
+| Coordinator | Docker/MySQL/Flyway/API validation | not run at H-prime (Docker was not rerun); the correction adds portable JPQL ID projections and changes no schema, migration, native SQL, Docker/Compose, API shape, authorization rule, DELETE write path, or FK contract; old-H Docker evidence is historical/applicable background only |
+| Coordinator | status-free H2-prime rerun manifest | recorded below; readiness remains pending the external H2-prime checks |
 
 Docker validation uses fixed shared ports and must be serialized by the
 coordinator. Maven/focused validation may run independently where it does not
@@ -342,11 +349,16 @@ share mutable external state. Validation becomes stale after a relevant branch
 refresh or integration update and must be rerun or reported stale.
 
 The earlier child delivery results became stale after integration and remain
-historical evidence. They were superseded for final readiness by the complete
-fresh integrated checks at literal H 77852060a99873b16566006907ba9b00fcce1c2c.
-H2 changes only this orchestration artifact; the applicability table below
-states which H results may be consumed and which artifact-affected checks must
-be rerun.
+historical evidence. The original finalization pair, H
+77852060a99873b16566006907ba9b00fcce1c2c and H2
+959a692ac37f546dc2b79d39ef26876de291aa8a, was then superseded because review
+confirmed merge-blocking per-entity authentication and relationship-query
+amplification in owner, cat, and vet listing `canDelete` rendering. Exact
+H-prime e427568ccd536c5cf9e6859b19dc628ee28b86e0 contains the bounded additive
+code/test correction and fresh current Maven/scope evidence. H2-prime changes
+only this orchestration artifact; the applicability table below states which
+H-prime results may be consumed and which artifact-affected checks must be
+rerun.
 
 Historical attempts remain non-passing evidence rather than being rewritten:
 
@@ -355,12 +367,13 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 - #198 had two focused failures in a test-only timestamp precision assertion;
   the persisted-value assertion correction then passed focused and full suites.
 - #197 had one initial metadata query failure because a column reference was
-  ambiguous; the corrected query passed without a code change and all current
-  Docker evidence is passing.
+  ambiguous; the corrected query passed without a code change, and that
+  delivered-head Docker evidence is retained only as historical.
 - The #196 independent review found mixed-fixture coverage did not independently
   prove cancelled-only and historical-only history. Additive commit 6237930c
   introduced isolated future-only, cancelled-only, and historical-only
-  persistence cases, after which all current validation was rerun and passed.
+  persistence cases, after which the then-current child validation was rerun
+  and passed.
 
 ## Resume state and child integration ledger
 
@@ -368,26 +381,28 @@ Historical attempts remain non-passing evidence rather than being rewritten:
 
 | Issue | Artifact | Layer | Launch / workflow | Branch and local worktree | PR / target | Current validation | Blocker or non-launch reason | Readiness | Refresh | Cleanup | Required validation |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | integrated stay regression passed at H in focused, full, and Docker/API checks | closed and already integrated | terminal | not applicable | ineligible | completed at H; H2 applicability recorded below |
-| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / integrated | retained clean child worktree at 6237930c41a3afba9d5953e88238f0919891152c | merged PR #283 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
-| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / integrated | retained clean child worktree at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | merged PR #284 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
-| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | launched / integrated | retained clean child worktree and local/remote refs equal at 4570d13336e92eab0e32e5decfb718865a8e16df | merged PR #285 / coordinator branch | integrated focused/full/Docker/scope checks passed at H | none; exact delivered commit and merge commit are in H ancestry | integrated | coordinator current through H; terminal child refresh not needed | ineligible | completed at H; H2 applicability recorded below |
+| #195 | specs/010-safe-stay-deletion/ | preserved | not applicable / completed | not sidecar-owned | historical / main | historical integrated stay regression passed at superseded H; current H-prime full verification passed | closed and already integrated | terminal | not applicable | ineligible | current H-prime applicability recorded below |
+| #196 | specs/196-block-cat-deletion-when-stay-history-exists/ | 1 | launched / integrated | retained clean child worktree at 6237930c41a3afba9d5953e88238f0919891152c | merged PR #283 / coordinator branch | current H-prime focused/full/scope checks passed; old-H Docker evidence is historical only | none; exact delivered commit and merge commit are in H-prime ancestry | integrated | coordinator current through H-prime; terminal child refresh not needed | ineligible | completed at H-prime; H2-prime applicability recorded below |
+| #198 | specs/198-block-vet-deletion-while-cats-reference-it/ | 1 | launched / integrated | retained clean child worktree at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697 | merged PR #284 / coordinator branch | current H-prime focused/full/scope checks passed; old-H Docker evidence is historical only | none; exact delivered commit and merge commit are in H-prime ancestry | integrated | coordinator current through H-prime; terminal child refresh not needed | ineligible | completed at H-prime; H2-prime applicability recorded below |
+| #197 | specs/197-block-owner-deletion-while-cats-or-stays-reference-it/ | 2 | launched / integrated | retained clean child worktree and local/remote refs equal at 4570d13336e92eab0e32e5decfb718865a8e16df | merged PR #285 / coordinator branch | current H-prime focused/full/scope checks passed; old-H Docker evidence is historical only | none; exact delivered commit and merge commit are in H-prime ancestry | integrated | coordinator current through H-prime; terminal child refresh not needed | ineligible | completed at H-prime; H2-prime applicability recorded below |
 
 ### Sidecar Git state
 
-- Coordinator local branch/worktree: clean and local/remote equal at literal H
-  77852060a99873b16566006907ba9b00fcce1c2c immediately before the sole H2
-  artifact write; all exact delivered and merge commits are in H ancestry.
+- Coordinator local branch/worktree: local and remote were clean/equal at
+  superseded historical H2 959a692ac37f546dc2b79d39ef26876de291aa8a
+  before correction. The local worktree was clean at exact H-prime
+  e427568ccd536c5cf9e6859b19dc628ee28b86e0 before the sole H2-prime artifact
+  write; all exact delivered and merge commits are in H-prime ancestry.
 - Child branches/worktrees: #196 is clean and local/remote equal at
   6237930c41a3afba9d5953e88238f0919891152c; #198 is clean and local/remote
   equal at c7e8f3d3638e3ce6660fd1d1bd40ef8d03b37697. They remain retained and
   terminal; #197 is clean and local/remote equal at
   4570d13336e92eab0e32e5decfb718865a8e16df and is terminal/integrated.
 - Child PR targets: merged PR #283, merged PR #284, and merged PR #285 all
-  target the coordinator branch; a fresh H-time search found no existing
-  coordinator-to-main final PR for this run.
-- Refresh status: all three integrations and complete validation are current
-  through literal H; H2 artifact-affected checks remain to be resolved
+  target the coordinator branch; the existing coordinator-to-main delivery is
+  PR #299 and must remain open.
+- Refresh status: all three integrations and corrected validation are current
+  through exact H-prime; H2-prime artifact-affected checks remain to be resolved
   externally after SELF/HEAD is committed.
 - Cleanup status: ineligible for all run-owned resources. No final PR merge has
   occurred and no cleanup authority exists.
@@ -412,41 +427,58 @@ resume authority.
 - Runtime final target base B: a36164a2d50f4d797f147f8885abee03ebc4c8cf,
   freshly fetched from origin/main without updating local main.
 - PR-equivalent merge base: a36164a2d50f4d797f147f8885abee03ebc4c8cf.
-- Literal reviewed head H: 77852060a99873b16566006907ba9b00fcce1c2c.
-- Combined expected surfaces: the three prepared spec/plan/task sets, this
-  coordinator artifact, the three exact child production/test source maps, and
-  the #197-owned architecture summary; exactly 36 paths.
+- Superseded historical reviewed head H:
+  77852060a99873b16566006907ba9b00fcce1c2c.
+- Superseded historical artifact-only H2:
+  959a692ac37f546dc2b79d39ef26876de291aa8a.
+- Current literal reviewed implementation head H-prime:
+  e427568ccd536c5cf9e6859b19dc628ee28b86e0.
+- Combined expected surfaces: the original 36-path integrated set plus the
+  authorized `DeletionAuthorizationPolicy` production/test pair introduced by
+  the correction; exactly 38 paths.
 - Changed-path reconciliation: passed over
-  a36164a2d50f4d797f147f8885abee03ebc4c8cf...77852060a99873b16566006907ba9b00fcce1c2c;
-  `git diff --check` passed and no caution or prohibited surface changed.
+  a36164a2d50f4d797f147f8885abee03ebc4c8cf...e427568ccd536c5cf9e6859b19dc628ee28b86e0;
+  the exact 15-path old-H2..H-prime correction is within the review-authorized
+  production/test surfaces, both correction and full-range `git diff --check`
+  passed, and no prohibited surface changed in the correction.
 - Unexplained scope: none. Independent integrated implementation and scope
   reviews found no actionable finding.
 
 ## Finalization state
 
-- Literal validated head H: 77852060a99873b16566006907ba9b00fcce1c2c.
-- Artifact-only child H2: SELF/HEAD.
-- Expected H2 parent H: 77852060a99873b16566006907ba9b00fcce1c2c.
-- Sole allowed H..H2 path:
+- Superseded historical H: 77852060a99873b16566006907ba9b00fcce1c2c.
+- Superseded historical H2: 959a692ac37f546dc2b79d39ef26876de291aa8a.
+- Supersession reason: review confirmed merge-blocking query amplification in
+  listing-response `canDelete`: database-backed current-user resolution and
+  relationship existence checks were repeated per owner, cat, or vet.
+- Literal validated implementation head H-prime:
+  e427568ccd536c5cf9e6859b19dc628ee28b86e0.
+- Artifact-only child H2-prime: SELF/HEAD.
+- Expected H2-prime parent H-prime:
+  e427568ccd536c5cf9e6859b19dc628ee28b86e0.
+- Sole allowed H-prime..H2-prime path:
   specs/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays/coordinator-orchestration.md.
-- Readiness: pending H2 checks.
-- Final scope result from H: passed; exact 36-path source-map/artifact set and
-  no unexplained or prohibited change.
+- Readiness: pending H2-prime checks and normal remote delivery.
+- Final scope result from H-prime: passed; exact 38-path full source-map/artifact
+  set, exact authorized 15-path correction, and no unexplained or prohibited
+  correction surface.
 - Final template path:
   .github/PULL_REQUEST_TEMPLATE/sidecar-final-coordinator-to-main.md.
 - Final template blob identity:
   7fce414494c942c9979f5ac11cdd53985423de3a.
 - Final template file SHA-256:
   d8878b4bd1980e737a503fd0938609bae21cb1b58be27a7449f21d81b67c6336.
-- Stable same-run final-delivery identity: source branch
+- Stable same-run final-delivery identity: existing PR #299, source branch
   sidecar/148-coordinator-enforce-safe-deletion-rules-for-owners-cats-vets-and-stays,
   target main, ready-only PR boundary.
 - Final cleanup eligibility: ineligible; reason pending final PR merge.
 
-### Canonical H evidence
+### Superseded historical H/H2 evidence
 
-Every result below was run or rechecked at the same clean literal H and has
-current status `passed`:
+Every result below was run or rechecked at the same clean historical H. The
+query-amplification finding invalidated H/H2 as merge authority, so these
+results are retained as immutable historical evidence and are not represented
+as current H-prime validation:
 
 1. Terminal ledger, merge topology, and ancestry: #196 delivered
    6237930c41a3afba9d5953e88238f0919891152c through PR #283 merge
@@ -488,46 +520,96 @@ current status `passed`:
    containers retained the same IDs and remained running.
 9. Independent integrated production/documentation and source-map reviews found
    no actionable finding. The final template blob/hash matched the recorded
-   identities, and a fresh GitHub search found no existing same-run final PR.
+   identities, and a fresh GitHub search at that historical boundary found no
+   existing same-run final PR.
 
-### Canonical status-free H2 rerun manifest
+### Canonical H-prime evidence
+
+Every result below was run or rechecked at the same clean literal H-prime
+e427568ccd536c5cf9e6859b19dc628ee28b86e0 and has current status `passed`
+unless explicitly reported otherwise:
+
+1. Additive topology: H-prime has one parent, exact superseded historical H2
+   959a692ac37f546dc2b79d39ef26876de291aa8a. Historical H/H2 were not amended,
+   rebased, squashed, deleted, or otherwise rewritten.
+2. The correction resolves the current account once per non-empty owner, cat,
+   or vet listing and reuses a pure `DeletionAuthorizationPolicy` evaluation
+   path. Existing single-record and DELETE policy entry points remain intact.
+3. Authorization-eligible IDs are selected in memory before relationship
+   access. Distinct repository ID projections batch cat stay-history blockers,
+   vet cat-reference blockers, and owner cat/stay blockers. Empty candidate
+   sets skip bulk lookup; unauthorized IDs never enter lookup; cat-blocked owner
+   IDs are removed before the stay lookup. Mapping performs no per-record
+   relationship-existence call introduced by `canDelete`.
+4. Focused correction suite:
+   `.\\mvnw.cmd "-Dtest=DeletionAuthorizationPolicyTest,CatServiceTest,VetServiceTest,OwnerServiceTest,CatDeletionPersistenceTest,VetDeletionPersistenceTest,OwnerDeletionPersistenceTest" test`
+   ran 60 tests with 0 failures, 0 errors, and 0 skipped.
+5. Full backend regression: `.\\mvnw.cmd verify` ran 179 tests with 0 failures,
+   0 errors, and 0 skipped and produced the packaged application.
+6. Scope and whitespace: `git diff --check` passed for exact historical
+   H2..H-prime and B...H-prime. The correction changes exactly 15 authorized
+   production/test paths and does not change this artifact. B...H-prime contains
+   exactly 38 expected paths: the original 36-path integrated set plus the
+   authorized `DeletionAuthorizationPolicy` production/test pair.
+7. Docker/MySQL/Flyway/API validation was not rerun for H-prime. The correction
+   uses portable JPQL distinct-ID projections and changes no schema, migration,
+   native SQL, Docker/Compose input, API shape, authentication/authorization
+   rule, DELETE write path, explicit-flush ordering, or foreign-key contract.
+   Historical old-H Docker evidence remains applicable background for those
+   unchanged contracts, but it is not current H-prime validation.
+8. Independent production, test-fidelity, scope, and validation-proportionality
+   reviews found no remaining actionable finding. The one test-fidelity finding
+   about permitting extra bulk calls was resolved before H-prime by asserting
+   each applicable bulk method's total invocation count is exactly one.
+
+### Canonical status-free H2-prime rerun manifest
 
 The following manifest intentionally carries no result status. Resolve it only
-after committing H2 as the direct artifact-only child of H:
+after committing H2-prime as the direct artifact-only child of H-prime:
 
-1. One-parent commit shape and `H2^ = H` identity.
-2. Exact `H..H2` sole modified path and artifact-only content classification.
-3. Runtime artifact structure: required B, merge base, H, SELF/HEAD, expected
-   parent, sole path, H results, applicability, readiness, template identity,
-   risks, and cleanup fields; absence of a resolved self SHA, post-H2 result
-   claims, final-ready claim, body fingerprint, or PR URL.
-4. `git diff --check H..H2`.
-5. `git diff --check B...H2`.
-6. Exact full B...H2 36-path reconciliation and prohibited-surface review.
+1. One-parent commit shape and `H2-prime^ = H-prime` identity.
+2. Exact `H-prime..H2-prime` sole modified path and artifact-only content
+   classification.
+3. Runtime artifact structure: required B, merge base, superseded H/H2,
+   H-prime, SELF/HEAD, expected parent, sole path, H-prime results,
+   applicability, readiness, template identity, risks, and cleanup fields;
+   absence of a resolved H2-prime self SHA, post-H2-prime result claims,
+   final-ready claim, body fingerprint, or coordinator PR URL.
+4. `git diff --check H-prime..H2-prime`.
+5. `git diff --check B...H2-prime`.
+6. Exact full B...H2-prime 38-path reconciliation and prohibited-surface review.
 7. Fresh B, merge base, delivered/merge ancestry, local/remote coordinator
-   equality, clean worktree, and normal non-force H2 push/fetch identity.
+   equality, clean worktree, and normal non-force H2-prime push/fetch identity.
 8. Final template path, blob, SHA-256, closing-authority set, and render inputs.
-9. Current same-run final-PR search and external final-body rendering with no
-   unresolved placeholder.
+9. Existing PR #299 identity, updated external final-body rendering with no
+   unresolved placeholder, and current GitHub check-state recheck; require all
+   checks green before readiness.
 
-### H-result applicability at H2
+### H-prime result applicability at H2-prime
 
-| Consumed H result | Applicability reason |
+| Consumed result | Applicability reason |
 |---|---|
-| Terminal child ledger and ancestry | H2 adds no child implementation or merge commit; exact ancestry and unique terminal rows are explicitly rechecked by the H2 manifest. |
-| H 36-path scope and manual contract review | H remains immutable; H2 changes only the declared orchestration Markdown, while the complete B...H2 path set and prohibited surfaces are separately rechecked. |
-| Focused 131-test Maven suite | H2 changes no source, test, resource, dependency, plugin, or build input, so the exact compiled/tested inputs are byte-identical to H. |
-| Full 171-test Maven verify | H2 changes no pom, source, test, resource, packaging, or runtime input, so the full regression and packaged application inputs are byte-identical to H. |
-| Docker/Flyway/API/FK validation | H2 changes no Dockerfile, Compose file, migration, configuration, entity, repository, service, controller, DTO, mapper, or frontend input. |
-| Independent implementation/documentation review | H2 changes neither implementation nor docs/ARCHITECTURE.md; only this evidence artifact changes. |
-| Template identity and H-time no-PR result | H2 does not change the template; its identity and current GitHub PR state are explicitly rechecked before rendering and delivery. |
+| Terminal child ledger and ancestry | H2-prime adds no child implementation or merge commit; exact ancestry and unique terminal rows are explicitly rechecked by the H2-prime manifest. |
+| H-prime 38-path scope and manual contract review | H-prime remains immutable; H2-prime changes only the declared orchestration Markdown, while the complete B...H2-prime path set and prohibited surfaces are separately rechecked. |
+| Focused 60-test Maven suite | H2-prime changes no source, test, resource, dependency, plugin, or build input, so the exact compiled/tested inputs are byte-identical to H-prime. |
+| Full 179-test Maven verify | H2-prime changes no pom, source, test, resource, packaging, or runtime input, so the full regression and packaged application inputs are byte-identical to H-prime. |
+| Historical Docker/Flyway/API/FK evidence | Not consumed as current H-prime validation. It remains background only for unchanged schema, migration, Docker/Compose, API, DELETE ordering, and FK contracts; current focused persistence and full Maven results cover the portable correction. |
+| Independent correction review | H2-prime changes neither implementation nor docs/ARCHITECTURE.md; only this evidence artifact changes. |
+| Template and existing-PR identity | H2-prime does not change the template; its identity and PR #299 state/body/checks are explicitly rechecked before readiness reporting. |
 
 ### Final PR render inputs
 
 - Title: `feat(backend): enforce safe deletion rules`.
-- Source: exact fetched remote coordinator branch at SELF/HEAD.
+- Delivery identity: update the existing ready PR #299; do not create a second
+  coordinator-to-main PR.
+- Source: exact fetched remote coordinator branch at SELF/HEAD after normal
+  non-force delivery.
 - Target: `main` at the still-current fetched B.
 - State: ready for review; never a draft fallback.
+- Authoritative pair in the rendered body: H-prime
+  e427568ccd536c5cf9e6859b19dc628ee28b86e0 and H2-prime SELF/HEAD. Historical
+  H 77852060a99873b16566006907ba9b00fcce1c2c and H2
+  959a692ac37f546dc2b79d39ef26876de291aa8a must be labeled superseded.
 - Closing lines: `Closes #148`, `Closes #196`, `Closes #198`, and
   `Closes #197`; no closing line for already-closed #195.
 - Child trace: PR #283 / #196 delivered 6237930c41a3afba9d5953e88238f0919891152c
@@ -537,20 +619,35 @@ after committing H2 as the direct artifact-only child of H:
   4570d13336e92eab0e32e5decfb718865a8e16df and integrated as
   07a232e930cacf9af973a900ddf4ae4d7ab7368e.
 - Summary: enforce authorization-first, relationship-safe permanent deletion
-  for stays, cats, vets, and owners with rendering-only `canDelete`, stable
-  404/403/409 behavior, explicit flush conflict translation, and final FK
-  protection.
+  for stays, cats, vets, and owners with rendering-only `canDelete`; owner, cat,
+  and vet listing eligibility now resolves the current account once and batches
+  relationship blockers without changing stable 404/403/409 behavior, explicit
+  flush conflict translation, or final FK protection.
+- Validation claims: current H-prime focused 60-test and full 179-test Maven
+  results plus exact diff/scope checks. Old-H Docker/MySQL/Flyway/API results may
+  appear only as historical background; no current Docker or concurrency claim.
 - Required merge method: the user selects GitHub Create a merge commit; squash
   and rebase merges are prohibited so exact SELF/HEAD remains in main ancestry.
 
 ### Remaining risks and limitations
 
 - A true timing-controlled concurrent relationship insertion was not stress
-  scheduled. Explicit flush conflict translation, API constraint rollback, and
-  all four real MySQL FK failures were validated as the deterministic race
-  protection.
-- Per-entity existence-query performance was not benchmarked; correctness and
-  scope were prioritized, matching the approved child plans.
+  scheduled for H-prime. DELETE revalidation, explicit flush conflict
+  translation, and FK protection remain unchanged; their Docker/API evidence is
+  historical rather than current H-prime validation.
+- Pre-existing mapper-triggered lazy relationship loads, including possible cat
+  owner/vet loads, were not measured or changed. The correction bounds only the
+  authentication and relationship calls introduced by listing `canDelete`; it
+  does not establish that every full listing endpoint query is O(1).
+- The portable JPQL bulk projections use one unpaginated `IN` candidate set per
+  applicable relationship family. Listings of the expected hundreds of records
+  are covered by the bounded design, but database parameter limits and very
+  large-list performance were not benchmarked. Pagination, chunking, caching,
+  and a generic batching framework remain outside this correction.
+- Docker/MySQL validation was not rerun because H-prime changes no schema,
+  migration, native query, Docker/Compose input, API/auth contract, DELETE write
+  path, or foreign-key behavior. Current focused persistence tests and full
+  Maven verification passed; old-H Docker evidence is background only.
 - Cleanup remains ineligible with reason `pending final PR merge`; no local or
   remote branch/worktree cleanup is authorized at this stage.
 
@@ -562,9 +659,10 @@ dependency, shared contract, held identity, evidence SHA, ancestry proof,
 validation result, or merge method is missing, stale, dirty, duplicated,
 contradictory, or unproven.
 
-The next transition is fixed: commit exactly this sole artifact as H2, then make
-no further repository edit or commit. Resolve the status-free H2 manifest,
-normally push H2 only after proving its direct-parent/sole-artifact shape,
-refetch B and the coordinator ref, render the current final template externally,
-and create or reuse exactly one ready coordinator-to-main PR only if every gate
-remains current and passing. The user alone performs its Create a merge commit.
+The next transition is fixed: commit exactly this sole artifact as H2-prime,
+then make no further repository edit or commit. Resolve the status-free
+H2-prime manifest, normally push H-prime/H2-prime only after proving the direct
+parent and sole-artifact shape, refetch B and the coordinator ref, render and
+apply the current final body to existing PR #299, and report ready for a new
+independent review only if every gate and GitHub check remains current and
+passing. The user alone performs its Create a merge commit.
