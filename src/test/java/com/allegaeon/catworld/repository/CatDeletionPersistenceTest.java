@@ -19,6 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -110,6 +111,45 @@ class CatDeletionPersistenceTest {
                 now.minusDays(5),
                 null,
                 StayStatus.CHECKED_OUT);
+    }
+
+    @Test
+    void bulkStayHistoryLookupReturnsOnlyReferencedCandidateCatIds() {
+        UserAccount creator = saveCreator("bulk-cat-history-creator");
+        Owner owner = saveOwner(creator);
+        Vet vet = saveVet(creator);
+        Cat referencedCandidate = saveCat("Referenced candidate", owner, vet, creator);
+        Cat unreferencedCandidate = saveCat("Unreferenced candidate", owner, vet, creator);
+        Cat referencedNonCandidate = saveCat("Referenced non-candidate", owner, vet, creator);
+        LocalDateTime now = LocalDateTime.now();
+
+        saveStay(
+                referencedCandidate,
+                owner,
+                creator,
+                now.plusDays(1),
+                now.plusDays(2),
+                null);
+        saveStay(
+                referencedCandidate,
+                owner,
+                creator,
+                now.plusDays(3),
+                now.plusDays(4),
+                null);
+        saveStay(
+                referencedNonCandidate,
+                owner,
+                creator,
+                now.plusDays(5),
+                now.plusDays(6),
+                null);
+
+        Set<UUID> result = stayCatRepository.findCatIdsWithStayHistory(Set.of(
+                referencedCandidate.getId(),
+                unreferencedCandidate.getId()));
+
+        assertEquals(Set.of(referencedCandidate.getId()), result);
     }
 
     private void assertHistoryBlocksDeletion(

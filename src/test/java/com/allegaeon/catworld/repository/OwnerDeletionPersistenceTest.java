@@ -18,6 +18,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -136,6 +137,41 @@ class OwnerDeletionPersistenceTest {
                 stayId,
                 ownerId));
         assertTrue(userAccountRepository.findById(creator.getId()).isPresent());
+    }
+
+    @Test
+    void bulkRelationshipLookupsReturnOnlyBlockedCandidateOwnerIds() {
+        UserAccount creator = saveCreator("bulk-owner-reference-creator");
+        Owner catBlocked = saveOwner("Cat blocked", creator);
+        Owner stayBlocked = saveOwner("Stay blocked", creator);
+        Owner clear = saveOwner("Clear", creator);
+        Owner referencedNonCandidate = saveOwner("Referenced non-candidate", creator);
+
+        saveCat("Cat-blocking cat", catBlocked, creator);
+        saveCat("Non-candidate cat", referencedNonCandidate, creator);
+        stayRepository.saveAndFlush(Stay.builder()
+                .startAt(LocalDateTime.now().plusDays(1))
+                .endAt(LocalDateTime.now().plusDays(2))
+                .owner(stayBlocked)
+                .createdBy(creator)
+                .build());
+        stayRepository.saveAndFlush(Stay.builder()
+                .startAt(LocalDateTime.now().plusDays(3))
+                .endAt(LocalDateTime.now().plusDays(4))
+                .owner(referencedNonCandidate)
+                .createdBy(creator)
+                .build());
+
+        Set<UUID> catBlockedIds = ownerRepository.findOwnerIdsReferencedByCats(Set.of(
+                catBlocked.getId(),
+                stayBlocked.getId(),
+                clear.getId()));
+        Set<UUID> stayBlockedIds = stayRepository.findOwnerIdsReferencedByStays(Set.of(
+                stayBlocked.getId(),
+                clear.getId()));
+
+        assertEquals(Set.of(catBlocked.getId()), catBlockedIds);
+        assertEquals(Set.of(stayBlocked.getId()), stayBlockedIds);
     }
 
     private UserAccount saveCreator(String username) {

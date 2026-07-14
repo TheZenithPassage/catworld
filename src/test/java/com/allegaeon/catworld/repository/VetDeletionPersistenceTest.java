@@ -20,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -146,6 +147,55 @@ class VetDeletionPersistenceTest {
                 Integer.class,
                 stayId,
                 catId));
+    }
+
+    @Test
+    void bulkCatReferenceLookupReturnsOnlyReferencedCandidateVetIds() {
+        UserAccount creator = saveCreator("bulk-vet-reference-creator");
+        Owner owner = saveOwner(creator, "Bulk Vet Owner");
+        Vet referencedCandidate = vetRepository.saveAndFlush(Vet.builder()
+                .name("Referenced candidate")
+                .createdBy(creator)
+                .build());
+        Vet unreferencedCandidate = vetRepository.saveAndFlush(Vet.builder()
+                .name("Unreferenced candidate")
+                .createdBy(creator)
+                .build());
+        Vet referencedNonCandidate = vetRepository.saveAndFlush(Vet.builder()
+                .name("Referenced non-candidate")
+                .createdBy(creator)
+                .build());
+
+        catRepository.saveAndFlush(Cat.builder()
+                .name("First candidate cat")
+                .birthDate(LocalDate.of(2020, 1, 1))
+                .sex(Sex.FEMALE)
+                .owner(owner)
+                .vet(referencedCandidate)
+                .createdBy(creator)
+                .build());
+        catRepository.saveAndFlush(Cat.builder()
+                .name("Second candidate cat")
+                .birthDate(LocalDate.of(2021, 1, 1))
+                .sex(Sex.MALE)
+                .owner(owner)
+                .vet(referencedCandidate)
+                .createdBy(creator)
+                .build());
+        catRepository.saveAndFlush(Cat.builder()
+                .name("Non-candidate cat")
+                .birthDate(LocalDate.of(2022, 1, 1))
+                .sex(Sex.FEMALE)
+                .owner(owner)
+                .vet(referencedNonCandidate)
+                .createdBy(creator)
+                .build());
+
+        Set<UUID> result = vetRepository.findVetIdsReferencedByCats(Set.of(
+                referencedCandidate.getId(),
+                unreferencedCandidate.getId()));
+
+        assertEquals(Set.of(referencedCandidate.getId()), result);
     }
 
     private UserAccount saveCreator(String username) {

@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.VetMapper;
+import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.VetRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -15,7 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -28,7 +31,28 @@ public class VetService implements IVetService {
 
     @Override
     public List<VetResponseDTO> getAllVets() {
-        return vetRepository.findAll().stream().map(this::toResponseDTO).toList();
+        List<Vet> vets = vetRepository.findAll();
+        if (vets.isEmpty()) {
+            return List.of();
+        }
+
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        Set<UUID> authorizedVetIds = vets.stream()
+                .filter(vet -> deletionAuthorizationPolicy.canDelete(
+                        currentUser,
+                        vet.getCreatedBy(),
+                        vet.getCreatedAt()))
+                .map(Vet::getId)
+                .collect(Collectors.toSet());
+        Set<UUID> blockedVetIds = authorizedVetIds.isEmpty()
+                ? Set.of()
+                : vetRepository.findVetIdsReferencedByCats(authorizedVetIds);
+
+        return vets.stream()
+                .map(vet -> vetMapper.toResponseDTO(
+                        vet,
+                        authorizedVetIds.contains(vet.getId()) && !blockedVetIds.contains(vet.getId())))
+                .toList();
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.CatMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
+import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
@@ -20,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -36,7 +39,28 @@ public class CatService implements ICatService{
 
     @Override
     public List<CatResponseDTO> getAllCats() {
-        return catRepository.findAll().stream().map(this::toResponseDTO).toList();
+        List<Cat> cats = catRepository.findAll();
+        if (cats.isEmpty()) {
+            return List.of();
+        }
+
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        Set<UUID> authorizedCatIds = cats.stream()
+                .filter(cat -> deletionAuthorizationPolicy.canDelete(
+                        currentUser,
+                        cat.getCreatedBy(),
+                        cat.getCreatedAt()))
+                .map(Cat::getId)
+                .collect(Collectors.toSet());
+        Set<UUID> blockedCatIds = authorizedCatIds.isEmpty()
+                ? Set.of()
+                : stayCatRepository.findCatIdsWithStayHistory(authorizedCatIds);
+
+        return cats.stream()
+                .map(cat -> catMapper.toResponseDTO(
+                        cat,
+                        authorizedCatIds.contains(cat.getId()) && !blockedCatIds.contains(cat.getId())))
+                .toList();
     }
 
     @Override

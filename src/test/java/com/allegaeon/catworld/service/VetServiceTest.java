@@ -24,6 +24,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -33,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -91,29 +93,83 @@ class VetServiceTest {
     }
 
     @Test
-    void getAllVetsCalculatesCanDeleteForEachVet() {
+    void getAllVetsUsesOneAccountLookupAndOneBulkReferenceLookupForEligibleVets() {
+        UserAccount currentUser = creator();
         Vet deletable = vet(UUID.randomUUID(), creator());
+        Vet referenced = vet(UUID.randomUUID(), creator());
         Vet unauthorized = vet(UUID.randomUUID(), creator());
         VetResponseDTO deletableResponse = VetResponseDTO.builder()
                 .id(deletable.getId())
                 .canDelete(true)
                 .build();
+        VetResponseDTO referencedResponse = VetResponseDTO.builder()
+                .id(referenced.getId())
+                .canDelete(false)
+                .build();
         VetResponseDTO unauthorizedResponse = VetResponseDTO.builder()
                 .id(unauthorized.getId())
                 .canDelete(false)
                 .build();
+        Set<UUID> eligibleIds = Set.of(deletable.getId(), referenced.getId());
 
-        when(vetRepository.findAll()).thenReturn(List.of(deletable, unauthorized));
-        when(deletionAuthorizationPolicy.canDelete(deletable.getCreatedBy(), CREATED_AT)).thenReturn(true);
-        when(deletionAuthorizationPolicy.canDelete(unauthorized.getCreatedBy(), CREATED_AT)).thenReturn(false);
-        when(vetRepository.existsByIdAndCatsIsNotEmpty(deletable.getId())).thenReturn(false);
+        when(vetRepository.findAll()).thenReturn(List.of(deletable, referenced, unauthorized));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                deletable.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                referenced.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                unauthorized.getCreatedBy(),
+                CREATED_AT)).thenReturn(false);
+        when(vetRepository.findVetIdsReferencedByCats(eligibleIds))
+                .thenReturn(Set.of(referenced.getId()));
         when(vetMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(vetMapper.toResponseDTO(referenced, false)).thenReturn(referencedResponse);
         when(vetMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
 
         List<VetResponseDTO> result = service.getAllVets();
 
-        assertEquals(List.of(deletableResponse, unauthorizedResponse), result);
-        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(unauthorized.getId());
+        assertEquals(List.of(deletableResponse, referencedResponse, unauthorizedResponse), result);
+        verify(currentUserAccountService).getCurrentUserAccount();
+        verify(vetRepository).findVetIdsReferencedByCats(eligibleIds);
+        verify(vetRepository, times(1)).findVetIdsReferencedByCats(any());
+        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(any(UUID.class));
+        verify(deletionAuthorizationPolicy, never()).canDelete(any(UserAccount.class), any(Instant.class));
+    }
+
+    @Test
+    void getAllVetsSkipsReferenceLookupWhenNoVetIsAuthorized() {
+        UserAccount currentUser = creator();
+        Vet first = vet(UUID.randomUUID(), creator());
+        Vet second = vet(UUID.randomUUID(), creator());
+        VetResponseDTO firstResponse = VetResponseDTO.builder()
+                .id(first.getId())
+                .canDelete(false)
+                .build();
+        VetResponseDTO secondResponse = VetResponseDTO.builder()
+                .id(second.getId())
+                .canDelete(false)
+                .build();
+
+        when(vetRepository.findAll()).thenReturn(List.of(first, second));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, first.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, second.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(vetMapper.toResponseDTO(first, false)).thenReturn(firstResponse);
+        when(vetMapper.toResponseDTO(second, false)).thenReturn(secondResponse);
+
+        assertEquals(List.of(firstResponse, secondResponse), service.getAllVets());
+
+        verify(currentUserAccountService).getCurrentUserAccount();
+        verify(vetRepository, never()).findVetIdsReferencedByCats(any());
+        verify(vetRepository, never()).existsByIdAndCatsIsNotEmpty(any(UUID.class));
     }
 
     @Test

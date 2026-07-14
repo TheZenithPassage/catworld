@@ -29,7 +29,9 @@ import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -117,6 +119,86 @@ class CatServiceTest {
         assertSame(creator, catCaptor.getValue().getCreatedBy());
         verify(deletionAuthorizationPolicy).canDelete(creator, null);
         verifyNoInteractions(stayCatRepository);
+    }
+
+    @Test
+    void getAllCatsUsesOneAccountLookupAndOneBulkHistoryLookupForEligibleCats() {
+        UserAccount currentUser = creator();
+        Cat deletable = cat(UUID.randomUUID(), creator());
+        Cat historyBlocked = cat(UUID.randomUUID(), creator());
+        Cat unauthorized = cat(UUID.randomUUID(), creator());
+        CatResponseDTO deletableResponse = CatResponseDTO.builder()
+                .id(deletable.getId())
+                .canDelete(true)
+                .build();
+        CatResponseDTO historyBlockedResponse = CatResponseDTO.builder()
+                .id(historyBlocked.getId())
+                .canDelete(false)
+                .build();
+        CatResponseDTO unauthorizedResponse = CatResponseDTO.builder()
+                .id(unauthorized.getId())
+                .canDelete(false)
+                .build();
+        Set<UUID> eligibleIds = Set.of(deletable.getId(), historyBlocked.getId());
+
+        when(catRepository.findAll()).thenReturn(List.of(deletable, historyBlocked, unauthorized));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                deletable.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                historyBlocked.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                unauthorized.getCreatedBy(),
+                CREATED_AT)).thenReturn(false);
+        when(stayCatRepository.findCatIdsWithStayHistory(eligibleIds))
+                .thenReturn(Set.of(historyBlocked.getId()));
+        when(catMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(catMapper.toResponseDTO(historyBlocked, false)).thenReturn(historyBlockedResponse);
+        when(catMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
+
+        List<CatResponseDTO> result = service.getAllCats();
+
+        assertEquals(List.of(deletableResponse, historyBlockedResponse, unauthorizedResponse), result);
+        verify(currentUserAccountService, times(1)).getCurrentUserAccount();
+        verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(eligibleIds);
+        verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(any());
+        verify(stayCatRepository, never()).existsByCat_Id(any(UUID.class));
+        verify(deletionAuthorizationPolicy, never()).canDelete(any(UserAccount.class), any(Instant.class));
+    }
+
+    @Test
+    void getAllCatsSkipsHistoryLookupWhenNoCatIsAuthorized() {
+        UserAccount currentUser = creator();
+        Cat first = cat(UUID.randomUUID(), creator());
+        Cat second = cat(UUID.randomUUID(), creator());
+        CatResponseDTO firstResponse = CatResponseDTO.builder()
+                .id(first.getId())
+                .canDelete(false)
+                .build();
+        CatResponseDTO secondResponse = CatResponseDTO.builder()
+                .id(second.getId())
+                .canDelete(false)
+                .build();
+
+        when(catRepository.findAll()).thenReturn(List.of(first, second));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, first.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, second.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(catMapper.toResponseDTO(first, false)).thenReturn(firstResponse);
+        when(catMapper.toResponseDTO(second, false)).thenReturn(secondResponse);
+
+        assertEquals(List.of(firstResponse, secondResponse), service.getAllCats());
+
+        verify(currentUserAccountService, times(1)).getCurrentUserAccount();
+        verify(stayCatRepository, never()).findCatIdsWithStayHistory(any());
+        verify(stayCatRepository, never()).existsByCat_Id(any(UUID.class));
     }
 
     @Test

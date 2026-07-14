@@ -25,6 +25,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -99,31 +100,111 @@ class OwnerServiceTest {
     }
 
     @Test
-    void getAllOwnersCalculatesCanDeleteAndShortCircuitsUnauthorizedRelationships() {
+    void getAllOwnersUsesBoundedBulkLookupsForEligibleOwners() {
+        UserAccount currentUser = creator("current-staff");
         Owner deletable = owner(UUID.randomUUID(), creator("admin"));
+        Owner catBlocked = owner(UUID.randomUUID(), creator("cat-blocked"));
+        Owner stayBlocked = owner(UUID.randomUUID(), creator("stay-blocked"));
         Owner unauthorized = owner(UUID.randomUUID(), creator("other-staff"));
         OwnerResponseDTO deletableResponse = OwnerResponseDTO.builder()
                 .id(deletable.getId())
                 .canDelete(true)
                 .build();
+        OwnerResponseDTO catBlockedResponse = OwnerResponseDTO.builder()
+                .id(catBlocked.getId())
+                .canDelete(false)
+                .build();
+        OwnerResponseDTO stayBlockedResponse = OwnerResponseDTO.builder()
+                .id(stayBlocked.getId())
+                .canDelete(false)
+                .build();
         OwnerResponseDTO unauthorizedResponse = OwnerResponseDTO.builder()
                 .id(unauthorized.getId())
                 .canDelete(false)
                 .build();
+        Set<UUID> eligibleIds = Set.of(
+                deletable.getId(),
+                catBlocked.getId(),
+                stayBlocked.getId());
+        Set<UUID> stayCandidateIds = Set.of(deletable.getId(), stayBlocked.getId());
 
-        when(ownerRepository.findAll()).thenReturn(List.of(deletable, unauthorized));
-        when(deletionAuthorizationPolicy.canDelete(deletable.getCreatedBy(), CREATED_AT)).thenReturn(true);
-        when(deletionAuthorizationPolicy.canDelete(unauthorized.getCreatedBy(), CREATED_AT)).thenReturn(false);
-        when(ownerRepository.existsByIdAndCatsIsNotEmpty(deletable.getId())).thenReturn(false);
-        when(stayRepository.existsByOwner_Id(deletable.getId())).thenReturn(false);
+        when(ownerRepository.findAll())
+                .thenReturn(List.of(deletable, catBlocked, stayBlocked, unauthorized));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                deletable.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                catBlocked.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                stayBlocked.getCreatedBy(),
+                CREATED_AT)).thenReturn(true);
+        when(deletionAuthorizationPolicy.canDelete(
+                currentUser,
+                unauthorized.getCreatedBy(),
+                CREATED_AT)).thenReturn(false);
+        when(ownerRepository.findOwnerIdsReferencedByCats(eligibleIds))
+                .thenReturn(Set.of(catBlocked.getId()));
+        when(stayRepository.findOwnerIdsReferencedByStays(stayCandidateIds))
+                .thenReturn(Set.of(stayBlocked.getId()));
         when(ownerMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(ownerMapper.toResponseDTO(catBlocked, false)).thenReturn(catBlockedResponse);
+        when(ownerMapper.toResponseDTO(stayBlocked, false)).thenReturn(stayBlockedResponse);
         when(ownerMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
 
         List<OwnerResponseDTO> result = service.getAllOwners();
 
-        assertEquals(List.of(deletableResponse, unauthorizedResponse), result);
-        verify(ownerRepository, never()).existsByIdAndCatsIsNotEmpty(unauthorized.getId());
-        verify(stayRepository, never()).existsByOwner_Id(unauthorized.getId());
+        assertEquals(
+                List.of(
+                        deletableResponse,
+                        catBlockedResponse,
+                        stayBlockedResponse,
+                        unauthorizedResponse),
+                result);
+        verify(currentUserAccountService).getCurrentUserAccount();
+        verify(ownerRepository).findOwnerIdsReferencedByCats(eligibleIds);
+        verify(stayRepository).findOwnerIdsReferencedByStays(stayCandidateIds);
+        verify(ownerRepository, times(1)).findOwnerIdsReferencedByCats(any());
+        verify(stayRepository, times(1)).findOwnerIdsReferencedByStays(any());
+        verify(ownerRepository, never()).existsByIdAndCatsIsNotEmpty(any(UUID.class));
+        verify(stayRepository, never()).existsByOwner_Id(any(UUID.class));
+        verify(deletionAuthorizationPolicy, never()).canDelete(any(UserAccount.class), any(Instant.class));
+    }
+
+    @Test
+    void getAllOwnersSkipsRelationshipLookupsWhenNoOwnerIsAuthorized() {
+        UserAccount currentUser = creator("current-staff");
+        Owner first = owner(UUID.randomUUID(), creator("first"));
+        Owner second = owner(UUID.randomUUID(), creator("second"));
+        OwnerResponseDTO firstResponse = OwnerResponseDTO.builder()
+                .id(first.getId())
+                .canDelete(false)
+                .build();
+        OwnerResponseDTO secondResponse = OwnerResponseDTO.builder()
+                .id(second.getId())
+                .canDelete(false)
+                .build();
+
+        when(ownerRepository.findAll()).thenReturn(List.of(first, second));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentUser);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, first.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(deletionAuthorizationPolicy.canDelete(currentUser, second.getCreatedBy(), CREATED_AT))
+                .thenReturn(false);
+        when(ownerMapper.toResponseDTO(first, false)).thenReturn(firstResponse);
+        when(ownerMapper.toResponseDTO(second, false)).thenReturn(secondResponse);
+
+        assertEquals(List.of(firstResponse, secondResponse), service.getAllOwners());
+
+        verify(currentUserAccountService).getCurrentUserAccount();
+        verify(ownerRepository, never()).findOwnerIdsReferencedByCats(any());
+        verify(stayRepository, never()).findOwnerIdsReferencedByStays(any());
+        verify(ownerRepository, never()).existsByIdAndCatsIsNotEmpty(any(UUID.class));
+        verify(stayRepository, never()).existsByOwner_Id(any(UUID.class));
     }
 
     @Test

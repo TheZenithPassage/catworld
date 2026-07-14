@@ -6,6 +6,7 @@ import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
+import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -15,8 +16,11 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -30,7 +34,36 @@ public class OwnerService implements IOwnerService {
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {
-        return ownerRepository.findAll().stream().map(this::toResponseDTO).toList();
+        List<Owner> owners = ownerRepository.findAll();
+        if (owners.isEmpty()) {
+            return List.of();
+        }
+
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        Set<UUID> authorizedOwnerIds = owners.stream()
+                .filter(owner -> deletionAuthorizationPolicy.canDelete(
+                        currentUser,
+                        owner.getCreatedBy(),
+                        owner.getCreatedAt()))
+                .map(Owner::getId)
+                .collect(Collectors.toSet());
+        Set<UUID> catBlockedOwnerIds = authorizedOwnerIds.isEmpty()
+                ? Set.of()
+                : ownerRepository.findOwnerIdsReferencedByCats(authorizedOwnerIds);
+
+        Set<UUID> stayCandidates = new HashSet<>(authorizedOwnerIds);
+        stayCandidates.removeAll(catBlockedOwnerIds);
+        Set<UUID> stayBlockedOwnerIds = stayCandidates.isEmpty()
+                ? Set.of()
+                : stayRepository.findOwnerIdsReferencedByStays(stayCandidates);
+
+        return owners.stream()
+                .map(owner -> ownerMapper.toResponseDTO(
+                        owner,
+                        authorizedOwnerIds.contains(owner.getId())
+                                && !catBlockedOwnerIds.contains(owner.getId())
+                                && !stayBlockedOwnerIds.contains(owner.getId())))
+                .toList();
     }
 
     @Override
