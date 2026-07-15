@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class DeletionAuthorizationPolicyTest {
@@ -59,6 +60,19 @@ class DeletionAuthorizationPolicyTest {
 
         assertTrue(policy.canDelete(null, null));
         assertDoesNotThrow(() -> policy.authorize(null, null));
+    }
+
+    @Test
+    void canDeleteWithResolvedCurrentUserDoesNotPerformAnotherAccountLookup() {
+        UserAccount currentUser = account(CURRENT_USER_ID, UserRole.STAFF);
+        UserAccount creator = account(CURRENT_USER_ID, UserRole.STAFF);
+
+        assertTrue(policy.canDelete(
+                currentUser,
+                creator,
+                NOW.minus(Duration.ofMinutes(14))));
+
+        verifyNoInteractions(currentUserAccountService);
     }
 
     private static Stream<Arguments> authorizationCases() {

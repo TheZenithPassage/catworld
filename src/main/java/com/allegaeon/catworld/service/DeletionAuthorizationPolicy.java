@@ -29,8 +29,10 @@ public class DeletionAuthorizationPolicy {
     }
 
     public boolean canDelete(UserAccount creator, Instant createdAt) {
-        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        return canDelete(currentUserAccountService.getCurrentUserAccount(), creator, createdAt);
+    }
 
+    public boolean canDelete(UserAccount currentUser, UserAccount creator, Instant createdAt) {
         return currentUser.getRole() == UserRole.ADMIN
                 || currentUser.getRole() == UserRole.STAFF
                 && isSameAccount(currentUser, creator)
