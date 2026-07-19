@@ -3,12 +3,12 @@
   "version": "0.11.9",
   "installed_at": "2026-06-29T06:40:21.725224+00:00",
   "files": {
-    ".specify/scripts/powershell/check-prerequisites.ps1": "c9597262f45f7e49397062aa07b549a63273f1e83c78e98bf75050356d597898",
-    ".specify/scripts/powershell/common.ps1": "e23794f0c09040af1692e8bb29fe2ad955230f4e010c499edc5050fe82988ed7",
-    ".specify/scripts/powershell/setup-plan.ps1": "3c6bf573d1c827e6e3f589c49bfa46c5ad7b1164e8753f864eef934bec919f4d",
-    ".specify/scripts/powershell/setup-tasks.ps1": "a256f37579cd4f82c547d609990efcb0629f599a6b873c8129bc00b9a4e526a2",
-    ".specify/templates/plan-template.md": "ad17bcf77ad038804f88190d8e3c429cf5a02e29555deec0f8c761532b3519a8",
-    ".specify/templates/spec-template.md": "ebe58970a81ef334ec15ce985733684c97c4f8228dedd29c59a8d784d1ecc117",
-    ".specify/templates/tasks-template.md": "5f5eeae3799c78b20749c0169e00cca1238126146ce6403af448233772aa5d76"
+    ".specify/scripts/powershell/check-prerequisites.ps1": "aa3cbfb833df9678ebc98f8460c3188f40ed199f7422ddf910b4e46e67ebb0c1",
+    ".specify/scripts/powershell/common.ps1": "439a39768f2116eb8b4d577acf638dd480c6d3507c01d41435f27c07148af907",
+    ".specify/scripts/powershell/setup-plan.ps1": "d55b161c13b1a83d10035d2601255698aed6c3a629a44bf0bfa3299c7b42729d",
+    ".specify/scripts/powershell/setup-tasks.ps1": "54f0ff4a240bed082f144b896f4a8b7fb3bc9ec9f2e40826a8d6ebda32a27831",
+    ".specify/templates/plan-template.md": "c9f0749991b62c1ec39ebd1f88884dfc315598930f2d7d70c967ce3fd2247e93",
+    ".specify/templates/spec-template.md": "d38d507e4d921b5263c95e34dbc8ae2aed03e54415a4afd691e155db7866e600",
+    ".specify/templates/tasks-template.md": "10b1231a989f8ab484fd0b2bb8c858d0a85f17013ca522b6e17d197376e8ef0f"
   }
 }

@@ -1,2 +1,17 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Keep integration-manifest targets byte-stable across platforms.
+/.agents/skills/speckit-analyze/SKILL.md text eol=lf
+/.agents/skills/speckit-converge/SKILL.md text eol=lf
+/.agents/skills/speckit-implement/SKILL.md text eol=lf
+/.agents/skills/speckit-plan/SKILL.md text eol=lf
+/.agents/skills/speckit-specify/SKILL.md text eol=lf
+/.agents/skills/speckit-tasks/SKILL.md text eol=lf
+/.specify/scripts/powershell/check-prerequisites.ps1 text eol=lf
+/.specify/scripts/powershell/common.ps1 text eol=lf
+/.specify/scripts/powershell/setup-plan.ps1 text eol=lf
+/.specify/scripts/powershell/setup-tasks.ps1 text eol=lf
+/.specify/templates/plan-template.md text eol=lf
+/.specify/templates/spec-template.md text eol=lf
+/.specify/templates/tasks-template.md text eol=lf
