@@ -5,6 +5,7 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatsOverviewPage } from './cats-overview-page';
@@ -170,5 +171,33 @@ describe('CatsOverviewPage', () => {
       component.text().cats.overview.errorLoading,
     );
     expect(fixture.nativeElement.textContent).toContain(component.text().cats.overview.retry);
+  });
+
+  it('clears the rendered page error on a distinct language change without resetting overview state', () => {
+    createComponent();
+    component.setSearchText('Milo');
+    component.error.set('cats overview page error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'cats overview page error',
+    );
+    expect(compiled.querySelector('table[mat-table]')).toBeNull();
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
+    expect(compiled.textContent).toContain('Milo');
+    expect(compiled.textContent).not.toContain('Luna');
+    expect((compiled.querySelector('input[type="search"]') as HTMLInputElement).value).toBe('Milo');
+    expect(component.cats()).toEqual(cats);
+    expect(component.loading()).toBe(false);
+    expect(catApiService.getCats).toHaveBeenCalledTimes(1);
   });
 });

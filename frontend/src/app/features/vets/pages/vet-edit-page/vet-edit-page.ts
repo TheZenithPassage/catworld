@@ -42,9 +42,9 @@ export class VetEditPage {
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly vetLoaded = signal(false);
-  readonly nameError = signal<string | null>(null);
+  readonly nameError = this.i18nService.createErrorSignal();
 
   private readonly vetId = this.route.snapshot.paramMap.get('id');
 

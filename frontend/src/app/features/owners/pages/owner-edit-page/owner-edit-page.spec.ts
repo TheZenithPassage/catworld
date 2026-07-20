@@ -7,6 +7,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerEditPage } from './owner-edit-page';
@@ -222,5 +223,49 @@ describe('OwnerEditPage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       'Owner could not be updated',
     );
+  });
+
+  it('clears every rendered error on a distinct language change without resetting loaded form state', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.fullName.set('');
+    component.primaryPhone.set('');
+    component.address.set('Preserved address');
+    fixture.detectChanges();
+    await submitRenderedForm();
+
+    component.error.set('owner edit page error');
+    component.fullNameError.set('owner edit full name error');
+    component.primaryPhoneError.set('owner edit primary phone error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const renderedFieldErrors = getMaterialErrorText();
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'owner edit page error',
+    );
+    expect(renderedFieldErrors).toContain('owner edit full name error');
+    expect(renderedFieldErrors).toContain('owner edit primary phone error');
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect([component.error(), component.fullNameError(), component.primaryPhoneError()]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(getMaterialErrorText()).toBe('');
+    expect(component.address()).toBe('Preserved address');
+    expect((compiled.querySelector('input[name="address"]') as HTMLInputElement).value).toBe(
+      'Preserved address',
+    );
+    expect(component.ownerLoaded()).toBe(true);
+    expect(component.submitting()).toBe(false);
+    expect(ownerApiService.getOwnerById).toHaveBeenCalledTimes(1);
+    expect(ownerApiService.updateOwner).not.toHaveBeenCalled();
   });
 });

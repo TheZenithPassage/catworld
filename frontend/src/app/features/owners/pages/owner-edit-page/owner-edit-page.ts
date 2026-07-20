@@ -46,10 +46,10 @@ export class OwnerEditPage {
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly ownerLoaded = signal(false);
-  readonly fullNameError = signal<string | null>(null);
-  readonly primaryPhoneError = signal<string | null>(null);
+  readonly fullNameError = this.i18nService.createErrorSignal();
+  readonly primaryPhoneError = this.i18nService.createErrorSignal();
 
   private readonly ownerId = this.route.snapshot.paramMap.get('id');
 

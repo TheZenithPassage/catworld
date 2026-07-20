@@ -1,4 +1,12 @@
-import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import {
+  computed,
+  effect,
+  inject,
+  Injectable,
+  linkedSignal,
+  signal,
+  WritableSignal,
+} from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 
 import { AppLanguage, DEFAULT_APP_LANGUAGE, isAppLanguage } from './app-language';
@@ -26,6 +34,13 @@ export class I18nService {
 
   toggleLanguage(): void {
     this.language.update((currentLanguage) => (currentLanguage === 'es' ? 'en' : 'es'));
+  }
+
+  createErrorSignal(): WritableSignal<string | null> {
+    return linkedSignal<string | null>(() => {
+      this.language();
+      return null;
+    });
   }
 
   private readStoredLanguage(): AppLanguage {

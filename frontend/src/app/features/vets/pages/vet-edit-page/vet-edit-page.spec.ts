@@ -7,6 +7,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { VetEditPage } from './vet-edit-page';
@@ -129,6 +130,35 @@ describe('VetEditPage', () => {
     expect(component.nameError()).toBe(component.text().vets.edit.errors.nameRequired);
     expect(getMaterialErrorText()).toContain(component.text().vets.edit.errors.nameRequired);
     expect(component.error()).toBeNull();
+  });
+
+  it('clears rendered page and field errors together when the application language changes', async () => {
+    createComponent();
+    fixture.detectChanges();
+    setInputValue('name', '   ');
+    await submitRenderedForm();
+    component.error.set('Error in the previous language');
+    fixture.detectChanges();
+
+    const staleNameError = component.text().vets.edit.errors.nameRequired;
+    const i18nService = TestBed.inject(I18nService);
+    const initialLanguage = i18nService.language();
+
+    expect(component.error()).toBe('Error in the previous language');
+    expect(component.nameError()).toBe(staleNameError);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'Error in the previous language',
+    );
+    expect(getMaterialErrorText()).toContain(staleNameError);
+
+    i18nService.toggleLanguage();
+    fixture.detectChanges();
+
+    expect(i18nService.language()).not.toBe(initialLanguage);
+    expect(component.error()).toBeNull();
+    expect(component.nameError()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
   });
 
   it('updates a vet with the current payload shape and returns to vets', () => {

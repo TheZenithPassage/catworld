@@ -7,6 +7,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Vet } from '../../../vets/models/vet.model';
@@ -289,5 +290,52 @@ describe('CatCreatePage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       'name: already exists',
     );
+  });
+
+  it('clears every rendered error on a distinct language change without resetting form state', async () => {
+    createComponent();
+    component.breed.set('Tabby');
+    component.personality.set('Curious');
+    fixture.detectChanges();
+    await submitRenderedForm();
+
+    component.error.set('cat create page error');
+    component.nameError.set('cat create name error');
+    component.birthDateError.set('cat create birth date error');
+    component.sexError.set('cat create sex error');
+    component.ownerIdError.set('cat create owner error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const renderedFieldErrors = getMaterialErrorText();
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'cat create page error',
+    );
+    expect(renderedFieldErrors).toContain('cat create name error');
+    expect(renderedFieldErrors).toContain('cat create birth date error');
+    expect(renderedFieldErrors).toContain('cat create sex error');
+    expect(renderedFieldErrors).toContain('cat create owner error');
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect([
+      component.error(),
+      component.nameError(),
+      component.birthDateError(),
+      component.sexError(),
+      component.ownerIdError(),
+    ]).toEqual([null, null, null, null, null]);
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(getMaterialErrorText()).toBe('');
+    expect(component.breed()).toBe('Tabby');
+    expect(component.personality()).toBe('Curious');
+    expect((compiled.querySelector('input[name="breed"]') as HTMLInputElement).value).toBe('Tabby');
+    expect(component.owners()).toEqual(owners);
+    expect(component.vets()).toEqual(vets);
+    expect(component.submitting()).toBe(false);
+    expect(catApiService.createCat).not.toHaveBeenCalled();
   });
 });

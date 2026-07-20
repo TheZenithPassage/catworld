@@ -74,7 +74,7 @@ export class CalendarPage {
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
 
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(

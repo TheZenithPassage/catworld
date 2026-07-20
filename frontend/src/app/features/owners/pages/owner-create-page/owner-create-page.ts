@@ -44,9 +44,9 @@ export class OwnerCreatePage {
   readonly facebook = signal('');
 
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly fullNameError = signal<string | null>(null);
-  readonly primaryPhoneError = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
+  readonly fullNameError = this.i18nService.createErrorSignal();
+  readonly primaryPhoneError = this.i18nService.createErrorSignal();
 
   submit(): void {
     this.error.set(null);

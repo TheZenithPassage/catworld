@@ -33,7 +33,7 @@ export class VetsOverviewPage {
 
   readonly vets = signal<Vet[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly searchText = signal('');
   readonly displayedColumns = ['name', 'phoneNumber', 'address', 'actions'];
 

@@ -34,7 +34,7 @@ export class CatsOverviewPage {
 
   readonly cats = signal<Cat[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly searchText = signal('');
   readonly displayedColumns = [
     'name',

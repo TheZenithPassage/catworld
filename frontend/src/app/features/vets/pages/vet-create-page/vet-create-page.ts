@@ -40,8 +40,8 @@ export class VetCreatePage {
   readonly phoneNumber = signal('');
 
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly nameError = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
+  readonly nameError = this.i18nService.createErrorSignal();
 
   submit(): void {
     this.error.set(null);

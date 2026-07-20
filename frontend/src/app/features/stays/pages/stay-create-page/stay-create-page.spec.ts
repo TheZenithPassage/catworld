@@ -5,6 +5,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
@@ -236,6 +237,30 @@ describe('StayCreatePage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       component.text().stays.create.errors.selectAtLeastOneCat,
     );
+  });
+
+  it('clears its rendered error when the application language changes', () => {
+    createComponent();
+    component.selectedOwnerId.set('owner-1');
+    fixture.detectChanges();
+
+    component.submit();
+    fixture.detectChanges();
+
+    const staleError = component.text().stays.create.errors.selectAtLeastOneCat;
+    const initialLanguage = TestBed.inject(I18nService).language();
+
+    expect(component.error()).toBe(staleError);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      staleError,
+    );
+
+    TestBed.inject(I18nService).toggleLanguage();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(I18nService).language()).not.toBe(initialLanguage);
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
   it('creates a stay with the current payload shape and returns to stays', () => {

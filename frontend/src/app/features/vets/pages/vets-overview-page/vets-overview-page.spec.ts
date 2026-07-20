@@ -4,6 +4,7 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { VetsOverviewPage } from './vets-overview-page';
@@ -92,6 +93,29 @@ describe('VetsOverviewPage', () => {
       component.text().vets.overview.emptyFiltered,
     );
     expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
+  });
+
+  it('clears its rendered error when the application language changes', () => {
+    createComponent();
+    component.error.set('Error in the previous language');
+    fixture.detectChanges();
+
+    const i18nService = TestBed.inject(I18nService);
+    const initialLanguage = i18nService.language();
+    const loadedVets = component.vets();
+
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'Error in the previous language',
+    );
+
+    i18nService.toggleLanguage();
+    fixture.detectChanges();
+
+    expect(i18nService.language()).not.toBe(initialLanguage);
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(component.vets()).toBe(loadedVets);
+    expect(fixture.nativeElement.querySelector('table[mat-table]')).not.toBeNull();
   });
 
   it('renders empty and error states outside the Material table', async () => {

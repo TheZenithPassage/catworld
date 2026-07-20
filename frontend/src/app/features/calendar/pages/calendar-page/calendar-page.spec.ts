@@ -5,6 +5,7 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
@@ -168,5 +169,55 @@ describe('CalendarPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.errorLoading);
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.actions.retry);
+  });
+
+  it('clears the rendered load error while preserving calendar state and request count', () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({
+        unfilteredDisplayMode: 'compact-daily-labels',
+        visibleMonth: '2099-01-01',
+      }),
+    );
+    createComponent();
+
+    const eventsBefore = component.calendarEvents().map((event) => ({
+      id: event.id,
+      title: event.title,
+      start: event.start,
+      end: event.end,
+    }));
+    const staysBefore = component.stays();
+    const spanishError = component.text().calendar.errorLoading;
+
+    component.error.set(spanishError);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      spanishError,
+    );
+    expect(fixture.nativeElement.querySelector('full-calendar')).toBeNull();
+    expect(stayApiService.getStays).toHaveBeenCalledOnce();
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('full-calendar')).not.toBeNull();
+    expect(component.unfilteredDisplayMode()).toBe('compact-daily-labels');
+    expect(component.visibleMonth()).toBe('2099-01-01');
+    expect(component.stays()).toBe(staysBefore);
+    expect(component.filteredStays()).toEqual([stay]);
+    expect(
+      component.calendarEvents().map((event) => ({
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+      })),
+    ).toEqual(eventsBefore);
+    expect(component.loading()).toBe(false);
+    expect(stayApiService.getStays).toHaveBeenCalledOnce();
   });
 });

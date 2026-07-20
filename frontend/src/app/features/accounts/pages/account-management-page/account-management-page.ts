@@ -29,8 +29,8 @@ export class AccountManagementPage {
   readonly text = this.i18nService.text;
   readonly accounts = signal<UserAccount[]>([]);
   readonly loading = signal(false);
-  readonly loadError = signal<string | null>(null);
-  readonly actionError = signal<string | null>(null);
+  readonly loadError = this.i18nService.createErrorSignal();
+  readonly actionError = this.i18nService.createErrorSignal();
   readonly username = signal('');
   readonly password = signal('');
   readonly newAccountRole = signal<UserRole>('STAFF');

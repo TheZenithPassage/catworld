@@ -54,7 +54,7 @@ export class StayCreatePage {
 
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
 
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),

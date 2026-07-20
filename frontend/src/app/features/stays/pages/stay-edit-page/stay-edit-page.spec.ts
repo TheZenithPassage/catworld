@@ -5,6 +5,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
@@ -133,6 +134,31 @@ describe('StayEditPage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       component.text().stays.edit.errors.endAfterStart,
     );
+  });
+
+  it('clears its rendered error when the application language changes', () => {
+    createComponent();
+    component.startAt.set('2099-01-09T10:00');
+    component.endAt.set('2099-01-02T10:00');
+
+    component.submit();
+    fixture.detectChanges();
+
+    const staleError = component.text().stays.edit.errors.endAfterStart;
+    const i18nService = TestBed.inject(I18nService);
+    const initialLanguage = i18nService.language();
+
+    expect(component.error()).toBe(staleError);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      staleError,
+    );
+
+    i18nService.toggleLanguage();
+    fixture.detectChanges();
+
+    expect(i18nService.language()).not.toBe(initialLanguage);
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
   it('updates a stay with the current payload shape and returns to stays', () => {

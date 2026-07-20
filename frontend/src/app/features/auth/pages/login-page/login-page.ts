@@ -38,9 +38,9 @@ export class LoginPage {
   readonly username = signal('');
   readonly password = signal('');
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly usernameError = signal<string | null>(null);
-  readonly passwordError = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
+  readonly usernameError = this.i18nService.createErrorSignal();
+  readonly passwordError = this.i18nService.createErrorSignal();
 
   submit(): void {
     this.error.set(null);

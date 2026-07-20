@@ -69,7 +69,7 @@ export class StaysOverviewPage {
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {

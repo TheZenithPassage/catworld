@@ -1,10 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
+import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
@@ -149,6 +152,65 @@ describe('StaysOverviewPage', () => {
 
     expect(component.error()).toBe('stay: cannot cancel');
     expect(fixture.nativeElement.textContent).toContain('stay: cannot cancel');
+  });
+
+  it('clears its rendered error without resetting filters, loaded rows, or pending work', () => {
+    createComponent();
+    const cancellationRequest = new Subject<Stay>();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const i18nService = TestBed.inject(I18nService);
+    const initialLanguage = i18nService.language();
+    const searchFiltersComponent = fixture.debugElement.query(
+      By.directive(StaySearchFiltersComponent),
+    ).componentInstance as StaySearchFiltersComponent;
+    const catOption = searchFiltersComponent
+      .catOptions()
+      .find((option) => option.catId === 'cat-1');
+
+    expect(catOption).toBeDefined();
+
+    searchFiltersComponent.selectCat(catOption!);
+    component.setStatusVisibility('cancelled', false);
+    stayApiService.cancelStay.mockReturnValueOnce(cancellationRequest.asObservable());
+    component.cancelStay(reservedStay);
+    component.error.set('Error in the previous language');
+    fixture.detectChanges();
+
+    const loadedStays = component.stays();
+    const searchFilters = component.searchFilters();
+    const statusVisibility = component.statusVisibility();
+
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(component.error()).toBe('Error in the previous language');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'Error in the previous language',
+    );
+    expect(component.cancellingStayId()).toBe('stay-1');
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+    expect(stayApiService.cancelStay).toHaveBeenCalledTimes(1);
+
+    i18nService.toggleLanguage();
+    fixture.detectChanges();
+
+    expect(i18nService.language()).not.toBe(initialLanguage);
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(component.searchFilters()).toEqual(searchFilters);
+    expect(searchFiltersComponent.selectedCatId()).toBe('cat-1');
+    expect(searchFiltersComponent.catSearch()).toBe(catOption!.label);
+    expect(component.statusVisibility()).toEqual(statusVisibility);
+    expect(component.stays()).toBe(loadedStays);
+    expect(component.filteredStays()).toEqual([reservedStay]);
+    expect(component.cancellingStayId()).toBe('stay-1');
+    expect(fixture.nativeElement.querySelector('#stay-stay-1')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('#stay-stay-2')).toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('button[mat-stroked-button][disabled]'),
+    ).not.toBeNull();
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+    expect(stayApiService.cancelStay).toHaveBeenCalledTimes(1);
+
+    cancellationRequest.complete();
   });
 
   it('filters stays by status visibility and shows empty states outside the Material table', async () => {

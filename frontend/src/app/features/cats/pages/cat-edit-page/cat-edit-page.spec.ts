@@ -7,6 +7,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Vet } from '../../../vets/models/vet.model';
@@ -281,5 +282,56 @@ describe('CatEditPage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       'Cat could not be updated',
     );
+  });
+
+  it('clears every rendered error on a distinct language change without resetting loaded form state', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('');
+    component.birthDate.set('');
+    component.sex.set('');
+    component.ownerId.set('');
+    component.personality.set('Still curious');
+    fixture.detectChanges();
+    await submitRenderedForm();
+
+    component.error.set('cat edit page error');
+    component.nameError.set('cat edit name error');
+    component.birthDateError.set('cat edit birth date error');
+    component.sexError.set('cat edit sex error');
+    component.ownerIdError.set('cat edit owner error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const renderedFieldErrors = getMaterialErrorText();
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain('cat edit page error');
+    expect(renderedFieldErrors).toContain('cat edit name error');
+    expect(renderedFieldErrors).toContain('cat edit birth date error');
+    expect(renderedFieldErrors).toContain('cat edit sex error');
+    expect(renderedFieldErrors).toContain('cat edit owner error');
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect([
+      component.error(),
+      component.nameError(),
+      component.birthDateError(),
+      component.sexError(),
+      component.ownerIdError(),
+    ]).toEqual([null, null, null, null, null]);
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(getMaterialErrorText()).toBe('');
+    expect(component.personality()).toBe('Still curious');
+    expect(
+      (compiled.querySelector('textarea[name="personality"]') as HTMLTextAreaElement).value,
+    ).toBe('Still curious');
+    expect(component.catLoaded()).toBe(true);
+    expect(component.owners()).toEqual(owners);
+    expect(component.vets()).toEqual(vets);
+    expect(catApiService.getCatById).toHaveBeenCalledTimes(1);
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
   });
 });

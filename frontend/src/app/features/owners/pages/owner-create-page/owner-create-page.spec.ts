@@ -7,6 +7,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerCreatePage } from './owner-create-page';
 
@@ -199,5 +200,45 @@ describe('OwnerCreatePage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       'fullName: already exists',
     );
+  });
+
+  it('clears every rendered error on a distinct language change without resetting form state', async () => {
+    component.address.set('1 Cat Lane');
+    component.secondaryPhone.set('555-2222');
+    fixture.detectChanges();
+    await submitRenderedForm();
+
+    component.error.set('owner create page error');
+    component.fullNameError.set('owner create full name error');
+    component.primaryPhoneError.set('owner create primary phone error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const renderedFieldErrors = getMaterialErrorText();
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'owner create page error',
+    );
+    expect(renderedFieldErrors).toContain('owner create full name error');
+    expect(renderedFieldErrors).toContain('owner create primary phone error');
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect([component.error(), component.fullNameError(), component.primaryPhoneError()]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(getMaterialErrorText()).toBe('');
+    expect(component.address()).toBe('1 Cat Lane');
+    expect(component.secondaryPhone()).toBe('555-2222');
+    expect((compiled.querySelector('input[name="address"]') as HTMLInputElement).value).toBe(
+      '1 Cat Lane',
+    );
+    expect(component.submitting()).toBe(false);
+    expect(ownerApiService.createOwner).not.toHaveBeenCalled();
   });
 });

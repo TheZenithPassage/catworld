@@ -67,12 +67,12 @@ export class CatEditPage {
 
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly catLoaded = signal(false);
-  readonly nameError = signal<string | null>(null);
-  readonly birthDateError = signal<string | null>(null);
-  readonly sexError = signal<string | null>(null);
-  readonly ownerIdError = signal<string | null>(null);
+  readonly nameError = this.i18nService.createErrorSignal();
+  readonly birthDateError = this.i18nService.createErrorSignal();
+  readonly sexError = this.i18nService.createErrorSignal();
+  readonly ownerIdError = this.i18nService.createErrorSignal();
 
   private readonly catId = this.route.snapshot.paramMap.get('id');
 

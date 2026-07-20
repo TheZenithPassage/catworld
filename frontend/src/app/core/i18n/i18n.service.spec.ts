@@ -73,4 +73,37 @@ describe('I18nService', () => {
     expect(localStorage.getItem(storageKey)).toBe('es');
     expect(document.documentElement.lang).toBe('es');
   });
+
+  it('creates independent writable error signals', () => {
+    service = TestBed.inject(I18nService);
+
+    const firstError = service.createErrorSignal();
+    const secondError = service.createErrorSignal();
+
+    expect(firstError()).toBeNull();
+    expect(secondError()).toBeNull();
+
+    firstError.set('First error');
+
+    expect(firstError()).toBe('First error');
+    expect(secondError()).toBeNull();
+  });
+
+  it('clears error signals only after the language changes and allows later reuse', () => {
+    service = TestBed.inject(I18nService);
+    const error = service.createErrorSignal();
+
+    error.set('Error en español');
+    service.language.set('es');
+
+    expect(error()).toBe('Error en español');
+
+    service.language.set('en');
+
+    expect(error()).toBeNull();
+
+    error.set('Error in English');
+
+    expect(error()).toBe('Error in English');
+  });
 });

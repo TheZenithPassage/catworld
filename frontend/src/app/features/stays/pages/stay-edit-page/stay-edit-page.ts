@@ -35,7 +35,7 @@ export class StayEditPage {
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly stayLoaded = signal(false);
 
   private readonly stayId = this.route.snapshot.paramMap.get('id');

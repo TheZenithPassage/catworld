@@ -44,6 +44,7 @@ describe('AccountManagementPage', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    localStorage.clear();
     userAccountApiService.getAccounts.mockReturnValue(of([adminAccount, staffAccount]));
     authSessionService.getUsername.mockReturnValue('admin');
     router.navigate.mockResolvedValue(true);
@@ -64,6 +65,7 @@ describe('AccountManagementPage', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
+    localStorage.clear();
   });
 
   it('lists accounts returned by the API', () => {
@@ -305,5 +307,114 @@ describe('AccountManagementPage', () => {
 
     expect(authSessionService.logout).toHaveBeenCalledOnce();
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('clears both rendered account errors while preserving loaded and in-progress state', async () => {
+    const i18nService = TestBed.inject(I18nService);
+    const accountsBefore = component.accounts();
+
+    component.selectRole(staffAccount.id, 'ADMIN');
+    component.username.set(' New Staff ');
+    component.password.set('  secret value  ');
+    component.newAccountRole.set('ADMIN');
+    component.creating.set(true);
+    component.pendingAccountIds.set(new Set([staffAccount.id]));
+    component.loadError.set('Raw backend load detail');
+    component.actionError.set(component.text().accounts.create.errors.usernameRequired);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const renderedErrors = [...fixture.nativeElement.querySelectorAll('.error-message')].map(
+      (error: Element) => error.textContent?.trim(),
+    );
+    expect(renderedErrors).toHaveLength(2);
+    expect(renderedErrors.join(' ')).toContain('Raw backend load detail');
+    expect(renderedErrors.join(' ')).toContain(
+      component.text().accounts.create.errors.usernameRequired,
+    );
+
+    i18nService.language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.loadError()).toBeNull();
+    expect(component.actionError()).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.error-message')).toHaveLength(0);
+    expect(fixture.nativeElement.textContent).not.toContain('Raw backend load detail');
+    expect(component.accounts()).toBe(accountsBefore);
+    expect(component.roleSelections()).toEqual({
+      [adminAccount.id]: 'ADMIN',
+      [staffAccount.id]: 'ADMIN',
+    });
+    expect(component.username()).toBe(' New Staff ');
+    expect(component.password()).toBe('  secret value  ');
+    expect(component.newAccountRole()).toBe('ADMIN');
+    expect(component.creating()).toBe(true);
+    expect(component.pendingAccountIds()).toEqual(new Set([staffAccount.id]));
+
+    const usernameInput = fixture.nativeElement.querySelector(
+      'input[name="username"]',
+    ) as HTMLInputElement;
+    const passwordInput = fixture.nativeElement.querySelector(
+      'input[name="password"]',
+    ) as HTMLInputElement;
+    const createRoleSelect = fixture.nativeElement.querySelector(
+      'select[name="newAccountRole"]',
+    ) as HTMLSelectElement;
+    const staffRoleSelect = fixture.nativeElement.querySelector(
+      `select[name="role-${staffAccount.id}"]`,
+    ) as HTMLSelectElement;
+
+    expect(usernameInput.value).toBe(' New Staff ');
+    expect(passwordInput.value).toBe('  secret value  ');
+    expect(createRoleSelect.value).toBe('ADMIN');
+    expect(staffRoleSelect.value).toBe('ADMIN');
+    expect(userAccountApiService.getAccounts).toHaveBeenCalledOnce();
+    expect(userAccountApiService.createAccount).not.toHaveBeenCalled();
+    expect(userAccountApiService.changeRole).not.toHaveBeenCalled();
+    expect(userAccountApiService.changeEnabled).not.toHaveBeenCalled();
+    expect(authSessionService.logout).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('recreates a cleared account validation error in the selected language', () => {
+    const i18nService = TestBed.inject(I18nService);
+    component.username.set('   ');
+    component.password.set('secret');
+
+    component.createAccount();
+    fixture.detectChanges();
+
+    const spanishError = component.text().accounts.create.errors.usernameRequired;
+    expect(component.actionError()).toBe(spanishError);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      spanishError,
+    );
+
+    i18nService.language.set('en');
+    fixture.detectChanges();
+
+    expect(component.actionError()).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+    expect(component.username()).toBe('   ');
+    expect(component.password()).toBe('secret');
+    expect(userAccountApiService.createAccount).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    component.createAccount();
+    fixture.detectChanges();
+
+    const englishError = component.text().accounts.create.errors.usernameRequired;
+    expect(component.actionError()).toBe(englishError);
+    expect(englishError).not.toBe(spanishError);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      englishError,
+    );
+    expect(fixture.nativeElement.textContent).not.toContain(spanishError);
+    expect(userAccountApiService.createAccount).not.toHaveBeenCalled();
+    expect(userAccountApiService.getAccounts).toHaveBeenCalledOnce();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });

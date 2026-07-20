@@ -4,6 +4,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnersOverviewPage } from './owners-overview-page';
@@ -165,5 +166,37 @@ describe('OwnersOverviewPage', () => {
       component.text().owners.overview.errorLoading,
     );
     expect(fixture.nativeElement.textContent).toContain(component.text().owners.overview.retry);
+  });
+
+  it('clears the rendered page error on a distinct language change without resetting overview state', () => {
+    queryParams = { search: 'Ada', selectedOwnerId: 'owner-1' };
+    createComponent();
+    component.error.set('owners overview page error');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
+      'owners overview page error',
+    );
+    expect(compiled.querySelector('table[mat-table]')).toBeNull();
+
+    const i18nService = TestBed.inject(I18nService);
+    i18nService.language.set(i18nService.language() === 'es' ? 'en' : 'es');
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(compiled.querySelector('[role="alert"]')).toBeNull();
+    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
+    expect(compiled.textContent).toContain('Ada Lovelace');
+    expect(compiled.textContent).not.toContain('Grace Hopper');
+    expect((compiled.querySelector('input[type="search"]') as HTMLInputElement).value).toBe('Ada');
+    expect(compiled.querySelector('#owner-owner-1.selected-row')).not.toBeNull();
+    expect(component.owners()).toEqual(owners);
+    expect(component.searchText()).toBe('Ada');
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.loading()).toBe(false);
+    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(1);
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });

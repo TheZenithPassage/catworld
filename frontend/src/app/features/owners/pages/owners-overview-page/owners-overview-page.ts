@@ -35,7 +35,7 @@ export class OwnersOverviewPage {
 
   readonly owners = signal<Owner[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = this.i18nService.createErrorSignal();
   readonly selectedOwnerId = signal<string | null>(null);
   readonly searchText = signal('');
   readonly displayedColumns = [
