@@ -23,57 +23,14 @@ If the issue is ambiguous, stop and ask for the issue identifier.
 
 ## Shorthand Prompt Routing
 
-When the user prompt consists of a single issue number, issue reference, or
-issue URL, optionally followed by `parallel` or `sequential`, treat the prompt
-as an end-to-end CatWorld issue implementation request.
+When the user prompt identifies exactly one issue number, issue reference, or
+issue URL, treat it as an end-to-end CatWorld issue implementation request.
 
-- Fetch and inspect the issue read-only before choosing the workflow.
-- Use this skill for normal implementable issues and direct child issues.
-- For coordinator issues requested end-to-end without `parallel`, inspect
-  listed sub-issues read-only before workflow selection. If any listed
-  sub-issue is still open, stop with a routing error. If all listed sub-issues
-  are closed, use this skill for the existing sequential end-to-end workflow
-  as a final pass.
-- The closed-sub-issue coordinator final pass is not a separate workflow and
-  must not redo closed sub-issue scope.
-- Treat `parallel` as reserved for clearly identified coordinator issues only.
-  It must not route to legacy coordinator orchestration. After read-only issue
-  classification identifies an eligible coordinator, an explicit `parallel`
-  request routes only to
-  `.agents/skills/catworld-parallel-coordinator/SKILL.md` and is outside this
-  sequential skill. If sidecar preflight blocks, do not fall back to sequential
-  implementation.
-- If the issue is not a coordinator issue and the prompt includes `parallel`,
-  stop with a routing error instead of ignoring the flag.
-- Treat `sequential` as a request to keep the current sequential workflow
-  guardrails. Normal implementable issues and direct child issues use this
-  skill.
+- Fetch and inspect the issue read-only before branch preparation.
+- Use this skill as the only repository implementation route; additional
+  wording such as `parallel` or `sequential` does not select another mode.
 - If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
-- If the issue cannot be classified after reading it, stop and report the
-  ambiguity.
-- Issues #220 through #234 must not route through parallel mode; use the current
-  sequential workflow guardrails only.
-
-## Coordinator Issue Boundary
-
-This skill implements one concrete CatWorld issue, including a normal
-implementable issue, a direct child issue, or a coordinator final pass after all
-listed sub-issues are closed.
-
-A coordinator `parallel` request routed to the sidecar skill by the active
-`AGENTS.md` predicate is outside this skill. Do not copy sidecar lifecycle,
-artifact, Git, handoff, resume, validation, or PR-delivery behavior here.
-
-If an issue body clearly indicates a coordinator issue and the request remains
-in this sequential skill, do not prepare an issue branch until listed
-sub-issues have been inspected read-only. Stop with a routing error when any
-listed sub-issue is still open. When all listed sub-issues are closed, continue
-with this skill as the existing sequential end-to-end workflow for a final pass
-only, without redoing closed sub-issue scope.
-
-Fetch or read the issue body read-only before branch preparation when needed to
-decide this boundary.
 
 ## Repository Boundaries
 
@@ -131,28 +88,6 @@ Examples:
 - `fix/201-stay-date-validation`
 - `docs/210-update-operations-guide`
 
-## Sidecar Sub-Issue Compatibility
-
-This skill does not implement full multi-agent orchestration, automatic
-worktree management, or branch-to-branch integration between work branches.
-Those concerns belong to the separately defined sidecar workflow for eligible
-explicit coordinator `parallel` requests, not this sequential workflow.
-
-- Coordinator issues may split work into sub-issues when dependencies and
-  conflict risks are understood.
-- Do not route coordinator issues to a separate orchestration workflow by
-  default. Only an eligible explicit coordinator `parallel` request routes to
-  the sidecar coordinator workflow.
-- Hard-dependent sub-issues must not be parallelized blindly.
-- Sidecar child agents must inherit the same governing context as the principal
-  agent, including repository instructions, Spec Kit artifacts, issue body,
-  linked sub-issues, parent/coordinator issue, relevant documentation, and
-  current `main`.
-- Sub-agents are implementation executors, not product or architecture decision
-  makers.
-- When a sub-agent encounters ambiguity, missing context, conflict, or an
-  unresolved decision, it must stop and report back instead of guessing.
-
 ## Workflow
 
 Run this flow in order:
@@ -205,11 +140,7 @@ Run this flow in order:
       justification, especially late cleanup touching shared shell, global styles,
       shared components, routing, contracts, migrations, authorization, persistence,
       security, or other cross-cutting surfaces.
-17. Inspect local active-feature state before the final report:
-    - If `AGENTS.md` changed only because of the `SPECKIT START` / `SPECKIT END`
-      active plan pointer, restore that block to the `main` version.
-    - Do not remove or rewrite permanent `AGENTS.md` instructions.
-18. After implementation and required validation, if the current branch is not
+17. After implementation and required validation, if the current branch is not
     `main`, commit the scoped changes with a conventional commit title, push the
     active issue branch to `origin` with a normal non-force push, and open or
     update a pull request targeting `main`.
@@ -220,16 +151,13 @@ Run this flow in order:
     - If validation is failed or incomplete but the branch is still useful for
       review, open or update a draft pull request only when the validation
       status is clearly reported.
-    - For sub-issues, close only the implemented child issue and reference the
-      parent/coordinator issue as related work. Do not close the coordinator
-      issue unless it is explicitly complete.
     - Do not post public GitHub comments or modify GitHub issues unless the
       user explicitly requests those operations.
     - After the pull request is opened or updated successfully, switch the local
       checkout back to `main`. Do not pull, merge, rebase, prune remotes, delete
       branches, or otherwise update `main` unless the user explicitly requests
       that maintenance operation.
-19. Report final status with:
+18. Report final status with:
     - concise summary;
     - validation commands executed and explicit statuses;
     - scope-drift review results;
@@ -310,4 +238,3 @@ description.
   - the blocker that prevented delivery;
   - suggested commit title;
   - suggested pull request description.
-- The `AGENTS.md` active plan pointer is restored before the final report when it was changed only as local workflow state.

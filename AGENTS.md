@@ -3,7 +3,6 @@
 ## Required Context
 
 * Read `.specify/memory/constitution.md` before planning or implementing work.
-* Coordinator GitHub issues are not routed to a separate orchestration workflow by default. For end-to-end requests, use the routing guardrails below before entering the existing sequential implementation workflow.
 * For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
@@ -11,50 +10,21 @@
 
 ## Shorthand Issue Prompt Routing
 
-When the user prompt contains only one GitHub issue number or issue URL,
-optionally followed by `parallel` or `sequential`, treat it as an end-to-end
-CatWorld issue implementation request.
+When the user prompt identifies exactly one GitHub issue by bare number, issue
+reference such as `#148`, or issue URL, treat it as an end-to-end CatWorld issue
+implementation request and route it to
+`.agents/skills/catworld-implement-issue/SKILL.md` after fetching and inspecting
+the issue read-only.
 
-* Bare numbers such as `148`, issue references such as `#148`, and issue URLs
-  route to issue implementation after Codex fetches and inspects the issue
-  read-only.
-* Normal implementable issues and direct child issues use
-  `.agents/skills/catworld-implement-issue/SKILL.md`.
-* Coordinator issues requested end-to-end without `parallel` must be inspected
-  read-only for listed sub-issues before workflow selection. If any listed
-  sub-issue is still open, stop with a routing error. If all listed sub-issues
-  are closed, use `.agents/skills/catworld-implement-issue/SKILL.md` for the
-  existing sequential end-to-end workflow as a final pass.
-* The closed-sub-issue coordinator final pass is not a separate workflow and
-  must not redo closed sub-issue scope.
-* The `parallel` keyword is reserved for a clearly identified coordinator issue
-  and must not route to legacy coordinator orchestration. An explicit
-  coordinator `parallel` request routes only to
-  `.agents/skills/catworld-parallel-coordinator/SKILL.md` for its controlled
-  read-only classification and preflight. The sidecar workflow may proceed only
-  when that preflight establishes complete, current, consistent, and safe
-  context. Missing, ambiguous, duplicated, stale, unsafe, or inconsistent
-  evidence stops with an explicit blocker before downstream sidecar mutation.
-* If the issue is not a coordinator issue, including when it is a direct child,
-  and the prompt includes `parallel`, stop with a routing error instead of
-  ignoring the flag or falling back to sequential execution.
-* The `sequential` keyword keeps normal implementable issues and direct child
-  issues on the existing sequential workflow. For coordinator issues, apply the
-  open-sub-issue and closed-sub-issue guardrails above.
-* Never infer parallel mode from a bare issue number, issue reference, or issue
-  URL.
-* Issues #220 through #234 must not route through parallel mode; use the current
-  sequential workflow guardrails only. This exclusion remains in force after
-  controlled sidecar routing activation.
+* Additional wording such as `parallel` or `sequential` does not change this
+  route or activate another implementation mode.
 * If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
-* If the issue cannot be classified as a normal implementable issue or a
-  coordinator issue after reading it, stop and report the ambiguity.
 
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or the exact recorded branch/worktree operations of a routing-authorized sidecar run.
-* Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed or required by the exact recorded control/runtime refs of a routing-authorized sidecar run.
+* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request.
+* Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
 

@@ -16,42 +16,6 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Pre-Execution Checks
-
-**Check for extension hooks (before specification)**:
-- Check if `.specify/extensions.yml` exists in the project root.
-- If it exists, read it and look for entries under the `hooks.before_specify` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
-- For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
-
-    **Optional Pre-Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-  - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Outline.
-    ```
-    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
-
 ## Outline
 
 The text the user typed after `/speckit-specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `$ARGUMENTS` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
@@ -70,13 +34,7 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Branch creation** (optional, via hook):
-
-   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
-
-   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
-
-3. **Create the spec feature directory**:
+2. **Create the spec feature directory**:
 
    Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
 
@@ -92,8 +50,7 @@ Given that feature description, do this:
 
    **Create the directory and spec file**:
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Resolve the active `spec-template` through the Spec Kit preset/template resolution stack (equivalent to `specify preset resolve spec-template`)
-   - Copy the resolved `spec-template` file to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Copy `.specify/templates/spec-template.md` to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Persist the resolved path to `.specify/feature.json`:
      ```json
@@ -107,13 +64,13 @@ Given that feature description, do this:
    **IMPORTANT**:
    - You must only create one feature per `/speckit-specify` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
-   - The spec directory and file are always created by this command, never by the hook
+   - The spec directory and file are always created by this command
 
-4. Load the resolved active `spec-template` file to understand required sections.
+3. Load `.specify/templates/spec-template.md` to understand required sections.
 
-5. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
+4. **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints.
 
-6. Follow this execution flow:
+5. Follow this execution flow:
     1. Parse user description from arguments
        If empty: ERROR "No feature description provided"
     2. Extract key concepts from description
@@ -196,7 +153,7 @@ Given that feature description, do this:
       ## Notes
 
       - For non-applicable criteria, replace the checkbox marker with `- [x] Criterion — N/A: short reason` instead of forcing false positives.
-      - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+      - Items marked incomplete require spec updates before `/speckit-plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -205,7 +162,7 @@ Given that feature description, do this:
 
    c. **Handle Validation Results**:
 
-      - **If all items pass or are justified as N/A**: Mark checklist complete and proceed to the Mandatory Post-Execution Hooks section
+      - **If all items pass or are justified as N/A**: Mark checklist complete and proceed to the Completion Report
 
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
@@ -250,50 +207,15 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-## Mandatory Post-Execution Hooks
-
-**You MUST complete this section before reporting completion to the user.**
-
-Check if `.specify/extensions.yml` exists in the project root.
-- If it does not exist, or no hooks are registered under `hooks.after_specify`, skip to the Completion Report.
-- If it exists, read it and look for entries under the `hooks.after_specify` key.
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue to the Completion Report.
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- When constructing slash commands from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `/speckit-git-commit`.
-- For each executable hook, output the following based on its `optional` flag:
-  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
-    ```
-    ## Extension Hooks
-
-    **Automatic Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-    ```
-    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
-
-    **Optional Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-
 ## Completion Report
 
 Report completion to the user with:
 - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
 - `SPEC_FILE` — the spec file path
 - Checklist results summary
-- Readiness for the next phase (`/speckit-clarify` or `/speckit-plan`)
+- Readiness for the next phase (`/speckit-plan`)
 
-**NOTE:** Branch creation is handled outside this core command, either by a project-specific orchestration skill or by a configured before_specify hook. This command must not assume that a branch was created.
+**NOTE:** Branch creation is handled outside this core command. This command must not assume that a branch was created.
 
 ## Quick Guidelines
 
@@ -363,5 +285,4 @@ Success criteria must be:
 ## Done When
 
 - [ ] Specification written to `SPEC_FILE` and validated against quality checklist
-- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with feature directory, spec file path, and checklist results
