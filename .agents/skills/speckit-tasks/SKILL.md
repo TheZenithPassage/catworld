@@ -37,7 +37,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Generate dependency graph showing user story or technical outcome completion order
    - Create parallel execution examples per user story or technical outcome
    - Validate task completeness (each user story or technical outcome has all needed implementation and evidence tasks, independently testable where the artifacts support it)
-   - For validation matrices, generate tasks that prove the matrix rows at the appropriate layer. For forms and similar validation surfaces, consider empty string, whitespace-only string when trim-based validation exists, valid value, invalid format, boundary dates or numbers, missing optional vs required values, role-dependent permissions, stale state, and backend-rejected state when applicable.
+   - Consolidate related requirements, acceptance criteria, contracts, matrix rows, files, pages, surfaces, or equivalent consumers into one implementation or evidence task when they describe the same underlying behavior. Preserve traceability by naming the covered behavior and the aggregate completeness check rather than multiplying task rows.
+   - Group repetitive consumer migration into one or a few practical tasks and verify completeness with a directed search, inventory, compilation, build, existing test suite, or other proportional check. Do not create separate tasks or tests solely because the same mechanism appears in several equivalent consumers.
+   - Keep tasks separate when implementation, observable behavior, responsible layer, dependency, risk, or required evidence is materially different.
+   - For validation matrices, generate enough evidence work to prove the relevant rows at the appropriate layer. One broader task may cover several rows when the same mechanism and evidence prove them; state that coverage instead of repeating equivalent tasks. For forms and similar validation surfaces, consider empty string, whitespace-only string when trim-based validation exists, valid value, invalid format, boundary dates or numbers, missing optional vs required values, role-dependent permissions, stale state, and backend-rejected state when applicable.
    - For semantic-equivalence reviews, generate proof tasks that compare preserved behavior against the recorded old behavior/source of truth and the new component/framework semantics.
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
@@ -45,7 +48,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for affected user stories or technical outcomes)
    - Phase 3+: One phase per user story or technical outcome (in priority or dependency order from spec.md)
-   - Each phase includes: goal, independent test criteria, required evidence tasks when demanded by the specification, constitution, plan validation evidence section, semantic-equivalence review, validation matrix, or feature risk, and implementation tasks
+   - Each phase includes: goal, independent test criteria, required implementation and evidence coverage when demanded by the specification, constitution, plan validation evidence section, semantic-equivalence review, validation matrix, or feature risk
    - Final Phase: Polish & cross-cutting concerns
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
@@ -84,6 +87,21 @@ assertion, focus/keyboard check, contract/controller/service/persistence/
 security/migration validation, focused review, or manual visible smoke check
 when automation cannot fully prove the behavior.
 
+### Coverage Consolidation
+
+- One task MAY cover multiple related requirements, acceptance criteria,
+  contracts, matrix rows, or equivalent consumers when they describe the same
+  implementation behavior or can be proved by the same adequate evidence.
+- Traceability is many-to-one when appropriate. Make the grouped task's scope
+  and verification explicit; do not duplicate tasks merely to create one row
+  per generated statement, file, page, surface, or consumer.
+- For repetitive consumer work, prefer one or a few bounded migration tasks plus
+  a directed search, inventory, compilation, build, existing test suite, or
+  other aggregate completeness check.
+- Separate tasks remain required when behavior, implementation responsibility,
+  dependency order, risk, or evidence is materially different. Consolidation
+  MUST NOT hide constitution-required evidence or unresolved decisions.
+
 ### Evidence Requirements
 
 1. **Frontend-visible behavior**:
@@ -98,7 +116,7 @@ when automation cannot fully prove the behavior.
    - Persistence and migrations need Flyway/schema/data-integrity evidence proportional to risk.
 
 3. **Validation and state matrices**:
-   - For each matrix row in spec.md or plan.md, generate an evidence task or explicitly justify why an existing broader task covers it.
+   - Ensure every relevant matrix behavior is covered at the appropriate layer, but allow one adequate evidence task to cover several related rows. State the grouped coverage or aggregate check instead of generating one task per row.
    - Distinguish blocked action, API-call behavior, visible error/conflict, value transformation or preservation, and correction behavior when in scope.
 
 4. **Scope and freshness**:
@@ -147,6 +165,8 @@ Every task MUST strictly follow this format:
      - Services needed for that story or outcome
      - Interfaces/UI needed for that story or outcome
      - Evidence tasks required for that story or outcome by the specification, constitution, plan validation evidence section, semantic-equivalence review, validation matrix, or feature risk
+   - Multiple related requirements or components MAY map to the same task when
+     the Coverage Consolidation rules are satisfied.
    - Mark dependencies between stories or outcomes; most product stories should be independent unless the artifacts document real dependencies
 
 2. **From Contracts**:
