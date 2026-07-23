@@ -9,6 +9,6 @@
     ".specify/scripts/powershell/setup-tasks.ps1": "54f0ff4a240bed082f144b896f4a8b7fb3bc9ec9f2e40826a8d6ebda32a27831",
     ".specify/templates/plan-template.md": "c9f0749991b62c1ec39ebd1f88884dfc315598930f2d7d70c967ce3fd2247e93",
     ".specify/templates/spec-template.md": "d38d507e4d921b5263c95e34dbc8ae2aed03e54415a4afd691e155db7866e600",
-    ".specify/templates/tasks-template.md": "10b1231a989f8ab484fd0b2bb8c858d0a85f17013ca522b6e17d197376e8ef0f"
+    ".specify/templates/tasks-template.md": "4ab8483c64e82535a73ef9b7016649028932c127c3260731b5c735dcfc49fa1f"
   }
 }

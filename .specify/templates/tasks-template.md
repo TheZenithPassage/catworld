@@ -18,14 +18,18 @@ or manual visible smoke check when automation cannot fully prove the behavior.
 
 **Organization**: Tasks are grouped by independently verifiable user journeys
 when natural, or by dependency-driven verifiable technical outcomes for
-technical/enabling work.
+technical/enabling work. Related requirements and equivalent consumers may
+share an implementation or evidence task when they describe the same underlying
+behavior; materially different behavior remains separately actionable.
 
 ## Format: `[ID] [P?] [Trace] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Trace]**: Which user story or technical outcome this task belongs to
   (e.g., US1, US2, TO1)
-- Include exact file paths in descriptions
+- Include exact file paths in descriptions. For repetitive consumer work, a
+  precise directory or bounded pattern plus an inventory/completeness check may
+  replace a repetitive file-by-file task list.
 
 ## Path Conventions
 
@@ -34,7 +38,8 @@ technical/enabling work.
 - **Backend tests**: `src/test/java/`
 - **Frontend source and tests**: `frontend/src/`
 - Generated tasks MUST use exact file paths and include only paths relevant to
-  the feature.
+  the feature, except that grouped repetitive-consumer tasks may use a precise
+  directory or bounded pattern with an explicit aggregate completeness check.
 
 ## Architecture and Technology Assessment Gate
 
@@ -76,9 +81,11 @@ and validation evidence plans.
   frontend role visibility or navigation evidence when the UI changes.
 - Persistence and migrations need Flyway/schema/data-integrity evidence
   proportional to risk.
-- Validation matrices need evidence for relevant rows, including blocked
+- Validation matrices need evidence for relevant behavior, including blocked
   action, API-call behavior, visible feedback, value transformation or
-  preservation, and correction behavior when in scope.
+  preservation, and correction behavior when in scope. One adequate evidence
+  task may cover several related rows; do not require one task or test per row
+  when the same mechanism and proof apply.
 - Semantic-equivalence reviews need proof tasks that compare preserved behavior
   against the recorded old behavior/source of truth and new mechanism
   semantics.
@@ -88,6 +95,22 @@ and validation evidence plans.
   behavior is scoped to surfaces that still depend on it.
 - Validation tasks are complete only when the required evidence passed after
   the latest relevant change.
+
+## Coverage Consolidation Rules
+
+- One implementation or evidence task MAY cover multiple related requirements,
+  acceptance criteria, contracts, matrix rows, files, pages, surfaces, or
+  equivalent consumers when they describe the same underlying behavior.
+- Do not create separate tasks or tests solely because the same mechanism
+  appears in several equivalent consumers. Group repetitive migration into one
+  or a few practical tasks and prove completeness with a directed search,
+  inventory, compilation, build, existing test suite, or other proportional
+  check.
+- Keep tasks separate when implementation, observable behavior, responsible
+  layer, dependency, risk, or required evidence is materially different.
+- Consolidation MUST preserve explicit traceability and all
+  constitution-required evidence; it must not hide unresolved decisions or
+  uncovered behavior.
 
 <!--
   ============================================================================
@@ -103,7 +126,9 @@ and validation evidence plans.
   journeys, or by verifiable technical outcome where the work is technical,
   architectural, migration, security, operational, refactoring, or enabling.
   Do not create artificial user stories, independent deployment steps, or
-  parallel task groups when the feature artifacts do not support them.
+  parallel task groups when the feature artifacts do not support them. Do not
+  expand one shared mechanism into one task per file, page, surface, or
+  equivalent consumer.
 
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================

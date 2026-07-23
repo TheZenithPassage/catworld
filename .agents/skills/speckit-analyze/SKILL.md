@@ -82,7 +82,7 @@ Create internal representations (do not include raw artifacts in output):
 - **User story/action inventory**: Discrete user actions with acceptance criteria
 - **Technical outcome inventory**: Verifiable Technical Outcomes (TO-###), their acceptance scenarios, and validation evidence.
 - **Evidence expectation inventory**: Observable behavior details, validation matrix rows, semantic-equivalence proof requirements, and validation evidence plan entries. Classify each expectation by layer: visible UI, routed navigation, focus/keyboard, manual visible smoke, controller/API contract, service/business rule, authorization/security, persistence/migration, mobile/device, i18n, shared component, global style, documentation/source of truth, or operational safety.
-- **Task coverage mapping**: Map each task to one or more requirements, user stories, acceptance scenarios, or technical outcomes (inference by keyword / explicit reference patterns like FR-/TR-/SC-/US-/TO- IDs or key phrases)
+- **Task coverage mapping**: Map each task to one or more requirements, user stories, acceptance scenarios, or technical outcomes (inference by keyword / explicit reference patterns like FR-/TR-/SC-/US-/TO- IDs or key phrases). Accept many-to-one coverage when one task adequately implements or proves several related statements; coverage depends on the described behavior and evidence, not on matching task counts.
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
 
 ### 4. Detection Passes (Token-Efficient Analysis)
@@ -93,6 +93,12 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 - Identify near-duplicate requirements
 - Mark lower-quality phrasing for consolidation
+- Identify tasks that repeat the same implementation or evidence work without a
+  materially different behavior, responsible layer, dependency, risk, or proof
+  obligation
+- Report genuinely duplicate tasks as redundancy to consolidate before
+  implementation; do not treat separate tasks as redundant when they protect
+  distinct behavior or evidence
 
 #### B. Ambiguity Detection
 
@@ -112,10 +118,14 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 #### E. Coverage Gaps
 
-- Requirements with zero associated tasks
+- Requirements with no task that adequately covers their behavior or evidence.
+  Do not report missing coverage solely because several related requirements,
+  acceptance criteria, contracts, matrix rows, or technical outcomes map to one
+  sufficient task.
 - Tasks with no mapped requirement, user story, acceptance scenario, or technical outcome
 - Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
-- Technical Requirements or Verifiable Technical Outcomes with zero associated tasks or missing evidence language
+- Technical Requirements or Verifiable Technical Outcomes with no adequate task
+  coverage or missing evidence language
 
 #### F. Inconsistency
 
@@ -162,7 +172,9 @@ Output a Markdown report (no file writes) with the following structure:
 |-----------------|-----------|----------|-------|
 
 Include FR, TR, buildable SC, user-story acceptance scenario, and TO keys in
-the coverage table when those categories exist.
+the coverage table when those categories exist. Reusing one task ID across
+several related rows is valid many-to-one coverage when the task is adequate;
+note the shared behavior rather than manufacturing separate task mappings.
 
 **Constitution Alignment Issues:** (if any)
 

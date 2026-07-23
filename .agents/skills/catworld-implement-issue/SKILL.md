@@ -115,10 +115,25 @@ Run this flow in order:
      shared-contract, architecture, UX, correctness-sensitive, or operational decision is unresolved.
 9. Run `speckit-tasks`.
 10. Run `speckit-analyze`.
-11. If it reports inconsistencies, resolve only safe mechanical artifact inconsistencies before implementation,
-   such as broken references, inconsistent names, missing checklist status, or
-   task/spec wording drift that does not change approved scope, and rerun `speckit-analyze`. Stop when a
-   conflict cannot be mechanically reconciled without changing approved scope or if material inconsistencies remain.
+11. If it reports inconsistencies or genuinely duplicate generated tasks,
+   resolve only safe mechanical artifact inconsistencies and safe redundancy
+   before implementation:
+   - Consolidate tasks only when they repeat the same underlying implementation
+     or evidence behavior. Preserve separate tasks when behavior, responsible
+     layer, dependency, risk, or required proof is materially different.
+   - Preserve explicit coverage for every requirement and all
+     constitution-, specification-, plan-, contract-, matrix-, and risk-required
+     evidence. A broader task may cover several related statements when that
+     coverage is clear and adequate.
+   - Treat the GitHub issue as the scope boundary. Repeated generated wording
+     MUST NOT enlarge approved work during consolidation or remediation.
+   - Safe mechanical fixes also include broken references, inconsistent names,
+     missing checklist status, or task/spec wording drift that does not change
+     approved scope.
+   - Rerun `speckit-analyze` after any task or artifact edit and before
+     `speckit-implement`.
+   Stop when a conflict cannot be mechanically reconciled without changing
+   approved scope or if material inconsistencies remain.
 12. Run `speckit-implement`.
 13. When an approved implementation materially changes documented architecture
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
