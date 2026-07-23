@@ -92,8 +92,11 @@ Examples:
 
 Determine whether new permanent automated test coverage is authorized from the
 GitHub issue, the constitution, and the materially affected risk before
-implementation. New permanent coverage means a committed, maintained test file
-or a new maintained scenario in an existing test file.
+implementation. New permanent coverage means any committed, maintained test
+change that adds or materially broadens coverage of the changed behavior. This
+includes new test files, new scenarios, new parameterized cases, new assertions
+or branches, fixtures or test helpers added to cover the change, and material
+expansion of an existing scenario.
 
 New permanent coverage is authorized without an additional human decision only
 when at least one of these applies:
@@ -116,9 +119,13 @@ coverage. None of the following independently authorizes it:
 
 The GitHub issue and constitution are authoritative. Generated specifications,
 plans, matrices, tasks, analysis, and convergence output MUST NOT independently
-authorize permanent coverage. If generated artifacts request unauthorized
-permanent tests, remove or consolidate that generated overreach instead of
-stopping for a human decision.
+authorize permanent coverage. Unauthorized permanent coverage MUST be removed.
+Consolidation does not authorize it and MUST NOT allow several unauthorized
+test tasks or changes to survive as one permanent test. If a generated task
+mixes valid validation with unauthorized permanent coverage, rewrite it to
+preserve only existing-suite execution, compilation, build, directed
+inspection, focused review, or temporary/manual validation. Resolve generated
+overreach this way instead of stopping for a human decision.
 
 If an uncategorized change has exceptional material risk, complexity, or
 regression cost that Codex believes warrants maintained coverage, stop and
@@ -126,10 +133,10 @@ request explicit human authorization before creating it. Codex MUST NOT
 self-authorize through its own plan or risk assessment.
 
 Minimal edits to existing tests are allowed without additional authorization
-only when necessary to align existing coverage with an explicitly approved
-behavior change or to repair a test directly broken by the implementation.
-Those edits MUST NOT add scenarios, broaden coverage, or duplicate consumers
-under the guise of maintenance.
+only when directly necessary to align an existing assertion with explicitly
+approved behavior or to repair a test directly broken by the implementation,
+without broadening what the test covers. Those edits MUST NOT add scenarios,
+broaden coverage, or duplicate consumers under the guise of maintenance.
 
 This gate does not reduce validation. Preserve tasks that run existing suites,
 compilation, builds, directed inspection, focused review, or temporary/manual
@@ -186,10 +193,13 @@ Run this flow in order:
     `speckit-implement`:
     - Determine authorization from the GitHub issue, constitution, and
       materially affected risk using the rules above.
-    - Inspect generated tasks for work that creates new test files or new
-      scenarios in existing tests.
-    - Remove or consolidate unauthorized permanent-test tasks while preserving
-      authorized tests and all selected non-permanent validation.
+    - Inspect generated tasks for any committed test change that adds or
+      materially broadens coverage of the changed behavior.
+    - Remove unauthorized permanent-test work. Do not preserve it by
+      consolidating several unauthorized tasks into one permanent test.
+    - Rewrite any task that mixes valid validation with unauthorized permanent
+      coverage so it retains only existing-suite execution, compilation, build,
+      directed inspection, focused review, or temporary/manual validation.
     - Rerun `speckit-analyze` after any resulting artifact edit and resolve any
       safe mechanical inconsistency before continuing.
     - Do not stop merely because a generated artifact requested tests that the
@@ -201,10 +211,11 @@ Run this flow in order:
 15. Run `speckit-converge`.
 16. After every `speckit-converge` pass, including the additional passes below,
     apply the same permanent-test authorization gate to any appended or changed
-    tasks before another implementation cycle or final validation. Remove or
-    consolidate unauthorized permanent-test tasks, preserve authorized tests
-    and non-permanent validation, and rerun `speckit-analyze` after any
-    resulting artifact edit.
+    tasks before another implementation cycle or final validation. Remove
+    unauthorized permanent-test work instead of preserving it through
+    consolidation. Rewrite mixed tasks to retain only the permitted
+    non-permanent validation, preserve authorized tests, and rerun
+    `speckit-analyze` after any resulting artifact edit.
 17. If converge appends remaining authorized tasks, run `speckit-implement`
     again and then
     `speckit-converge` again.
@@ -223,11 +234,15 @@ Run this flow in order:
       `timed out`, `interrupted`, `partial`, `stale`, or `not revalidated`.
     - Do not summarize timed-out, skipped, interrupted, partial, stale, failed, or
       not-rerun validation as passed.
-22. Before delivery, inspect the complete active-branch diff, including working
-    tree changes, for added test files and new test scenarios in existing test
-    files. Apply the same authorization decision, remove unauthorized coverage,
-    and rerun every selected validation affected by the removal. Do not infer
-    authorization from the presence of a test in the diff.
+22. Before delivery, inspect every added or modified test file in the complete
+    active-branch diff, including working tree changes. Review every test change,
+    including new files, scenarios, parameterized cases, assertions, branches,
+    fixtures, test helpers, and material expansion of existing scenarios.
+    Verify that each change is either authorized permanent coverage or minimal
+    non-broadening maintenance under the rule above. Remove all unauthorized
+    added or broadened coverage and rerun every selected validation affected by
+    the removal. Do not infer authorization from the presence, location, or
+    consolidation of a test change in the diff.
 23. Inspect changed files and surfaces before the final report:
     - Use current working-tree information such as `git status --short` and
       `git diff --name-only` on the active branch only.
@@ -329,8 +344,8 @@ description.
 - Required validations have run or any inability to run them is reported.
 - Validation results are fresh after the latest relevant change, or stale/not-rerun
   checks are explicitly reported as not passed.
-- The final branch diff contains no unauthorized added test files or new test
-  scenarios.
+- The final branch diff contains no unauthorized added or materially broadened
+  permanent automated test coverage.
 - Changed files have been reviewed against the issue/spec/plan/tasks source map.
 - Normal issue delivery is complete when:
   - scoped changes have been committed on the active issue branch;
