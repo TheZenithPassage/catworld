@@ -3,6 +3,11 @@
 ## Required Context
 
 * Read `.specify/memory/constitution.md` before planning or implementing work.
+* Before running Spec Kit for a GitHub issue, also read
+  `docs/ARCHITECTURE.md`.
+* Treat `docs/ARCHITECTURE.md` as the implemented starting state and default
+  implementation context, not as an immutable restriction on approved future
+  changes.
 * For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
@@ -33,6 +38,11 @@ the issue read-only.
 * Do not silently introduce or replace significant frameworks, libraries, architectural patterns, persistence strategies, shared infrastructure, or cross-cutting mechanisms.
 * Follow the approach explicitly approved in the active feature plan.
 * Minor local implementation details remain implementation freedom when they do not trigger the constitution's architecture and technology assessment.
+* When the issue explicitly requires a material architectural change, the plan
+  may implement that change within the approved issue scope.
+* When the issue does not request a material architectural change and Codex
+  concludes that one is necessary, stop and request a human decision instead
+  of selecting the change independently.
 
 ## Validation
 

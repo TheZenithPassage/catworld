@@ -92,13 +92,19 @@ Examples:
 
 Run this flow in order:
 
-1. Read `AGENTS.md`, `.specify/memory/constitution.md`, and the full GitHub
-   issue. Treat them as the scope and decision contract.
-2. Run `speckit-specify` using the issue body as the feature description.
-3. Validate the generated `spec.md` against the issue and constitution. Stop if
-   it changes approved scope or leaves unresolved major decisions.
-4. Run `speckit-plan`.
-5. Inspect the plan decision state before continuing:
+1. Read `AGENTS.md`.
+2. Read `.specify/memory/constitution.md`.
+3. Read `docs/ARCHITECTURE.md` as the implemented starting state and default
+   implementation context, not as an immutable restriction.
+4. Read the full GitHub issue. Treat the issue, repository instructions,
+   constitution, and current architecture as the scope and decision context.
+5. Run `speckit-specify` using the issue body and loaded repository context.
+6. Validate the generated `spec.md` against the issue, constitution, and current
+   architecture. Stop if it changes approved scope, conflicts with the
+   documented starting state without an issue-approved change, or leaves
+   unresolved major decisions.
+7. Run `speckit-plan`.
+8. Inspect the plan decision state before continuing:
    - Continue when `Assessment required: No`.
    - Continue when the plan references a still-applicable prior human-approved
      decision and explains why it applies.
@@ -107,22 +113,25 @@ Run this flow in order:
      or a prior approved plan.
    - Stop when a product behavior, security, authorization, persistence,
      shared-contract, architecture, UX, correctness-sensitive, or operational decision is unresolved.
-6. Run `speckit-tasks`.
-7. Run `speckit-analyze`.
-8. If it reports inconsistencies, resolve only safe mechanical artifact inconsistencies before implementation,
+9. Run `speckit-tasks`.
+10. Run `speckit-analyze`.
+11. If it reports inconsistencies, resolve only safe mechanical artifact inconsistencies before implementation,
    such as broken references, inconsistent names, missing checklist status, or
    task/spec wording drift that does not change approved scope, and rerun `speckit-analyze`. Stop when a
    conflict cannot be mechanically reconciled without changing approved scope or if material inconsistencies remain.
-9. Run `speckit-implement`.
-10. Run `speckit-converge`.
-11. If converge appends tasks, run `speckit-implement` again and then
+12. Run `speckit-implement`.
+13. When an approved implementation materially changes documented architecture
+    or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
+    document as part of the implementation.
+14. Run `speckit-converge`.
+15. If converge appends tasks, run `speckit-implement` again and then
     `speckit-converge` again.
-12. If converge appends tasks again, run at most one more
+16. If converge appends tasks again, run at most one more
     `speckit-implement`/`speckit-converge` cycle.
-13. Stop after at most two extra implement/converge cycles, even if more tasks
+17. Stop after at most two extra implement/converge cycles, even if more tasks
     remain, and report the remaining work.
-14. Run all validations required by the issue, plan, and tasks.
-15. Before treating validation as complete:
+18. Run all validations required by the issue, plan, and tasks.
+19. Before treating validation as complete:
     - Rerun any validation command, test, review, browser-control session, manual smoke
       check, or other evidence affected by relevant changes made after that evidence
       was collected.
@@ -132,7 +141,7 @@ Run this flow in order:
       `timed out`, `interrupted`, `partial`, `stale`, or `not revalidated`.
     - Do not summarize timed-out, skipped, interrupted, partial, stale, failed, or
       not-rerun validation as passed.
-16. Inspect changed files and surfaces before the final report:
+20. Inspect changed files and surfaces before the final report:
     - Use current working-tree information such as `git status --short` and
       `git diff --name-only` on the active branch only.
     - Compare changed paths with the issue, spec, plan, tasks, and source map.
@@ -140,7 +149,7 @@ Run this flow in order:
       justification, especially late cleanup touching shared shell, global styles,
       shared components, routing, contracts, migrations, authorization, persistence,
       security, or other cross-cutting surfaces.
-17. After implementation and required validation, if the current branch is not
+21. After implementation and required validation, if the current branch is not
     `main`, commit the scoped changes with a conventional commit title, push the
     active issue branch to `origin` with a normal non-force push, and open or
     update a pull request targeting `main`.
@@ -157,7 +166,7 @@ Run this flow in order:
       checkout back to `main`. Do not pull, merge, rebase, prune remotes, delete
       branches, or otherwise update `main` unless the user explicitly requests
       that maintenance operation.
-18. Report final status with:
+22. Report final status with:
     - concise summary;
     - validation commands executed and explicit statuses;
     - scope-drift review results;
@@ -187,6 +196,8 @@ Stop and report the blocker when any of these occur:
 - A new human decision is required and not already approved.
 - The plan selects a materially different approach from the approved issue or a
   still-applicable prior approved plan.
+- The issue does not request a material architectural change and implementation
+  would require selecting one without a human decision.
 - Generated artifacts conflict in a way that is not safely mechanical to fix.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
