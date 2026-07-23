@@ -27,7 +27,27 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
    - Identify observable and correctness-sensitive surfaces affected by the feature, including visible UI state, validation, error handling, loading/disabled states, navigation, contracts, authorization, persistence, migrations, security, mobile/device-specific behavior, i18n-visible behavior, shared components, and global styling
-   - Fill a responsible-layer validation evidence plan for those surfaces before task generation. Evidence should point to the layer that can prove the behavior: DOM or Angular Material/CDK harness for visible UI, routed navigation and focus/keyboard checks for interaction behavior, controller/API tests for contracts, service tests for business rules, authorization/security tests for access control, Flyway/schema/data-integrity checks for persistence and migrations, or manual visible-device smoke checks when automation is not enough.
+   - Fill a responsible-layer validation evidence plan before task generation.
+     For each distinct behavior or group of equivalent consumers, choose the
+     smallest evidence sufficient for its actual regression risk and ongoing
+     maintenance value, and record both the selected validation and the reason.
+     Existing tests, compilation, build, directed inspection, focused review,
+     or a temporary/manual check MAY be sufficient. A low-impact presentation
+     change MAY require no new permanent test. Do not assume that observable
+     frontend behavior requires a new DOM, harness, or component test, and do
+     not create one evidence obligation per file, page, field, signal,
+     acceptance criterion, or equivalent consumer.
+   - Require the smallest useful automated test coverage when behavior is
+     important, complex, costly to regress, or constitutionally or otherwise
+     correctness-sensitive enough that maintaining the test is worthwhile.
+     Preserve stronger responsible-layer evidence for business rules,
+     authorization, security, persistence, migrations, shared contracts, and
+     protected invariants. Appropriate evidence may include DOM or Angular
+     Material/CDK harness checks for visible UI, routed navigation and
+     focus/keyboard checks for interaction behavior, controller/API tests for
+     contracts, service tests for business rules, authorization/security tests
+     for access control, and Flyway/schema/data-integrity checks for persistence
+     and migrations.
    - When replacing UI primitives, shared components, interaction mechanisms, presentation mechanisms, or other behavior-preserving mechanisms with mismatch risk, fill a lightweight semantic-equivalence review. Identify old behavior/source of truth, new component/framework semantics, mismatch risks, mitigation, and automated/manual proof. Mark it N/A with a reason when no replacement or migration risk exists.
    - Phase 0: Generate research.md for researchable unknowns only. Resolve
      factual, technical, or repository-verifiable NEEDS CLARIFICATION items
@@ -111,7 +131,10 @@ operational, or correctness-sensitive decisions
 
 3. **Create quickstart validation guide** → `quickstart.md`:
    - Document runnable validation scenarios that prove the feature works end-to-end
-   - Include layer-appropriate evidence from the plan's validation evidence section, and call out any manual visible-device, focus/keyboard, navigation, i18n, authorization, migration, persistence, or contract checks that automation cannot fully prove
+   - Include the selected proportionate evidence and its reason from the plan's
+     validation evidence section. Call out any manual visible-device,
+     focus/keyboard, navigation, i18n, authorization, migration, persistence,
+     or contract checks that the selected automated evidence cannot fully prove.
    - State that validation must be rerun after relevant late changes, or reported as not revalidated rather than passed
    - Include prerequisites, setup commands, test/run commands, and expected outcomes
    - Use links or references to contracts and data model details instead of duplicating them

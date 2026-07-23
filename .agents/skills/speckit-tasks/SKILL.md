@@ -25,7 +25,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Optional**: data-model.md (entities), contracts/ (interface contracts), research.md (decisions), quickstart.md (test scenarios)
    - **IF EXISTS**: Load `.specify/memory/constitution.md` for project principles and governance constraints
    - Note: Not all projects have all documents. Generate tasks based on what's available.
-   - Extract observable behavior details, validation matrices, semantic-equivalence reviews, and validation evidence plans when present. These are evidence requirements, not optional prose.
+   - Extract observable behavior details, validation matrices,
+     semantic-equivalence reviews, and the validation choices and reasons
+     recorded in the plan. Preserve required evidence, but do not convert every
+     row, criterion, surface, or consumer into a new automated-test task.
 
 3. **Execute task generation workflow**:
    - Load plan.md and extract tech stack, libraries, project structure
@@ -48,7 +51,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for affected user stories or technical outcomes)
    - Phase 3+: One phase per user story or technical outcome (in priority or dependency order from spec.md)
-   - Each phase includes: goal, independent test criteria, required implementation and evidence coverage when demanded by the specification, constitution, plan validation evidence section, semantic-equivalence review, validation matrix, or feature risk
+   - Each phase includes: goal, independent verification criteria, required
+     implementation and the proportionate evidence selected by the plan or
+     demanded by the specification, constitution, semantic-equivalence review,
+     validation matrix, or material regression risk
    - Final Phase: Polish & cross-cutting concerns
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
@@ -76,16 +82,21 @@ The tasks.md should be immediately executable - each task must be specific enoug
 user journeys, or by verifiable technical outcome when the work is technical,
 architectural, migration, security, operational, refactoring, or enabling.
 
-**Tests are OPTIONAL by default**: Do not generate test tasks merely as ceremony.
-Generate automated or non-automated evidence tasks when demanded by the
-specification, constitution, plan validation evidence section,
-semantic-equivalence review, validation matrix, or feature risk. A user request
-for TDD also requires test tasks in the relevant phases.
+**Tests are OPTIONAL by default**: Zero new test files is a valid outcome when
+the plan's selected validation is sufficient for the actual regression risk.
+Do not generate a test merely because behavior is observable, changes, has
+several consumers, maps to several artifact statements, or could theoretically
+regress. Generate automated or non-automated evidence tasks when demanded by
+the specification, constitution, the validation and reason recorded in the
+plan, semantic-equivalence review, validation matrix, or material regression
+risk. A user request for TDD also requires test tasks in the relevant phases.
+When new tests are justified, create only the smallest useful set and apply the
+coverage consolidation rules below.
 
-Evidence may be an automated test, DOM/harness check, routed navigation
-assertion, focus/keyboard check, contract/controller/service/persistence/
-security/migration validation, focused review, or manual visible smoke check
-when automation cannot fully prove the behavior.
+Evidence may be existing-suite execution, compilation, build, directed
+inspection, focused review, a temporary/manual check, or a new automated test
+at the responsible layer. The number of files, pages, fields, signals,
+acceptance criteria, or consumers does not determine the number of tests.
 
 ### Coverage Consolidation
 
@@ -105,8 +116,17 @@ when automation cannot fully prove the behavior.
 ### Evidence Requirements
 
 1. **Frontend-visible behavior**:
-   - Do not treat component state, service spies, implementation details, or class-only assertions as sufficient evidence for a user-visible requirement.
-   - Generate DOM assertions, Angular Material/CDK harness checks where appropriate, routed navigation assertions, focus/keyboard checks, or manual visible-device smoke checks when automation is not enough.
+   - Do not assume that a visible or observable change requires a new DOM,
+     Angular Material/CDK harness, or component test. Preserve the plan's
+     selected existing-suite, compilation, build, directed inspection, focused
+     review, temporary/manual, or automated evidence when it is sufficient for
+     the actual risk.
+   - When maintained automated coverage is justified for visible behavior, use
+     DOM assertions, Angular Material/CDK harness checks where appropriate,
+     routed navigation assertions, or focus/keyboard checks at the visible
+     surface. Component state, service spies, implementation details, or
+     class-only assertions do not substitute for visible-surface proof in that
+     case.
    - Include i18n-visible text, responsive/mobile behavior, loading/empty/error/disabled states, destructive confirmations, and role-dependent visibility when in scope.
 
 2. **Backend and contract behavior**:
@@ -122,6 +142,10 @@ when automation cannot fully prove the behavior.
 4. **Scope and freshness**:
    - Add review or validation tasks for shared components, global styles, routing, contracts, migrations, authorization, and other cross-cutting surfaces changed by the plan.
    - Validation tasks are complete only when the evidence passes after the latest relevant change.
+   - Do not add a new test task solely because an acceptance criterion or
+     validation-plan row lacks its own test. Report or task a gap only when the
+     selected aggregate evidence is inadequate for actual risk or a
+     constitutional requirement.
 
 ### Checklist Format (REQUIRED)
 
@@ -164,7 +188,10 @@ Every task MUST strictly follow this format:
      - Models needed for that story or outcome
      - Services needed for that story or outcome
      - Interfaces/UI needed for that story or outcome
-     - Evidence tasks required for that story or outcome by the specification, constitution, plan validation evidence section, semantic-equivalence review, validation matrix, or feature risk
+     - Evidence tasks required for that story or outcome by the specification,
+       constitution, the plan's selected validation and reason,
+       semantic-equivalence review, validation matrix, or material regression
+       risk. Do not manufacture a permanent-test task for each artifact row.
    - Multiple related requirements or components MAY map to the same task when
      the Coverage Consolidation rules are satisfied.
    - Mark dependencies between stories or outcomes; most product stories should be independent unless the artifacts document real dependencies
