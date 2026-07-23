@@ -8,6 +8,7 @@ import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { OwnerApiService } from '../../services/owner-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { OwnerCreatePage } from './owner-create-page';
 
 describe('OwnerCreatePage', () => {
@@ -59,6 +60,31 @@ describe('OwnerCreatePage', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
+  });
+
+  it('clears every visible error on language change while preserving form values', () => {
+    const i18nService = TestBed.inject(I18nService);
+    component.fullName.set('Ada Lovelace');
+    component.primaryPhone.set('555-1111');
+    component.error.set('page error');
+    component.fullNameError.set('name error');
+    component.primaryPhoneError.set('phone error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('page error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect([component.error(), component.fullNameError(), component.primaryPhoneError()]).toEqual([
+      null,
+      null,
+      null,
+    ]);
+    expect(component.fullName()).toBe('Ada Lovelace');
+    expect(component.primaryPhone()).toBe('555-1111');
+    expect(fixture.nativeElement.textContent).not.toContain('page error');
   });
 
   async function submitRenderedForm(): Promise<void> {

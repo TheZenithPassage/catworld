@@ -5,6 +5,7 @@ import { MatInput } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
@@ -52,6 +53,8 @@ export class OwnersOverviewPage {
   );
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => this.error.set(null));
+
     const queryParamMap = this.route.snapshot.queryParamMap;
 
     this.searchText.set(queryParamMap.get('search') ?? '');

@@ -66,6 +66,30 @@ describe('AccountManagementPage', () => {
     TestBed.resetTestingModule();
   });
 
+  it('clears both visible errors on language change without resetting account state', () => {
+    const i18nService = TestBed.inject(I18nService);
+    const accounts = component.accounts();
+    component.username.set('new-staff');
+    component.loadError.set('load error');
+    component.actionError.set('action error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('load error');
+    expect(fixture.nativeElement.textContent).toContain('action error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.loadError()).toBeNull();
+    expect(component.actionError()).toBeNull();
+    expect(component.username()).toBe('new-staff');
+    expect(component.accounts()).toBe(accounts);
+    expect(userAccountApiService.getAccounts).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('load error');
+    expect(fixture.nativeElement.textContent).not.toContain('action error');
+  });
+
   it('lists accounts returned by the API', () => {
     expect(userAccountApiService.getAccounts).toHaveBeenCalledOnce();
     expect(component.accounts()).toEqual([adminAccount, staffAccount]);

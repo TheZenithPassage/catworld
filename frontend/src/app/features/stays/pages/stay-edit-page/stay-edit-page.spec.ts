@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { StayEditPage } from './stay-edit-page';
 
 describe('StayEditPage', () => {
@@ -87,6 +88,28 @@ describe('StayEditPage', () => {
     fixture = TestBed.createComponent(StayEditPage);
     component = fixture.componentInstance;
   }
+
+  it('clears a visible error on language change while preserving stay form values', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    component.notes.set('Keep warm');
+    component.error.set('stay error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('stay error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.startAt()).toBe('2099-01-02T10:00');
+    expect(component.endAt()).toBe('2099-01-09T10:00');
+    expect(component.notes()).toBe('Keep warm');
+    expect(fixture.nativeElement.textContent).not.toContain('stay error');
+  });
 
   it('loads the stay and renders Material edit fields and actions', async () => {
     createComponent();

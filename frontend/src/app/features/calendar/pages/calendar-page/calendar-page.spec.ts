@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CalendarPage } from './calendar-page';
 
 describe('CalendarPage', () => {
@@ -75,6 +76,25 @@ describe('CalendarPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  it('clears a visible calendar error on language change without reloading stays', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    const stays = component.stays();
+    component.error.set('calendar error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('calendar error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.stays()).toBe(stays);
+    expect(stayApiService.getStays).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('calendar error');
+  });
 
   it('renders calendar header actions as Material route controls', () => {
     createComponent();

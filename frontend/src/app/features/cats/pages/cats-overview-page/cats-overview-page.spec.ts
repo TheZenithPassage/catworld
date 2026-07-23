@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CatsOverviewPage } from './cats-overview-page';
 
 describe('CatsOverviewPage', () => {
@@ -90,6 +91,27 @@ describe('CatsOverviewPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  it('clears a visible overview error on language change without reloading cats', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    const cats = component.cats();
+    component.searchText.set('Milo');
+    component.error.set('cats error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('cats error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.cats()).toBe(cats);
+    expect(component.searchText()).toBe('Milo');
+    expect(catApiService.getCats).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('cats error');
+  });
 
   it('renders cat rows through a Material table with existing columns and actions', () => {
     createComponent();

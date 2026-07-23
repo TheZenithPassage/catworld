@@ -6,6 +6,7 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -73,6 +74,8 @@ export class StaysOverviewPage {
   readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => this.error.set(null));
+
     effect(() => {
       this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
     });

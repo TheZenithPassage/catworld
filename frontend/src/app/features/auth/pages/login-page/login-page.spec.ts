@@ -4,11 +4,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { LoginPage } from './login-page';
 
 describe('LoginPage', () => {
@@ -181,6 +182,76 @@ describe('LoginPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('[role="alert"]')?.textContent).toContain(
       component.text().auth.login.errors.invalidCredentials,
+    );
+  });
+
+  it('clears every visible error on language change while preserving credentials', () => {
+    const i18nService = TestBed.inject(I18nService);
+    component.username.set('admin');
+    component.password.set('secret');
+    component.error.set('page error');
+    component.usernameError.set('username error');
+    component.passwordError.set('password error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('page error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.usernameError()).toBeNull();
+    expect(component.passwordError()).toBeNull();
+    expect(component.username()).toBe('admin');
+    expect(component.password()).toBe('secret');
+    expect(fixture.nativeElement.textContent).not.toContain('page error');
+    expect(authApiService.login).not.toHaveBeenCalled();
+  });
+
+  it('regenerates a repeated login error in the newly selected language', () => {
+    const i18nService = TestBed.inject(I18nService);
+    authApiService.login.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 401, statusText: 'Unauthorized' })),
+    );
+    component.username.set('admin');
+    component.password.set('wrong-password');
+
+    component.submit();
+    const spanishError = component.error();
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+
+    expect(component.error()).toBeNull();
+    expect(component.username()).toBe('admin');
+    expect(component.password()).toBe('wrong-password');
+    expect(authApiService.login).toHaveBeenCalledTimes(1);
+
+    component.submit();
+    fixture.detectChanges();
+
+    expect(component.error()).toBe(component.text().auth.login.errors.invalidCredentials);
+    expect(component.error()).not.toBe(spanishError);
+    expect(authApiService.login).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the current language when a pending login fails after the switch', () => {
+    const i18nService = TestBed.inject(I18nService);
+    const loginResult = new Subject<never>();
+    authApiService.login.mockReturnValue(loginResult);
+    component.username.set('admin');
+    component.password.set('secret');
+
+    component.submit();
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    loginResult.error(new Error('network failure'));
+    fixture.detectChanges();
+
+    expect(component.error()).toBe(component.text().auth.login.errors.loginFailed);
+    expect(fixture.nativeElement.textContent).toContain(
+      component.text().auth.login.errors.loginFailed,
     );
   });
 });

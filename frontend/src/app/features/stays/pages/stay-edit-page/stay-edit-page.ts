@@ -6,6 +6,7 @@ import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Stay, UpdateStayRequest } from '../../models/stay.model';
@@ -41,6 +42,7 @@ export class StayEditPage {
   private readonly stayId = this.route.snapshot.paramMap.get('id');
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => this.error.set(null));
     this.loadStay();
   }
 

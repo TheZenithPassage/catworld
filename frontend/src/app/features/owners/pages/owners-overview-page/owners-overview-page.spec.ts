@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { OwnersOverviewPage } from './owners-overview-page';
 
 describe('OwnersOverviewPage', () => {
@@ -78,6 +79,29 @@ describe('OwnersOverviewPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  it('clears a visible overview error while preserving loaded and selected owner state', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    const owners = component.owners();
+    component.searchText.set('Ada');
+    component.selectedOwnerId.set('owner-1');
+    component.error.set('owners error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('owners error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.owners()).toBe(owners);
+    expect(component.searchText()).toBe('Ada');
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(ownerApiService.getOwners).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('owners error');
+  });
 
   it('renders owner rows through a Material table with existing actions and selected row', () => {
     createComponent();

@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { StaysOverviewPage } from './stays-overview-page';
 
 describe('StaysOverviewPage', () => {
@@ -90,6 +91,27 @@ describe('StaysOverviewPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  it('clears a visible overview error without resetting loaded stay state', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    const stays = component.stays();
+    const searchFilters = component.searchFilters();
+    component.error.set('stays error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('stays error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.stays()).toBe(stays);
+    expect(component.searchFilters()).toBe(searchFilters);
+    expect(stayApiService.getStays).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('stays error');
+  });
 
   it('renders stay rows through a Material table with selected row and existing actions', () => {
     createComponent();

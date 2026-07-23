@@ -13,6 +13,7 @@ import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CatCreatePage } from './cat-create-page';
 
 describe('CatCreatePage', () => {
@@ -130,6 +131,39 @@ describe('CatCreatePage', () => {
     fixture = TestBed.createComponent(CatCreatePage);
     component = fixture.componentInstance;
   }
+
+  it('clears every visible error on language change while preserving form values', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    component.error.set('page error');
+    component.nameError.set('name error');
+    component.birthDateError.set('birth date error');
+    component.sexError.set('sex error');
+    component.ownerIdError.set('owner error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('page error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect([
+      component.error(),
+      component.nameError(),
+      component.birthDateError(),
+      component.sexError(),
+      component.ownerIdError(),
+    ]).toEqual([null, null, null, null, null]);
+    expect([component.name(), component.birthDate(), component.sex(), component.ownerId()]).toEqual(
+      ['Milo', '2020-01-02', 'MALE', 'owner-1'],
+    );
+    expect(fixture.nativeElement.textContent).not.toContain('page error');
+  });
 
   async function submitRenderedForm(): Promise<void> {
     fixture.nativeElement

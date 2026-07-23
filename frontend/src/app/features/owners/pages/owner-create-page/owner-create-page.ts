@@ -6,6 +6,7 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -47,6 +48,13 @@ export class OwnerCreatePage {
   readonly error = signal<string | null>(null);
   readonly fullNameError = signal<string | null>(null);
   readonly primaryPhoneError = signal<string | null>(null);
+
+  constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => {
+      this.error.set(null);
+      this.clearValidationErrors();
+    });
+  }
 
   submit(): void {
     this.error.set(null);

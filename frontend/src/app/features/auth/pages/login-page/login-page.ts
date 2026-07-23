@@ -8,6 +8,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -41,6 +42,13 @@ export class LoginPage {
   readonly error = signal<string | null>(null);
   readonly usernameError = signal<string | null>(null);
   readonly passwordError = signal<string | null>(null);
+
+  constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => {
+      this.error.set(null);
+      this.clearValidationErrors();
+    });
+  }
 
   submit(): void {
     this.error.set(null);

@@ -5,6 +5,7 @@ import { MatInput } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
@@ -53,6 +54,7 @@ export class CatsOverviewPage {
   );
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => this.error.set(null));
     this.loadCats();
   }
 

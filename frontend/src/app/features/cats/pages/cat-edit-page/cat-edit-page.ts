@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -77,6 +78,10 @@ export class CatEditPage {
   private readonly catId = this.route.snapshot.paramMap.get('id');
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => {
+      this.error.set(null);
+      this.clearValidationErrors();
+    });
     this.loadData();
   }
 

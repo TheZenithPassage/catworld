@@ -29,6 +29,7 @@ import {
   StayStatus,
   StayStatusVisibility,
 } from '../../../stays/utils/stay-status.util';
+import { clearErrorsOnLanguageChange } from '../../../../core/i18n/clear-errors-on-language-change';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import {
   CALENDAR_DISPLAY_MODES,
@@ -165,6 +166,8 @@ export class CalendarPage {
   });
 
   constructor() {
+    clearErrorsOnLanguageChange(this.i18nService.language, () => this.error.set(null));
+
     effect(() => {
       this.storeCalendarPreferences({
         unfilteredDisplayMode: this.unfilteredDisplayMode(),

@@ -9,6 +9,7 @@ import { vi } from 'vitest';
 
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { VetEditPage } from './vet-edit-page';
 
 describe('VetEditPage', () => {
@@ -73,6 +74,25 @@ describe('VetEditPage', () => {
     fixture = TestBed.createComponent(VetEditPage);
     component = fixture.componentInstance;
   }
+
+  it('clears every visible error on language change while preserving form values', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    component.name.set('Dr. Whiskers');
+    component.error.set('page error');
+    component.nameError.set('name error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('page error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect([component.error(), component.nameError()]).toEqual([null, null]);
+    expect(component.name()).toBe('Dr. Whiskers');
+    expect(fixture.nativeElement.textContent).not.toContain('page error');
+  });
 
   async function submitRenderedForm(): Promise<void> {
     fixture.nativeElement

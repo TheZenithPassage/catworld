@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { VetsOverviewPage } from './vets-overview-page';
 
 describe('VetsOverviewPage', () => {
@@ -54,6 +55,27 @@ describe('VetsOverviewPage', () => {
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
+
+  it('clears a visible overview error on language change without reloading vets', () => {
+    createComponent();
+    const i18nService = TestBed.inject(I18nService);
+    const vets = component.vets();
+    component.searchText.set('Whiskers');
+    component.error.set('vets error');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('vets error');
+
+    i18nService.toggleLanguage();
+    TestBed.tick();
+    fixture.detectChanges();
+
+    expect(component.error()).toBeNull();
+    expect(component.vets()).toBe(vets);
+    expect(component.searchText()).toBe('Whiskers');
+    expect(vetApiService.getVets).toHaveBeenCalledOnce();
+    expect(fixture.nativeElement.textContent).not.toContain('vets error');
+  });
 
   it('renders vet rows through a Material table with existing actions', () => {
     createComponent();
