@@ -9,6 +9,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
@@ -54,7 +55,7 @@ export class StayCreatePage {
 
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
 
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),

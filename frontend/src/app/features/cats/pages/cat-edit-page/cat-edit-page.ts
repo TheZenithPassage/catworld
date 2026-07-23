@@ -8,6 +8,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../../owners/models/owner.model';
@@ -67,12 +68,12 @@ export class CatEditPage {
 
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly catLoaded = signal(false);
-  readonly nameError = signal<string | null>(null);
-  readonly birthDateError = signal<string | null>(null);
-  readonly sexError = signal<string | null>(null);
-  readonly ownerIdError = signal<string | null>(null);
+  readonly nameError = createLanguageResetError(this.i18nService.language);
+  readonly birthDateError = createLanguageResetError(this.i18nService.language);
+  readonly sexError = createLanguageResetError(this.i18nService.language);
+  readonly ownerIdError = createLanguageResetError(this.i18nService.language);
 
   private readonly catId = this.route.snapshot.paramMap.get('id');
 

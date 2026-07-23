@@ -7,6 +7,7 @@ import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
@@ -69,7 +70,7 @@ export class StaysOverviewPage {
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly cancellingStayId = signal<string | null>(null);
 
   constructor() {
