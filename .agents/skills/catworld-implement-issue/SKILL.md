@@ -88,6 +88,54 @@ Examples:
 - `fix/201-stay-date-validation`
 - `docs/210-update-operations-guide`
 
+## Permanent Automated Test Coverage Authorization
+
+Determine whether new permanent automated test coverage is authorized from the
+GitHub issue, the constitution, and the materially affected risk before
+implementation. New permanent coverage means a committed, maintained test file
+or a new maintained scenario in an existing test file.
+
+New permanent coverage is authorized without an additional human decision only
+when at least one of these applies:
+
+- The GitHub issue explicitly requires new tests or TDD.
+- The constitution explicitly requires tests for the affected behavior.
+- The change materially affects a business rule or protected invariant.
+- The change materially affects authorization, security, persistence, a Flyway
+  migration, a shared API or external contract, or operational safety.
+
+For all other changes, the default is zero new permanent automated test
+coverage. None of the following independently authorizes it:
+
+- Visible or user-observable behavior.
+- A bug that could theoretically regress.
+- Multiple pages, files, fields, signals, states, or consumers.
+- Acceptance scenarios, validation matrices, or semantic-equivalence review
+  entries.
+- A desire for exhaustive or defensive coverage.
+
+The GitHub issue and constitution are authoritative. Generated specifications,
+plans, matrices, tasks, analysis, and convergence output MUST NOT independently
+authorize permanent coverage. If generated artifacts request unauthorized
+permanent tests, remove or consolidate that generated overreach instead of
+stopping for a human decision.
+
+If an uncategorized change has exceptional material risk, complexity, or
+regression cost that Codex believes warrants maintained coverage, stop and
+request explicit human authorization before creating it. Codex MUST NOT
+self-authorize through its own plan or risk assessment.
+
+Minimal edits to existing tests are allowed without additional authorization
+only when necessary to align existing coverage with an explicitly approved
+behavior change or to repair a test directly broken by the implementation.
+Those edits MUST NOT add scenarios, broaden coverage, or duplicate consumers
+under the guise of maintenance.
+
+This gate does not reduce validation. Preserve tasks that run existing suites,
+compilation, builds, directed inspection, focused review, or temporary/manual
+checks, and preserve focused responsible-layer tests whenever they are
+authorized and justified.
+
 ## Workflow
 
 Run this flow in order:
@@ -134,19 +182,38 @@ Run this flow in order:
      `speckit-implement`.
    Stop when a conflict cannot be mechanically reconciled without changing
    approved scope or if material inconsistencies remain.
-12. Run `speckit-implement`.
-13. When an approved implementation materially changes documented architecture
+12. Apply the permanent automated test coverage authorization gate before
+    `speckit-implement`:
+    - Determine authorization from the GitHub issue, constitution, and
+      materially affected risk using the rules above.
+    - Inspect generated tasks for work that creates new test files or new
+      scenarios in existing tests.
+    - Remove or consolidate unauthorized permanent-test tasks while preserving
+      authorized tests and all selected non-permanent validation.
+    - Rerun `speckit-analyze` after any resulting artifact edit and resolve any
+      safe mechanical inconsistency before continuing.
+    - Do not stop merely because a generated artifact requested tests that the
+      gate does not authorize.
+13. Run `speckit-implement`.
+14. When an approved implementation materially changes documented architecture
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
     document as part of the implementation.
-14. Run `speckit-converge`.
-15. If converge appends tasks, run `speckit-implement` again and then
+15. Run `speckit-converge`.
+16. After every `speckit-converge` pass, including the additional passes below,
+    apply the same permanent-test authorization gate to any appended or changed
+    tasks before another implementation cycle or final validation. Remove or
+    consolidate unauthorized permanent-test tasks, preserve authorized tests
+    and non-permanent validation, and rerun `speckit-analyze` after any
+    resulting artifact edit.
+17. If converge appends remaining authorized tasks, run `speckit-implement`
+    again and then
     `speckit-converge` again.
-16. If converge appends tasks again, run at most one more
+18. If converge appends remaining authorized tasks again, run at most one more
     `speckit-implement`/`speckit-converge` cycle.
-17. Stop after at most two extra implement/converge cycles, even if more tasks
+19. Stop after at most two extra implement/converge cycles, even if more tasks
     remain, and report the remaining work.
-18. Run all validations required by the issue, plan, and tasks.
-19. Before treating validation as complete:
+20. Run all validations required by the issue, plan, and tasks.
+21. Before treating validation as complete:
     - Rerun any validation command, test, review, browser-control session, manual smoke
       check, or other evidence affected by relevant changes made after that evidence
       was collected.
@@ -156,7 +223,12 @@ Run this flow in order:
       `timed out`, `interrupted`, `partial`, `stale`, or `not revalidated`.
     - Do not summarize timed-out, skipped, interrupted, partial, stale, failed, or
       not-rerun validation as passed.
-20. Inspect changed files and surfaces before the final report:
+22. Before delivery, inspect the complete active-branch diff, including working
+    tree changes, for added test files and new test scenarios in existing test
+    files. Apply the same authorization decision, remove unauthorized coverage,
+    and rerun every selected validation affected by the removal. Do not infer
+    authorization from the presence of a test in the diff.
+23. Inspect changed files and surfaces before the final report:
     - Use current working-tree information such as `git status --short` and
       `git diff --name-only` on the active branch only.
     - Compare changed paths with the issue, spec, plan, tasks, and source map.
@@ -164,7 +236,7 @@ Run this flow in order:
       justification, especially late cleanup touching shared shell, global styles,
       shared components, routing, contracts, migrations, authorization, persistence,
       security, or other cross-cutting surfaces.
-21. After implementation and required validation, if the current branch is not
+24. After implementation and required validation, if the current branch is not
     `main`, commit the scoped changes with a conventional commit title, push the
     active issue branch to `origin` with a normal non-force push, and open or
     update a pull request targeting `main`.
@@ -181,9 +253,10 @@ Run this flow in order:
       checkout back to `main`. Do not pull, merge, rebase, prune remotes, delete
       branches, or otherwise update `main` unless the user explicitly requests
       that maintenance operation.
-22. Report final status with:
+25. Report final status with:
     - concise summary;
     - validation commands executed and explicit statuses;
+    - permanent-test authorization basis and final test-diff review result;
     - scope-drift review results;
     - remaining risks or unresolved questions;
     - `git status --short`;
@@ -213,6 +286,9 @@ Stop and report the blocker when any of these occur:
   still-applicable prior approved plan.
 - The issue does not request a material architectural change and implementation
   would require selecting one without a human decision.
+- Codex believes an uncategorized change has exceptional material risk,
+  complexity, or regression cost that warrants permanent tests and explicit
+  human authorization has not been recorded.
 - Generated artifacts conflict in a way that is not safely mechanical to fix.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
@@ -248,9 +324,13 @@ description.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
 - Implementation and convergence have run within the cycle limit.
+- Permanent-test authorization was determined before implementation and
+  reapplied after every convergence pass.
 - Required validations have run or any inability to run them is reported.
 - Validation results are fresh after the latest relevant change, or stale/not-rerun
   checks are explicitly reported as not passed.
+- The final branch diff contains no unauthorized added test files or new test
+  scenarios.
 - Changed files have been reviewed against the issue/spec/plan/tasks source map.
 - Normal issue delivery is complete when:
   - scoped changes have been committed on the active issue branch;

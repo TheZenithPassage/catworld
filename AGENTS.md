@@ -49,6 +49,7 @@ the issue read-only.
 * Run the validation required by the active plan and tasks.
 * Report the commands executed, their results, and anything that could not be verified.
 * Do not claim that validation passed when it was not executed successfully.
+* New permanent automated test coverage requires explicit issue or constitution authorization, a material effect on a business rule, protected invariant, authorization, security, persistence, Flyway migration, shared API or external contract, or operational safety, or human approval after a decision stop; ordinary low-risk changes default to zero new permanent test coverage.
 
 ## Repository Operations
 
