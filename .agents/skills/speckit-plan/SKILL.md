@@ -48,7 +48,21 @@ You **MUST** consider the user input before proceeding (if not empty).
      contracts, service tests for business rules, authorization/security tests
      for access control, and Flyway/schema/data-integrity checks for persistence
      and migrations.
-   - When replacing UI primitives, shared components, interaction mechanisms, presentation mechanisms, or other behavior-preserving mechanisms with mismatch risk, fill a lightweight semantic-equivalence review. Identify old behavior/source of truth, new component/framework semantics, mismatch risks, mitigation, and automated/manual proof. Mark it N/A with a reason when no replacement or migration risk exists.
+   - When replacing UI primitives, shared components, interaction mechanisms,
+     presentation mechanisms, validation or error-handling mechanisms, or other
+     behavior-preserving mechanisms with mismatch risk, fill a lightweight
+     semantic-equivalence review. Identify the old behavior/source of truth,
+     new semantics, mismatch risks, and mitigation. The review MUST NOT
+     independently require a new permanent automated test: its proof selection
+     MUST inherit the applicable proportional decision from the Validation
+     Evidence Plan. That decision MAY use existing-suite execution,
+     compilation, build, directed inspection, focused review, a
+     temporary/manual check, no new permanent test, or the smallest useful
+     focused automated test. Low-impact local migrations MAY rely on
+     review/inspection/build evidence when sufficient for actual regression
+     risk; genuinely correctness-sensitive replacements require stronger proof
+     at the responsible layer. Mark the review N/A with a reason when no
+     replacement or migration risk exists.
    - Phase 0: Generate research.md for researchable unknowns only. Resolve
      factual, technical, or repository-verifiable NEEDS CLARIFICATION items
      through repository inspection, project documentation, official/reference

@@ -139,6 +139,16 @@ change to the selected approach invalidates prior approval.]
   date/money/status/role/filtering presentation changes, or migration between
   validation/error-handling mechanisms. Use N/A for features with no replacement
   or migration risk.
+
+  This review identifies semantic mismatch risk; it does not independently
+  require a new permanent automated test. Select proof through the Validation
+  Evidence Plan using actual regression risk and maintenance value. A
+  low-impact local migration, including a validation or error-handling
+  mechanism change, may use existing-suite execution, compilation, build,
+  directed inspection, focused review, a temporary/manual check, or no new
+  permanent test. Use the smallest useful focused automated test when the
+  replacement is genuinely correctness-sensitive enough to justify maintained
+  regression coverage.
 -->
 
 **Review required**: [Yes/No, with reason]
@@ -151,7 +161,7 @@ change to the selected approach invalidates prior approval.]
 
 **Mitigation**: [Design constraints or implementation choices that preserve semantics, or N/A]
 
-**Proof required**: [Automated DOM/harness/navigation/focus/API/persistence/security/migration checks and any manual visible-device smoke checks required, or N/A]
+**Proof selection from Validation Evidence Plan**: [Reference the applicable grouped validation entry and its selected existing-suite, compilation, build, directed inspection, focused review, temporary/manual, no-new-permanent-test, or smallest-useful-focused-automated-test evidence; do not create a separate test obligation merely because this review is required, or N/A]
 
 ## Validation Evidence Plan
 

@@ -96,13 +96,20 @@ and validation evidence plans.
   preservation, and correction behavior when in scope. One adequate evidence
   task may cover several related rows; do not require one task or test per row
   when the same mechanism and proof apply.
-- Semantic-equivalence reviews need proof tasks that compare preserved behavior
-  against the recorded old behavior/source of truth and new mechanism
-  semantics.
-- Replacement, migration, or narrowing work needs a replacement-boundary proof
-  task. The task must verify that the old mechanism no longer affects migrated
-  surfaces unless that coexistence is intentional, and that any remaining old
-  behavior is scoped to surfaces that still depend on it.
+- Semantic-equivalence and replacement reviews use the proof selected by the
+  applicable Validation Evidence Plan entry. Their presence does not
+  independently require a new permanent automated-test task. Proof may be
+  existing-suite execution, compilation, build, directed inspection, focused
+  review, a temporary/manual check, no new permanent test, or the smallest
+  useful focused automated test.
+- For low-impact local migrations, including validation or error-handling
+  mechanism changes, generate review/inspection/build evidence tasks when that
+  is sufficient for actual regression risk. Preserve stronger
+  responsible-layer proof for genuinely correctness-sensitive replacements.
+- When replacement-boundary proof is selected, its task must verify that the
+  old mechanism no longer affects migrated surfaces unless that coexistence is
+  intentional, and that any remaining old behavior is scoped to surfaces that
+  still depend on it.
 - Validation tasks are complete only when the required evidence passed after
   the latest relevant change.
 - Report or task a validation gap only when the planned evidence is inadequate
@@ -204,11 +211,13 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 1 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 1 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 > **NOTE: Evidence timing is chosen per feature. Required coverage remains
 > mandatory when justified by the plan, constitution, approved scope,
-> semantic-equivalence review, validation matrix, or material regression risk.
+> validation matrix, or material regression risk. Semantic-equivalence and
+> replacement reviews inherit the plan-selected evidence and do not create a
+> separate permanent-test obligation.
 > Visible behavior alone does not require a new permanent test.**
 
 - [ ] T011 [P] [US1/TO1] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
@@ -234,7 +243,7 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 2 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 2 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 - [ ] T020 [P] [US2/TO2] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
 - [ ] T021 [P] [US2/TO2] Run the plan-selected frontend evidence in [exact command, test, or review path] when required by actual risk
@@ -256,7 +265,7 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 3 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 3 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 - [ ] T026 [P] [US3/TO3] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
 - [ ] T027 [P] [US3/TO3] Run the plan-selected frontend evidence in [exact command, test, or review path] when required by actual risk
@@ -287,7 +296,7 @@ technical outcome implementation can now begin
 - [ ] TXXX Run constitution compliance validation
 - [ ] TXXX Run quickstart.md validation only if quickstart.md exists for this feature
 - [ ] TXXX Review changed files against plan/source map and justify or remove unplanned touched surfaces
-- [ ] TXXX Perform a proportional replacement-boundary review when the feature replaces, migrates, or narrows an existing mechanism. Briefly list the old selectors, helpers, routes, APIs, styles, or behaviors being replaced; verify they no longer affect migrated surfaces unless coexistence is intentional; identify the surfaces that still depend on the old mechanism; and remove or narrow any unintentional remaining effect
+- [ ] TXXX Perform the plan-selected proportional replacement-boundary proof when the feature replaces, migrates, or narrows an existing mechanism; use review/inspection/build evidence without a new permanent test when sufficient, or the smallest useful focused automated test for genuinely correctness-sensitive risk; briefly list the old selectors, helpers, routes, APIs, styles, or behaviors being replaced, verify they no longer affect migrated surfaces unless coexistence is intentional, identify surfaces that still depend on the old mechanism, and remove or narrow any unintentional remaining effect
 - [ ] TXXX Rerun affected validation after relevant late changes, or report stale/not-revalidated checks explicitly
 
 <!--

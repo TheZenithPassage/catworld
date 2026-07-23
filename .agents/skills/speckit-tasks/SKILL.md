@@ -44,7 +44,16 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Group repetitive consumer migration into one or a few practical tasks and verify completeness with a directed search, inventory, compilation, build, existing test suite, or other proportional check. Do not create separate tasks or tests solely because the same mechanism appears in several equivalent consumers.
    - Keep tasks separate when implementation, observable behavior, responsible layer, dependency, risk, or required evidence is materially different.
    - For validation matrices, generate enough evidence work to prove the relevant rows at the appropriate layer. One broader task may cover several rows when the same mechanism and evidence prove them; state that coverage instead of repeating equivalent tasks. For forms and similar validation surfaces, consider empty string, whitespace-only string when trim-based validation exists, valid value, invalid format, boundary dates or numbers, missing optional vs required values, role-dependent permissions, stale state, and backend-rejected state when applicable.
-   - For semantic-equivalence reviews, generate proof tasks that compare preserved behavior against the recorded old behavior/source of truth and the new component/framework semantics.
+   - For semantic-equivalence and replacement reviews, generate only the proof
+     task or tasks selected by the applicable Validation Evidence Plan entry.
+     The presence of the review MUST NOT independently generate a new permanent
+     automated-test task. Proof MAY be existing-suite execution, compilation,
+     build, directed inspection, focused review, a temporary/manual check, no
+     new permanent test, or the smallest useful focused automated test. Allow
+     low-impact local migrations, including validation or error-handling
+     mechanism changes, to use review/inspection/build evidence when sufficient
+     for actual regression risk. Preserve stronger responsible-layer proof for
+     genuinely correctness-sensitive replacements.
 
 4. **Generate tasks.md**: Read the tasks template from TASKS_TEMPLATE (from the JSON output above) and use it as structure. If TASKS_TEMPLATE is empty, fall back to `.specify/templates/tasks-template.md`. Fill with:
    - Correct feature name from plan.md
@@ -53,8 +62,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Phase 3+: One phase per user story or technical outcome (in priority or dependency order from spec.md)
    - Each phase includes: goal, independent verification criteria, required
      implementation and the proportionate evidence selected by the plan or
-     demanded by the specification, constitution, semantic-equivalence review,
-     validation matrix, or material regression risk
+     demanded by the specification, constitution, validation matrix, or
+     material regression risk. Semantic-equivalence and replacement reviews
+     inherit this evidence decision rather than creating a separate test
+     obligation
    - Final Phase: Polish & cross-cutting concerns
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
@@ -68,7 +79,7 @@ Output path to generated tasks.md and summary:
 - Total task count
 - Task count per user story or technical outcome
 - Parallel opportunities identified
-- Independent test criteria for each user story or technical outcome
+- Independent verification criteria for each user story or technical outcome
 - Suggested first verifiable increment (typically the highest-priority user story or technical outcome)
 - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
@@ -88,8 +99,10 @@ Do not generate a test merely because behavior is observable, changes, has
 several consumers, maps to several artifact statements, or could theoretically
 regress. Generate automated or non-automated evidence tasks when demanded by
 the specification, constitution, the validation and reason recorded in the
-plan, semantic-equivalence review, validation matrix, or material regression
-risk. A user request for TDD also requires test tasks in the relevant phases.
+plan, validation matrix, or material regression risk. Semantic-equivalence and
+replacement reviews inherit that decision and do not independently require a
+new permanent test. A user request for TDD also requires test tasks in the
+relevant phases.
 When new tests are justified, create only the smallest useful set and apply the
 coverage consolidation rules below.
 
@@ -189,9 +202,11 @@ Every task MUST strictly follow this format:
      - Services needed for that story or outcome
      - Interfaces/UI needed for that story or outcome
      - Evidence tasks required for that story or outcome by the specification,
-       constitution, the plan's selected validation and reason,
-       semantic-equivalence review, validation matrix, or material regression
-       risk. Do not manufacture a permanent-test task for each artifact row.
+       constitution, the plan's selected validation and reason, validation
+       matrix, or material regression risk. Semantic-equivalence and
+       replacement reviews use that selected evidence rather than creating a
+       separate test obligation. Do not manufacture a permanent-test task for
+       each artifact row.
    - Multiple related requirements or components MAY map to the same task when
      the Coverage Consolidation rules are satisfied.
    - Mark dependencies between stories or outcomes; most product stories should be independent unless the artifacts document real dependencies
