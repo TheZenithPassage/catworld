@@ -6,6 +6,7 @@ import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
@@ -35,7 +36,7 @@ export class OwnersOverviewPage {
 
   readonly owners = signal<Owner[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly selectedOwnerId = signal<string | null>(null);
   readonly searchText = signal('');
   readonly displayedColumns = [

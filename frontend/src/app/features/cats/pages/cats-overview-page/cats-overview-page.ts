@@ -6,6 +6,7 @@ import { MatTableModule } from '@angular/material/table';
 import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
@@ -34,7 +35,7 @@ export class CatsOverviewPage {
 
   readonly cats = signal<Cat[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly searchText = signal('');
   readonly displayedColumns = [
     'name',

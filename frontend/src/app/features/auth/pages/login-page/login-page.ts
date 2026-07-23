@@ -9,6 +9,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 
@@ -38,9 +39,9 @@ export class LoginPage {
   readonly username = signal('');
   readonly password = signal('');
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly usernameError = signal<string | null>(null);
-  readonly passwordError = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
+  readonly usernameError = createLanguageResetError(this.i18nService.language);
+  readonly passwordError = createLanguageResetError(this.i18nService.language);
 
   submit(): void {
     this.error.set(null);

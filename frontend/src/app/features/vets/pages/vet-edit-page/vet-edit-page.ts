@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { UpdateVetRequest, Vet } from '../../models/vet.model';
@@ -42,9 +43,9 @@ export class VetEditPage {
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly vetLoaded = signal(false);
-  readonly nameError = signal<string | null>(null);
+  readonly nameError = createLanguageResetError(this.i18nService.language);
 
   private readonly vetId = this.route.snapshot.paramMap.get('id');
 

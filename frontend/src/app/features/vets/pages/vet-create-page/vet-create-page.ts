@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateVetRequest } from '../../models/vet.model';
@@ -40,8 +41,8 @@ export class VetCreatePage {
   readonly phoneNumber = signal('');
 
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly nameError = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
+  readonly nameError = createLanguageResetError(this.i18nService.language);
 
   submit(): void {
     this.error.set(null);

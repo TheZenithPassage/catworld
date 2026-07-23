@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner, UpdateOwnerRequest } from '../../models/owner.model';
@@ -46,10 +47,10 @@ export class OwnerEditPage {
 
   readonly loading = signal(false);
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
   readonly ownerLoaded = signal(false);
-  readonly fullNameError = signal<string | null>(null);
-  readonly primaryPhoneError = signal<string | null>(null);
+  readonly fullNameError = createLanguageResetError(this.i18nService.language);
+  readonly primaryPhoneError = createLanguageResetError(this.i18nService.language);
 
   private readonly ownerId = this.route.snapshot.paramMap.get('id');
 

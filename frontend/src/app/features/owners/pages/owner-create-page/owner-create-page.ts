@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateOwnerRequest } from '../../models/owner.model';
@@ -44,9 +45,9 @@ export class OwnerCreatePage {
   readonly facebook = signal('');
 
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
-  readonly fullNameError = signal<string | null>(null);
-  readonly primaryPhoneError = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
+  readonly fullNameError = createLanguageResetError(this.i18nService.language);
+  readonly primaryPhoneError = createLanguageResetError(this.i18nService.language);
 
   submit(): void {
     this.error.set(null);

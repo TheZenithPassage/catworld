@@ -30,6 +30,7 @@ import {
   StayStatusVisibility,
 } from '../../../stays/utils/stay-status.util';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import {
   CALENDAR_DISPLAY_MODES,
   CalendarDisplayMode,
@@ -74,7 +75,7 @@ export class CalendarPage {
 
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18nService.language);
 
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(

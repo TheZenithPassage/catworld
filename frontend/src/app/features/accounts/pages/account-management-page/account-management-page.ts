@@ -11,6 +11,7 @@ import { finalize } from 'rxjs';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UserRole } from '../../../../core/auth/auth.model';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UserAccount } from '../../models/user-account.model';
 import { UserAccountApiService } from '../../services/user-account-api.service';
 
@@ -29,8 +30,8 @@ export class AccountManagementPage {
   readonly text = this.i18nService.text;
   readonly accounts = signal<UserAccount[]>([]);
   readonly loading = signal(false);
-  readonly loadError = signal<string | null>(null);
-  readonly actionError = signal<string | null>(null);
+  readonly loadError = createLanguageResetError(this.i18nService.language);
+  readonly actionError = createLanguageResetError(this.i18nService.language);
   readonly username = signal('');
   readonly password = signal('');
   readonly newAccountRole = signal<UserRole>('STAFF');
