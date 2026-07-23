@@ -9,12 +9,16 @@ description: "Task list template for feature implementation"
 
 **Prerequisites**: plan.md (required), spec.md (required), research.md, data-model.md, contracts/
 
-**Tests**: The examples below include test tasks. Include tests when explicitly
-requested in the feature specification or required by the constitution, plan,
-semantic-equivalence review, validation matrix, or feature risk for business
-rules, visible behavior, persistence, migrations, security, shared contracts,
-or other correctness-sensitive behavior. Evidence may also be a focused review
-or manual visible smoke check when automation cannot fully prove the behavior.
+**Tests**: The examples below illustrate possible evidence, not a required test
+count. Zero new test files is valid when the plan's selected validation is
+sufficient for actual regression risk. Do not add a test merely because
+behavior is observable, changes, affects several consumers, appears in several
+artifact rows, or could theoretically regress. Existing-suite execution,
+compilation, build, directed inspection, focused review, or a temporary/manual
+check may be sufficient. Include the smallest useful new automated test set
+when explicitly required or when important, complex, costly-to-regress,
+constitutional, or other correctness-sensitive behavior makes maintained
+coverage worthwhile.
 
 **Organization**: Tasks are grouped by independently verifiable user journeys
 when natural, or by dependency-driven verifiable technical outcomes for
@@ -68,11 +72,17 @@ Before generating implementation tasks, inspect spec.md and plan.md for
 observable behavior details, validation matrices, semantic-equivalence reviews,
 and validation evidence plans.
 
-- Frontend-visible requirements need evidence at the visible surface: DOM
-  assertions, Angular Material/CDK harness checks where appropriate, routed
-  navigation assertions, focus/keyboard checks, or manual visible-device smoke
-  checks when automation is not enough. Component state, service spies, or
-  implementation-detail assertions are not sufficient by themselves.
+- Preserve the validation choice and maintenance reason recorded in the plan.
+  Do not turn every plan row, acceptance criterion, matrix row, file, page,
+  field, signal, surface, or equivalent consumer into a new automated-test task.
+- Frontend visibility alone does not require a new DOM, Angular Material/CDK
+  harness, or component test. Use the plan-selected existing suite, compilation,
+  build, directed inspection, focused review, temporary/manual check, or
+  automated evidence when sufficient. When maintained automated visible-surface
+  coverage is justified, use DOM assertions, Angular Material/CDK harness
+  checks where appropriate, routed navigation assertions, or focus/keyboard
+  checks; component state, service spies, or implementation-detail assertions
+  are not sufficient substitutes in that case.
 - Backend business rules need service-layer evidence and controller/API
   evidence when externally observable.
 - API contracts need status, payload, serialization, validation-response, and
@@ -86,15 +96,25 @@ and validation evidence plans.
   preservation, and correction behavior when in scope. One adequate evidence
   task may cover several related rows; do not require one task or test per row
   when the same mechanism and proof apply.
-- Semantic-equivalence reviews need proof tasks that compare preserved behavior
-  against the recorded old behavior/source of truth and new mechanism
-  semantics.
-- Replacement, migration, or narrowing work needs a replacement-boundary proof
-  task. The task must verify that the old mechanism no longer affects migrated
-  surfaces unless that coexistence is intentional, and that any remaining old
-  behavior is scoped to surfaces that still depend on it.
+- Semantic-equivalence and replacement reviews use the proof selected by the
+  applicable Validation Evidence Plan entry. Their presence does not
+  independently require a new permanent automated-test task. Proof may be
+  existing-suite execution, compilation, build, directed inspection, focused
+  review, a temporary/manual check, no new permanent test, or the smallest
+  useful focused automated test.
+- For low-impact local migrations, including validation or error-handling
+  mechanism changes, generate review/inspection/build evidence tasks when that
+  is sufficient for actual regression risk. Preserve stronger
+  responsible-layer proof for genuinely correctness-sensitive replacements.
+- When replacement-boundary proof is selected, its task must verify that the
+  old mechanism no longer affects migrated surfaces unless that coexistence is
+  intentional, and that any remaining old behavior is scoped to surfaces that
+  still depend on it.
 - Validation tasks are complete only when the required evidence passed after
   the latest relevant change.
+- Report or task a validation gap only when the planned evidence is inadequate
+  for actual regression risk or violates the constitution or approved feature
+  scope. The absence of a new automated test is not itself a gap.
 
 ## Coverage Consolidation Rules
 
@@ -191,16 +211,18 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 1 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 1 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 > **NOTE: Evidence timing is chosen per feature. Required coverage remains
-> mandatory for visible behavior, business rules, persistence, migrations,
-> security, shared contracts, semantic equivalence, validation matrices, and
-> other correctness-sensitive behavior.**
+> mandatory when justified by the plan, constitution, approved scope,
+> validation matrix, or material regression risk. Semantic-equivalence and
+> replacement reviews inherit the plan-selected evidence and do not create a
+> separate permanent-test obligation.
+> Visible behavior alone does not require a new permanent test.**
 
 - [ ] T011 [P] [US1/TO1] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
-- [ ] T012 [P] [US1/TO1] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
-- [ ] T013 [US1/TO1] Validation matrix evidence for blocked actions, API-call behavior, visible feedback, value transformation or preservation, and correction behavior in [exact test or review path]
+- [ ] T012 [P] [US1/TO1] Run the plan-selected frontend evidence using an existing suite, compilation, build, DOM/harness check when warranted, directed review, or temporary/manual check in [exact command, test, or review path]
+- [ ] T013 [US1/TO1] Run consolidated validation-matrix evidence for related blocked actions, API-call behavior, visible feedback, value transformation or preservation, and correction behavior in [exact test or review path] when required by actual risk
 
 ### Implementation for User Story or Technical Outcome 1
 
@@ -221,10 +243,10 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 2 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 2 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 - [ ] T020 [P] [US2/TO2] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
-- [ ] T021 [P] [US2/TO2] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T021 [P] [US2/TO2] Run the plan-selected frontend evidence in [exact command, test, or review path] when required by actual risk
 
 ### Implementation for User Story or Technical Outcome 2
 
@@ -243,10 +265,10 @@ technical outcome implementation can now begin
 
 **Verification**: [How to verify this user journey or technical outcome works on its own, or document real dependencies]
 
-### Evidence for User Story or Technical Outcome 3 (include when specification-, constitution-, plan-, semantic-equivalence-, matrix-, or risk-required) ⚠️
+### Evidence for User Story or Technical Outcome 3 (include when selected by the Validation Evidence Plan or required by the specification, constitution, matrix, or material regression risk) ⚠️
 
 - [ ] T026 [P] [US3/TO3] Backend service/controller/API evidence in src/test/java/[package]/[TestClass].java
-- [ ] T027 [P] [US3/TO3] Frontend visible-behavior evidence using DOM assertions or Angular Material/CDK harnesses in frontend/src/[feature]/[component-or-service].spec.ts
+- [ ] T027 [P] [US3/TO3] Run the plan-selected frontend evidence in [exact command, test, or review path] when required by actual risk
 
 ### Implementation for User Story or Technical Outcome 3
 
@@ -269,12 +291,12 @@ technical outcome implementation can now begin
 - [ ] TXXX [P] Documentation update in [exact path] if required by the feature or constitution
 - [ ] TXXX Refactor [exact path] only if required to complete this feature safely
 - [ ] TXXX Performance optimization in [exact path] only when required by confirmed performance goals
-- [ ] TXXX [P] Additional test in [exact path] if required by risk or constitution
+- [ ] TXXX [P] Additional test in [exact path] only if required by material regression risk, approved scope, or constitution
 - [ ] TXXX Security hardening in [exact path] only when required by the feature or constitution
 - [ ] TXXX Run constitution compliance validation
 - [ ] TXXX Run quickstart.md validation only if quickstart.md exists for this feature
 - [ ] TXXX Review changed files against plan/source map and justify or remove unplanned touched surfaces
-- [ ] TXXX Perform a proportional replacement-boundary review when the feature replaces, migrates, or narrows an existing mechanism. Briefly list the old selectors, helpers, routes, APIs, styles, or behaviors being replaced; verify they no longer affect migrated surfaces unless coexistence is intentional; identify the surfaces that still depend on the old mechanism; and remove or narrow any unintentional remaining effect
+- [ ] TXXX Perform the plan-selected proportional replacement-boundary proof when the feature replaces, migrates, or narrows an existing mechanism; use review/inspection/build evidence without a new permanent test when sufficient, or the smallest useful focused automated test for genuinely correctness-sensitive risk; briefly list the old selectors, helpers, routes, APIs, styles, or behaviors being replaced, verify they no longer affect migrated surfaces unless coexistence is intentional, identify surfaces that still depend on the old mechanism, and remove or narrow any unintentional remaining effect
 - [ ] TXXX Rerun affected validation after relevant late changes, or report stale/not-revalidated checks explicitly
 
 <!--
@@ -318,7 +340,7 @@ technical outcome implementation can now begin
 - Included Foundational tasks marked [P] can run in parallel (within Phase 2)
 - Once included prerequisite phases complete, user stories or technical outcomes
   with no dependencies between them may start in parallel
-- Tests marked [P] may run in parallel
+- Included evidence tasks marked [P] may run in parallel
 - Independent file changes marked [P] may run in parallel
 - Different user stories or technical outcomes may be worked on in parallel
   when dependencies allow
@@ -328,9 +350,9 @@ technical outcome implementation can now begin
 ## Parallel Example: User Story or Technical Outcome 1
 
 ```bash
-# Launch all evidence tasks for User Story or Technical Outcome 1 together (if included and independent):
-Task: "Backend/service/controller test in src/test/java/[package]/[TestClass].java"
-Task: "Frontend behavior test in frontend/src/[feature]/[component-or-service].spec.ts"
+# Launch selected evidence tasks for User Story or Technical Outcome 1 together (if included and independent):
+Task: "Run focused backend/service/controller test in src/test/java/[package]/[TestClass].java when justified"
+Task: "Run selected frontend build, existing suite, focused test, directed review, or temporary/manual check in [exact command, test, or review path]"
 
 # Launch independent model/utility updates together:
 Task: "Update backend model/DTO/mapper in src/main/java/[package]/[Class].java"
@@ -372,7 +394,8 @@ With multiple developers:
 - [P] tasks = different files, no dependencies
 - [Trace] label maps task to a specific user story or technical outcome for traceability
 - Each group must be objectively verifiable
-- Choose test timing per feature while preserving constitution-required coverage
+- Choose validation type and timing per feature from actual regression risk and
+  maintenance value while preserving constitution-required coverage
 - Do not add task-list tasks for branch cleanup, branch deletion, remote
   pruning, force-push, merge, auto-merge, issue mutation, or public comments
   unless the user explicitly requests those operations where applicable.

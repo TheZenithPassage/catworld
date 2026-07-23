@@ -29,7 +29,7 @@
 
 **Storage**: [Inspect current repository; record affected persistence/storage or N/A]
 
-**Testing**: [Inspect current repository; record relevant test commands/frameworks or NEEDS CLARIFICATION]
+**Testing**: [Inspect current repository; record existing test commands/frameworks and other available validation mechanisms relevant to the affected behavior, or NEEDS CLARIFICATION. Do not infer that a new permanent test is required.]
 
 **Target Platform**: [Inspect current repository; record affected runtime/deployment target or NEEDS CLARIFICATION]
 
@@ -139,6 +139,16 @@ change to the selected approach invalidates prior approval.]
   date/money/status/role/filtering presentation changes, or migration between
   validation/error-handling mechanisms. Use N/A for features with no replacement
   or migration risk.
+
+  This review identifies semantic mismatch risk; it does not independently
+  require a new permanent automated test. Select proof through the Validation
+  Evidence Plan using actual regression risk and maintenance value. A
+  low-impact local migration, including a validation or error-handling
+  mechanism change, may use existing-suite execution, compilation, build,
+  directed inspection, focused review, a temporary/manual check, or no new
+  permanent test. Use the smallest useful focused automated test when the
+  replacement is genuinely correctness-sensitive enough to justify maintained
+  regression coverage.
 -->
 
 **Review required**: [Yes/No, with reason]
@@ -151,23 +161,35 @@ change to the selected approach invalidates prior approval.]
 
 **Mitigation**: [Design constraints or implementation choices that preserve semantics, or N/A]
 
-**Proof required**: [Automated DOM/harness/navigation/focus/API/persistence/security/migration checks and any manual visible-device smoke checks required, or N/A]
+**Proof selection from Validation Evidence Plan**: [Reference the applicable grouped validation entry and its selected existing-suite, compilation, build, directed inspection, focused review, temporary/manual, no-new-permanent-test, or smallest-useful-focused-automated-test evidence; do not create a separate test obligation merely because this review is required, or N/A]
 
 ## Validation Evidence Plan
 
 <!--
-  Identify evidence at the layer that can prove each affected behavior. Keep this
-  proportional: backend-only and documentation-only work should not get heavy UI
-  checks, while observable, contract-visible, authorization, persistence,
-  migration, security, shared component, global style, mobile, i18n, and other
-  correctness-sensitive work needs stronger evidence.
+  Choose the smallest evidence sufficient for actual regression risk and
+  maintenance value, and record the choice and reason before task generation.
+  Existing tests, compilation, build, directed inspection, focused review, or a
+  temporary/manual check may be sufficient. A low-impact presentation change
+  may require no new permanent test. Observable frontend behavior does not by
+  itself require a new DOM, harness, or component test.
+
+  Require maintainable focused automated tests when behavior is important,
+  complex, costly to regress, constitutionally sensitive, or affects business
+  rules, authorization, security, persistence, migrations, shared contracts,
+  protected invariants, or other correctness-sensitive behavior. Point evidence
+  to the responsible layer. Group equivalent surfaces or consumers when the
+  same evidence proves them; do not create one row or obligation per file, page,
+  field, signal, acceptance criterion, or consumer.
+
+  Do not introduce risk levels, test-count formulas, category quotas, or other
+  ceremonial classifications. Describe the concrete regression concern and why
+  the selected evidence is worth maintaining.
 -->
 
-| Surface / Requirement | Responsible Layer | Evidence Type | Freshness / Manual Notes |
-|-----------------------|-------------------|---------------|--------------------------|
-| [visible UI state or user-observable behavior] | [DOM, Angular Material/CDK harness, route, focus/keyboard, or manual visible-device check] | [test/review/smoke] | [rerun after relevant changes or N/A] |
-| [backend business rule or validation] | [service/controller/API] | [test/review] | [rerun after relevant changes or N/A] |
-| [contract, authorization, persistence, migration, security, i18n, mobile, shared component, or global style behavior] | [responsible layer] | [test/review/smoke] | [rerun after relevant changes or N/A] |
+| Distinct Behavior / Grouped Surfaces | Regression Concern and Maintenance Reason | Selected Validation | Responsible Layer | Freshness / Manual Notes |
+|--------------------------------------|-------------------------------------------|---------------------|-------------------|--------------------------|
+| [low-impact presentation behavior or grouped equivalent consumers] | [why inspection/build/existing coverage is sufficient, or why maintained regression coverage is worthwhile] | [existing suite, compilation, build, directed inspection, focused review, temporary/manual check, new focused test, or no new permanent test] | [visible surface, build, existing test boundary, or other responsible layer] | [rerun after relevant changes or N/A] |
+| [correctness-sensitive business rule, contract, authorization, persistence, migration, security, or protected invariant] | [concrete impact/complexity/cost of regression or constitutional obligation] | [smallest useful focused automated test set plus any necessary review/manual evidence] | [service, controller/API, authorization/security, Flyway/schema/data integrity, or other responsible layer] | [rerun after relevant changes] |
 
 ## Project Structure
 

@@ -112,7 +112,9 @@ Create an internal model (do not echo raw artifacts):
   features.
 - **Evidence inventory**: observable behavior details, validation matrix rows,
   semantic-equivalence proof requirements, and validation evidence plan entries that
-  impose verification obligations at a responsible layer.
+  impose verification obligations at a responsible layer. Preserve the plan's
+  selected validation and maintenance reason, and group equivalent consumers
+  when the same evidence covers them.
 - **Code-scope map**: from the file paths named in `plan.md` and `tasks.md`, plus a keyword
   search for the concepts each requirement describes, derive the set of source files and
   components in scope for assessment. Bound the assessment to these — do **not** infer
@@ -140,10 +142,18 @@ For each item in the intent inventory, inspect the current code in scope and pro
 
 For evidence-specific assessment:
 
-- Frontend-visible behavior is only satisfied when there is visible-surface evidence such
-  as DOM assertions, Angular Material/CDK harness checks where appropriate, routed
-  navigation assertions, focus/keyboard checks, or recorded manual visible-device smoke
-  evidence when automation is insufficient.
+- Do not append a test task merely because changed behavior is visible,
+  observable, affects several consumers, maps to several artifact statements,
+  or could theoretically regress. Existing-suite execution, compilation,
+  build, directed inspection, focused review, or temporary/manual evidence is
+  sufficient when the plan records why it is proportionate to actual
+  regression risk and that evidence passed after the latest relevant change.
+- When maintained automated coverage is justified for frontend-visible
+  behavior, require visible-surface evidence such as DOM assertions, Angular
+  Material/CDK harness checks where appropriate, routed navigation assertions,
+  or focus/keyboard checks. Component state, service spies, mocks, or
+  implementation internals do not substitute for visible-surface proof in that
+  case.
 - Backend business rules, API contracts, authorization/security behavior, persistence,
   Flyway migrations, mobile/device-specific behavior, i18n-visible behavior, shared
   components, global styling, and operational safety are only satisfied when evidence
@@ -152,6 +162,11 @@ For evidence-specific assessment:
   implementation and evidence satisfy their stated outcome, acceptance scenarios, and
   validation evidence. Missing or partial TR/TO implementation or evidence produces
   a convergence finding.
+- Absence of a new permanent automated test is not a convergence finding when
+  the selected fresh evidence is sufficient. Append evidence tasks only when
+  required by the constitution, explicitly required by the issue or plan, or
+  justified by material regression risk. Apply the existing many-to-one
+  consolidation rules to equivalent consumers.
 - Validation and smoke evidence is partial when it is stale after later relevant changes,
   timed out, skipped, interrupted, or reported without the command/review/smoke result.
 
