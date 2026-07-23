@@ -9,6 +9,7 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 .specify/feature.json
+/specs/
 
 ### STS ###
 .apt_generated
