@@ -26,9 +26,17 @@ the issue read-only.
 * If a prompt contains multiple issue numbers without a clear instruction, stop
   and ask which issue to implement.
 
+## Feature Planning Routing
+
+Use `.agents/skills/catworld-feature-planning/SKILL.md` when the user asks to
+plan features for a CatWorld release, convert a feature description into an epic
+and implementation issues, resume an existing feature plan, or publish an
+approved feature plan. This route does not override numbered-issue
+implementation routing or pull request review workflows.
+
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request.
+* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or performing the read-only inspection of a freshly fetched `origin/main` required by `.agents/skills/catworld-feature-planning/SKILL.md`. The feature-planning exception does not permit checking out or updating local `main`.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
