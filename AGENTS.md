@@ -9,22 +9,36 @@
   implementation context, not as an immutable restriction on approved future
   changes.
 * For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
+* For pull request review requests, read and follow
+  `.agents/skills/catworld-review-pr/SKILL.md`. Reviews are read-only unless the
+  user separately authorizes a specific repository-facing action.
 * For feature work, treat the provided GitHub issue and the active feature artifacts under `specs/` as the scope and decision contract.
 * Read `spec.md`, `plan.md`, and `tasks.md` when they exist and apply to the current task.
 * If those artifacts conflict, contain unresolved blocking decisions, or require pending human approval, stop and report the blocker instead of implementing.
 
-## Shorthand Issue Prompt Routing
+## Shorthand GitHub Prompt Routing
 
-When the user prompt identifies exactly one GitHub issue by bare number, issue
-reference such as `#148`, or issue URL, treat it as an end-to-end CatWorld issue
-implementation request and route it to
-`.agents/skills/catworld-implement-issue/SKILL.md` after fetching and inspecting
-the issue read-only.
+When the user prompt identifies exactly one GitHub item by bare number or
+reference such as `#148`, fetch and classify it read-only before selecting a
+workflow.
 
-* Additional wording such as `parallel` or `sequential` does not change this
-  route or activate another implementation mode.
-* If a prompt contains multiple issue numbers without a clear instruction, stop
-  and ask which issue to implement.
+* If the item is a pull request, route it to
+  `.agents/skills/catworld-review-pr/SKILL.md`.
+* If the item is an ordinary issue, treat it as an end-to-end implementation
+  request and route it to
+  `.agents/skills/catworld-implement-issue/SKILL.md`.
+* A pull request URL or explicit request such as `review PR #148` always routes
+  to `catworld-review-pr`.
+* An issue URL always routes to `catworld-implement-issue` after confirming that
+  the remote item is not a pull request.
+* If the item does not exist or cannot be classified reliably, stop and report
+  the lookup blocker instead of guessing.
+* If a prompt contains multiple issue or pull request references without a
+  clear target, stop and ask which item to handle.
+* Do not infer a review target from the current local branch in the review MVP;
+  require a PR identifier or URL.
+* Additional issue wording such as `parallel` or `sequential` does not activate
+  another implementation mode.
 
 ## Feature Planning Routing
 
@@ -67,6 +81,7 @@ implementation routing or pull request review workflows.
 * Never commit directly on `main`, merge any branch into local `main`, push directly to `main`, merge a pull request, enable auto-merge, or approve Codex's own pull request.
 * Never amend commits, rebase-push, force-push, use `--force` or `--force-with-lease`, or perform any history-rewriting remote update unless explicitly approved by the user.
 * Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, modify GitHub issues, or post public GitHub comments unless explicitly requested where applicable.
+* Create pull requests as ready for review by default. Create a draft pull request only when the user explicitly requests draft status.
 
 ## Language and Documentation
 
