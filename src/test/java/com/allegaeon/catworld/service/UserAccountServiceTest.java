@@ -206,12 +206,14 @@ class UserAccountServiceTest {
         UserAccount currentAdmin = account(UserRole.ADMIN, true);
         UserAccount target = account(UserRole.STAFF, true);
         prepareDeletion(currentAdmin, target);
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
+                .thenReturn(List.of(currentAdmin));
 
         userAccountService.deleteUser(target.getId());
 
         verify(userAccountRepository).delete(target);
         verify(userAccountRepository).flush();
-        verify(userAccountRepository, never()).findEnabledByRoleForUpdate(UserRole.ADMIN);
+        verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
     }
 
     @Test
@@ -309,10 +311,33 @@ class UserAccountServiceTest {
     }
 
     @Test
+    void rejectsDeletionWhenStaffSnapshotWasPromotedAndNoOtherEnabledAdminRemains() {
+        UserAccount currentAdmin = account(UserRole.ADMIN, false);
+        UserAccount staffSnapshot = account(UserRole.STAFF, true);
+        UserAccount promotedTarget = UserAccount.builder()
+                .id(staffSnapshot.getId())
+                .username(staffSnapshot.getUsername())
+                .passwordHash(staffSnapshot.getPasswordHash())
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .build();
+        prepareDeletion(currentAdmin, staffSnapshot);
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
+                .thenReturn(List.of(promotedTarget));
+
+        assertThrows(ConflictException.class, () -> userAccountService.deleteUser(staffSnapshot.getId()));
+
+        verify(userAccountRepository, never()).delete(any(UserAccount.class));
+        verify(userAccountRepository, never()).flush();
+    }
+
+    @Test
     void translatesDeleteIntegrityRaceToConflict() {
         UserAccount currentAdmin = account(UserRole.ADMIN, true);
         UserAccount target = account(UserRole.STAFF, true);
         prepareDeletion(currentAdmin, target);
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
+                .thenReturn(List.of(currentAdmin));
         doThrow(new DataIntegrityViolationException("race")).when(userAccountRepository).delete(target);
 
         assertThrows(ConflictException.class, () -> userAccountService.deleteUser(target.getId()));
@@ -325,6 +350,8 @@ class UserAccountServiceTest {
         UserAccount currentAdmin = account(UserRole.ADMIN, true);
         UserAccount target = account(UserRole.STAFF, true);
         prepareDeletion(currentAdmin, target);
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
+                .thenReturn(List.of(currentAdmin));
         doThrow(new OptimisticLockingFailureException("race")).when(userAccountRepository).flush();
 
         assertThrows(ConflictException.class, () -> userAccountService.deleteUser(target.getId()));

@@ -107,9 +107,7 @@ public class UserAccountService implements IUserAccountService {
             throw new ConflictException("User account cannot be deleted while operational records reference it");
         }
 
-        if (target.getRole() == UserRole.ADMIN) {
-            validateEnabledAdminRemainsAfterDeleting(target);
-        }
+        validateEnabledAdminRemainsAfterDeleting(target.getId());
 
         try {
             userAccountRepository.delete(target);
@@ -137,9 +135,9 @@ public class UserAccountService implements IUserAccountService {
                 || stayRepository.existsByCreatedBy_Id(id);
     }
 
-    private void validateEnabledAdminRemainsAfterDeleting(UserAccount target) {
+    private void validateEnabledAdminRemainsAfterDeleting(UUID targetId) {
         boolean enabledAdminRemains = userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN).stream()
-                .anyMatch(administrator -> !Objects.equals(administrator.getId(), target.getId()));
+                .anyMatch(administrator -> !Objects.equals(administrator.getId(), targetId));
 
         if (!enabledAdminRemains) {
             throw new ConflictException("At least one enabled ADMIN account is required");

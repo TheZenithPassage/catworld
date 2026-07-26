@@ -265,12 +265,13 @@ target as creator. Deleting an `ADMIN` is allowed only when a different enabled
 `ADMIN` remains; disabled administrators do not satisfy that invariant.
 
 Account deletion resolves the target and authenticated account, checks creator
-references, locks the enabled-admin set when the target is an administrator,
-then deletes and explicitly flushes in one transaction. Existing creator
-foreign keys remain final protection against concurrent reference creation, and
-an integrity or optimistic-locking race maps to `409 Conflict`. The operation
-never cascades, detaches, reassigns or deletes operational records to make
-account deletion succeed.
+references, then locks the enabled-admin set for every eligible target. The
+service validates the deletion against that locked current state rather than
+the target role read before locking, then deletes and explicitly flushes in one
+transaction. Existing creator foreign keys remain final protection against
+concurrent reference creation, and an integrity or optimistic-locking race maps
+to `409 Conflict`. The operation never cascades, detaches, reassigns or deletes
+operational records to make account deletion succeed.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
