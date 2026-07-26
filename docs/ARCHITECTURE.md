@@ -17,6 +17,7 @@ CatWorld currently covers:
 - Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
+- Safe ADMIN-only application account deletion with creator and enabled-admin protection.
 - Lookup of current, future, completed and cancelled stays.
 
 ## Stack
@@ -255,6 +256,21 @@ HTTP Basic credentials are authenticated through Spring Security against `user_a
 Successful login returns the canonical stored username and its fixed `ADMIN` or `STAFF` role. Angular keeps that identity and role in its in-memory authentication state alongside the HTTP Basic credentials.
 
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
+
+`DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
+application account. The service rejects authenticated self-deletion with
+`403 Forbidden`, returns `404 Not Found` for a missing target, and blocks
+deletion with `409 Conflict` while any owner, cat, vet or stay references the
+target as creator. Deleting an `ADMIN` is allowed only when a different enabled
+`ADMIN` remains; disabled administrators do not satisfy that invariant.
+
+Account deletion resolves the target and authenticated account, checks creator
+references, locks the enabled-admin set when the target is an administrator,
+then deletes and explicitly flushes in one transaction. Existing creator
+foreign keys remain final protection against concurrent reference creation, and
+an integrity or optimistic-locking race maps to `409 Conflict`. The operation
+never cascades, detaches, reassigns or deletes operational records to make
+account deletion succeed.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 

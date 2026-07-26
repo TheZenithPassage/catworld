@@ -13,6 +13,8 @@ import java.util.UUID;
 @Repository
 public interface VetRepository extends JpaRepository<Vet, UUID> {
 
+    boolean existsByCreatedBy_Id(UUID createdById);
+
     boolean existsByIdAndCatsIsNotEmpty(UUID id);
 
     @Query("""

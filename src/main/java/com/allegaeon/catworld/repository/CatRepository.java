@@ -8,4 +8,6 @@ import java.util.UUID;
 
 @Repository
 public interface CatRepository extends JpaRepository<Cat, UUID> {
+
+    boolean existsByCreatedBy_Id(UUID createdById);
 }

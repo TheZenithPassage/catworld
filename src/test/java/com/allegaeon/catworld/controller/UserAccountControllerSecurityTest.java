@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -140,6 +141,19 @@ class UserAccountControllerSecurityTest {
     }
 
     @Test
+    void adminCanDeleteAnotherUnreferencedUser() throws Exception {
+        UUID staffId = staff.getId();
+
+        mockMvc.perform(delete("/api/users/{id}", staffId)
+                        .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        assertTrue(userAccountRepository.findById(staffId).isEmpty());
+        assertTrue(userAccountRepository.findById(administrator.getId()).isPresent());
+    }
+
+    @Test
     void duplicateNormalizedAndInvalidUsernamesAreRejected() throws Exception {
         mockMvc.perform(post("/api/users")
                         .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
@@ -222,7 +236,8 @@ class UserAccountControllerSecurityTest {
                         .content("{\"role\":\"ADMIN\"}")),
                 Arguments.of("change enabled", patch("/api/users/{id}/enabled", id)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"enabled\":false}"))
+                        .content("{\"enabled\":false}")),
+                Arguments.of("delete", delete("/api/users/{id}", id))
         );
     }
 
