@@ -118,6 +118,17 @@ in every issue.
 
 ## Review and publish
 
+Before presenting the complete plan for approval, perform a final reconciliation pass against the approved functional definition, confirmed decisions, `origin/main`, and related GitHub work. Verify that:
+
+- no behavior was contradicted, omitted, or invented;
+- roles, visibility, derived values, states, and audit rules remain consistent;
+- epics, implementation issues, dependencies, and execution order preserve the same approved scope;
+- only hard dependencies are declared;
+- technical and testing detail remains proportional, each rule is primarily validated at its responsible layer, and generic test requirements are not repeated across issues;
+- the artifact contains the required brief Constitution Check and reflects any material decisions made during planning.
+
+Correct discrepancies internally before requesting approval. This reconciliation must not introduce another user checkpoint.
+
 Present the proposed epics, implementation issues, order, hard dependencies, and
 blocking decisions to the user in Spanish. Keep proposed GitHub titles and
 bodies in English. Mark the artifact `approved` only when the user approves the
