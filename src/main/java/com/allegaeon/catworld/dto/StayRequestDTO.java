@@ -27,4 +27,6 @@ public class StayRequestDTO {
     @NotEmpty(message = "At least one cat id is required")
     private Set<UUID> catIds;
 
+    private boolean overrideVaccineConflicts;
+
 }

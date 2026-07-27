@@ -228,6 +228,16 @@ Current rules:
 - `endAt` must be after `startAt`.
 - A cat cannot have overlapping active stays.
 - Cancelled stays are ignored during overlap validation.
+- Stored rabies and triple-feline vaccination dates must cover the complete
+  stay. Each operational expiry is the stored vaccination date plus one year;
+  a missing date or a stay ending on or after expiry is a vaccine conflict.
+- Stay creation and update aggregate every conflicting cat-vaccine pair into a
+  structured `409 Conflict`. `STAFF` remains blocked even when an override is
+  supplied. `ADMIN` receives the same conflict by default and may continue only
+  with an explicit request-scoped override.
+- Vaccine expiry, override intent and warning state are calculated for the
+  request only and are not persisted. An administrator override bypasses only
+  the vaccine policy; all other stay rules remain active.
 - Closed stays cannot be modified.
 - Cancelled stays cannot be cancelled again.
 - Permanent stay deletion is separate from cancellation. Authorized deletion

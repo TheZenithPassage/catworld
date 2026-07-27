@@ -3,10 +3,14 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.VaccineConflictReason;
+import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
+import com.allegaeon.catworld.dto.VaccineType;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.service.IStayService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,11 +20,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -103,6 +109,7 @@ public class StayControllerTest {
                     .endAt(LocalDateTime.now().plusDays(2))
                     .catIds(Set.of(UUID.randomUUID()))
                     .notes("Test stay")
+                    .overrideVaccineConflicts(true)
                     .build();
 
             when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
@@ -117,7 +124,7 @@ public class StayControllerTest {
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
                     .andExpect(jsonPath("$.createdById").doesNotExist());
 
-            verify(stayService).createStay(any(StayRequestDTO.class));
+            verify(stayService).createStay(argThat(StayRequestDTO::isOverrideVaccineConflicts));
 
         }
 
@@ -161,6 +168,59 @@ public class StayControllerTest {
 
         }
 
+        @Test
+        void shouldReturnStructuredVaccineConflict() throws Exception {
+
+            UUID catId = UUID.randomUUID();
+            LocalDate vaccinatedOn = LocalDate.of(2025, 8, 5);
+            LocalDate expiresOn = LocalDate.of(2026, 8, 5);
+            StayRequestDTO request = StayRequestDTO.builder()
+                    .startAt(LocalDateTime.of(2026, 8, 1, 12, 0))
+                    .endAt(LocalDateTime.of(2026, 8, 5, 12, 0))
+                    .catIds(Set.of(catId))
+                    .build();
+            VaccineConflictViolationDTO violation = VaccineConflictViolationDTO.builder()
+                    .catId(catId)
+                    .catName("Milo")
+                    .vaccineType(VaccineType.RABIES)
+                    .reason(VaccineConflictReason.EXPIRED)
+                    .vaccinatedOn(vaccinatedOn)
+                    .expiresOn(expiresOn)
+                    .build();
+            VaccineConflictViolationDTO missingViolation = VaccineConflictViolationDTO.builder()
+                    .catId(catId)
+                    .catName("Milo")
+                    .vaccineType(VaccineType.TRIPLE_FELINE)
+                    .reason(VaccineConflictReason.MISSING)
+                    .build();
+
+            when(stayService.createStay(any(StayRequestDTO.class)))
+                    .thenThrow(new VaccineConflictException(List.of(violation, missingViolation)));
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.code").value("VACCINE_VALIDITY_CONFLICT"))
+                    .andExpect(jsonPath("$.violations.length()").value(2))
+                    .andExpect(jsonPath("$.violations[0].catId").value(catId.toString()))
+                    .andExpect(jsonPath("$.violations[0].catName").value("Milo"))
+                    .andExpect(jsonPath("$.violations[0].vaccineType").value("RABIES"))
+                    .andExpect(jsonPath("$.violations[0].reason").value("EXPIRED"))
+                    .andExpect(jsonPath("$.violations[0].vaccinatedOn").value("2025-08-05"))
+                    .andExpect(jsonPath("$.violations[0].expiresOn").value("2026-08-05"))
+                    .andExpect(jsonPath("$.violations[1].catId").value(catId.toString()))
+                    .andExpect(jsonPath("$.violations[1].catName").value("Milo"))
+                    .andExpect(jsonPath("$.violations[1].vaccineType").value("TRIPLE_FELINE"))
+                    .andExpect(jsonPath("$.violations[1].reason").value("MISSING"))
+                    .andExpect(jsonPath("$.violations[1].vaccinatedOn").hasJsonPath())
+                    .andExpect(jsonPath("$.violations[1].vaccinatedOn").value(nullValue()))
+                    .andExpect(jsonPath("$.violations[1].expiresOn").hasJsonPath())
+                    .andExpect(jsonPath("$.violations[1].expiresOn").value(nullValue()));
+
+        }
+
     }
 
     @Nested
@@ -175,6 +235,7 @@ public class StayControllerTest {
                     .startAt(LocalDateTime.now().plusDays(1))
                     .endAt(LocalDateTime.now().plusDays(2))
                     .notes("Test stay")
+                    .overrideVaccineConflicts(true)
                     .build();
 
             when(stayService.updateStay(eq(stayId), any(StayUpdateDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
@@ -185,7 +246,9 @@ public class StayControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()));
 
-            verify(stayService).updateStay(eq(stayId), any(StayUpdateDTO.class));
+            verify(stayService).updateStay(
+                    eq(stayId),
+                    argThat(StayUpdateDTO::isOverrideVaccineConflicts));
 
         }
 
@@ -225,7 +288,8 @@ public class StayControllerTest {
             mockMvc.perform(put("/api/stays/{id}", stayId)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
-                    .andExpect(status().isConflict());
+                    .andExpect(status().isConflict())
+                    .andExpect(content().string("Conflict"));
 
             verify(stayService).updateStay(eq(stayId), any(StayUpdateDTO.class));
 

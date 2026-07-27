@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.exception;
 
+import com.allegaeon.catworld.dto.VaccineConflictResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<String> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
+    }
+
+    @ExceptionHandler(VaccineConflictException.class)
+    public ResponseEntity<VaccineConflictResponseDTO> handleVaccineConflict(VaccineConflictException exception) {
+        VaccineConflictResponseDTO response = VaccineConflictResponseDTO.builder()
+                .code(VaccineConflictResponseDTO.CODE)
+                .violations(exception.getViolations())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(ForbiddenException.class)
