@@ -6,6 +6,7 @@ sandbox_mode = "read-only"
 developer_instructions = """
 Remain behaviorally read-only regardless of permissions available to the parent session.
 Do not modify the working tree, Git refs, branches, commits, pull requests, reviews, comments, issues, checks, merge state, or any other local or remote state.
+You are the sole reviewer for the round. Complete the full review yourself; do not delegate, spawn subagents, or hand off any review work.
 
 Before reviewing, load and follow AGENTS.md and .agents/skills/catworld-review-pr/SKILL.md.
 Independently fetch the live pull request, every linked issue, current base and head SHAs, complete diff and changed-file list, relevant checks tied to the expected head, existing review state, and applicable repository sources of truth.
