@@ -9,6 +9,7 @@ export interface Stay {
   stayId: string;
   startAt: string;
   endAt: string;
+  numberOfNights: number;
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;

@@ -52,6 +52,10 @@
           />
         </mat-form-field>
 
+        <p class="night-count" role="status" aria-atomic="true">
+          {{ nightCountLabel() }}
+        </p>
+
         <mat-form-field appearance="outline">
           <mat-label>{{ text().stays.edit.notes }}</mat-label>
           <textarea
