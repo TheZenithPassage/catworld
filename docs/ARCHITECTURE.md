@@ -17,6 +17,7 @@ CatWorld currently covers:
 - Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
+- Safe ADMIN-only application account deletion with creator and enabled-admin protection.
 - Lookup of current, future, completed and cancelled stays.
 
 ## Stack
@@ -256,6 +257,36 @@ Successful login returns the canonical stored username and its fixed `ADMIN` or 
 
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
 
+`DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
+application account. The service rejects authenticated self-deletion with
+`403 Forbidden`, returns `404 Not Found` for a missing target, and blocks
+deletion with `409 Conflict` while any owner, cat, vet or stay references the
+target as creator. Deleting an `ADMIN` is allowed only when a different enabled
+`ADMIN` remains; disabled administrators do not satisfy that invariant.
+
+Account deletion resolves the target and authenticated account, checks creator
+references, then locks the enabled-admin set for every eligible target. The
+service validates the deletion against that locked current state rather than
+the target role read before locking, then deletes and explicitly flushes in one
+transaction. Existing creator foreign keys remain final protection against
+concurrent reference creation, and an integrity or optimistic-locking race maps
+to `409 Conflict`. The operation never cascades, detaches, reassigns or deletes
+operational records to make account deletion succeed.
+
+Account deletion, every requested role change to `STAFF`, and every requested
+enabled change to `false` share one enabled-admin critical section. Each path
+resolves its target before acquiring the enabled-admin write lock, validates
+that the locked current set contains an enabled administrator with a different
+target UUID, and mutates only after that validation succeeds. Whether the lock
+is acquired never depends on the target's pre-lock role or enabled snapshot.
+Role and enabled mutations then use column-scoped updates and reload the target:
+a role write cannot publish a stale enabled value, an enabled write cannot
+publish a stale role, and a validated reducer is persisted even when the
+pre-lock target snapshot already contains its requested value. Each focused
+statement also advances `updatedAt`. This target-first lock ordering and focused
+persistence protocol serialize deletion, demotion and disabling without
+changing their existing HTTP contracts.
+
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
 When authenticated users create owner, cat, vet or stay records, the backend
@@ -428,7 +459,10 @@ Main entities include:
 - `createdAt`
 - `updatedAt`
 
-These fields are managed with JPA Auditing.
+Entity-managed writes update these fields through JPA Auditing. The focused
+bulk updates for `UserAccount.role` and `UserAccount.enabled` bypass entity
+listeners, so each statement advances `updatedAt` alongside only its requested
+domain column.
 
 Operational entities also include required creator attribution:
 

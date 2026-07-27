@@ -13,6 +13,8 @@ import java.util.UUID;
 @Repository
 public interface OwnerRepository extends JpaRepository<Owner, UUID> {
 
+    boolean existsByCreatedBy_Id(UUID createdById);
+
     boolean existsByIdAndCatsIsNotEmpty(UUID id);
 
     @Query("""

@@ -13,4 +13,5 @@ public interface IUserAccountService {
     UserAccountResponseDTO createUser(UserAccountCreateRequestDTO request);
     UserAccountResponseDTO changeRole(UUID id, UserRole role);
     UserAccountResponseDTO changeEnabled(UUID id, boolean enabled);
+    void deleteUser(UUID id);
 }
