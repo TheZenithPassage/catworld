@@ -88,6 +88,26 @@ package "catworld.domain" {
     +boolean enabled  <<NotNull>>
   }
 
+  enum NightlyReferenceRateCategory {
+    ONE_CAT
+    TWO_CATS
+    THREE_CATS
+  }
+
+  class NightlyReferenceRate extends Auditable {
+    +NightlyReferenceRateCategory category  <<Id,NotNull>>
+    +BigDecimal nightlyRate  <<Decimal(19,4),Nullable>>
+  }
+
+  class NightlyReferenceRateChange {
+    +UUID id
+    +NightlyReferenceRateCategory category  <<NotNull,Immutable>>
+    +BigDecimal previousNightlyRate  <<Decimal(19,4),Nullable,Immutable>>
+    +BigDecimal newNightlyRate  <<Decimal(19,4),Nullable,Immutable>>
+    +UserAccount changedBy  <<NotNull,Immutable>>
+    +Instant changedAt  <<NotNull,Immutable>>
+  }
+
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >
@@ -97,6 +117,9 @@ package "catworld.domain" {
   UserAccount "1" <-- "0..*" Cat : createdBy
   UserAccount "1" <-- "0..*" Vet : createdBy
   UserAccount "1" <-- "0..*" Stay : createdBy
+  NightlyReferenceRateCategory "1" <-- "1" NightlyReferenceRate : category
+  NightlyReferenceRateCategory "1" <-- "0..*" NightlyReferenceRateChange : category
+  UserAccount "1" <-- "0..*" NightlyReferenceRateChange : changedBy
 }
 
 note right of Stay
@@ -119,6 +142,18 @@ note bottom of StayCat
 Each row represents one link
 between a stay and a cat.
 The logical key is (stay, cat).
+end note
+
+note bottom of NightlyReferenceRate
+Exactly one current row exists for
+each 1/2/3-cat category.
+A null rate means unavailable.
+end note
+
+note bottom of NightlyReferenceRateChange
+Append-only audit snapshot.
+Exactly one of previous/new may be null,
+and a transition must change the value.
 end note
 
 @enduml

@@ -90,6 +90,25 @@ package "MySQL schema" {
     updated_at <<NN>>
   }
 
+  class nightly_reference_rates <<table>> {
+    +category varchar(20) <<PK,NN>>
+    --
+    nightly_rate decimal(19,4)
+    --
+    created_at datetime(6) <<NN>>
+    updated_at datetime(6) <<NN>>
+  }
+
+  class nightly_reference_rate_changes <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    category varchar(20) <<NN>>
+    previous_nightly_rate decimal(19,4)
+    new_nightly_rate decimal(19,4)
+    changed_by_id binary(16) <<FK,NN>>
+    changed_at datetime(6) <<NN>>
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id
@@ -99,6 +118,7 @@ package "MySQL schema" {
   user_accounts "1" -- "0..*" cats : FK created_by_id
   user_accounts "1" -- "0..*" vets : FK created_by_id
   user_accounts "1" -- "0..*" stays : FK created_by_id
+  user_accounts "1" -- "0..*" nightly_reference_rate_changes : FK changed_by_id
 }
 
 note right of stays
@@ -112,6 +132,20 @@ end note
 note bottom of stay_cat
 The pair (stay_id, cat_id)
 cannot be repeated.
+end note
+
+note bottom of nightly_reference_rates
+Seeded categories:
+ONE_CAT, TWO_CATS, THREE_CATS.
+nightly_rate is null or positive.
+end note
+
+note bottom of nightly_reference_rate_changes
+Append-only snapshots.
+Category is one of the three fixed values.
+Previous/new values are null or positive,
+and every row records a real transition.
+The actor FK is restrictive.
 end note
 
 @enduml
