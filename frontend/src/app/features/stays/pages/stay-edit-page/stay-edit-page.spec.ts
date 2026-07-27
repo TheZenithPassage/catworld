@@ -1,10 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
@@ -13,6 +15,7 @@ describe('StayEditPage', () => {
   let component: StayEditPage;
   let fixture: ComponentFixture<StayEditPage>;
   let routeParams: Record<string, string>;
+  let dialogClosed: Subject<boolean | undefined>;
 
   const stay: Stay = {
     stayId: 'stay-1',
@@ -46,9 +49,36 @@ describe('StayEditPage', () => {
     navigate: vi.fn(),
   };
 
+  const authSessionService = {
+    hasRole: vi.fn(),
+  };
+
+  const matDialog = {
+    open: vi.fn(),
+  };
+
+  const vaccineConflict = {
+    code: 'VACCINE_VALIDITY_CONFLICT',
+    violations: [
+      {
+        catId: 'cat-1',
+        catName: 'Milo',
+        vaccineType: 'RABIES',
+        reason: 'EXPIRED',
+        vaccinatedOn: '2025-07-01',
+        expiresOn: '2026-07-01',
+      },
+    ],
+  };
+
   beforeEach(async () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
+    authSessionService.hasRole.mockReturnValue(true);
+    dialogClosed = new Subject<boolean | undefined>();
+    matDialog.open.mockReturnValue({
+      afterClosed: () => dialogClosed.asObservable(),
+    });
     routeParams = { id: 'stay-1' };
     stayApiService.getStayById.mockReturnValue(of(stay));
     window.scrollTo = vi.fn();
@@ -74,6 +104,14 @@ describe('StayEditPage', () => {
         {
           provide: Router,
           useValue: router,
+        },
+        {
+          provide: AuthSessionService,
+          useValue: authSessionService,
+        },
+        {
+          provide: MatDialog,
+          useValue: matDialog,
         },
       ],
     }).compileComponents();
@@ -176,5 +214,148 @@ describe('StayEditPage', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
       'startAt: overlaps another stay',
     );
+  });
+
+  it('preserves values when an administrator cancels and keeps a later update normal', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+    component.notes.set('  updated notes  ');
+
+    component.submit();
+
+    expect(matDialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: {
+          violations: vaccineConflict.violations,
+          canOverride: true,
+        },
+      }),
+    );
+
+    dialogClosed.next(false);
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+    expect(component.startAt()).toBe('2099-02-02T10:00');
+    expect(component.endAt()).toBe('2099-02-09T10:00');
+    expect(component.notes()).toBe('  updated notes  ');
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(2, 'stay-1', {
+      startAt: '2099-02-02T10:00',
+      endAt: '2099-02-09T10:00',
+      notes: 'updated notes',
+    });
+  });
+
+  it('retries once with the captured update when an administrator continues', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+    component.notes.set('updated notes');
+
+    component.submit();
+    dialogClosed.next(true);
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(2, 'stay-1', {
+      startAt: '2099-02-02T10:00',
+      endAt: '2099-02-09T10:00',
+      notes: 'updated notes',
+      overrideVaccineConflicts: true,
+    });
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(2);
+    expect(router.navigate).toHaveBeenCalledWith(['/stays']);
+  });
+
+  it('does not retry an update for staff even if the dialog produces a continue result', () => {
+    authSessionService.hasRole.mockReturnValue(false);
+    createComponent();
+    stayApiService.updateStay.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            error: vaccineConflict,
+            status: 409,
+          }),
+      ),
+    );
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+
+    component.submit();
+
+    expect(matDialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: {
+          violations: vaccineConflict.violations,
+          canOverride: false,
+        },
+      }),
+    );
+
+    dialogClosed.next(true);
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the generic error path when the administrator update retry fails', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: 'Stay still conflicts',
+              status: 409,
+            }),
+        ),
+      );
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+
+    component.submit();
+    dialogClosed.next(true);
+
+    expect(matDialog.open).toHaveBeenCalledTimes(1);
+    expect(component.error()).toBe('Stay still conflicts');
+    expect(component.submitting()).toBe(false);
   });
 });

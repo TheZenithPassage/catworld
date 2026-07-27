@@ -1,0 +1,32 @@
+:host {
+  display: block;
+}
+
+.dialog-description {
+  margin-top: 0;
+}
+
+.violation-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.violation-list li {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.violation-reason {
+  color: var(--color-danger);
+}
+
+mat-dialog-actions {
+  flex-wrap: wrap;
+}

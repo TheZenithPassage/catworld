@@ -3,11 +3,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -15,7 +17,15 @@ import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
-import { CreateStayRequest } from '../../models/stay.model';
+import {
+  VaccineConflictDialog,
+  VaccineConflictDialogData,
+} from '../../components/vaccine-conflict-dialog/vaccine-conflict-dialog';
+import {
+  CreateStayRequest,
+  isVaccineConflictError,
+  VaccineConflictResponse,
+} from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 
 @Component({
@@ -40,6 +50,8 @@ export class StayCreatePage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly authSessionService = inject(AuthSessionService);
+  private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18nService.text;
 
@@ -129,6 +141,10 @@ export class StayCreatePage {
       notes: this.notes().trim() || null,
     };
 
+    this.saveStay(request, true);
+  }
+
+  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean): void {
     this.submitting.set(true);
 
     this.stayApiService.createStay(request).subscribe({
@@ -137,10 +153,42 @@ export class StayCreatePage {
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
+        if (showVaccineConflict && isVaccineConflictError(error)) {
+          this.submitting.set(false);
+          this.openVaccineConflictDialog(error.error, request);
+          return;
+        }
+
         this.error.set(this.getCreateStayErrorMessage(error));
         this.submitting.set(false);
       },
     });
+  }
+
+  private openVaccineConflictDialog(
+    conflict: VaccineConflictResponse,
+    request: CreateStayRequest,
+  ): void {
+    const canOverride = this.authSessionService.hasRole('ADMIN');
+    const data: VaccineConflictDialogData = {
+      violations: conflict.violations,
+      canOverride,
+    };
+
+    this.dialog
+      .open<VaccineConflictDialog, VaccineConflictDialogData, boolean>(VaccineConflictDialog, {
+        data,
+        width: '36rem',
+        maxWidth: 'calc(100vw - 2rem)',
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed !== true || !canOverride || !this.authSessionService.hasRole('ADMIN')) {
+          return;
+        }
+
+        this.saveStay({ ...request, overrideVaccineConflicts: true }, false);
+      });
   }
 
   private setInitialSelectionFromQueryParams(): void {

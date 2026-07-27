@@ -451,6 +451,14 @@ timing where the control has field-level validation. Page-level loading,
 backend errors and cross-field or selection errors use the shared
 `UiStateComponent` where that presentation fits the existing behavior.
 
+Stay create and edit forms recognize the backend's structured vaccine-validity
+conflict response and present every affected cat and vaccine in a localized
+Material warning dialog. `STAFF` may review and dismiss the warning but receives
+no override action. `ADMIN` may cancel or explicitly continue, which retries the
+same request once with request-scoped vaccine-override intent. Closing or
+cancelling preserves the entered form values, fresh submissions do not retain
+override intent, and the backend remains authoritative for the role policy.
+
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
 controls remain a separate integration boundary. Material inputs, supported
