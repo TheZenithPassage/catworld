@@ -139,6 +139,7 @@ export class StayCreatePage {
       startAt: this.startAt(),
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
+      overrideVaccineConflicts: false,
     };
 
     this.saveStay(request, true);

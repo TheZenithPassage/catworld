@@ -24,14 +24,14 @@ export interface CreateStayRequest {
   startAt: string;
   endAt: string;
   notes: string | null;
-  overrideVaccineConflicts?: boolean;
+  overrideVaccineConflicts: boolean;
 }
 
 export interface UpdateStayRequest {
   startAt: string;
   endAt: string;
   notes: string | null;
-  overrideVaccineConflicts?: boolean;
+  overrideVaccineConflicts: boolean;
 }
 
 export type VaccineType = 'RABIES' | 'TRIPLE_FELINE';

@@ -187,6 +187,7 @@ describe('StayEditPage', () => {
       startAt: '2099-01-02T10:00',
       endAt: '2099-01-09T10:00',
       notes: null,
+      overrideVaccineConflicts: false,
     });
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
@@ -259,6 +260,7 @@ describe('StayEditPage', () => {
       startAt: '2099-02-02T10:00',
       endAt: '2099-02-09T10:00',
       notes: 'updated notes',
+      overrideVaccineConflicts: false,
     });
   });
 

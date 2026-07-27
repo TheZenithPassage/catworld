@@ -293,6 +293,7 @@ describe('StayCreatePage', () => {
       startAt: '2099-01-02T10:00',
       endAt: '2099-01-09T10:00',
       notes: 'needs quiet room',
+      overrideVaccineConflicts: false,
     });
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
@@ -371,6 +372,7 @@ describe('StayCreatePage', () => {
       startAt: '2099-01-02T10:00',
       endAt: '2099-01-09T10:00',
       notes: 'quiet room',
+      overrideVaccineConflicts: false,
     });
   });
 
