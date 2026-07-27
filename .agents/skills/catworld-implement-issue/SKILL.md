@@ -208,21 +208,50 @@ Run this flow in order:
 14. When an approved implementation materially changes documented architecture
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
     document as part of the implementation.
-15. Run `speckit-converge`.
-16. After every `speckit-converge` pass, including the additional passes below,
-    apply the same permanent-test authorization gate to any appended or changed
-    tasks before another implementation cycle or final validation. Remove
-    unauthorized permanent-test work instead of preserving it through
-    consolidation. Rewrite mixed tasks to retain only the permitted
-    non-permanent validation, preserve authorized tests, and rerun
-    `speckit-analyze` after any resulting artifact edit.
-17. If converge appends remaining authorized tasks, run `speckit-implement`
-    again and then
-    `speckit-converge` again.
-18. If converge appends remaining authorized tasks again, run at most one more
-    `speckit-implement`/`speckit-converge` cycle.
-19. Stop after at most two extra implement/converge cycles, even if more tasks
-    remain, and report the remaining work.
+15. After the initial implementation and any required architecture update,
+    always spawn exactly one fresh built-in `worker` subagent to own the entire
+    convergence phase. Spawn it before any leader-run convergence assessment,
+    even when the leader expects the implementation to be complete. The worker
+    must not inherit the leader's conversation or implementation history.
+16. Keep the worker handoff limited to the repository context needed to
+    reconstruct the task independently:
+    - Identify the active issue, active branch, and feature directory.
+    - Direct the worker to read `AGENTS.md`,
+      `.specify/memory/constitution.md`, `docs/ARCHITECTURE.md`, and the current
+      feature `spec.md`, `plan.md`, and `tasks.md`.
+    - Direct the worker to inspect the current working-tree state and complete
+      active-branch diff, including working-tree changes.
+    - Include the convergence duties and boundaries in step 18, but do not pass
+      the leader's implementation narrative, internal reasoning, or any claim
+      that the implementation is already correct.
+17. Run the handoff sequentially. The leader must wait for the worker and must
+    not edit the working tree while it is active. The worker must not commit,
+    push, open or update a pull request, switch branches, modify GitHub, post
+    comments, or perform any other delivery operation.
+18. Instruct the worker to run the bounded convergence phase:
+    - Load and follow `speckit-converge`, starting with a convergence pass
+      regardless of whether the leader expects remaining work.
+    - After every convergence pass, apply the same permanent-test authorization
+      gate to any appended or changed tasks before another implementation cycle
+      or return to the leader. Remove unauthorized permanent-test work instead
+      of preserving it through consolidation. Rewrite mixed tasks to retain only
+      the permitted non-permanent validation, preserve authorized tests, and
+      rerun `speckit-analyze` after any resulting artifact edit.
+    - When authorized convergence tasks remain, load and run
+      `speckit-implement`, then rerun `speckit-converge`.
+    - Perform at most two corrective `speckit-implement`/`speckit-converge`
+      cycles after the initial convergence pass. Stop after the second
+      corrective cycle even when authorized tasks still remain.
+    - Return a concise report of remaining tasks, every changed surface, and
+      validation evidence made stale by worker changes. Report any existing
+      workflow stop condition or non-mechanical artifact conflict instead of
+      performing delivery or expanding scope.
+19. After the worker returns, the leader must inspect the resulting working
+    tree, active-branch diff, tasks, remaining-work report, changed surfaces,
+    and stale-evidence report. The leader then resumes control for final
+    validation, final test-diff and scope-drift reviews, delivery, checkout
+    restoration, and completion reporting. If the worker reported a stop
+    condition, apply the existing stop rules before continuing.
 20. Run all validations required by the issue, plan, and tasks.
 21. Before treating validation as complete:
     - Rerun any validation command, test, review, browser-control session, manual smoke
@@ -338,7 +367,12 @@ description.
   `main` as a delivery branch.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
-- Implementation and convergence have run within the cycle limit.
+- The leader completed the initial implementation, then exactly one fresh
+  worker owned convergence from its first pass through at most two corrective
+  implement/converge cycles.
+- The leader waited without editing while the worker was active, inspected the
+  returned working tree and report, and resumed before final validation and
+  delivery.
 - Permanent-test authorization was determined before implementation and
   reapplied after every convergence pass.
 - Required validations have run or any inability to run them is reported.
