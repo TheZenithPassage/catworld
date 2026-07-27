@@ -231,10 +231,13 @@ Current rules:
 - Stored rabies and triple-feline vaccination dates must cover the complete
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
-- Stay creation and update aggregate every conflicting cat-vaccine pair into a
-  structured `409 Conflict`. `STAFF` remains blocked even when an override is
-  supplied. `ADMIN` receives the same conflict by default and may continue only
-  with an explicit request-scoped override.
+- Stay creation and updates that extend `endAt` beyond the currently persisted
+  value aggregate every conflicting cat-vaccine pair into a structured `409
+  Conflict`. Updates that keep or shorten the persisted end time skip the
+  vaccine-conflict policy while all other stay rules remain active. `STAFF`
+  remains blocked on a conflicting creation or extension even when an override
+  is supplied. `ADMIN` receives the same conflict by default and may continue
+  only with an explicit request-scoped override.
 - Vaccine expiry, override intent and warning state are calculated for the
   request only and are not persisted. An administrator override bypasses only
   the vaccine policy; all other stay rules remain active.
