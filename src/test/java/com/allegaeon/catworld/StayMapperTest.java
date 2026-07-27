@@ -8,8 +8,11 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +38,8 @@ public class StayMapperTest {
         stayCats.add(StayCat.builder().cat(cat2).build());
 
         Stay stay = Stay.builder()
+                .startAt(LocalDateTime.of(2026, 7, 1, 10, 0))
+                .endAt(LocalDateTime.of(2026, 7, 2, 10, 0))
                 .owner(Owner.builder()
                         .id(ownerId)
                         .fullName("Owner 1")
@@ -67,6 +72,8 @@ public class StayMapperTest {
     void toResponseDTO_shouldMapCanDelete() {
 
         Stay stay = Stay.builder()
+                .startAt(LocalDateTime.of(2026, 7, 1, 10, 0))
+                .endAt(LocalDateTime.of(2026, 7, 2, 10, 0))
                 .owner(Owner.builder()
                         .id(UUID.randomUUID())
                         .fullName("Owner 1")
@@ -77,6 +84,33 @@ public class StayMapperTest {
         StayResponseDTO response = stayMapper.toResponseDTO(stay, true);
 
         assertTrue(response.isCanDelete());
+
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-07-01T10:00:00, 2026-07-02T10:00:00, 1",
+            "2026-07-01T10:00:00, 2026-07-04T10:00:00, 3",
+            "2026-07-01T08:00:00, 2026-07-01T18:00:00, 0"
+    })
+    void toResponseDTO_shouldCalculateNumberOfNightsFromLocalCalendarDates(
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            long expectedNumberOfNights) {
+
+        Stay stay = Stay.builder()
+                .startAt(startAt)
+                .endAt(endAt)
+                .owner(Owner.builder()
+                        .id(UUID.randomUUID())
+                        .fullName("Owner 1")
+                        .build())
+                .stayCats(Set.of())
+                .build();
+
+        StayResponseDTO response = stayMapper.toResponseDTO(stay);
+
+        assertEquals(expectedNumberOfNights, response.getNumberOfNights());
 
     }
 

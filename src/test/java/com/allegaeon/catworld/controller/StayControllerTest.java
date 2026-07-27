@@ -60,12 +60,14 @@ public class StayControllerTest {
 
             when(stayService.getStay(stayId)).thenReturn(StayResponseDTO.builder()
                     .stayId(stayId)
+                    .numberOfNights(3)
                     .canDelete(true)
                     .build());
 
             mockMvc.perform(get("/api/stays/{id}", stayId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.numberOfNights").value(3))
                     .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(stayService).getStay(stayId);

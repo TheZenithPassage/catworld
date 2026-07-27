@@ -7,6 +7,7 @@ import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
 import org.springframework.stereotype.Component;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,9 @@ public class StayMapper {
                 .ownerId(stay.getOwner().getId())
                 .ownerName(stay.getOwner().getFullName())
                 .cats(toCatSummaries(stay))
+                .numberOfNights(ChronoUnit.DAYS.between(
+                        stay.getStartAt().toLocalDate(),
+                        stay.getEndAt().toLocalDate()))
                 .canDelete(canDelete)
                 .build();
 
