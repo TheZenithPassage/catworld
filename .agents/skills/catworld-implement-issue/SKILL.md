@@ -302,11 +302,85 @@ Run this flow in order:
       status is clearly reported.
     - Do not post public GitHub comments or modify GitHub issues unless the
       user explicitly requests those operations.
-    - After the pull request is opened or updated successfully, switch the local
-      checkout back to `main`. Do not pull, merge, rebase, prune remotes, delete
-      branches, or otherwise update `main` unless the user explicitly requests
-      that maintenance operation.
-25. Report final status with:
+    - Keep the active issue branch checked out after the pull request is opened
+      or updated. Checkout restoration occurs only after the independent review
+      gate below approves or reaches a terminal stop.
+25. After the pull request is opened or updated, capture its PR number and
+    current remote head SHA. Initialize the review gate with zero completed
+    verdicts and zero automatic remediation rounds:
+    - Stop if the PR number or current remote head cannot be observed.
+    - Treat the captured remote head as the expected head for the next check
+      wait and review round.
+    - Keep the active issue branch checked out throughout the gate.
+    - Never switch branches while remediation changes remain uncommitted.
+26. Before every review round, wait for all required checks tied to the expected
+    head SHA to reach a terminal state:
+    - Use the available bounded wait or monitoring mechanism. Pending checks do
+      not consume a review verdict or review-round budget.
+    - Failed terminal checks remain review evidence; they do not bypass the
+      independent reviewer.
+    - Stop and report the unavailable evidence if required checks cannot be
+      observed or do not finish within the bounded wait.
+    - Stop if the remote PR head changes unexpectedly before review. A new head
+      produced by an approved remediation is handled only after its normal push
+      and explicit recapture in step 28.
+27. Run each review round with one fresh project-scoped
+    `catworld_pr_reviewer` agent:
+    - Spawn it only after required checks for the expected head are terminal.
+    - Give it only the repository, PR number, expected head SHA, and instruction
+      to load and follow `AGENTS.md` and
+      `.agents/skills/catworld-review-pr/SKILL.md`.
+    - Do not pass the leader's implementation narrative, internal reasoning, a
+      previous remediation brief, a reduced diff, or a statement that an
+      earlier finding was corrected.
+    - Require it to reconstruct the linked issue, current base and head SHAs,
+      complete live diff and changed-file list, relevant checks, review state,
+      and repository sources of truth independently, then review the complete
+      live PR head rather than only previous findings.
+    - The reviewer remains behaviorally read-only regardless of parent-session
+      permissions. The leader must not mutate the working tree while the
+      reviewer is active.
+    - Wait for the reviewer and require the exact verdict contract from
+      `catworld-review-pr`. A reviewer failure, unusable verdict, unavailable
+      required evidence, or verdict not tied to the expected head is a terminal
+      stop; do not retry the failed round.
+    - Allow at most three completed independent review verdicts.
+28. Handle each fresh verdict without expanding its meaning:
+    - `Approved` with no merge blocker finishes the gate. Preserve any
+      non-blocking observations for the final report.
+    - Non-blocking findings or optional improvements never enter automatic
+      implementation. Preserve them for the final report and finish the gate
+      when no blocking finding remains.
+    - When verdict one or two contains bounded blocking findings and the
+      reviewer supplies a remediation brief requiring no human decision, the
+      leader may apply only that bounded remediation on the active issue branch.
+      Preserve any accompanying non-blocking observations as report-only.
+    - For every allowed remediation, reapply the permanent-test authorization
+      gate, remove unauthorized permanent-test work, rerun affected and
+      issue-required validation, inspect test and scope diffs, create a normal
+      follow-up commit, and push normally without rewriting history. Capture
+      the new remote head SHA, increment the automatic remediation count, then
+      return to step 26 and use a fresh reviewer for the complete new head.
+    - Stop without further automatic changes when a human decision is required,
+      remediation is unbounded or scope-expanding, repository state is unsafe,
+      required evidence is unavailable, remediation or required validation
+      fails outside safely correctable approved scope, or any other existing
+      workflow stop applies.
+    - A blocking third verdict is terminal even when its remediation would
+      otherwise be bounded. Do not perform a third remediation or seek a fourth
+      verdict.
+    - Across the gate, allow no more than three verdicts and no more than two
+      automatic remediation rounds.
+29. After the review gate approves or reaches a terminal stop, restore checkout
+    only when the working tree contains no uncommitted remediation:
+    - Switch the local checkout back to `main` after recording the final gate
+      outcome. A terminal stop remains a blocker and must be reported even when
+      clean checkout restoration succeeds.
+    - If remediation changes remain uncommitted, do not switch branches; stop
+      and report the active branch and dirty paths.
+    - Do not pull, merge, rebase, prune remotes, delete branches, or otherwise
+      update `main` during checkout restoration.
+30. Report final status with:
     - concise summary;
     - validation commands executed and explicit statuses;
     - permanent-test authorization basis and final test-diff review result;
@@ -318,9 +392,15 @@ Run this flow in order:
     - commit hash or hashes;
     - PR URL when delivery completed;
     - ready/draft PR status when a PR was opened or updated;
+    - number of independent review rounds;
+    - reviewed remote head SHA for every round;
+    - final review result;
+    - automatic remediation commit hashes;
+    - unresolved blocking findings;
+    - reported non-blocking observations;
     - current local checkout branch;
     - confirmation that the checkout was switched back to `main` when delivery
-      completed successfully.
+      and review-gate handling completed with a clean working tree.
     If delivery cannot be completed, or if the user explicitly requested
     local-only or no-delivery execution, include the blocker or reason, the
     current branch state, a suggested conventional commit title, and a suggested
@@ -346,6 +426,17 @@ Stop and report the blocker when any of these occur:
 - Authorized convergence tasks remain after the worker completes the maximum
   two corrective implement/converge cycles. This prevents normal ready
   delivery.
+- The PR number, expected remote head SHA, or required checks tied to that head
+  cannot be observed, required checks do not reach a terminal state within the
+  bounded wait, or the remote head changes unexpectedly before review.
+- The independent reviewer fails, returns an unusable or stale verdict, cannot
+  establish required live evidence, or reports a verdict not tied to the
+  expected head.
+- Review remediation requires a human decision, is unbounded or scope-expanding,
+  encounters unsafe repository state, or cannot complete required validation
+  within approved scope.
+- A third independent verdict remains blocking. No third remediation or fourth
+  verdict is allowed.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
   for draft PR review with the failure clearly reported.
@@ -369,9 +460,11 @@ Use the CatWorld `AGENTS.md` completion format:
 Include the final branch name, `git status --short`, a concise diff summary,
 validation freshness status, and any scope-drift review findings. When delivery
 operations were performed, include the commit hash or hashes, PR URL, ready or
-draft PR status, and current local checkout branch. When delivery operations
-were not performed, include the suggested commit title and pull request
-description.
+draft PR status, review-round count and per-round head SHAs, final review
+result, automatic remediation commit hashes, unresolved blocking findings,
+non-blocking observations, and current local checkout branch. When delivery
+operations were not performed, include the suggested commit title and pull
+request description.
 
 ## Done When
 
@@ -400,8 +493,17 @@ description.
   - scoped changes have been committed on the active issue branch;
   - the branch has been pushed normally;
   - a PR targeting `main` has been opened or updated;
+  - required checks for every reviewed head reached a terminal state before its
+    counted review;
+  - every review round used a fresh project-scoped read-only reviewer that
+    reconstructed and assessed the complete live PR head;
+  - the final independent verdict is tied to the final remote head SHA;
+  - no more than three verdicts or two automatic remediation rounds occurred;
+  - non-blocking observations were reported without automatic implementation;
+  - checkout restoration occurred only after review approval or a recorded
+    terminal stop and never while remediation remained uncommitted;
   - no merge, auto-merge, force-push, branch deletion, remote pruning, issue
-    mutation, or public GitHub comment was performed.
+    mutation, public GitHub comment, or formal self-approval was performed.
 - When delivery cannot be completed, final status includes:
   - commands and validation results;
   - risks and diff summary;

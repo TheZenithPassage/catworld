@@ -127,6 +127,10 @@ Evaluate:
 - whether every changed surface belongs to the issue and PR intent;
 - whether existing review threads or human change requests remain unresolved.
 
+When a pull request claims to preserve a shared protected invariant, identify
+every existing mutation path capable of weakening that invariant and inspect
+cross-path transaction, stale-state and lock-ordering behavior where applicable.
+
 Do not require new permanent automated coverage merely because behavior is
 observable, several consumers changed, or a regression is conceivable. Apply
 the repository authorization rule: permanent coverage requires issue or
