@@ -107,6 +107,47 @@ when at least one of these applies:
 - The change materially affects authorization, security, persistence, a Flyway
   migration, a shared API or external contract, or operational safety.
 
+### Permanent-Test Value Gate
+
+Authorization only permits consideration of permanent coverage; it does not
+make new tests mandatory. Every added or materially broadened permanent test
+MUST provide concrete maintenance value.
+
+Add or materially broaden permanent coverage only when all of these conditions
+are satisfied:
+
+- It protects a specific and realistic regression with meaningful practical
+  impact.
+- Existing coverage, compilation, build validation, directed inspection, or a
+  focused manual check does not already provide adequate evidence.
+- It is placed at the single responsible layer and does not duplicate the same
+  behavior through controller, service, mapper, persistence, frontend, or other
+  tests.
+- It protects an observable contract, business rule, invariant, authorization
+  boundary, destructive operation, monetary rule, concurrency guarantee,
+  migration, or persisted-integrity risk rather than incidental implementation
+  details.
+- Its maintenance cost is proportionate to the likelihood and impact of the
+  regression it prevents.
+
+A changed DTO field, mapper, API response field, component, button, visual
+state, layout, wording, ordinary bug fix, or additional consumer does not
+independently justify new permanent coverage.
+
+Generic issue wording such as `tests pass`, `relevant tests`, `frontend checks
+pass`, or validation commands means that existing suites must be executed. It
+does not authorize new permanent coverage.
+
+When the active GitHub issue explicitly identifies permanent coverage, its
+instructions are both authorization and a ceiling. Do not broaden that coverage
+through risk classification, generated artifacts, analysis, or convergence
+unless the constitution explicitly requires additional coverage.
+
+If broader permanent coverage appears materially necessary but is not clearly
+authorized, stop and request explicit human authorization instead of adding it.
+
+When the value of a permanent test is unclear, do not add it.
+
 For all other changes, the default is zero new permanent automated test
 coverage. None of the following independently authorizes it:
 
@@ -219,6 +260,10 @@ Run this flow in order:
 16. Keep the worker handoff limited to the repository context needed to
     reconstruct the task independently:
     - Identify the active issue, active branch, and feature directory.
+    - Fetch and read the complete active GitHub issue before applying the
+      permanent-test authorization gate. Generated spec, plan, tasks, analysis,
+      and convergence output may request or describe coverage, but cannot
+      authorize it independently.
     - Direct the worker to read `AGENTS.md`,
       `.specify/memory/constitution.md`, `docs/ARCHITECTURE.md`, and the current
       feature `spec.md`, `plan.md`, and `tasks.md`.
