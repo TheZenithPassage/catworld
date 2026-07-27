@@ -1,0 +1,30 @@
+<h2 mat-dialog-title>{{ text().stays.vaccineConflict.title }}</h2>
+
+<mat-dialog-content>
+  <p class="dialog-description">{{ text().stays.vaccineConflict.description }}</p>
+
+  <ul class="violation-list">
+    @for (violation of data.violations; track violation.catId + ':' + violation.vaccineType) {
+      <li>
+        <strong>{{ violation.catName }}</strong>
+        <span>{{ vaccineLabel(violation.vaccineType) }}</span>
+        <span class="violation-reason">{{ reasonLabel(violation.reason) }}</span>
+      </li>
+    }
+  </ul>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  @if (data.canOverride) {
+    <button mat-button type="button" [mat-dialog-close]="false">
+      {{ text().stays.vaccineConflict.actions.cancel }}
+    </button>
+    <button mat-flat-button type="button" [mat-dialog-close]="true">
+      {{ text().stays.vaccineConflict.actions.continue }}
+    </button>
+  } @else {
+    <button mat-flat-button type="button" [mat-dialog-close]="false">
+      {{ text().stays.vaccineConflict.actions.dismiss }}
+    </button>
+  }
+</mat-dialog-actions>

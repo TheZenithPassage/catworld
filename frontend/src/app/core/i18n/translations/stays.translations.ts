@@ -18,6 +18,23 @@ export interface StaysTranslations {
     searchOwnerOrCats: string;
     noOwnersMatch: string;
   };
+  vaccineConflict: {
+    title: string;
+    description: string;
+    vaccine: {
+      rabies: string;
+      tripleFeline: string;
+    };
+    reason: {
+      missing: string;
+      expired: string;
+    };
+    actions: {
+      dismiss: string;
+      cancel: string;
+      continue: string;
+    };
+  };
   overview: {
     title: string;
     description: string;
@@ -114,6 +131,24 @@ export const STAYS_TRANSLATIONS = {
       searchOwnerOrCats: 'Buscar dueño o uno de sus gatos',
       noOwnersMatch: 'Ningún dueño coincide con esta búsqueda.',
     },
+    vaccineConflict: {
+      title: 'Conflictos de vacunación',
+      description:
+        'Las vacunas guardadas no cubren toda la estancia. Revisa cada conflicto antes de continuar.',
+      vaccine: {
+        rabies: 'Rabia',
+        tripleFeline: 'Triple felina',
+      },
+      reason: {
+        missing: 'Falta la fecha de vacunación',
+        expired: 'La vacuna caduca el día que termina la estancia o antes',
+      },
+      actions: {
+        dismiss: 'Cerrar',
+        cancel: 'Cancelar',
+        continue: 'Continuar de todos modos',
+      },
+    },
     overview: {
       title: 'Estancias',
       description: 'Desde aquí puedes administrar las estancias activas y crear nuevas.',
@@ -207,6 +242,24 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Owner',
       searchOwnerOrCats: 'Search owner or one of their cats',
       noOwnersMatch: 'No owners match this search.',
+    },
+    vaccineConflict: {
+      title: 'Vaccine conflicts',
+      description:
+        'The stored vaccinations do not cover the complete stay. Review every conflict before continuing.',
+      vaccine: {
+        rabies: 'Rabies',
+        tripleFeline: 'Triple feline',
+      },
+      reason: {
+        missing: 'Vaccination date is missing',
+        expired: 'Vaccination expires on or before the stay ends',
+      },
+      actions: {
+        dismiss: 'Dismiss',
+        cancel: 'Cancel',
+        continue: 'Continue anyway',
+      },
     },
     overview: {
       title: 'Stays',
