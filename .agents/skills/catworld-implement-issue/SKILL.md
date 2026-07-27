@@ -209,10 +209,13 @@ Run this flow in order:
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
     document as part of the implementation.
 15. After the initial implementation and any required architecture update,
-    always spawn exactly one fresh built-in `worker` subagent to own the entire
-    convergence phase. Spawn it before any leader-run convergence assessment,
-    even when the leader expects the implementation to be complete. The worker
-    must not inherit the leader's conversation or implementation history.
+    first wait for every earlier agent or subagent that was allowed to edit the
+    working tree to finish. Confirm that no earlier editing agent remains active
+    or can resume working-tree mutations, then always spawn exactly one fresh
+    built-in `worker` subagent to own the entire convergence phase. Spawn it
+    before any leader-run convergence assessment, even when the leader expects
+    the implementation to be complete. The worker must not inherit the leader's
+    conversation or implementation history.
 16. Keep the worker handoff limited to the repository context needed to
     reconstruct the task independently:
     - Identify the active issue, active branch, and feature directory.
@@ -225,9 +228,11 @@ Run this flow in order:
       the leader's implementation narrative, internal reasoning, or any claim
       that the implementation is already correct.
 17. Run the handoff sequentially. The leader must wait for the worker and must
-    not edit the working tree while it is active. The worker must not commit,
-    push, open or update a pull request, switch branches, modify GitHub, post
-    comments, or perform any other delivery operation.
+    not edit the working tree while it is active. The worker is the only agent
+    allowed to mutate the working tree during convergence and must not delegate,
+    spawn, or hand off any working-tree mutation to another agent. The worker
+    must not commit, push, open or update a pull request, switch branches,
+    modify GitHub, post comments, or perform any other delivery operation.
 18. Instruct the worker to run the bounded convergence phase:
     - Load and follow `speckit-converge`, starting with a convergence pass
       regardless of whether the leader expects remaining work.
@@ -240,18 +245,22 @@ Run this flow in order:
     - When authorized convergence tasks remain, load and run
       `speckit-implement`, then rerun `speckit-converge`.
     - Perform at most two corrective `speckit-implement`/`speckit-converge`
-      cycles after the initial convergence pass. Stop after the second
-      corrective cycle even when authorized tasks still remain.
+      cycles after the initial convergence pass. If authorized convergence
+      tasks remain after the second corrective cycle, classify that state as a
+      workflow stop, report the remaining tasks, and return without allowing
+      normal ready delivery.
     - Return a concise report of remaining tasks, every changed surface, and
       validation evidence made stale by worker changes. Report any existing
       workflow stop condition or non-mechanical artifact conflict instead of
       performing delivery or expanding scope.
 19. After the worker returns, the leader must inspect the resulting working
     tree, active-branch diff, tasks, remaining-work report, changed surfaces,
-    and stale-evidence report. The leader then resumes control for final
-    validation, final test-diff and scope-drift reviews, delivery, checkout
-    restoration, and completion reporting. If the worker reported a stop
-    condition, apply the existing stop rules before continuing.
+    and stale-evidence report. If the worker reported a stop condition,
+    including authorized convergence tasks that remain after the cycle cap,
+    apply the existing stop rules and do not continue to normal ready delivery.
+    Otherwise, the leader resumes control for final validation, final test-diff
+    and scope-drift reviews, delivery, checkout restoration, and completion
+    reporting.
 20. Run all validations required by the issue, plan, and tasks.
 21. Before treating validation as complete:
     - Rerun any validation command, test, review, browser-control session, manual smoke
@@ -334,6 +343,9 @@ Stop and report the blocker when any of these occur:
   complexity, or regression cost that warrants permanent tests and explicit
   human authorization has not been recorded.
 - Generated artifacts conflict in a way that is not safely mechanical to fix.
+- Authorized convergence tasks remain after the worker completes the maximum
+  two corrective implement/converge cycles. This prevents normal ready
+  delivery.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
   for draft PR review with the failure clearly reported.
@@ -367,12 +379,14 @@ description.
   `main` as a delivery branch.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
-- The leader completed the initial implementation, then exactly one fresh
-  worker owned convergence from its first pass through at most two corrective
-  implement/converge cycles.
+- The leader completed the initial implementation, confirmed that every earlier
+  editing agent had finished, then exactly one fresh worker owned convergence
+  from its first pass through at most two corrective implement/converge cycles.
 - The leader waited without editing while the worker was active, inspected the
   returned working tree and report, and resumed before final validation and
   delivery.
+- The worker performed convergence mutations itself without delegating
+  working-tree mutations to another agent.
 - Permanent-test authorization was determined before implementation and
   reapplied after every convergence pass.
 - Required validations have run or any inability to run them is reported.
@@ -382,6 +396,7 @@ description.
   permanent automated test coverage.
 - Changed files have been reviewed against the issue/spec/plan/tasks source map.
 - Normal issue delivery is complete when:
+  - no authorized convergence tasks remain after the worker's final pass;
   - scoped changes have been committed on the active issue branch;
   - the branch has been pushed normally;
   - a PR targeting `main` has been opened or updated;
