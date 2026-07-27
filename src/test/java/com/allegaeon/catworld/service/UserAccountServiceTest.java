@@ -10,6 +10,7 @@ import com.allegaeon.catworld.mapper.UserAccountMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.repository.UserAccountRepository;
@@ -69,6 +70,9 @@ class UserAccountServiceTest {
     @Mock
     private StayRepository stayRepository;
 
+    @Mock
+    private NightlyReferenceRateChangeRepository nightlyReferenceRateChangeRepository;
+
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private UserAccountService userAccountService;
 
@@ -82,7 +86,8 @@ class UserAccountServiceTest {
                 ownerRepository,
                 catRepository,
                 vetRepository,
-                stayRepository
+                stayRepository,
+                nightlyReferenceRateChangeRepository
         );
     }
 
@@ -292,13 +297,15 @@ class UserAccountServiceTest {
                 ownerRepository,
                 catRepository,
                 vetRepository,
-                stayRepository);
+                stayRepository,
+                nightlyReferenceRateChangeRepository);
         order.verify(userAccountRepository).findById(target.getId());
         order.verify(currentUserAccountService).getCurrentUserAccount();
         order.verify(ownerRepository).existsByCreatedBy_Id(target.getId());
         order.verify(catRepository).existsByCreatedBy_Id(target.getId());
         order.verify(vetRepository).existsByCreatedBy_Id(target.getId());
         order.verify(stayRepository).existsByCreatedBy_Id(target.getId());
+        order.verify(nightlyReferenceRateChangeRepository).existsByChangedBy_Id(target.getId());
         order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
         order.verify(userAccountRepository).delete(target);
         order.verify(userAccountRepository).flush();
@@ -325,7 +332,14 @@ class UserAccountServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> userAccountService.deleteUser(missingId));
 
-        verifyNoInteractions(currentUserAccountService, ownerRepository, catRepository, vetRepository, stayRepository);
+        verifyNoInteractions(
+                currentUserAccountService,
+                ownerRepository,
+                catRepository,
+                vetRepository,
+                stayRepository,
+                nightlyReferenceRateChangeRepository
+        );
         verify(userAccountRepository, never()).delete(any(UserAccount.class));
     }
 
@@ -337,7 +351,13 @@ class UserAccountServiceTest {
 
         assertThrows(ForbiddenException.class, () -> userAccountService.deleteUser(currentAdmin.getId()));
 
-        verifyNoInteractions(ownerRepository, catRepository, vetRepository, stayRepository);
+        verifyNoInteractions(
+                ownerRepository,
+                catRepository,
+                vetRepository,
+                stayRepository,
+                nightlyReferenceRateChangeRepository
+        );
         verify(userAccountRepository, never()).findEnabledByRoleForUpdate(UserRole.ADMIN);
         verify(userAccountRepository, never()).delete(any(UserAccount.class));
     }
@@ -430,15 +450,31 @@ class UserAccountServiceTest {
             case CAT -> when(catRepository.existsByCreatedBy_Id(targetId)).thenReturn(true);
             case VET -> when(vetRepository.existsByCreatedBy_Id(targetId)).thenReturn(true);
             case STAY -> when(stayRepository.existsByCreatedBy_Id(targetId)).thenReturn(true);
+            case NIGHTLY_REFERENCE_RATE_CHANGE ->
+                    when(nightlyReferenceRateChangeRepository.existsByChangedBy_Id(targetId))
+                            .thenReturn(true);
         }
     }
 
     private void verifyNoReferenceChecksAfter(CreatorReference reference) {
         switch (reference) {
-            case OWNER -> verifyNoInteractions(catRepository, vetRepository, stayRepository);
-            case CAT -> verifyNoInteractions(vetRepository, stayRepository);
-            case VET -> verifyNoInteractions(stayRepository);
-            case STAY -> {
+            case OWNER -> verifyNoInteractions(
+                    catRepository,
+                    vetRepository,
+                    stayRepository,
+                    nightlyReferenceRateChangeRepository
+            );
+            case CAT -> verifyNoInteractions(
+                    vetRepository,
+                    stayRepository,
+                    nightlyReferenceRateChangeRepository
+            );
+            case VET -> verifyNoInteractions(
+                    stayRepository,
+                    nightlyReferenceRateChangeRepository
+            );
+            case STAY -> verifyNoInteractions(nightlyReferenceRateChangeRepository);
+            case NIGHTLY_REFERENCE_RATE_CHANGE -> {
                 // All reference repositories are expected to have been checked.
             }
         }
@@ -462,6 +498,7 @@ class UserAccountServiceTest {
         OWNER,
         CAT,
         VET,
-        STAY
+        STAY,
+        NIGHTLY_REFERENCE_RATE_CHANGE
     }
 }

@@ -14,6 +14,8 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
+- Independently configurable nightly reference rates for one, two and three
+  cats.
 - Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
@@ -127,6 +129,18 @@ A `UserAccount` contains:
 `UserAccount` does not store its own creator. Operational creator attribution
 is stored only on owner, cat, vet and stay records.
 
+#### NightlyReferenceRate
+
+Represents the current optional whole-stay nightly amount for exactly one fixed
+category: one, two or three cats. The amount is an exact `DECIMAL(19,4)` value
+and must be positive when configured.
+
+#### NightlyReferenceRateChange
+
+Represents one immutable, append-only transition of a nightly reference rate.
+It records the category, exact previous and new nullable amounts, the
+`UserAccount` that made the change and the application-clock timestamp.
+
 ## Stay Model
 
 ### Key Rule
@@ -158,6 +172,8 @@ Main relationships:
 - A `Cat` may have zero or more `StayCat` links.
 - Each `Owner`, `Cat`, `Vet` and `Stay` references the `UserAccount` that
   created it.
+- Each `NightlyReferenceRateChange` references the `UserAccount` that made the
+  transition.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -247,6 +263,30 @@ Current rules:
   removes the stay and its `StayCat` links, preserves cat, owner, vet and
   application-account records, and is not blocked by dynamic stay status.
 
+## Nightly Reference Rates
+
+The backend maintains exactly three independent current rows for stays with
+one, two and three cats. A nullable amount means that the category is
+unavailable. Amounts are exact `DECIMAL(19,4)` whole-stay nightly references,
+not per-cat prices, and no currency is modeled.
+
+Authenticated `ADMIN` and `STAFF` accounts may read the ordered current set
+through `GET /api/nightly-reference-rates`. Only `ADMIN` may configure or
+replace one category with `PUT /api/nightly-reference-rates/{catCount}` or
+clear it with `DELETE /api/nightly-reference-rates/{catCount}`. The service
+authorizes against the persisted current account before request-specific
+mutation validation.
+
+Mutations lock only the selected current row pessimistically. A real transition
+updates that row and inserts one immutable audit snapshot in the same
+transaction; either both flush and commit or both roll back. Numerically equal
+replacement values and clearing an already unavailable category are successful
+no-ops without audit rows.
+
+Reference-rate changes are prospective guidance only. They do not read,
+reprice, update or backfill existing stays, and stays do not persist a selected
+reference-rate category or amount.
+
 ## Persistence
 
 The application uses MySQL in local development through Docker Compose.
@@ -272,6 +312,13 @@ Important schema points:
 - `user_accounts` stores persistent application users for HTTP Basic authentication.
 - `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
   foreign key to `user_accounts`.
+- `nightly_reference_rates` stores exactly the three seeded current categories
+  and nullable positive `DECIMAL(19,4)` amounts.
+- `nightly_reference_rate_changes` stores immutable previous/new snapshots,
+  category, actor and microsecond timestamp. Database checks reject invalid
+  categories, non-positive values and transitions with no state difference.
+- Rate-change actor foreign keys are restrictive; account deletion is blocked
+  while a rate-change audit row references the target.
 
 ## Authentication
 
@@ -281,12 +328,19 @@ Successful login returns the canonical stored username and its fixed `ADMIN` or 
 
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior.
 
+Nightly reference-rate reads allow authenticated `ADMIN` and `STAFF` roles,
+while configure, replace and clear operations require `ADMIN`. Spring Security
+method-aware matchers enforce this HTTP boundary before the generic
+authenticated API rule, and the application authorization policy repeats the
+authoritative persisted-account decision at the service boundary.
+
 `DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
 application account. The service rejects authenticated self-deletion with
 `403 Forbidden`, returns `404 Not Found` for a missing target, and blocks
 deletion with `409 Conflict` while any owner, cat, vet or stay references the
-target as creator. Deleting an `ADMIN` is allowed only when a different enabled
-`ADMIN` remains; disabled administrators do not satisfy that invariant.
+target as creator or a nightly reference-rate audit records the target as its
+actor. Deleting an `ADMIN` is allowed only when a different enabled `ADMIN`
+remains; disabled administrators do not satisfy that invariant.
 
 Account deletion resolves the target and authenticated account, checks creator
 references, then locks the enabled-admin set for every eligible target. The
@@ -506,6 +560,12 @@ Operational entities also include required creator attribution:
 Creator attribution is assigned by services during creation and enforced by
 database foreign keys. It is separate from JPA timestamp auditing.
 
+Nightly reference-rate history uses a separate focused audit model. Each real
+transition preserves nullable previous/new exact amounts, category, actor and
+change time in `nightly_reference_rate_changes`. These rows have no update
+path, are not a generic event log, and retain their actor through a restrictive
+foreign key and account-deletion pre-check.
+
 ## Error Handling
 
 The API uses custom exceptions for common error cases:
@@ -538,6 +598,8 @@ Current focus:
 - overlap validation
 - cancellation flow
 - update flow rules
+- nightly reference-rate authorization, current-state transitions and audit
+  construction
 
 Repositories and mappers are mocked where appropriate.
 
