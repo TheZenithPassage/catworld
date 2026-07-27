@@ -107,6 +107,7 @@ public class StayService implements IStayService {
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         Stay stay = getStayEntity(stayId);
         validateStayCanBeModified(stay);
+        boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
 
         stay = stayMapper.updateEntity(stay, stayUpdateDTO);
 
@@ -116,12 +117,14 @@ public class StayService implements IStayService {
             if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
         }
 
-        List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayUpdateDTO.getEndAt());
-        if (!vaccineConflicts.isEmpty()) {
-            validateVaccineOverride(
-                    vaccineConflicts,
-                    stayUpdateDTO.isOverrideVaccineConflicts(),
-                    currentUserAccountService.getCurrentUserAccount());
+        if (extendsStay) {
+            List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayUpdateDTO.getEndAt());
+            if (!vaccineConflicts.isEmpty()) {
+                validateVaccineOverride(
+                        vaccineConflicts,
+                        stayUpdateDTO.isOverrideVaccineConflicts(),
+                        currentUserAccountService.getCurrentUserAccount());
+            }
         }
 
         return toResponseDTO(stayRepository.save(stay));

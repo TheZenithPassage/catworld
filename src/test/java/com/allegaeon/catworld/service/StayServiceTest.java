@@ -1059,20 +1059,139 @@ public class StayServiceTest {
         }
 
         @Test
-        void updateRevalidatesParticipatingCats() {
+        void updateSkipsVaccineRevalidationWhenEndIsUnchanged() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
-            Cat cat = vaccineCat("Milo", endAt.toLocalDate().minusYears(1), endAt.toLocalDate());
+            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
-                    .startAt(startAt.plusDays(10))
-                    .endAt(startAt.plusDays(15))
+                    .startAt(persistedStartAt)
+                    .endAt(persistedEndAt)
+                    .build();
+            StayCat stayCat = linkStayAndCat(stay, cat);
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(persistedStartAt.minusHours(1))
+                    .endAt(persistedEndAt)
+                    .notes("Updated notes")
+                    .build();
+            Stay updatedStay = Stay.builder()
+                    .id(stay.getId())
+                    .startAt(request.getStartAt())
+                    .endAt(request.getEndAt())
+                    .notes(request.getNotes())
+                    .stayCats(Set.of(stayCat))
+                    .build();
+            StayResponseDTO response = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
+
+            assertSame(response, service.updateStay(stay.getId(), request));
+
+            verify(stayRepository).save(updatedStay);
+            verify(currentUserAccountService, never()).getCurrentUserAccount();
+
+        }
+
+        @Test
+        void updateSkipsVaccineRevalidationWhenEndIsShortened() {
+
+            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            Cat cat = vaccineCat("Milo", null, null);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(persistedStartAt)
+                    .endAt(persistedEndAt)
+                    .build();
+            StayCat stayCat = linkStayAndCat(stay, cat);
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(persistedStartAt)
+                    .endAt(persistedEndAt.minusDays(1))
+                    .build();
+            Stay updatedStay = Stay.builder()
+                    .id(stay.getId())
+                    .startAt(request.getStartAt())
+                    .endAt(request.getEndAt())
+                    .stayCats(Set.of(stayCat))
+                    .build();
+            StayResponseDTO response = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
+
+            assertSame(response, service.updateStay(stay.getId(), request));
+
+            verify(stayRepository).save(updatedStay);
+            verify(currentUserAccountService, never()).getCurrentUserAccount();
+
+        }
+
+        @Test
+        void updateAllowsCoveredExtensionWithoutOverride() {
+
+            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            Cat cat = vaccineCat(
+                    "Milo",
+                    requestedEndAt.toLocalDate(),
+                    requestedEndAt.toLocalDate());
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(persistedEndAt)
+                    .build();
+            StayCat stayCat = linkStayAndCat(stay, cat);
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt)
+                    .endAt(requestedEndAt)
+                    .build();
+            Stay updatedStay = Stay.builder()
+                    .id(stay.getId())
+                    .startAt(request.getStartAt())
+                    .endAt(request.getEndAt())
+                    .stayCats(Set.of(stayCat))
+                    .build();
+            StayResponseDTO response = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
+            when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
+            when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
+
+            assertSame(response, service.updateStay(stay.getId(), request));
+
+            verify(stayRepository).save(updatedStay);
+            verify(currentUserAccountService, never()).getCurrentUserAccount();
+
+        }
+
+        @Test
+        void updateBlocksConflictingStaffExtensionEvenWithOverrideIntent() {
+
+            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            Cat cat = vaccineCat(
+                    "Milo",
+                    requestedEndAt.toLocalDate().minusYears(1),
+                    requestedEndAt.toLocalDate());
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(persistedEndAt)
                     .build();
             linkStayAndCat(stay, cat);
             StayUpdateDTO request = StayUpdateDTO.builder()
                     .startAt(startAt)
-                    .endAt(endAt)
+                    .endAt(requestedEndAt)
+                    .overrideVaccineConflicts(true)
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -1090,26 +1209,54 @@ public class StayServiceTest {
         }
 
         @Test
-        void updateAllowsExplicitAdminOverride() {
+        void updateBlocksConflictingAdminExtensionWithoutExplicitOverride() {
 
             LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
-                    .startAt(startAt.plusDays(10))
-                    .endAt(startAt.plusDays(15))
+                    .startAt(startAt)
+                    .endAt(persistedEndAt)
+                    .build();
+            linkStayAndCat(stay, cat);
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt)
+                    .endAt(requestedEndAt)
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, request)).thenReturn(stay);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
+
+            assertThrows(VaccineConflictException.class, () -> service.updateStay(stay.getId(), request));
+            verify(stayRepository, never()).save(any(Stay.class));
+
+        }
+
+        @Test
+        void updateAllowsExplicitAdminOverrideForConflictingExtension() {
+
+            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            Cat cat = vaccineCat("Milo", null, null);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(persistedEndAt)
                     .build();
             StayCat stayCat = linkStayAndCat(stay, cat);
             StayUpdateDTO request = StayUpdateDTO.builder()
                     .startAt(startAt)
-                    .endAt(endAt)
+                    .endAt(requestedEndAt)
                     .overrideVaccineConflicts(true)
                     .build();
             Stay updatedStay = Stay.builder()
                     .id(stay.getId())
                     .startAt(startAt)
-                    .endAt(endAt)
+                    .endAt(requestedEndAt)
                     .stayCats(Set.of(stayCat))
                     .build();
             StayResponseDTO response = new StayResponseDTO();
@@ -1121,6 +1268,7 @@ public class StayServiceTest {
             when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
 
             assertSame(response, service.updateStay(stay.getId(), request));
+
             verify(stayRepository).save(updatedStay);
 
         }

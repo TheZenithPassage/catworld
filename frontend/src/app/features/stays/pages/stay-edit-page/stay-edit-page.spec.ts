@@ -173,7 +173,7 @@ describe('StayEditPage', () => {
     );
   });
 
-  it('updates a stay with the current payload shape and returns to stays', () => {
+  it('completes an accepted non-extending update without opening the vaccine dialog', () => {
     createComponent();
     stayApiService.updateStay.mockReturnValue(of(stay));
 
@@ -189,6 +189,7 @@ describe('StayEditPage', () => {
       notes: null,
       overrideVaccineConflicts: false,
     });
+    expect(matDialog.open).not.toHaveBeenCalled();
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
   });
