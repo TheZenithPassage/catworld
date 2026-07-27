@@ -141,7 +141,7 @@ export const STAYS_TRANSLATIONS = {
       },
       reason: {
         missing: 'Falta la fecha de vacunación',
-        expired: 'La vacuna caduca antes de que termine la estancia',
+        expired: 'La vacuna caduca el día que termina la estancia o antes',
       },
       actions: {
         dismiss: 'Cerrar',
@@ -253,7 +253,7 @@ export const STAYS_TRANSLATIONS = {
       },
       reason: {
         missing: 'Vaccination date is missing',
-        expired: 'Vaccination expires before the stay ends',
+        expired: 'Vaccination expires on or before the stay ends',
       },
       actions: {
         dismiss: 'Dismiss',

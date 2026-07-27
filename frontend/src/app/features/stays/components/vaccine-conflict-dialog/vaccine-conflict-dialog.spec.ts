@@ -59,7 +59,7 @@ describe('VaccineConflictDialog', () => {
     expect(violations).toHaveLength(2);
     expect(violations[0].textContent).toContain('Milo');
     expect(violations[0].textContent).toContain('Rabies');
-    expect(violations[0].textContent).toContain('Vaccination expires before the stay ends');
+    expect(violations[0].textContent).toContain('Vaccination expires on or before the stay ends');
     expect(violations[1].textContent).toContain('Luna');
     expect(violations[1].textContent).toContain('Triple feline');
     expect(violations[1].textContent).toContain('Vaccination date is missing');
