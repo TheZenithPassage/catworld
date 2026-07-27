@@ -165,6 +165,27 @@ class UserAccountServiceTest {
     }
 
     @Test
+    void rejectsRoleChangeToStaffWhenStaffSnapshotIsNowLastEnabledAdmin() {
+        UserAccount staffSnapshot = account(UserRole.STAFF, true);
+        UserAccount currentTarget = UserAccount.builder()
+                .id(staffSnapshot.getId())
+                .username(staffSnapshot.getUsername())
+                .passwordHash(staffSnapshot.getPasswordHash())
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .build();
+        when(userAccountRepository.findById(staffSnapshot.getId())).thenReturn(Optional.of(staffSnapshot));
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN)).thenReturn(List.of(currentTarget));
+
+        assertThrows(ConflictException.class,
+                () -> userAccountService.changeRole(staffSnapshot.getId(), UserRole.STAFF));
+
+        InOrder order = inOrder(userAccountRepository);
+        order.verify(userAccountRepository).findById(staffSnapshot.getId());
+        order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
+    }
+
+    @Test
     void preventsDisablingLastEnabledAdmin() {
         UserAccount administrator = account(UserRole.ADMIN, true);
         when(userAccountRepository.findById(administrator.getId())).thenReturn(Optional.of(administrator));
@@ -188,6 +209,27 @@ class UserAccountServiceTest {
 
         assertFalse(administrator.isEnabled());
         assertFalse(response.isEnabled());
+    }
+
+    @Test
+    void rejectsDisableWhenDisabledSnapshotIsNowLastEnabledAdmin() {
+        UserAccount disabledSnapshot = account(UserRole.ADMIN, false);
+        UserAccount currentTarget = UserAccount.builder()
+                .id(disabledSnapshot.getId())
+                .username(disabledSnapshot.getUsername())
+                .passwordHash(disabledSnapshot.getPasswordHash())
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .build();
+        when(userAccountRepository.findById(disabledSnapshot.getId())).thenReturn(Optional.of(disabledSnapshot));
+        when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN)).thenReturn(List.of(currentTarget));
+
+        assertThrows(ConflictException.class,
+                () -> userAccountService.changeEnabled(disabledSnapshot.getId(), false));
+
+        InOrder order = inOrder(userAccountRepository);
+        order.verify(userAccountRepository).findById(disabledSnapshot.getId());
+        order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
     }
 
     @Test

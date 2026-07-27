@@ -73,8 +73,8 @@ public class UserAccountService implements IUserAccountService {
     @Transactional
     public UserAccountResponseDTO changeRole(UUID id, UserRole role) {
         UserAccount userAccount = getEntity(id);
-        if (userAccount.getRole() == UserRole.ADMIN && userAccount.isEnabled() && role == UserRole.STAFF) {
-            validateAnotherEnabledAdminExists();
+        if (role == UserRole.STAFF) {
+            validateAnotherEnabledAdminExists(userAccount.getId());
         }
 
         userAccount.setRole(role);
@@ -85,8 +85,8 @@ public class UserAccountService implements IUserAccountService {
     @Transactional
     public UserAccountResponseDTO changeEnabled(UUID id, boolean enabled) {
         UserAccount userAccount = getEntity(id);
-        if (userAccount.getRole() == UserRole.ADMIN && userAccount.isEnabled() && !enabled) {
-            validateAnotherEnabledAdminExists();
+        if (!enabled) {
+            validateAnotherEnabledAdminExists(userAccount.getId());
         }
 
         userAccount.setEnabled(enabled);
@@ -107,7 +107,7 @@ public class UserAccountService implements IUserAccountService {
             throw new ConflictException("User account cannot be deleted while operational records reference it");
         }
 
-        validateEnabledAdminRemainsAfterDeleting(target.getId());
+        validateAnotherEnabledAdminExists(target.getId());
 
         try {
             userAccountRepository.delete(target);
@@ -122,8 +122,12 @@ public class UserAccountService implements IUserAccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("User account", id));
     }
 
-    private void validateAnotherEnabledAdminExists() {
-        if (userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN).size() <= 1) {
+    private void validateAnotherEnabledAdminExists(UUID targetId) {
+        boolean anotherEnabledAdminExists =
+                userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN).stream()
+                        .anyMatch(administrator -> !Objects.equals(administrator.getId(), targetId));
+
+        if (!anotherEnabledAdminExists) {
             throw new ConflictException("At least one enabled ADMIN account is required");
         }
     }
@@ -133,15 +137,6 @@ public class UserAccountService implements IUserAccountService {
                 || catRepository.existsByCreatedBy_Id(id)
                 || vetRepository.existsByCreatedBy_Id(id)
                 || stayRepository.existsByCreatedBy_Id(id);
-    }
-
-    private void validateEnabledAdminRemainsAfterDeleting(UUID targetId) {
-        boolean enabledAdminRemains = userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN).stream()
-                .anyMatch(administrator -> !Objects.equals(administrator.getId(), targetId));
-
-        if (!enabledAdminRemains) {
-            throw new ConflictException("At least one enabled ADMIN account is required");
-        }
     }
 
     private String normalizeUsername(String username) {

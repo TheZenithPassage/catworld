@@ -273,6 +273,15 @@ concurrent reference creation, and an integrity or optimistic-locking race maps
 to `409 Conflict`. The operation never cascades, detaches, reassigns or deletes
 operational records to make account deletion succeed.
 
+Account deletion, every requested role change to `STAFF`, and every requested
+enabled change to `false` share one enabled-admin critical section. Each path
+resolves its target before acquiring the enabled-admin write lock, validates
+that the locked current set contains an enabled administrator with a different
+target UUID, and mutates only after that validation succeeds. Whether the lock
+is acquired never depends on the target's pre-lock role or enabled snapshot.
+This target-first lock ordering serializes deletion, demotion and disabling
+without changing their existing HTTP contracts.
+
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
 When authenticated users create owner, cat, vet or stay records, the backend
