@@ -206,6 +206,17 @@ Possible statuses:
 
 This avoids storing redundant state that can become inconsistent with the dates.
 
+### Stay Nights Are Response-Derived
+
+Stay responses expose `numberOfNights` as an authoritative backend calculation.
+The value is the number of days between the local calendar dates of `startAt`
+and `endAt`. Time-of-day does not affect the calculation after each timestamp
+is converted to its local date, so a valid positive-duration stay on one
+calendar date returns zero nights.
+
+`numberOfNights` is not accepted in stay request contracts and is not persisted
+on the `Stay` entity or in the database schema.
+
 ## Stay Business Rules
 
 Current rules:
