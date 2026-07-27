@@ -282,9 +282,10 @@ is acquired never depends on the target's pre-lock role or enabled snapshot.
 Role and enabled mutations then use column-scoped updates and reload the target:
 a role write cannot publish a stale enabled value, an enabled write cannot
 publish a stale role, and a validated reducer is persisted even when the
-pre-lock target snapshot already contains its requested value. This target-first
-lock ordering and focused persistence protocol serialize deletion, demotion and
-disabling without changing their existing HTTP contracts.
+pre-lock target snapshot already contains its requested value. Each focused
+statement also advances `updatedAt`. This target-first lock ordering and focused
+persistence protocol serialize deletion, demotion and disabling without
+changing their existing HTTP contracts.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
@@ -458,7 +459,10 @@ Main entities include:
 - `createdAt`
 - `updatedAt`
 
-These fields are managed with JPA Auditing.
+Entity-managed writes update these fields through JPA Auditing. The focused
+bulk updates for `UserAccount.role` and `UserAccount.enabled` bypass entity
+listeners, so each statement advances `updatedAt` alongside only its requested
+domain column.
 
 Operational entities also include required creator attribution:
 

@@ -29,6 +29,7 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -148,7 +150,8 @@ class UserAccountServiceTest {
                 () -> userAccountService.changeRole(administrator.getId(), UserRole.STAFF));
 
         assertEquals(UserRole.ADMIN, administrator.getRole());
-        verify(userAccountRepository, never()).updateRole(administrator.getId(), UserRole.STAFF);
+        verify(userAccountRepository, never())
+                .updateRole(eq(administrator.getId()), eq(UserRole.STAFF), any(Instant.class));
     }
 
     @Test
@@ -165,7 +168,8 @@ class UserAccountServiceTest {
 
         assertEquals(UserRole.ADMIN, administrator.getRole());
         assertEquals(UserRole.STAFF, response.getRole());
-        verify(userAccountRepository).updateRole(administrator.getId(), UserRole.STAFF);
+        verify(userAccountRepository)
+                .updateRole(eq(administrator.getId()), eq(UserRole.STAFF), any(Instant.class));
     }
 
     @Test
@@ -187,7 +191,8 @@ class UserAccountServiceTest {
         InOrder order = inOrder(userAccountRepository);
         order.verify(userAccountRepository).findById(staffSnapshot.getId());
         order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
-        verify(userAccountRepository, never()).updateRole(staffSnapshot.getId(), UserRole.STAFF);
+        verify(userAccountRepository, never())
+                .updateRole(eq(staffSnapshot.getId()), eq(UserRole.STAFF), any(Instant.class));
     }
 
     @Test
@@ -200,7 +205,8 @@ class UserAccountServiceTest {
                 () -> userAccountService.changeEnabled(administrator.getId(), false));
 
         assertTrue(administrator.isEnabled());
-        verify(userAccountRepository, never()).updateEnabled(administrator.getId(), false);
+        verify(userAccountRepository, never())
+                .updateEnabled(eq(administrator.getId()), eq(false), any(Instant.class));
     }
 
     @Test
@@ -217,7 +223,8 @@ class UserAccountServiceTest {
 
         assertTrue(administrator.isEnabled());
         assertFalse(response.isEnabled());
-        verify(userAccountRepository).updateEnabled(administrator.getId(), false);
+        verify(userAccountRepository)
+                .updateEnabled(eq(administrator.getId()), eq(false), any(Instant.class));
     }
 
     @Test
@@ -239,7 +246,8 @@ class UserAccountServiceTest {
         InOrder order = inOrder(userAccountRepository);
         order.verify(userAccountRepository).findById(disabledSnapshot.getId());
         order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
-        verify(userAccountRepository, never()).updateEnabled(disabledSnapshot.getId(), false);
+        verify(userAccountRepository, never())
+                .updateEnabled(eq(disabledSnapshot.getId()), eq(false), any(Instant.class));
     }
 
     @Test

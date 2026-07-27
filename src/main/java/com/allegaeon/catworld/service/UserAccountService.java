@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -77,7 +78,7 @@ public class UserAccountService implements IUserAccountService {
             validateAnotherEnabledAdminExists(id);
         }
 
-        userAccountRepository.updateRole(id, role);
+        userAccountRepository.updateRole(id, role, Instant.now());
         return userAccountMapper.toResponseDTO(getEntity(id));
     }
 
@@ -89,7 +90,7 @@ public class UserAccountService implements IUserAccountService {
             validateAnotherEnabledAdminExists(id);
         }
 
-        userAccountRepository.updateEnabled(id, enabled);
+        userAccountRepository.updateEnabled(id, enabled, Instant.now());
         return userAccountMapper.toResponseDTO(getEntity(id));
     }
 

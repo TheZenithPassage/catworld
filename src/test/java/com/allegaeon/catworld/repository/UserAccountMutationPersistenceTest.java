@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +28,8 @@ import static org.mockito.Mockito.mock;
 })
 @Import(JpaAuditingConfig.class)
 class UserAccountMutationPersistenceTest {
+
+    private static final Instant STALE_UPDATED_AT = Instant.parse("2000-01-01T00:00:00Z");
 
     @Autowired
     private UserAccountRepository userAccountRepository;
@@ -56,9 +59,11 @@ class UserAccountMutationPersistenceTest {
         saveAccount("other-role-admin", UserRole.ADMIN, true);
         UUID targetId = staleTarget.getId();
         makeTargetCurrentEnabledAdmin(targetId);
+        Instant previousUpdatedAt = storedUpdatedAt(targetId);
 
         assertEquals(UserRole.STAFF, staleTarget.getRole());
         assertFalse(staleTarget.isEnabled());
+        assertEquals(STALE_UPDATED_AT, previousUpdatedAt);
 
         var response = userAccountService.changeRole(targetId, UserRole.STAFF);
 
@@ -66,6 +71,7 @@ class UserAccountMutationPersistenceTest {
         assertTrue(response.isEnabled());
         assertEquals(UserRole.STAFF.name(), storedRole(targetId));
         assertTrue(storedEnabled(targetId));
+        assertTrue(storedUpdatedAt(targetId).isAfter(previousUpdatedAt));
     }
 
     @Test
@@ -74,9 +80,11 @@ class UserAccountMutationPersistenceTest {
         saveAccount("other-enabled-admin", UserRole.ADMIN, true);
         UUID targetId = staleTarget.getId();
         makeTargetCurrentEnabledAdmin(targetId);
+        Instant previousUpdatedAt = storedUpdatedAt(targetId);
 
         assertEquals(UserRole.STAFF, staleTarget.getRole());
         assertFalse(staleTarget.isEnabled());
+        assertEquals(STALE_UPDATED_AT, previousUpdatedAt);
 
         var response = userAccountService.changeEnabled(targetId, false);
 
@@ -84,6 +92,7 @@ class UserAccountMutationPersistenceTest {
         assertFalse(response.isEnabled());
         assertEquals(UserRole.ADMIN.name(), storedRole(targetId));
         assertFalse(storedEnabled(targetId));
+        assertTrue(storedUpdatedAt(targetId).isAfter(previousUpdatedAt));
     }
 
     private UserAccount saveAccount(String username, UserRole role, boolean enabled) {
@@ -97,9 +106,10 @@ class UserAccountMutationPersistenceTest {
 
     private void makeTargetCurrentEnabledAdmin(UUID targetId) {
         jdbcTemplate.update(
-                "update user_accounts set role = ?, enabled = ? where id = ?",
+                "update user_accounts set role = ?, enabled = ?, updated_at = ? where id = ?",
                 UserRole.ADMIN.name(),
                 true,
+                STALE_UPDATED_AT,
                 targetId);
     }
 
@@ -115,5 +125,12 @@ class UserAccountMutationPersistenceTest {
                 "select enabled from user_accounts where id = ?",
                 Boolean.class,
                 targetId));
+    }
+
+    private Instant storedUpdatedAt(UUID targetId) {
+        return jdbcTemplate.queryForObject(
+                "select updated_at from user_accounts where id = ?",
+                Instant.class,
+                targetId);
     }
 }

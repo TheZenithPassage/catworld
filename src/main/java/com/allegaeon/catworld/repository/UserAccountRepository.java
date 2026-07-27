@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,10 +27,24 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     List<UserAccount> findEnabledByRoleForUpdate(@Param("role") UserRole role);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update UserAccount account set account.role = :role where account.id = :id")
-    void updateRole(@Param("id") UUID id, @Param("role") UserRole role);
+    @Query("""
+            update UserAccount account
+            set account.role = :role, account.updatedAt = :updatedAt
+            where account.id = :id
+            """)
+    void updateRole(
+            @Param("id") UUID id,
+            @Param("role") UserRole role,
+            @Param("updatedAt") Instant updatedAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update UserAccount account set account.enabled = :enabled where account.id = :id")
-    void updateEnabled(@Param("id") UUID id, @Param("enabled") boolean enabled);
+    @Query("""
+            update UserAccount account
+            set account.enabled = :enabled, account.updatedAt = :updatedAt
+            where account.id = :id
+            """)
+    void updateEnabled(
+            @Param("id") UUID id,
+            @Param("enabled") boolean enabled,
+            @Param("updatedAt") Instant updatedAt);
 }
