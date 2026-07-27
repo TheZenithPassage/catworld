@@ -72,25 +72,25 @@ public class UserAccountService implements IUserAccountService {
     @Override
     @Transactional
     public UserAccountResponseDTO changeRole(UUID id, UserRole role) {
-        UserAccount userAccount = getEntity(id);
+        getEntity(id);
         if (role == UserRole.STAFF) {
-            validateAnotherEnabledAdminExists(userAccount.getId());
+            validateAnotherEnabledAdminExists(id);
         }
 
-        userAccount.setRole(role);
-        return userAccountMapper.toResponseDTO(userAccount);
+        userAccountRepository.updateRole(id, role);
+        return userAccountMapper.toResponseDTO(getEntity(id));
     }
 
     @Override
     @Transactional
     public UserAccountResponseDTO changeEnabled(UUID id, boolean enabled) {
-        UserAccount userAccount = getEntity(id);
+        getEntity(id);
         if (!enabled) {
-            validateAnotherEnabledAdminExists(userAccount.getId());
+            validateAnotherEnabledAdminExists(id);
         }
 
-        userAccount.setEnabled(enabled);
-        return userAccountMapper.toResponseDTO(userAccount);
+        userAccountRepository.updateEnabled(id, enabled);
+        return userAccountMapper.toResponseDTO(getEntity(id));
     }
 
     @Override

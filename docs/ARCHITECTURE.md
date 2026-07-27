@@ -279,8 +279,12 @@ resolves its target before acquiring the enabled-admin write lock, validates
 that the locked current set contains an enabled administrator with a different
 target UUID, and mutates only after that validation succeeds. Whether the lock
 is acquired never depends on the target's pre-lock role or enabled snapshot.
-This target-first lock ordering serializes deletion, demotion and disabling
-without changing their existing HTTP contracts.
+Role and enabled mutations then use column-scoped updates and reload the target:
+a role write cannot publish a stale enabled value, an enabled write cannot
+publish a stale role, and a validated reducer is persisted even when the
+pre-lock target snapshot already contains its requested value. This target-first
+lock ordering and focused persistence protocol serialize deletion, demotion and
+disabling without changing their existing HTTP contracts.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 

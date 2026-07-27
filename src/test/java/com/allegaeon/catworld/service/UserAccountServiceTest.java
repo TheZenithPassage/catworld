@@ -148,20 +148,24 @@ class UserAccountServiceTest {
                 () -> userAccountService.changeRole(administrator.getId(), UserRole.STAFF));
 
         assertEquals(UserRole.ADMIN, administrator.getRole());
+        verify(userAccountRepository, never()).updateRole(administrator.getId(), UserRole.STAFF);
     }
 
     @Test
     void allowsDemotingAdminWhenAnotherEnabledAdminExists() {
         UserAccount administrator = account(UserRole.ADMIN, true);
         UserAccount otherAdministrator = account(UserRole.ADMIN, true);
-        when(userAccountRepository.findById(administrator.getId())).thenReturn(Optional.of(administrator));
+        UserAccount storedAccount = accountWithId(administrator.getId(), UserRole.STAFF, true);
+        when(userAccountRepository.findById(administrator.getId()))
+                .thenReturn(Optional.of(administrator), Optional.of(storedAccount));
         when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
                 .thenReturn(List.of(administrator, otherAdministrator));
 
         UserAccountResponseDTO response = userAccountService.changeRole(administrator.getId(), UserRole.STAFF);
 
-        assertEquals(UserRole.STAFF, administrator.getRole());
+        assertEquals(UserRole.ADMIN, administrator.getRole());
         assertEquals(UserRole.STAFF, response.getRole());
+        verify(userAccountRepository).updateRole(administrator.getId(), UserRole.STAFF);
     }
 
     @Test
@@ -183,6 +187,7 @@ class UserAccountServiceTest {
         InOrder order = inOrder(userAccountRepository);
         order.verify(userAccountRepository).findById(staffSnapshot.getId());
         order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
+        verify(userAccountRepository, never()).updateRole(staffSnapshot.getId(), UserRole.STAFF);
     }
 
     @Test
@@ -195,20 +200,24 @@ class UserAccountServiceTest {
                 () -> userAccountService.changeEnabled(administrator.getId(), false));
 
         assertTrue(administrator.isEnabled());
+        verify(userAccountRepository, never()).updateEnabled(administrator.getId(), false);
     }
 
     @Test
     void allowsDisablingAdminWhenAnotherEnabledAdminExists() {
         UserAccount administrator = account(UserRole.ADMIN, true);
         UserAccount otherAdministrator = account(UserRole.ADMIN, true);
-        when(userAccountRepository.findById(administrator.getId())).thenReturn(Optional.of(administrator));
+        UserAccount storedAccount = accountWithId(administrator.getId(), UserRole.ADMIN, false);
+        when(userAccountRepository.findById(administrator.getId()))
+                .thenReturn(Optional.of(administrator), Optional.of(storedAccount));
         when(userAccountRepository.findEnabledByRoleForUpdate(UserRole.ADMIN))
                 .thenReturn(List.of(administrator, otherAdministrator));
 
         UserAccountResponseDTO response = userAccountService.changeEnabled(administrator.getId(), false);
 
-        assertFalse(administrator.isEnabled());
+        assertTrue(administrator.isEnabled());
         assertFalse(response.isEnabled());
+        verify(userAccountRepository).updateEnabled(administrator.getId(), false);
     }
 
     @Test
@@ -230,6 +239,7 @@ class UserAccountServiceTest {
         InOrder order = inOrder(userAccountRepository);
         order.verify(userAccountRepository).findById(disabledSnapshot.getId());
         order.verify(userAccountRepository).findEnabledByRoleForUpdate(UserRole.ADMIN);
+        verify(userAccountRepository, never()).updateEnabled(disabledSnapshot.getId(), false);
     }
 
     @Test
@@ -427,8 +437,12 @@ class UserAccountServiceTest {
     }
 
     private UserAccount account(UserRole role, boolean enabled) {
+        return accountWithId(UUID.randomUUID(), role, enabled);
+    }
+
+    private UserAccount accountWithId(UUID id, UserRole role, boolean enabled) {
         return UserAccount.builder()
-                .id(UUID.randomUUID())
+                .id(id)
                 .username(UUID.randomUUID().toString())
                 .passwordHash("encoded-password")
                 .role(role)

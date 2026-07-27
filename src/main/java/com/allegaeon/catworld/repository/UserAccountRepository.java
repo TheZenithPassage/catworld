@@ -5,6 +5,7 @@ import com.allegaeon.catworld.model.UserRole;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -23,4 +24,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from UserAccount account where account.role = :role and account.enabled = true")
     List<UserAccount> findEnabledByRoleForUpdate(@Param("role") UserRole role);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update UserAccount account set account.role = :role where account.id = :id")
+    void updateRole(@Param("id") UUID id, @Param("role") UserRole role);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update UserAccount account set account.enabled = :enabled where account.id = :id")
+    void updateEnabled(@Param("id") UUID id, @Param("enabled") boolean enabled);
 }
