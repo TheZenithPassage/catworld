@@ -3,14 +3,20 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.VaccineConflictReason;
+import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
+import com.allegaeon.catworld.dto.VaccineType;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.UserAccount;
+import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -20,7 +26,9 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,11 +63,13 @@ public class StayService implements IStayService {
         Stay stay = stayMapper.toEntity(stayRequestDTO);
 
         Set<StayCat> stayCats = new HashSet<>();
+        List<Cat> cats = new ArrayList<>();
         Owner owner = null;
 
         for(UUID catId : stayRequestDTO.getCatIds()) {
 
             Cat cat = getCatEntity(catId);
+            cats.add(cat);
 
             if(owner == null) {
                 owner = cat.getOwner();
@@ -75,9 +85,16 @@ public class StayService implements IStayService {
                     .build());
         }
 
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        validateVaccineCoverage(
+                cats,
+                stayRequestDTO.getEndAt(),
+                stayRequestDTO.isOverrideVaccineConflicts(),
+                currentUser);
+
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
-        stay.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
+        stay.setCreatedBy(currentUser);
 
         return toResponseDTO(stayRepository.save(stay));
 
@@ -93,8 +110,18 @@ public class StayService implements IStayService {
 
         stay = stayMapper.updateEntity(stay, stayUpdateDTO);
 
-        for(Cat cat : stay.getStayCats().stream().map(StayCat::getCat).toList()) {
+        List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
+
+        for(Cat cat : cats) {
             if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
+        }
+
+        List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayUpdateDTO.getEndAt());
+        if (!vaccineConflicts.isEmpty()) {
+            validateVaccineOverride(
+                    vaccineConflicts,
+                    stayUpdateDTO.isOverrideVaccineConflicts(),
+                    currentUserAccountService.getCurrentUserAccount());
         }
 
         return toResponseDTO(stayRepository.save(stay));
@@ -155,6 +182,65 @@ public class StayService implements IStayService {
 
     private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {
         if(startAt.isAfter(endAt) || startAt.isEqual(endAt)) throw new BadRequestException("End time must be after start time");
+    }
+
+    private void validateVaccineCoverage(
+            List<Cat> cats,
+            LocalDateTime stayEndAt,
+            boolean overrideVaccineConflicts,
+            UserAccount currentUser) {
+
+        List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayEndAt);
+        if (!vaccineConflicts.isEmpty()) {
+            validateVaccineOverride(vaccineConflicts, overrideVaccineConflicts, currentUser);
+        }
+
+    }
+
+    private List<VaccineConflictViolationDTO> findVaccineConflicts(List<Cat> cats, LocalDateTime stayEndAt) {
+        LocalDate stayEndDate = stayEndAt.toLocalDate();
+        List<VaccineConflictViolationDTO> conflicts = new ArrayList<>();
+
+        for (Cat cat : cats) {
+            addVaccineConflict(conflicts, cat, VaccineType.RABIES, cat.getLastRabiesDate(), stayEndDate);
+            addVaccineConflict(conflicts, cat, VaccineType.TRIPLE_FELINE, cat.getLastTripleFelineDate(), stayEndDate);
+        }
+
+        return conflicts;
+    }
+
+    private void addVaccineConflict(
+            List<VaccineConflictViolationDTO> conflicts,
+            Cat cat,
+            VaccineType vaccineType,
+            LocalDate vaccinatedOn,
+            LocalDate stayEndDate) {
+
+        LocalDate expiresOn = vaccinatedOn == null ? null : vaccinatedOn.plusYears(1);
+        if (expiresOn != null && stayEndDate.isBefore(expiresOn)) {
+            return;
+        }
+
+        conflicts.add(VaccineConflictViolationDTO.builder()
+                .catId(cat.getId())
+                .catName(cat.getName())
+                .vaccineType(vaccineType)
+                .reason(vaccinatedOn == null ? VaccineConflictReason.MISSING : VaccineConflictReason.EXPIRED)
+                .vaccinatedOn(vaccinatedOn)
+                .expiresOn(expiresOn)
+                .build());
+    }
+
+    private void validateVaccineOverride(
+            List<VaccineConflictViolationDTO> vaccineConflicts,
+            boolean overrideVaccineConflicts,
+            UserAccount currentUser) {
+
+        if (currentUser.getRole() == UserRole.ADMIN && overrideVaccineConflicts) {
+            return;
+        }
+
+        throw new VaccineConflictException(vaccineConflicts);
     }
 
     private StayResponseDTO toResponseDTO(Stay stay) {
