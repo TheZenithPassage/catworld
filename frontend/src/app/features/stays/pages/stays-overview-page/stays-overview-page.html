@@ -58,6 +58,11 @@
           <td mat-cell *matCellDef="let stay">{{ formatDate(stay.endAt) }}</td>
         </ng-container>
 
+        <ng-container matColumnDef="nights">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.nights }}</th>
+          <td mat-cell *matCellDef="let stay">{{ getNightCountLabel(stay.numberOfNights) }}</td>
+        </ng-container>
+
         <ng-container matColumnDef="cats">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.cats }}</th>
           <td mat-cell *matCellDef="let stay">

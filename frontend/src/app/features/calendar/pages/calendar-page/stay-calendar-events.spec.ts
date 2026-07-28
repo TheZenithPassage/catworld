@@ -118,6 +118,7 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
     stayId: 'stay-1',
     startAt: '2099-06-03T10:00:00',
     endAt: '2099-06-11T10:00:00',
+    numberOfNights: 8,
     cancelledAt: null,
     createdAt: '2099-05-01T10:00:00',
     updatedAt: '2099-05-01T10:00:00',

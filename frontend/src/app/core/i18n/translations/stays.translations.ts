@@ -2,6 +2,10 @@ import { AppLanguage } from '../app-language';
 
 export interface StaysTranslations {
   emptyValue: string;
+  nights: {
+    singular: string;
+    plural: string;
+  };
   status: {
     reserved: string;
     'checked-in': string;
@@ -50,6 +54,7 @@ export interface StaysTranslations {
       state: string;
       start: string;
       end: string;
+      nights: string;
       cats: string;
       owner: string;
       notes: string;
@@ -115,6 +120,10 @@ export interface StaysTranslations {
 export const STAYS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    nights: {
+      singular: 'noche',
+      plural: 'noches',
+    },
     status: {
       reserved: 'Reservada',
       'checked-in': 'En curso',
@@ -164,6 +173,7 @@ export const STAYS_TRANSLATIONS = {
         state: 'Estado',
         start: 'Inicio',
         end: 'Fin',
+        nights: 'Noches',
         cats: 'Gatos',
         owner: 'Dueño',
         notes: 'Notas',
@@ -227,6 +237,10 @@ export const STAYS_TRANSLATIONS = {
   },
   en: {
     emptyValue: '-',
+    nights: {
+      singular: 'night',
+      plural: 'nights',
+    },
     status: {
       reserved: 'Reserved',
       'checked-in': 'Checked-in',
@@ -276,6 +290,7 @@ export const STAYS_TRANSLATIONS = {
         state: 'State',
         start: 'Start',
         end: 'End',
+        nights: 'Nights',
         cats: 'Cats',
         owner: 'Owner',
         notes: 'Notes',
