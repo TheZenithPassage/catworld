@@ -37,10 +37,10 @@ public class NightlyReferenceRateChange {
     @Column(nullable = false, updatable = false, length = 20)
     private NightlyReferenceRateCategory category;
 
-    @Column(precision = 19, scale = 4, updatable = false)
+    @Column(precision = 19, scale = 0, updatable = false)
     private BigDecimal previousNightlyRate;
 
-    @Column(precision = 19, scale = 4, updatable = false)
+    @Column(precision = 19, scale = 0, updatable = false)
     private BigDecimal newNightlyRate;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -14,8 +14,8 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
-- Independently configurable nightly reference rates for one, two and three
-  cats.
+- Independently configurable nightly reference rates for one cat, two cats and
+  three or more cats.
 - Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
@@ -132,8 +132,10 @@ is stored only on owner, cat, vet and stay records.
 #### NightlyReferenceRate
 
 Represents the current optional whole-stay nightly amount for exactly one fixed
-category: one, two or three cats. The amount is an exact `DECIMAL(19,4)` value
-and must be positive when configured.
+category: `ONE_CAT`, `TWO_CATS` or `THREE_PLUS_CATS`. Each category is
+identified by its exact minimum cat-count configuration threshold (`1`, `2` or
+`3`). The amount is a positive whole number with at most 19 digits, represented
+in Java by `BigDecimal` and persisted as `DECIMAL(19,0)`.
 
 #### NightlyReferenceRateChange
 
@@ -265,17 +267,21 @@ Current rules:
 
 ## Nightly Reference Rates
 
-The backend maintains exactly three independent current rows for stays with
-one, two and three cats. A nullable amount means that the category is
-unavailable. Amounts are exact `DECIMAL(19,4)` whole-stay nightly references,
-not per-cat prices, and no currency is modeled.
+The backend maintains exactly three independent current rows identified by the
+minimum cat-count thresholds `1`, `2` and `3`. Those thresholds identify
+`ONE_CAT`, `TWO_CATS` and `THREE_PLUS_CATS`, respectively. A nullable amount
+means that the category is unavailable. Amounts are positive whole-stay nightly
+references with at most 19 digits, represented by `BigDecimal` and persisted as
+exact `DECIMAL(19,0)` values; they are not per-cat prices, and no currency is
+modeled.
 
 Authenticated `ADMIN` and `STAFF` accounts may read the ordered current set
 through `GET /api/nightly-reference-rates`. Only `ADMIN` may configure or
-replace one category with `PUT /api/nightly-reference-rates/{catCount}` or
-clear it with `DELETE /api/nightly-reference-rates/{catCount}`. The service
-authorizes against the persisted current account before request-specific
-mutation validation.
+replace one category with
+`PUT /api/nightly-reference-rates/{minimumCatCount}` or clear it with
+`DELETE /api/nightly-reference-rates/{minimumCatCount}`. Valid configuration
+thresholds are exactly `1`, `2` and `3`. The service authorizes against the
+persisted current account before request-specific mutation validation.
 
 Mutations lock only the selected current row pessimistically. A real transition
 updates that row and inserts one immutable audit snapshot in the same
@@ -285,7 +291,9 @@ no-ops without audit rows.
 
 Reference-rate changes are prospective guidance only. They do not read,
 reprice, update or backfill existing stays, and stays do not persist a selected
-reference-rate category or amount.
+reference-rate category or amount. This feature does not resolve an actual
+stay's cat count to a category; three-or-more stay selection belongs to the
+later stay-pricing feature.
 
 ## Persistence
 
@@ -313,10 +321,11 @@ Important schema points:
 - `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
   foreign key to `user_accounts`.
 - `nightly_reference_rates` stores exactly the three seeded current categories
-  and nullable positive `DECIMAL(19,4)` amounts.
+  and nullable positive whole-number `DECIMAL(19,0)` amounts.
 - `nightly_reference_rate_changes` stores immutable previous/new snapshots,
-  category, actor and microsecond timestamp. Database checks reject invalid
-  categories, non-positive values and transitions with no state difference.
+  category, actor and microsecond timestamp. Whole-number column scale and
+  database checks reject invalid persisted categories, non-positive values and
+  transitions with no state difference.
 - Rate-change actor foreign keys are restrictive; account deletion is blocked
   while a rate-change audit row references the target.
 

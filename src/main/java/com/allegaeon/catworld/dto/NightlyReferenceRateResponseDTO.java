@@ -15,6 +15,6 @@ import java.math.BigDecimal;
 @Builder
 public class NightlyReferenceRateResponseDTO {
 
-    private int catCount;
+    private int minimumCatCount;
     private BigDecimal nightlyRate;
 }

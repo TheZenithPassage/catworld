@@ -37,35 +37,50 @@ class NightlyReferenceRateControllerTest {
     @Test
     void returnsConfiguredAndUnavailableCurrentShapes() throws Exception {
         when(nightlyReferenceRateService.getCurrentRates()).thenReturn(List.of(
-                response(1, "12.5000"),
+                response(1, "12"),
                 response(2, null),
-                response(3, "30.0000")
+                response(3, "30")
         ));
 
         mockMvc.perform(get("/api/nightly-reference-rates"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
-                .andExpect(jsonPath("$[0].catCount").value(1))
-                .andExpect(jsonPath("$[0].nightlyRate").value(12.5))
-                .andExpect(jsonPath("$[1].catCount").value(2))
+                .andExpect(jsonPath("$[0].minimumCatCount").value(1))
+                .andExpect(jsonPath("$[0].nightlyRate").value(12))
+                .andExpect(jsonPath("$[1].minimumCatCount").value(2))
                 .andExpect(jsonPath("$[1].nightlyRate").value(nullValue()))
-                .andExpect(jsonPath("$[2].catCount").value(3))
-                .andExpect(jsonPath("$[2].nightlyRate").value(30.0));
+                .andExpect(jsonPath("$[2].minimumCatCount").value(3))
+                .andExpect(jsonPath("$[2].nightlyRate").value(30));
     }
 
     @Test
     void delegatesValidConfigurationAndReturnsSelectedCategory() throws Exception {
-        when(nightlyReferenceRateService.configureRate(2, new BigDecimal("21.1250")))
-                .thenReturn(response(2, "21.1250"));
+        when(nightlyReferenceRateService.configureRate(2, new BigDecimal("21")))
+                .thenReturn(response(2, "21"));
 
         mockMvc.perform(put("/api/nightly-reference-rates/2")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nightlyRate\":21.1250}"))
+                        .content("{\"nightlyRate\":21}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.catCount").value(2))
-                .andExpect(jsonPath("$.nightlyRate").value(21.125));
+                .andExpect(jsonPath("$.minimumCatCount").value(2))
+                .andExpect(jsonPath("$.nightlyRate").value(21));
 
-        verify(nightlyReferenceRateService).configureRate(2, new BigDecimal("21.1250"));
+        verify(nightlyReferenceRateService).configureRate(2, new BigDecimal("21"));
+    }
+
+    @Test
+    void acceptsNineteenDigitPositiveWholeNumberBoundary() throws Exception {
+        BigDecimal boundary = new BigDecimal("9999999999999999999");
+        when(nightlyReferenceRateService.configureRate(1, boundary))
+                .thenReturn(response(1, "9999999999999999999"));
+
+        mockMvc.perform(put("/api/nightly-reference-rates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nightlyRate\":9999999999999999999}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.minimumCatCount").value(1));
+
+        verify(nightlyReferenceRateService).configureRate(1, boundary);
     }
 
     @Test
@@ -78,13 +93,28 @@ class NightlyReferenceRateControllerTest {
     }
 
     @Test
-    void rejectsZeroAndMalformedValuesBeforeServiceDelegation() throws Exception {
+    void rejectsZeroNegativeFractionalAndMalformedValuesBeforeServiceDelegation()
+            throws Exception {
         mockMvc.perform(put("/api/nightly-reference-rates/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nightlyRate\":0}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.nightlyRate")
-                        .value("Nightly rate must be greater than zero"));
+                        .value("Nightly rate must be a positive whole number"));
+
+        mockMvc.perform(put("/api/nightly-reference-rates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nightlyRate\":-1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.nightlyRate")
+                        .value("Nightly rate must be a positive whole number"));
+
+        mockMvc.perform(put("/api/nightly-reference-rates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nightlyRate\":10.5}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.nightlyRate")
+                        .value("Nightly rate must be a positive whole number with at most 19 digits"));
 
         mockMvc.perform(put("/api/nightly-reference-rates/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,23 +126,25 @@ class NightlyReferenceRateControllerTest {
     }
 
     @Test
-    void returnsBadRequestForUnsupportedCategory() throws Exception {
-        doThrow(new BadRequestException("Nightly reference-rate cat count must be 1, 2, or 3"))
+    void returnsBadRequestForUnsupportedMinimumCatCountThreshold() throws Exception {
+        doThrow(new BadRequestException(
+                "Nightly reference-rate minimum cat-count threshold must be 1, 2, or 3"
+        ))
                 .when(nightlyReferenceRateService)
-                .configureRate(4, new BigDecimal("10.0000"));
+                .configureRate(4, new BigDecimal("10"));
 
         mockMvc.perform(put("/api/nightly-reference-rates/4")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nightlyRate\":10.0000}"))
+                        .content("{\"nightlyRate\":10}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(
-                        "Nightly reference-rate cat count must be 1, 2, or 3"
+                        "Nightly reference-rate minimum cat-count threshold must be 1, 2, or 3"
                 ));
     }
 
-    private NightlyReferenceRateResponseDTO response(int catCount, String rate) {
+    private NightlyReferenceRateResponseDTO response(int minimumCatCount, String rate) {
         return NightlyReferenceRateResponseDTO.builder()
-                .catCount(catCount)
+                .minimumCatCount(minimumCatCount)
                 .nightlyRate(rate == null ? null : new BigDecimal(rate))
                 .build();
     }

@@ -19,6 +19,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -69,6 +70,26 @@ class NightlyReferenceRateMigrationTest {
                         "select count(*) from nightly_reference_rate_changes",
                         Integer.class
                 )
+        );
+        assertEquals(
+                Set.of("ONE_CAT", "TWO_CATS", "THREE_PLUS_CATS"),
+                Set.copyOf(migratedJdbcTemplate.queryForList(
+                        "select category from nightly_reference_rates",
+                        String.class
+                ))
+        );
+        assertDecimalColumn(19, 0, "NIGHTLY_REFERENCE_RATES", "NIGHTLY_RATE");
+        assertDecimalColumn(
+                19,
+                0,
+                "NIGHTLY_REFERENCE_RATE_CHANGES",
+                "PREVIOUS_NIGHTLY_RATE"
+        );
+        assertDecimalColumn(
+                19,
+                0,
+                "NIGHTLY_REFERENCE_RATE_CHANGES",
+                "NEW_NIGHTLY_RATE"
         );
     }
 
@@ -164,6 +185,39 @@ class NightlyReferenceRateMigrationTest {
                 .putLong(id.getMostSignificantBits())
                 .putLong(id.getLeastSignificantBits())
                 .array();
+    }
+
+    private void assertDecimalColumn(
+            int expectedPrecision,
+            int expectedScale,
+            String tableName,
+            String columnName) {
+        assertEquals(
+                expectedPrecision,
+                migratedJdbcTemplate.queryForObject(
+                        """
+                        select numeric_precision
+                        from information_schema.columns
+                        where table_name = ? and column_name = ?
+                        """,
+                        Integer.class,
+                        tableName,
+                        columnName
+                )
+        );
+        assertEquals(
+                expectedScale,
+                migratedJdbcTemplate.queryForObject(
+                        """
+                        select numeric_scale
+                        from information_schema.columns
+                        where table_name = ? and column_name = ?
+                        """,
+                        Integer.class,
+                        tableName,
+                        columnName
+                )
+        );
     }
 
     static final class LatestSchemaInitializer

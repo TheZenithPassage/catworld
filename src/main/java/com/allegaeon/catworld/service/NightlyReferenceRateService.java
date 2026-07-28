@@ -25,8 +25,7 @@ import java.util.List;
 @Service
 public class NightlyReferenceRateService implements INightlyReferenceRateService {
 
-    private static final int MAX_INTEGER_DIGITS = 15;
-    private static final int MAX_FRACTIONAL_DIGITS = 4;
+    private static final int MAX_INTEGER_DIGITS = 19;
 
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
     private final NightlyReferenceRateChangeRepository nightlyReferenceRateChangeRepository;
@@ -46,19 +45,25 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
         }
 
         return rates.stream()
-                .sorted(Comparator.comparingInt(rate -> rate.getCategory().getCatCount()))
+                .sorted(Comparator.comparingInt(
+                        rate -> rate.getCategory().getMinimumCatCount()
+                ))
                 .map(nightlyReferenceRateMapper::toResponseDTO)
                 .toList();
     }
 
     @Override
     @Transactional
-    public NightlyReferenceRateResponseDTO configureRate(int catCount, BigDecimal nightlyRate) {
+    public NightlyReferenceRateResponseDTO configureRate(
+            int minimumCatCount,
+            BigDecimal nightlyRate) {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         authorizationPolicy.authorizeMutation(currentUser);
         validateNightlyRate(nightlyRate);
 
-        NightlyReferenceRate currentRate = getCurrentRateForUpdate(resolveCategory(catCount));
+        NightlyReferenceRate currentRate = getCurrentRateForUpdate(
+                resolveCategoryFromMinimumCatCount(minimumCatCount)
+        );
         if (sameNumericValue(currentRate.getNightlyRate(), nightlyRate)) {
             return nightlyReferenceRateMapper.toResponseDTO(currentRate);
         }
@@ -69,11 +74,13 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
 
     @Override
     @Transactional
-    public void clearRate(int catCount) {
+    public void clearRate(int minimumCatCount) {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         authorizationPolicy.authorizeMutation(currentUser);
 
-        NightlyReferenceRate currentRate = getCurrentRateForUpdate(resolveCategory(catCount));
+        NightlyReferenceRate currentRate = getCurrentRateForUpdate(
+                resolveCategoryFromMinimumCatCount(minimumCatCount)
+        );
         if (currentRate.getNightlyRate() == null) {
             return;
         }
@@ -103,28 +110,33 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
     private NightlyReferenceRate getCurrentRateForUpdate(NightlyReferenceRateCategory category) {
         return nightlyReferenceRateRepository.findByCategoryForUpdate(category)
                 .orElseThrow(() -> new ConflictException(
-                        "Nightly reference-rate category " + category.getCatCount() + " is unavailable"
+                        "Nightly reference-rate category with minimum cat-count threshold "
+                                + category.getMinimumCatCount()
+                                + " is unavailable"
                 ));
     }
 
-    private NightlyReferenceRateCategory resolveCategory(int catCount) {
-        return NightlyReferenceRateCategory.fromCatCount(catCount)
+    private NightlyReferenceRateCategory resolveCategoryFromMinimumCatCount(
+            int minimumCatCount) {
+        return NightlyReferenceRateCategory.fromMinimumCatCount(minimumCatCount)
                 .orElseThrow(() -> new BadRequestException(
-                        "Nightly reference-rate cat count must be 1, 2, or 3"
+                        "Nightly reference-rate minimum cat-count threshold must be 1, 2, or 3"
                 ));
     }
 
     private void validateNightlyRate(BigDecimal nightlyRate) {
         if (nightlyRate == null || nightlyRate.signum() <= 0) {
-            throw new BadRequestException("Nightly rate must be greater than zero");
+            throw new BadRequestException(
+                    "Nightly rate must be a positive whole number with at most 19 digits"
+            );
         }
 
         BigDecimal normalized = nightlyRate.stripTrailingZeros();
         int fractionalDigits = Math.max(normalized.scale(), 0);
         int integerDigits = Math.max(normalized.precision() - normalized.scale(), 0);
-        if (integerDigits > MAX_INTEGER_DIGITS || fractionalDigits > MAX_FRACTIONAL_DIGITS) {
+        if (integerDigits > MAX_INTEGER_DIGITS || fractionalDigits > 0) {
             throw new BadRequestException(
-                    "Nightly rate must have at most 15 integer and 4 fractional digits"
+                    "Nightly rate must be a positive whole number with at most 19 digits"
             );
         }
     }

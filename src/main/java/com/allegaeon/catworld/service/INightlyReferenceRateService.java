@@ -9,7 +9,9 @@ public interface INightlyReferenceRateService {
 
     List<NightlyReferenceRateResponseDTO> getCurrentRates();
 
-    NightlyReferenceRateResponseDTO configureRate(int catCount, BigDecimal nightlyRate);
+    NightlyReferenceRateResponseDTO configureRate(
+            int minimumCatCount,
+            BigDecimal nightlyRate);
 
-    void clearRate(int catCount);
+    void clearRate(int minimumCatCount);
 }

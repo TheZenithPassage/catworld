@@ -57,23 +57,23 @@ class NightlyReferenceRateControllerSecurityTest {
 
     @Test
     void adminCanMutateAndStaffIsDenied() throws Exception {
-        when(nightlyReferenceRateService.configureRate(1, new BigDecimal("12.5000")))
+        when(nightlyReferenceRateService.configureRate(1, new BigDecimal("12")))
                 .thenReturn(response(1));
 
         mockMvc.perform(put("/api/nightly-reference-rates/1")
                         .with(user("admin").roles("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nightlyRate\":12.5000}"))
+                        .content("{\"nightlyRate\":12}"))
                 .andExpect(status().isOk());
 
         mockMvc.perform(put("/api/nightly-reference-rates/1")
                         .with(user("staff").roles("STAFF"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nightlyRate\":12.5000}"))
+                        .content("{\"nightlyRate\":12}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("Forbidden"));
 
-        verify(nightlyReferenceRateService).configureRate(1, new BigDecimal("12.5000"));
+        verify(nightlyReferenceRateService).configureRate(1, new BigDecimal("12"));
     }
 
     @Test
@@ -84,7 +84,7 @@ class NightlyReferenceRateControllerSecurityTest {
 
         mockMvc.perform(put("/api/nightly-reference-rates/1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nightlyRate\":12.5000}"))
+                        .content("{\"nightlyRate\":12}"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("Unauthorized"));
 
@@ -92,10 +92,10 @@ class NightlyReferenceRateControllerSecurityTest {
                 .configureRate(org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
     }
 
-    private NightlyReferenceRateResponseDTO response(int catCount) {
+    private NightlyReferenceRateResponseDTO response(int minimumCatCount) {
         return NightlyReferenceRateResponseDTO.builder()
-                .catCount(catCount)
-                .nightlyRate(new BigDecimal(catCount * 10 + ".0000"))
+                .minimumCatCount(minimumCatCount)
+                .nightlyRate(new BigDecimal(minimumCatCount * 10))
                 .build();
     }
 }

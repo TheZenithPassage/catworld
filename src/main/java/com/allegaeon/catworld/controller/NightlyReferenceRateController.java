@@ -31,18 +31,21 @@ public class NightlyReferenceRateController {
         return ResponseEntity.ok(nightlyReferenceRateService.getCurrentRates());
     }
 
-    @PutMapping("/{catCount}")
+    @PutMapping("/{minimumCatCount}")
     public ResponseEntity<NightlyReferenceRateResponseDTO> configureRate(
-            @PathVariable int catCount,
+            @PathVariable int minimumCatCount,
             @Valid @RequestBody NightlyReferenceRateRequestDTO request) {
         return ResponseEntity.ok(
-                nightlyReferenceRateService.configureRate(catCount, request.getNightlyRate())
+                nightlyReferenceRateService.configureRate(
+                        minimumCatCount,
+                        request.getNightlyRate()
+                )
         );
     }
 
-    @DeleteMapping("/{catCount}")
+    @DeleteMapping("/{minimumCatCount}")
     @ResponseStatus(NO_CONTENT)
-    public void clearRate(@PathVariable int catCount) {
-        nightlyReferenceRateService.clearRate(catCount);
+    public void clearRate(@PathVariable int minimumCatCount) {
+        nightlyReferenceRateService.clearRate(minimumCatCount);
     }
 }

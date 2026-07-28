@@ -28,6 +28,6 @@ public class NightlyReferenceRate extends AuditableEntity {
     @Column(nullable = false, length = 20)
     private NightlyReferenceRateCategory category;
 
-    @Column(precision = 19, scale = 4)
+    @Column(precision = 19, scale = 0)
     private BigDecimal nightlyRate;
 }

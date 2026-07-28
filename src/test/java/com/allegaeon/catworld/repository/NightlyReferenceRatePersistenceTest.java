@@ -89,8 +89,8 @@ class NightlyReferenceRatePersistenceTest {
         UserAccount actor = saveAccount("rate-admin");
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
-        nightlyReferenceRateService.configureRate(1, new BigDecimal("12.5000"));
-        nightlyReferenceRateService.configureRate(1, new BigDecimal("13.7500"));
+        nightlyReferenceRateService.configureRate(1, new BigDecimal("12"));
+        nightlyReferenceRateService.configureRate(1, new BigDecimal("14"));
         nightlyReferenceRateService.clearRate(1);
 
         assertNull(nightlyReferenceRateRepository
@@ -100,15 +100,15 @@ class NightlyReferenceRatePersistenceTest {
         assertEquals(3, nightlyReferenceRateChangeRepository.count());
         assertEquals(
                 1,
-                countTransition(actor.getId(), null, new BigDecimal("12.5000"))
+                countTransition(actor.getId(), null, new BigDecimal("12"))
         );
         assertEquals(
                 1,
-                countTransition(actor.getId(), new BigDecimal("12.5000"), new BigDecimal("13.7500"))
+                countTransition(actor.getId(), new BigDecimal("12"), new BigDecimal("14"))
         );
         assertEquals(
                 1,
-                countTransition(actor.getId(), new BigDecimal("13.7500"), null)
+                countTransition(actor.getId(), new BigDecimal("14"), null)
         );
         assertEquals(
                 3,
@@ -218,7 +218,7 @@ class NightlyReferenceRatePersistenceTest {
 
         assertThrows(
                 RuntimeException.class,
-                () -> nightlyReferenceRateService.configureRate(2, new BigDecimal("20.0000"))
+                () -> nightlyReferenceRateService.configureRate(2, new BigDecimal("20"))
         );
 
         assertNull(nightlyReferenceRateRepository
@@ -233,7 +233,7 @@ class NightlyReferenceRatePersistenceTest {
         UserAccount actor = saveAccount("attributed-admin");
         UserAccount otherAdmin = saveAccount("other-admin");
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
-        nightlyReferenceRateService.configureRate(3, new BigDecimal("30.0000"));
+        nightlyReferenceRateService.configureRate(3, new BigDecimal("30"));
 
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(otherAdmin);
 

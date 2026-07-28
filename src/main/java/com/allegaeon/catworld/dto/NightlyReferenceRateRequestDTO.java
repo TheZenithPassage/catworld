@@ -18,16 +18,16 @@ import java.math.BigDecimal;
 @Builder
 public class NightlyReferenceRateRequestDTO {
 
-    @NotNull(message = "Nightly rate is required")
+    @NotNull(message = "Nightly rate is required and must be a positive whole number")
     @DecimalMin(
-            value = "0.0",
+            value = "0",
             inclusive = false,
-            message = "Nightly rate must be greater than zero"
+            message = "Nightly rate must be a positive whole number"
     )
     @Digits(
-            integer = 15,
-            fraction = 4,
-            message = "Nightly rate must have at most 15 integer and 4 fractional digits"
+            integer = 19,
+            fraction = 0,
+            message = "Nightly rate must be a positive whole number with at most 19 digits"
     )
     private BigDecimal nightlyRate;
 }

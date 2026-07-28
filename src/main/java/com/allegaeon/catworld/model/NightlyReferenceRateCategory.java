@@ -11,13 +11,14 @@ import java.util.Optional;
 public enum NightlyReferenceRateCategory {
     ONE_CAT(1),
     TWO_CATS(2),
-    THREE_CATS(3);
+    THREE_PLUS_CATS(3);
 
-    private final int catCount;
+    private final int minimumCatCount;
 
-    public static Optional<NightlyReferenceRateCategory> fromCatCount(int catCount) {
+    public static Optional<NightlyReferenceRateCategory> fromMinimumCatCount(
+            int minimumCatCount) {
         return Arrays.stream(values())
-                .filter(category -> category.catCount == catCount)
+                .filter(category -> category.minimumCatCount == minimumCatCount)
                 .findFirst();
     }
 }

@@ -93,7 +93,7 @@ package "MySQL schema" {
   class nightly_reference_rates <<table>> {
     +category varchar(20) <<PK,NN>>
     --
-    nightly_rate decimal(19,4)
+    nightly_rate decimal(19,0)
     --
     created_at datetime(6) <<NN>>
     updated_at datetime(6) <<NN>>
@@ -103,8 +103,8 @@ package "MySQL schema" {
     +id binary(16) <<PK,NN>>
     --
     category varchar(20) <<NN>>
-    previous_nightly_rate decimal(19,4)
-    new_nightly_rate decimal(19,4)
+    previous_nightly_rate decimal(19,0)
+    new_nightly_rate decimal(19,0)
     changed_by_id binary(16) <<FK,NN>>
     changed_at datetime(6) <<NN>>
   }
@@ -136,8 +136,9 @@ end note
 
 note bottom of nightly_reference_rates
 Seeded categories:
-ONE_CAT, TWO_CATS, THREE_CATS.
-nightly_rate is null or positive.
+ONE_CAT, TWO_CATS, THREE_PLUS_CATS.
+nightly_rate is null or a positive
+whole number of at most 19 digits.
 end note
 
 note bottom of nightly_reference_rate_changes
