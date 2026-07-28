@@ -347,9 +347,23 @@ Run this flow in order:
       status is clearly reported.
     - Do not post public GitHub comments or modify GitHub issues unless the
       user explicitly requests those operations.
-    - Keep the active issue branch checked out after the pull request is opened
-      or updated. Checkout restoration occurs only after the independent review
-      gate below approves or reaches a terminal stop.
+    - If the user explicitly requested external review:
+      - Capture the PR number and current remote head SHA.
+      - Do not execute steps 25 through 29.
+      - Do not spawn `catworld_pr_reviewer` or perform automatic review
+        remediation.
+      - Report the PR number, remote head SHA, validation results, and that the
+        pull request is awaiting external read-only review.
+      - Record `independent review rounds: 0`.
+      - Record `reviewed remote head SHAs: none`.
+      - Record `final review result: not run — external review requested`.
+      - Record `automatic remediation commits: none`.
+      - If the working tree is clean, switch back to `main` without pulling,
+        merging, rebasing, pruning, deleting branches, or otherwise updating
+        `main`.
+      - Continue directly to step 30 and then stop.
+    - Otherwise, keep the active issue branch checked out and continue to the
+      independent review gate in step 25.
 25. After the pull request is opened or updated, capture its PR number and
     current remote head SHA. Initialize the review gate with zero completed
     verdicts and zero automatic remediation rounds:
