@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,6 +22,7 @@ import {
   VaccineConflictResponse,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { calculateStayNights } from '../../utils/stay-nights.util';
 import { canModifyStay } from '../../utils/stay-status.util';
 
 @Component({
@@ -46,6 +47,19 @@ export class StayEditPage {
   readonly startAt = signal('');
   readonly endAt = signal('');
   readonly notes = signal('');
+  readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
+  readonly nightCountLabel = computed(() => {
+    const numberOfNights = this.numberOfNights();
+
+    if (numberOfNights === null) {
+      return '';
+    }
+
+    const unit =
+      numberOfNights === 1 ? this.text().stays.nights.singular : this.text().stays.nights.plural;
+
+    return `${numberOfNights} ${unit}`;
+  });
 
   readonly loading = signal(false);
   readonly submitting = signal(false);

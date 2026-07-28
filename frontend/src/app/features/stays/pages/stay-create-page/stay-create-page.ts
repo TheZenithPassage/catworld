@@ -27,6 +27,7 @@ import {
   VaccineConflictResponse,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { calculateStayNights } from '../../utils/stay-nights.util';
 
 @Component({
   selector: 'app-stay-create-page',
@@ -64,6 +65,19 @@ export class StayCreatePage {
   readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
   readonly notes = signal('');
+  readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
+  readonly nightCountLabel = computed(() => {
+    const numberOfNights = this.numberOfNights();
+
+    if (numberOfNights === null) {
+      return '';
+    }
+
+    const unit =
+      numberOfNights === 1 ? this.text().stays.nights.singular : this.text().stays.nights.plural;
+
+    return `${numberOfNights} ${unit}`;
+  });
 
   readonly loadingData = signal(false);
   readonly submitting = signal(false);

@@ -58,7 +58,16 @@ export class StaysOverviewPage {
     this.stayStatusVisibilityPreferencesService.read(),
   );
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
-  readonly displayedColumns = ['state', 'start', 'end', 'cats', 'owner', 'notes', 'actions'];
+  readonly displayedColumns = [
+    'state',
+    'start',
+    'end',
+    'nights',
+    'cats',
+    'owner',
+    'notes',
+    'actions',
+  ];
 
   readonly filteredStays = computed(() =>
     this.stays().filter(
@@ -121,6 +130,13 @@ export class StaysOverviewPage {
     return stay.cats.length === 1
       ? `1 ${this.text().stays.overview.catSingular}`
       : `${stay.cats.length} ${this.text().stays.overview.catPlural}`;
+  }
+
+  getNightCountLabel(numberOfNights: number): string {
+    const unit =
+      numberOfNights === 1 ? this.text().stays.nights.singular : this.text().stays.nights.plural;
+
+    return `${numberOfNights} ${unit}`;
   }
 
   getCatNames(stay: Stay): string {
