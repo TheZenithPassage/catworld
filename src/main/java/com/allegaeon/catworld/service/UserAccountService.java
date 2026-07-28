@@ -10,6 +10,7 @@ import com.allegaeon.catworld.mapper.UserAccountMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.repository.UserAccountRepository;
@@ -40,6 +41,7 @@ public class UserAccountService implements IUserAccountService {
     private final CatRepository catRepository;
     private final VetRepository vetRepository;
     private final StayRepository stayRepository;
+    private final NightlyReferenceRateChangeRepository nightlyReferenceRateChangeRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -137,7 +139,8 @@ public class UserAccountService implements IUserAccountService {
         return ownerRepository.existsByCreatedBy_Id(id)
                 || catRepository.existsByCreatedBy_Id(id)
                 || vetRepository.existsByCreatedBy_Id(id)
-                || stayRepository.existsByCreatedBy_Id(id);
+                || stayRepository.existsByCreatedBy_Id(id)
+                || nightlyReferenceRateChangeRepository.existsByChangedBy_Id(id);
     }
 
     private String normalizeUsername(String username) {
