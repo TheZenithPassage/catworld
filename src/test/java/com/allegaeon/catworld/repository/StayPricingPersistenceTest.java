@@ -16,6 +16,7 @@ import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.service.StayService;
 import jakarta.persistence.LockModeType;
+import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -216,6 +218,207 @@ class StayPricingPersistenceTest {
         );
     }
 
+    @Test
+    void directRepositoryWritesRejectFractionalMonetaryValues() {
+        PersistenceFixture fixture = createPersistenceFixture();
+
+        assertAll(
+                () -> assertStayRejected(
+                        fixture,
+                        new BigDecimal("10.5"),
+                        new BigDecimal("20")
+                ),
+                () -> assertStayRejected(
+                        fixture,
+                        new BigDecimal("10"),
+                        new BigDecimal("20.5")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10.5"),
+                        new BigDecimal("20"),
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("20.5"),
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("20"),
+                        new BigDecimal("20.5")
+                )
+        );
+
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "select count(*) from stays",
+                Integer.class
+        ));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "select count(*) from stay_pricing_decisions",
+                Integer.class
+        ));
+    }
+
+    @Test
+    void directRepositoryWritesRejectInvalidMonetaryBoundsAndMissingDecisionAmount() {
+        PersistenceFixture fixture = createPersistenceFixture();
+
+        assertAll(
+                () -> assertStayRejected(
+                        fixture,
+                        BigDecimal.ZERO,
+                        new BigDecimal("20")
+                ),
+                () -> assertStayRejected(
+                        fixture,
+                        new BigDecimal("10"),
+                        new BigDecimal("-1")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        BigDecimal.ZERO,
+                        new BigDecimal("20"),
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("-1"),
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("20"),
+                        new BigDecimal("-1")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("20"),
+                        null
+                )
+        );
+    }
+
+    @Test
+    void directRepositoryWritesRejectOverCapacityMonetaryValues() {
+        PersistenceFixture fixture = createPersistenceFixture();
+        BigDecimal overCapacity = new BigDecimal("10000000000000000000");
+
+        assertAll(
+                () -> assertStayRejected(
+                        fixture,
+                        overCapacity,
+                        new BigDecimal("20")
+                ),
+                () -> assertStayRejected(
+                        fixture,
+                        new BigDecimal("10"),
+                        overCapacity
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        overCapacity,
+                        new BigDecimal("20"),
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        overCapacity,
+                        new BigDecimal("20")
+                ),
+                () -> assertDecisionRejected(
+                        fixture.actor(),
+                        new BigDecimal("10"),
+                        new BigDecimal("20"),
+                        overCapacity
+                )
+        );
+    }
+
+    private void assertStayRejected(
+            PersistenceFixture fixture,
+            BigDecimal retainedNightlyRate,
+            BigDecimal agreedAmount) {
+        assertThrows(
+                ConstraintViolationException.class,
+                () -> stayRepository.saveAndFlush(stay(
+                        fixture,
+                        retainedNightlyRate,
+                        agreedAmount
+                ))
+        );
+    }
+
+    private void assertDecisionRejected(
+            UserAccount actor,
+            BigDecimal retainedNightlyRate,
+            BigDecimal previousAgreedAmount,
+            BigDecimal newAgreedAmount) {
+        assertThrows(
+                ConstraintViolationException.class,
+                () -> stayPricingDecisionRepository.saveAndFlush(decision(
+                        actor,
+                        retainedNightlyRate,
+                        previousAgreedAmount,
+                        newAgreedAmount
+                ))
+        );
+    }
+
+    private PersistenceFixture createPersistenceFixture() {
+        UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
+                .username("direct-persistence-" + UUID.randomUUID())
+                .passwordHash(passwordEncoder.encode("password"))
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .build());
+        Owner owner = ownerRepository.saveAndFlush(Owner.builder()
+                .fullName("Direct Persistence Owner")
+                .primaryPhone("555-0188")
+                .createdBy(actor)
+                .build());
+        return new PersistenceFixture(actor, owner);
+    }
+
+    private Stay stay(
+            PersistenceFixture fixture,
+            BigDecimal retainedNightlyRate,
+            BigDecimal agreedAmount) {
+        LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+        return Stay.builder()
+                .startAt(startAt)
+                .endAt(startAt.plusDays(2))
+                .retainedNightlyRate(retainedNightlyRate)
+                .agreedAmount(agreedAmount)
+                .owner(fixture.owner())
+                .createdBy(fixture.actor())
+                .build();
+    }
+
+    private StayPricingDecision decision(
+            UserAccount actor,
+            BigDecimal retainedNightlyRate,
+            BigDecimal previousAgreedAmount,
+            BigDecimal newAgreedAmount) {
+        return StayPricingDecision.builder()
+                .stayId(UUID.randomUUID())
+                .retainedNightlyRate(retainedNightlyRate)
+                .previousNumberOfNights(1L)
+                .newNumberOfNights(2)
+                .previousAgreedAmount(previousAgreedAmount)
+                .newAgreedAmount(newAgreedAmount)
+                .decidedBy(actor)
+                .decidedAt(DECIDED_AT)
+                .build();
+    }
+
     private PricingFixture createPricedStay() {
         UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
                 .username("pricing-admin-" + UUID.randomUUID())
@@ -277,5 +480,10 @@ class StayPricingPersistenceTest {
             UserAccount actor,
             LocalDateTime startAt,
             StayResponseDTO response) {
+    }
+
+    private record PersistenceFixture(
+            UserAccount actor,
+            Owner owner) {
     }
 }
