@@ -67,6 +67,8 @@ package "MySQL schema" {
     end_at <<NN>>
     cancelled_at
     notes
+    retained_nightly_rate decimal(19,0)
+    agreed_amount decimal(19,0)
     created_by_id <<FK,NN>>
     --
     created_at <<NN>>
@@ -109,6 +111,20 @@ package "MySQL schema" {
     changed_at datetime(6) <<NN>>
   }
 
+  class stay_pricing_decisions <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<NN,INDEX>>
+    retained_nightly_rate decimal(19,0)
+    previous_number_of_nights bigint
+    new_number_of_nights bigint <<NN>>
+    previous_agreed_amount decimal(19,0)
+    new_agreed_amount decimal(19,0) <<NN>>
+    decided_by_id binary(16) <<FK,NN>>
+    decided_at datetime(6) <<NN>>
+    reason text
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id
@@ -119,6 +135,7 @@ package "MySQL schema" {
   user_accounts "1" -- "0..*" vets : FK created_by_id
   user_accounts "1" -- "0..*" stays : FK created_by_id
   user_accounts "1" -- "0..*" nightly_reference_rate_changes : FK changed_by_id
+  user_accounts "1" -- "0..*" stay_pricing_decisions : FK decided_by_id
 }
 
 note right of stays
@@ -127,6 +144,10 @@ The app computes it.
 
 The relationship with cats is
 resolved through stay_cat.
+
+Pricing amounts are nullable for
+legacy rows. No rate category or
+suggested total is persisted.
 end note
 
 note bottom of stay_cat
@@ -146,6 +167,13 @@ Append-only snapshots.
 Category is one of the three fixed values.
 Previous/new values are null or positive,
 and every row records a real transition.
+The actor FK is restrictive.
+end note
+
+note bottom of stay_pricing_decisions
+Append-only pricing confirmations.
+stay_id deliberately has no foreign key,
+so evidence survives stay deletion.
 The actor FK is restrictive.
 end note
 

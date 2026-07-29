@@ -104,6 +104,8 @@ A `Stay` contains:
 - `endAt`
 - `cancelledAt`
 - `notes`
+- nullable retained nightly reference rate
+- nullable agreed whole-stay amount
 - `owner`
 - participating cats through `StayCat`
 - the application account that created it
@@ -143,6 +145,14 @@ Represents one immutable, append-only transition of a nightly reference rate.
 It records the category, exact previous and new nullable amounts, the
 `UserAccount` that made the change and the application-clock timestamp.
 
+#### StayPricingDecision
+
+Represents one immutable pricing confirmation for a stay. It records the
+retained nightly rate, previous and new authoritative night counts, previous
+and new agreed amounts, optional reason, deciding `UserAccount` and
+application-clock timestamp. It stores the stay UUID as audit evidence rather
+than a foreign key so the history survives operational stay deletion.
+
 ## Stay Model
 
 ### Key Rule
@@ -176,6 +186,9 @@ Main relationships:
   created it.
 - Each `NightlyReferenceRateChange` references the `UserAccount` that made the
   transition.
+- Each `StayPricingDecision` references the `UserAccount` that confirmed the
+  price and identifies its stay by an indexed UUID without an operational
+  foreign key.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -235,6 +248,26 @@ calendar date returns zero nights.
 `numberOfNights` is not accepted in stay request contracts and is not persisted
 on the `Stay` entity or in the database schema.
 
+### Stay Pricing Is Retained and Explicitly Confirmed
+
+Creation resolves the actual cat count to `ONE_CAT`, `TWO_CATS` or
+`THREE_PLUS_CATS` and snapshots that category's current nullable nightly rate
+onto the stay. Later reference-rate changes never reprice the stay. Responses
+derive `suggestedAmount` as retained rate multiplied by authoritative
+`numberOfNights`; the suggestion is null when the retained rate is unavailable
+and is never persisted.
+
+Every new stay requires an explicit nested pricing decision from either
+authenticated role. The agreed amount is a non-negative whole number of at
+most 19 digits, including zero. A non-blank reason is required exactly when an
+available suggestion differs numerically from the agreement.
+
+Only a change to the authoritative night count is pricing-affecting. Such an
+update requires `ADMIN`, a fresh explicit pricing decision and the stay's
+retained rate. The service pessimistically locks the stay before comparing
+night counts, then changes the agreement and appends its immutable decision in
+one transaction. Equal-night date or time changes do not reconfirm pricing.
+
 ## Stay Business Rules
 
 Current rules:
@@ -263,7 +296,8 @@ Current rules:
 - Cancelled stays cannot be cancelled again.
 - Permanent stay deletion is separate from cancellation. Authorized deletion
   removes the stay and its `StayCat` links, preserves cat, owner, vet and
-  application-account records, and is not blocked by dynamic stay status.
+  application-account records and pricing-decision evidence, and is not blocked
+  by dynamic stay status.
 
 ## Nightly Reference Rates
 
@@ -290,10 +324,8 @@ replacement values and clearing an already unavailable category are successful
 no-ops without audit rows.
 
 Reference-rate changes are prospective guidance only. They do not read,
-reprice, update or backfill existing stays, and stays do not persist a selected
-reference-rate category or amount. This feature does not resolve an actual
-stay's cat count to a category; three-or-more stay selection belongs to the
-later stay-pricing feature.
+reprice, update or backfill existing stays. New stays retain the applicable
+rate value but do not persist the selected category.
 
 ## Persistence
 
@@ -312,7 +344,8 @@ Important schema points:
 - `owners` stores owner contact data.
 - `vets` stores reference vet data.
 - `cats` has `owner_id` and optional `vet_id`.
-- `stays` has `owner_id`.
+- `stays` has `owner_id` plus nullable `retained_nightly_rate` and
+  `agreed_amount` `DECIMAL(19,0)` snapshots. Existing rows are not backfilled.
 - `stays` does not have `cat_id`.
 - `stay_cat` stores the relationship between stays and cats.
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
@@ -328,6 +361,11 @@ Important schema points:
   transitions with no state difference.
 - Rate-change actor foreign keys are restrictive; account deletion is blocked
   while a rate-change audit row references the target.
+- `stay_pricing_decisions` stores append-only pricing confirmations with the
+  stay UUID, exact values, night-count transition, reason, actor and
+  microsecond timestamp. Its actor foreign key is restrictive, while the stay
+  UUID deliberately has no foreign key so audit evidence survives stay
+  deletion.
 
 ## Authentication
 
@@ -342,6 +380,12 @@ while configure, replace and clear operations require `ADMIN`. Spring Security
 method-aware matchers enforce this HTTP boundary before the generic
 authenticated API rule, and the application authorization policy repeats the
 authoritative persisted-account decision at the service boundary.
+
+Both authenticated roles may create a stay with an explicit pricing decision.
+Only `ADMIN` may change a stay's authoritative night count and reconfirm its
+price. This contextual decision is enforced at the service boundary after the
+stay is locked; the general authenticated HTTP update route remains available
+for non-pricing edits.
 
 `DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
 application account. The service rejects authenticated self-deletion with
@@ -575,6 +619,11 @@ change time in `nightly_reference_rate_changes`. These rows have no update
 path, are not a generic event log, and retain their actor through a restrictive
 foreign key and account-deletion pre-check.
 
+Stay pricing history is a second focused append-only audit model. Creation and
+each pricing-affecting update preserve exact retained, previous and new values,
+night counts, actor, decision time and optional reason. Decision rows expose no
+update path and deliberately outlive deletion of their operational stay.
+
 ## Error Handling
 
 The API uses custom exceptions for common error cases:
@@ -609,6 +658,8 @@ Current focus:
 - update flow rules
 - nightly reference-rate authorization, current-state transitions and audit
   construction
+- stay pricing selection, explicit confirmation, role policy, reconfirmation
+  and atomic audit construction
 
 Repositories and mappers are mocked where appropriate.
 
@@ -624,6 +675,7 @@ Expected focus:
 - path variables
 - service delegation
 - exception mapping through the global exception handler
+- nested stay pricing validation and authenticated-role reachability
 
 Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
 

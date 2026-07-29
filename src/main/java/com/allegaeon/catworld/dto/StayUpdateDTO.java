@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -22,5 +23,8 @@ public class StayUpdateDTO {
     private String notes;
 
     private boolean overrideVaccineConflicts;
+
+    @Valid
+    private PricingDecisionRequestDTO pricingDecision;
 
 }

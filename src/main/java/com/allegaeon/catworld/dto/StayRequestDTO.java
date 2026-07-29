@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -28,5 +29,9 @@ public class StayRequestDTO {
     private Set<UUID> catIds;
 
     private boolean overrideVaccineConflicts;
+
+    @Valid
+    @NotNull(message = "pricingDecision is required")
+    private PricingDecisionRequestDTO pricingDecision;
 
 }

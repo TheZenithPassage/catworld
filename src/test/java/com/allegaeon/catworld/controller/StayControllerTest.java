@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.util.List;
@@ -67,6 +69,9 @@ public class StayControllerTest {
             when(stayService.getStay(stayId)).thenReturn(StayResponseDTO.builder()
                     .stayId(stayId)
                     .numberOfNights(3)
+                    .retainedNightlyRate(new BigDecimal("25"))
+                    .suggestedAmount(new BigDecimal("75"))
+                    .agreedAmount(new BigDecimal("70"))
                     .canDelete(true)
                     .build());
 
@@ -74,6 +79,9 @@ public class StayControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
                     .andExpect(jsonPath("$.numberOfNights").value(3))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value(25))
+                    .andExpect(jsonPath("$.suggestedAmount").value(75))
+                    .andExpect(jsonPath("$.agreedAmount").value(70))
                     .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(stayService).getStay(stayId);
@@ -110,15 +118,28 @@ public class StayControllerTest {
                     .catIds(Set.of(UUID.randomUUID()))
                     .notes("Test stay")
                     .overrideVaccineConflicts(true)
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
                     .build();
 
-            when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+            when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(
+                    StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .retainedNightlyRate(new BigDecimal("25"))
+                            .suggestedAmount(new BigDecimal("25"))
+                            .agreedAmount(new BigDecimal("100"))
+                            .build()
+            );
 
             mockMvc.perform(post("/api/stays")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value(25))
+                    .andExpect(jsonPath("$.suggestedAmount").value(25))
+                    .andExpect(jsonPath("$.agreedAmount").value(100))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -126,6 +147,41 @@ public class StayControllerTest {
 
             verify(stayService).createStay(argThat(StayRequestDTO::isOverrideVaccineConflicts));
 
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenPricingDecisionIsMissingOrFractional() throws Exception {
+            String baseRequest = """
+                    {
+                      "startAt": "2026-08-01T12:00:00",
+                      "endAt": "2026-08-03T12:00:00",
+                      "catIds": ["%s"],
+                      "overrideVaccineConflicts": false,
+                      %s
+                    }
+                    """;
+            UUID catId = UUID.randomUUID();
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(baseRequest.formatted(
+                                    catId,
+                                    "\"pricingDecision\": null"
+                            )))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.pricingDecision")
+                            .value("pricingDecision is required"));
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(baseRequest.formatted(
+                                    catId,
+                                    "\"pricingDecision\": {\"agreedAmount\": 1.5}"
+                            )))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$['pricingDecision.agreedAmount']").exists());
+
+            verify(stayService, never()).createStay(any(StayRequestDTO.class));
         }
 
         @Test
@@ -155,6 +211,9 @@ public class StayControllerTest {
                     .endAt(LocalDateTime.now().plusDays(2))
                     .catIds(Set.of(UUID.randomUUID()))
                     .notes("Test stay")
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
                     .build();
 
             when(stayService.createStay(any(StayRequestDTO.class))).thenThrow(new BadRequestException("Bad Request"));
@@ -178,6 +237,9 @@ public class StayControllerTest {
                     .startAt(LocalDateTime.of(2026, 8, 1, 12, 0))
                     .endAt(LocalDateTime.of(2026, 8, 5, 12, 0))
                     .catIds(Set.of(catId))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
                     .build();
             VaccineConflictViolationDTO violation = VaccineConflictViolationDTO.builder()
                     .catId(catId)
@@ -236,6 +298,10 @@ public class StayControllerTest {
                     .endAt(LocalDateTime.now().plusDays(2))
                     .notes("Test stay")
                     .overrideVaccineConflicts(true)
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .reason("Changed duration")
+                            .build())
                     .build();
 
             when(stayService.updateStay(eq(stayId), any(StayUpdateDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
@@ -248,8 +314,33 @@ public class StayControllerTest {
 
             verify(stayService).updateStay(
                     eq(stayId),
-                    argThat(StayUpdateDTO::isOverrideVaccineConflicts));
+                    argThat(actual -> actual.isOverrideVaccineConflicts()
+                            && actual.getPricingDecision() != null
+                            && actual.getPricingDecision().getAgreedAmount()
+                            .compareTo(new BigDecimal("100")) == 0));
 
+        }
+
+        @Test
+        void shouldReturnForbidden_whenServiceDeniesStaffNightCountChange() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, 8, 1, 12, 0))
+                    .endAt(LocalDateTime.of(2026, 8, 4, 12, 0))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
+                    .build();
+
+            when(stayService.updateStay(eq(stayId), any(StayUpdateDTO.class)))
+                    .thenThrow(new ForbiddenException(
+                            "Only administrators can change a stay's number of nights"
+                    ));
+
+            mockMvc.perform(put("/api/stays/{id}", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
         }
 
         @Test

@@ -21,4 +21,17 @@ public enum NightlyReferenceRateCategory {
                 .filter(category -> category.minimumCatCount == minimumCatCount)
                 .findFirst();
     }
+
+    public static Optional<NightlyReferenceRateCategory> fromActualCatCount(int actualCatCount) {
+        if (actualCatCount == 1) {
+            return Optional.of(ONE_CAT);
+        }
+        if (actualCatCount == 2) {
+            return Optional.of(TWO_CATS);
+        }
+        if (actualCatCount >= 3) {
+            return Optional.of(THREE_PLUS_CATS);
+        }
+        return Optional.empty();
+    }
 }

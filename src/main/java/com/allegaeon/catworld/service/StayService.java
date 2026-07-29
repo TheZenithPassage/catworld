@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -13,11 +14,16 @@ import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
+import com.allegaeon.catworld.model.NightlyReferenceRate;
+import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
+import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +32,9 @@ import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,11 +47,17 @@ import java.util.UUID;
 @Service
 public class StayService implements IStayService {
 
+    private static final int MAX_MONETARY_INTEGER_DIGITS = 19;
+
     private final StayRepository stayRepository;
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
+    private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
+    private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
+    private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
+    private final Clock clock;
 
     @Override
     public List<StayResponseDTO> getAllStays() {
@@ -86,17 +101,56 @@ public class StayService implements IStayService {
         }
 
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPricingAuthorizationPolicy.authorizeCreation(currentUser);
         validateVaccineCoverage(
                 cats,
                 stayRequestDTO.getEndAt(),
                 stayRequestDTO.isOverrideVaccineConflicts(),
                 currentUser);
 
+        NightlyReferenceRateCategory category = NightlyReferenceRateCategory
+                .fromActualCatCount(cats.size())
+                .orElseThrow(() -> new BadRequestException(
+                        "A stay must contain at least one cat"
+                ));
+        NightlyReferenceRate currentRate = nightlyReferenceRateRepository
+                .findById(category)
+                .orElseThrow(() -> new ConflictException(
+                        "Nightly reference-rate configuration is incomplete"
+                ));
+        BigDecimal retainedNightlyRate = currentRate.getNightlyRate();
+        validateRetainedNightlyRate(retainedNightlyRate);
+
+        long numberOfNights = stayMapper.calculateNumberOfNights(
+                stayRequestDTO.getStartAt(),
+                stayRequestDTO.getEndAt()
+        );
+        BigDecimal suggestedAmount = stayMapper.calculateSuggestedAmount(
+                retainedNightlyRate,
+                numberOfNights
+        );
+        PricingDecisionRequestDTO pricingDecision = stayRequestDTO.getPricingDecision();
+        validatePricingDecision(pricingDecision, suggestedAmount);
+
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
         stay.setCreatedBy(currentUser);
+        stay.setRetainedNightlyRate(retainedNightlyRate);
+        stay.setAgreedAmount(pricingDecision.getAgreedAmount());
 
-        return toResponseDTO(stayRepository.save(stay));
+        Stay savedStay = stayRepository.save(stay);
+        stayPricingDecisionRepository.saveAndFlush(
+                buildPricingDecision(
+                        savedStay,
+                        null,
+                        numberOfNights,
+                        null,
+                        pricingDecision,
+                        currentUser
+                )
+        );
+
+        return toResponseDTO(savedStay);
 
     }
 
@@ -105,11 +159,38 @@ public class StayService implements IStayService {
     public StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO) {
 
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
-        Stay stay = getStayEntity(stayId);
+        Stay stay = getStayEntityForUpdate(stayId);
         validateStayCanBeModified(stay);
+        long previousNumberOfNights = stayMapper.calculateNumberOfNights(
+                stay.getStartAt(),
+                stay.getEndAt()
+        );
+        long newNumberOfNights = stayMapper.calculateNumberOfNights(
+                stayUpdateDTO.getStartAt(),
+                stayUpdateDTO.getEndAt()
+        );
+        boolean pricingAffecting = previousNumberOfNights != newNumberOfNights;
+        BigDecimal previousAgreedAmount = stay.getAgreedAmount();
+        UserAccount currentUser = null;
+
+        if (pricingAffecting) {
+            currentUser = currentUserAccountService.getCurrentUserAccount();
+            stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
+            validatePricingDecision(
+                    stayUpdateDTO.getPricingDecision(),
+                    stayMapper.calculateSuggestedAmount(
+                            stay.getRetainedNightlyRate(),
+                            newNumberOfNights
+                    )
+            );
+        }
+
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
 
         stay = stayMapper.updateEntity(stay, stayUpdateDTO);
+        if (pricingAffecting) {
+            stay.setAgreedAmount(stayUpdateDTO.getPricingDecision().getAgreedAmount());
+        }
 
         List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
 
@@ -120,14 +201,31 @@ public class StayService implements IStayService {
         if (extendsStay) {
             List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayUpdateDTO.getEndAt());
             if (!vaccineConflicts.isEmpty()) {
+                if (currentUser == null) {
+                    currentUser = currentUserAccountService.getCurrentUserAccount();
+                }
                 validateVaccineOverride(
                         vaccineConflicts,
                         stayUpdateDTO.isOverrideVaccineConflicts(),
-                        currentUserAccountService.getCurrentUserAccount());
+                        currentUser);
             }
         }
 
-        return toResponseDTO(stayRepository.save(stay));
+        Stay savedStay = stayRepository.save(stay);
+        if (pricingAffecting) {
+            stayPricingDecisionRepository.saveAndFlush(
+                    buildPricingDecision(
+                            savedStay,
+                            previousNumberOfNights,
+                            newNumberOfNights,
+                            previousAgreedAmount,
+                            stayUpdateDTO.getPricingDecision(),
+                            currentUser
+                    )
+            );
+        }
+
+        return toResponseDTO(savedStay);
 
     }
 
@@ -135,7 +233,7 @@ public class StayService implements IStayService {
     @Transactional
     public void cancelStay(UUID stayId) {
 
-        Stay stay = getStayEntity(stayId);
+        Stay stay = getStayEntityForUpdate(stayId);
         validateStayCanBeModified(stay);
 
         stay.setCancelledAt(LocalDateTime.now());
@@ -163,6 +261,11 @@ public class StayService implements IStayService {
                 .orElseThrow(() -> new ResourceNotFoundException("Stay", stayId));
     }
 
+    private Stay getStayEntityForUpdate(UUID stayId) {
+        return stayRepository.findByIdForUpdate(stayId)
+                .orElseThrow(() -> new ResourceNotFoundException("Stay", stayId));
+    }
+
     private Cat getCatEntity(UUID id) {
         return catRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cat", id));
@@ -185,6 +288,70 @@ public class StayService implements IStayService {
 
     private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {
         if(startAt.isAfter(endAt) || startAt.isEqual(endAt)) throw new BadRequestException("End time must be after start time");
+    }
+
+    private void validateRetainedNightlyRate(BigDecimal retainedNightlyRate) {
+        if (retainedNightlyRate == null) {
+            return;
+        }
+        if (retainedNightlyRate.signum() <= 0 || !isSupportedWholeAmount(retainedNightlyRate)) {
+            throw new ConflictException(
+                    "Applicable nightly reference rate is not a valid positive whole amount"
+            );
+        }
+    }
+
+    private void validatePricingDecision(
+            PricingDecisionRequestDTO pricingDecision,
+            BigDecimal suggestedAmount) {
+        if (pricingDecision == null) {
+            throw new BadRequestException("An explicit pricing decision is required");
+        }
+
+        BigDecimal agreedAmount = pricingDecision.getAgreedAmount();
+        if (agreedAmount == null
+                || agreedAmount.signum() < 0
+                || !isSupportedWholeAmount(agreedAmount)) {
+            throw new BadRequestException(
+                    "Agreed amount must be a non-negative whole number with at most 19 digits"
+            );
+        }
+
+        if (suggestedAmount != null
+                && suggestedAmount.compareTo(agreedAmount) != 0
+                && (pricingDecision.getReason() == null
+                || pricingDecision.getReason().isBlank())) {
+            throw new BadRequestException(
+                    "A non-blank pricing decision reason is required when the agreed amount differs from the suggestion"
+            );
+        }
+    }
+
+    private boolean isSupportedWholeAmount(BigDecimal amount) {
+        BigDecimal normalized = amount.stripTrailingZeros();
+        int fractionalDigits = Math.max(normalized.scale(), 0);
+        int integerDigits = Math.max(normalized.precision() - normalized.scale(), 0);
+        return fractionalDigits == 0 && integerDigits <= MAX_MONETARY_INTEGER_DIGITS;
+    }
+
+    private StayPricingDecision buildPricingDecision(
+            Stay stay,
+            Long previousNumberOfNights,
+            long newNumberOfNights,
+            BigDecimal previousAgreedAmount,
+            PricingDecisionRequestDTO pricingDecision,
+            UserAccount currentUser) {
+        return StayPricingDecision.builder()
+                .stayId(stay.getId())
+                .retainedNightlyRate(stay.getRetainedNightlyRate())
+                .previousNumberOfNights(previousNumberOfNights)
+                .newNumberOfNights(newNumberOfNights)
+                .previousAgreedAmount(previousAgreedAmount)
+                .newAgreedAmount(pricingDecision.getAgreedAmount())
+                .decidedBy(currentUser)
+                .decidedAt(Instant.now(clock))
+                .reason(pricingDecision.getReason())
+                .build();
     }
 
     private void validateVaccineCoverage(
