@@ -437,7 +437,7 @@ public class StayServiceTest {
                     endAt,
                     new BigDecimal("25"),
                     PricingDecisionRequestDTO.builder()
-                            .agreedAmount(new BigDecimal("50"))
+                            .agreedAmount(new BigDecimal("50.0"))
                             .build()
             );
 
@@ -578,7 +578,7 @@ public class StayServiceTest {
                     .startAt(startAt)
                     .endAt(startAt.plusDays(3))
                     .pricingDecision(PricingDecisionRequestDTO.builder()
-                            .agreedAmount(new BigDecimal("20"))
+                            .agreedAmount(new BigDecimal("20.0"))
                             .reason("Client agreement remains unchanged")
                             .build())
                     .build();
@@ -808,7 +808,7 @@ public class StayServiceTest {
             Stay stay = correctionStay(status, new BigDecimal("20"));
             UserAccount admin = user(UserRole.ADMIN);
             PricingDecisionRequestDTO request = correction(
-                    new BigDecimal("25"),
+                    new BigDecimal("25.0"),
                     "Administrative correction"
             );
 
@@ -909,7 +909,8 @@ public class StayServiceTest {
         @ValueSource(strings = {
                 "-1",
                 "1.5",
-                "10000000000000000000"
+                "10000000000000000000",
+                "1e2147483647"
         })
         void correctionRejectsUnsupportedAmounts(String value) {
             Stay stay = correctionStay("RESERVED", new BigDecimal("20"));

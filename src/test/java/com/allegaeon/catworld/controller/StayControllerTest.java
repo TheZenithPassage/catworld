@@ -451,7 +451,7 @@ public class StayControllerTest {
         }
 
         @Test
-        void shouldReturnBadRequest_whenCorrectionAmountIsFractional()
+        void shouldReturnBadRequest_whenCorrectionAmountIsUnsupported()
                 throws Exception {
             UUID stayId = UUID.randomUUID();
 
@@ -459,6 +459,17 @@ public class StayControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {"agreedAmount": 1.5, "reason": "Reason"}
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.agreedAmountSupported").exists());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "agreedAmount": 1e2147483647,
+                                      "reason": "Reason"
+                                    }
                                     """))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.agreedAmountSupported").exists());

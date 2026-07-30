@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
@@ -19,8 +20,6 @@ import java.math.BigDecimal;
 @Builder
 public class PricingDecisionRequestDTO {
 
-    private static final int MAX_MONETARY_INTEGER_DIGITS = 19;
-
     @NotNull(message = "Agreed amount is required and must be a non-negative whole number")
     @DecimalMin(
             value = "0",
@@ -39,13 +38,6 @@ public class PricingDecisionRequestDTO {
             return true;
         }
 
-        BigDecimal normalized = agreedAmount.stripTrailingZeros();
-        int fractionalDigits = Math.max(normalized.scale(), 0);
-        int integerDigits = Math.max(
-                normalized.precision() - normalized.scale(),
-                0
-        );
-        return fractionalDigits == 0
-                && integerDigits <= MAX_MONETARY_INTEGER_DIGITS;
+        return WholeMonetaryAmount.isSupported(agreedAmount);
     }
 }
