@@ -43,6 +43,24 @@ class StayPricingAuthorizationPolicyTest {
         );
     }
 
+    @Test
+    void onlyAdminCanCorrectAgreedAmount() {
+        assertTrue(policy.canCorrectAgreedAmount(account(UserRole.ADMIN)));
+        assertFalse(policy.canCorrectAgreedAmount(account(UserRole.STAFF)));
+        assertFalse(policy.canCorrectAgreedAmount(null));
+        assertDoesNotThrow(
+                () -> policy.authorizeAgreedAmountCorrection(account(UserRole.ADMIN))
+        );
+        assertThrows(
+                ForbiddenException.class,
+                () -> policy.authorizeAgreedAmountCorrection(account(UserRole.STAFF))
+        );
+        assertThrows(
+                ForbiddenException.class,
+                () -> policy.authorizeAgreedAmountCorrection(null)
+        );
+    }
+
     private UserAccount account(UserRole role) {
         return UserAccount.builder().role(role).build();
     }

@@ -22,6 +22,14 @@ public class StayPricingAuthorizationPolicy {
         }
     }
 
+    public void authorizeAgreedAmountCorrection(UserAccount currentUser) {
+        if (!canCorrectAgreedAmount(currentUser)) {
+            throw new ForbiddenException(
+                    "Only administrators can correct a stay's agreed amount"
+            );
+        }
+    }
+
     public boolean canCreate(UserAccount currentUser) {
         return currentUser != null
                 && (currentUser.getRole() == UserRole.ADMIN
@@ -29,6 +37,10 @@ public class StayPricingAuthorizationPolicy {
     }
 
     public boolean canChangeNightCount(UserAccount currentUser) {
+        return currentUser != null && currentUser.getRole() == UserRole.ADMIN;
+    }
+
+    public boolean canCorrectAgreedAmount(UserAccount currentUser) {
         return currentUser != null && currentUser.getRole() == UserRole.ADMIN;
     }
 }

@@ -10,6 +10,7 @@ import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
@@ -36,10 +37,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
@@ -84,6 +91,10 @@ class StayPricingPersistenceTest {
     private StayPricingDecisionRepository stayPricingDecisionRepository;
 
     @Autowired
+    private StayAgreedAmountCorrectionRepository
+            stayAgreedAmountCorrectionRepository;
+
+    @Autowired
     private NightlyReferenceRateRepository nightlyReferenceRateRepository;
 
     @Autowired
@@ -100,6 +111,7 @@ class StayPricingPersistenceTest {
 
     @BeforeEach
     void resetData() {
+        jdbcTemplate.update("delete from stay_agreed_amount_corrections");
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
         jdbcTemplate.update("delete from stay_cat");
@@ -113,7 +125,7 @@ class StayPricingPersistenceTest {
     }
 
     @Test
-    void sequentialReconfirmationsAreExactAndSurviveCancellationAndStayDeletion() {
+    void pricingAndCorrectionEvidenceSurviveCancellationAndStayDeletion() {
         PricingFixture fixture = createPricedStay();
         UUID stayId = fixture.response().getStayId();
 
@@ -129,6 +141,13 @@ class StayPricingPersistenceTest {
                         new BigDecimal("35"),
                         "Client negotiated a whole-stay amount"
                 )
+        );
+        stayService.correctAgreedAmount(
+                stayId,
+                PricingDecisionRequestDTO.builder()
+                        .agreedAmount(new BigDecimal("40"))
+                        .reason("Administrative agreement correction")
+                        .build()
         );
 
         List<StayPricingDecision> decisions =
@@ -154,13 +173,31 @@ class StayPricingPersistenceTest {
                         && new BigDecimal("10")
                         .compareTo(decision.getRetainedNightlyRate()) == 0
         ));
+        List<StayAgreedAmountCorrection> corrections =
+                stayAgreedAmountCorrectionRepository.findAllByStayId(stayId);
+        assertEquals(1, corrections.size());
+        assertEquals(
+                new BigDecimal("35"),
+                corrections.get(0).getPreviousAgreedAmount()
+        );
+        assertEquals(
+                new BigDecimal("40"),
+                corrections.get(0).getNewAgreedAmount()
+        );
+        assertEquals(
+                "Administrative agreement correction",
+                corrections.get(0).getReason()
+        );
 
         stayService.cancelStay(stayId);
         Stay cancelled = stayRepository.findById(stayId).orElseThrow();
         assertEquals(new BigDecimal("10"), cancelled.getRetainedNightlyRate());
-        assertEquals(new BigDecimal("35"), cancelled.getAgreedAmount());
+        assertEquals(new BigDecimal("40"), cancelled.getAgreedAmount());
         assertEquals(3, stayPricingDecisionRepository
                 .findAllByStayIdOrderByDecidedAtAsc(stayId)
+                .size());
+        assertEquals(1, stayAgreedAmountCorrectionRepository
+                .findAllByStayId(stayId)
                 .size());
 
         stayService.deleteStay(stayId);
@@ -168,6 +205,9 @@ class StayPricingPersistenceTest {
         assertFalse(stayRepository.existsById(stayId));
         assertEquals(3, stayPricingDecisionRepository
                 .findAllByStayIdOrderByDecidedAtAsc(stayId)
+                .size());
+        assertEquals(1, stayAgreedAmountCorrectionRepository
+                .findAllByStayId(stayId)
                 .size());
     }
 
@@ -203,6 +243,158 @@ class StayPricingPersistenceTest {
         assertEquals(1, stayPricingDecisionRepository
                 .findAllByStayIdOrderByDecidedAtAsc(stayId)
                 .size());
+    }
+
+    @Test
+    void legacyNullAgreementCorrectionPersistsExactNullableSnapshot() {
+        PersistenceFixture fixture = createPersistenceFixture();
+        Stay legacyStay = stay(fixture, null, null);
+        legacyStay = stayRepository.saveAndFlush(legacyStay);
+        when(currentUserAccountService.getCurrentUserAccount())
+                .thenReturn(fixture.actor());
+
+        stayService.correctAgreedAmount(
+                legacyStay.getId(),
+                correctionRequest(
+                        new BigDecimal("25"),
+                        "Recorded inherited agreement"
+                )
+        );
+
+        Stay corrected = stayRepository.findById(legacyStay.getId()).orElseThrow();
+        assertEquals(new BigDecimal("25"), corrected.getAgreedAmount());
+        List<StayAgreedAmountCorrection> corrections =
+                stayAgreedAmountCorrectionRepository.findAllByStayId(
+                        legacyStay.getId()
+                );
+        assertEquals(1, corrections.size());
+        assertNull(corrections.get(0).getPreviousAgreedAmount());
+        assertEquals(
+                new BigDecimal("25"),
+                corrections.get(0).getNewAgreedAmount()
+        );
+        assertEquals(fixture.actor().getId(), corrections.get(0).getDecidedBy().getId());
+        assertEquals(DECIDED_AT, corrections.get(0).getDecidedAt());
+        assertEquals("Recorded inherited agreement", corrections.get(0).getReason());
+    }
+
+    @Test
+    void numericNoOpLeavesManagedStayTimestampAndCorrectionHistoryUnchanged() {
+        PricingFixture fixture = createPricedStay();
+        UUID stayId = fixture.response().getStayId();
+        Stay before = stayRepository.findById(stayId).orElseThrow();
+        Instant updatedAt = before.getUpdatedAt();
+
+        stayService.correctAgreedAmount(
+                stayId,
+                correctionRequest(new BigDecimal("20.0"), null)
+        );
+
+        Stay after = stayRepository.findById(stayId).orElseThrow();
+        assertEquals(new BigDecimal("20"), after.getAgreedAmount());
+        assertEquals(updatedAt, after.getUpdatedAt());
+        assertEquals(
+                0,
+                stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).size()
+        );
+    }
+
+    @Test
+    void failedCorrectionEventInsertRollsBackAgreementMutation() {
+        PricingFixture fixture = createPricedStay();
+        UUID stayId = fixture.response().getStayId();
+        UserAccount missingAdmin = UserAccount.builder()
+                .id(UUID.randomUUID())
+                .username("missing-correction-admin")
+                .role(UserRole.ADMIN)
+                .enabled(true)
+                .build();
+        when(currentUserAccountService.getCurrentUserAccount())
+                .thenReturn(missingAdmin);
+
+        assertThrows(
+                RuntimeException.class,
+                () -> stayService.correctAgreedAmount(
+                        stayId,
+                        correctionRequest(
+                                new BigDecimal("30"),
+                                "Correction that must roll back"
+                        )
+                )
+        );
+
+        Stay unchanged = stayRepository.findById(stayId).orElseThrow();
+        assertEquals(new BigDecimal("20"), unchanged.getAgreedAmount());
+        assertEquals(
+                0,
+                stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).size()
+        );
+    }
+
+    @Test
+    void concurrentCorrectionsFormAccurateSerializedChain() throws Exception {
+        PricingFixture fixture = createPricedStay();
+        UUID stayId = fixture.response().getStayId();
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<StayResponseDTO> correctionToThirty = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return stayService.correctAgreedAmount(
+                        stayId,
+                        correctionRequest(
+                                new BigDecimal("30"),
+                                "First competing correction"
+                        )
+                );
+            });
+            Future<StayResponseDTO> correctionToForty = executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                return stayService.correctAgreedAmount(
+                        stayId,
+                        correctionRequest(
+                                new BigDecimal("40"),
+                                "Second competing correction"
+                        )
+                );
+            });
+
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            correctionToThirty.get(10, TimeUnit.SECONDS);
+            correctionToForty.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        List<StayAgreedAmountCorrection> corrections =
+                stayAgreedAmountCorrectionRepository.findAllByStayId(stayId);
+        assertEquals(2, corrections.size());
+        StayAgreedAmountCorrection first = corrections.stream()
+                .filter(correction -> new BigDecimal("20").compareTo(
+                        correction.getPreviousAgreedAmount()) == 0)
+                .findFirst()
+                .orElseThrow();
+        StayAgreedAmountCorrection second = corrections.stream()
+                .filter(correction -> correction != first
+                        && first.getNewAgreedAmount().compareTo(
+                        correction.getPreviousAgreedAmount()) == 0)
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(
+                Set.of(new BigDecimal("30"), new BigDecimal("40")),
+                Set.of(first.getNewAgreedAmount(), second.getNewAgreedAmount())
+        );
+        Stay finalStay = stayRepository.findById(stayId).orElseThrow();
+        assertEquals(
+                0,
+                second.getNewAgreedAmount().compareTo(finalStay.getAgreedAmount())
+        );
     }
 
     @Test
@@ -342,6 +534,51 @@ class StayPricingPersistenceTest {
         );
     }
 
+    @Test
+    void directCorrectionWritesRejectInvalidImmutableEvidence() {
+        PersistenceFixture fixture = createPersistenceFixture();
+        BigDecimal overCapacity = new BigDecimal("10000000000000000000");
+
+        assertAll(
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        new BigDecimal("20.5"),
+                        new BigDecimal("25"),
+                        "Reason"
+                ),
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        new BigDecimal("20"),
+                        new BigDecimal("25.5"),
+                        "Reason"
+                ),
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        new BigDecimal("-1"),
+                        new BigDecimal("25"),
+                        "Reason"
+                ),
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        new BigDecimal("20"),
+                        overCapacity,
+                        "Reason"
+                ),
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        new BigDecimal("20"),
+                        new BigDecimal("20"),
+                        "No numerical change"
+                ),
+                () -> assertCorrectionRejected(
+                        fixture.actor(),
+                        null,
+                        new BigDecimal("25"),
+                        "   "
+                )
+        );
+    }
+
     private void assertStayRejected(
             PersistenceFixture fixture,
             BigDecimal retainedNightlyRate,
@@ -369,6 +606,26 @@ class StayPricingPersistenceTest {
                         previousAgreedAmount,
                         newAgreedAmount
                 ))
+        );
+    }
+
+    private void assertCorrectionRejected(
+            UserAccount actor,
+            BigDecimal previousAgreedAmount,
+            BigDecimal newAgreedAmount,
+            String reason) {
+        assertThrows(
+                RuntimeException.class,
+                () -> stayAgreedAmountCorrectionRepository.saveAndFlush(
+                        StayAgreedAmountCorrection.builder()
+                                .stayId(UUID.randomUUID())
+                                .previousAgreedAmount(previousAgreedAmount)
+                                .newAgreedAmount(newAgreedAmount)
+                                .decidedBy(actor)
+                                .decidedAt(DECIDED_AT)
+                                .reason(reason)
+                                .build()
+                )
         );
     }
 
@@ -473,6 +730,15 @@ class StayPricingPersistenceTest {
                         .agreedAmount(agreedAmount)
                         .reason(reason)
                         .build())
+                .build();
+    }
+
+    private PricingDecisionRequestDTO correctionRequest(
+            BigDecimal agreedAmount,
+            String reason) {
+        return PricingDecisionRequestDTO.builder()
+                .agreedAmount(agreedAmount)
+                .reason(reason)
                 .build();
     }
 

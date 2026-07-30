@@ -125,6 +125,17 @@ package "MySQL schema" {
     reason text
   }
 
+  class stay_agreed_amount_corrections <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<NN,INDEX>>
+    previous_agreed_amount decimal(19,0)
+    new_agreed_amount decimal(19,0) <<NN>>
+    decided_by_id binary(16) <<FK,NN>>
+    decided_at datetime(6) <<NN>>
+    reason text <<NN>>
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id
@@ -136,6 +147,7 @@ package "MySQL schema" {
   user_accounts "1" -- "0..*" stays : FK created_by_id
   user_accounts "1" -- "0..*" nightly_reference_rate_changes : FK changed_by_id
   user_accounts "1" -- "0..*" stay_pricing_decisions : FK decided_by_id
+  user_accounts "1" -- "0..*" stay_agreed_amount_corrections : FK decided_by_id
 }
 
 note right of stays
@@ -174,6 +186,15 @@ note bottom of stay_pricing_decisions
 Append-only pricing confirmations.
 stay_id deliberately has no foreign key,
 so evidence survives stay deletion.
+The actor FK is restrictive.
+end note
+
+note bottom of stay_agreed_amount_corrections
+Append-only administrative corrections.
+stay_id deliberately has no foreign key.
+Previous amount may be null for inherited
+stays; new amount and reason are required.
+Checks require a real whole-unit change.
 The actor FK is restrictive.
 end note
 
