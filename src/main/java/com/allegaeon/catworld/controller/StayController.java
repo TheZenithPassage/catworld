@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -38,6 +39,15 @@ public class StayController {
     @PutMapping("/{id}")
     public ResponseEntity<StayResponseDTO> updateStay(@PathVariable UUID id, @Valid @RequestBody StayUpdateDTO stayUpdateDTO) {
         return ResponseEntity.ok(stayService.updateStay(id, stayUpdateDTO));
+    }
+
+    @PatchMapping("/{id}/agreed-amount")
+    public ResponseEntity<StayResponseDTO> correctAgreedAmount(
+            @PathVariable UUID id,
+            @Valid @RequestBody PricingDecisionRequestDTO pricingDecision) {
+        return ResponseEntity.ok(
+                stayService.correctAgreedAmount(id, pricingDecision)
+        );
     }
 
     @PatchMapping("/{id}/cancel")

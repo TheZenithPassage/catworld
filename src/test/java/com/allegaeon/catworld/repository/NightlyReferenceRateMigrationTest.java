@@ -1,6 +1,8 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.security.UserAccountBootstrap;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
@@ -227,14 +229,16 @@ class NightlyReferenceRateMigrationTest {
         public void initialize(ConfigurableApplicationContext applicationContext) {
             String url = applicationContext.getEnvironment()
                     .getRequiredProperty("spring.datasource.url");
-            SingleConnectionDataSource dataSource = new SingleConnectionDataSource(
-                    url,
-                    applicationContext.getEnvironment()
-                            .getRequiredProperty("spring.datasource.username"),
-                    applicationContext.getEnvironment()
-                            .getProperty("spring.datasource.password", ""),
-                    true
-            );
+            HikariConfig hikariConfig = new HikariConfig();
+            hikariConfig.setJdbcUrl(url);
+            hikariConfig.setUsername(applicationContext.getEnvironment()
+                    .getRequiredProperty("spring.datasource.username"));
+            hikariConfig.setPassword(applicationContext.getEnvironment()
+                    .getProperty("spring.datasource.password", ""));
+            hikariConfig.setDriverClassName(applicationContext.getEnvironment()
+                    .getRequiredProperty("spring.datasource.driver-class-name"));
+            hikariConfig.setMaximumPoolSize(4);
+            HikariDataSource dataSource = new HikariDataSource(hikariConfig);
             applicationContext.getBeanFactory()
                     .registerSingleton("dataSource", dataSource);
 

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -96,6 +97,33 @@ class StayControllerSecurityTest {
     }
 
     @Test
+    void bothRolesReachCorrectionBecausePersistedAuthorizationIsServiceContextual()
+            throws Exception {
+        UUID stayId = UUID.randomUUID();
+        when(stayService.correctAgreedAmount(any(), any())).thenReturn(
+                StayResponseDTO.builder().stayId(stayId).build()
+        );
+        String correctionRequest = """
+                {
+                  "agreedAmount": 25,
+                  "reason": "Administrative correction"
+                }
+                """;
+
+        mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(correctionRequest))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                        .with(user("staff").roles("STAFF"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(correctionRequest))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void anonymousCreationAndUpdateReceiveAuthenticationChallenge() throws Exception {
         UUID stayId = UUID.randomUUID();
 
@@ -117,7 +145,19 @@ class StayControllerSecurityTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").value("Unauthorized"));
 
+        mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agreedAmount": 25,
+                                  "reason": "Administrative correction"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"));
+
         verify(stayService, never()).createStay(any());
         verify(stayService, never()).updateStay(any(), any());
+        verify(stayService, never()).correctAgreedAmount(any(), any());
     }
 }

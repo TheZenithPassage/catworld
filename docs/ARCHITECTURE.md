@@ -153,6 +153,14 @@ and new agreed amounts, optional reason, deciding `UserAccount` and
 application-clock timestamp. It stores the stay UUID as audit evidence rather
 than a foreign key so the history survives operational stay deletion.
 
+#### StayAgreedAmountCorrection
+
+Represents one immutable administrative correction of a stay's agreed amount.
+It records the nullable exact previous amount, exact new amount, required
+reason, deciding `UserAccount` and application-clock timestamp. It stores the
+stay UUID as indexed audit evidence without an operational foreign key, so the
+history survives cancellation and permanent stay deletion.
+
 ## Stay Model
 
 ### Key Rule
@@ -188,6 +196,9 @@ Main relationships:
   transition.
 - Each `StayPricingDecision` references the `UserAccount` that confirmed the
   price and identifies its stay by an indexed UUID without an operational
+  foreign key.
+- Each `StayAgreedAmountCorrection` references the `UserAccount` that made the
+  correction and identifies its stay by an indexed UUID without an operational
   foreign key.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
@@ -267,6 +278,27 @@ update requires `ADMIN`, a fresh explicit pricing decision and the stay's
 retained rate. The service pessimistically locks the stay before comparing
 night counts, then changes the agreement and appends its immutable decision in
 one transaction. Equal-night date or time changes do not reconfirm pricing.
+
+### Agreed Amounts Have a Focused Administrative Correction Path
+
+`PATCH /api/stays/{id}/agreed-amount` lets an authenticated persisted `ADMIN`
+correct only the agreement, independently of the stay lifecycle. The operation
+also initializes an inherited stay whose current agreement is null; this is an
+individual correction, not a legacy backfill.
+
+The submitted amount follows the normal non-negative whole-unit monetary
+contract of at most 19 digits. Every real correction, including null-to-value,
+requires a non-blank reason. Numerically equal values such as `20` and `20.0`
+are successful no-ops after authorization and do not update the stay timestamp
+or append evidence.
+
+The service takes the existing pessimistic `Stay` lock before persisted-account
+authorization and current-value comparison. A real change updates only
+`agreedAmount` and inserts one immutable correction event in the same
+transaction. The exact previous and new values therefore form a serialized
+chain for competing corrections, and neither half can commit without the
+other. Correction evidence is retained after cancellation or permanent
+deletion of the operational stay.
 
 ## Stay Business Rules
 
@@ -366,6 +398,13 @@ Important schema points:
   microsecond timestamp. Its actor foreign key is restrictive, while the stay
   UUID deliberately has no foreign key so audit evidence survives stay
   deletion.
+- `stay_agreed_amount_corrections` stores append-only focused administrative
+  corrections with indexed scalar stay UUID, nullable exact previous amount,
+  required exact new amount, required reason, actor and microsecond timestamp.
+  Checks require a real whole-unit transition. The restrictive actor foreign
+  key preserves attribution, while the deliberate absence of a stay foreign
+  key preserves evidence after operational deletion. V6 creates no backfill
+  rows.
 
 ## Authentication
 
@@ -386,6 +425,12 @@ Only `ADMIN` may change a stay's authoritative night count and reconfirm its
 price. This contextual decision is enforced at the service boundary after the
 stay is locked; the general authenticated HTTP update route remains available
 for non-pricing edits.
+
+The focused agreed-amount correction route remains under the generic
+authenticated HTTP rule because its authoritative `ADMIN` decision uses the
+persisted current account at the service boundary after taking the same stay
+lock. `STAFF` can reach the route but cannot change the agreement or append
+correction evidence.
 
 `DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
 application account. The service rejects authenticated self-deletion with
@@ -624,6 +669,12 @@ each pricing-affecting update preserve exact retained, previous and new values,
 night counts, actor, decision time and optional reason. Decision rows expose no
 update path and deliberately outlive deletion of their operational stay.
 
+Agreed-amount correction history is a third focused append-only audit model.
+Each real administrative correction preserves the nullable exact previous
+amount, exact new amount, required reason, actor and decision time. Correction
+rows expose no update or delete path and deliberately outlive cancellation and
+deletion of their operational stay.
+
 ## Error Handling
 
 The API uses custom exceptions for common error cases:
@@ -660,6 +711,8 @@ Current focus:
   construction
 - stay pricing selection, explicit confirmation, role policy, reconfirmation
   and atomic audit construction
+- focused agreed-amount correction authorization, numeric no-op behavior,
+  atomic immutable evidence and same-stay serialization
 
 Repositories and mappers are mocked where appropriate.
 
@@ -676,6 +729,8 @@ Expected focus:
 - service delegation
 - exception mapping through the global exception handler
 - nested stay pricing validation and authenticated-role reachability
+- focused agreed-amount correction validation, delegation and representative
+  authenticated reachability
 
 Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
 

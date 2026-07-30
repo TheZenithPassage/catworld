@@ -16,12 +16,14 @@ import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
+import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -70,6 +72,10 @@ public class StayServiceTest {
     private StayPricingDecisionRepository stayPricingDecisionRepository;
 
     @Mock
+    private StayAgreedAmountCorrectionRepository
+            stayAgreedAmountCorrectionRepository;
+
+    @Mock
     private CurrentUserAccountService currentUserAccountService;
 
     @Mock
@@ -90,6 +96,9 @@ public class StayServiceTest {
 
     @Captor
     private ArgumentCaptor<StayPricingDecision> pricingDecisionCaptor;
+
+    @Captor
+    private ArgumentCaptor<StayAgreedAmountCorrection> correctionCaptor;
 
     @BeforeEach
     void configurePricingDefaults() {
@@ -782,6 +791,227 @@ public class StayServiceTest {
                     .saveAndFlush(any(StayPricingDecision.class));
             assertEquals("Updated operational note", stay.getNotes());
             assertEquals(BigDecimal.ZERO, stay.getAgreedAmount());
+        }
+    }
+
+    @Nested
+    class AgreedAmountCorrectionTests {
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "RESERVED",
+                "CHECKED_IN",
+                "CHECKED_OUT",
+                "CANCELLED"
+        })
+        void adminCorrectsAgreementInEveryStayStatus(String status) {
+            Stay stay = correctionStay(status, new BigDecimal("20"));
+            UserAccount admin = user(UserRole.ADMIN);
+            PricingDecisionRequestDTO request = correction(
+                    new BigDecimal("25"),
+                    "Administrative correction"
+            );
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayRepository.save(stay)).thenReturn(stay);
+            when(stayMapper.toResponseDTO(stay, false))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stay.getId())
+                            .agreedAmount(new BigDecimal("25"))
+                            .build());
+
+            StayResponseDTO response = service.correctAgreedAmount(
+                    stay.getId(),
+                    request
+            );
+
+            assertEquals(new BigDecimal("25"), response.getAgreedAmount());
+            assertEquals(new BigDecimal("25"), stay.getAgreedAmount());
+            verify(stayRepository).findByIdForUpdate(stay.getId());
+            verify(stayAgreedAmountCorrectionRepository).saveAndFlush(
+                    correctionCaptor.capture()
+            );
+            StayAgreedAmountCorrection event = correctionCaptor.getValue();
+            assertEquals(stay.getId(), event.getStayId());
+            assertEquals(new BigDecimal("20"), event.getPreviousAgreedAmount());
+            assertEquals(new BigDecimal("25"), event.getNewAgreedAmount());
+            assertSame(admin, event.getDecidedBy());
+            assertEquals(
+                    Instant.parse("2026-07-28T12:00:00Z"),
+                    event.getDecidedAt()
+            );
+            assertEquals("Administrative correction", event.getReason());
+        }
+
+        @Test
+        void adminInitializesLegacyNullAgreementWithExactAuditSnapshot() {
+            Stay stay = correctionStay("CHECKED_OUT", null);
+            UserAccount admin = user(UserRole.ADMIN);
+            PricingDecisionRequestDTO request = correction(
+                    new BigDecimal("1000000000000000000"),
+                    "Recorded inherited client agreement"
+            );
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayRepository.save(stay)).thenReturn(stay);
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+
+            service.correctAgreedAmount(stay.getId(), request);
+
+            verify(stayAgreedAmountCorrectionRepository).saveAndFlush(
+                    correctionCaptor.capture()
+            );
+            assertNull(correctionCaptor.getValue().getPreviousAgreedAmount());
+            assertEquals(
+                    new BigDecimal("1000000000000000000"),
+                    correctionCaptor.getValue().getNewAgreedAmount()
+            );
+            assertEquals(
+                    "Recorded inherited client agreement",
+                    correctionCaptor.getValue().getReason()
+            );
+        }
+
+        @Test
+        void staffIsDeniedAfterLockedReloadBeforeCorrectionValidation() {
+            Stay stay = correctionStay("RESERVED", new BigDecimal("20"));
+            PricingDecisionRequestDTO invalidRequest = correction(
+                    new BigDecimal("-1"),
+                    null
+            );
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.STAFF));
+
+            assertThrows(
+                    ForbiddenException.class,
+                    () -> service.correctAgreedAmount(stay.getId(), invalidRequest)
+            );
+
+            InOrder ordering = inOrder(
+                    stayRepository,
+                    currentUserAccountService,
+                    stayPricingAuthorizationPolicy
+            );
+            ordering.verify(stayRepository).findByIdForUpdate(stay.getId());
+            ordering.verify(currentUserAccountService).getCurrentUserAccount();
+            ordering.verify(stayPricingAuthorizationPolicy)
+                    .authorizeAgreedAmountCorrection(any(UserAccount.class));
+            verify(stayRepository, never()).save(any(Stay.class));
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "-1",
+                "1.5",
+                "10000000000000000000"
+        })
+        void correctionRejectsUnsupportedAmounts(String value) {
+            Stay stay = correctionStay("RESERVED", new BigDecimal("20"));
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+
+            assertThrows(
+                    BadRequestException.class,
+                    () -> service.correctAgreedAmount(
+                            stay.getId(),
+                            correction(new BigDecimal(value), "Reason")
+                    )
+            );
+
+            verify(stayRepository, never()).save(any(Stay.class));
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
+        }
+
+        @Test
+        void realCorrectionRequiresNonBlankReason() {
+            Stay stay = correctionStay("RESERVED", new BigDecimal("20"));
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+
+            assertThrows(
+                    BadRequestException.class,
+                    () -> service.correctAgreedAmount(
+                            stay.getId(),
+                            correction(new BigDecimal("25"), "   ")
+                    )
+            );
+
+            assertEquals(new BigDecimal("20"), stay.getAgreedAmount());
+            verify(stayRepository, never()).save(any(Stay.class));
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
+        }
+
+        @Test
+        void numericallyEqualCorrectionIsAuthorizedZeroWriteNoOp() {
+            Stay stay = correctionStay("CANCELLED", new BigDecimal("20"));
+            LocalDateTime originalStart = stay.getStartAt();
+            LocalDateTime originalEnd = stay.getEndAt();
+            LocalDateTime originalCancellation = stay.getCancelledAt();
+            BigDecimal retainedRate = stay.getRetainedNightlyRate();
+            UserAccount admin = user(UserRole.ADMIN);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+
+            service.correctAgreedAmount(
+                    stay.getId(),
+                    correction(new BigDecimal("20.0"), null)
+            );
+
+            verify(stayPricingAuthorizationPolicy)
+                    .authorizeAgreedAmountCorrection(admin);
+            verify(stayRepository, never()).save(any(Stay.class));
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
+            assertEquals(new BigDecimal("20"), stay.getAgreedAmount());
+            assertEquals(retainedRate, stay.getRetainedNightlyRate());
+            assertEquals(originalStart, stay.getStartAt());
+            assertEquals(originalEnd, stay.getEndAt());
+            assertEquals(originalCancellation, stay.getCancelledAt());
+        }
+
+        private Stay correctionStay(String status, BigDecimal agreedAmount) {
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime startAt = switch (status) {
+                case "RESERVED" -> now.plusDays(2);
+                case "CHECKED_IN" -> now.minusDays(1);
+                case "CHECKED_OUT", "CANCELLED" -> now.minusDays(3);
+                default -> throw new IllegalArgumentException(status);
+            };
+            LocalDateTime endAt = switch (status) {
+                case "RESERVED" -> now.plusDays(4);
+                case "CHECKED_IN" -> now.plusDays(1);
+                case "CHECKED_OUT", "CANCELLED" -> now.minusDays(1);
+                default -> throw new IllegalArgumentException(status);
+            };
+
+            return Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(endAt)
+                    .cancelledAt("CANCELLED".equals(status) ? now.minusHours(1) : null)
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(agreedAmount)
+                    .build();
+        }
+
+        private PricingDecisionRequestDTO correction(
+                BigDecimal agreedAmount,
+                String reason) {
+            return PricingDecisionRequestDTO.builder()
+                    .agreedAmount(agreedAmount)
+                    .reason(reason)
+                    .build();
         }
     }
 

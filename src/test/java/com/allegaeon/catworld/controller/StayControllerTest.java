@@ -179,7 +179,9 @@ public class StayControllerTest {
                                     "\"pricingDecision\": {\"agreedAmount\": 1.5}"
                             )))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$['pricingDecision.agreedAmount']").exists());
+                    .andExpect(jsonPath(
+                            "$['pricingDecision.agreedAmountSupported']"
+                    ).exists());
 
             verify(stayService, never()).createStay(any(StayRequestDTO.class));
         }
@@ -390,6 +392,104 @@ public class StayControllerTest {
 
     @Nested
     class PatchStayTests {
+
+        @Test
+        void shouldReturnOk_whenCorrectingAgreedAmount() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            PricingDecisionRequestDTO request = PricingDecisionRequestDTO.builder()
+                    .agreedAmount(new BigDecimal("25"))
+                    .reason("Administrative correction")
+                    .build();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("25"))
+                            .build());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.agreedAmount").value(25));
+
+            verify(stayService).correctAgreedAmount(
+                    eq(stayId),
+                    argThat(actual -> actual.getAgreedAmount()
+                            .compareTo(new BigDecimal("25")) == 0
+                            && "Administrative correction"
+                            .equals(actual.getReason()))
+            );
+        }
+
+        @Test
+        void shouldReturnOk_whenNumericCorrectionIsNoOpWithoutReason()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("20"))
+                            .build());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"agreedAmount": 20.0}
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.agreedAmount").value(20));
+
+            verify(stayService).correctAgreedAmount(
+                    eq(stayId),
+                    argThat(actual -> actual.getReason() == null)
+            );
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenCorrectionAmountIsFractional()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"agreedAmount": 1.5, "reason": "Reason"}
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.agreedAmountSupported").exists());
+
+            verify(stayService, never()).correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)
+            );
+        }
+
+        @Test
+        void shouldReturnForbidden_whenServiceDeniesStaffCorrection()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenThrow(new ForbiddenException(
+                            "Only administrators can correct a stay's agreed amount"
+                    ));
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "agreedAmount": 25,
+                                      "reason": "Administrative correction"
+                                    }
+                                    """))
+                    .andExpect(status().isForbidden());
+        }
 
         @Test
         void shouldReturnNoContent_whenCancellingStay() throws Exception {

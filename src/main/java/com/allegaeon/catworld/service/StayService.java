@@ -17,12 +17,14 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
+import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -54,6 +56,8 @@ public class StayService implements IStayService {
     private final CatRepository catRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
+    private final StayAgreedAmountCorrectionRepository
+            stayAgreedAmountCorrectionRepository;
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
@@ -231,6 +235,47 @@ public class StayService implements IStayService {
 
     @Override
     @Transactional
+    public StayResponseDTO correctAgreedAmount(
+            UUID stayId,
+            PricingDecisionRequestDTO pricingDecision) {
+
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
+
+        BigDecimal newAgreedAmount = validateCorrectionAmount(pricingDecision);
+        BigDecimal previousAgreedAmount = stay.getAgreedAmount();
+
+        if (previousAgreedAmount != null
+                && previousAgreedAmount.compareTo(newAgreedAmount) == 0) {
+            return toResponseDTO(stay);
+        }
+
+        if (pricingDecision.getReason() == null
+                || pricingDecision.getReason().isBlank()) {
+            throw new BadRequestException(
+                    "A non-blank reason is required to correct the agreed amount"
+            );
+        }
+
+        stay.setAgreedAmount(newAgreedAmount);
+        Stay savedStay = stayRepository.save(stay);
+        stayAgreedAmountCorrectionRepository.saveAndFlush(
+                StayAgreedAmountCorrection.builder()
+                        .stayId(savedStay.getId())
+                        .previousAgreedAmount(previousAgreedAmount)
+                        .newAgreedAmount(newAgreedAmount)
+                        .decidedBy(currentUser)
+                        .decidedAt(Instant.now(clock))
+                        .reason(pricingDecision.getReason())
+                        .build()
+        );
+
+        return toResponseDTO(savedStay);
+    }
+
+    @Override
+    @Transactional
     public void cancelStay(UUID stayId) {
 
         Stay stay = getStayEntityForUpdate(stayId);
@@ -332,6 +377,26 @@ public class StayService implements IStayService {
         int fractionalDigits = Math.max(normalized.scale(), 0);
         int integerDigits = Math.max(normalized.precision() - normalized.scale(), 0);
         return fractionalDigits == 0 && integerDigits <= MAX_MONETARY_INTEGER_DIGITS;
+    }
+
+    private BigDecimal validateCorrectionAmount(
+            PricingDecisionRequestDTO pricingDecision) {
+        if (pricingDecision == null) {
+            throw new BadRequestException(
+                    "An explicit pricing correction decision is required"
+            );
+        }
+
+        BigDecimal agreedAmount = pricingDecision.getAgreedAmount();
+        if (agreedAmount == null
+                || agreedAmount.signum() < 0
+                || !isSupportedWholeAmount(agreedAmount)) {
+            throw new BadRequestException(
+                    "Agreed amount must be a non-negative whole number with at most 19 digits"
+            );
+        }
+
+        return agreedAmount;
     }
 
     private StayPricingDecision buildPricingDecision(
