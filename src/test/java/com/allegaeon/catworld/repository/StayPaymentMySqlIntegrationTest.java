@@ -22,7 +22,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -38,8 +37,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -102,9 +103,6 @@ class StayPaymentMySqlIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private TransactionTemplate transactionTemplate;
 
     @MockitoBean
     private CurrentUserAccountService currentUserAccountService;
@@ -287,31 +285,44 @@ class StayPaymentMySqlIntegrationTest {
     void paymentHoldingStayLockForcesDownwardCorrectionToSeeCommittedTotal()
             throws Exception {
         Fixture fixture = createFixture(new BigDecimal("100"));
-        when(currentUserAccountService.getCurrentUserAccount())
-                .thenReturn(fixture.actor());
-        CountDownLatch paymentLockHeld = new CountDownLatch(1);
+        AtomicReference<Thread> paymentThread = new AtomicReference<>();
+        AtomicReference<Thread> correctionThread = new AtomicReference<>();
+        CountDownLatch paymentReachedPostLockAuthorization =
+                new CountDownLatch(1);
+        CountDownLatch releasePaymentAuthorization = new CountDownLatch(1);
         CountDownLatch correctionInvoked = new CountDownLatch(1);
-        CountDownLatch allowPayment = new CountDownLatch(1);
+        CountDownLatch correctionReachedPostLockAuthorization =
+                new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
+        when(currentUserAccountService.getCurrentUserAccount())
+                .thenAnswer(invocation -> {
+                    Thread current = Thread.currentThread();
+                    if (current == paymentThread.get()) {
+                        paymentReachedPostLockAuthorization.countDown();
+                        await(releasePaymentAuthorization);
+                    }
+                    if (current == correctionThread.get()) {
+                        correctionReachedPostLockAuthorization.countDown();
+                    }
+                    return fixture.actor();
+                });
 
         try {
-            Future<String> payment = executor.submit(() ->
-                    transactionTemplate.execute(status -> {
-                        stayRepository.findByIdForUpdate(
-                                fixture.stay().getId()
-                        ).orElseThrow();
-                        paymentLockHeld.countDown();
-                        await(allowPayment);
-                        stayService.registerPayment(
-                                fixture.stay().getId(),
-                                registration(new BigDecimal("60"))
-                        );
-                        return "committed";
-                    })
-            );
-            assertTrue(paymentLockHeld.await(5, TimeUnit.SECONDS));
+            Future<String> payment = executor.submit(() -> {
+                paymentThread.set(Thread.currentThread());
+                stayService.registerPayment(
+                        fixture.stay().getId(),
+                        registration(new BigDecimal("60"))
+                );
+                return "committed";
+            });
+            assertTrue(paymentReachedPostLockAuthorization.await(
+                    5,
+                    TimeUnit.SECONDS
+            ));
 
             Future<String> correction = executor.submit(() -> {
+                correctionThread.set(Thread.currentThread());
                 correctionInvoked.countDown();
                 try {
                     stayService.correctAgreedAmount(
@@ -327,12 +338,23 @@ class StayPaymentMySqlIntegrationTest {
                 }
             });
             assertTrue(correctionInvoked.await(5, TimeUnit.SECONDS));
-            allowPayment.countDown();
+            assertFalse(
+                    correctionReachedPostLockAuthorization.await(
+                            1,
+                            TimeUnit.SECONDS
+                    ),
+                    "Correction reached authorization while payment held the stay lock"
+            );
+            releasePaymentAuthorization.countDown();
 
             assertEquals("committed", payment.get(10, TimeUnit.SECONDS));
+            assertTrue(correctionReachedPostLockAuthorization.await(
+                    5,
+                    TimeUnit.SECONDS
+            ));
             assertEquals("conflict", correction.get(10, TimeUnit.SECONDS));
         } finally {
-            allowPayment.countDown();
+            releasePaymentAuthorization.countDown();
             executor.shutdownNow();
         }
 
