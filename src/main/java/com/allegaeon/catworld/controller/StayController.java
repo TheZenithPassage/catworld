@@ -1,6 +1,9 @@
 package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
+import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -47,6 +50,34 @@ public class StayController {
             @Valid @RequestBody PricingDecisionRequestDTO pricingDecision) {
         return ResponseEntity.ok(
                 stayService.correctAgreedAmount(id, pricingDecision)
+        );
+    }
+
+    @PostMapping("/{stayId}/payments")
+    public ResponseEntity<StayResponseDTO> registerPayment(
+            @PathVariable UUID stayId,
+            @Valid @RequestBody PaymentRegistrationRequestDTO paymentRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(stayService.registerPayment(stayId, paymentRequest));
+    }
+
+    @PatchMapping("/{stayId}/payments/{paymentId}")
+    public ResponseEntity<StayResponseDTO> editPayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentEditRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.editPayment(stayId, paymentId, paymentRequest)
+        );
+    }
+
+    @PatchMapping("/{stayId}/payments/{paymentId}/annul")
+    public ResponseEntity<StayResponseDTO> annulPayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentAnnulmentRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.annulPayment(stayId, paymentId, paymentRequest)
         );
     }
 

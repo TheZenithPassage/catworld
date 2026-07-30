@@ -1,6 +1,9 @@
 package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
+import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -19,12 +22,18 @@ import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.StayPayment;
+import com.allegaeon.catworld.model.StayPaymentAnnulment;
+import com.allegaeon.catworld.model.StayPaymentEdit;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
 import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
+import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
+import com.allegaeon.catworld.repository.StayPaymentEditRepository;
+import com.allegaeon.catworld.repository.StayPaymentRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -42,9 +51,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -57,14 +69,40 @@ public class StayService implements IStayService {
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
             stayAgreedAmountCorrectionRepository;
+    private final StayPaymentRepository stayPaymentRepository;
+    private final StayPaymentEditRepository stayPaymentEditRepository;
+    private final StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
+    private final StayPaymentAuthorizationPolicy stayPaymentAuthorizationPolicy;
     private final Clock clock;
 
     @Override
     public List<StayResponseDTO> getAllStays() {
-        return stayRepository.findAll().stream().map(this::toResponseDTO).toList();
+        List<Stay> stays = stayRepository.findAll();
+        if (stays.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, List<StayPayment>> paymentsByStay =
+                stayPaymentRepository
+                        .findAllByStay_IdInOrderByCreatedAtAscIdAsc(
+                                stays.stream().map(Stay::getId).toList()
+                        )
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                payment -> payment.getStay().getId(),
+                                HashMap::new,
+                                Collectors.toList()
+                        ));
+
+        return stays.stream()
+                .map(stay -> toResponseDTO(
+                        stay,
+                        paymentsByStay.getOrDefault(stay.getId(), List.of())
+                ))
+                .toList();
     }
 
     @Override
@@ -192,6 +230,7 @@ public class StayService implements IStayService {
                             newNumberOfNights
                     )
             );
+            validateAgreementFloor(stayId, newAgreedAmount);
         }
 
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
@@ -263,6 +302,7 @@ public class StayService implements IStayService {
                     "A non-blank reason is required to correct the agreed amount"
             );
         }
+        validateAgreementFloor(stayId, newAgreedAmount);
 
         stay.setAgreedAmount(newAgreedAmount);
         Stay savedStay = stayRepository.save(stay);
@@ -280,6 +320,130 @@ public class StayService implements IStayService {
         );
 
         return toResponseDTO(savedStay);
+    }
+
+    @Override
+    @Transactional
+    public StayResponseDTO registerPayment(
+            UUID stayId,
+            PaymentRegistrationRequestDTO paymentRequest) {
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPaymentAuthorizationPolicy.authorizeMutation(
+                currentUser,
+                stay.getStatus()
+        );
+        BigDecimal amount = validatePaymentAmount(
+                paymentRequest == null ? null : paymentRequest.getAmount()
+        );
+        if (paymentRequest.getPaymentDate() == null) {
+            throw new BadRequestException("Payment date is required");
+        }
+        BigDecimal agreement = requirePaymentAgreement(stay);
+        BigDecimal activeTotal = getActivePaymentTotal(stayId);
+        if (activeTotal.add(amount).compareTo(agreement) > 0) {
+            throw new ConflictException(
+                    "Payment amount exceeds the current remaining amount"
+            );
+        }
+
+        stayPaymentRepository.saveAndFlush(
+                StayPayment.builder()
+                        .stay(stay)
+                        .amount(amount)
+                        .paymentDate(paymentRequest.getPaymentDate())
+                        .note(paymentRequest.getNote())
+                        .registeredBy(currentUser)
+                        .build()
+        );
+        return toResponseDTO(stay);
+    }
+
+    @Override
+    @Transactional
+    public StayResponseDTO editPayment(
+            UUID stayId,
+            UUID paymentId,
+            PaymentEditRequestDTO paymentRequest) {
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPaymentAuthorizationPolicy.authorizeMutation(
+                currentUser,
+                stay.getStatus()
+        );
+        StayPayment payment = getActivePayment(stayId, paymentId);
+        BigDecimal newAmount = validatePaymentAmount(
+                paymentRequest == null ? null : paymentRequest.getAmount()
+        );
+        String reason = requireReason(
+                paymentRequest == null ? null : paymentRequest.getReason(),
+                "edit"
+        );
+        BigDecimal previousAmount = payment.getAmount();
+        if (previousAmount.compareTo(newAmount) == 0) {
+            throw new BadRequestException(
+                    "Edited payment amount must differ from the current amount"
+            );
+        }
+
+        BigDecimal agreement = requirePaymentAgreement(stay);
+        BigDecimal resultingTotal = getActivePaymentTotal(stayId)
+                .subtract(previousAmount)
+                .add(newAmount);
+        if (resultingTotal.compareTo(agreement) > 0) {
+            throw new ConflictException(
+                    "Edited payment amount would exceed the agreed amount"
+            );
+        }
+
+        payment.changeAmount(newAmount);
+        StayPayment savedPayment = stayPaymentRepository.saveAndFlush(payment);
+        stayPaymentEditRepository.saveAndFlush(
+                StayPaymentEdit.builder()
+                        .stayId(stayId)
+                        .paymentId(savedPayment.getId())
+                        .previousAmount(
+                                WholeMonetaryAmount.canonicalize(previousAmount)
+                        )
+                        .newAmount(newAmount)
+                        .editedBy(currentUser)
+                        .editedAt(Instant.now(clock))
+                        .reason(reason)
+                        .build()
+        );
+        return toResponseDTO(stay);
+    }
+
+    @Override
+    @Transactional
+    public StayResponseDTO annulPayment(
+            UUID stayId,
+            UUID paymentId,
+            PaymentAnnulmentRequestDTO paymentRequest) {
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPaymentAuthorizationPolicy.authorizeMutation(
+                currentUser,
+                stay.getStatus()
+        );
+        StayPayment payment = getActivePayment(stayId, paymentId);
+        String reason = requireReason(
+                paymentRequest == null ? null : paymentRequest.getReason(),
+                "annul"
+        );
+
+        payment.annul();
+        StayPayment savedPayment = stayPaymentRepository.saveAndFlush(payment);
+        stayPaymentAnnulmentRepository.saveAndFlush(
+                StayPaymentAnnulment.builder()
+                        .stayId(stayId)
+                        .paymentId(savedPayment.getId())
+                        .annulledBy(currentUser)
+                        .annulledAt(Instant.now(clock))
+                        .reason(reason)
+                        .build()
+        );
+        return toResponseDTO(stay);
     }
 
     @Override
@@ -406,6 +570,65 @@ public class StayService implements IStayService {
         return WholeMonetaryAmount.canonicalize(agreedAmount);
     }
 
+    private BigDecimal validatePaymentAmount(BigDecimal amount) {
+        if (amount == null
+                || amount.signum() <= 0
+                || !WholeMonetaryAmount.isSupported(amount)) {
+            throw new BadRequestException(
+                    "Payment amount must be a positive whole number with at most 19 digits"
+            );
+        }
+        return WholeMonetaryAmount.canonicalize(amount);
+    }
+
+    private BigDecimal requirePaymentAgreement(Stay stay) {
+        if (stay.getAgreedAmount() == null) {
+            throw new ConflictException(
+                    "The stay agreement must be initialized before changing payments"
+            );
+        }
+        return WholeMonetaryAmount.canonicalize(stay.getAgreedAmount());
+    }
+
+    private BigDecimal getActivePaymentTotal(UUID stayId) {
+        BigDecimal total = stayPaymentRepository.sumActiveAmountByStayId(stayId);
+        return total == null
+                ? BigDecimal.ZERO
+                : WholeMonetaryAmount.canonicalize(total);
+    }
+
+    private void validateAgreementFloor(
+            UUID stayId,
+            BigDecimal proposedAgreement) {
+        if (getActivePaymentTotal(stayId).compareTo(proposedAgreement) > 0) {
+            throw new ConflictException(
+                    "Agreed amount cannot be lower than active payments"
+            );
+        }
+    }
+
+    private StayPayment getActivePayment(UUID stayId, UUID paymentId) {
+        StayPayment payment = stayPaymentRepository
+                .findByIdAndStay_Id(paymentId, stayId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Stay payment",
+                        paymentId
+                ));
+        if (payment.isAnnulled()) {
+            throw new ConflictException("Annulled payments are immutable");
+        }
+        return payment;
+    }
+
+    private String requireReason(String reason, String action) {
+        if (reason == null || reason.isBlank()) {
+            throw new BadRequestException(
+                    "A non-blank reason is required to " + action + " a payment"
+            );
+        }
+        return reason;
+    }
+
     private StayPricingDecision buildPricingDecision(
             Stay stay,
             Long previousNumberOfNights,
@@ -497,7 +720,40 @@ public class StayService implements IStayService {
     }
 
     private StayResponseDTO toResponseDTO(Stay stay) {
-        return stayMapper.toResponseDTO(stay, deletionAuthorizationPolicy.canDelete(stay.getCreatedBy(), stay.getCreatedAt()));
+        return toResponseDTO(
+                stay,
+                stayPaymentRepository
+                        .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId())
+        );
+    }
+
+    private StayResponseDTO toResponseDTO(
+            Stay stay,
+            List<StayPayment> payments) {
+        StayResponseDTO response = stayMapper.toResponseDTO(
+                stay,
+                deletionAuthorizationPolicy.canDelete(
+                        stay.getCreatedBy(),
+                        stay.getCreatedAt()
+                )
+        );
+        StayPaymentEconomics economics = StayPaymentEconomics.calculate(
+                stay.getAgreedAmount(),
+                payments,
+                stay.getCancelledAt() != null
+        );
+        response.setTotalPaid(economics.totalPaid());
+        response.setRemainingAmount(economics.remainingAmount());
+        response.setPaymentCondition(economics.paymentCondition());
+        response.setOutstandingCollectionEligible(
+                economics.outstandingCollectionEligible()
+        );
+        response.setPayments(
+                payments.stream()
+                        .map(stayMapper::toPaymentResponseDTO)
+                        .toList()
+        );
+        return response;
     }
 
 }

@@ -161,6 +161,22 @@ reason, deciding `UserAccount` and application-clock timestamp. It stores the
 stay UUID as indexed audit evidence without an operational foreign key, so the
 history survives cancellation and permanent stay deletion.
 
+#### StayPayment
+
+Represents one operational payment registered against a stay. It retains the
+exact positive whole-unit amount, payment date, optional note, registering
+`UserAccount`, timestamps and an annulled flag. Amount correction is the only
+supported edit; annulment is terminal, and payment rows are never deleted or
+reactivated through the API.
+
+#### StayPaymentEdit and StayPaymentAnnulment
+
+Represent focused immutable evidence for real payment amount changes and
+annulments. Each records scalar stay/payment UUIDs, the responsible
+`UserAccount`, application-clock timestamp and required reason; edit evidence
+also records the exact previous and new amounts. Scalar operational identities
+let this evidence survive deletion of the payment's stay.
+
 ## Stay Model
 
 ### Key Rule
@@ -200,6 +216,11 @@ Main relationships:
 - Each `StayAgreedAmountCorrection` references the `UserAccount` that made the
   correction and identifies its stay by an indexed UUID without an operational
   foreign key.
+- Each `StayPayment` belongs to one `Stay` and references the `UserAccount` that
+  registered it.
+- Each `StayPaymentEdit` and `StayPaymentAnnulment` references its actor but
+  identifies the affected stay and payment with indexed scalar UUIDs rather
+  than operational foreign keys.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -300,6 +321,28 @@ chain for competing corrections, and neither half can commit without the
 other. Correction evidence is retained after cancellation or permanent
 deletion of the operational stay.
 
+### Stay Payments Are Operational; Balances Are Derived
+
+Stay reads return payment history ordered by creation time and derive
+`totalPaid`, nullable `remainingAmount`, `paymentCondition` and
+`outstandingCollectionEligible` from the active rows and current agreement.
+`NO_PAYMENT`, `PARTIAL_PAYMENT` and `FULL_PAYMENT` are response values, never
+persisted state. Annulled rows remain visible but contribute nothing to the
+active total.
+
+Inherited stays with a null agreement return zero paid, null remaining,
+`NO_PAYMENT`, false outstanding eligibility and empty history. Payment
+mutations are rejected until the focused agreement-correction path initializes
+the agreement. Otherwise active payments may never exceed the agreement,
+including an agreement of zero.
+
+Registration, amount-only edits, annulments, pricing reconfirmation and focused
+agreement correction all serialize through the existing pessimistic `Stay`
+lock. A real agreement change is rejected below the active-payment total;
+numeric correction no-ops are still detected before reason and floor
+validation. Operational payment mutation and its edit/annul evidence commit or
+roll back in one transaction.
+
 ## Stay Business Rules
 
 Current rules:
@@ -311,6 +354,12 @@ Current rules:
 - `endAt` must be after `startAt`.
 - A cat cannot have overlapping active stays.
 - Cancelled stays are ignored during overlap validation.
+- Payment amounts are positive whole numbers of at most 19 digits and their
+  active aggregate cannot exceed the current agreed amount.
+- Payment edits require a real amount change and a non-blank reason;
+  annulments require a non-blank reason and are terminal.
+- Outstanding collection is true only for a non-cancelled stay with a known
+  positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
@@ -405,6 +454,16 @@ Important schema points:
   key preserves attribution, while the deliberate absence of a stay foreign
   key preserves evidence after operational deletion. V6 creates no backfill
   rows.
+- `stay_payments` stores operational positive `DECIMAL(19,0)` amounts,
+  immutable payment date/note/registrar attribution, timestamps and terminal
+  annulment state. Its restrictive stay foreign key prevents deleting a stay
+  that has payment history.
+- `stay_payment_edits` and `stay_payment_annulments` store immutable focused
+  evidence with indexed scalar stay/payment UUIDs and restrictive actor foreign
+  keys. They deliberately omit operational stay/payment foreign keys so
+  evidence survives operational deletion. V7 creates no legacy payment or
+  audit rows and persists no derived totals, balances, conditions or
+  outstanding flags.
 
 ## Authentication
 
@@ -431,6 +490,13 @@ authenticated HTTP rule because its authoritative `ADMIN` decision uses the
 persisted current account at the service boundary after taking the same stay
 lock. `STAFF` can reach the route but cannot change the agreement or append
 correction evidence.
+
+Both authenticated roles may read payment history and derived stay economics.
+Payment registration, edit and annul routes also remain under the generic
+authenticated HTTP rule; the service makes the authoritative decision from
+the persisted current account after taking the stay lock. `ADMIN` may mutate
+payments in any stay status, while `STAFF` may do so only for `RESERVED` and
+`CHECKED_IN` stays.
 
 `DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
 application account. The service rejects authenticated self-deletion with
@@ -675,6 +741,12 @@ amount, exact new amount, required reason, actor and decision time. Correction
 rows expose no update or delete path and deliberately outlive cancellation and
 deletion of their operational stay.
 
+Payment correction and annulment history uses two additional focused
+append-only audit models. A real amount edit preserves exact previous/new
+amounts; an annulment preserves the terminal action. Both preserve reason,
+actor and application-clock time, expose no update/delete path and outlive
+their operational stay/payment identities.
+
 ## Error Handling
 
 The API uses custom exceptions for common error cases:
@@ -713,6 +785,8 @@ Current focus:
   and atomic audit construction
 - focused agreed-amount correction authorization, numeric no-op behavior,
   atomic immutable evidence and same-stay serialization
+- payment authorization, exact registration/edit/annul rules, derived
+  economics, agreement floors and atomic evidence construction
 
 Repositories and mappers are mocked where appropriate.
 
@@ -731,8 +805,16 @@ Expected focus:
 - nested stay pricing validation and authenticated-role reachability
 - focused agreed-amount correction validation, delegation and representative
   authenticated reachability
+- payment history serialization, validation, delegation, exception mapping and
+  authenticated-role reachability
 
 Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
+
+Repository validation covers the V7 schema, exact active aggregation and
+operational/audit rollback boundaries. A conditional isolated MySQL integration
+suite additionally validates the full Flyway chain and Hibernate schema,
+native zero-scale round trips, InnoDB rollback, payment/payment contention and
+payment/agreement contention through the shared stay lock.
 
 ### CI
 

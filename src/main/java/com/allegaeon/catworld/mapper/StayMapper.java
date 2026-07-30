@@ -1,10 +1,13 @@
 package com.allegaeon.catworld.mapper;
 
 import com.allegaeon.catworld.dto.StayCatSummaryDTO;
+import com.allegaeon.catworld.dto.PaymentState;
 import com.allegaeon.catworld.dto.StayRequestDTO;
+import com.allegaeon.catworld.dto.StayPaymentResponseDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayPayment;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -65,6 +68,20 @@ public class StayMapper {
 
         return stay;
 
+    }
+
+    public StayPaymentResponseDTO toPaymentResponseDTO(StayPayment payment) {
+        return StayPaymentResponseDTO.builder()
+                .paymentId(payment.getId())
+                .amount(payment.getAmount())
+                .paymentDate(payment.getPaymentDate())
+                .note(payment.getNote())
+                .state(payment.isAnnulled()
+                        ? PaymentState.ANNULLED
+                        : PaymentState.ACTIVE)
+                .registeredByUsername(payment.getRegisteredBy().getUsername())
+                .registeredAt(payment.getCreatedAt())
+                .build();
     }
 
     public long calculateNumberOfNights(LocalDateTime startAt, LocalDateTime endAt) {
