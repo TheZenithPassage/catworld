@@ -2,6 +2,7 @@ package com.allegaeon.catworld.dto;
 
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -25,6 +26,9 @@ public class StayResponseDTO {
     private String ownerName;
     private Set<StayCatSummaryDTO> cats;
     private long numberOfNights;
+    private BigDecimal retainedNightlyRate;
+    private BigDecimal suggestedAmount;
+    private BigDecimal agreedAmount;
     private boolean canDelete;
 
 }

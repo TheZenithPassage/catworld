@@ -66,6 +66,8 @@ package "catworld.domain" {
     +LocalDateTime endAt    <<NotNull>>
     +LocalDateTime cancelledAt
     +String notes
+    +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable>>
+    +BigDecimal agreedAmount  <<Decimal(19,0),Nullable>>
     +StayStatus status  <<Transient/Computed>>
     +UserAccount createdBy  <<NotNull>>
   }
@@ -109,6 +111,29 @@ package "catworld.domain" {
     +Instant changedAt  <<NotNull,Immutable>>
   }
 
+  class StayPricingDecision {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable,Immutable>>
+    +Long previousNumberOfNights  <<Nullable,Immutable>>
+    +long newNumberOfNights  <<NotNull,Immutable>>
+    +BigDecimal previousAgreedAmount  <<Decimal(19,0),Nullable,Immutable>>
+    +BigDecimal newAgreedAmount  <<Decimal(19,0),NotNull,Immutable>>
+    +UserAccount decidedBy  <<NotNull,Immutable>>
+    +Instant decidedAt  <<NotNull,Immutable>>
+    +String reason  <<Nullable,Immutable>>
+  }
+
+  class StayAgreedAmountCorrection {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +BigDecimal previousAgreedAmount  <<Decimal(19,0),Nullable,Immutable>>
+    +BigDecimal newAgreedAmount  <<Decimal(19,0),NotNull,Immutable>>
+    +UserAccount decidedBy  <<NotNull,Immutable>>
+    +Instant decidedAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+  }
+
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >
@@ -121,6 +146,8 @@ package "catworld.domain" {
   NightlyReferenceRateCategory "1" <-- "1" NightlyReferenceRate : category
   NightlyReferenceRateCategory "1" <-- "0..*" NightlyReferenceRateChange : category
   UserAccount "1" <-- "0..*" NightlyReferenceRateChange : changedBy
+  UserAccount "1" <-- "0..*" StayPricingDecision : decidedBy
+  UserAccount "1" <-- "0..*" StayAgreedAmountCorrection : decidedBy
 }
 
 note right of Stay
@@ -137,6 +164,7 @@ Rules:
 - at least 1 cat per stay
 - all cats in a stay must belong to the same owner
 - no overlapping stays per cat, ignoring cancelled stays
+- retained rate is null or positive; agreed amount is null or non-negative
 end note
 
 note bottom of StayCat
@@ -156,6 +184,21 @@ note bottom of NightlyReferenceRateChange
 Append-only audit snapshot.
 Exactly one of previous/new may be null,
 and a transition must change the value.
+end note
+
+note bottom of StayPricingDecision
+Append-only pricing confirmation.
+stayId is indexed evidence, not an
+operational Stay relationship, so it
+survives deletion of the stay.
+end note
+
+note bottom of StayAgreedAmountCorrection
+Append-only administrative correction.
+stayId is indexed evidence, not an
+operational Stay relationship. A nullable
+previous amount supports explicit legacy
+initialization. Reason is always required.
 end note
 
 @enduml

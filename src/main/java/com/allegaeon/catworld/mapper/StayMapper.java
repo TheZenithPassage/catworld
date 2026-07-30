@@ -7,6 +7,8 @@ import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,9 +34,14 @@ public class StayMapper {
                 .ownerId(stay.getOwner().getId())
                 .ownerName(stay.getOwner().getFullName())
                 .cats(toCatSummaries(stay))
-                .numberOfNights(ChronoUnit.DAYS.between(
-                        stay.getStartAt().toLocalDate(),
-                        stay.getEndAt().toLocalDate()))
+                .numberOfNights(calculateNumberOfNights(
+                        stay.getStartAt(),
+                        stay.getEndAt()))
+                .retainedNightlyRate(stay.getRetainedNightlyRate())
+                .suggestedAmount(calculateSuggestedAmount(
+                        stay.getRetainedNightlyRate(),
+                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())))
+                .agreedAmount(stay.getAgreedAmount())
                 .canDelete(canDelete)
                 .build();
 
@@ -58,6 +65,18 @@ public class StayMapper {
 
         return stay;
 
+    }
+
+    public long calculateNumberOfNights(LocalDateTime startAt, LocalDateTime endAt) {
+        return ChronoUnit.DAYS.between(startAt.toLocalDate(), endAt.toLocalDate());
+    }
+
+    public BigDecimal calculateSuggestedAmount(
+            BigDecimal retainedNightlyRate,
+            long numberOfNights) {
+        return retainedNightlyRate == null
+                ? null
+                : retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights));
     }
 
     private Set<StayCatSummaryDTO> toCatSummaries(Stay stay) {

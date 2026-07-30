@@ -1,8 +1,11 @@
 package com.allegaeon.catworld.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -30,6 +33,16 @@ public class Stay extends AuditableEntity {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(precision = 19, scale = 0)
+    @DecimalMin(value = "0", inclusive = false)
+    @Digits(integer = 19, fraction = 0)
+    private BigDecimal retainedNightlyRate;
+
+    @Column(precision = 19, scale = 0)
+    @DecimalMin("0")
+    @Digits(integer = 19, fraction = 0)
+    private BigDecimal agreedAmount;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
