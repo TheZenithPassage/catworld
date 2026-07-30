@@ -184,6 +184,48 @@ compilation, builds, directed inspection, focused review, or temporary/manual
 checks, and preserve focused responsible-layer tests whenever they are
 authorized and justified.
 
+## Isolated Native MySQL Validation
+
+H2 remains the fast default. Use native MySQL only when the issue, approved
+plan, tasks, convergence findings, or a demonstrated H2/MySQL difference
+requires real-engine evidence. Relevant cases include a clean Flyway migration
+chain; MySQL-specific schema constraints or conversions; JPA or repository
+behavior that depends on the real engine; transactions, rollback, locking,
+isolation, or concurrency; and foreign-key or persisted-integrity behavior that
+H2 cannot prove reliably. Do not start Docker merely because an issue changes
+backend code when existing validation already provides adequate evidence.
+
+When native MySQL validation is required:
+
+1. Check Docker daemon availability. If it is initially stopped, make exactly
+   one bounded attempt to start Docker Desktop and wait for the daemon to become
+   ready before classifying native validation as unavailable. Record whether
+   Docker was already running or was started by the workflow.
+2. From the current implementation branch, create a completely separate,
+   disposable Compose stack with a unique project name, its own containers and
+   network, a separate temporary volume, and non-conflicting or dynamically
+   selected host ports. Never connect to, inspect, migrate, reset, restart,
+   stop, or reuse the normal CatWorld development stack, its `catworld`
+   database, its network, or its persistent `mysql_data` volume. Leave every
+   already-running development or operational container untouched.
+3. Build an empty temporary database through the complete applicable Flyway
+   migration chain. Start the current backend when the required evidence
+   depends on the real application path.
+4. Execute the smallest issue-relevant native HTTP, service, persistence,
+   migration, transaction, or concurrency scenario and capture its observed
+   evidence. Successful container startup alone is not evidence.
+5. Remove only the temporary Compose project, network, containers, volumes, and
+   test data created for this validation, including after a failed scenario
+   when cleanup remains safe. Verify and record cleanup status.
+
+Do not add Testcontainers, CI workflows, permanent native-test infrastructure,
+or maintained test coverage solely to perform this temporary validation unless
+a separate approved issue authorizes it. Native validation is a workflow stop
+when Docker Desktop cannot be started within the bounded attempt, the temporary
+environment cannot be prepared safely, the required scenario fails and cannot
+be corrected within approved scope, cleanup is unsafe, or repository state is
+unsafe.
+
 ## Workflow
 
 Run this flow in order:
@@ -287,6 +329,11 @@ Run this flow in order:
       of preserving it through consolidation. Rewrite mixed tasks to retain only
       the permitted non-permanent validation, preserve authorized tests, and
       rerun `speckit-analyze` after any resulting artifact edit.
+    - When a convergence task requires MySQL or full-stack backend evidence,
+      follow `Isolated Native MySQL Validation` before classifying that evidence
+      as unavailable. An initially stopped Docker daemon is not sufficient
+      reason to leave the task incomplete or consume a corrective cycle without
+      the required bounded startup and isolated-environment attempt.
     - When authorized convergence tasks remain, load and run
       `speckit-implement`, then rerun `speckit-converge`.
     - Perform at most two corrective `speckit-implement`/`speckit-converge`
@@ -306,11 +353,16 @@ Run this flow in order:
     Otherwise, the leader resumes control for final validation, final test-diff
     and scope-drift reviews, delivery, checkout restoration, and completion
     reporting.
-20. Run all validations required by the issue, plan, and tasks.
+20. Run all validations required by the issue, plan, and tasks. When required
+    evidence still depends on real MySQL after convergence, the leader must
+    follow `Isolated Native MySQL Validation` before treating final validation
+    as complete.
 21. Before treating validation as complete:
     - Rerun any validation command, test, review, browser-control session, manual smoke
       check, or other evidence affected by relevant changes made after that evidence
       was collected.
+    - Rerun applicable isolated native MySQL validation when later
+      implementation or remediation changes make its evidence stale.
     - If affected evidence cannot be rerun, report it as `not revalidated` or `stale`
       instead of passed.
     - Report each check with an explicit status: `passed`, `failed`, `skipped`,
@@ -457,6 +509,12 @@ Run this flow in order:
     - automatic remediation commit hashes;
     - unresolved blocking findings;
     - reported non-blocking observations;
+    - when native validation was used: whether Docker Desktop was already
+      running or was started by the workflow, the temporary Compose project
+      name, allocated host ports, MySQL image and resolved server version,
+      Flyway migrations applied, transaction isolation level when relevant, the
+      exact scenario and observed evidence, cleanup status, and any remaining
+      unverified native behavior;
     - current local checkout branch;
     - confirmation that the checkout was switched back to `main` when delivery
       and review-gate handling completed with a clean working tree.
@@ -485,6 +543,12 @@ Stop and report the blocker when any of these occur:
 - Authorized convergence tasks remain after the worker completes the maximum
   two corrective implement/converge cycles. This prevents normal ready
   delivery.
+- Required native MySQL validation cannot proceed because Docker Desktop does
+  not become ready within its single bounded startup attempt, or the isolated
+  temporary environment cannot be prepared safely.
+- A required native MySQL scenario fails and cannot be corrected within
+  approved scope, temporary-environment cleanup is unsafe, or repository state
+  is unsafe.
 - The PR number, expected remote head SHA, or required checks tied to that head
   cannot be observed, required checks do not reach a terminal state within the
   bounded wait, or the remote head changes unexpectedly before review.
@@ -525,6 +589,12 @@ non-blocking observations, and current local checkout branch. When delivery
 operations were not performed, include the suggested commit title and pull
 request description.
 
+When native validation was used, also include its Docker startup state,
+temporary Compose project and host ports, MySQL image and resolved server
+version, applied Flyway migrations, relevant transaction isolation level,
+exact scenario and observed evidence, cleanup status, and any remaining
+unverified native behavior.
+
 ## Done When
 
 - Local issue branch is prepared from current `origin/main` without using
@@ -542,6 +612,13 @@ request description.
 - Permanent-test authorization was determined before implementation and
   reapplied after every convergence pass.
 - Required validations have run or any inability to run them is reported.
+- When required evidence depended on real MySQL, the leader or convergence
+  worker followed the isolated native procedure before declaring it
+  unavailable, and an initially stopped Docker daemon received the single
+  bounded startup attempt.
+- Every temporary native-validation project was isolated from normal CatWorld
+  resources and removed with its temporary network, containers, volumes, and
+  test data when cleanup remained safe.
 - Validation results are fresh after the latest relevant change, or stale/not-rerun
   checks are explicitly reported as not passed.
 - The final branch diff contains no unauthorized added or materially broadened
