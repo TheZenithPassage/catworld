@@ -1,6 +1,10 @@
 package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -9,6 +13,7 @@ import com.allegaeon.catworld.dto.VaccineType;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
+import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
@@ -18,12 +23,18 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.StayPayment;
+import com.allegaeon.catworld.model.StayPaymentAnnulment;
+import com.allegaeon.catworld.model.StayPaymentEdit;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
 import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
+import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
+import com.allegaeon.catworld.repository.StayPaymentEditRepository;
+import com.allegaeon.catworld.repository.StayPaymentRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -76,6 +87,15 @@ public class StayServiceTest {
             stayAgreedAmountCorrectionRepository;
 
     @Mock
+    private StayPaymentRepository stayPaymentRepository;
+
+    @Mock
+    private StayPaymentEditRepository stayPaymentEditRepository;
+
+    @Mock
+    private StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
+
+    @Mock
     private CurrentUserAccountService currentUserAccountService;
 
     @Mock
@@ -84,6 +104,10 @@ public class StayServiceTest {
     @Spy
     private StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy =
             new StayPricingAuthorizationPolicy();
+
+    @Spy
+    private StayPaymentAuthorizationPolicy stayPaymentAuthorizationPolicy =
+            new StayPaymentAuthorizationPolicy();
 
     @Mock
     private Clock clock;
@@ -115,6 +139,12 @@ public class StayServiceTest {
                         anyLong()))
                 .thenCallRealMethod();
         lenient().when(clock.instant()).thenReturn(Instant.parse("2026-07-28T12:00:00Z"));
+        lenient().when(stayPaymentRepository
+                        .findAllByStay_IdOrderByCreatedAtAscIdAsc(any()))
+                .thenReturn(List.of());
+        lenient().when(stayPaymentRepository
+                        .findAllByStay_IdInOrderByCreatedAtAscIdAsc(any()))
+                .thenReturn(List.of());
     }
 
     @Nested
@@ -1013,6 +1043,492 @@ public class StayServiceTest {
                     .agreedAmount(agreedAmount)
                     .reason(reason)
                     .build();
+        }
+    }
+
+    @Nested
+    class StayPaymentTests {
+
+        @Test
+        void registersExactPaymentAndReturnsPartialEconomics() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            UserAccount admin = user(UserRole.ADMIN);
+            List<StayPayment> storedPayments = new ArrayList<>();
+            StayResponseDTO response = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenAnswer(invocation -> storedPayments.stream()
+                            .filter(payment -> !payment.isAnnulled())
+                            .map(StayPayment::getAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+            when(stayPaymentRepository.saveAndFlush(any(StayPayment.class)))
+                    .thenAnswer(invocation -> {
+                        StayPayment payment = invocation.getArgument(0);
+                        storedPayments.add(payment);
+                        return payment;
+                    });
+            when(stayPaymentRepository
+                    .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
+                    .thenAnswer(invocation -> List.copyOf(storedPayments));
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
+
+            StayResponseDTO actual = service.registerPayment(
+                    stay.getId(),
+                    PaymentRegistrationRequestDTO.builder()
+                            .amount(new BigDecimal("70.0"))
+                            .paymentDate(LocalDate.of(2026, 7, 30))
+                            .note("Card")
+                            .build()
+            );
+
+            ArgumentCaptor<StayPayment> paymentCaptor =
+                    ArgumentCaptor.forClass(StayPayment.class);
+            verify(stayPaymentRepository).saveAndFlush(paymentCaptor.capture());
+            assertEquals(new BigDecimal("70"), paymentCaptor.getValue().getAmount());
+            assertEquals(admin, paymentCaptor.getValue().getRegisteredBy());
+            assertSame(response, actual);
+            assertEquals(new BigDecimal("70"), actual.getTotalPaid());
+            assertEquals(new BigDecimal("30"), actual.getRemainingAmount());
+            assertEquals(PaymentCondition.PARTIAL_PAYMENT, actual.getPaymentCondition());
+            assertTrue(actual.isOutstandingCollectionEligible());
+        }
+
+        @Test
+        void rejectsUnsupportedPaymentAmountsWithoutWrites() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+
+            for (BigDecimal amount : Arrays.asList(
+                    null,
+                    BigDecimal.ZERO,
+                    new BigDecimal("-1"),
+                    new BigDecimal("1.5"),
+                    new BigDecimal("10000000000000000000"))) {
+                PaymentRegistrationRequestDTO request =
+                        PaymentRegistrationRequestDTO.builder()
+                                .amount(amount)
+                                .paymentDate(LocalDate.of(2026, 7, 30))
+                                .build();
+                assertThrows(
+                        BadRequestException.class,
+                        () -> service.registerPayment(stay.getId(), request)
+                );
+            }
+
+            verify(stayPaymentRepository, never())
+                    .saveAndFlush(any(StayPayment.class));
+        }
+
+        @Test
+        void rejectsRegistrationAboveRemainingAmount() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenReturn(new BigDecimal("80"));
+
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.registerPayment(
+                            stay.getId(),
+                            PaymentRegistrationRequestDTO.builder()
+                                    .amount(new BigDecimal("21"))
+                                    .paymentDate(LocalDate.of(2026, 7, 30))
+                                    .build()
+                    )
+            );
+
+            verify(stayPaymentRepository, never())
+                    .saveAndFlush(any(StayPayment.class));
+        }
+
+        @Test
+        void inheritedNullAgreementIsReadableButRejectsPaymentMutation() {
+            Stay stay = paymentStay(null, false);
+            StayResponseDTO response = new StayResponseDTO();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
+
+            StayResponseDTO actual = service.getStay(stay.getId());
+
+            assertEquals(BigDecimal.ZERO, actual.getTotalPaid());
+            assertNull(actual.getRemainingAmount());
+            assertEquals(PaymentCondition.NO_PAYMENT, actual.getPaymentCondition());
+            assertFalse(actual.isOutstandingCollectionEligible());
+            assertTrue(actual.getPayments().isEmpty());
+
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.registerPayment(
+                            stay.getId(),
+                            PaymentRegistrationRequestDTO.builder()
+                                    .amount(BigDecimal.ONE)
+                                    .paymentDate(LocalDate.of(2026, 7, 30))
+                                    .build()
+                    )
+            );
+        }
+
+        @Test
+        void derivesAggregateConditionAndOutstandingFromActivePayments() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment first = payment(stay, "30", false);
+            StayPayment second = payment(stay, "70", false);
+
+            StayPaymentEconomics full = StayPaymentEconomics.calculate(
+                    stay.getAgreedAmount(),
+                    List.of(first, second),
+                    false
+            );
+            assertEquals(new BigDecimal("100"), full.totalPaid());
+            assertEquals(BigDecimal.ZERO, full.remainingAmount());
+            assertEquals(PaymentCondition.FULL_PAYMENT, full.paymentCondition());
+            assertFalse(full.outstandingCollectionEligible());
+
+            second.annul();
+            StayPaymentEconomics partial = StayPaymentEconomics.calculate(
+                    stay.getAgreedAmount(),
+                    List.of(first, second),
+                    false
+            );
+            assertEquals(new BigDecimal("30"), partial.totalPaid());
+            assertEquals(new BigDecimal("70"), partial.remainingAmount());
+            assertEquals(PaymentCondition.PARTIAL_PAYMENT, partial.paymentCondition());
+            assertTrue(partial.outstandingCollectionEligible());
+
+            StayPaymentEconomics cancelled = StayPaymentEconomics.calculate(
+                    stay.getAgreedAmount(),
+                    List.of(first, second),
+                    true
+            );
+            assertFalse(cancelled.outstandingCollectionEligible());
+
+            StayPaymentEconomics zeroAgreement = StayPaymentEconomics.calculate(
+                    BigDecimal.ZERO,
+                    List.of(),
+                    false
+            );
+            assertEquals(PaymentCondition.NO_PAYMENT, zeroAgreement.paymentCondition());
+            assertEquals(BigDecimal.ZERO, zeroAgreement.remainingAmount());
+            assertFalse(zeroAgreement.outstandingCollectionEligible());
+        }
+
+        @Test
+        void staffCannotMutateCheckedOutStay() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            stay.setStartAt(LocalDateTime.now().minusDays(3));
+            stay.setEndAt(LocalDateTime.now().minusDays(1));
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.STAFF));
+
+            assertThrows(
+                    ForbiddenException.class,
+                    () -> service.registerPayment(
+                            stay.getId(),
+                            PaymentRegistrationRequestDTO.builder()
+                                    .amount(BigDecimal.ONE)
+                                    .paymentDate(LocalDate.of(2026, 7, 30))
+                                    .build()
+                    )
+            );
+            verify(stayPaymentRepository, never())
+                    .sumActiveAmountByStayId(any());
+        }
+
+        @Test
+        void editsActivePaymentAndAppendsExactEvidence() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "30", false);
+            UserAccount admin = user(UserRole.ADMIN);
+            StayResponseDTO response = new StayResponseDTO();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(),
+                    stay.getId())).thenReturn(Optional.of(payment));
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenReturn(new BigDecimal("30"));
+            when(stayPaymentRepository.saveAndFlush(payment)).thenReturn(payment);
+            when(stayPaymentRepository
+                    .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
+                    .thenReturn(List.of(payment));
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
+
+            service.editPayment(
+                    stay.getId(),
+                    payment.getId(),
+                    PaymentEditRequestDTO.builder()
+                            .amount(new BigDecimal("40.0"))
+                            .reason("Correct entry")
+                            .build()
+            );
+
+            ArgumentCaptor<StayPaymentEdit> editCaptor =
+                    ArgumentCaptor.forClass(StayPaymentEdit.class);
+            verify(stayPaymentEditRepository).saveAndFlush(editCaptor.capture());
+            assertEquals(new BigDecimal("30"), editCaptor.getValue().getPreviousAmount());
+            assertEquals(new BigDecimal("40"), editCaptor.getValue().getNewAmount());
+            assertEquals(admin, editCaptor.getValue().getEditedBy());
+            assertEquals("Correct entry", editCaptor.getValue().getReason());
+            assertEquals(new BigDecimal("40"), payment.getAmount());
+            assertEquals(new BigDecimal("40"), response.getTotalPaid());
+        }
+
+        @Test
+        void editValidatesResultingAggregateAndRequiresRealReasonedChange() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "30", false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(),
+                    stay.getId())).thenReturn(Optional.of(payment));
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenReturn(new BigDecimal("90"));
+
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.editPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentEditRequestDTO.builder()
+                                    .amount(new BigDecimal("50"))
+                                    .reason("Too high")
+                                    .build()
+                    )
+            );
+            assertThrows(
+                    BadRequestException.class,
+                    () -> service.editPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentEditRequestDTO.builder()
+                                    .amount(new BigDecimal("30.0"))
+                                    .reason("No change")
+                                    .build()
+                    )
+            );
+            assertThrows(
+                    BadRequestException.class,
+                    () -> service.editPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentEditRequestDTO.builder()
+                                    .amount(new BigDecimal("20"))
+                                    .reason("   ")
+                                    .build()
+                    )
+            );
+            verify(stayPaymentEditRepository, never())
+                    .saveAndFlush(any(StayPaymentEdit.class));
+        }
+
+        @Test
+        void annulsActivePaymentAndExcludesItFromEconomics() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "100", false);
+            UserAccount admin = user(UserRole.ADMIN);
+            StayResponseDTO response = new StayResponseDTO();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(),
+                    stay.getId())).thenReturn(Optional.of(payment));
+            when(stayPaymentRepository.saveAndFlush(payment)).thenReturn(payment);
+            when(stayPaymentRepository
+                    .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
+                    .thenReturn(List.of(payment));
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
+
+            service.annulPayment(
+                    stay.getId(),
+                    payment.getId(),
+                    PaymentAnnulmentRequestDTO.builder()
+                            .reason("Payment entered twice")
+                            .build()
+            );
+
+            ArgumentCaptor<StayPaymentAnnulment> annulmentCaptor =
+                    ArgumentCaptor.forClass(StayPaymentAnnulment.class);
+            verify(stayPaymentAnnulmentRepository)
+                    .saveAndFlush(annulmentCaptor.capture());
+            assertTrue(payment.isAnnulled());
+            assertEquals(admin, annulmentCaptor.getValue().getAnnulledBy());
+            assertEquals("Payment entered twice", annulmentCaptor.getValue().getReason());
+            assertEquals(BigDecimal.ZERO, response.getTotalPaid());
+            assertEquals(PaymentCondition.NO_PAYMENT, response.getPaymentCondition());
+            assertEquals(new BigDecimal("100"), response.getRemainingAmount());
+        }
+
+        @Test
+        void blankAnnulmentReasonLeavesOperationalAndAuditStateUntouched() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "40", false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(),
+                    stay.getId())).thenReturn(Optional.of(payment));
+
+            assertThrows(
+                    BadRequestException.class,
+                    () -> service.annulPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentAnnulmentRequestDTO.builder()
+                                    .reason("   ")
+                                    .build()
+                    )
+            );
+
+            assertFalse(payment.isAnnulled());
+            verify(stayPaymentRepository, never())
+                    .saveAndFlush(any(StayPayment.class));
+            verify(stayPaymentAnnulmentRepository, never())
+                    .saveAndFlush(any(StayPaymentAnnulment.class));
+        }
+
+        @Test
+        void rejectsAnnulledPaymentAndWrongStayIdentity() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment annulled = payment(stay, "25", true);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    annulled.getId(),
+                    stay.getId())).thenReturn(Optional.of(annulled));
+
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.annulPayment(
+                            stay.getId(),
+                            annulled.getId(),
+                            PaymentAnnulmentRequestDTO.builder()
+                                    .reason("Again")
+                                    .build()
+                    )
+            );
+
+            UUID wrongPaymentId = UUID.randomUUID();
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    wrongPaymentId,
+                    stay.getId())).thenReturn(Optional.empty());
+            assertThrows(
+                    ResourceNotFoundException.class,
+                    () -> service.editPayment(
+                            stay.getId(),
+                            wrongPaymentId,
+                            PaymentEditRequestDTO.builder()
+                                    .amount(new BigDecimal("20"))
+                                    .reason("Wrong stay")
+                                    .build()
+                    )
+            );
+        }
+
+        @Test
+        void agreementFloorBlocksCorrectionButPreservesNumericNoOp() {
+            Stay stay = paymentStay(new BigDecimal("100"), true);
+            UserAccount admin = user(UserRole.ADMIN);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenReturn(new BigDecimal("60"));
+            when(stayMapper.toResponseDTO(stay, false))
+                    .thenReturn(new StayResponseDTO());
+
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.correctAgreedAmount(
+                            stay.getId(),
+                            PricingDecisionRequestDTO.builder()
+                                    .agreedAmount(new BigDecimal("50"))
+                                    .reason("Too low")
+                                    .build()
+                    )
+            );
+            clearInvocations(stayPaymentRepository);
+
+            service.correctAgreedAmount(
+                    stay.getId(),
+                    PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100.0"))
+                            .build()
+            );
+
+            verify(stayPaymentRepository, never()).sumActiveAmountByStayId(any());
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
+        }
+
+        @Test
+        void agreementFloorAlsoBlocksNightCountReconfirmation() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            LocalDateTime startAt = LocalDateTime.now().plusDays(2);
+            stay.setStartAt(startAt);
+            stay.setEndAt(startAt.plusDays(2));
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(3))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("50"))
+                            .reason("Shorter agreement")
+                            .build())
+                    .build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
+                    .thenReturn(new BigDecimal("60"));
+
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.updateStay(stay.getId(), request)
+            );
+            verify(stayMapper, never()).updateEntity(any(), any());
+        }
+
+        private Stay paymentStay(BigDecimal agreedAmount, boolean cancelled) {
+            LocalDateTime now = LocalDateTime.now();
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(now.plusDays(2))
+                    .endAt(now.plusDays(4))
+                    .cancelledAt(cancelled ? now.minusHours(1) : null)
+                    .retainedNightlyRate(new BigDecimal("50"))
+                    .agreedAmount(agreedAmount)
+                    .createdBy(user(UserRole.ADMIN))
+                    .build();
+            stay.setCreatedAt(Instant.parse("2026-07-28T12:00:00Z"));
+            return stay;
+        }
+
+        private StayPayment payment(
+                Stay stay,
+                String amount,
+                boolean annulled) {
+            StayPayment payment = StayPayment.builder()
+                    .id(UUID.randomUUID())
+                    .stay(stay)
+                    .amount(new BigDecimal(amount))
+                    .paymentDate(LocalDate.of(2026, 7, 30))
+                    .annulled(annulled)
+                    .registeredBy(user(UserRole.ADMIN))
+                    .build();
+            payment.setCreatedAt(Instant.parse("2026-07-30T12:00:00Z"));
+            payment.setUpdatedAt(Instant.parse("2026-07-30T12:00:00Z"));
+            return payment;
         }
     }
 

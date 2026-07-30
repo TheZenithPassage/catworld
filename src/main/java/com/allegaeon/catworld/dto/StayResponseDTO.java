@@ -5,6 +5,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -29,6 +30,11 @@ public class StayResponseDTO {
     private BigDecimal retainedNightlyRate;
     private BigDecimal suggestedAmount;
     private BigDecimal agreedAmount;
+    private BigDecimal totalPaid;
+    private BigDecimal remainingAmount;
+    private PaymentCondition paymentCondition;
+    private boolean outstandingCollectionEligible;
+    private List<StayPaymentResponseDTO> payments;
     private boolean canDelete;
 
 }

@@ -134,6 +134,36 @@ package "catworld.domain" {
     +String reason  <<NotBlank,Immutable>>
   }
 
+  class StayPayment extends Auditable {
+    +UUID id
+    +Stay stay  <<NotNull,Immutable>>
+    +BigDecimal amount  <<Decimal(19,0),Positive>>
+    +LocalDate paymentDate  <<NotNull,Immutable>>
+    +String note  <<Nullable,Immutable>>
+    +boolean annulled  <<NotNull,Terminal>>
+    +UserAccount registeredBy  <<NotNull,Immutable>>
+  }
+
+  class StayPaymentEdit {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID paymentId  <<NotNull,Immutable>>
+    +BigDecimal previousAmount  <<Decimal(19,0),Positive,Immutable>>
+    +BigDecimal newAmount  <<Decimal(19,0),Positive,Immutable>>
+    +UserAccount editedBy  <<NotNull,Immutable>>
+    +Instant editedAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+  }
+
+  class StayPaymentAnnulment {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID paymentId  <<NotNull,Unique,Immutable>>
+    +UserAccount annulledBy  <<NotNull,Immutable>>
+    +Instant annulledAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+  }
+
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >
@@ -148,6 +178,10 @@ package "catworld.domain" {
   UserAccount "1" <-- "0..*" NightlyReferenceRateChange : changedBy
   UserAccount "1" <-- "0..*" StayPricingDecision : decidedBy
   UserAccount "1" <-- "0..*" StayAgreedAmountCorrection : decidedBy
+  Stay "1" *-- "0..*" StayPayment : payments
+  UserAccount "1" <-- "0..*" StayPayment : registeredBy
+  UserAccount "1" <-- "0..*" StayPaymentEdit : editedBy
+  UserAccount "1" <-- "0..*" StayPaymentAnnulment : annulledBy
 }
 
 note right of Stay
@@ -199,6 +233,24 @@ stayId is indexed evidence, not an
 operational Stay relationship. A nullable
 previous amount supports explicit legacy
 initialization. Reason is always required.
+end note
+
+note bottom of StayPayment
+Operational history retained on stay reads.
+Only amount may change; annulment is terminal.
+Active totals and balances are response-derived.
+end note
+
+note bottom of StayPaymentEdit
+Append-only amount-correction evidence.
+stayId and paymentId are indexed scalar
+identities, not operational relationships.
+end note
+
+note bottom of StayPaymentAnnulment
+Append-only terminal-action evidence.
+One annulment is allowed per payment.
+Scalar identities survive operational deletion.
 end note
 
 @enduml

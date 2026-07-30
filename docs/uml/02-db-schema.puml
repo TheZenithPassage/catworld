@@ -136,6 +136,42 @@ package "MySQL schema" {
     reason text <<NN>>
   }
 
+  class stay_payments <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<FK,NN,INDEX>>
+    amount decimal(19,0) <<NN>>
+    payment_date date <<NN>>
+    note text
+    annulled boolean <<NN>>
+    registered_by_id binary(16) <<FK,NN>>
+    --
+    created_at datetime(6) <<NN>>
+    updated_at datetime(6) <<NN>>
+  }
+
+  class stay_payment_edits <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<NN,INDEX>>
+    payment_id binary(16) <<NN,INDEX>>
+    previous_amount decimal(19,0) <<NN>>
+    new_amount decimal(19,0) <<NN>>
+    edited_by_id binary(16) <<FK,NN>>
+    edited_at datetime(6) <<NN>>
+    reason text <<NN>>
+  }
+
+  class stay_payment_annulments <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<NN,INDEX>>
+    payment_id binary(16) <<NN,UQ>>
+    annulled_by_id binary(16) <<FK,NN>>
+    annulled_at datetime(6) <<NN>>
+    reason text <<NN>>
+  }
+
   owners "1" -- "0..*" cats : FK owner_id
   vets   "0..1" -- "0..*" cats : FK vet_id (nullable)
   owners "1" -- "0..*" stays : FK owner_id
@@ -148,6 +184,10 @@ package "MySQL schema" {
   user_accounts "1" -- "0..*" nightly_reference_rate_changes : FK changed_by_id
   user_accounts "1" -- "0..*" stay_pricing_decisions : FK decided_by_id
   user_accounts "1" -- "0..*" stay_agreed_amount_corrections : FK decided_by_id
+  stays "1" -- "0..*" stay_payments : FK stay_id
+  user_accounts "1" -- "0..*" stay_payments : FK registered_by_id
+  user_accounts "1" -- "0..*" stay_payment_edits : FK edited_by_id
+  user_accounts "1" -- "0..*" stay_payment_annulments : FK annulled_by_id
 }
 
 note right of stays
@@ -196,6 +236,26 @@ Previous amount may be null for inherited
 stays; new amount and reason are required.
 Checks require a real whole-unit change.
 The actor FK is restrictive.
+end note
+
+note bottom of stay_payments
+Operational positive whole-unit payments.
+Annulment is terminal; rows remain visible.
+No derived balance or condition is persisted.
+The stay and registrant FKs are restrictive.
+end note
+
+note bottom of stay_payment_edits
+Append-only amount-correction evidence.
+stay_id and payment_id have no foreign keys,
+so evidence survives operational deletion.
+Amounts are positive and must differ.
+end note
+
+note bottom of stay_payment_annulments
+Append-only terminal-action evidence.
+payment_id is unique and has no foreign key.
+stay_id also has no foreign key.
 end note
 
 @enduml

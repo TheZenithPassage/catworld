@@ -19,6 +19,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -159,5 +160,51 @@ class StayControllerSecurityTest {
         verify(stayService, never()).createStay(any());
         verify(stayService, never()).updateStay(any(), any());
         verify(stayService, never()).correctAgreedAmount(any(), any());
+    }
+
+    @Test
+    void bothRolesReachPaymentReadsAndMutationsForContextualServicePolicy()
+            throws Exception {
+        UUID stayId = UUID.randomUUID();
+        when(stayService.getStay(stayId)).thenReturn(
+                StayResponseDTO.builder().stayId(stayId).build()
+        );
+        when(stayService.registerPayment(any(), any())).thenReturn(
+                StayResponseDTO.builder().stayId(stayId).build()
+        );
+        String paymentRequest = """
+                {"amount": 10, "paymentDate": "2026-07-30"}
+                """;
+
+        for (String role : new String[]{"ADMIN", "STAFF"}) {
+            mockMvc.perform(get("/api/stays/{id}", stayId)
+                            .with(user(role.toLowerCase()).roles(role)))
+                    .andExpect(status().isOk());
+            mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                            .with(user(role.toLowerCase()).roles(role))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(paymentRequest))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
+    void anonymousPaymentReadAndMutationReceiveAuthenticationChallenge()
+            throws Exception {
+        UUID stayId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/stays/{id}", stayId))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"));
+        mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount": 10, "paymentDate": "2026-07-30"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Unauthorized"));
+
+        verify(stayService, never()).getStay(any());
+        verify(stayService, never()).registerPayment(any(), any());
     }
 }

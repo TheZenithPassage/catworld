@@ -1,6 +1,9 @@
 package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.PaymentState;
+import com.allegaeon.catworld.dto.StayPaymentResponseDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -29,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -514,6 +518,171 @@ public class StayControllerTest {
 
         }
 
+    }
+
+    @Nested
+    class StayPaymentContractTests {
+
+        @Test
+        void registrationReturnsOperationalHistoryAndDerivedEconomicsWithoutAuditDetails()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            Instant registeredAt = Instant.parse("2026-07-30T12:00:00Z");
+            when(stayService.registerPayment(eq(stayId), any())).thenReturn(
+                    StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("100"))
+                            .totalPaid(new BigDecimal("30"))
+                            .remainingAmount(new BigDecimal("70"))
+                            .paymentCondition(PaymentCondition.PARTIAL_PAYMENT)
+                            .outstandingCollectionEligible(true)
+                            .payments(List.of(StayPaymentResponseDTO.builder()
+                                    .paymentId(paymentId)
+                                    .amount(new BigDecimal("30"))
+                                    .paymentDate(LocalDate.of(2026, 7, 30))
+                                    .note("Card")
+                                    .state(PaymentState.ACTIVE)
+                                    .registeredByUsername("admin")
+                                    .registeredAt(registeredAt)
+                                    .build()))
+                            .build()
+            );
+
+            mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "amount": 30,
+                                      "paymentDate": "2026-07-30",
+                                      "note": "Card"
+                                    }
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.totalPaid").value(30))
+                    .andExpect(jsonPath("$.remainingAmount").value(70))
+                    .andExpect(jsonPath("$.paymentCondition")
+                            .value("PARTIAL_PAYMENT"))
+                    .andExpect(jsonPath("$.outstandingCollectionEligible")
+                            .value(true))
+                    .andExpect(jsonPath("$.payments[0].paymentId")
+                            .value(paymentId.toString()))
+                    .andExpect(jsonPath("$.payments[0].state").value("ACTIVE"))
+                    .andExpect(jsonPath("$.payments[0].registeredByUsername")
+                            .value("admin"))
+                    .andExpect(jsonPath("$.payments[0].registeredAt")
+                            .value(registeredAt.toString()))
+                    .andExpect(jsonPath("$.payments[0].reason").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].editedBy").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].annulledBy").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].previousAmount")
+                            .doesNotExist());
+        }
+
+        @Test
+        void registrationRejectsInvalidIntegerInputsBeforeServiceDelegation()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            for (String amount : List.of(
+                    "0",
+                    "-1",
+                    "1.5",
+                    "10000000000000000000",
+                    "\"malformed\"")) {
+                mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "amount": %s,
+                                          "paymentDate": "2026-07-30"
+                                        }
+                                        """.formatted(amount)))
+                        .andExpect(status().isBadRequest());
+            }
+
+            verify(stayService, never()).registerPayment(eq(stayId), any());
+        }
+
+        @Test
+        void editAndAnnulRoutesValidateAndDelegateFocusedRequests()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            when(stayService.editPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+            when(stayService.annulPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 25, "reason": "Correct entry"}
+                                    """))
+                    .andExpect(status().isOk());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"reason": "Entered twice"}
+                                    """))
+                    .andExpect(status().isOk());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 25, "reason": "   "}
+                                    """))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"reason": "   "}
+                                    """))
+                    .andExpect(status().isBadRequest());
+
+            verify(stayService).editPayment(eq(stayId), eq(paymentId), any());
+            verify(stayService).annulPayment(eq(stayId), eq(paymentId), any());
+        }
+
+        @Test
+        void paymentRoutesMapServiceForbiddenAndConflictResults()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            when(stayService.registerPayment(eq(stayId), any()))
+                    .thenThrow(new ForbiddenException("Forbidden"));
+            when(stayService.editPayment(eq(stayId), eq(paymentId), any()))
+                    .thenThrow(new ConflictException("Immutable"));
+
+            mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "amount": 10,
+                                      "paymentDate": "2026-07-30"
+                                    }
+                                    """))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 20, "reason": "Correction"}
+                                    """))
+                    .andExpect(status().isConflict());
+        }
     }
 
     @Nested
