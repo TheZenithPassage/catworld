@@ -13,8 +13,6 @@ public interface StayPaymentEditRepository
 
     List<StayPaymentEdit> findAllByStayIdOrderByEditedAtAsc(UUID stayId);
 
-    List<StayPaymentEdit> findAllBySensitiveContextIsNotNull();
-
     boolean existsByEditedBy_Id(UUID editedById);
 
     boolean existsByRegisteredBy_Id(UUID registeredById);

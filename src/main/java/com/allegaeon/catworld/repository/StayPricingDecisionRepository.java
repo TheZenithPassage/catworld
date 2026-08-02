@@ -15,7 +15,5 @@ public interface StayPricingDecisionRepository
 
     List<StayPricingDecision> findAllByStayIdOrderByDecidedAtAsc(UUID stayId);
 
-    List<StayPricingDecision> findAllBySensitiveContextIsNotNull();
-
     boolean existsByDecidedBy_Id(UUID decidedById);
 }

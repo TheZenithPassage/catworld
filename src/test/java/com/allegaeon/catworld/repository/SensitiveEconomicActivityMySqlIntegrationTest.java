@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.model.*;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
+import com.allegaeon.catworld.service.ISensitiveEconomicActivityService;
 import com.allegaeon.catworld.service.StayService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
     @Autowired StayRepository stayRepository;
     @Autowired StayPaymentRepository paymentRepository;
     @Autowired StayPaymentRemovalRepository removalRepository;
+    @Autowired ISensitiveEconomicActivityService sensitiveEconomicActivityService;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbc;
     @MockitoBean CurrentUserAccountService currentUserAccountService;
@@ -122,6 +124,20 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
                 from sensitive_stay_contexts c
                 join stay_payment_removals r on r.sensitive_context_id = c.id
                 """, String.class));
+    }
+
+    @Test
+    void databaseUnionAppliesTheFullSensitiveActivityContract() {
+        SensitiveEconomicActivityQueryContract.Fixture fixture =
+                SensitiveEconomicActivityQueryContract.seed(jdbc);
+        when(currentUserAccountService.getCurrentUserAccount())
+                .thenReturn(fixture.actor());
+
+        SensitiveEconomicActivityQueryContract.assertContract(
+                jdbc,
+                sensitiveEconomicActivityService,
+                fixture
+        );
     }
 
     @Test

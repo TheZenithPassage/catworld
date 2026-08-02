@@ -790,9 +790,13 @@ Payment correction, annulment and removal history uses focused append-only
 audit models. A real amount edit preserves exact previous/new amounts; an
 annulment preserves the terminal action; a removal preserves the complete
 payment snapshot and both attribution points. They expose no update/delete path
-and outlive their operational stay/payment identities. The global sensitive
-economic view merges these with rate changes, eligible pricing deviations and
-real agreement corrections without a generic event table or database view.
+and outlive their operational stay/payment identities. A focused read repository
+combines these producers with rate changes, eligible pricing deviations and
+real agreement corrections through one database-side `UNION ALL`; actor, time,
+type, owner, cat and stay predicates and the deterministic global ordering are
+applied by the database. The application service retains only authorization,
+range validation and typed response mapping. This read path introduces neither
+a generic event table nor a database view.
 
 ## Error Handling
 
@@ -861,10 +865,12 @@ Expected focus:
 
 Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
 
-Repository validation covers the V8 schema, exact active aggregation and
+Repository validation covers the V8 schema, the database-side sensitive
+economic union and filter/ordering contract, exact active aggregation and
 operational/audit rollback boundaries. A conditional isolated MySQL integration
-suite additionally validates the full Flyway chain and Hibernate schema,
-native zero-scale round trips, durable deletion survival, InnoDB rollback and
+suite additionally validates the full Flyway chain and Hibernate schema, all
+six sensitive economic variants and eligibility boundaries, native zero-scale
+round trips, durable deletion survival, InnoDB rollback and
 payment/removal/stay-deletion contention through the shared stay lock.
 
 ### CI
