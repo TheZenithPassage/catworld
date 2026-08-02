@@ -20,4 +20,3 @@ public record PaymentAnnulledActivityDTO(
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }
-

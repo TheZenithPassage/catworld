@@ -182,4 +182,3 @@ public class SensitiveEconomicActivityMapper {
                 : WholeMonetaryAmount.canonicalize(amount);
     }
 }
-

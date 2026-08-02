@@ -10,4 +10,3 @@ public interface ISensitiveEconomicActivityService {
     List<SensitiveEconomicActivityResponseDTO> getActivity(
             SensitiveEconomicActivityFilter filter);
 }
-

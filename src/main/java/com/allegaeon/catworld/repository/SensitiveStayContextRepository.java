@@ -10,4 +10,3 @@ public interface SensitiveStayContextRepository
 
     <S extends SensitiveStayContext> S saveAndFlush(S context);
 }
-

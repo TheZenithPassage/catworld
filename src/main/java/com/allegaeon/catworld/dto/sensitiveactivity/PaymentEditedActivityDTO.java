@@ -21,4 +21,3 @@ public record PaymentEditedActivityDTO(
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }
-

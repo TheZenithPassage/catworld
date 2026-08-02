@@ -12,4 +12,3 @@ public record SensitiveStayContextDTO(
         SensitiveOwnerContextDTO owner,
         List<SensitiveCatContextDTO> cats) {
 }
-

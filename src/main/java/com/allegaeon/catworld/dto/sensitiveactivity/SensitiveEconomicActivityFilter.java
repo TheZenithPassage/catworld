@@ -12,4 +12,3 @@ public record SensitiveEconomicActivityFilter(
         UUID catId,
         UUID stayId) {
 }
-

@@ -4,4 +4,3 @@ import java.util.UUID;
 
 public record SensitiveActorDTO(UUID id, String username) {
 }
-

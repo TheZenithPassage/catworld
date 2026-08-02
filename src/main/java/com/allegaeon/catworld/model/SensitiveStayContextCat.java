@@ -39,4 +39,3 @@ public class SensitiveStayContextCat {
         return id.getCatId();
     }
 }
-

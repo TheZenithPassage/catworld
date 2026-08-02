@@ -17,4 +17,3 @@ public record NightlyRateChangedActivityDTO(
         BigDecimal newRate)
         implements SensitiveEconomicActivityResponseDTO {
 }
-

@@ -17,4 +17,3 @@ public class PaymentRemovalRequestDTO {
     @NotBlank(message = "A non-blank reason is required to remove a payment")
     private String reason;
 }
-

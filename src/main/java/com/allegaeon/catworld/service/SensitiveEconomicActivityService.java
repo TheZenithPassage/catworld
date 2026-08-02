@@ -152,4 +152,3 @@ public class SensitiveEconomicActivityService
                 .anyMatch(cat -> filter.catId().equals(cat.id()));
     }
 }
-

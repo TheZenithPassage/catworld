@@ -16,4 +16,3 @@ public record PricingOverrideActivityDTO(
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }
-

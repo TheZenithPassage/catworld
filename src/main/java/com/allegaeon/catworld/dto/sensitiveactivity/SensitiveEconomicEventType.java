@@ -8,4 +8,3 @@ public enum SensitiveEconomicEventType {
     PAYMENT_ANNULLED,
     PAYMENT_REMOVED
 }
-

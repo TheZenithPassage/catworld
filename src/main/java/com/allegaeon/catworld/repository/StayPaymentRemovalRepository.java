@@ -33,4 +33,3 @@ public interface StayPaymentRemovalRepository
 
     long count();
 }
-

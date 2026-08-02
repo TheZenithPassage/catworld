@@ -23,4 +23,3 @@ public class SensitiveStayContextCatId implements Serializable {
     @Column(name = "cat_id", nullable = false, updatable = false)
     private UUID catId;
 }
-

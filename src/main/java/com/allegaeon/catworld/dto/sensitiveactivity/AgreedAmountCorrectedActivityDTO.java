@@ -15,4 +15,3 @@ public record AgreedAmountCorrectedActivityDTO(
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }
-
