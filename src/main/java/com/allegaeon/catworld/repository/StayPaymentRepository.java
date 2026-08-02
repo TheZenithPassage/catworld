@@ -30,5 +30,13 @@ public interface StayPaymentRepository extends Repository<StayPayment, UUID> {
             """)
     BigDecimal sumActiveAmountByStayId(@Param("stayId") UUID stayId);
 
+    boolean existsByStay_Id(UUID stayId);
+
+    boolean existsByRegisteredBy_Id(UUID registeredById);
+
+    void delete(StayPayment payment);
+
+    void flush();
+
     long count();
 }

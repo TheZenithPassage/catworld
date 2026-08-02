@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -21,6 +22,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter
@@ -63,4 +65,25 @@ public class StayPaymentEdit {
     @Column(nullable = false, columnDefinition = "TEXT", updatable = false)
     @NotBlank
     private String reason;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "sensitive_context_id",
+            updatable = false,
+            unique = true
+    )
+    private SensitiveStayContext sensitiveContext;
+
+    @Column(updatable = false)
+    private LocalDate paymentDate;
+
+    @Column(columnDefinition = "TEXT", updatable = false)
+    private String paymentNote;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registered_by_id", updatable = false)
+    private UserAccount registeredBy;
+
+    @Column(updatable = false)
+    private Instant registeredAt;
 }

@@ -13,5 +13,9 @@ public interface StayPaymentEditRepository
 
     List<StayPaymentEdit> findAllByStayIdOrderByEditedAtAsc(UUID stayId);
 
+    boolean existsByEditedBy_Id(UUID editedById);
+
+    boolean existsByRegisteredBy_Id(UUID registeredById);
+
     long count();
 }

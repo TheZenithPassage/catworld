@@ -50,7 +50,13 @@ class UserAccountMutationPersistenceTest {
                 mock(CatRepository.class),
                 mock(VetRepository.class),
                 mock(StayRepository.class),
-                mock(NightlyReferenceRateChangeRepository.class)
+                mock(NightlyReferenceRateChangeRepository.class),
+                mock(StayPricingDecisionRepository.class),
+                mock(StayAgreedAmountCorrectionRepository.class),
+                mock(StayPaymentRepository.class),
+                mock(StayPaymentEditRepository.class),
+                mock(StayPaymentAnnulmentRepository.class),
+                mock(StayPaymentRemovalRepository.class)
         );
     }
 

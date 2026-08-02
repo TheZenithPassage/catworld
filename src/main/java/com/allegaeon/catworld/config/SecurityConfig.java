@@ -41,6 +41,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates")
                         .hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/sensitive-economic-activity"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/stays/*/payments/*"
+                        ).hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

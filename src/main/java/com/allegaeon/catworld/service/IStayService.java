@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -31,6 +32,10 @@ public interface IStayService {
             UUID stayId,
             UUID paymentId,
             PaymentAnnulmentRequestDTO paymentRequest);
+    StayResponseDTO removePayment(
+            UUID stayId,
+            UUID paymentId,
+            PaymentRemovalRequestDTO paymentRequest);
     void cancelStay(UUID stayId);
     void deleteStay(UUID stayId);
 

@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -59,4 +60,12 @@ public class StayAgreedAmountCorrection {
     @Column(nullable = false, columnDefinition = "TEXT", updatable = false)
     @NotBlank
     private String reason;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "sensitive_context_id",
+            updatable = false,
+            unique = true
+    )
+    private SensitiveStayContext sensitiveContext;
 }

@@ -13,6 +13,12 @@ import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
+import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
+import com.allegaeon.catworld.repository.StayPaymentRepository;
+import com.allegaeon.catworld.repository.StayPaymentEditRepository;
+import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
+import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.UserAccountRepository;
 import com.allegaeon.catworld.repository.VetRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -42,6 +48,12 @@ public class UserAccountService implements IUserAccountService {
     private final VetRepository vetRepository;
     private final StayRepository stayRepository;
     private final NightlyReferenceRateChangeRepository nightlyReferenceRateChangeRepository;
+    private final StayPricingDecisionRepository stayPricingDecisionRepository;
+    private final StayAgreedAmountCorrectionRepository correctionRepository;
+    private final StayPaymentRepository stayPaymentRepository;
+    private final StayPaymentEditRepository stayPaymentEditRepository;
+    private final StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
+    private final StayPaymentRemovalRepository stayPaymentRemovalRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -140,7 +152,16 @@ public class UserAccountService implements IUserAccountService {
                 || catRepository.existsByCreatedBy_Id(id)
                 || vetRepository.existsByCreatedBy_Id(id)
                 || stayRepository.existsByCreatedBy_Id(id)
-                || nightlyReferenceRateChangeRepository.existsByChangedBy_Id(id);
+                || nightlyReferenceRateChangeRepository.existsByChangedBy_Id(id)
+                || stayPricingDecisionRepository.existsByDecidedBy_Id(id)
+                || correctionRepository.existsByDecidedBy_Id(id)
+                || stayPaymentRepository.existsByRegisteredBy_Id(id)
+                || stayPaymentEditRepository.existsByEditedBy_Id(id)
+                || stayPaymentEditRepository.existsByRegisteredBy_Id(id)
+                || stayPaymentAnnulmentRepository.existsByAnnulledBy_Id(id)
+                || stayPaymentAnnulmentRepository.existsByRegisteredBy_Id(id)
+                || stayPaymentRemovalRepository.existsByRegisteredBy_Id(id)
+                || stayPaymentRemovalRepository.existsByRemovedBy_Id(id);
     }
 
     private String normalizeUsername(String username) {

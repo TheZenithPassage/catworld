@@ -14,4 +14,6 @@ public interface StayAgreedAmountCorrectionRepository
     long count();
 
     List<StayAgreedAmountCorrection> findAllByStayId(UUID stayId);
+
+    boolean existsByDecidedBy_Id(UUID decidedById);
 }

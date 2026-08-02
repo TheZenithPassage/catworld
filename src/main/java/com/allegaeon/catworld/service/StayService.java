@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -12,6 +13,7 @@ import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.dto.VaccineType;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
@@ -25,6 +27,7 @@ import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.StayPaymentAnnulment;
 import com.allegaeon.catworld.model.StayPaymentEdit;
+import com.allegaeon.catworld.model.StayPaymentRemoval;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
@@ -34,6 +37,7 @@ import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
 import com.allegaeon.catworld.repository.StayPaymentEditRepository;
 import com.allegaeon.catworld.repository.StayPaymentRepository;
+import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -72,6 +76,8 @@ public class StayService implements IStayService {
     private final StayPaymentRepository stayPaymentRepository;
     private final StayPaymentEditRepository stayPaymentEditRepository;
     private final StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
+    private final StayPaymentRemovalRepository stayPaymentRemovalRepository;
+    private final SensitiveStayContextFactory sensitiveStayContextFactory;
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
@@ -97,10 +103,30 @@ public class StayService implements IStayService {
                                 Collectors.toList()
                         ));
 
+        Map<UUID, Boolean> deletionAuthorizationByStay = stays.stream()
+                .collect(Collectors.toMap(
+                        Stay::getId,
+                        this::hasDeletionAuthorization
+                ));
+        List<UUID> deletionAuthorizedStayIds = stays.stream()
+                .filter(stay -> deletionAuthorizationByStay.get(stay.getId()))
+                .map(Stay::getId)
+                .toList();
+        Set<UUID> staysWithRemovalHistory = deletionAuthorizedStayIds.isEmpty()
+                ? Set.of()
+                : emptyIfNull(stayPaymentRemovalRepository
+                        .findStayIdsWithRemovalHistory(deletionAuthorizedStayIds));
+
         return stays.stream()
                 .map(stay -> toResponseDTO(
                         stay,
-                        paymentsByStay.getOrDefault(stay.getId(), List.of())
+                        paymentsByStay.getOrDefault(stay.getId(), List.of()),
+                        canDeleteStay(
+                                deletionAuthorizationByStay.get(stay.getId()),
+                                !paymentsByStay.getOrDefault(
+                                        stay.getId(), List.of()).isEmpty(),
+                                staysWithRemovalHistory.contains(stay.getId())
+                        )
                 ))
                 .toList();
     }
@@ -316,6 +342,9 @@ public class StayService implements IStayService {
                         .decidedBy(currentUser)
                         .decidedAt(Instant.now(clock))
                         .reason(pricingDecision.getReason())
+                        .sensitiveContext(
+                                sensitiveStayContextFactory.create(savedStay)
+                        )
                         .build()
         );
 
@@ -409,6 +438,13 @@ public class StayService implements IStayService {
                         .editedBy(currentUser)
                         .editedAt(Instant.now(clock))
                         .reason(reason)
+                        .sensitiveContext(
+                                sensitiveStayContextFactory.create(stay)
+                        )
+                        .paymentDate(savedPayment.getPaymentDate())
+                        .paymentNote(savedPayment.getNote())
+                        .registeredBy(savedPayment.getRegisteredBy())
+                        .registeredAt(savedPayment.getCreatedAt())
                         .build()
         );
         return toResponseDTO(stay);
@@ -441,8 +477,68 @@ public class StayService implements IStayService {
                         .annulledBy(currentUser)
                         .annulledAt(Instant.now(clock))
                         .reason(reason)
+                        .sensitiveContext(
+                                sensitiveStayContextFactory.create(stay)
+                        )
+                        .amount(
+                                WholeMonetaryAmount.canonicalize(
+                                        savedPayment.getAmount()
+                                )
+                        )
+                        .paymentDate(savedPayment.getPaymentDate())
+                        .paymentNote(savedPayment.getNote())
+                        .registeredBy(savedPayment.getRegisteredBy())
+                        .registeredAt(savedPayment.getCreatedAt())
                         .build()
         );
+        return toResponseDTO(stay);
+    }
+
+    @Override
+    @Transactional
+    public StayResponseDTO removePayment(
+            UUID stayId,
+            UUID paymentId,
+            PaymentRemovalRequestDTO paymentRequest) {
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPaymentAuthorizationPolicy.authorizeRemoval(currentUser);
+        StayPayment payment = getPayment(stayId, paymentId);
+        String reason = requireReason(
+                paymentRequest == null ? null : paymentRequest.getReason(),
+                "remove"
+        );
+
+        try {
+            stayPaymentRemovalRepository.saveAndFlush(
+                    StayPaymentRemoval.builder()
+                            .sensitiveContext(
+                                    sensitiveStayContextFactory.create(stay)
+                            )
+                            .stayId(stayId)
+                            .paymentId(payment.getId())
+                            .amount(
+                                    WholeMonetaryAmount.canonicalize(
+                                            payment.getAmount()
+                                    )
+                            )
+                            .paymentDate(payment.getPaymentDate())
+                            .paymentNote(payment.getNote())
+                            .annulled(payment.isAnnulled())
+                            .registeredBy(payment.getRegisteredBy())
+                            .registeredAt(payment.getCreatedAt())
+                            .removedBy(currentUser)
+                            .removedAt(Instant.now(clock))
+                            .reason(reason)
+                            .build()
+            );
+            stayPaymentRepository.delete(payment);
+            stayPaymentRepository.flush();
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException exception) {
+            throw new ConflictException(
+                    "Payment cannot be removed because of a data conflict"
+            );
+        }
         return toResponseDTO(stay);
     }
 
@@ -461,8 +557,24 @@ public class StayService implements IStayService {
     @Transactional
     public void deleteStay(UUID stayId) {
 
-        Stay stay = getStayEntity(stayId);
-        deletionAuthorizationPolicy.authorize(stay.getCreatedBy(), stay.getCreatedAt());
+        Stay stay = getStayEntityForUpdate(stayId);
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        deletionAuthorizationPolicy.authorize(
+                currentUser,
+                stay.getCreatedBy(),
+                stay.getCreatedAt()
+        );
+        if (stayPaymentRepository.existsByStay_Id(stayId)) {
+            throw new ConflictException(
+                    "Stay cannot be deleted while operational payments remain"
+            );
+        }
+        if (currentUser.getRole() == UserRole.STAFF
+                && stayPaymentRemovalRepository.existsByStayId(stayId)) {
+            throw new ForbiddenException(
+                    "Staff cannot delete a stay with payment history"
+            );
+        }
 
         try {
             stayRepository.delete(stay);
@@ -608,16 +720,20 @@ public class StayService implements IStayService {
     }
 
     private StayPayment getActivePayment(UUID stayId, UUID paymentId) {
-        StayPayment payment = stayPaymentRepository
+        StayPayment payment = getPayment(stayId, paymentId);
+        if (payment.isAnnulled()) {
+            throw new ConflictException("Annulled payments are immutable");
+        }
+        return payment;
+    }
+
+    private StayPayment getPayment(UUID stayId, UUID paymentId) {
+        return stayPaymentRepository
                 .findByIdAndStay_Id(paymentId, stayId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Stay payment",
                         paymentId
                 ));
-        if (payment.isAnnulled()) {
-            throw new ConflictException("Annulled payments are immutable");
-        }
-        return payment;
     }
 
     private String requireReason(String reason, String action) {
@@ -651,7 +767,29 @@ public class StayService implements IStayService {
                 .decidedBy(currentUser)
                 .decidedAt(Instant.now(clock))
                 .reason(reason)
+                .sensitiveContext(
+                        isPricingOverride(
+                                stay.getRetainedNightlyRate(),
+                                newNumberOfNights,
+                                newAgreedAmount
+                        )
+                                ? sensitiveStayContextFactory.create(stay)
+                                : null
+                )
                 .build();
+    }
+
+    private boolean isPricingOverride(
+            BigDecimal retainedNightlyRate,
+            long numberOfNights,
+            BigDecimal agreedAmount) {
+        if (retainedNightlyRate == null) {
+            return false;
+        }
+        BigDecimal suggestion = WholeMonetaryAmount.canonicalize(
+                retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights))
+        );
+        return suggestion.compareTo(agreedAmount) != 0;
     }
 
     private BigDecimal canonicalizeNullable(BigDecimal amount) {
@@ -730,12 +868,27 @@ public class StayService implements IStayService {
     private StayResponseDTO toResponseDTO(
             Stay stay,
             List<StayPayment> payments) {
+        boolean deletionAuthorized = hasDeletionAuthorization(stay);
+        return toResponseDTO(
+                stay,
+                payments,
+                canDeleteStay(
+                        deletionAuthorized,
+                        !payments.isEmpty(),
+                        deletionAuthorized
+                                && stayPaymentRemovalRepository.existsByStayId(
+                                        stay.getId())
+                )
+        );
+    }
+
+    private StayResponseDTO toResponseDTO(
+            Stay stay,
+            List<StayPayment> payments,
+            boolean canDelete) {
         StayResponseDTO response = stayMapper.toResponseDTO(
                 stay,
-                deletionAuthorizationPolicy.canDelete(
-                        stay.getCreatedBy(),
-                        stay.getCreatedAt()
-                )
+                canDelete
         );
         StayPaymentEconomics economics = StayPaymentEconomics.calculate(
                 stay.getAgreedAmount(),
@@ -754,6 +907,31 @@ public class StayService implements IStayService {
                         .toList()
         );
         return response;
+    }
+
+    private boolean hasDeletionAuthorization(Stay stay) {
+        return deletionAuthorizationPolicy.canDelete(
+                stay.getCreatedBy(),
+                stay.getCreatedAt()
+        );
+    }
+
+    private boolean canDeleteStay(
+            boolean deletionAuthorized,
+            boolean hasOperationalPayments,
+            boolean hasRemovalHistory) {
+        if (!deletionAuthorized || hasOperationalPayments) {
+            return false;
+        }
+        if (!hasRemovalHistory) {
+            return true;
+        }
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        return currentUser != null && currentUser.getRole() == UserRole.ADMIN;
+    }
+
+    private Set<UUID> emptyIfNull(Set<UUID> values) {
+        return values == null ? Set.of() : values;
     }
 
 }

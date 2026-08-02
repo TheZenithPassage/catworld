@@ -7,6 +7,7 @@ import com.allegaeon.catworld.model.UserRole;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 
 import java.util.stream.Stream;
 
@@ -48,5 +49,15 @@ class StayPaymentAuthorizationPolicyTest {
                                         || status == StayStatus.RESERVED
                                         || status == StayStatus.CHECKED_IN
                         )));
+    }
+
+    @Test
+    void onlyAdministratorsMayPermanentlyRemovePayments() {
+        UserAccount admin = UserAccount.builder().role(UserRole.ADMIN).build();
+        UserAccount staff = UserAccount.builder().role(UserRole.STAFF).build();
+
+        assertDoesNotThrow(() -> policy.authorizeRemoval(admin));
+        assertThrows(ForbiddenException.class, () -> policy.authorizeRemoval(staff));
+        assertThrows(ForbiddenException.class, () -> policy.authorizeRemoval(null));
     }
 }
