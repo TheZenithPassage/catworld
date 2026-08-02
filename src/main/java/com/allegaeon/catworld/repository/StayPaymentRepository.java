@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 public interface StayPaymentRepository extends Repository<StayPayment, UUID> {
@@ -34,14 +33,6 @@ public interface StayPaymentRepository extends Repository<StayPayment, UUID> {
     boolean existsByStay_Id(UUID stayId);
 
     boolean existsByRegisteredBy_Id(UUID registeredById);
-
-    @Query("""
-            select distinct payment.stay.id
-            from StayPayment payment
-            where payment.stay.id in :stayIds
-            """)
-    Set<UUID> findStayIdsWithOperationalPayments(
-            @Param("stayIds") Collection<UUID> stayIds);
 
     void delete(StayPayment payment);
 

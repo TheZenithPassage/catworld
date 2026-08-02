@@ -178,6 +178,68 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         assertFalse(stayRepository.existsById(fixture.stay().getId()));
     }
 
+    @Test
+    void paymentCreationAndRemovalSerializeThroughSharedStayLock()
+            throws Exception {
+        Fixture fixture = fixture();
+        when(currentUserAccountService.getCurrentUserAccount())
+                .thenReturn(fixture.actor());
+        stayService.registerPayment(fixture.stay().getId(), registration("25"));
+        StayPayment paymentToRemove = payments(fixture.stay().getId()).get(0);
+
+        AtomicReference<Thread> creationThread = new AtomicReference<>();
+        AtomicReference<Thread> removalThread = new AtomicReference<>();
+        CountDownLatch creationHasLock = new CountDownLatch(1);
+        CountDownLatch releaseCreation = new CountDownLatch(1);
+        CountDownLatch removalReachedAuthorization = new CountDownLatch(1);
+        when(currentUserAccountService.getCurrentUserAccount()).thenAnswer(call -> {
+            Thread current = Thread.currentThread();
+            if (current == creationThread.get()) {
+                creationHasLock.countDown();
+                await(releaseCreation);
+            }
+            if (current == removalThread.get()) {
+                removalReachedAuthorization.countDown();
+            }
+            return fixture.actor();
+        });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> creation = executor.submit(() -> {
+                creationThread.set(Thread.currentThread());
+                stayService.registerPayment(
+                        fixture.stay().getId(), registration("30"));
+            });
+            assertTrue(creationHasLock.await(5, TimeUnit.SECONDS));
+            Future<?> removal = executor.submit(() -> {
+                removalThread.set(Thread.currentThread());
+                stayService.removePayment(
+                        fixture.stay().getId(),
+                        paymentToRemove.getId(),
+                        PaymentRemovalRequestDTO.builder()
+                                .reason("Contended creation and removal")
+                                .build()
+                );
+            });
+            assertFalse(removalReachedAuthorization.await(1, TimeUnit.SECONDS));
+            releaseCreation.countDown();
+            creation.get(10, TimeUnit.SECONDS);
+            assertTrue(removalReachedAuthorization.await(5, TimeUnit.SECONDS));
+            removal.get(10, TimeUnit.SECONDS);
+        } finally {
+            releaseCreation.countDown();
+            executor.shutdownNow();
+        }
+
+        List<StayPayment> remainingPayments = payments(fixture.stay().getId());
+        assertEquals(1, remainingPayments.size());
+        assertEquals(new BigDecimal("30"), remainingPayments.get(0).getAmount());
+        assertEquals(1, removalRepository.count());
+        assertEquals(new BigDecimal("25"),
+                removalRepository.findAll().get(0).getAmount());
+    }
+
     private Fixture fixture() {
         UserAccount actor = userRepository.saveAndFlush(UserAccount.builder()
                 .username("native-audit-" + UUID.randomUUID())

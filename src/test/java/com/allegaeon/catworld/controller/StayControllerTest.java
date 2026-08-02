@@ -776,6 +776,21 @@ public class StayControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void returnsConflictWhenPaymentRemovalHitsPersistenceRace() throws Exception {
+        UUID stayId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        when(stayService.removePayment(eq(stayId), eq(paymentId), any()))
+                .thenThrow(new ConflictException("Payment removal conflict"));
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Concurrent actor deletion\"}"))
+                .andExpect(status().isConflict());
+    }
+
 
 
 }

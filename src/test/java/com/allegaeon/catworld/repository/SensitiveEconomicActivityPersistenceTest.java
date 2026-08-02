@@ -2,6 +2,7 @@ package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.model.*;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.service.StayService;
@@ -164,7 +165,7 @@ class SensitiveEconomicActivityPersistenceTest {
                         .registeredBy(fixture.actor())
                         .build());
 
-        assertThrows(RuntimeException.class, () -> stayService.removePayment(
+        assertThrows(ConflictException.class, () -> stayService.removePayment(
                 fixture.stay().getId(), payment.getId(),
                 PaymentRemovalRequestDTO.builder().reason("Must roll back").build()));
 

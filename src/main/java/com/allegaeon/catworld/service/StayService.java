@@ -103,21 +103,28 @@ public class StayService implements IStayService {
                                 Collectors.toList()
                         ));
 
-        List<UUID> stayIds = stays.stream().map(Stay::getId).toList();
-        Set<UUID> staysWithPayments = emptyIfNull(
-                stayPaymentRepository.findStayIdsWithOperationalPayments(stayIds)
-        );
-        Set<UUID> staysWithRemovalHistory = emptyIfNull(
-                stayPaymentRemovalRepository.findStayIdsWithRemovalHistory(stayIds)
-        );
+        Map<UUID, Boolean> deletionAuthorizationByStay = stays.stream()
+                .collect(Collectors.toMap(
+                        Stay::getId,
+                        this::hasDeletionAuthorization
+                ));
+        List<UUID> deletionAuthorizedStayIds = stays.stream()
+                .filter(stay -> deletionAuthorizationByStay.get(stay.getId()))
+                .map(Stay::getId)
+                .toList();
+        Set<UUID> staysWithRemovalHistory = deletionAuthorizedStayIds.isEmpty()
+                ? Set.of()
+                : emptyIfNull(stayPaymentRemovalRepository
+                        .findStayIdsWithRemovalHistory(deletionAuthorizedStayIds));
 
         return stays.stream()
                 .map(stay -> toResponseDTO(
                         stay,
                         paymentsByStay.getOrDefault(stay.getId(), List.of()),
                         canDeleteStay(
-                                stay,
-                                staysWithPayments.contains(stay.getId()),
+                                deletionAuthorizationByStay.get(stay.getId()),
+                                !paymentsByStay.getOrDefault(
+                                        stay.getId(), List.of()).isEmpty(),
                                 staysWithRemovalHistory.contains(stay.getId())
                         )
                 ))
@@ -502,30 +509,36 @@ public class StayService implements IStayService {
                 "remove"
         );
 
-        stayPaymentRemovalRepository.saveAndFlush(
-                StayPaymentRemoval.builder()
-                        .sensitiveContext(
-                                sensitiveStayContextFactory.create(stay)
-                        )
-                        .stayId(stayId)
-                        .paymentId(payment.getId())
-                        .amount(
-                                WholeMonetaryAmount.canonicalize(
-                                        payment.getAmount()
-                                )
-                        )
-                        .paymentDate(payment.getPaymentDate())
-                        .paymentNote(payment.getNote())
-                        .annulled(payment.isAnnulled())
-                        .registeredBy(payment.getRegisteredBy())
-                        .registeredAt(payment.getCreatedAt())
-                        .removedBy(currentUser)
-                        .removedAt(Instant.now(clock))
-                        .reason(reason)
-                        .build()
-        );
-        stayPaymentRepository.delete(payment);
-        stayPaymentRepository.flush();
+        try {
+            stayPaymentRemovalRepository.saveAndFlush(
+                    StayPaymentRemoval.builder()
+                            .sensitiveContext(
+                                    sensitiveStayContextFactory.create(stay)
+                            )
+                            .stayId(stayId)
+                            .paymentId(payment.getId())
+                            .amount(
+                                    WholeMonetaryAmount.canonicalize(
+                                            payment.getAmount()
+                                    )
+                            )
+                            .paymentDate(payment.getPaymentDate())
+                            .paymentNote(payment.getNote())
+                            .annulled(payment.isAnnulled())
+                            .registeredBy(payment.getRegisteredBy())
+                            .registeredAt(payment.getCreatedAt())
+                            .removedBy(currentUser)
+                            .removedAt(Instant.now(clock))
+                            .reason(reason)
+                            .build()
+            );
+            stayPaymentRepository.delete(payment);
+            stayPaymentRepository.flush();
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException exception) {
+            throw new ConflictException(
+                    "Payment cannot be removed because of a data conflict"
+            );
+        }
         return toResponseDTO(stay);
     }
 
@@ -855,13 +868,16 @@ public class StayService implements IStayService {
     private StayResponseDTO toResponseDTO(
             Stay stay,
             List<StayPayment> payments) {
+        boolean deletionAuthorized = hasDeletionAuthorization(stay);
         return toResponseDTO(
                 stay,
                 payments,
                 canDeleteStay(
-                        stay,
-                        stayPaymentRepository.existsByStay_Id(stay.getId()),
-                        stayPaymentRemovalRepository.existsByStayId(stay.getId())
+                        deletionAuthorized,
+                        !payments.isEmpty(),
+                        deletionAuthorized
+                                && stayPaymentRemovalRepository.existsByStayId(
+                                        stay.getId())
                 )
         );
     }
@@ -893,14 +909,18 @@ public class StayService implements IStayService {
         return response;
     }
 
-    private boolean canDeleteStay(
-            Stay stay,
-            boolean hasOperationalPayments,
-            boolean hasRemovalHistory) {
-        if (!deletionAuthorizationPolicy.canDelete(
+    private boolean hasDeletionAuthorization(Stay stay) {
+        return deletionAuthorizationPolicy.canDelete(
                 stay.getCreatedBy(),
                 stay.getCreatedAt()
-        ) || hasOperationalPayments) {
+        );
+    }
+
+    private boolean canDeleteStay(
+            boolean deletionAuthorized,
+            boolean hasOperationalPayments,
+            boolean hasRemovalHistory) {
+        if (!deletionAuthorized || hasOperationalPayments) {
             return false;
         }
         if (!hasRemovalHistory) {

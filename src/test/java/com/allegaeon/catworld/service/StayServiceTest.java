@@ -1598,6 +1598,37 @@ public class StayServiceTest {
             verify(stayPaymentRepository, never()).flush();
         }
 
+        @Test
+        void removalTranslatesPersistenceConflictWithoutDeletingPayment() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "40", false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
+            when(stayPaymentRemovalRepository.saveAndFlush(any()))
+                    .thenThrow(new DataIntegrityViolationException("actor conflict"));
+
+            ConflictException conflict = assertThrows(
+                    ConflictException.class,
+                    () -> service.removePayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentRemovalRequestDTO.builder()
+                                    .reason("Conflicting removal")
+                                    .build()
+                    )
+            );
+
+            assertEquals(
+                    "Payment cannot be removed because of a data conflict",
+                    conflict.getMessage()
+            );
+            verify(stayPaymentRepository, never()).delete(any());
+            verify(stayPaymentRepository, never()).flush();
+        }
+
         private Stay paymentStay(BigDecimal agreedAmount, boolean cancelled) {
             LocalDateTime now = LocalDateTime.now();
             Stay stay = Stay.builder()
@@ -1881,7 +1912,40 @@ public class StayServiceTest {
 
             assertSame(expectedResponseDTO, result);
             verify(stayMapper).toResponseDTO(stay, false);
+            verify(stayPaymentRemovalRepository, never()).existsByStayId(any());
 
+        }
+
+        @Test
+        void getStayUsesLoadedPaymentsForDeletionHint() {
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5),
+                    null);
+            StayPayment payment = StayPayment.builder()
+                    .id(UUID.randomUUID())
+                    .stay(stay)
+                    .amount(new BigDecimal("25"))
+                    .paymentDate(LocalDate.of(2026, 8, 1))
+                    .registeredBy(user(UserRole.ADMIN))
+                    .build();
+            stay.setAgreedAmount(new BigDecimal("100"));
+            StayResponseDTO expectedResponseDTO = new StayResponseDTO();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayPaymentRepository
+                    .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
+                    .thenReturn(List.of(payment));
+            when(deletionAuthorizationPolicy.canDelete(
+                    stay.getCreatedBy(), stay.getCreatedAt())).thenReturn(true);
+            when(stayMapper.toResponseDTO(stay, false))
+                    .thenReturn(expectedResponseDTO);
+
+            StayResponseDTO result = service.getStay(stay.getId());
+
+            assertSame(expectedResponseDTO, result);
+            verify(stayMapper).toResponseDTO(stay, false);
+            verify(stayPaymentRepository, never()).existsByStay_Id(any());
         }
 
         @Test
@@ -1909,6 +1973,8 @@ public class StayServiceTest {
             assertEquals(List.of(allowedResponse, deniedResponse), result);
             verify(stayMapper).toResponseDTO(allowedStay, true);
             verify(stayMapper).toResponseDTO(deniedStay, false);
+            verify(stayPaymentRemovalRepository)
+                    .findStayIdsWithRemovalHistory(List.of(allowedStay.getId()));
 
         }
 
