@@ -112,11 +112,14 @@ class StayPaymentMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        jdbcTemplate.update("delete from stay_payment_removals");
         jdbcTemplate.update("delete from stay_payment_annulments");
         jdbcTemplate.update("delete from stay_payment_edits");
         jdbcTemplate.update("delete from stay_payments");
         jdbcTemplate.update("delete from stay_agreed_amount_corrections");
         jdbcTemplate.update("delete from stay_pricing_decisions");
+        jdbcTemplate.update("delete from sensitive_stay_context_cats");
+        jdbcTemplate.update("delete from sensitive_stay_contexts");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
         jdbcTemplate.update("delete from stay_cat");
         jdbcTemplate.update("delete from stays");
@@ -131,7 +134,7 @@ class StayPaymentMySqlIntegrationTest {
     @Test
     void fullFlywaySchemaPreservesExactValuesAndRollsBackFailedAudit() {
         assertEquals(
-                List.of("1", "2", "3", "4", "5", "6", "7"),
+                List.of("1", "2", "3", "4", "5", "6", "7", "8"),
                 jdbcTemplate.queryForList(
                         """
                         select version

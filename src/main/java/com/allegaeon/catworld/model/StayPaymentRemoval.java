@@ -30,60 +30,59 @@ import java.util.UUID;
 @AllArgsConstructor
 @Entity
 @Builder
-@Table(name = "stay_payment_edits")
-public class StayPaymentEdit {
+@Table(name = "stay_payment_removals")
+public class StayPaymentRemoval {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "sensitive_context_id",
+            nullable = false,
+            updatable = false,
+            unique = true
+    )
+    private SensitiveStayContext sensitiveContext;
+
     @Column(nullable = false, updatable = false)
     private UUID stayId;
 
-    @Column(nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false, unique = true)
     private UUID paymentId;
 
     @Column(nullable = false, precision = 19, scale = 0, updatable = false)
     @NotNull
     @DecimalMin(value = "0", inclusive = false)
     @Digits(integer = 19, fraction = 0)
-    private BigDecimal previousAmount;
-
-    @Column(nullable = false, precision = 19, scale = 0, updatable = false)
-    @NotNull
-    @DecimalMin(value = "0", inclusive = false)
-    @Digits(integer = 19, fraction = 0)
-    private BigDecimal newAmount;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "edited_by_id", nullable = false, updatable = false)
-    private UserAccount editedBy;
+    private BigDecimal amount;
 
     @Column(nullable = false, updatable = false)
-    private Instant editedAt;
-
-    @Column(nullable = false, columnDefinition = "TEXT", updatable = false)
-    @NotBlank
-    private String reason;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "sensitive_context_id",
-            updatable = false,
-            unique = true
-    )
-    private SensitiveStayContext sensitiveContext;
-
-    @Column(updatable = false)
     private LocalDate paymentDate;
 
     @Column(columnDefinition = "TEXT", updatable = false)
     private String paymentNote;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "registered_by_id", updatable = false)
+    @Column(nullable = false, updatable = false)
+    private boolean annulled;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "registered_by_id", nullable = false, updatable = false)
     private UserAccount registeredBy;
 
-    @Column(updatable = false)
+    @Column(nullable = false, updatable = false)
     private Instant registeredAt;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "removed_by_id", nullable = false, updatable = false)
+    private UserAccount removedBy;
+
+    @Column(nullable = false, updatable = false)
+    private Instant removedAt;
+
+    @Column(nullable = false, columnDefinition = "TEXT", updatable = false)
+    @NotBlank
+    private String reason;
 }
+

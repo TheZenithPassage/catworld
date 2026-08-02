@@ -13,6 +13,12 @@ import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
+import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
+import com.allegaeon.catworld.repository.StayPaymentRepository;
+import com.allegaeon.catworld.repository.StayPaymentEditRepository;
+import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
+import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.UserAccountRepository;
 import com.allegaeon.catworld.repository.VetRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -73,6 +79,24 @@ class UserAccountServiceTest {
     @Mock
     private NightlyReferenceRateChangeRepository nightlyReferenceRateChangeRepository;
 
+    @Mock
+    private StayPricingDecisionRepository stayPricingDecisionRepository;
+
+    @Mock
+    private StayAgreedAmountCorrectionRepository correctionRepository;
+
+    @Mock
+    private StayPaymentRepository stayPaymentRepository;
+
+    @Mock
+    private StayPaymentEditRepository stayPaymentEditRepository;
+
+    @Mock
+    private StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
+
+    @Mock
+    private StayPaymentRemovalRepository stayPaymentRemovalRepository;
+
     private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
     private UserAccountService userAccountService;
 
@@ -87,7 +111,13 @@ class UserAccountServiceTest {
                 catRepository,
                 vetRepository,
                 stayRepository,
-                nightlyReferenceRateChangeRepository
+                nightlyReferenceRateChangeRepository,
+                stayPricingDecisionRepository,
+                correctionRepository,
+                stayPaymentRepository,
+                stayPaymentEditRepository,
+                stayPaymentAnnulmentRepository,
+                stayPaymentRemovalRepository
         );
     }
 
@@ -453,6 +483,33 @@ class UserAccountServiceTest {
             case NIGHTLY_REFERENCE_RATE_CHANGE ->
                     when(nightlyReferenceRateChangeRepository.existsByChangedBy_Id(targetId))
                             .thenReturn(true);
+            case PRICING_DECISION ->
+                    when(stayPricingDecisionRepository.existsByDecidedBy_Id(targetId))
+                            .thenReturn(true);
+            case AGREED_AMOUNT_CORRECTION ->
+                    when(correctionRepository.existsByDecidedBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_REGISTRATION ->
+                    when(stayPaymentRepository.existsByRegisteredBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_EDIT_ACTOR ->
+                    when(stayPaymentEditRepository.existsByEditedBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_EDIT_REGISTRANT ->
+                    when(stayPaymentEditRepository.existsByRegisteredBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_ANNULMENT_ACTOR ->
+                    when(stayPaymentAnnulmentRepository.existsByAnnulledBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_ANNULMENT_REGISTRANT ->
+                    when(stayPaymentAnnulmentRepository.existsByRegisteredBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_REMOVAL_REGISTRANT ->
+                    when(stayPaymentRemovalRepository.existsByRegisteredBy_Id(targetId))
+                            .thenReturn(true);
+            case PAYMENT_REMOVAL_ACTOR ->
+                    when(stayPaymentRemovalRepository.existsByRemovedBy_Id(targetId))
+                            .thenReturn(true);
         }
     }
 
@@ -477,6 +534,10 @@ class UserAccountServiceTest {
             case NIGHTLY_REFERENCE_RATE_CHANGE -> {
                 // All reference repositories are expected to have been checked.
             }
+            default -> {
+                // The assertion that delete/flush were not reached is authoritative
+                // for the expanded durable-economic actor matrix.
+            }
         }
     }
 
@@ -499,6 +560,15 @@ class UserAccountServiceTest {
         CAT,
         VET,
         STAY,
-        NIGHTLY_REFERENCE_RATE_CHANGE
+        NIGHTLY_REFERENCE_RATE_CHANGE,
+        PRICING_DECISION,
+        AGREED_AMOUNT_CORRECTION,
+        PAYMENT_REGISTRATION,
+        PAYMENT_EDIT_ACTOR,
+        PAYMENT_EDIT_REGISTRANT,
+        PAYMENT_ANNULMENT_ACTOR,
+        PAYMENT_ANNULMENT_REGISTRANT,
+        PAYMENT_REMOVAL_REGISTRANT,
+        PAYMENT_REMOVAL_ACTOR
     }
 }

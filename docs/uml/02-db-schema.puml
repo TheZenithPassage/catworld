@@ -123,6 +123,7 @@ package "MySQL schema" {
     decided_by_id binary(16) <<FK,NN>>
     decided_at datetime(6) <<NN>>
     reason text
+    sensitive_context_id binary(16) <<FK,UQ>>
   }
 
   class stay_agreed_amount_corrections <<table>> {
@@ -134,6 +135,7 @@ package "MySQL schema" {
     decided_by_id binary(16) <<FK,NN>>
     decided_at datetime(6) <<NN>>
     reason text <<NN>>
+    sensitive_context_id binary(16) <<FK,UQ>>
   }
 
   class stay_payments <<table>> {
@@ -160,6 +162,11 @@ package "MySQL schema" {
     edited_by_id binary(16) <<FK,NN>>
     edited_at datetime(6) <<NN>>
     reason text <<NN>>
+    sensitive_context_id binary(16) <<FK,UQ>>
+    payment_date date
+    payment_note text
+    registered_by_id binary(16) <<FK>>
+    registered_at datetime(6)
   }
 
   class stay_payment_annulments <<table>> {
@@ -169,6 +176,47 @@ package "MySQL schema" {
     payment_id binary(16) <<NN,UQ>>
     annulled_by_id binary(16) <<FK,NN>>
     annulled_at datetime(6) <<NN>>
+    reason text <<NN>>
+    sensitive_context_id binary(16) <<FK,UQ>>
+    amount decimal(19,0)
+    payment_date date
+    payment_note text
+    registered_by_id binary(16) <<FK>>
+    registered_at datetime(6)
+  }
+
+  class sensitive_stay_contexts <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    stay_id binary(16) <<NN,INDEX>>
+    owner_id binary(16) <<NN,INDEX>>
+    owner_full_name varchar(255) <<NN>>
+    stay_start_at datetime(6) <<NN>>
+    stay_end_at datetime(6) <<NN>>
+    stay_cancelled_at datetime(6)
+  }
+
+  class sensitive_stay_context_cats <<table>> {
+    +context_id binary(16) <<PK,FK,NN>>
+    +cat_id binary(16) <<PK,NN,INDEX>>
+    --
+    cat_name varchar(255) <<NN>>
+  }
+
+  class stay_payment_removals <<table>> {
+    +id binary(16) <<PK,NN>>
+    --
+    sensitive_context_id binary(16) <<FK,UQ,NN>>
+    stay_id binary(16) <<NN,INDEX>>
+    payment_id binary(16) <<UQ,NN>>
+    amount decimal(19,0) <<NN>>
+    payment_date date <<NN>>
+    payment_note text
+    annulled boolean <<NN>>
+    registered_by_id binary(16) <<FK,NN>>
+    registered_at datetime(6) <<NN>>
+    removed_by_id binary(16) <<FK,NN>>
+    removed_at datetime(6) <<NN,INDEX>>
     reason text <<NN>>
   }
 
@@ -188,6 +236,16 @@ package "MySQL schema" {
   user_accounts "1" -- "0..*" stay_payments : FK registered_by_id
   user_accounts "1" -- "0..*" stay_payment_edits : FK edited_by_id
   user_accounts "1" -- "0..*" stay_payment_annulments : FK annulled_by_id
+  sensitive_stay_contexts "1" -- "0..*" sensitive_stay_context_cats : FK context_id
+  sensitive_stay_contexts "1" -- "0..1" stay_pricing_decisions : FK sensitive_context_id
+  sensitive_stay_contexts "1" -- "0..1" stay_agreed_amount_corrections : FK sensitive_context_id
+  sensitive_stay_contexts "1" -- "0..1" stay_payment_edits : FK sensitive_context_id
+  sensitive_stay_contexts "1" -- "0..1" stay_payment_annulments : FK sensitive_context_id
+  sensitive_stay_contexts "1" -- "0..1" stay_payment_removals : FK sensitive_context_id
+  user_accounts "1" -- "0..*" stay_payment_edits : FK registered_by_id
+  user_accounts "1" -- "0..*" stay_payment_annulments : FK registered_by_id
+  user_accounts "1" -- "0..*" stay_payment_removals : FK registered_by_id
+  user_accounts "1" -- "0..*" stay_payment_removals : FK removed_by_id
 }
 
 note right of stays
@@ -256,6 +314,18 @@ note bottom of stay_payment_annulments
 Append-only terminal-action evidence.
 payment_id is unique and has no foreign key.
 stay_id also has no foreign key.
+end note
+
+note bottom of sensitive_stay_contexts
+Immutable per-event operational snapshot.
+stay_id and owner_id deliberately have no
+foreign keys; cat identities are likewise scalar.
+end note
+
+note bottom of stay_payment_removals
+Append-only exact removal evidence.
+stay_id and payment_id have no foreign keys.
+Only context and actor attribution are restrictive.
 end note
 
 @enduml

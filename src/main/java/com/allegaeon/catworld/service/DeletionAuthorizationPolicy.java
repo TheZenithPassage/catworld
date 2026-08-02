@@ -21,7 +21,18 @@ public class DeletionAuthorizationPolicy {
     private final Clock clock;
 
     public void authorize(UserAccount creator, Instant createdAt) {
-        if (canDelete(creator, createdAt)) {
+        authorize(
+                currentUserAccountService.getCurrentUserAccount(),
+                creator,
+                createdAt
+        );
+    }
+
+    public void authorize(
+            UserAccount currentUser,
+            UserAccount creator,
+            Instant createdAt) {
+        if (canDelete(currentUser, creator, createdAt)) {
             return;
         }
 

@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -78,6 +79,16 @@ public class StayController {
             @Valid @RequestBody PaymentAnnulmentRequestDTO paymentRequest) {
         return ResponseEntity.ok(
                 stayService.annulPayment(stayId, paymentId, paymentRequest)
+        );
+    }
+
+    @DeleteMapping("/{stayId}/payments/{paymentId}")
+    public ResponseEntity<StayResponseDTO> removePayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentRemovalRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.removePayment(stayId, paymentId, paymentRequest)
         );
     }
 

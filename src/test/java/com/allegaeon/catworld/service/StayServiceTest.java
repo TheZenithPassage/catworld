@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
@@ -26,6 +27,8 @@ import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.StayPaymentAnnulment;
 import com.allegaeon.catworld.model.StayPaymentEdit;
+import com.allegaeon.catworld.model.StayPaymentRemoval;
+import com.allegaeon.catworld.model.SensitiveStayContext;
 import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
@@ -35,6 +38,7 @@ import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
 import com.allegaeon.catworld.repository.StayPaymentEditRepository;
 import com.allegaeon.catworld.repository.StayPaymentRepository;
+import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -94,6 +98,12 @@ public class StayServiceTest {
 
     @Mock
     private StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
+
+    @Mock
+    private StayPaymentRemovalRepository stayPaymentRemovalRepository;
+
+    @Mock
+    private SensitiveStayContextFactory sensitiveStayContextFactory;
 
     @Mock
     private CurrentUserAccountService currentUserAccountService;
@@ -493,8 +503,9 @@ public class StayServiceTest {
 
         @Test
         void creationWithoutConfiguredRateAllowsExplicitZeroAgreementForZeroNights() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 8, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 1, 18, 0);
+            LocalDateTime startAt = LocalDateTime.now().plusDays(2)
+                    .withHour(8).withMinute(0).withSecond(0).withNano(0);
+            LocalDateTime endAt = startAt.withHour(18);
             CreationFixture fixture = stubPricingCreation(
                     1,
                     startAt,
@@ -790,7 +801,8 @@ public class StayServiceTest {
 
         @Test
         void sameLocalDateTimeAndNotesChangeRequiresNoPricingDecisionOrEvent() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 8, 0);
+            LocalDateTime startAt = LocalDateTime.now().plusDays(2)
+                    .withHour(8).withMinute(0).withSecond(0).withNano(0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -1499,6 +1511,93 @@ public class StayServiceTest {
             verify(stayMapper, never()).updateEntity(any(), any());
         }
 
+        @ParameterizedTest
+        @ValueSource(booleans = {false, true})
+        void adminRemovesActiveOrAnnulledPaymentWithExactEvidence(
+                boolean annulled) {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "40", annulled);
+            UserAccount admin = user(UserRole.ADMIN);
+            SensitiveStayContext context = SensitiveStayContext.builder()
+                    .id(UUID.randomUUID())
+                    .build();
+            StayResponseDTO response = new StayResponseDTO();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
+            when(sensitiveStayContextFactory.create(stay)).thenReturn(context);
+            when(stayPaymentRepository
+                    .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
+                    .thenReturn(List.of());
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
+            when(clock.instant()).thenReturn(Instant.parse("2026-08-02T08:00:00Z"));
+
+            StayResponseDTO actual = service.removePayment(
+                    stay.getId(),
+                    payment.getId(),
+                    PaymentRemovalRequestDTO.builder()
+                            .reason("Duplicate payment")
+                            .build()
+            );
+
+            ArgumentCaptor<StayPaymentRemoval> removalCaptor =
+                    ArgumentCaptor.forClass(StayPaymentRemoval.class);
+            verify(stayPaymentRemovalRepository)
+                    .saveAndFlush(removalCaptor.capture());
+            StayPaymentRemoval removal = removalCaptor.getValue();
+            assertSame(context, removal.getSensitiveContext());
+            assertEquals(stay.getId(), removal.getStayId());
+            assertEquals(payment.getId(), removal.getPaymentId());
+            assertEquals(new BigDecimal("40"), removal.getAmount());
+            assertEquals(payment.getPaymentDate(), removal.getPaymentDate());
+            assertEquals(payment.getRegisteredBy(), removal.getRegisteredBy());
+            assertEquals(payment.getCreatedAt(), removal.getRegisteredAt());
+            assertEquals(admin, removal.getRemovedBy());
+            assertEquals(annulled, removal.isAnnulled());
+            assertEquals("Duplicate payment", removal.getReason());
+            verify(stayPaymentRepository).delete(payment);
+            verify(stayPaymentRepository).flush();
+            assertSame(response, actual);
+            assertEquals(BigDecimal.ZERO, actual.getTotalPaid());
+        }
+
+        @Test
+        void removalRejectsStaffBlankReasonAndWrongStayWithoutWrites() {
+            Stay stay = paymentStay(new BigDecimal("100"), false);
+            StayPayment payment = payment(stay, "40", false);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.STAFF));
+
+            assertThrows(ForbiddenException.class, () -> service.removePayment(
+                    stay.getId(), payment.getId(),
+                    PaymentRemovalRequestDTO.builder().reason("Valid reason").build()
+            ));
+
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
+            assertThrows(BadRequestException.class, () -> service.removePayment(
+                    stay.getId(), payment.getId(),
+                    PaymentRemovalRequestDTO.builder().reason("   ").build()
+            ));
+
+            UUID unknownPayment = UUID.randomUUID();
+            when(stayPaymentRepository.findByIdAndStay_Id(
+                    unknownPayment, stay.getId())).thenReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> service.removePayment(
+                    stay.getId(), unknownPayment,
+                    PaymentRemovalRequestDTO.builder().reason("Wrong stay").build()
+            ));
+
+            verify(stayPaymentRemovalRepository, never())
+                    .saveAndFlush(any(StayPaymentRemoval.class));
+            verify(stayPaymentRepository, never()).delete(any());
+            verify(stayPaymentRepository, never()).flush();
+        }
+
         private Stay paymentStay(BigDecimal agreedAmount, boolean cancelled) {
             LocalDateTime now = LocalDateTime.now();
             Stay stay = Stay.builder()
@@ -1611,11 +1710,14 @@ public class StayServiceTest {
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            UserAccount actor = user(UserRole.ADMIN);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
             service.deleteStay(stay.getId());
 
             InOrder inOrder = inOrder(deletionAuthorizationPolicy, stayRepository);
-            inOrder.verify(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+            inOrder.verify(deletionAuthorizationPolicy)
+                    .authorize(actor, stay.getCreatedBy(), stay.getCreatedAt());
             inOrder.verify(stayRepository).delete(stay);
             inOrder.verify(stayRepository).flush();
 
@@ -1630,8 +1732,11 @@ public class StayServiceTest {
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            UserAccount actor = user(UserRole.ADMIN);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
             doThrow(new ForbiddenException("Forbidden"))
-                    .when(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+                    .when(deletionAuthorizationPolicy)
+                    .authorize(actor, stay.getCreatedBy(), stay.getCreatedAt());
 
             assertThrows(ForbiddenException.class, () -> service.deleteStay(stay.getId()));
 
@@ -1649,6 +1754,8 @@ public class StayServiceTest {
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
             doThrow(new DataIntegrityViolationException("constraint conflict")).when(stayRepository).flush();
 
             assertThrows(ConflictException.class, () -> service.deleteStay(stay.getId()));
@@ -1671,6 +1778,8 @@ public class StayServiceTest {
             for (Stay stay : stays) {
                 when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             }
+            UserAccount actor = user(UserRole.ADMIN);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
             for (Stay stay : stays) {
                 assertDoesNotThrow(() -> service.deleteStay(stay.getId()));
@@ -1678,10 +1787,56 @@ public class StayServiceTest {
 
             for (Stay stay : stays) {
                 verify(stayRepository).delete(stay);
-                verify(deletionAuthorizationPolicy).authorize(stay.getCreatedBy(), stay.getCreatedAt());
+                verify(deletionAuthorizationPolicy)
+                        .authorize(actor, stay.getCreatedBy(), stay.getCreatedAt());
             }
             verify(stayRepository, times(stays.size())).flush();
 
+        }
+
+        @Test
+        void operationalPaymentBlocksDeletionAfterAuthorization() {
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5), null);
+            UserAccount actor = user(UserRole.ADMIN);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+            when(stayPaymentRepository.existsByStay_Id(stay.getId()))
+                    .thenReturn(true);
+
+            assertThrows(ConflictException.class, () -> service.deleteStay(stay.getId()));
+
+            InOrder order = inOrder(deletionAuthorizationPolicy, stayPaymentRepository);
+            order.verify(deletionAuthorizationPolicy)
+                    .authorize(actor, stay.getCreatedBy(), stay.getCreatedAt());
+            order.verify(stayPaymentRepository).existsByStay_Id(stay.getId());
+            verify(stayRepository, never()).delete(any());
+        }
+
+        @Test
+        void historicalPaymentBlocksStaffButNotAdminAfterSafeRemoval() {
+            Stay stay = stayWithCreator(
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now().plusDays(5), null);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayPaymentRemovalRepository.existsByStayId(stay.getId()))
+                    .thenReturn(true);
+
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.STAFF));
+            assertThrows(ForbiddenException.class, () -> service.deleteStay(stay.getId()));
+            verify(stayRepository, never()).delete(any());
+
+            clearInvocations(stayRepository, stayPaymentRepository,
+                    stayPaymentRemovalRepository, deletionAuthorizationPolicy);
+            UserAccount admin = user(UserRole.ADMIN);
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            service.deleteStay(stay.getId());
+
+            verify(stayRepository).findByIdForUpdate(stay.getId());
+            verify(stayRepository).delete(stay);
+            verify(stayRepository).flush();
         }
 
     }

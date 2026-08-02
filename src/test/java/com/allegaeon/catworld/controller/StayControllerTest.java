@@ -744,6 +744,38 @@ public class StayControllerTest {
 
     }
 
+    @Test
+    void removesPaymentWithReasonAndReturnsRefreshedEconomics() throws Exception {
+        UUID stayId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        when(stayService.removePayment(eq(stayId), eq(paymentId), any()))
+                .thenReturn(StayResponseDTO.builder()
+                        .stayId(stayId)
+                        .totalPaid(new BigDecimal("20"))
+                        .remainingAmount(new BigDecimal("80"))
+                        .build());
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Duplicate payment\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                .andExpect(jsonPath("$.totalPaid").value(20))
+                .andExpect(jsonPath("$.remainingAmount").value(80));
+
+        verify(stayService).removePayment(eq(stayId), eq(paymentId),
+                argThat(request -> "Duplicate payment".equals(request.getReason())));
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
 
 
 }

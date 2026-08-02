@@ -60,8 +60,8 @@ class StayPaymentMigrationTest {
         assertDecimalColumn("STAY_PAYMENT_EDITS", "NEW_AMOUNT", 19, 0);
 
         assertEquals(2, foreignKeyCount("STAY_PAYMENTS"));
-        assertEquals(1, foreignKeyCount("STAY_PAYMENT_EDITS"));
-        assertEquals(1, foreignKeyCount("STAY_PAYMENT_ANNULMENTS"));
+        assertEquals(3, foreignKeyCount("STAY_PAYMENT_EDITS"));
+        assertEquals(3, foreignKeyCount("STAY_PAYMENT_ANNULMENTS"));
         assertImportedKey(
                 "STAY_PAYMENTS",
                 "FK_STAY_PAYMENTS_STAY",

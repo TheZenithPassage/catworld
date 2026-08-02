@@ -32,4 +32,12 @@ public class StayPaymentAuthorizationPolicy {
                 && (stayStatus == StayStatus.RESERVED
                 || stayStatus == StayStatus.CHECKED_IN);
     }
+
+    public void authorizeRemoval(UserAccount currentUser) {
+        if (currentUser == null || currentUser.getRole() != UserRole.ADMIN) {
+            throw new ForbiddenException(
+                    "Only administrators can permanently remove payments"
+            );
+        }
+    }
 }

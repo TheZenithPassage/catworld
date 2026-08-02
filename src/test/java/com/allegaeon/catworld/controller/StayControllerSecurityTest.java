@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -206,5 +207,31 @@ class StayControllerSecurityTest {
 
         verify(stayService, never()).getStay(any());
         verify(stayService, never()).registerPayment(any(), any());
+    }
+
+    @Test
+    void permanentPaymentRemovalRouteRequiresAdministratorRole() throws Exception {
+        UUID stayId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        when(stayService.removePayment(any(), any(), any())).thenReturn(
+                StayResponseDTO.builder().stayId(stayId).build());
+
+        mockMvc.perform(delete("/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Duplicate\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .with(user("staff").roles("STAFF"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Duplicate\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Duplicate\"}"))
+                .andExpect(status().isUnauthorized());
     }
 }

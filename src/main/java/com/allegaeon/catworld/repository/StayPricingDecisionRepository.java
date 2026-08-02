@@ -14,4 +14,8 @@ public interface StayPricingDecisionRepository
     long count();
 
     List<StayPricingDecision> findAllByStayIdOrderByDecidedAtAsc(UUID stayId);
+
+    List<StayPricingDecision> findAllBySensitiveContextIsNotNull();
+
+    boolean existsByDecidedBy_Id(UUID decidedById);
 }

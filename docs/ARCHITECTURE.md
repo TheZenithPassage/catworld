@@ -166,8 +166,9 @@ history survives cancellation and permanent stay deletion.
 Represents one operational payment registered against a stay. It retains the
 exact positive whole-unit amount, payment date, optional note, registering
 `UserAccount`, timestamps and an annulled flag. Amount correction is the only
-supported edit; annulment is terminal, and payment rows are never deleted or
-reactivated through the API.
+supported edit and annulment is terminal. An `ADMIN` may permanently remove an
+active or annulled payment through the focused removal operation, which first
+persists durable evidence and then deletes the operational row atomically.
 
 #### StayPaymentEdit and StayPaymentAnnulment
 
@@ -176,6 +177,20 @@ annulments. Each records scalar stay/payment UUIDs, the responsible
 `UserAccount`, application-clock timestamp and required reason; edit evidence
 also records the exact previous and new amounts. Scalar operational identities
 let this evidence survive deletion of the payment's stay.
+
+#### SensitiveStayContext and StayPaymentRemoval
+
+`SensitiveStayContext` is an immutable per-event snapshot of the affected
+stay, owner and deterministically ordered cats. It stores scalar operational
+UUIDs plus names and stay dates, with no foreign keys to operational stay,
+owner, cat or payment rows. Eligible pricing overrides, every new agreed-amount
+correction, payment edit, payment annulment and payment removal each own one
+context. Legacy producer rows are not backfilled and remain ineligible.
+
+`StayPaymentRemoval` is immutable append-only evidence containing the exact
+payment amount, date, note, annulled state, original registrar/time, removing
+administrator/time and mandatory reason. Its stay and payment identities are
+scalar; restrictive account foreign keys preserve attribution.
 
 ## Stay Model
 
@@ -221,6 +236,10 @@ Main relationships:
 - Each `StayPaymentEdit` and `StayPaymentAnnulment` references its actor but
   identifies the affected stay and payment with indexed scalar UUIDs rather
   than operational foreign keys.
+- Each eligible stay-scoped economic event references one immutable
+  `SensitiveStayContext`; its cat children reference only that context.
+- Each `StayPaymentRemoval` references its original registrar, removal actor
+  and context, but has no operational stay/payment foreign key.
 
 The persisted `Stay <-> Cat` relationship is materialized through `StayCat`.
 
@@ -341,7 +360,11 @@ agreement correction all serialize through the existing pessimistic `Stay`
 lock. A real agreement change is rejected below the active-payment total;
 numeric correction no-ops are still detected before reason and floor
 validation. Operational payment mutation and its edit/annul evidence commit or
-roll back in one transaction.
+roll back in one transaction. Permanent removal is `ADMIN`-only in every stay
+status, requires a non-blank reason, accepts active or annulled payments and
+uses the same lock. Context/removal evidence is flushed before the operational
+payment deletion, and the refreshed response derives economics from the rows
+that remain.
 
 ## Stay Business Rules
 
@@ -358,6 +381,8 @@ Current rules:
   active aggregate cannot exceed the current agreed amount.
 - Payment edits require a real amount change and a non-blank reason;
   annulments require a non-blank reason and are terminal.
+- Payment removal requires `ADMIN`, a non-blank reason and exact durable
+  evidence; it is not a refund operation.
 - Outstanding collection is true only for a non-cancelled stay with a known
   positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
@@ -377,8 +402,10 @@ Current rules:
 - Cancelled stays cannot be cancelled again.
 - Permanent stay deletion is separate from cancellation. Authorized deletion
   removes the stay and its `StayCat` links, preserves cat, owner, vet and
-  application-account records and pricing-decision evidence, and is not blocked
-  by dynamic stay status.
+  application-account records and sensitive economic evidence, and is not
+  blocked by dynamic stay status. Operational payments always block deletion;
+  after all payments are removed, historical payment evidence still blocks
+  `STAFF` while `ADMIN` may complete the safe deletion order.
 
 ## Nightly Reference Rates
 
@@ -464,6 +491,14 @@ Important schema points:
   evidence survives operational deletion. V7 creates no legacy payment or
   audit rows and persists no derived totals, balances, conditions or
   outstanding flags.
+- V8 adds `sensitive_stay_contexts` and `sensitive_stay_context_cats` as
+  immutable operationally independent snapshots, nullable context links on the
+  four existing stay-scoped producers, and exact payment snapshots on edit and
+  annulment evidence. It performs no legacy backfill.
+- `stay_payment_removals` stores immutable exact removal evidence. Only context
+  and account attribution use restrictive foreign keys; scalar stay, owner,
+  cat and payment identities deliberately remain free of operational foreign
+  keys so safe deletion cannot erase accountability.
 
 ## Authentication
 
@@ -498,13 +533,22 @@ the persisted current account after taking the stay lock. `ADMIN` may mutate
 payments in any stay status, while `STAFF` may do so only for `RESERVED` and
 `CHECKED_IN` stays.
 
+`DELETE /api/stays/{stayId}/payments/{paymentId}` requires `ADMIN` at the HTTP
+boundary and repeats the decision against the persisted current account after
+locking the stay. `GET /api/sensitive-economic-activity` is likewise
+`ADMIN`-only and returns a discriminated six-event union ordered by occurrence
+time descending, event-type order and event UUID. Optional actor, inclusive
+`occurredFrom`, exclusive `occurredTo`, event type, owner, cat and stay filters
+compose conjunctively; invalid time ranges return `400 Bad Request`.
+
 `DELETE /api/users/{id}` allows an authenticated `ADMIN` to delete another
 application account. The service rejects authenticated self-deletion with
 `403 Forbidden`, returns `404 Not Found` for a missing target, and blocks
-deletion with `409 Conflict` while any owner, cat, vet or stay references the
-target as creator or a nightly reference-rate audit records the target as its
-actor. Deleting an `ADMIN` is allowed only when a different enabled `ADMIN`
-remains; disabled administrators do not satisfy that invariant.
+deletion with `409 Conflict` while any creator record, nightly-rate change,
+pricing decision, correction, operational payment, payment edit/annulment or
+payment removal references the target as actor or original registrar. Deleting
+an `ADMIN` is allowed only when a different enabled `ADMIN` remains; disabled
+administrators do not satisfy that invariant.
 
 Account deletion resolves the target and authenticated account, checks creator
 references, then locks the enabled-admin set for every eligible target. The
@@ -550,8 +594,9 @@ Owner, cat, vet and stay responses expose a backend-calculated `canDelete`
 rendering hint for the current authenticated user. The hint combines the shared
 deletion policy with entity-specific integrity rules: an owner must have no cat
 or direct stay references, a cat must have no `StayCat` history, and a vet must
-have no cat references. Stay deletion has no additional relationship blocker
-because it owns and removes only its `StayCat` links. Authorization failure
+have no cat references. A stay must have no operational payments; historical
+payment-removal evidence also leaves the hint false for `STAFF`, while an
+otherwise authorized `ADMIN` may complete the safe deletion order. Authorization failure
 short-circuits relationship probing, and these hints remain advisory; every
 DELETE request recomputes the current server-side rules.
 
@@ -741,11 +786,13 @@ amount, exact new amount, required reason, actor and decision time. Correction
 rows expose no update or delete path and deliberately outlive cancellation and
 deletion of their operational stay.
 
-Payment correction and annulment history uses two additional focused
-append-only audit models. A real amount edit preserves exact previous/new
-amounts; an annulment preserves the terminal action. Both preserve reason,
-actor and application-clock time, expose no update/delete path and outlive
-their operational stay/payment identities.
+Payment correction, annulment and removal history uses focused append-only
+audit models. A real amount edit preserves exact previous/new amounts; an
+annulment preserves the terminal action; a removal preserves the complete
+payment snapshot and both attribution points. They expose no update/delete path
+and outlive their operational stay/payment identities. The global sensitive
+economic view merges these with rate changes, eligible pricing deviations and
+real agreement corrections without a generic event table or database view.
 
 ## Error Handling
 
@@ -785,8 +832,10 @@ Current focus:
   and atomic audit construction
 - focused agreed-amount correction authorization, numeric no-op behavior,
   atomic immutable evidence and same-stay serialization
-- payment authorization, exact registration/edit/annul rules, derived
+- payment authorization, exact registration/edit/annul/removal rules, derived
   economics, agreement floors and atomic evidence construction
+- sensitive economic eligibility, typed identity, global ordering, filters,
+  persisted administrator authorization and payment-aware deletion hints
 
 Repositories and mappers are mocked where appropriate.
 
@@ -805,16 +854,18 @@ Expected focus:
 - nested stay pricing validation and authenticated-role reachability
 - focused agreed-amount correction validation, delegation and representative
   authenticated reachability
-- payment history serialization, validation, delegation, exception mapping and
+- payment history/removal serialization, validation, delegation, exception mapping and
   authenticated-role reachability
+- representative sensitive-activity typed JSON, filter binding and
+  administrator-only reachability
 
 Controller tests should use Spring MVC slice testing instead of booting the full application context unless there is a concrete reason.
 
-Repository validation covers the V7 schema, exact active aggregation and
+Repository validation covers the V8 schema, exact active aggregation and
 operational/audit rollback boundaries. A conditional isolated MySQL integration
 suite additionally validates the full Flyway chain and Hibernate schema,
-native zero-scale round trips, InnoDB rollback, payment/payment contention and
-payment/agreement contention through the shared stay lock.
+native zero-scale round trips, durable deletion survival, InnoDB rollback and
+payment/removal/stay-deletion contention through the shared stay lock.
 
 ### CI
 

@@ -80,7 +80,7 @@ class StayPricingMigrationTest {
         );
 
         assertEquals(
-                1,
+                2,
                 jdbcTemplate.queryForObject(
                         """
                         select count(*)
@@ -103,7 +103,7 @@ class StayPricingMigrationTest {
                 )
         );
         assertEquals(
-                1,
+                2,
                 jdbcTemplate.queryForObject(
                         """
                         select count(*)
