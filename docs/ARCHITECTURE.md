@@ -702,6 +702,22 @@ filtering, retries and domain decisions; the shared state component owns only
 Material-themed presentation, accessible status or alert semantics and optional
 retry-action rendering.
 
+Reusable permanent-deletion presentation lives under
+`frontend/src/app/shared/permanent-deletion/`. The shared Material confirmation
+dialog accepts plain-text record context and returns a positive result only for
+the explicit delete-permanently action; cancel and dismissal remain
+non-confirming. Shared deletion error handling maps backend `403`, `404` and
+`409` responses to localized permission, missing-resource and integrity-conflict
+messages, with a generic fallback for other failures. It does not calculate
+deletion authorization, correction windows or relationship eligibility.
+
+The existing stay, cat, owner, vet and application-account API services expose
+their implemented permanent `DELETE` endpoints. Entity features remain
+responsible for action placement, backend-provided eligibility hints, request
+and loading state, success refresh or removal, and any entity-specific conflict
+context. Stay cancellation remains a separate operation and keeps its distinct
+“Cancel stay” terminology.
+
 ### Material Forms
 
 The login, account management, owner create/edit, vet create/edit, cat

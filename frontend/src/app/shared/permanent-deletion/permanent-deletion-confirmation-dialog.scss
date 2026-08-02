@@ -1,0 +1,19 @@
+.dialog-description {
+  margin: 0;
+  max-width: 34rem;
+}
+
+.deletion-subject {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 420px) {
+  mat-dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+
+    button {
+      width: 100%;
+    }
+  }
+}

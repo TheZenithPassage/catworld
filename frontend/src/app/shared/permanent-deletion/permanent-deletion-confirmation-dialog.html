@@ -1,0 +1,18 @@
+<h2 mat-dialog-title>{{ text().deletion.confirmation.title }}</h2>
+
+<mat-dialog-content>
+  <p class="dialog-description">
+    {{ text().deletion.confirmation.descriptionPrefix }}
+    <strong class="deletion-subject">{{ data.subject }}</strong
+    >. {{ text().deletion.confirmation.descriptionSuffix }}
+  </p>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [mat-dialog-close]="false">
+    {{ text().deletion.confirmation.actions.cancel }}
+  </button>
+  <button mat-flat-button type="button" color="warn" [mat-dialog-close]="true">
+    {{ text().deletion.confirmation.actions.deletePermanently }}
+  </button>
+</mat-dialog-actions>

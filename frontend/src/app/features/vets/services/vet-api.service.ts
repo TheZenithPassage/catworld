@@ -27,4 +27,8 @@ export class VetApiService {
   updateVet(vetId: string, request: UpdateVetRequest): Observable<Vet> {
     return this.http.put<Vet>(`${this.baseUrl}/${vetId}`, request);
   }
+
+  deleteVet(vetId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${vetId}`);
+  }
 }

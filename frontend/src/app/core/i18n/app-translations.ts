@@ -10,6 +10,7 @@ import {
   DASHBOARD_TRANSLATIONS,
   DashboardTranslations,
 } from './translations/dashboard.translations';
+import { DELETION_TRANSLATIONS, DeletionTranslations } from './translations/deletion.translations';
 import { OWNERS_TRANSLATIONS, OwnersTranslations } from './translations/owners.translations';
 import { STAYS_TRANSLATIONS, StaysTranslations } from './translations/stays.translations';
 import { VETS_TRANSLATIONS, VetsTranslations } from './translations/vets.translations';
@@ -19,6 +20,7 @@ export interface AppTranslations {
   app: AppShellTranslations;
   auth: AuthTranslations;
   dashboard: DashboardTranslations;
+  deletion: DeletionTranslations;
   calendar: CalendarTranslations;
   cats: CatsTranslations;
   owners: OwnersTranslations;
@@ -32,6 +34,7 @@ export const APP_TRANSLATIONS = {
     app: APP_SHELL_TRANSLATIONS.es,
     auth: AUTH_TRANSLATIONS.es,
     dashboard: DASHBOARD_TRANSLATIONS.es,
+    deletion: DELETION_TRANSLATIONS.es,
     calendar: CALENDAR_TRANSLATIONS.es,
     cats: CATS_TRANSLATIONS.es,
     owners: OWNERS_TRANSLATIONS.es,
@@ -43,6 +46,7 @@ export const APP_TRANSLATIONS = {
     app: APP_SHELL_TRANSLATIONS.en,
     auth: AUTH_TRANSLATIONS.en,
     dashboard: DASHBOARD_TRANSLATIONS.en,
+    deletion: DELETION_TRANSLATIONS.en,
     calendar: CALENDAR_TRANSLATIONS.en,
     cats: CATS_TRANSLATIONS.en,
     owners: OWNERS_TRANSLATIONS.en,
