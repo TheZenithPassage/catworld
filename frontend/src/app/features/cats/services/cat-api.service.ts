@@ -27,4 +27,8 @@ export class CatApiService {
   updateCat(catId: string, request: UpdateCatRequest): Observable<Cat> {
     return this.http.put<Cat>(`${this.baseUrl}/${catId}`, request);
   }
+
+  deleteCat(catId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${catId}`);
+  }
 }

@@ -27,4 +27,8 @@ export class OwnerApiService {
   updateOwner(ownerId: string, request: UpdateOwnerRequest): Observable<Owner> {
     return this.http.put<Owner>(`${this.baseUrl}/${ownerId}`, request);
   }
+
+  deleteOwner(ownerId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${ownerId}`);
+  }
 }

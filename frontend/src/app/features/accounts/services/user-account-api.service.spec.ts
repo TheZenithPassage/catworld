@@ -74,4 +74,12 @@ describe('UserAccountApiService', () => {
     expect(request.request.body).toEqual({ enabled: false });
     request.flush({ ...account, enabled: false });
   });
+
+  it('deletes an account permanently', () => {
+    service.deleteAccount('user-1').subscribe();
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/users/user-1`);
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null);
+  });
 });

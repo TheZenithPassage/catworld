@@ -28,4 +28,8 @@ export class UserAccountApiService {
   changeEnabled(accountId: string, enabled: boolean): Observable<UserAccount> {
     return this.http.patch<UserAccount>(`${this.baseUrl}/${accountId}/enabled`, { enabled });
   }
+
+  deleteAccount(accountId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${accountId}`);
+  }
 }
