@@ -15,6 +15,10 @@ import { OWNERS_TRANSLATIONS, OwnersTranslations } from './translations/owners.t
 import { STAYS_TRANSLATIONS, StaysTranslations } from './translations/stays.translations';
 import { VETS_TRANSLATIONS, VetsTranslations } from './translations/vets.translations';
 import { ACCOUNTS_TRANSLATIONS, AccountsTranslations } from './translations/accounts.translations';
+import {
+  NIGHTLY_RATES_TRANSLATIONS,
+  NightlyRatesTranslations,
+} from './translations/nightly-rates.translations';
 
 export interface AppTranslations {
   app: AppShellTranslations;
@@ -27,6 +31,7 @@ export interface AppTranslations {
   stays: StaysTranslations;
   vets: VetsTranslations;
   accounts: AccountsTranslations;
+  nightlyRates: NightlyRatesTranslations;
 }
 
 export const APP_TRANSLATIONS = {
@@ -41,6 +46,7 @@ export const APP_TRANSLATIONS = {
     stays: STAYS_TRANSLATIONS.es,
     vets: VETS_TRANSLATIONS.es,
     accounts: ACCOUNTS_TRANSLATIONS.es,
+    nightlyRates: NIGHTLY_RATES_TRANSLATIONS.es,
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
@@ -53,5 +59,6 @@ export const APP_TRANSLATIONS = {
     stays: STAYS_TRANSLATIONS.en,
     vets: VETS_TRANSLATIONS.en,
     accounts: ACCOUNTS_TRANSLATIONS.en,
+    nightlyRates: NIGHTLY_RATES_TRANSLATIONS.en,
   },
 } satisfies Record<AppLanguage, AppTranslations>;

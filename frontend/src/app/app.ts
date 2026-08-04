@@ -47,6 +47,7 @@ export class App {
       { path: '/cats', label: nav.cats, exact: false },
       { path: '/owners', label: nav.owners, exact: false },
       { path: '/vets', label: nav.vets, exact: false },
+      { path: '/nightly-rates', label: nav.nightlyRates, exact: false },
     ];
 
     if (this.authenticated()?.role === 'ADMIN') {

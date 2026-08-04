@@ -105,6 +105,14 @@ export const routes: Routes = [
     component: VetEditPage,
   },
   {
+    path: 'nightly-rates',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/nightly-rates/pages/nightly-rate-management-page/nightly-rate-management-page').then(
+        (m) => m.NightlyRateManagementPage,
+      ),
+  },
+  {
     path: 'accounts',
     canActivate: [adminGuard],
     loadComponent: () =>

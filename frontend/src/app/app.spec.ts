@@ -45,6 +45,7 @@ describe('App', () => {
       fixture.nativeElement.querySelectorAll('nav a'),
     ) as HTMLAnchorElement[];
     expect(links.some((link) => link.getAttribute('href') === '/accounts')).toBe(true);
+    expect(links.some((link) => link.getAttribute('href') === '/nightly-rates')).toBe(true);
   });
 
   it('hides account management navigation from STAFF', () => {
@@ -61,5 +62,6 @@ describe('App', () => {
       fixture.nativeElement.querySelectorAll('nav a'),
     ) as HTMLAnchorElement[];
     expect(links.some((link) => link.getAttribute('href') === '/accounts')).toBe(false);
+    expect(links.some((link) => link.getAttribute('href') === '/nightly-rates')).toBe(true);
   });
 });

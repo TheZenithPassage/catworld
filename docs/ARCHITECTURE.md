@@ -424,12 +424,22 @@ replace one category with
 `DELETE /api/nightly-reference-rates/{minimumCatCount}`. Valid configuration
 thresholds are exactly `1`, `2` and `3`. The service authorizes against the
 persisted current account before request-specific mutation validation.
+Nightly amounts are serialized as JSON strings in responses so exact values up
+to 19 digits reach JavaScript clients without numeric precision loss.
 
 Mutations lock only the selected current row pessimistically. A real transition
 updates that row and inserts one immutable audit snapshot in the same
 transaction; either both flush and commit or both roll back. Numerically equal
 replacement values and clearing an already unavailable category are successful
 no-ops without audit rows.
+
+The authenticated Angular interface exposes the three current categories on a
+dedicated nightly-rate management page to both supported roles. Threshold `3`
+is labeled as three or more cats, unavailable values remain explicit, and the
+page explains that configured values are total whole-stay nightly prices rather
+than per-cat amounts. Only `ADMIN` sees independent configure, change and clear
+controls; every successful mutation reloads the complete current set from the
+backend.
 
 Reference-rate changes are prospective guidance only. They do not read,
 reprice, update or backfill existing stays. New stays retain the applicable
