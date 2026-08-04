@@ -7,7 +7,7 @@ import { API_BASE_URL } from '../../../core/config/api.config';
 export type NightlyRateThreshold = 1 | 2 | 3;
 export interface NightlyReferenceRate {
   minimumCatCount: NightlyRateThreshold;
-  nightlyRate: string | number | null;
+  nightlyRate: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

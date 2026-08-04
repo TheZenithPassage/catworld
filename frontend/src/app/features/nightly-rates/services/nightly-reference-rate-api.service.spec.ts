@@ -19,11 +19,15 @@ describe('NightlyReferenceRateApiService', () => {
 
   afterEach(() => http.verify());
 
-  it('loads the complete current set', () => {
-    service.getCurrentRates().subscribe();
+  it('preserves a 19-digit response amount through Angular HTTP consumption', () => {
+    let receivedRate: string | null | undefined;
+    service.getCurrentRates().subscribe((rates) => {
+      receivedRate = rates[0]?.nightlyRate;
+    });
     const request = http.expectOne(`${API_BASE_URL}/nightly-reference-rates`);
     expect(request.request.method).toBe('GET');
-    request.flush([]);
+    request.flush([{ minimumCatCount: 1, nightlyRate: '9999999999999999999' }]);
+    expect(receivedRate).toBe('9999999999999999999');
   });
 
   it('configures the exact threshold with the digit string', () => {

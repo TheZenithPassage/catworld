@@ -22,6 +22,7 @@ interface RateCategory {
   labelKey: 'one' | 'two' | 'threePlus';
 }
 type PendingAction = 'save' | 'clear';
+type ValidationErrorCode = 'required' | 'positiveWhole' | 'tooLong';
 
 @Component({
   selector: 'app-nightly-rate-management-page',
@@ -52,7 +53,9 @@ export class NightlyRateManagementPage {
   ];
   readonly rates = signal<Partial<Record<NightlyRateThreshold, string | null>>>({});
   readonly entries = signal<Record<NightlyRateThreshold, string>>({ 1: '', 2: '', 3: '' });
-  readonly validationErrors = signal<Partial<Record<NightlyRateThreshold, string>>>({});
+  readonly validationErrors = signal<Partial<Record<NightlyRateThreshold, ValidationErrorCode>>>(
+    {},
+  );
   readonly loading = signal(true);
   readonly loadError = createLanguageResetError(this.i18n.language);
   readonly actionError = createLanguageResetError(this.i18n.language);
@@ -140,14 +143,14 @@ export class NightlyRateManagementPage {
     return pending?.threshold === threshold && (!action || pending.action === action);
   }
   validationError(threshold: NightlyRateThreshold): string | null {
-    return this.validationErrors()[threshold] ?? null;
+    const code = this.validationErrors()[threshold];
+    return code ? this.text().nightlyRates.form.errors[code] : null;
   }
 
-  private validate(value: string): string | null {
-    if (!value) return this.text().nightlyRates.form.errors.required;
-    if (!/^\d+$/.test(value) || /^0+$/.test(value))
-      return this.text().nightlyRates.form.errors.positiveWhole;
-    if (value.length > 19) return this.text().nightlyRates.form.errors.tooLong;
+  private validate(value: string): ValidationErrorCode | null {
+    if (!value) return 'required';
+    if (!/^\d+$/.test(value) || /^0+$/.test(value)) return 'positiveWhole';
+    if (value.length > 19) return 'tooLong';
     return null;
   }
   private mapRates(
@@ -156,7 +159,7 @@ export class NightlyRateManagementPage {
     const mapped: Partial<Record<NightlyRateThreshold, string | null>> = {};
     for (const rate of rates) {
       if (![1, 2, 3].includes(rate.minimumCatCount) || rate.minimumCatCount in mapped) return null;
-      mapped[rate.minimumCatCount] = rate.nightlyRate === null ? null : String(rate.nightlyRate);
+      mapped[rate.minimumCatCount] = rate.nightlyRate;
     }
     return this.categories.every(({ threshold }) => threshold in mapped) ? mapped : null;
   }
@@ -177,9 +180,9 @@ export class NightlyRateManagementPage {
     this.focusFeedback();
   }
   private focusField(threshold: NightlyRateThreshold): void {
-    queueMicrotask(() => document.getElementById(`nightly-rate-${threshold}`)?.focus());
+    setTimeout(() => document.getElementById(`nightly-rate-${threshold}`)?.focus());
   }
   private focusFeedback(): void {
-    queueMicrotask(() => document.getElementById('nightly-rate-action-error')?.focus());
+    setTimeout(() => document.getElementById('nightly-rate-action-error')?.focus());
   }
 }

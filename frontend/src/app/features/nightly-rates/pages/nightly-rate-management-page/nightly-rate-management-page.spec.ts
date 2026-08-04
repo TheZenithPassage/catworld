@@ -5,13 +5,14 @@ import { BehaviorSubject, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
 import { NightlyRateManagementPage } from './nightly-rate-management-page';
 
 const currentRates = [
-  { minimumCatCount: 1 as const, nightlyRate: 45 },
+  { minimumCatCount: 1 as const, nightlyRate: '45' },
   { minimumCatCount: 2 as const, nightlyRate: null },
-  { minimumCatCount: 3 as const, nightlyRate: '90' },
+  { minimumCatCount: 3 as const, nightlyRate: '9999999999999999999' },
 ];
 
 describe('NightlyRateManagementPage', () => {
@@ -88,12 +89,30 @@ describe('NightlyRateManagementPage', () => {
     },
   );
 
-  it('preserves a 19-digit value and reloads the complete set after configure success', async () => {
+  it('renders, preloads, and resubmits a 19-digit response value unchanged', async () => {
     await create();
-    component.setEntry(3, '9999999999999999999');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('9999999999999999999');
+    expect(component.entry(3)).toBe('9999999999999999999');
     component.save(3);
     expect(api.configureRate).toHaveBeenCalledWith(3, '9999999999999999999');
     expect(api.getCurrentRates).toHaveBeenCalledTimes(2);
+  });
+
+  it('updates an active field-validation error when the language changes', async () => {
+    await create();
+    component.setEntry(1, '0');
+    component.save(1);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'The amount must be a positive whole number without decimals.',
+    );
+
+    TestBed.inject(I18nService).toggleLanguage();
+    fixture.detectChanges();
+
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      'El importe debe ser un número entero positivo sin decimales.',
+    );
   });
 
   it('clears one category and reloads the complete set', async () => {

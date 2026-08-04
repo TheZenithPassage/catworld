@@ -424,6 +424,8 @@ replace one category with
 `DELETE /api/nightly-reference-rates/{minimumCatCount}`. Valid configuration
 thresholds are exactly `1`, `2` and `3`. The service authorizes against the
 persisted current account before request-specific mutation validation.
+Nightly amounts are serialized as JSON strings in responses so exact values up
+to 19 digits reach JavaScript clients without numeric precision loss.
 
 Mutations lock only the selected current row pessimistically. A real transition
 updates that row and inserts one immutable audit snapshot in the same
