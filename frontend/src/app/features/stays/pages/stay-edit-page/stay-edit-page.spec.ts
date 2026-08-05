@@ -7,6 +7,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
@@ -96,13 +97,7 @@ describe('StayEditPage', () => {
         numberOfNights: 7,
         retainedNightlyRate: '50',
         suggestedAmount: '100',
-        confirmation: {
-          previousNumberOfNights: 7,
-          previousAgreedAmount: '100',
-          numberOfNights: 7,
-          retainedNightlyRate: '50',
-          suggestedAmount: '100',
-        },
+        confirmation: null,
       }),
     );
     window.scrollTo = vi.fn();
@@ -373,7 +368,8 @@ describe('StayEditPage', () => {
               status: 409,
             }),
         ),
-      );
+      )
+      .mockReturnValueOnce(of(stay));
 
     component.startAt.set('2099-02-02T10:00');
     component.endAt.set('2099-02-09T10:00');
@@ -384,6 +380,71 @@ describe('StayEditPage', () => {
     expect(matDialog.open).toHaveBeenCalledTimes(1);
     expect(component.error()).toBe('Stay still conflicts');
     expect(component.submitting()).toBe(false);
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
+  });
+
+  it('preserves an approved override only through stale recovery for unchanged edit dates', () => {
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+    createComponent();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: true }),
+    );
+  });
+
+  it('clears stale-recovery override approval when edit dates change', () => {
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+    createComponent();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.onEndAtChange('2099-01-10T10:00');
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
   });
 
   it('submits an admin repricing decision only when the backend requires it', () => {
@@ -483,5 +544,19 @@ describe('StayEditPage', () => {
 
     expect(component.previewError()).toBe(component.text().stays.pricing.errors.adminRequired);
     expect(component.pricingPreview()).toBeNull();
+  });
+
+  it('clears an active pricing-preview error when the language changes', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
+    );
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.previewFailed);
+
+    TestBed.inject(I18nService).toggleLanguage();
+    TestBed.flushEffects();
+
+    expect(component.previewError()).toBeNull();
   });
 });

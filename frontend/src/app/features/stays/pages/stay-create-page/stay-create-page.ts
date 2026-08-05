@@ -73,10 +73,9 @@ export class StayCreatePage {
   readonly pricingReason = signal('');
   readonly pricingPreview = signal<CreationPricingPreview | null>(null);
   readonly previewLoading = signal(false);
-  readonly previewError = signal<string | null>(null);
+  readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
   readonly stalePricing = signal(false);
-  readonly vaccineOverrideIntent = signal(false);
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -114,6 +113,7 @@ export class StayCreatePage {
   readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
 
   private previewRequestSequence = 0;
+  private vaccineOverrideRecoveryBasis: string | null = null;
 
   constructor() {
     this.loadData();
@@ -141,12 +141,14 @@ export class StayCreatePage {
   }
 
   onOwnerChange(ownerId: string): void {
+    this.clearVaccineOverrideRecovery();
     this.selectedOwnerId.set(ownerId);
     this.selectedCatIds.set([]);
     this.refreshPricingPreview();
   }
 
   onCatToggle(catId: string, checked: boolean): void {
+    this.clearVaccineOverrideRecovery();
     if (checked) {
       this.selectedCatIds.update((catIds) => [...catIds, catId]);
       this.refreshPricingPreview();
@@ -158,11 +160,13 @@ export class StayCreatePage {
   }
 
   onStartAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
     this.startAt.set(value);
     this.refreshPricingPreview();
   }
 
   onEndAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
     this.endAt.set(value);
     this.refreshPricingPreview();
   }
@@ -206,12 +210,14 @@ export class StayCreatePage {
       return;
     }
 
+    const basis = this.currentPreviewBasis();
+    const overrideVaccineConflicts = this.vaccineOverrideRecoveryBasis === basis;
     const request: CreateStayRequest = {
       catIds: this.selectedCatIds(),
       startAt: this.startAt(),
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
-      overrideVaccineConflicts: this.vaccineOverrideIntent(),
+      overrideVaccineConflicts,
       pricingDecision: {
         agreedAmount: this.agreedAmount(),
         reason: this.pricingReason().trim() || null,
@@ -219,10 +225,10 @@ export class StayCreatePage {
       confirmation: preview.confirmation,
     };
 
-    this.saveStay(request, true);
+    this.saveStay(request, !overrideVaccineConflicts, basis);
   }
 
-  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean): void {
+  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean, basis: string): void {
     this.submitting.set(true);
 
     this.stayApiService.createStay(request).subscribe({
@@ -232,6 +238,7 @@ export class StayCreatePage {
       },
       error: (error: unknown) => {
         if (isStalePricingConfirmationError(error)) {
+          this.vaccineOverrideRecoveryBasis = request.overrideVaccineConflicts ? basis : null;
           this.submitting.set(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
@@ -241,10 +248,13 @@ export class StayCreatePage {
         }
         if (showVaccineConflict && isVaccineConflictError(error)) {
           this.submitting.set(false);
-          this.openVaccineConflictDialog(error.error, request);
+          this.openVaccineConflictDialog(error.error, request, basis);
           return;
         }
 
+        if (request.overrideVaccineConflicts) {
+          this.clearVaccineOverrideRecovery();
+        }
         this.error.set(this.getCreateStayErrorMessage(error));
         this.submitting.set(false);
       },
@@ -254,6 +264,7 @@ export class StayCreatePage {
   private openVaccineConflictDialog(
     conflict: VaccineConflictResponse,
     request: CreateStayRequest,
+    basis: string,
   ): void {
     const canOverride = this.authSessionService.hasRole('ADMIN');
     const data: VaccineConflictDialogData = {
@@ -273,8 +284,7 @@ export class StayCreatePage {
           return;
         }
 
-        this.vaccineOverrideIntent.set(true);
-        this.saveStay({ ...request, overrideVaccineConflicts: true }, false);
+        this.saveStay({ ...request, overrideVaccineConflicts: true }, false, basis);
       });
   }
 
@@ -349,6 +359,10 @@ export class StayCreatePage {
 
   private currentPreviewBasis(): string {
     return JSON.stringify([this.startAt(), this.endAt(), [...this.selectedCatIds()].sort()]);
+  }
+
+  private clearVaccineOverrideRecovery(): void {
+    this.vaccineOverrideRecoveryBasis = null;
   }
 
   private getCreateStayErrorMessage(error: unknown): string {

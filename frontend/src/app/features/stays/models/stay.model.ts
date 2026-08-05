@@ -50,15 +50,23 @@ export interface CreationPricingPreview extends CreationPricingConfirmation {
   confirmation: CreationPricingConfirmation;
 }
 
-export interface StayDatePricingPreview {
-  pricingDecisionRequired: boolean;
+interface StayDatePricingPreviewBase {
   currentNumberOfNights: number;
   currentAgreedAmount: MonetaryAmount | null;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
-  confirmation: ExistingStayPricingConfirmation;
 }
+
+export type StayDatePricingPreview =
+  | (StayDatePricingPreviewBase & {
+      pricingDecisionRequired: false;
+      confirmation: null;
+    })
+  | (StayDatePricingPreviewBase & {
+      pricingDecisionRequired: true;
+      confirmation: ExistingStayPricingConfirmation;
+    });
 
 export interface CreationPricingPreviewRequest {
   startAt: string;

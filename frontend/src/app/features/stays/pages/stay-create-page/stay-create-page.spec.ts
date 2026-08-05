@@ -7,6 +7,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
@@ -498,7 +499,8 @@ describe('StayCreatePage', () => {
               status: 409,
             }),
         ),
-      );
+      )
+      .mockReturnValueOnce(of(createdStay));
 
     component.selectedOwnerId.set('owner-1');
     component.selectedCatIds.set(['cat-1']);
@@ -512,6 +514,96 @@ describe('StayCreatePage', () => {
     expect(matDialog.open).toHaveBeenCalledTimes(1);
     expect(component.error()).toBe('Stay still conflicts');
     expect(component.submitting()).toBe(false);
+
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
+  });
+
+  it('preserves an approved override only through stale recovery for the unchanged request', () => {
+    stayApiService.createStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdStay));
+    createComponent();
+    component.selectedOwnerId.set('owner-1');
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.confirmPricing();
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ overrideVaccineConflicts: true }),
+    );
+  });
+
+  it('clears stale-recovery override approval when the creation request basis changes', () => {
+    stayApiService.createStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdStay));
+    createComponent();
+    component.selectedOwnerId.set('owner-1');
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.onCatToggle('cat-2', true);
+    component.confirmPricing();
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        catIds: ['cat-1', 'cat-2'],
+        overrideVaccineConflicts: false,
+      }),
+    );
+  });
+
+  it('clears an active pricing-preview error when the language changes', () => {
+    stayApiService.previewCreationPricing.mockReturnValue(throwError(() => new Error('offline')));
+    queryParams = { ownerId: 'owner-1', catId: 'cat-1' };
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.previewFailed);
+
+    TestBed.inject(I18nService).toggleLanguage();
+    TestBed.flushEffects();
+
+    expect(component.previewError()).toBeNull();
   });
 
   it('preserves an exact 19-digit agreement and requires reconfirmation after a stale conflict', () => {

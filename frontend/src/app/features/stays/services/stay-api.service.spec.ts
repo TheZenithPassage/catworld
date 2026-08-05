@@ -58,7 +58,15 @@ describe('StayApiService', () => {
       .subscribe();
     const preview = httpTestingController.expectOne(`${API_BASE_URL}/stays/stay-1/pricing-preview`);
     expect(preview.request.method).toBe('POST');
-    preview.flush({});
+    preview.flush({
+      pricingDecisionRequired: false,
+      currentNumberOfNights: 7,
+      currentAgreedAmount: '100',
+      numberOfNights: 7,
+      retainedNightlyRate: '50',
+      suggestedAmount: '100',
+      confirmation: null,
+    });
 
     service
       .correctAgreedAmount('stay-1', {
