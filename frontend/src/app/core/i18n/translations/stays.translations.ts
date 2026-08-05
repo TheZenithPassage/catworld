@@ -12,6 +12,40 @@ export interface StaysTranslations {
     'checked-out': string;
     cancelled: string;
   };
+  pricing: {
+    title: string;
+    loading: string;
+    enterInputs: string;
+    nights: string;
+    retainedRate: string;
+    suggestion: string;
+    agreement: string;
+    currentAgreement: string;
+    reason: string;
+    unavailable: string;
+    confirm: string;
+    confirmed: string;
+    stale: string;
+    noReconfirmation: string;
+    adminRequired: string;
+    economics: string;
+    totalPaid: string;
+    remaining: string;
+    correctAgreement: string;
+    correct: string;
+    cancelCorrection: string;
+    errors: {
+      invalidAmount: string;
+      reasonRequired: string;
+      confirmationRequired: string;
+      previewRequired: string;
+      previewFailed: string;
+      stale: string;
+      adminRequired: string;
+      correctionReasonRequired: string;
+      correctionFailed: string;
+    };
+  };
   filters: {
     searchAriaLabel: string;
     cat: string;
@@ -130,6 +164,40 @@ export const STAYS_TRANSLATIONS = {
       'checked-out': 'Finalizada',
       cancelled: 'Cancelada',
     },
+    pricing: {
+      title: 'Precio acordado',
+      loading: 'Calculando la propuesta autoritativa...',
+      enterInputs: 'Selecciona fechas y gatos válidos para obtener la propuesta.',
+      nights: 'Noches',
+      retainedRate: 'Tarifa retenida',
+      suggestion: 'Importe sugerido',
+      agreement: 'Importe acordado',
+      currentAgreement: 'Importe acordado actual',
+      reason: 'Motivo económico',
+      unavailable: 'No disponible',
+      confirm: 'Confirmar precio',
+      confirmed: 'Precio confirmado',
+      stale: 'La base del precio cambió. Revisa la nueva propuesta y vuelve a confirmarla.',
+      noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
+      adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
+      economics: 'Economía',
+      totalPaid: 'Total pagado',
+      remaining: 'Pendiente',
+      correctAgreement: 'Corregir importe',
+      correct: 'Guardar corrección',
+      cancelCorrection: 'Cancelar',
+      errors: {
+        invalidAmount: 'Introduce un importe entero no negativo de hasta 19 dígitos.',
+        reasonRequired: 'Indica un motivo cuando el importe difiere de la propuesta.',
+        confirmationRequired: 'Revisa y confirma el precio actual antes de continuar.',
+        previewRequired: 'Es necesaria una propuesta de precio actual.',
+        previewFailed: 'No se pudo obtener la propuesta de precio.',
+        stale: 'La confirmación del precio está desactualizada. Confirma la nueva propuesta.',
+        adminRequired: 'Solo un administrador puede confirmar este nuevo precio.',
+        correctionReasonRequired: 'Indica el motivo de la corrección.',
+        correctionFailed: 'No se pudo corregir el importe acordado.',
+      },
+    },
     filters: {
       searchAriaLabel: 'Filtros de búsqueda de estancias',
       cat: 'Gato',
@@ -246,6 +314,40 @@ export const STAYS_TRANSLATIONS = {
       'checked-in': 'Checked-in',
       'checked-out': 'Checked-out',
       cancelled: 'Cancelled',
+    },
+    pricing: {
+      title: 'Agreed pricing',
+      loading: 'Loading authoritative pricing...',
+      enterInputs: 'Select valid dates and cats to obtain pricing.',
+      nights: 'Nights',
+      retainedRate: 'Retained rate',
+      suggestion: 'Suggested amount',
+      agreement: 'Agreed amount',
+      currentAgreement: 'Current agreed amount',
+      reason: 'Economic reason',
+      unavailable: 'Unavailable',
+      confirm: 'Confirm pricing',
+      confirmed: 'Pricing confirmed',
+      stale: 'The pricing basis changed. Review the fresh preview and confirm it again.',
+      noReconfirmation: 'This change does not require pricing reconfirmation.',
+      adminRequired: 'Only an administrator can complete a pricing-affecting change.',
+      economics: 'Economics',
+      totalPaid: 'Total paid',
+      remaining: 'Remaining',
+      correctAgreement: 'Correct agreement',
+      correct: 'Save correction',
+      cancelCorrection: 'Cancel',
+      errors: {
+        invalidAmount: 'Enter a non-negative whole amount with at most 19 digits.',
+        reasonRequired: 'Provide a reason when the agreement differs from the suggestion.',
+        confirmationRequired: 'Review and confirm the current pricing before continuing.',
+        previewRequired: 'A current pricing preview is required.',
+        previewFailed: 'Pricing preview could not be loaded.',
+        stale: 'The pricing confirmation is stale. Confirm the fresh preview.',
+        adminRequired: 'Only an administrator can confirm this new pricing.',
+        correctionReasonRequired: 'Provide a reason for the correction.',
+        correctionFailed: 'The agreed amount could not be corrected.',
+      },
     },
     filters: {
       searchAriaLabel: 'Stay search filters',

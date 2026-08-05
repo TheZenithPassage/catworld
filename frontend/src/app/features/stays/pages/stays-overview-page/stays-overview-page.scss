@@ -115,3 +115,23 @@
     flex-direction: column;
   }
 }
+.economics-cell,
+.correction-form {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 12rem;
+}
+
+.economics-cell span {
+  overflow-wrap: anywhere;
+}
+.correction-form {
+  padding-block: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .economics-cell,
+  .correction-form {
+    min-width: 10rem;
+  }
+}

@@ -7,6 +7,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
@@ -129,6 +130,11 @@ describe('StayCreatePage', () => {
       { catId: 'cat-1', name: 'Milo' },
       { catId: 'cat-2', name: 'Luna' },
     ],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
   };
 
   const ownerApiService = {
@@ -141,6 +147,7 @@ describe('StayCreatePage', () => {
 
   const stayApiService = {
     createStay: vi.fn(),
+    previewCreationPricing: vi.fn(),
   };
 
   const router = {
@@ -169,6 +176,17 @@ describe('StayCreatePage', () => {
     ],
   };
 
+  const pricingPreview = {
+    numberOfNights: 7,
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    confirmation: { numberOfNights: 7, retainedNightlyRate: '50', suggestedAmount: '100' },
+  };
+  const confirmedPricingRequest = {
+    pricingDecision: { agreedAmount: '100', reason: null },
+    confirmation: pricingPreview.confirmation,
+  };
+
   beforeEach(async () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
@@ -180,6 +198,7 @@ describe('StayCreatePage', () => {
     queryParams = {};
     ownerApiService.getOwners.mockReturnValue(of(owners));
     catApiService.getCats.mockReturnValue(of(cats));
+    stayApiService.previewCreationPricing.mockReturnValue(of(pricingPreview));
 
     await TestBed.configureTestingModule({
       imports: [StayCreatePage],
@@ -230,6 +249,12 @@ describe('StayCreatePage', () => {
   function createComponent(): void {
     fixture = TestBed.createComponent(StayCreatePage);
     component = fixture.componentInstance;
+  }
+
+  function prepareConfirmedPricing(): void {
+    component.pricingPreview.set(pricingPreview);
+    component.agreedAmount.set('100');
+    component.confirmPricing();
   }
 
   it('renders Material stay create fields, owner select, link and submit action', () => {
@@ -286,6 +311,7 @@ describe('StayCreatePage', () => {
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
     component.notes.set('  needs quiet room  ');
+    prepareConfirmedPricing();
 
     component.submit();
 
@@ -295,6 +321,7 @@ describe('StayCreatePage', () => {
       endAt: '2099-01-09T10:00',
       notes: 'needs quiet room',
       overrideVaccineConflicts: false,
+      ...confirmedPricingRequest,
     });
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
@@ -316,6 +343,7 @@ describe('StayCreatePage', () => {
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
 
     component.submit();
     fixture.detectChanges();
@@ -345,6 +373,7 @@ describe('StayCreatePage', () => {
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
     component.notes.set('  quiet room  ');
+    prepareConfirmedPricing();
 
     component.submit();
 
@@ -374,6 +403,7 @@ describe('StayCreatePage', () => {
       endAt: '2099-01-09T10:00',
       notes: 'quiet room',
       overrideVaccineConflicts: false,
+      ...confirmedPricingRequest,
     });
   });
 
@@ -396,6 +426,7 @@ describe('StayCreatePage', () => {
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
     component.notes.set('needs quiet room');
+    prepareConfirmedPricing();
 
     component.submit();
     dialogClosed.next(true);
@@ -406,6 +437,7 @@ describe('StayCreatePage', () => {
       endAt: '2099-01-09T10:00',
       notes: 'needs quiet room',
       overrideVaccineConflicts: true,
+      ...confirmedPricingRequest,
     });
     expect(stayApiService.createStay).toHaveBeenCalledTimes(2);
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
@@ -428,6 +460,7 @@ describe('StayCreatePage', () => {
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
 
     component.submit();
 
@@ -466,12 +499,14 @@ describe('StayCreatePage', () => {
               status: 409,
             }),
         ),
-      );
+      )
+      .mockReturnValueOnce(of(createdStay));
 
     component.selectedOwnerId.set('owner-1');
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
 
     component.submit();
     dialogClosed.next(true);
@@ -479,5 +514,133 @@ describe('StayCreatePage', () => {
     expect(matDialog.open).toHaveBeenCalledTimes(1);
     expect(component.error()).toBe('Stay still conflicts');
     expect(component.submitting()).toBe(false);
+
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
+  });
+
+  it('preserves an approved override only through stale recovery for the unchanged request', () => {
+    stayApiService.createStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdStay));
+    createComponent();
+    component.selectedOwnerId.set('owner-1');
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.confirmPricing();
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ overrideVaccineConflicts: true }),
+    );
+  });
+
+  it('clears stale-recovery override approval when the creation request basis changes', () => {
+    stayApiService.createStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdStay));
+    createComponent();
+    component.selectedOwnerId.set('owner-1');
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.onCatToggle('cat-2', true);
+    component.confirmPricing();
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        catIds: ['cat-1', 'cat-2'],
+        overrideVaccineConflicts: false,
+      }),
+    );
+  });
+
+  it('clears an active pricing-preview error when the language changes', () => {
+    stayApiService.previewCreationPricing.mockReturnValue(throwError(() => new Error('offline')));
+    queryParams = { ownerId: 'owner-1', catId: 'cat-1' };
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.previewFailed);
+
+    TestBed.inject(I18nService).toggleLanguage();
+    TestBed.flushEffects();
+
+    expect(component.previewError()).toBeNull();
+  });
+
+  it('preserves an exact 19-digit agreement and requires reconfirmation after a stale conflict', () => {
+    queryParams = { ownerId: 'owner-1', catId: 'cat-1' };
+    const exactPreview = {
+      numberOfNights: 0,
+      retainedNightlyRate: '9999999999999999999',
+      suggestedAmount: '0',
+      confirmation: {
+        numberOfNights: 0,
+        retainedNightlyRate: '9999999999999999999',
+        suggestedAmount: '0',
+      },
+    };
+    stayApiService.previewCreationPricing.mockReturnValue(of(exactPreview));
+    stayApiService.createStay.mockReturnValue(
+      throwError(
+        () => new HttpErrorResponse({ status: 409, error: { code: 'STALE_PRICING_CONFIRMATION' } }),
+      ),
+    );
+    createComponent();
+    component.agreedAmount.set('9999999999999999999');
+    component.pricingReason.set('Client agreement');
+    component.confirmPricing();
+
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pricingDecision: { agreedAmount: '9999999999999999999', reason: 'Client agreement' },
+        confirmation: exactPreview.confirmation,
+      }),
+    );
+    expect(stayApiService.createStay).toHaveBeenCalledTimes(1);
+    expect(component.stalePricing()).toBe(true);
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.agreedAmount()).toBe('9999999999999999999');
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(2);
   });
 });

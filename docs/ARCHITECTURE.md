@@ -775,6 +775,20 @@ same request once with request-scoped vaccine-override intent. Closing or
 cancelling preserves the entered form values, fresh submissions do not retain
 override intent, and the backend remains authoritative for the role policy.
 
+Stay creation and date editing also consume the backend pricing-preview
+contracts. Angular keeps every monetary value as an exact decimal string,
+invalidates confirmation when pricing-relevant inputs change, rejects late
+preview responses for an older input basis and submits pricing only after an
+explicit confirmation. Existing-stay updates follow the backend
+`pricingDecisionRequired` result: ordinary edits remain available to both roles,
+while only `ADMIN` may confirm a pricing-affecting date change. A
+`STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
+state, obtains a fresh preview and never retries until the user explicitly
+reconfirms. The stays overview renders backend-supplied retained rate,
+suggestion, agreement, paid total and remaining amount, and exposes focused
+agreement correction only to `ADMIN`; successful correction replaces the row
+with the complete authoritative response.
+
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
 controls remain a separate integration boundary. Material inputs, supported
