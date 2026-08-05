@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.sensitiveactivity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -10,9 +11,9 @@ public record PricingOverrideActivityDTO(
         Instant occurredAt,
         SensitiveActorDTO actor,
         SensitiveStayContextDTO affectedContext,
-        BigDecimal retainedNightlyRate,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal retainedNightlyRate,
         long numberOfNights,
-        BigDecimal agreedAmount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal agreedAmount,
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }

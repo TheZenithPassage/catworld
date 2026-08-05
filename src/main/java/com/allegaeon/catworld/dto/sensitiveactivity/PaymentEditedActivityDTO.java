@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.sensitiveactivity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,8 +13,8 @@ public record PaymentEditedActivityDTO(
         SensitiveActorDTO actor,
         SensitiveStayContextDTO affectedContext,
         UUID paymentId,
-        BigDecimal previousAmount,
-        BigDecimal newAmount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal previousAmount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal newAmount,
         LocalDate paymentDate,
         String note,
         SensitiveActorDTO registeredBy,

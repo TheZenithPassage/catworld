@@ -2,6 +2,8 @@ package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Cat;
@@ -131,12 +133,12 @@ class StayPricingPersistenceTest {
 
         stayService.updateStay(
                 stayId,
-                updateRequest(fixture.startAt(), 3, new BigDecimal("30"), null)
+                updateRequest(stayId, fixture.startAt(), 3, new BigDecimal("30"), null)
         );
         stayService.updateStay(
                 stayId,
                 updateRequest(
-                        fixture.startAt(),
+                        stayId, fixture.startAt(),
                         4,
                         new BigDecimal("35"),
                         "Client negotiated a whole-stay amount"
@@ -229,7 +231,7 @@ class StayPricingPersistenceTest {
                 () -> stayService.updateStay(
                         stayId,
                         updateRequest(
-                                fixture.startAt(),
+                                stayId, fixture.startAt(),
                                 3,
                                 new BigDecimal("30"),
                                 null
@@ -648,7 +650,7 @@ class StayPricingPersistenceTest {
             PersistenceFixture fixture,
             BigDecimal retainedNightlyRate,
             BigDecimal agreedAmount) {
-        LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+        LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
         return Stay.builder()
                 .startAt(startAt)
                 .endAt(startAt.plusDays(2))
@@ -688,7 +690,7 @@ class StayPricingPersistenceTest {
                 .primaryPhone("555-0177")
                 .createdBy(actor)
                 .build());
-        LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+        LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
         Cat cat = catRepository.saveAndFlush(Cat.builder()
                 .name("Milo")
                 .birthDate(startAt.minusYears(3).toLocalDate())
@@ -706,23 +708,41 @@ class StayPricingPersistenceTest {
         nightlyReferenceRateRepository.saveAndFlush(rate);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
+        Set<UUID> catIds = Set.of(cat.getId());
+        var confirmation = stayService.previewCreationPricing(
+                        StayCreationPricingPreviewRequestDTO.builder()
+                                .startAt(startAt)
+                                .endAt(startAt.plusDays(2))
+                                .catIds(catIds)
+                                .build())
+                .getConfirmation();
+
         StayResponseDTO response = stayService.createStay(StayRequestDTO.builder()
                 .startAt(startAt)
                 .endAt(startAt.plusDays(2))
-                .catIds(Set.of(cat.getId()))
+                .catIds(catIds)
                 .pricingDecision(PricingDecisionRequestDTO.builder()
                         .agreedAmount(new BigDecimal("20"))
                         .build())
+                .confirmation(confirmation)
                 .build());
 
         return new PricingFixture(actor, startAt, response);
     }
 
     private StayUpdateDTO updateRequest(
+            UUID stayId,
             LocalDateTime startAt,
             long nights,
             BigDecimal agreedAmount,
             String reason) {
+        var confirmation = stayService.previewDateChangePricing(
+                        stayId,
+                        StayDatePricingPreviewRequestDTO.builder()
+                                .startAt(startAt)
+                                .endAt(startAt.plusDays(nights))
+                                .build())
+                .getConfirmation();
         return StayUpdateDTO.builder()
                 .startAt(startAt)
                 .endAt(startAt.plusDays(nights))
@@ -730,6 +750,7 @@ class StayPricingPersistenceTest {
                         .agreedAmount(agreedAmount)
                         .reason(reason)
                         .build())
+                .confirmation(confirmation)
                 .build();
     }
 

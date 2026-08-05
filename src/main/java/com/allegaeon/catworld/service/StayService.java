@@ -1,6 +1,8 @@
 package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
+import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
@@ -8,6 +10,10 @@ import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
 import com.allegaeon.catworld.dto.VaccineConflictReason;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.dto.VaccineType;
@@ -15,6 +21,7 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
@@ -58,8 +65,10 @@ import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -137,6 +146,28 @@ public class StayService implements IStayService {
     }
 
     @Override
+    public StayPricingPreviewResponseDTO previewCreationPricing(
+            StayCreationPricingPreviewRequestDTO request) {
+        validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        stayPricingAuthorizationPolicy.authorizeCreation(currentUser);
+        List<Cat> cats = resolvePricingPreviewCats(request.getCatIds());
+        CreationPricingBasis basis = creationPricingBasis(
+                request.getStartAt(), request.getEndAt(), cats.size(),
+                nightlyReferenceRateRepository::findById);
+        return creationPreview(basis);
+    }
+
+    @Override
+    public StayDatePricingPreviewResponseDTO previewDateChangePricing(
+            UUID stayId, StayDatePricingPreviewRequestDTO request) {
+        validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
+        Stay stay = getStayEntity(stayId);
+        validateStayCanBeModified(stay);
+        return dateChangePreview(stay, request.getStartAt(), request.getEndAt());
+    }
+
+    @Override
     @Transactional
     public StayResponseDTO createStay(StayRequestDTO stayRequestDTO) {
 
@@ -175,29 +206,16 @@ public class StayService implements IStayService {
                 stayRequestDTO.isOverrideVaccineConflicts(),
                 currentUser);
 
-        NightlyReferenceRateCategory category = NightlyReferenceRateCategory
-                .fromActualCatCount(cats.size())
-                .orElseThrow(() -> new BadRequestException(
-                        "A stay must contain at least one cat"
-                ));
-        NightlyReferenceRate currentRate = nightlyReferenceRateRepository
-                .findById(category)
-                .orElseThrow(() -> new ConflictException(
-                        "Nightly reference-rate configuration is incomplete"
-                ));
-        BigDecimal retainedNightlyRate = validateRetainedNightlyRate(
-                currentRate.getNightlyRate()
-        );
-
-        long numberOfNights = stayMapper.calculateNumberOfNights(
-                stayRequestDTO.getStartAt(),
-                stayRequestDTO.getEndAt()
-        );
-        BigDecimal suggestedAmount = stayMapper.calculateSuggestedAmount(
-                retainedNightlyRate,
-                numberOfNights
-        );
+        CreationPricingBasis basis = creationPricingBasis(
+                stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cats.size(),
+                nightlyReferenceRateRepository::findByCategoryForUpdate);
+        BigDecimal retainedNightlyRate = basis.retainedNightlyRate();
+        long numberOfNights = basis.numberOfNights();
+        BigDecimal suggestedAmount = basis.suggestedAmount();
         PricingDecisionRequestDTO pricingDecision = stayRequestDTO.getPricingDecision();
+        validateCreationConfirmation(
+                stayRequestDTO.getConfirmation(), numberOfNights,
+                retainedNightlyRate, suggestedAmount);
         BigDecimal agreedAmount = validatePricingDecision(
                 pricingDecision,
                 suggestedAmount
@@ -249,6 +267,16 @@ public class StayService implements IStayService {
         if (pricingAffecting) {
             currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
+        }
+        if (pricingAffecting || stayUpdateDTO.getConfirmation() != null) {
+            validateDateChangeConfirmation(
+                    stayUpdateDTO.getConfirmation(), previousNumberOfNights,
+                    previousAgreedAmount, newNumberOfNights,
+                    stay.getRetainedNightlyRate(),
+                    stayMapper.calculateSuggestedAmount(
+                            stay.getRetainedNightlyRate(), newNumberOfNights));
+        }
+        if (pricingAffecting) {
             newAgreedAmount = validatePricingDecision(
                     stayUpdateDTO.getPricingDecision(),
                     stayMapper.calculateSuggestedAmount(
@@ -631,6 +659,130 @@ public class StayService implements IStayService {
             );
         }
         return WholeMonetaryAmount.canonicalize(retainedNightlyRate);
+    }
+
+    private List<Cat> resolvePricingPreviewCats(Set<UUID> catIds) {
+        List<Cat> cats = catIds.stream().map(this::getCatEntity).toList();
+        UUID ownerId = cats.get(0).getOwner().getId();
+        if (cats.stream().anyMatch(cat -> !ownerId.equals(cat.getOwner().getId()))) {
+            throw new BadRequestException("Owner must be the same for all the cats");
+        }
+        return cats;
+    }
+
+    private NightlyReferenceRateCategory categoryFor(int catCount) {
+        return NightlyReferenceRateCategory.fromActualCatCount(catCount)
+                .orElseThrow(() -> new BadRequestException(
+                        "A stay must contain at least one cat"));
+    }
+
+    private CreationPricingBasis creationPricingBasis(
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            int catCount,
+            Function<NightlyReferenceRateCategory,
+                    Optional<NightlyReferenceRate>> rateLookup) {
+        NightlyReferenceRateCategory category = categoryFor(catCount);
+        NightlyReferenceRate currentRate = rateLookup.apply(category)
+                .orElseThrow(() -> new ConflictException(
+                        "Nightly reference-rate configuration is incomplete"));
+        BigDecimal retainedRate = validateRetainedNightlyRate(
+                currentRate.getNightlyRate());
+        long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        BigDecimal suggestion = stayMapper.calculateSuggestedAmount(
+                retainedRate, nights);
+        return new CreationPricingBasis(
+                category, nights, retainedRate, suggestion);
+    }
+
+    private StayPricingPreviewResponseDTO creationPreview(
+            CreationPricingBasis basis) {
+        return StayPricingPreviewResponseDTO.builder()
+                .numberOfNights(basis.numberOfNights())
+                .retainedNightlyRate(basis.retainedNightlyRate())
+                .suggestedAmount(basis.suggestedAmount())
+                .confirmation(CreationPricingConfirmationDTO.builder()
+                        .numberOfNights(basis.numberOfNights())
+                        .retainedNightlyRate(basis.retainedNightlyRate())
+                        .suggestedAmount(basis.suggestedAmount())
+                        .build())
+                .build();
+    }
+
+    private record CreationPricingBasis(
+            NightlyReferenceRateCategory category,
+            long numberOfNights,
+            BigDecimal retainedNightlyRate,
+            BigDecimal suggestedAmount) {
+    }
+
+    private StayDatePricingPreviewResponseDTO dateChangePreview(
+            Stay stay, LocalDateTime startAt, LocalDateTime endAt) {
+        long previousNights = stayMapper.calculateNumberOfNights(
+                stay.getStartAt(), stay.getEndAt());
+        long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        boolean pricingDecisionRequired = previousNights != nights;
+        if (pricingDecisionRequired) {
+            UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+            stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
+        }
+        BigDecimal suggestion = stayMapper.calculateSuggestedAmount(
+                stay.getRetainedNightlyRate(), nights);
+        ExistingStayPricingConfirmationDTO confirmation = pricingDecisionRequired
+                ? ExistingStayPricingConfirmationDTO.builder()
+                        .previousNumberOfNights(previousNights)
+                        .previousAgreedAmount(stay.getAgreedAmount())
+                        .numberOfNights(nights)
+                        .retainedNightlyRate(stay.getRetainedNightlyRate())
+                        .suggestedAmount(suggestion)
+                        .build()
+                : null;
+        return StayDatePricingPreviewResponseDTO.builder()
+                .pricingDecisionRequired(pricingDecisionRequired)
+                .currentNumberOfNights(previousNights)
+                .currentAgreedAmount(stay.getAgreedAmount())
+                .numberOfNights(nights)
+                .retainedNightlyRate(stay.getRetainedNightlyRate())
+                .suggestedAmount(suggestion)
+                .confirmation(confirmation)
+                .build();
+    }
+
+    private void validateCreationConfirmation(
+            CreationPricingConfirmationDTO confirmation, long nights,
+            BigDecimal retainedRate, BigDecimal suggestion) {
+        if (confirmation == null || confirmation.getNumberOfNights() == null) {
+            throw new BadRequestException("Pricing confirmation is required");
+        }
+        if (confirmation.getNumberOfNights() != nights
+                || !sameMoney(confirmation.getRetainedNightlyRate(), retainedRate)
+                || !sameMoney(confirmation.getSuggestedAmount(), suggestion)) {
+            throw new StalePricingConfirmationException();
+        }
+    }
+
+    private void validateDateChangeConfirmation(
+            ExistingStayPricingConfirmationDTO confirmation,
+            long previousNights, BigDecimal previousAgreement,
+            long proposedNights, BigDecimal retainedRate,
+            BigDecimal suggestion) {
+        if (confirmation == null
+                || confirmation.getPreviousNumberOfNights() == null
+                || confirmation.getNumberOfNights() == null) {
+            throw new BadRequestException("Pricing confirmation is required");
+        }
+        if (confirmation.getPreviousNumberOfNights() != previousNights
+                || !sameMoney(confirmation.getPreviousAgreedAmount(), previousAgreement)
+                || confirmation.getNumberOfNights() != proposedNights
+                || !sameMoney(confirmation.getRetainedNightlyRate(), retainedRate)
+                || !sameMoney(confirmation.getSuggestedAmount(), suggestion)) {
+            throw new StalePricingConfirmationException();
+        }
+    }
+
+    private boolean sameMoney(BigDecimal clientValue, BigDecimal authoritative) {
+        return clientValue == null ? authoritative == null
+                : authoritative != null && clientValue.compareTo(authoritative) == 0;
     }
 
     private BigDecimal validatePricingDecision(

@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.sensitiveactivity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,7 +13,7 @@ public record PaymentAnnulledActivityDTO(
         SensitiveActorDTO actor,
         SensitiveStayContextDTO affectedContext,
         UUID paymentId,
-        BigDecimal amount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal amount,
         LocalDate paymentDate,
         String note,
         SensitiveActorDTO registeredBy,

@@ -38,8 +38,8 @@ class SensitiveEconomicActivityControllerTest {
                         new SensitiveActorDTO(actorId, "admin"),
                         null,
                         com.allegaeon.catworld.model.NightlyReferenceRateCategory.ONE_CAT,
-                        new BigDecimal("10"),
-                        new BigDecimal("12"))));
+                        new BigDecimal("9999999999999999998"),
+                        new BigDecimal("9999999999999999999"))));
 
         mockMvc.perform(get("/api/sensitive-economic-activity")
                         .param("actorId", actorId.toString())
@@ -51,8 +51,10 @@ class SensitiveEconomicActivityControllerTest {
                 .andExpect(jsonPath("$[0].eventType")
                         .value("NIGHTLY_RATE_CHANGED"))
                 .andExpect(jsonPath("$[0].actor.id").value(actorId.toString()))
-                .andExpect(jsonPath("$[0].previousRate").value(10))
-                .andExpect(jsonPath("$[0].newRate").value(12));
+                .andExpect(jsonPath("$[0].previousRate")
+                        .value("9999999999999999998"))
+                .andExpect(jsonPath("$[0].newRate")
+                        .value("9999999999999999999"));
 
         verify(service).getActivity(new SensitiveEconomicActivityFilter(
                 actorId,

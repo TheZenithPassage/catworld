@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.sensitiveactivity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 
 import java.math.BigDecimal;
@@ -13,7 +14,7 @@ public record NightlyRateChangedActivityDTO(
         SensitiveActorDTO actor,
         SensitiveStayContextDTO affectedContext,
         NightlyReferenceRateCategory category,
-        BigDecimal previousRate,
-        BigDecimal newRate)
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal previousRate,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal newRate)
         implements SensitiveEconomicActivityResponseDTO {
 }
