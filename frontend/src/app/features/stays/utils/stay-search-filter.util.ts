@@ -1,4 +1,35 @@
-import { Stay } from '../models/stay.model';
+import { PaymentCondition, Stay } from '../models/stay.model';
+
+export const PAYMENT_CONDITION_FILTER_OPTIONS: readonly PaymentCondition[] = [
+  'NO_PAYMENT',
+  'PARTIAL_PAYMENT',
+  'FULL_PAYMENT',
+];
+
+export type PaymentConditionVisibility = Record<PaymentCondition, boolean>;
+
+export interface StayPaymentFilters {
+  conditionVisibility: PaymentConditionVisibility;
+  outstandingOnly: boolean;
+}
+
+export function getDefaultStayPaymentFilters(): StayPaymentFilters {
+  return {
+    conditionVisibility: {
+      NO_PAYMENT: true,
+      PARTIAL_PAYMENT: true,
+      FULL_PAYMENT: true,
+    },
+    outstandingOnly: false,
+  };
+}
+
+export function isStayVisibleByPaymentFilters(stay: Stay, filters: StayPaymentFilters): boolean {
+  return (
+    filters.conditionVisibility[stay.paymentCondition] &&
+    (!filters.outstandingOnly || stay.outstandingCollectionEligible)
+  );
+}
 
 export interface StaySearchFilters {
   catId: string | null;

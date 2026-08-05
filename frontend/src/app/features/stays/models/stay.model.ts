@@ -23,9 +23,13 @@ export interface Stay {
   agreedAmount: MonetaryAmount | null;
   totalPaid: MonetaryAmount;
   remainingAmount: MonetaryAmount;
+  paymentCondition: PaymentCondition;
+  outstandingCollectionEligible: boolean;
 }
 
 export type MonetaryAmount = string;
+
+export type PaymentCondition = 'NO_PAYMENT' | 'PARTIAL_PAYMENT' | 'FULL_PAYMENT';
 
 export interface PricingDecision {
   agreedAmount: MonetaryAmount;

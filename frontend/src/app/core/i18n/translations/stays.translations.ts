@@ -48,6 +48,13 @@ export interface StaysTranslations {
   };
   filters: {
     searchAriaLabel: string;
+    paymentAriaLabel: string;
+    outstandingOnly: string;
+    paymentCondition: {
+      NO_PAYMENT: string;
+      PARTIAL_PAYMENT: string;
+      FULL_PAYMENT: string;
+    };
     cat: string;
     searchCat: string;
     clear: string;
@@ -200,6 +207,13 @@ export const STAYS_TRANSLATIONS = {
     },
     filters: {
       searchAriaLabel: 'Filtros de búsqueda de estancias',
+      paymentAriaLabel: 'Filtros de cobro de estancias',
+      outstandingOnly: 'Solo cobros pendientes',
+      paymentCondition: {
+        NO_PAYMENT: 'Sin pagos',
+        PARTIAL_PAYMENT: 'Pago parcial',
+        FULL_PAYMENT: 'Pago completo',
+      },
       cat: 'Gato',
       searchCat: 'Buscar gato',
       clear: 'Limpiar',
@@ -351,6 +365,13 @@ export const STAYS_TRANSLATIONS = {
     },
     filters: {
       searchAriaLabel: 'Stay search filters',
+      paymentAriaLabel: 'Stay payment filters',
+      outstandingOnly: 'Outstanding collection only',
+      paymentCondition: {
+        NO_PAYMENT: 'No payment',
+        PARTIAL_PAYMENT: 'Partial payment',
+        FULL_PAYMENT: 'Full payment',
+      },
       cat: 'Cat',
       searchCat: 'Search cat',
       clear: 'Clear',

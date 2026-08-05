@@ -30,6 +30,8 @@ describe('StaysOverviewPage', () => {
     agreedAmount: '100',
     totalPaid: '0',
     remainingAmount: '100',
+    paymentCondition: 'NO_PAYMENT',
+    outstandingCollectionEligible: true,
   };
 
   const cancelledStay: Stay = {
@@ -38,6 +40,38 @@ describe('StaysOverviewPage', () => {
     cancelledAt: '2026-07-03T11:00:00',
     notes: null,
     cats: [{ catId: 'cat-2', name: 'Luna' }],
+    agreedAmount: '0',
+    totalPaid: '0',
+    remainingAmount: '0',
+    outstandingCollectionEligible: false,
+  };
+
+  const partialCheckedOutStay: Stay = {
+    ...reservedStay,
+    stayId: 'stay-3',
+    startAt: '2026-01-01T10:00:00',
+    endAt: '2026-01-08T10:00:00',
+    ownerId: 'owner-2',
+    ownerName: 'Grace Hopper',
+    cats: [{ catId: 'cat-3', name: 'Pixel' }],
+    agreedAmount: '9999999999999999999',
+    totalPaid: '1',
+    remainingAmount: '9999999999999999998',
+    paymentCondition: 'PARTIAL_PAYMENT',
+    outstandingCollectionEligible: true,
+  };
+
+  const fullStay: Stay = {
+    ...reservedStay,
+    stayId: 'stay-4',
+    ownerId: 'owner-3',
+    ownerName: 'Katherine Johnson',
+    cats: [{ catId: 'cat-4', name: 'Orbit' }],
+    agreedAmount: null,
+    totalPaid: '100',
+    remainingAmount: '0',
+    paymentCondition: 'FULL_PAYMENT',
+    outstandingCollectionEligible: false,
   };
 
   const stayApiService = {
@@ -58,7 +92,9 @@ describe('StaysOverviewPage', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
     queryParams = { selectedStayId: 'stay-1' };
-    stayApiService.getStays.mockReturnValue(of([reservedStay, cancelledStay]));
+    stayApiService.getStays.mockReturnValue(
+      of([reservedStay, cancelledStay, partialCheckedOutStay, fullStay]),
+    );
     stayApiService.cancelStay.mockReturnValue(of({ ...reservedStay, cancelledAt: 'now' }));
     visibilityPreferencesService.read.mockReturnValue({
       reserved: true,
@@ -125,6 +161,99 @@ describe('StaysOverviewPage', () => {
     expect(compiled.textContent).toContain(component.text().stays.overview.alreadyCancelled);
   });
 
+  it('renders exact authoritative economics and localized payment conditions', () => {
+    createComponent();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const zeroEconomics = compiled.querySelector('#stay-stay-2 .economics-cell')?.textContent;
+    const nullPermittedEconomics = compiled.querySelector(
+      '#stay-stay-4 .economics-cell',
+    )?.textContent;
+
+    expect(zeroEconomics).toContain(`${component.text().stays.pricing.agreement}: 0`);
+    expect(zeroEconomics).toContain(`${component.text().stays.pricing.totalPaid}: 0`);
+    expect(zeroEconomics).toContain(`${component.text().stays.pricing.remaining}: 0`);
+    expect(nullPermittedEconomics).toContain(
+      `${component.text().stays.pricing.agreement}: ${component.text().stays.pricing.unavailable}`,
+    );
+    expect(compiled.textContent).toContain('9999999999999999999');
+    expect(compiled.textContent).toContain('9999999999999999998');
+    expect(compiled.textContent).toContain(
+      component.text().stays.filters.paymentCondition.NO_PAYMENT,
+    );
+    expect(compiled.textContent).toContain(
+      component.text().stays.filters.paymentCondition.PARTIAL_PAYMENT,
+    );
+    expect(compiled.textContent).toContain(
+      component.text().stays.filters.paymentCondition.FULL_PAYMENT,
+    );
+    expect(compiled.textContent).not.toContain('PARTIAL_PAYMENT');
+    const paymentGroup = compiled.querySelector(
+      `[role="group"][aria-label="${component.text().stays.filters.paymentAriaLabel}"]`,
+    );
+    expect(paymentGroup).not.toBeNull();
+    expect(paymentGroup?.querySelectorAll('mat-checkbox')).toHaveLength(4);
+    expect(paymentGroup?.textContent).toContain(component.text().stays.filters.outstandingOnly);
+  });
+
+  it('composes authoritative payment filters and retains them across refresh', () => {
+    createComponent();
+
+    component.setPaymentConditionVisibility('NO_PAYMENT', false);
+    component.setPaymentConditionVisibility('FULL_PAYMENT', false);
+    component.setOutstandingOnly(true);
+    fixture.detectChanges();
+
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+
+    component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    expect(component.filteredStays()).toEqual([]);
+    component.setSearchFilters({ catId: 'cat-3', ownerId: null });
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+
+    component.setSearchFilters({ catId: null, ownerId: 'owner-1' });
+    expect(component.filteredStays()).toEqual([]);
+    component.setSearchFilters({ catId: null, ownerId: 'owner-2' });
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+    component.setSearchFilters({ catId: null, ownerId: null });
+
+    component.setStatusVisibility('checked-out', false);
+    fixture.detectChanges();
+    expect(component.filteredStays()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain(
+      component.text().stays.overview.emptyFiltered,
+    );
+
+    component.setStatusVisibility('checked-out', true);
+    component.loadStays();
+    fixture.detectChanges();
+
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+    expect(component.paymentFilters().outstandingOnly).toBe(true);
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+  });
+
+  it('clears payment dimensions independently and never infers outstanding eligibility', () => {
+    createComponent();
+
+    component.setPaymentConditionVisibility('NO_PAYMENT', false);
+    component.setPaymentConditionVisibility('PARTIAL_PAYMENT', false);
+    component.setPaymentConditionVisibility('FULL_PAYMENT', false);
+    expect(component.filteredStays()).toEqual([]);
+
+    component.setPaymentConditionVisibility('PARTIAL_PAYMENT', true);
+    component.setOutstandingOnly(true);
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+
+    component.setOutstandingOnly(false);
+    expect(component.filteredStays().map((stay) => stay.stayId)).toEqual(['stay-3']);
+
+    component.setPaymentConditionVisibility('NO_PAYMENT', true);
+    expect(component.filteredStays().map((stay) => stay.stayId)).toContain('stay-2');
+    component.setOutstandingOnly(true);
+    expect(component.filteredStays().map((stay) => stay.stayId)).not.toContain('stay-2');
+  });
+
   it('preserves cancellation confirmation, API call, reload, and error behavior', () => {
     createComponent();
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -163,6 +292,8 @@ describe('StaysOverviewPage', () => {
     createComponent();
 
     component.setStatusVisibility('reserved', false);
+    component.setStatusVisibility('checked-in', false);
+    component.setStatusVisibility('checked-out', false);
     component.setStatusVisibility('cancelled', false);
     fixture.detectChanges();
 

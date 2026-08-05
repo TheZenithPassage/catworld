@@ -26,6 +26,8 @@ describe('StaySearchFiltersComponent', () => {
       agreedAmount: '100',
       totalPaid: '0',
       remainingAmount: '100',
+      paymentCondition: 'NO_PAYMENT',
+      outstandingCollectionEligible: true,
     },
     {
       stayId: 'stay-2',
@@ -45,6 +47,8 @@ describe('StaySearchFiltersComponent', () => {
       agreedAmount: '100',
       totalPaid: '0',
       remainingAmount: '100',
+      paymentCondition: 'NO_PAYMENT',
+      outstandingCollectionEligible: true,
     },
   ];
 

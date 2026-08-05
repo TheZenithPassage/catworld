@@ -12,14 +12,18 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
-import { Stay } from '../../models/stay.model';
+import { PaymentCondition, Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
+  getDefaultStayPaymentFilters,
   getDefaultStaySearchFilters,
+  isStayVisibleByPaymentFilters,
   isStayVisibleBySearchFilters,
+  PAYMENT_CONDITION_FILTER_OPTIONS,
+  PaymentConditionVisibility,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 import {
@@ -64,10 +68,12 @@ export class StaysOverviewPage {
   readonly dateLocale = this.i18nService.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
+  readonly paymentConditionFilterOptions = PAYMENT_CONDITION_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(
     this.stayStatusVisibilityPreferencesService.read(),
   );
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
+  readonly paymentFilters = signal(getDefaultStayPaymentFilters());
   readonly displayedColumns = [
     'state',
     'start',
@@ -84,7 +90,8 @@ export class StaysOverviewPage {
     this.stays().filter(
       (stay) =>
         isStayVisibleByStatus(stay, this.statusVisibility()) &&
-        isStayVisibleBySearchFilters(stay, this.searchFilters()),
+        isStayVisibleBySearchFilters(stay, this.searchFilters()) &&
+        isStayVisibleByPaymentFilters(stay, this.paymentFilters()),
     ),
   );
 
@@ -129,6 +136,10 @@ export class StaysOverviewPage {
 
   getStayStatus(stay: Stay): string {
     return this.text().stays.status[getStayStatus(stay)];
+  }
+
+  getPaymentCondition(stay: Stay): string {
+    return this.text().stays.filters.paymentCondition[stay.paymentCondition];
   }
 
   formatDate(value: string | null): string {
@@ -273,6 +284,24 @@ export class StaysOverviewPage {
 
   setSearchFilters(filters: StaySearchFilters): void {
     this.searchFilters.set(filters);
+  }
+
+  isPaymentConditionVisible(condition: PaymentCondition): boolean {
+    return this.paymentFilters().conditionVisibility[condition];
+  }
+
+  setPaymentConditionVisibility(condition: PaymentCondition, checked: boolean): void {
+    this.paymentFilters.update((filters) => ({
+      ...filters,
+      conditionVisibility: {
+        ...filters.conditionVisibility,
+        [condition]: checked,
+      } satisfies PaymentConditionVisibility,
+    }));
+  }
+
+  setOutstandingOnly(checked: boolean): void {
+    this.paymentFilters.update((filters) => ({ ...filters, outstandingOnly: checked }));
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

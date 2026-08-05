@@ -94,7 +94,8 @@
   width: fit-content;
 }
 
-.status-filters {
+.status-filters,
+.payment-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
@@ -106,8 +107,13 @@
   box-shadow: var(--shadow-soft);
 }
 
-.status-filter {
+.status-filter,
+.payment-filter {
   width: fit-content;
+}
+
+.outstanding-filter {
+  margin-inline-start: auto;
 }
 
 @media (max-width: 900px) {
@@ -130,6 +136,10 @@
 }
 
 @media (max-width: 720px) {
+  .outstanding-filter {
+    margin-inline-start: 0;
+  }
+
   .economics-cell,
   .correction-form {
     min-width: 10rem;
