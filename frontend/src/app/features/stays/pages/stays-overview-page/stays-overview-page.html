@@ -102,7 +102,10 @@
               {{ stay.agreedAmount ?? text().stays.pricing.unavailable }}</span
             >
             <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
-            <span>{{ text().stays.pricing.remaining }}: {{ stay.remainingAmount }}</span>
+            <span
+              >{{ text().stays.pricing.remaining }}:
+              {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
+            >
             <span>{{ getPaymentCondition(stay) }}</span>
           </td>
         </ng-container>

@@ -67,10 +67,23 @@ describe('StaysOverviewPage', () => {
     ownerId: 'owner-3',
     ownerName: 'Katherine Johnson',
     cats: [{ catId: 'cat-4', name: 'Orbit' }],
-    agreedAmount: null,
+    agreedAmount: '100',
     totalPaid: '100',
     remainingAmount: '0',
     paymentCondition: 'FULL_PAYMENT',
+    outstandingCollectionEligible: false,
+  };
+
+  const legacyStay: Stay = {
+    ...reservedStay,
+    stayId: 'stay-5',
+    ownerId: 'owner-4',
+    ownerName: 'Dorothy Vaughan',
+    cats: [{ catId: 'cat-5', name: 'Legacy' }],
+    agreedAmount: null,
+    totalPaid: '0',
+    remainingAmount: null,
+    paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: false,
   };
 
@@ -93,7 +106,7 @@ describe('StaysOverviewPage', () => {
     vi.resetAllMocks();
     queryParams = { selectedStayId: 'stay-1' };
     stayApiService.getStays.mockReturnValue(
-      of([reservedStay, cancelledStay, partialCheckedOutStay, fullStay]),
+      of([reservedStay, cancelledStay, partialCheckedOutStay, fullStay, legacyStay]),
     );
     stayApiService.cancelStay.mockReturnValue(of({ ...reservedStay, cancelledAt: 'now' }));
     visibilityPreferencesService.read.mockReturnValue({
@@ -167,7 +180,7 @@ describe('StaysOverviewPage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const zeroEconomics = compiled.querySelector('#stay-stay-2 .economics-cell')?.textContent;
     const nullPermittedEconomics = compiled.querySelector(
-      '#stay-stay-4 .economics-cell',
+      '#stay-stay-5 .economics-cell',
     )?.textContent;
 
     expect(zeroEconomics).toContain(`${component.text().stays.pricing.agreement}: 0`);
@@ -175,6 +188,9 @@ describe('StaysOverviewPage', () => {
     expect(zeroEconomics).toContain(`${component.text().stays.pricing.remaining}: 0`);
     expect(nullPermittedEconomics).toContain(
       `${component.text().stays.pricing.agreement}: ${component.text().stays.pricing.unavailable}`,
+    );
+    expect(nullPermittedEconomics).toContain(
+      `${component.text().stays.pricing.remaining}: ${component.text().stays.pricing.unavailable}`,
     );
     expect(compiled.textContent).toContain('9999999999999999999');
     expect(compiled.textContent).toContain('9999999999999999998');

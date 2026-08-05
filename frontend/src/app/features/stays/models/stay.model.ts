@@ -22,7 +22,7 @@ export interface Stay {
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
   totalPaid: MonetaryAmount;
-  remainingAmount: MonetaryAmount;
+  remainingAmount: MonetaryAmount | null;
   paymentCondition: PaymentCondition;
   outstandingCollectionEligible: boolean;
 }
