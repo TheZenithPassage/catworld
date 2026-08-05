@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class StayPaymentResponseDTO {
 
     private UUID paymentId;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal amount;
     private LocalDate paymentDate;
     private String note;

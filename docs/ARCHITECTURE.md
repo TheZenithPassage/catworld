@@ -319,6 +319,30 @@ retained rate. The service pessimistically locks the stay before comparing
 night counts, then changes the agreement and appends its immutable decision in
 one transaction. Equal-night date or time changes do not reconfirm pricing.
 
+`POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
+read-only authoritative creation preview from proposed dates and selected cats.
+`POST /api/stays/{id}/pricing-preview` gives a persisted `ADMIN` a pricing-
+affecting date-change preview from the existing stay's retained rate, never a
+current global rate; equal-night previews preserve the existing `STAFF` update
+reachability. Preview monetary values are exact decimal strings and each
+pricing-affecting response includes a structured `confirmation` snapshot,
+separate from `pricingDecision`. Final mutations lock and recalculate the
+authoritative basis, compare every snapshot field with numeric monetary and
+exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
+writing. Preview calls persist nothing.
+
+All frontend-consumed stay pricing and payment response amounts, including
+nested operational payments and sensitive economic activity variants, serialize
+as JSON strings when non-null so supported 19-digit values remain exact.
+
+The final pricing decision carries that confirmation. Creation locks and rereads
+the applicable category rate; a pricing-affecting update uses the already locked
+stay. The service recalculates the complete basis inside the mutation transaction
+and compares the confirmation before any operational or pricing-history write.
+A missing confirmation is invalid, while a changed rate, requested pricing input,
+or persisted existing-stay basis returns `409 Conflict` atomically. The
+confirmation is not a client-authoritative quote and is never persisted.
+
 ### Agreed Amounts Have a Focused Administrative Correction Path
 
 `PATCH /api/stays/{id}/agreed-amount` lets an authenticated persisted `ADMIN`

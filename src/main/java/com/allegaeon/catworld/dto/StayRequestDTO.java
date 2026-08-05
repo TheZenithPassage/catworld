@@ -34,4 +34,8 @@ public class StayRequestDTO {
     @NotNull(message = "pricingDecision is required")
     private PricingDecisionRequestDTO pricingDecision;
 
+    @Valid
+    @NotNull(message = "confirmation is required")
+    private CreationPricingConfirmationDTO confirmation;
+
 }

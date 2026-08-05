@@ -27,4 +27,7 @@ public class StayUpdateDTO {
     @Valid
     private PricingDecisionRequestDTO pricingDecision;
 
+    @Valid
+    private ExistingStayPricingConfirmationDTO confirmation;
+
 }

@@ -7,6 +7,8 @@ import com.allegaeon.catworld.dto.StayPaymentResponseDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.VaccineConflictReason;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.dto.VaccineType;
@@ -14,6 +16,7 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.service.IStayService;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +42,14 @@ import java.util.UUID;
 
 @WebMvcTest(StayController.class)
 public class StayControllerTest {
+
+    private static CreationPricingConfirmationDTO creationConfirmation(long nights) {
+        return CreationPricingConfirmationDTO.builder()
+                .numberOfNights(nights)
+                .retainedNightlyRate(new BigDecimal("25"))
+                .suggestedAmount(new BigDecimal("100"))
+                .build();
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -76,6 +87,10 @@ public class StayControllerTest {
                     .retainedNightlyRate(new BigDecimal("25"))
                     .suggestedAmount(new BigDecimal("75"))
                     .agreedAmount(new BigDecimal("70"))
+                    .totalPaid(new BigDecimal("50"))
+                    .remainingAmount(new BigDecimal("20"))
+                    .payments(List.of(StayPaymentResponseDTO.builder()
+                            .amount(new BigDecimal("50")).build()))
                     .canDelete(true)
                     .build());
 
@@ -83,9 +98,12 @@ public class StayControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
                     .andExpect(jsonPath("$.numberOfNights").value(3))
-                    .andExpect(jsonPath("$.retainedNightlyRate").value(25))
-                    .andExpect(jsonPath("$.suggestedAmount").value(75))
-                    .andExpect(jsonPath("$.agreedAmount").value(70))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value("25"))
+                    .andExpect(jsonPath("$.suggestedAmount").value("75"))
+                    .andExpect(jsonPath("$.agreedAmount").value("70"))
+                    .andExpect(jsonPath("$.totalPaid").value("50"))
+                    .andExpect(jsonPath("$.remainingAmount").value("20"))
+                    .andExpect(jsonPath("$.payments[0].amount").value("50"))
                     .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(stayService).getStay(stayId);
@@ -125,6 +143,7 @@ public class StayControllerTest {
                     .pricingDecision(PricingDecisionRequestDTO.builder()
                             .agreedAmount(new BigDecimal("100"))
                             .build())
+                    .confirmation(creationConfirmation(1))
                     .build();
 
             when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(
@@ -141,9 +160,9 @@ public class StayControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
-                    .andExpect(jsonPath("$.retainedNightlyRate").value(25))
-                    .andExpect(jsonPath("$.suggestedAmount").value(25))
-                    .andExpect(jsonPath("$.agreedAmount").value(100))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value("25"))
+                    .andExpect(jsonPath("$.suggestedAmount").value("25"))
+                    .andExpect(jsonPath("$.agreedAmount").value("100"))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -220,6 +239,7 @@ public class StayControllerTest {
                     .pricingDecision(PricingDecisionRequestDTO.builder()
                             .agreedAmount(new BigDecimal("100"))
                             .build())
+                    .confirmation(creationConfirmation(1))
                     .build();
 
             when(stayService.createStay(any(StayRequestDTO.class))).thenThrow(new BadRequestException("Bad Request"));
@@ -246,6 +266,7 @@ public class StayControllerTest {
                     .pricingDecision(PricingDecisionRequestDTO.builder()
                             .agreedAmount(new BigDecimal("100"))
                             .build())
+                    .confirmation(creationConfirmation(4))
                     .build();
             VaccineConflictViolationDTO violation = VaccineConflictViolationDTO.builder()
                     .catId(catId)
@@ -287,6 +308,27 @@ public class StayControllerTest {
                     .andExpect(jsonPath("$.violations[1].expiresOn").hasJsonPath())
                     .andExpect(jsonPath("$.violations[1].expiresOn").value(nullValue()));
 
+        }
+
+        @Test
+        void shouldReturnStableStalePricingConfirmationCode() throws Exception {
+            StayRequestDTO request = StayRequestDTO.builder()
+                    .startAt(LocalDateTime.now().plusDays(1))
+                    .endAt(LocalDateTime.now().plusDays(2))
+                    .catIds(Set.of(UUID.randomUUID()))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100")).build())
+                    .confirmation(creationConfirmation(1))
+                    .build();
+            when(stayService.createStay(any()))
+                    .thenThrow(new StalePricingConfirmationException());
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code")
+                            .value("STALE_PRICING_CONFIRMATION"));
         }
 
     }
@@ -789,6 +831,42 @@ public class StayControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"Concurrent actor deletion\"}"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void returnsExactStringCreationPricingPreview() throws Exception {
+        when(stayService.previewCreationPricing(any())).thenReturn(
+                StayPricingPreviewResponseDTO.builder()
+                        .numberOfNights(1)
+                        .retainedNightlyRate(new BigDecimal("9999999999999999999"))
+                        .suggestedAmount(new BigDecimal("9999999999999999999"))
+                        .confirmation(CreationPricingConfirmationDTO.builder()
+                                .numberOfNights(1L)
+                                .retainedNightlyRate(new BigDecimal("9999999999999999999"))
+                                .suggestedAmount(new BigDecimal("9999999999999999999"))
+                                .build())
+                        .build());
+
+        mockMvc.perform(post("/api/stays/pricing-preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startAt": "2027-08-01T12:00:00",
+                                  "endAt": "2027-08-02T12:00:00",
+                                  "catIds": ["00000000-0000-0000-0000-000000000001"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numberOfNights").value(1))
+                .andExpect(jsonPath("$.retainedNightlyRate")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.suggestedAmount")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.confirmation.numberOfNights").value(1))
+                .andExpect(jsonPath("$.confirmation.retainedNightlyRate")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.confirmation.suggestedAmount")
+                        .value("9999999999999999999"));
     }
 
 

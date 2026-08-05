@@ -8,6 +8,10 @@ import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
 import com.allegaeon.catworld.service.IStayService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +42,19 @@ public class StayController {
     @PostMapping
     public ResponseEntity<StayResponseDTO> createStay(@Valid @RequestBody StayRequestDTO stayRequestDTO) {
         return ResponseEntity.status(HttpStatus.CREATED).body(stayService.createStay(stayRequestDTO));
+    }
+
+    @PostMapping("/pricing-preview")
+    public ResponseEntity<StayPricingPreviewResponseDTO> previewCreationPricing(
+            @Valid @RequestBody StayCreationPricingPreviewRequestDTO request) {
+        return ResponseEntity.ok(stayService.previewCreationPricing(request));
+    }
+
+    @PostMapping("/{id}/pricing-preview")
+    public ResponseEntity<StayDatePricingPreviewResponseDTO> previewDateChangePricing(
+            @PathVariable UUID id,
+            @Valid @RequestBody StayDatePricingPreviewRequestDTO request) {
+        return ResponseEntity.ok(stayService.previewDateChangePricing(id, request));
     }
 
     @PutMapping("/{id}")

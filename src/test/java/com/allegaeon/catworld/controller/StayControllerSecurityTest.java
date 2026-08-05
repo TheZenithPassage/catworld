@@ -41,7 +41,12 @@ class StayControllerSecurityTest {
               "endAt": "2026-08-03T12:00:00",
               "catIds": ["00000000-0000-0000-0000-000000000001"],
               "overrideVaccineConflicts": false,
-              "pricingDecision": {"agreedAmount": 20}
+              "pricingDecision": {"agreedAmount": 20},
+              "confirmation": {
+                "numberOfNights": 2,
+                "retainedNightlyRate": "10",
+                "suggestedAmount": "20"
+              }
             }
             """;
 
@@ -68,6 +73,28 @@ class StayControllerSecurityTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(CREATE_REQUEST))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void adminAndStaffCanReachCreationPricingPreviewContract() throws Exception {
+        String previewRequest = """
+                {
+                  "startAt": "2027-08-01T12:00:00",
+                  "endAt": "2027-08-03T12:00:00",
+                  "catIds": ["00000000-0000-0000-0000-000000000001"]
+                }
+                """;
+
+        mockMvc.perform(post("/api/stays/pricing-preview")
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(previewRequest))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/stays/pricing-preview")
+                        .with(user("staff").roles("STAFF"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(previewRequest))
+                .andExpect(status().isOk());
     }
 
     @Test

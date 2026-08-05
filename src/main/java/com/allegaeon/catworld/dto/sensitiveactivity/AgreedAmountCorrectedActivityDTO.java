@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.sensitiveactivity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -10,8 +11,8 @@ public record AgreedAmountCorrectedActivityDTO(
         Instant occurredAt,
         SensitiveActorDTO actor,
         SensitiveStayContextDTO affectedContext,
-        BigDecimal previousAgreedAmount,
-        BigDecimal newAgreedAmount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal previousAgreedAmount,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal newAgreedAmount,
         String reason)
         implements SensitiveEconomicActivityResponseDTO {
 }

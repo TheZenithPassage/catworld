@@ -8,6 +8,10 @@ import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,6 +20,10 @@ public interface IStayService {
 
     List<StayResponseDTO> getAllStays();
     StayResponseDTO getStay(UUID stayId);
+    StayPricingPreviewResponseDTO previewCreationPricing(
+            StayCreationPricingPreviewRequestDTO request);
+    StayDatePricingPreviewResponseDTO previewDateChangePricing(
+            UUID stayId, StayDatePricingPreviewRequestDTO request);
     StayResponseDTO createStay(StayRequestDTO stayRequestDTO);
     StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO);
     StayResponseDTO correctAgreedAmount(

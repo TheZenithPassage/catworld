@@ -1,6 +1,8 @@
 package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -15,6 +17,7 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
@@ -137,6 +140,10 @@ public class StayServiceTest {
     @BeforeEach
     void configurePricingDefaults() {
         lenient().when(nightlyReferenceRateRepository.findById(any()))
+                .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                        .category(NightlyReferenceRateCategory.ONE_CAT)
+                        .build()));
+        lenient().when(nightlyReferenceRateRepository.findByCategoryForUpdate(any()))
                 .thenReturn(Optional.of(NightlyReferenceRate.builder()
                         .category(NightlyReferenceRateCategory.ONE_CAT)
                         .build()));
@@ -290,6 +297,7 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
             when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
+            confirmCreation(stayRequestDTO);
             StayResponseDTO result = service.createStay(stayRequestDTO);
 
             assertSame(expectedResponseDTO, result);
@@ -362,6 +370,7 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
             when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
+            confirmCreation(stayRequestDTO);
             StayResponseDTO result = service.createStay(stayRequestDTO);
 
             assertSame(expectedResponseDTO, result);
@@ -436,6 +445,7 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
             when(stayMapper.toResponseDTO(any(Stay.class), eq(true))).thenReturn(expectedResponseDTO);
 
+            confirmCreation(stayRequestDTO);
             StayResponseDTO result = assertDoesNotThrow(() -> service.createStay(stayRequestDTO));
 
             assertSame(expectedResponseDTO, result);
@@ -469,8 +479,8 @@ public class StayServiceTest {
         void creationSelectsActualCatCountCategoryAndRecordsExactInitialDecision(
                 int catCount,
                 NightlyReferenceRateCategory expectedCategory) {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 3, 12, 0);
             CreationFixture fixture = stubPricingCreation(
                     catCount,
                     startAt,
@@ -483,7 +493,8 @@ public class StayServiceTest {
 
             service.createStay(fixture.request());
 
-            verify(nightlyReferenceRateRepository).findById(expectedCategory);
+            verify(nightlyReferenceRateRepository)
+                    .findByCategoryForUpdate(expectedCategory);
             assertEquals(new BigDecimal("25"), fixture.stay().getRetainedNightlyRate());
             assertEquals(new BigDecimal("50"), fixture.stay().getAgreedAmount());
             verify(stayPricingDecisionRepository).saveAndFlush(
@@ -527,8 +538,8 @@ public class StayServiceTest {
 
         @Test
         void creationWithAvailableRateAllowsZeroAgreementForZeroNights() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 8, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 1, 18, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 1, 18, 0);
             CreationFixture fixture = stubPricingCreation(
                     1,
                     startAt,
@@ -553,8 +564,8 @@ public class StayServiceTest {
 
         @Test
         void creationRequiresNonBlankReasonWhenAgreementDiffersFromSuggestion() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 3, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 3, 12, 0);
             CreationFixture fixture = stubPricingCreation(
                     1,
                     startAt,
@@ -583,8 +594,8 @@ public class StayServiceTest {
                 "100000000000000000000"
         })
         void creationRejectsUnsupportedAgreedAmountsAtServiceBoundary(String value) {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 2, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 2, 12, 0);
             CreationFixture fixture = stubPricingCreation(
                     1,
                     startAt,
@@ -607,7 +618,7 @@ public class StayServiceTest {
 
         @Test
         void adminNightCountChangeUsesRetainedRateAndRecordsPriorAndNewContext() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -635,6 +646,7 @@ public class StayServiceTest {
             when(stayRepository.save(stay)).thenReturn(stay);
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
 
+            confirmDateChange(stay, request);
             service.updateStay(stay.getId(), request);
 
             assertEquals(new BigDecimal("10"), stay.getRetainedNightlyRate());
@@ -655,7 +667,7 @@ public class StayServiceTest {
 
         @Test
         void staffCannotCompleteNightCountChange() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -685,7 +697,7 @@ public class StayServiceTest {
 
         @Test
         void nightCountChangeRequiresFreshDecisionAndNonBlankMismatchReason() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -727,7 +739,7 @@ public class StayServiceTest {
 
         @Test
         void nightCountChangeWithoutRetainedRateDoesNotAdoptCurrentRate() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -754,6 +766,7 @@ public class StayServiceTest {
             when(stayRepository.save(stay)).thenReturn(stay);
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
 
+            confirmDateChange(stay, request);
             service.updateStay(stay.getId(), request);
 
             assertNull(stay.getRetainedNightlyRate());
@@ -768,7 +781,7 @@ public class StayServiceTest {
 
         @Test
         void equalNightCountDateShiftRequiresNoPricingDecisionOrEvent() {
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
@@ -833,6 +846,145 @@ public class StayServiceTest {
                     .saveAndFlush(any(StayPricingDecision.class));
             assertEquals("Updated operational note", stay.getNotes());
             assertEquals(BigDecimal.ZERO, stay.getAgreedAmount());
+        }
+
+        @Test
+        void creationPreviewReturnsExactStringsAndPerformsNoWrites() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    3, startAt, startAt.plusDays(1),
+                    new BigDecimal("9999999999999999999"),
+                    PricingDecisionRequestDTO.builder()
+                            .agreedAmount(BigDecimal.ZERO).build());
+
+            var preview = service.previewCreationPricing(
+                    StayCreationPricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(1))
+                            .catIds(fixture.request().getCatIds()).build());
+
+            assertEquals(1, preview.getNumberOfNights());
+            assertEquals(0, new BigDecimal("9999999999999999999")
+                    .compareTo(preview.getRetainedNightlyRate()));
+            assertEquals(0, new BigDecimal("9999999999999999999")
+                    .compareTo(preview.getSuggestedAmount()));
+            assertNotNull(preview.getConfirmation());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        void changedRateRejectsCreationConfirmationBeforeWrites() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), new BigDecimal("10"),
+                    PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("20")).build());
+            when(nightlyReferenceRateRepository
+                    .findByCategoryForUpdate(NightlyReferenceRateCategory.ONE_CAT))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .nightlyRate(new BigDecimal("11")).build()));
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.createStay(fixture.request()));
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"numberOfNights", "retainedNightlyRate", "suggestedAmount"})
+        void creationValidatesEveryConfirmationField(String field) {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), new BigDecimal("10"),
+                    PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("20")).build());
+            var confirmation = fixture.request().getConfirmation();
+            switch (field) {
+                case "numberOfNights" -> confirmation.setNumberOfNights(3L);
+                case "retainedNightlyRate" ->
+                        confirmation.setRetainedNightlyRate(new BigDecimal("11"));
+                case "suggestedAmount" ->
+                        confirmation.setSuggestedAmount(new BigDecimal("21"));
+                default -> throw new IllegalArgumentException(field);
+            }
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.createStay(fixture.request()));
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        void existingPreviewUsesRetainedRateAndStaleBasisRejectsUpdate() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(startAt).endAt(startAt.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("17"))
+                    .agreedAmount(new BigDecimal("34")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(
+                    stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(3)).build());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt).endAt(startAt.plusDays(3))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("51"))
+                            .build()).build();
+            request.setConfirmation(preview.getConfirmation());
+            stay.setAgreedAmount(new BigDecimal("35"));
+
+            assertEquals(0, new BigDecimal("17")
+                    .compareTo(preview.getRetainedNightlyRate()));
+            assertEquals(0, new BigDecimal("51")
+                    .compareTo(preview.getSuggestedAmount()));
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {
+                "previousNumberOfNights", "previousAgreedAmount",
+                "numberOfNights", "retainedNightlyRate", "suggestedAmount"
+        })
+        void dateChangeValidatesEveryConfirmationField(String field) {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(startAt).endAt(startAt.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("17"))
+                    .agreedAmount(new BigDecimal("34")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(
+                    stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(3)).build());
+            var confirmation = preview.getConfirmation();
+            switch (field) {
+                case "previousNumberOfNights" -> confirmation.setPreviousNumberOfNights(1L);
+                case "previousAgreedAmount" ->
+                        confirmation.setPreviousAgreedAmount(new BigDecimal("35"));
+                case "numberOfNights" -> confirmation.setNumberOfNights(4L);
+                case "retainedNightlyRate" ->
+                        confirmation.setRetainedNightlyRate(new BigDecimal("18"));
+                case "suggestedAmount" ->
+                        confirmation.setSuggestedAmount(new BigDecimal("52"));
+                default -> throw new IllegalArgumentException(field);
+            }
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt).endAt(startAt.plusDays(3))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("51")).build())
+                    .confirmation(confirmation).build();
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
         }
     }
 
@@ -1504,6 +1656,7 @@ public class StayServiceTest {
             when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
                     .thenReturn(new BigDecimal("60"));
 
+            confirmDateChange(stay, request);
             assertThrows(
                     ConflictException.class,
                     () -> service.updateStay(stay.getId(), request)
@@ -2095,6 +2248,7 @@ public class StayServiceTest {
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
+            confirmDateChange(stayToModify, updateDto);
             assertThrows(ConflictException.class, () -> {
                 service.updateStay(stayToModify.getId(), updateDto);
             });
@@ -2152,6 +2306,7 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
             when(stayMapper.toResponseDTO(updatedStay, true)).thenReturn(expectedResponseDTO);
 
+            confirmDateChange(stay, updateDto);
             StayResponseDTO result = service.updateStay(stay.getId(), updateDto);
 
             assertSame(expectedResponseDTO, result);
@@ -2212,6 +2367,7 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(any(), any())).thenReturn(true);
             when(stayMapper.toResponseDTO(updatedStay, true)).thenReturn(expectedResponseDTO);
 
+            confirmDateChange(stay, updateDto);
             StayResponseDTO result = assertDoesNotThrow(() -> service.updateStay(stay.getId(), updateDto));
 
             assertSame(expectedResponseDTO, result);
@@ -2297,8 +2453,8 @@ public class StayServiceTest {
         @Test
         void createAllowsVaccinesThatExpireAfterStayEnd() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             LocalDate vaccinatedOn = endAt.toLocalDate().minusYears(1).plusDays(1);
             Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn);
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
@@ -2315,8 +2471,8 @@ public class StayServiceTest {
         @Test
         void createBlocksVaccinesThatExpireExactlyAtStayEnd() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             LocalDate vaccinatedOn = endAt.toLocalDate().minusYears(1);
             Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn);
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
@@ -2339,8 +2495,8 @@ public class StayServiceTest {
         @Test
         void createBlocksVaccinesThatExpireBeforeStayEnd() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             LocalDate vaccinatedOn = endAt.toLocalDate().minusYears(1).minusDays(1);
             Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn);
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
@@ -2361,8 +2517,8 @@ public class StayServiceTest {
         @Test
         void createReportsMissingVaccineDate() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, endAt.toLocalDate());
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
 
@@ -2383,8 +2539,8 @@ public class StayServiceTest {
         @Test
         void createReportsEveryConflictAcrossMultipleCats() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Owner owner = Owner.builder().id(UUID.randomUUID()).build();
             LocalDate expiredDate = endAt.toLocalDate().minusYears(1);
             LocalDate validDate = endAt.toLocalDate();
@@ -2423,8 +2579,8 @@ public class StayServiceTest {
         @Test
         void createAllowsExplicitAdminOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             StayRequestDTO request = createRequest(cat, startAt, endAt, true);
 
@@ -2440,8 +2596,8 @@ public class StayServiceTest {
         @Test
         void createBlocksAdminWithoutExplicitOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
 
@@ -2455,8 +2611,8 @@ public class StayServiceTest {
         @Test
         void createIgnoresStaffOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime endAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             StayRequestDTO request = createRequest(cat, startAt, endAt, true);
 
@@ -2470,8 +2626,8 @@ public class StayServiceTest {
         @Test
         void updateSkipsVaccineRevalidationWhenEndIsUnchanged() {
 
-            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime persistedStartAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -2508,8 +2664,8 @@ public class StayServiceTest {
         @Test
         void updateSkipsVaccineRevalidationWhenEndIsShortened() {
 
-            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime persistedStartAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -2537,6 +2693,7 @@ public class StayServiceTest {
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
             when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
 
+            confirmDateChange(stay, request);
             assertSame(response, service.updateStay(stay.getId(), request));
 
             verify(stayRepository).save(updatedStay);
@@ -2547,9 +2704,9 @@ public class StayServiceTest {
         @Test
         void updateAllowsCoveredExtensionWithoutOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat(
                     "Milo",
                     requestedEndAt.toLocalDate(),
@@ -2580,6 +2737,7 @@ public class StayServiceTest {
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
             when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
 
+            confirmDateChange(stay, request);
             assertSame(response, service.updateStay(stay.getId(), request));
 
             verify(stayRepository).save(updatedStay);
@@ -2590,9 +2748,9 @@ public class StayServiceTest {
         @Test
         void updateBlocksConflictingStaffExtensionEvenWithOverrideIntent() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat(
                     "Milo",
                     requestedEndAt.toLocalDate().minusYears(1),
@@ -2628,9 +2786,9 @@ public class StayServiceTest {
         @Test
         void updateBlocksConflictingAdminExtensionWithoutExplicitOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -2648,6 +2806,7 @@ public class StayServiceTest {
             when(stayMapper.updateEntity(stay, request)).thenReturn(stay);
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
 
+            confirmDateChange(stay, request);
             assertThrows(VaccineConflictException.class, () -> service.updateStay(stay.getId(), request));
             verify(stayRepository, never()).save(any(Stay.class));
 
@@ -2656,9 +2815,9 @@ public class StayServiceTest {
         @Test
         void updateAllowsExplicitAdminOverrideForConflictingExtension() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            LocalDateTime persistedEndAt = LocalDateTime.of(2027, 8, 3, 12, 0);
+            LocalDateTime requestedEndAt = LocalDateTime.of(2027, 8, 5, 12, 0);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -2686,6 +2845,7 @@ public class StayServiceTest {
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
             when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
 
+            confirmDateChange(stay, request);
             assertSame(response, service.updateStay(stay.getId(), request));
 
             verify(stayRepository).save(updatedStay);
@@ -2753,6 +2913,16 @@ public class StayServiceTest {
                 .endAt(request.getEndAt())
                 .build());
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(role));
+        request.setConfirmation(
+                service.previewCreationPricing(
+                        StayCreationPricingPreviewRequestDTO.builder()
+                                .startAt(request.getStartAt())
+                                .endAt(request.getEndAt())
+                                .catIds(request.getCatIds())
+                                .build())
+                        .getConfirmation());
+        clearInvocations(catRepository, nightlyReferenceRateRepository,
+                currentUserAccountService);
     }
 
     private void stubSuccessfulCreate() {
@@ -2803,13 +2973,16 @@ public class StayServiceTest {
                 .fromActualCatCount(catCount)
                 .orElseThrow();
 
-        when(stayMapper.toEntity(request)).thenReturn(stay);
+        lenient().when(stayMapper.toEntity(request)).thenReturn(stay);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        NightlyReferenceRate configuredRate = NightlyReferenceRate.builder()
+                .category(category)
+                .nightlyRate(nightlyRate)
+                .build();
         when(nightlyReferenceRateRepository.findById(category))
-                .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                        .category(category)
-                        .nightlyRate(nightlyRate)
-                        .build()));
+                .thenReturn(Optional.of(configuredRate));
+        lenient().when(nightlyReferenceRateRepository.findByCategoryForUpdate(category))
+                .thenReturn(Optional.of(configuredRate));
         lenient().when(stayRepository.save(stay)).thenAnswer(invocation -> {
             if (stay.getId() == null) {
                 stay.setId(UUID.randomUUID());
@@ -2819,6 +2992,17 @@ public class StayServiceTest {
         lenient().when(stayMapper.toResponseDTO(stay, false))
                 .thenReturn(new StayResponseDTO());
 
+        request.setConfirmation(
+                service.previewCreationPricing(
+                        StayCreationPricingPreviewRequestDTO.builder()
+                                .startAt(startAt)
+                                .endAt(endAt)
+                                .catIds(catIds)
+                                .build())
+                        .getConfirmation());
+        clearInvocations(catRepository, nightlyReferenceRateRepository,
+                currentUserAccountService);
+
         return new CreationFixture(request, stay, actor);
     }
 
@@ -2826,6 +3010,30 @@ public class StayServiceTest {
             StayRequestDTO request,
             Stay stay,
             UserAccount actor) {
+    }
+
+    private void confirmDateChange(Stay stay, StayUpdateDTO request) {
+        request.setConfirmation(
+                service.previewDateChangePricing(
+                        stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                                .startAt(request.getStartAt())
+                                .endAt(request.getEndAt())
+                                .build())
+                        .getConfirmation());
+        clearInvocations(stayRepository, currentUserAccountService);
+    }
+
+    private void confirmCreation(StayRequestDTO request) {
+        request.setConfirmation(
+                service.previewCreationPricing(
+                        StayCreationPricingPreviewRequestDTO.builder()
+                                .startAt(request.getStartAt())
+                                .endAt(request.getEndAt())
+                                .catIds(request.getCatIds())
+                                .build())
+                        .getConfirmation());
+        clearInvocations(catRepository, nightlyReferenceRateRepository,
+                currentUserAccountService);
     }
 
     private UserAccount user(UserRole role) {
