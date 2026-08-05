@@ -32,6 +32,7 @@ describe('StaysOverviewPage', () => {
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: true,
+    payments: [],
   };
 
   const cancelledStay: Stay = {
@@ -44,6 +45,7 @@ describe('StaysOverviewPage', () => {
     totalPaid: '0',
     remainingAmount: '0',
     outstandingCollectionEligible: false,
+    payments: [],
   };
 
   const partialCheckedOutStay: Stay = {
@@ -59,6 +61,7 @@ describe('StaysOverviewPage', () => {
     remainingAmount: '9999999999999999998',
     paymentCondition: 'PARTIAL_PAYMENT',
     outstandingCollectionEligible: true,
+    payments: [],
   };
 
   const fullStay: Stay = {
@@ -72,6 +75,7 @@ describe('StaysOverviewPage', () => {
     remainingAmount: '0',
     paymentCondition: 'FULL_PAYMENT',
     outstandingCollectionEligible: false,
+    payments: [],
   };
 
   const legacyStay: Stay = {
@@ -85,6 +89,7 @@ describe('StaysOverviewPage', () => {
     remainingAmount: null,
     paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: false,
+    payments: [],
   };
 
   const stayApiService = {

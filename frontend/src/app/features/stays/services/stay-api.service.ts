@@ -7,6 +7,9 @@ import {
   CreateStayRequest,
   CreationPricingPreview,
   CreationPricingPreviewRequest,
+  PaymentEditRequest,
+  PaymentReasonRequest,
+  PaymentRegistrationRequest,
   PricingDecision,
   Stay,
   StayDatePricingPreview,
@@ -52,6 +55,24 @@ export class StayApiService {
 
   correctAgreedAmount(id: string, request: PricingDecision): Observable<Stay> {
     return this.http.patch<Stay>(`${this.baseUrl}/${id}/agreed-amount`, request);
+  }
+
+  registerPayment(id: string, request: PaymentRegistrationRequest): Observable<Stay> {
+    return this.http.post<Stay>(`${this.baseUrl}/${id}/payments`, request);
+  }
+
+  editPayment(id: string, paymentId: string, request: PaymentEditRequest): Observable<Stay> {
+    return this.http.patch<Stay>(`${this.baseUrl}/${id}/payments/${paymentId}`, request);
+  }
+
+  annulPayment(id: string, paymentId: string, request: PaymentReasonRequest): Observable<Stay> {
+    return this.http.patch<Stay>(`${this.baseUrl}/${id}/payments/${paymentId}/annul`, request);
+  }
+
+  removePayment(id: string, paymentId: string, request: PaymentReasonRequest): Observable<Stay> {
+    return this.http.delete<Stay>(`${this.baseUrl}/${id}/payments/${paymentId}`, {
+      body: request,
+    });
   }
 
   cancelStay(id: string): Observable<void> {

@@ -41,6 +41,7 @@ describe('StayEditPage', () => {
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: true,
+    payments: [],
   };
 
   const closedStay: Stay = {
@@ -165,17 +166,17 @@ describe('StayEditPage', () => {
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
   });
 
-  it('blocks closed stays through the existing status rule', () => {
+  it('loads closed stays as read-only while keeping payment history available', () => {
     stayApiService.getStayById.mockReturnValue(of(closedStay));
 
     createComponent();
     fixture.detectChanges();
 
-    expect(component.stayLoaded()).toBe(false);
-    expect(component.error()).toBe(component.text().stays.edit.errors.closedCannotBeModified);
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      component.text().stays.edit.errors.closedCannotBeModified,
-    );
+    expect(component.stayLoaded()).toBe(true);
+    expect(component.canEditStay()).toBe(false);
+    expect(component.stay()).toEqual(closedStay);
+    expect(fixture.nativeElement.querySelector('app-stay-payments')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('form.stay-form')).toBeNull();
   });
 
   it('does not update when the end date is not after the start date', () => {

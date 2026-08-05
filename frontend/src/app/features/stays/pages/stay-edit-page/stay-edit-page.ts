@@ -11,6 +11,7 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { StayPayments } from '../../components/stay-payments/stay-payments';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -39,6 +40,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatLabel,
     RouterLink,
     UiStateComponent,
+    StayPayments,
   ],
   templateUrl: './stay-edit-page.html',
   styleUrl: './stay-edit-page.scss',
@@ -84,6 +86,11 @@ export class StayEditPage {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly stayLoaded = signal(false);
+  readonly stay = signal<Stay | null>(null);
+  readonly canEditStay = computed(() => {
+    const current = this.stay();
+    return current !== null && canModifyStay(current);
+  });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;
@@ -121,12 +128,7 @@ export class StayEditPage {
 
     this.stayApiService.getStayById(this.stayId).subscribe({
       next: (stay) => {
-        if (!canModifyStay(stay)) {
-          this.showError(this.text().stays.edit.errors.closedCannotBeModified);
-          this.loading.set(false);
-          return;
-        }
-
+        this.stay.set(stay);
         this.setFormValues(stay);
         this.stayLoaded.set(true);
         this.loading.set(false);
@@ -143,6 +145,11 @@ export class StayEditPage {
 
     if (!this.stayLoaded()) {
       this.showError(this.text().stays.edit.errors.dataNotLoaded);
+      return;
+    }
+
+    if (!this.canEditStay()) {
+      this.showError(this.text().stays.edit.errors.closedCannotBeModified);
       return;
     }
 
@@ -273,6 +280,10 @@ export class StayEditPage {
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
     this.refreshPricingPreview();
+  }
+
+  onStayChanged(stay: Stay): void {
+    this.stay.set(stay);
   }
 
   onStartAtChange(value: string): void {

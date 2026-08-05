@@ -19,8 +19,11 @@ describe('PermanentDeletionConfirmationDialog', () => {
   async function renderDialog(
     language: 'es' | 'en',
     subject = 'Milo <img src=x>',
+    reasonRequired = false,
   ): Promise<ComponentFixture<PermanentDeletionConfirmationDialog>> {
-    const data: PermanentDeletionConfirmationDialogData = { subject };
+    const data: PermanentDeletionConfirmationDialogData = reasonRequired
+      ? { subject, reasonLabel: 'Reason', reasonRequiredMessage: 'Reason required' }
+      : { subject };
 
     await TestBed.configureTestingModule({
       imports: [PermanentDeletionConfirmationDialog],
@@ -69,5 +72,24 @@ describe('PermanentDeletionConfirmationDialog', () => {
     expect(isPermanentDeletionConfirmed(true)).toBe(true);
     expect(isPermanentDeletionConfirmed(false)).toBe(false);
     expect(isPermanentDeletionConfirmed(undefined)).toBe(false);
+  });
+
+  it('requires and returns a trimmed reason when configured', async () => {
+    const fixture = await renderDialog('en', 'payment 100', true);
+    const component = fixture.componentInstance;
+    const confirm = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      'button',
+    )[1] as HTMLButtonElement;
+
+    expect(confirm.disabled).toBe(true);
+    component.reason.set('  entered twice  ');
+    fixture.detectChanges();
+
+    expect(confirm.disabled).toBe(false);
+    const results = fixture.debugElement
+      .queryAll(By.directive(MatDialogClose))
+      .map((button) => button.injector.get(MatDialogClose).dialogResult);
+    expect(results[1]).toEqual({ confirmed: true, reason: 'entered twice' });
+    expect(isPermanentDeletionConfirmed(results[1])).toBe(true);
   });
 });
