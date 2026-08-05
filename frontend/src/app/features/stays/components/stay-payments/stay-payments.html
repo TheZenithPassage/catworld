@@ -5,7 +5,12 @@
       <p>{{ text().stays.payments.description }}</p>
     </div>
     @if (canMutate()) {
-      <button mat-flat-button type="button" (click)="startRegister()">
+      <button
+        mat-flat-button
+        type="button"
+        data-payment-action="register"
+        (click)="startRegister($event.currentTarget)"
+      >
         {{ text().stays.payments.register }}
       </button>
     }
@@ -27,7 +32,22 @@
   </dl>
 
   @if (error(); as message) {
-    <app-ui-state kind="error" [message]="message"></app-ui-state>
+    <app-ui-state
+      kind="error"
+      [message]="message"
+      [actionLabel]="text().stays.payments.dismissError"
+      (actionTriggered)="dismissError()"
+    ></app-ui-state>
+    @if (removalPayment()) {
+      <div class="removal-recovery-actions">
+        <button mat-stroked-button type="button" (click)="retryRemoval()">
+          {{ text().stays.payments.retryRemoval }}
+        </button>
+        <button mat-button type="button" (click)="abandonRemoval()">
+          {{ text().stays.payments.cancel }}
+        </button>
+      </div>
+    }
   }
 
   @if (action(); as currentAction) {
@@ -104,7 +124,12 @@
   } @else {
     <ol class="payment-history">
       @for (payment of stay().payments; track payment.paymentId) {
-        <li class="payment-row" [class.payment-annulled]="payment.state === 'ANNULLED'">
+        <li
+          class="payment-row"
+          [class.payment-annulled]="payment.state === 'ANNULLED'"
+          [attr.data-payment-row-id]="payment.paymentId"
+          tabindex="-1"
+        >
           <div class="payment-state" [attr.aria-label]="text().stays.payments.state">
             {{
               payment.state === 'ANNULLED'
@@ -131,20 +156,38 @@
             </div>
             <div>
               <dt>{{ text().stays.payments.registeredAt }}</dt>
-              <dd>{{ payment.registeredAt | date: 'medium' }}</dd>
+              <dd>{{ formatRegisteredAt(payment.registeredAt) }}</dd>
             </div>
           </dl>
           <div class="payment-actions">
             @if (payment.state === 'ACTIVE' && canMutate()) {
-              <button mat-stroked-button type="button" (click)="startEdit(payment)">
+              <button
+                mat-stroked-button
+                type="button"
+                data-payment-action="edit"
+                [attr.data-payment-id]="payment.paymentId"
+                (click)="startEdit(payment, $event.currentTarget)"
+              >
                 {{ text().stays.payments.edit }}
               </button>
-              <button mat-stroked-button type="button" (click)="startAnnul(payment)">
+              <button
+                mat-stroked-button
+                type="button"
+                data-payment-action="annul"
+                [attr.data-payment-id]="payment.paymentId"
+                (click)="startAnnul(payment, $event.currentTarget)"
+              >
                 {{ text().stays.payments.annul }}
               </button>
             }
             @if (isAdmin()) {
-              <button mat-button type="button" (click)="remove(payment)">
+              <button
+                mat-button
+                type="button"
+                data-payment-action="remove"
+                [attr.data-payment-id]="payment.paymentId"
+                (click)="remove(payment, $event.currentTarget)"
+              >
                 {{ text().stays.payments.remove }}
               </button>
             }

@@ -69,6 +69,8 @@ export interface StaysTranslations {
     removalReason: string;
     removingSubject: string;
     readOnlyStay: string;
+    dismissError: string;
+    retryRemoval: string;
     errors: {
       amountRequired: string;
       invalidAmount: string;
@@ -139,6 +141,7 @@ export interface StaysTranslations {
       actions: string;
     };
     edit: string;
+    paymentHistory: string;
     cancel: string;
     cancelling: string;
     alreadyCancelled: string;
@@ -265,6 +268,8 @@ export const STAYS_TRANSLATIONS = {
       removalReason: 'Motivo de la eliminación',
       removingSubject: 'pago',
       readOnlyStay: 'Las fechas y notas de esta estancia son de solo lectura.',
+      dismissError: 'Cerrar error',
+      retryRemoval: 'Reintentar eliminación',
       errors: {
         amountRequired: 'Indica el importe recibido.',
         invalidAmount: 'Introduce un importe entero positivo de hasta 19 dígitos.',
@@ -336,6 +341,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Acciones',
       },
       edit: 'Editar',
+      paymentHistory: 'Ver pagos',
       cancel: 'Cancelar',
       cancelling: 'Cancelando...',
       alreadyCancelled: 'Cancelada',
@@ -460,6 +466,8 @@ export const STAYS_TRANSLATIONS = {
       removalReason: 'Removal reason',
       removingSubject: 'payment',
       readOnlyStay: "This stay's dates and notes are read-only.",
+      dismissError: 'Dismiss error',
+      retryRemoval: 'Retry removal',
       errors: {
         amountRequired: 'Enter the amount received.',
         invalidAmount: 'Enter a positive whole amount with at most 19 digits.',
@@ -531,6 +539,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Actions',
       },
       edit: 'Edit',
+      paymentHistory: 'View payments',
       cancel: 'Cancel',
       cancelling: 'Cancelling...',
       alreadyCancelled: 'Already cancelled',

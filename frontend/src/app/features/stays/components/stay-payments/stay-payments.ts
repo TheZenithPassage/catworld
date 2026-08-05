@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +8,7 @@ import { MatInput } from '@angular/material/input';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import {
   isPermanentDeletionConfirmed,
   PermanentDeletionConfirmationDialog,
@@ -23,16 +23,7 @@ type PaymentAction = 'register' | 'edit' | 'annul' | null;
 
 @Component({
   selector: 'app-stay-payments',
-  imports: [
-    DatePipe,
-    FormsModule,
-    MatButton,
-    MatError,
-    MatFormField,
-    MatInput,
-    MatLabel,
-    UiStateComponent,
-  ],
+  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
   templateUrl: './stay-payments.html',
   styleUrl: './stay-payments.scss',
 })
@@ -45,6 +36,7 @@ export class StayPayments {
   readonly stay = input.required<Stay>();
   readonly stayChange = output<Stay>();
   readonly text = this.i18n.text;
+  readonly dateLocale = this.i18n.dateLocale;
 
   readonly action = signal<PaymentAction>(null);
   readonly selectedPayment = signal<StayPayment | null>(null);
@@ -53,8 +45,13 @@ export class StayPayments {
   readonly note = signal('');
   readonly reason = signal('');
   readonly submitting = signal(false);
-  readonly error = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18n.language);
   readonly attempted = signal(false);
+  readonly removalPayment = signal<StayPayment | null>(null);
+  readonly removalReason = signal('');
+
+  private returnFocusSelector: string | null = null;
+  private returnFocusPaymentId: string | null = null;
 
   readonly isAdmin = computed(() => this.authSession.hasRole('ADMIN'));
   readonly canMutate = computed(() => {
@@ -64,26 +61,32 @@ export class StayPayments {
   });
   readonly amountValid = computed(() => /^(?!0+$)\d{1,19}$/.test(this.amount()));
 
-  startRegister(): void {
+  startRegister(trigger?: EventTarget | null): void {
     this.resetForm();
+    this.captureReturnFocus(trigger, 'register');
     this.action.set('register');
+    this.focusFormControl('paymentAmount');
   }
 
-  startEdit(payment: StayPayment): void {
+  startEdit(payment: StayPayment, trigger?: EventTarget | null): void {
     this.resetForm();
+    this.captureReturnFocus(trigger, 'edit', payment.paymentId);
     this.selectedPayment.set(payment);
     this.amount.set(payment.amount);
     this.action.set('edit');
+    this.focusFormControl('paymentAmount');
   }
 
-  startAnnul(payment: StayPayment): void {
+  startAnnul(payment: StayPayment, trigger?: EventTarget | null): void {
     this.resetForm();
+    this.captureReturnFocus(trigger, 'annul', payment.paymentId);
     this.selectedPayment.set(payment);
     this.action.set('annul');
+    this.focusFormControl('paymentReason');
   }
 
   cancelAction(): void {
-    this.resetForm();
+    this.resetForm(true);
   }
 
   submitAction(): void {
@@ -124,36 +127,79 @@ export class StayPayments {
     });
   }
 
-  remove(payment: StayPayment): void {
+  remove(payment: StayPayment, trigger?: EventTarget | null): void {
     if (!this.isAdmin()) return;
+
+    const previousTarget = this.removalPayment();
+    if (previousTarget?.paymentId !== payment.paymentId) {
+      this.removalReason.set('');
+    }
+    this.removalPayment.set(payment);
+    this.captureReturnFocus(trigger, 'remove', payment.paymentId);
 
     const copy = this.text().stays.payments;
     this.dialog
       .open<
         PermanentDeletionConfirmationDialog,
-        { subject: string; reasonLabel: string; reasonRequiredMessage: string },
+        {
+          subject: string;
+          reasonLabel: string;
+          reasonRequiredMessage: string;
+          initialReason: string;
+        },
         boolean | PermanentDeletionConfirmationResult
       >(PermanentDeletionConfirmationDialog, {
         data: {
           subject: `${copy.removingSubject} ${payment.amount} · ${payment.paymentDate}`,
           reasonLabel: copy.removalReason,
           reasonRequiredMessage: copy.errors.reasonRequired,
+          initialReason: this.removalReason(),
         },
         width: '36rem',
         maxWidth: 'calc(100vw - 2rem)',
       })
       .afterClosed()
       .subscribe((result) => {
-        if (!isPermanentDeletionConfirmed(result) || result === true || !result.reason) return;
+        if (!isPermanentDeletionConfirmed(result) || result === true || !result.reason) {
+          this.clearRemovalAttempt(true);
+          return;
+        }
+        this.removalReason.set(result.reason);
         this.error.set(null);
         this.submitting.set(true);
         this.api
           .removePayment(this.stay().stayId, payment.paymentId, { reason: result.reason })
           .subscribe({
-            next: (stay) => this.complete(stay),
+            next: (stay) => {
+              this.removalPayment.set(null);
+              this.removalReason.set('');
+              this.complete(stay);
+            },
             error: (error: unknown) => this.fail(error),
           });
       });
+  }
+
+  retryRemoval(): void {
+    const payment = this.removalPayment();
+    if (payment) this.remove(payment);
+  }
+
+  abandonRemoval(): void {
+    this.clearRemovalAttempt(true);
+    this.error.set(null);
+  }
+
+  dismissError(): void {
+    this.error.set(null);
+    this.restoreFocus();
+  }
+
+  formatRegisteredAt(value: string): string {
+    return new Intl.DateTimeFormat(this.dateLocale(), {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
   }
 
   private actionIsValid(action: Exclude<PaymentAction, null>): boolean {
@@ -164,8 +210,10 @@ export class StayPayments {
 
   private complete(stay: Stay): void {
     this.submitting.set(false);
+    const focusSelector = this.returnFocusSelector;
     this.resetForm();
     this.stayChange.emit(stay);
+    this.restoreFocus(focusSelector);
   }
 
   private fail(error: unknown): void {
@@ -173,7 +221,8 @@ export class StayPayments {
     this.error.set(this.errorMessage(error));
   }
 
-  private resetForm(): void {
+  private resetForm(restoreFocus = false): void {
+    const focusSelector = restoreFocus ? this.returnFocusSelector : null;
     this.action.set(null);
     this.selectedPayment.set(null);
     this.amount.set('');
@@ -182,6 +231,47 @@ export class StayPayments {
     this.reason.set('');
     this.error.set(null);
     this.attempted.set(false);
+    if (restoreFocus) this.restoreFocus(focusSelector);
+  }
+
+  private captureReturnFocus(
+    trigger: EventTarget | null | undefined,
+    action: 'register' | 'edit' | 'annul' | 'remove',
+    paymentId?: string,
+  ): void {
+    this.returnFocusPaymentId = paymentId ?? null;
+    this.returnFocusSelector = paymentId
+      ? `[data-payment-id="${paymentId}"][data-payment-action="${action}"]`
+      : `[data-payment-action="${action}"]`;
+    if (trigger instanceof HTMLElement && !trigger.matches(this.returnFocusSelector)) {
+      this.returnFocusSelector = null;
+    }
+  }
+
+  private focusFormControl(name: 'paymentAmount' | 'paymentReason'): void {
+    setTimeout(() => document.querySelector<HTMLElement>(`[name="${name}"]`)?.focus());
+  }
+
+  private restoreFocus(selector = this.returnFocusSelector): void {
+    const paymentId = this.returnFocusPaymentId;
+    setTimeout(() => {
+      const target = selector ? document.querySelector<HTMLElement>(selector) : null;
+      const row = paymentId
+        ? document.querySelector<HTMLElement>(`[data-payment-row-id="${paymentId}"]`)
+        : null;
+      (
+        target ??
+        row ??
+        document.querySelector<HTMLElement>('[data-payment-action="register"]')
+      )?.focus();
+    });
+  }
+
+  private clearRemovalAttempt(restoreFocus: boolean): void {
+    const selector = this.returnFocusSelector;
+    this.removalPayment.set(null);
+    this.removalReason.set('');
+    if (restoreFocus) this.restoreFocus(selector);
   }
 
   private errorMessage(error: unknown): string {

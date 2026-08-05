@@ -20,9 +20,10 @@ describe('PermanentDeletionConfirmationDialog', () => {
     language: 'es' | 'en',
     subject = 'Milo <img src=x>',
     reasonRequired = false,
+    initialReason = '',
   ): Promise<ComponentFixture<PermanentDeletionConfirmationDialog>> {
     const data: PermanentDeletionConfirmationDialogData = reasonRequired
-      ? { subject, reasonLabel: 'Reason', reasonRequiredMessage: 'Reason required' }
+      ? { subject, reasonLabel: 'Reason', reasonRequiredMessage: 'Reason required', initialReason }
       : { subject };
 
     await TestBed.configureTestingModule({
@@ -51,6 +52,19 @@ describe('PermanentDeletionConfirmationDialog', () => {
       'This action cannot be undone.',
     );
     expect(compiled.querySelector('img')).toBeNull();
+  });
+
+  it('prefills a preserved removal reason without changing legacy callers', async () => {
+    const fixture = await renderDialog('en', 'payment 100', true, 'preserved reason');
+    const reason = (fixture.nativeElement as HTMLElement).querySelector(
+      'textarea[name="deletionReason"]',
+    ) as HTMLTextAreaElement;
+
+    expect(reason.value).toBe('preserved reason');
+    expect(fixture.componentInstance.confirmationResult()).toEqual({
+      confirmed: true,
+      reason: 'preserved reason',
+    });
   });
 
   it('renders distinct Spanish cancel and permanent-delete actions', async () => {

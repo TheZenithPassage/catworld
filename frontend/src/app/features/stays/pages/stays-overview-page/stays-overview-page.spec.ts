@@ -173,10 +173,35 @@ describe('StaysOverviewPage', () => {
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().stays.overview.create,
     );
-    expect(compiled.querySelector('a[mat-stroked-button]')?.textContent).toContain(
+    expect(compiled.querySelector('a.stay-edit-link')?.textContent).toContain(
       component.text().stays.overview.edit,
     );
     expect(compiled.textContent).toContain(component.text().stays.overview.alreadyCancelled);
+  });
+
+  it('links every stay status to operational payment history for admin and staff', () => {
+    for (const role of ['ADMIN', 'STAFF'] as const) {
+      TestBed.inject(AuthSessionService).login(
+        { username: role.toLowerCase(), role },
+        { username: role.toLowerCase(), password: 'secret' },
+      );
+      createComponent();
+
+      const links = fixture.nativeElement.querySelectorAll('a.payment-history-link');
+      expect(links).toHaveLength(5);
+      expect(
+        fixture.nativeElement
+          .querySelector('#stay-stay-2 a.payment-history-link')
+          ?.getAttribute('href'),
+      ).toBe('/stays/stay-2/edit');
+      expect(
+        fixture.nativeElement
+          .querySelector('#stay-stay-3 a.payment-history-link')
+          ?.getAttribute('href'),
+      ).toBe('/stays/stay-3/edit');
+
+      fixture.destroy();
+    }
   });
 
   it('renders exact authoritative economics and localized payment conditions', () => {

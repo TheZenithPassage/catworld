@@ -17,6 +17,7 @@ export interface PermanentDeletionConfirmationDialogData {
   subject: string;
   reasonLabel?: string;
   reasonRequiredMessage?: string;
+  initialReason?: string;
 }
 
 export interface PermanentDeletionConfirmationResult {
@@ -53,7 +54,7 @@ export class PermanentDeletionConfirmationDialog {
   private readonly i18nService = inject(I18nService);
 
   readonly text = this.i18nService.text;
-  readonly reason = signal('');
+  readonly reason = signal(this.data.initialReason ?? '');
   readonly reasonRequired = computed(() => this.data.reasonLabel !== undefined);
   readonly confirmationResult = computed<true | PermanentDeletionConfirmationResult>(() =>
     this.reasonRequired() ? { confirmed: true, reason: this.reason().trim() } : true,

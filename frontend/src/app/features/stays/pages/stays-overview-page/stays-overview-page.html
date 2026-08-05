@@ -135,6 +135,15 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.actions }}</th>
           <td mat-cell *matCellDef="let stay">
+            <div class="row-actions">
+              <a
+                mat-stroked-button
+                class="payment-history-link"
+                [routerLink]="['/stays', stay.stayId, 'edit']"
+              >
+                {{ text().stays.overview.paymentHistory }}
+              </a>
+            </div>
             @if (isAdmin()) {
               @if (correctingStayId() === stay.stayId) {
                 <div class="correction-form">
@@ -178,7 +187,11 @@
             }
             @if (canEditStay(stay)) {
               <div class="row-actions">
-                <a mat-stroked-button [routerLink]="['/stays', stay.stayId, 'edit']">
+                <a
+                  mat-stroked-button
+                  class="stay-edit-link"
+                  [routerLink]="['/stays', stay.stayId, 'edit']"
+                >
                   {{ text().stays.overview.edit }}
                 </a>
 

@@ -6,6 +6,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { PermanentDeletionConfirmationResult } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -207,6 +208,26 @@ describe('StayPayments', () => {
     ).toHaveLength(0);
   });
 
+  it('keeps terminal payment mutations available to admin', () => {
+    fixture.componentRef.setInput('stay', {
+      ...stay,
+      startAt: '2020-01-01T10:00:00',
+      endAt: '2020-01-02T10:00:00',
+      cancelledAt: '2020-01-01T12:00:00',
+    });
+    fixture.detectChanges();
+
+    expect(component.canMutate()).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.payments-header button'),
+    ).not.toBeNull();
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll(
+        '.payment-row:first-child .payment-actions button',
+      ),
+    ).toHaveLength(3);
+  });
+
   it('shows allowed staff edit and annul actions without permanent removal', () => {
     role = 'STAFF';
     fixture.destroy();
@@ -269,7 +290,35 @@ describe('StayPayments', () => {
     dialogResult.next({ confirmed: true, reason: 'Wrong stay' });
     expect(component.error()).toBe(component.text().stays.payments.errors.missing);
     expect(component.stay()).toBe(stay);
+    expect(component.removalPayment()).toBe(stay.payments[0]);
+    expect(component.removalReason()).toBe('Wrong stay');
+
+    component.retryRemoval();
+    expect(dialog.open).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: expect.objectContaining({ initialReason: 'Wrong stay' }) }),
+    );
   });
+
+  it.each([
+    [400, 'invalid payment', 'validation'],
+    [403, 'forbidden', 'permission'],
+    [404, 'missing', 'missing'],
+    [409, 'stale payment', 'conflict'],
+  ] as const)(
+    'preserves removal target and reason after HTTP %s',
+    (status, backendError, expectedError) => {
+      api.removePayment.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status, error: backendError })),
+      );
+      component.remove(stay.payments[0]);
+      dialogResult.next({ confirmed: true, reason: 'Keep this reason' });
+
+      expect(component.removalPayment()?.paymentId).toBe('payment-1');
+      expect(component.removalReason()).toBe('Keep this reason');
+      expect(component.error()).toBe(component.text().stays.payments.errors[expectedError]);
+    },
+  );
 
   it('removes only after an administrator supplies the dialog reason', () => {
     const refreshedStay = { ...stay, totalPaid: '0', payments: [] };
@@ -282,5 +331,89 @@ describe('StayPayments', () => {
       reason: 'duplicate record',
     });
     expect(emitted).toEqual([refreshedStay]);
+    expect(component.removalPayment()).toBeNull();
+    expect(component.removalReason()).toBe('');
+  });
+
+  it('focuses edit amount and returns focus after cancellation', async () => {
+    const editButton = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-payment-action="edit"]',
+    ) as HTMLButtonElement;
+    editButton.click();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+
+    expect(document.activeElement).toBe(
+      (fixture.nativeElement as HTMLElement).querySelector('[name="paymentAmount"]'),
+    );
+
+    component.cancelAction();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(editButton);
+  });
+
+  it('focuses annul reason and returns focus after failure dismissal and success', async () => {
+    const annulButton = (fixture.nativeElement as HTMLElement).querySelector(
+      '[data-payment-action="annul"]',
+    ) as HTMLButtonElement;
+    api.annulPayment.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 409, error: 'stale payment' })),
+    );
+    annulButton.click();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(
+      (fixture.nativeElement as HTMLElement).querySelector('[name="paymentReason"]'),
+    );
+
+    component.reason.set('Preserved');
+    component.submitAction();
+    component.dismissError();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(annulButton);
+
+    const annulledResult = {
+      ...stay,
+      payments: [{ ...stay.payments[0], state: 'ANNULLED' as const }, stay.payments[1]],
+    };
+    component.stayChange.subscribe((updatedStay) =>
+      fixture.componentRef.setInput('stay', updatedStay),
+    );
+    api.annulPayment.mockReturnValueOnce(of(annulledResult));
+    component.submitAction();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(
+      (fixture.nativeElement as HTMLElement).querySelector('[data-payment-row-id="payment-1"]'),
+    );
+  });
+
+  it('reacts to language changes with an active error and visible timestamp', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    api.editPayment.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 403, error: 'forbidden' })),
+    );
+    component.startEdit(stay.payments[0]);
+    component.reason.set('Correction');
+    component.submitAction();
+    fixture.detectChanges();
+    const spanishTimestamp = (fixture.nativeElement as HTMLElement).querySelector(
+      '.payment-row dl div:last-child dd',
+    )?.textContent;
+    expect(component.error()).toBe(component.text().stays.payments.errors.permission);
+
+    i18n.toggleLanguage();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+    const englishTimestamp = (fixture.nativeElement as HTMLElement).querySelector(
+      '.payment-row dl div:last-child dd',
+    )?.textContent;
+
+    expect(component.error()).toBeNull();
+    expect(englishTimestamp).not.toBe(spanishTimestamp);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Registered at');
   });
 });
