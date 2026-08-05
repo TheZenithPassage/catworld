@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-import { isVaccineConflictError } from './stay.model';
+import { isStalePricingConfirmationError, isVaccineConflictError } from './stay.model';
 
 describe('isVaccineConflictError', () => {
   const validResponse = {
@@ -82,5 +82,25 @@ describe('isVaccineConflictError', () => {
     ],
   ])('rejects %s', (_description, error) => {
     expect(isVaccineConflictError(error)).toBe(false);
+  });
+});
+
+describe('isStalePricingConfirmationError', () => {
+  it('recognizes only the exact recoverable 409 code', () => {
+    expect(
+      isStalePricingConfirmationError(
+        new HttpErrorResponse({ status: 409, error: { code: 'STALE_PRICING_CONFIRMATION' } }),
+      ),
+    ).toBe(true);
+    expect(
+      isStalePricingConfirmationError(
+        new HttpErrorResponse({ status: 409, error: { code: 'OTHER' } }),
+      ),
+    ).toBe(false);
+    expect(
+      isStalePricingConfirmationError(
+        new HttpErrorResponse({ status: 400, error: { code: 'STALE_PRICING_CONFIRMATION' } }),
+      ),
+    ).toBe(false);
   });
 });

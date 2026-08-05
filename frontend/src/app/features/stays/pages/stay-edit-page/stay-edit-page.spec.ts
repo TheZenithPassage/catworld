@@ -33,6 +33,11 @@ describe('StayEditPage', () => {
       { catId: 'cat-1', name: 'Milo' },
       { catId: 'cat-2', name: 'Luna' },
     ],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
   };
 
   const closedStay: Stay = {
@@ -44,6 +49,7 @@ describe('StayEditPage', () => {
   const stayApiService = {
     getStayById: vi.fn(),
     updateStay: vi.fn(),
+    previewDateChangePricing: vi.fn(),
   };
 
   const router = {
@@ -82,6 +88,23 @@ describe('StayEditPage', () => {
     });
     routeParams = { id: 'stay-1' };
     stayApiService.getStayById.mockReturnValue(of(stay));
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '100',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 7,
+          retainedNightlyRate: '50',
+          suggestedAmount: '100',
+        },
+      }),
+    );
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
@@ -361,5 +384,104 @@ describe('StayEditPage', () => {
     expect(matDialog.open).toHaveBeenCalledTimes(1);
     expect(component.error()).toBe('Stay still conflicts');
     expect(component.submitting()).toBe(false);
+  });
+
+  it('submits an admin repricing decision only when the backend requires it', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+    stayApiService.updateStay.mockReturnValue(of(stay));
+    createComponent();
+    component.agreedAmount.set('9999999999999999999');
+    component.pricingReason.set('Administrative agreement');
+    component.confirmPricing();
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledWith(
+      'stay-1',
+      expect.objectContaining({
+        pricingDecision: {
+          agreedAmount: '9999999999999999999',
+          reason: 'Administrative agreement',
+        },
+        confirmation: expect.objectContaining({ previousNumberOfNights: 7, numberOfNights: 8 }),
+      }),
+    );
+  });
+
+  it('preserves the entered pricing decision when stale recovery loads a fresh preview', () => {
+    const initialPreview = {
+      pricingDecisionRequired: true,
+      currentNumberOfNights: 7,
+      currentAgreedAmount: '100',
+      numberOfNights: 8,
+      retainedNightlyRate: '50',
+      suggestedAmount: '400',
+      confirmation: {
+        previousNumberOfNights: 7,
+        previousAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+      },
+    };
+    const freshPreview = {
+      ...initialPreview,
+      suggestedAmount: '450',
+      confirmation: { ...initialPreview.confirmation, suggestedAmount: '450' },
+    };
+    stayApiService.previewDateChangePricing
+      .mockReturnValueOnce(of(initialPreview))
+      .mockReturnValueOnce(of(freshPreview));
+    stayApiService.updateStay.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { code: 'STALE_PRICING_CONFIRMATION' },
+          }),
+      ),
+    );
+    createComponent();
+    component.agreedAmount.set('375');
+    component.pricingReason.set('Client retained this amount');
+    component.confirmPricing();
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+    expect(stayApiService.previewDateChangePricing).toHaveBeenCalledTimes(2);
+    expect(component.pricingPreview()).toEqual(freshPreview);
+    expect(component.agreedAmount()).toBe('375');
+    expect(component.pricingReason()).toBe('Client retained this amount');
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.stalePricing()).toBe(true);
+  });
+
+  it('presents the administrator-required state for a rejected staff pricing preview', () => {
+    authSessionService.hasRole.mockReturnValue(false);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 403 })),
+    );
+
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.adminRequired);
+    expect(component.pricingPreview()).toBeNull();
   });
 });

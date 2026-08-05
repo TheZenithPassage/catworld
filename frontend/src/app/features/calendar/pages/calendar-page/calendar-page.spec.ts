@@ -24,6 +24,11 @@ describe('CalendarPage', () => {
     ownerId: 'owner-1',
     ownerName: 'Ada Lovelace',
     cats: [{ catId: 'cat-1', name: 'Milo' }],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
   };
 
   const stayApiService = {

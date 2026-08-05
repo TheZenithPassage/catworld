@@ -5,6 +5,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
@@ -24,6 +25,11 @@ describe('StaysOverviewPage', () => {
     ownerId: 'owner-1',
     ownerName: 'Ada Lovelace',
     cats: [{ catId: 'cat-1', name: 'Milo' }],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
   };
 
   const cancelledStay: Stay = {
@@ -37,6 +43,7 @@ describe('StaysOverviewPage', () => {
   const stayApiService = {
     getStays: vi.fn(),
     cancelStay: vi.fn(),
+    correctAgreedAmount: vi.fn(),
   };
 
   const visibilityPreferencesService = {
@@ -192,5 +199,32 @@ describe('StaysOverviewPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain(component.text().stays.overview.empty);
     expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
+  });
+  it('shows admin correction across statuses and replaces economics from the backend response', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'secret' },
+    );
+    const updatedStay = {
+      ...cancelledStay,
+      agreedAmount: '9999999999999999999',
+      remainingAmount: '9999999999999999999',
+    };
+    stayApiService.correctAgreedAmount.mockReturnValue(of(updatedStay));
+    fixture = TestBed.createComponent(StaysOverviewPage);
+    component = fixture.componentInstance;
+    component.startCorrection(cancelledStay);
+    component.correctionAmount.set('9999999999999999999');
+    component.correctionReason.set('Signed correction');
+
+    component.submitCorrection(cancelledStay);
+
+    expect(stayApiService.correctAgreedAmount).toHaveBeenCalledWith('stay-2', {
+      agreedAmount: '9999999999999999999',
+      reason: 'Signed correction',
+    });
+    expect(component.stays().find((stay) => stay.stayId === 'stay-2')?.agreedAmount).toBe(
+      '9999999999999999999',
+    );
   });
 });

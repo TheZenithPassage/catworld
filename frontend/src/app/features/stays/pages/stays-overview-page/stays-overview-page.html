@@ -63,6 +63,26 @@
           <td mat-cell *matCellDef="let stay">{{ getNightCountLabel(stay.numberOfNights) }}</td>
         </ng-container>
 
+        <ng-container matColumnDef="economics">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.pricing.economics }}</th>
+          <td mat-cell *matCellDef="let stay" class="economics-cell">
+            <span
+              >{{ text().stays.pricing.retainedRate }}:
+              {{ stay.retainedNightlyRate ?? text().stays.pricing.unavailable }}</span
+            >
+            <span
+              >{{ text().stays.pricing.suggestion }}:
+              {{ stay.suggestedAmount ?? text().stays.pricing.unavailable }}</span
+            >
+            <span
+              >{{ text().stays.pricing.agreement }}:
+              {{ stay.agreedAmount ?? text().stays.pricing.unavailable }}</span
+            >
+            <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
+            <span>{{ text().stays.pricing.remaining }}: {{ stay.remainingAmount }}</span>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="cats">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.cats }}</th>
           <td mat-cell *matCellDef="let stay">
@@ -88,6 +108,47 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.actions }}</th>
           <td mat-cell *matCellDef="let stay">
+            @if (isAdmin()) {
+              @if (correctingStayId() === stay.stayId) {
+                <div class="correction-form">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
+                    <input
+                      matInput
+                      inputmode="numeric"
+                      [ngModel]="correctionAmount()"
+                      (ngModelChange)="correctionAmount.set($event)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ text().stays.pricing.reason }}</mat-label>
+                    <textarea
+                      matInput
+                      rows="2"
+                      [ngModel]="correctionReason()"
+                      (ngModelChange)="correctionReason.set($event)"
+                    ></textarea>
+                  </mat-form-field>
+                  <div class="row-actions">
+                    <button
+                      mat-flat-button
+                      type="button"
+                      (click)="submitCorrection(stay)"
+                      [disabled]="correctionSubmitting()"
+                    >
+                      {{ text().stays.pricing.correct }}
+                    </button>
+                    <button mat-button type="button" (click)="cancelCorrection()">
+                      {{ text().stays.pricing.cancelCorrection }}
+                    </button>
+                  </div>
+                </div>
+              } @else {
+                <button mat-stroked-button type="button" (click)="startCorrection(stay)">
+                  {{ text().stays.pricing.correctAgreement }}
+                </button>
+              }
+            }
             @if (canEditStay(stay)) {
               <div class="row-actions">
                 <a mat-stroked-button [routerLink]="['/stays', stay.stayId, 'edit']">
