@@ -135,6 +135,8 @@ describe('StayCreatePage', () => {
     agreedAmount: '100',
     totalPaid: '0',
     remainingAmount: '100',
+    paymentCondition: 'NO_PAYMENT',
+    outstandingCollectionEligible: true,
   };
 
   const ownerApiService = {

@@ -22,6 +22,29 @@
     }
   </div>
 
+  <div
+    class="payment-filters"
+    role="group"
+    [attr.aria-label]="text().stays.filters.paymentAriaLabel"
+  >
+    @for (condition of paymentConditionFilterOptions; track condition) {
+      <mat-checkbox
+        class="payment-filter"
+        [checked]="isPaymentConditionVisible(condition)"
+        (change)="setPaymentConditionVisibility(condition, $event.checked)"
+      >
+        {{ text().stays.filters.paymentCondition[condition] }}
+      </mat-checkbox>
+    }
+    <mat-checkbox
+      class="payment-filter outstanding-filter"
+      [checked]="paymentFilters().outstandingOnly"
+      (change)="setOutstandingOnly($event.checked)"
+    >
+      {{ text().stays.filters.outstandingOnly }}
+    </mat-checkbox>
+  </div>
+
   <app-stay-search-filters
     [stays]="stays()"
     (filtersChange)="setSearchFilters($event)"
@@ -79,7 +102,11 @@
               {{ stay.agreedAmount ?? text().stays.pricing.unavailable }}</span
             >
             <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
-            <span>{{ text().stays.pricing.remaining }}: {{ stay.remainingAmount }}</span>
+            <span
+              >{{ text().stays.pricing.remaining }}:
+              {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
+            >
+            <span>{{ getPaymentCondition(stay) }}</span>
           </td>
         </ng-container>
 
