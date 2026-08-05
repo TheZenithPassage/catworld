@@ -946,6 +946,36 @@ public class StayServiceTest {
             verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
         }
 
+        @Test
+        void concurrentMatchingNightCountStillRejectsOldConfirmation() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(startAt).endAt(startAt.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(new BigDecimal("20")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(
+                    stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(3)).build());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt).endAt(startAt.plusDays(3))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("30")).build())
+                    .confirmation(preview.getConfirmation()).build();
+
+            stay.setEndAt(startAt.plusDays(3));
+            stay.setAgreedAmount(new BigDecimal("25"));
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+            verify(stayMapper, never()).updateEntity(any(), any());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+            verify(sensitiveStayContextFactory, never()).create(any());
+        }
+
         @ParameterizedTest
         @ValueSource(strings = {
                 "previousNumberOfNights", "previousAgreedAmount",
