@@ -9,6 +9,7 @@
         mat-flat-button
         type="button"
         data-payment-action="register"
+        [disabled]="mutationLocked()"
         (click)="startRegister($event.currentTarget)"
       >
         {{ text().stays.payments.register }}
@@ -40,7 +41,12 @@
     ></app-ui-state>
     @if (removalPayment()) {
       <div class="removal-recovery-actions">
-        <button mat-stroked-button type="button" (click)="retryRemoval()">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="mutationLocked()"
+          (click)="retryRemoval()"
+        >
           {{ text().stays.payments.retryRemoval }}
         </button>
         <button mat-button type="button" (click)="abandonRemoval()">
@@ -166,6 +172,7 @@
                 type="button"
                 data-payment-action="edit"
                 [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
                 (click)="startEdit(payment, $event.currentTarget)"
               >
                 {{ text().stays.payments.edit }}
@@ -175,6 +182,7 @@
                 type="button"
                 data-payment-action="annul"
                 [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
                 (click)="startAnnul(payment, $event.currentTarget)"
               >
                 {{ text().stays.payments.annul }}
@@ -186,6 +194,7 @@
                 type="button"
                 data-payment-action="remove"
                 [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
                 (click)="remove(payment, $event.currentTarget)"
               >
                 {{ text().stays.payments.remove }}

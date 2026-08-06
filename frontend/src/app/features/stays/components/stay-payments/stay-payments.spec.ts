@@ -130,6 +130,79 @@ describe('StayPayments', () => {
     });
   });
 
+  it('serializes every mutation trigger while registration remains pending', () => {
+    const registration = new Subject<Stay>();
+    api.registerPayment.mockReturnValue(registration.asObservable());
+    component.startRegister();
+    component.amount.set('1');
+    component.paymentDate.set('2026-08-05');
+    component.submitAction();
+    fixture.detectChanges();
+
+    expect(component.submitting()).toBe(true);
+    expect(
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '[data-payment-action]',
+        ),
+      ).every((button) => button.disabled),
+    ).toBe(true);
+
+    component.startEdit(stay.payments[0]);
+    component.startAnnul(stay.payments[0]);
+    component.remove(stay.payments[0]);
+    component.submitAction();
+
+    expect(component.action()).toBe('register');
+    expect(api.registerPayment).toHaveBeenCalledTimes(1);
+    expect(api.editPayment).not.toHaveBeenCalled();
+    expect(api.annulPayment).not.toHaveBeenCalled();
+    expect(api.removePayment).not.toHaveBeenCalled();
+    expect(dialog.open).not.toHaveBeenCalled();
+
+    registration.next(stay);
+    registration.complete();
+    expect(component.submitting()).toBe(false);
+  });
+
+  it('does not open or call a second mutation while removal remains pending', () => {
+    const removal = new Subject<Stay>();
+    api.removePayment.mockReturnValue(removal.asObservable());
+    component.remove(stay.payments[0]);
+    fixture.detectChanges();
+
+    expect(component.removalDialogOpen()).toBe(true);
+    expect(
+      Array.from(
+        (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+          '[data-payment-action]',
+        ),
+      ).every((button) => button.disabled),
+    ).toBe(true);
+    component.remove(stay.payments[1]);
+    expect(dialog.open).toHaveBeenCalledTimes(1);
+
+    dialogResult.next({ confirmed: true, reason: 'Entered twice' });
+    fixture.detectChanges();
+
+    expect(component.submitting()).toBe(true);
+    component.startRegister();
+    component.startEdit(stay.payments[0]);
+    component.startAnnul(stay.payments[0]);
+    component.remove(stay.payments[1]);
+    component.submitAction();
+
+    expect(api.removePayment).toHaveBeenCalledTimes(1);
+    expect(api.registerPayment).not.toHaveBeenCalled();
+    expect(api.editPayment).not.toHaveBeenCalled();
+    expect(api.annulPayment).not.toHaveBeenCalled();
+    expect(dialog.open).toHaveBeenCalledTimes(1);
+
+    removal.next(stay);
+    removal.complete();
+    expect(component.submitting()).toBe(false);
+  });
+
   it('preserves entered values and maps a recoverable conflict', () => {
     api.editPayment.mockReturnValue(
       throwError(
@@ -298,6 +371,31 @@ describe('StayPayments', () => {
       expect.any(Function),
       expect.objectContaining({ data: expect.objectContaining({ initialReason: 'Wrong stay' }) }),
     );
+  });
+
+  it('discards failed removal recovery before an unrelated edit failure', () => {
+    api.removePayment.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: 'stale payment' })),
+    );
+    component.remove(stay.payments[0]);
+    dialogResult.next({ confirmed: true, reason: 'Keep removal A' });
+    expect(component.removalPayment()?.paymentId).toBe('payment-1');
+
+    const paymentB = { ...stay.payments[0], paymentId: 'payment-b', amount: '1' };
+    api.editPayment.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 403, error: 'forbidden' })),
+    );
+    component.startEdit(paymentB);
+    component.reason.set('Edit payment B');
+    component.submitAction();
+    fixture.detectChanges();
+
+    expect(component.removalPayment()).toBeNull();
+    expect(component.removalReason()).toBe('');
+    expect(component.error()).toBe(component.text().stays.payments.errors.permission);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.removal-recovery-actions'),
+    ).toBeNull();
   });
 
   it.each([

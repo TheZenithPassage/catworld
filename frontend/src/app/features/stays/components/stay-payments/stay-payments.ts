@@ -45,6 +45,7 @@ export class StayPayments {
   readonly note = signal('');
   readonly reason = signal('');
   readonly submitting = signal(false);
+  readonly removalDialogOpen = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly attempted = signal(false);
   readonly removalPayment = signal<StayPayment | null>(null);
@@ -60,8 +61,11 @@ export class StayPayments {
     return status === 'reserved' || status === 'checked-in';
   });
   readonly amountValid = computed(() => /^(?!0+$)\d{1,19}$/.test(this.amount()));
+  readonly mutationLocked = computed(() => this.submitting() || this.removalDialogOpen());
 
   startRegister(trigger?: EventTarget | null): void {
+    if (this.mutationLocked()) return;
+    this.clearRemovalAttempt(false);
     this.resetForm();
     this.captureReturnFocus(trigger, 'register');
     this.action.set('register');
@@ -69,6 +73,8 @@ export class StayPayments {
   }
 
   startEdit(payment: StayPayment, trigger?: EventTarget | null): void {
+    if (this.mutationLocked()) return;
+    this.clearRemovalAttempt(false);
     this.resetForm();
     this.captureReturnFocus(trigger, 'edit', payment.paymentId);
     this.selectedPayment.set(payment);
@@ -78,6 +84,8 @@ export class StayPayments {
   }
 
   startAnnul(payment: StayPayment, trigger?: EventTarget | null): void {
+    if (this.mutationLocked()) return;
+    this.clearRemovalAttempt(false);
     this.resetForm();
     this.captureReturnFocus(trigger, 'annul', payment.paymentId);
     this.selectedPayment.set(payment);
@@ -90,6 +98,7 @@ export class StayPayments {
   }
 
   submitAction(): void {
+    if (this.mutationLocked()) return;
     this.attempted.set(true);
     this.error.set(null);
     const action = this.action();
@@ -128,7 +137,7 @@ export class StayPayments {
   }
 
   remove(payment: StayPayment, trigger?: EventTarget | null): void {
-    if (!this.isAdmin()) return;
+    if (!this.isAdmin() || this.mutationLocked()) return;
 
     const previousTarget = this.removalPayment();
     if (previousTarget?.paymentId !== payment.paymentId) {
@@ -136,6 +145,7 @@ export class StayPayments {
     }
     this.removalPayment.set(payment);
     this.captureReturnFocus(trigger, 'remove', payment.paymentId);
+    this.removalDialogOpen.set(true);
 
     const copy = this.text().stays.payments;
     this.dialog
@@ -160,6 +170,7 @@ export class StayPayments {
       })
       .afterClosed()
       .subscribe((result) => {
+        this.removalDialogOpen.set(false);
         if (!isPermanentDeletionConfirmed(result) || result === true || !result.reason) {
           this.clearRemovalAttempt(true);
           return;
@@ -181,6 +192,7 @@ export class StayPayments {
   }
 
   retryRemoval(): void {
+    if (this.mutationLocked()) return;
     const payment = this.removalPayment();
     if (payment) this.remove(payment);
   }
