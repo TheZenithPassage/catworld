@@ -115,7 +115,7 @@
         </mat-form-field>
       }
       <div class="payment-form-actions">
-        <button mat-button type="button" (click)="cancelAction()">
+        <button mat-button type="button" [disabled]="mutationLocked()" (click)="cancelAction()">
           {{ text().stays.payments.cancel }}
         </button>
         <button mat-flat-button type="submit" [disabled]="submitting()">

@@ -94,6 +94,7 @@ export class StayPayments {
   }
 
   cancelAction(): void {
+    if (this.mutationLocked()) return;
     this.resetForm(true);
   }
 

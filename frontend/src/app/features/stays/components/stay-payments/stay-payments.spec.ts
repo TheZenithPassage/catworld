@@ -165,6 +165,37 @@ describe('StayPayments', () => {
     expect(component.submitting()).toBe(false);
   });
 
+  it('retains the active form and entered values when cancellation is attempted while pending', () => {
+    const edit = new Subject<Stay>();
+    api.editPayment.mockReturnValue(edit.asObservable());
+    component.startEdit(stay.payments[0]);
+    component.amount.set('9999999999999999999');
+    component.reason.set('Correct the payment');
+    component.submitAction();
+    fixture.detectChanges();
+
+    const cancel = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+      '.payment-form-actions button[type="button"]',
+    );
+    expect(cancel?.disabled).toBe(true);
+
+    component.cancelAction();
+    expect(component.action()).toBe('edit');
+    expect(component.selectedPayment()?.paymentId).toBe('payment-1');
+    expect(component.amount()).toBe('9999999999999999999');
+    expect(component.reason()).toBe('Correct the payment');
+
+    edit.error(new HttpErrorResponse({ status: 409, error: 'stale payment' }));
+    fixture.detectChanges();
+
+    expect(component.submitting()).toBe(false);
+    expect(component.action()).toBe('edit');
+    expect(component.amount()).toBe('9999999999999999999');
+    expect(component.reason()).toBe('Correct the payment');
+    expect(component.error()).toBe(component.text().stays.payments.errors.conflict);
+    expect(cancel?.disabled).toBe(false);
+  });
+
   it('does not open or call a second mutation while removal remains pending', () => {
     const removal = new Subject<Stay>();
     api.removePayment.mockReturnValue(removal.asObservable());
