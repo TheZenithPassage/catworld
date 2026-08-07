@@ -51,6 +51,7 @@ export class App {
     ];
 
     if (this.authenticated()?.role === 'ADMIN') {
+      items.push({ path: '/sensitive-activity', label: nav.sensitiveActivity, exact: false });
       items.push({ path: '/accounts', label: nav.accounts, exact: false });
     }
 

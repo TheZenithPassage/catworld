@@ -1,0 +1,292 @@
+<section class="activity-page">
+  <header>
+    <h2>{{ text().sensitiveActivity.title }}</h2>
+    <p>{{ text().sensitiveActivity.description }}</p>
+  </header>
+
+  <form
+    class="filters"
+    role="search"
+    [attr.aria-label]="text().sensitiveActivity.filters.label"
+    (ngSubmit)="applyFilters()"
+  >
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.actorId }}</mat-label>
+      <input
+        matInput
+        [ngModel]="filters().actorId"
+        (ngModelChange)="updateFilter('actorId', $event)"
+        name="actorId"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.occurredFrom }}</mat-label>
+      <input
+        id="sensitive-occurred-from"
+        matInput
+        type="datetime-local"
+        [attr.aria-describedby]="invalidPeriod() ? 'sensitive-period-error' : null"
+        [attr.aria-invalid]="invalidPeriod()"
+        [ngModel]="filters().occurredFrom"
+        (ngModelChange)="updateFilter('occurredFrom', $event)"
+        name="occurredFrom"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.occurredTo }}</mat-label>
+      <input
+        matInput
+        type="datetime-local"
+        [attr.aria-describedby]="invalidPeriod() ? 'sensitive-period-error' : null"
+        [attr.aria-invalid]="invalidPeriod()"
+        [ngModel]="filters().occurredTo"
+        (ngModelChange)="updateFilter('occurredTo', $event)"
+        name="occurredTo"
+      />
+    </mat-form-field>
+    @if (invalidPeriod()) {
+      <p id="sensitive-period-error" class="period-error" role="alert">
+        {{ text().sensitiveActivity.filters.invalidPeriod }}
+      </p>
+    }
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.eventType }}</mat-label>
+      <select
+        matNativeControl
+        [ngModel]="filters().eventType"
+        (ngModelChange)="updateFilter('eventType', $event)"
+        name="eventType"
+      >
+        <option value="">{{ text().sensitiveActivity.filters.allTypes }}</option>
+        @for (eventType of eventTypes; track eventType) {
+          <option [value]="eventType">{{ text().sensitiveActivity.events[eventType] }}</option>
+        }
+      </select>
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.ownerId }}</mat-label>
+      <input
+        matInput
+        [ngModel]="filters().ownerId"
+        (ngModelChange)="updateFilter('ownerId', $event)"
+        name="ownerId"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.catId }}</mat-label>
+      <input
+        matInput
+        [ngModel]="filters().catId"
+        (ngModelChange)="updateFilter('catId', $event)"
+        name="catId"
+      />
+    </mat-form-field>
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().sensitiveActivity.filters.stayId }}</mat-label>
+      <input
+        matInput
+        [ngModel]="filters().stayId"
+        (ngModelChange)="updateFilter('stayId', $event)"
+        name="stayId"
+      />
+    </mat-form-field>
+    <div class="filter-actions">
+      <button mat-flat-button type="submit">{{ text().sensitiveActivity.filters.apply }}</button>
+      <button mat-stroked-button type="button" (click)="refresh()">
+        {{ text().sensitiveActivity.filters.refresh }}
+      </button>
+      <button mat-button type="button" (click)="clearFilters()">
+        {{ text().sensitiveActivity.filters.clear }}
+      </button>
+    </div>
+  </form>
+
+  <div id="sensitive-activity-state" tabindex="-1" [attr.aria-busy]="loading()">
+    @if (loading()) {
+      <app-ui-state kind="loading" [message]="text().sensitiveActivity.loading" />
+    } @else if (loadError()) {
+      <app-ui-state
+        kind="error"
+        [message]="stateMessage()"
+        [actionLabel]="loadError() === 'forbidden' ? null : text().sensitiveActivity.retry"
+        (actionTriggered)="refresh()"
+      />
+    } @else if (events().length === 0) {
+      <app-ui-state kind="empty" [message]="text().sensitiveActivity.empty" />
+    } @else {
+      <ol class="activity-list" [attr.aria-label]="text().sensitiveActivity.title">
+        @for (event of events(); track event.eventId) {
+          <li>
+            <article>
+              <mat-card appearance="outlined">
+                <mat-card-header
+                  ><mat-card-title>{{ eventLabel(event) }}</mat-card-title></mat-card-header
+                >
+                <mat-card-content>
+                  <dl class="event-details">
+                    <div>
+                      <dt>{{ text().sensitiveActivity.fields.actor }}</dt>
+                      <dd>{{ event.actor.username }} ({{ event.actor.id }})</dd>
+                    </div>
+                    <div>
+                      <dt>{{ text().sensitiveActivity.fields.occurredAt }}</dt>
+                      <dd>{{ formatDate(event.occurredAt) }}</dd>
+                    </div>
+                    <div>
+                      <dt>{{ text().sensitiveActivity.fields.eventId }}</dt>
+                      <dd>{{ event.eventId }}</dd>
+                    </div>
+                    @switch (event.eventType) {
+                      @case ('NIGHTLY_RATE_CHANGED') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.category }}</dt>
+                          <dd>{{ categoryLabel(event.category) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.previousRate }}</dt>
+                          <dd>{{ display(event.previousRate) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.newRate }}</dt>
+                          <dd>{{ display(event.newRate) }}</dd>
+                        </div>
+                      }
+                      @case ('PRICING_OVERRIDE') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.retainedRate }}</dt>
+                          <dd>{{ event.retainedNightlyRate }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.nights }}</dt>
+                          <dd>{{ event.numberOfNights }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.agreement }}</dt>
+                          <dd>{{ event.agreedAmount }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+                          <dd>{{ event.reason }}</dd>
+                        </div>
+                      }
+                      @case ('AGREED_AMOUNT_CORRECTED') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.previousAgreement }}</dt>
+                          <dd>{{ display(event.previousAgreedAmount) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.newAgreement }}</dt>
+                          <dd>{{ event.newAgreedAmount }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+                          <dd>{{ event.reason }}</dd>
+                        </div>
+                      }
+                      @case ('PAYMENT_EDITED') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.previousAmount }}</dt>
+                          <dd>{{ event.previousAmount }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.newAmount }}</dt>
+                          <dd>{{ event.newAmount }}</dd>
+                        </div>
+                      }
+                      @case ('PAYMENT_ANNULLED') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
+                          <dd>{{ event.amount }}</dd>
+                        </div>
+                      }
+                      @case ('PAYMENT_REMOVED') {
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
+                          <dd>{{ event.amount }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.annulled }}</dt>
+                          <dd>
+                            {{
+                              event.annulled
+                                ? text().sensitiveActivity.yes
+                                : text().sensitiveActivity.no
+                            }}
+                          </dd>
+                        </div>
+                      }
+                    }
+                    @if (
+                      event.eventType === 'PAYMENT_EDITED' ||
+                      event.eventType === 'PAYMENT_ANNULLED' ||
+                      event.eventType === 'PAYMENT_REMOVED'
+                    ) {
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.paymentId }}</dt>
+                        <dd>{{ event.paymentId }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.paymentDate }}</dt>
+                        <dd>{{ event.paymentDate }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.note }}</dt>
+                        <dd>{{ display(event.note) }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.registeredBy }}</dt>
+                        <dd>{{ event.registeredBy.username }} ({{ event.registeredBy.id }})</dd>
+                      </div>
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.registeredAt }}</dt>
+                        <dd>
+                          {{ formatDate(event.registeredAt) }}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+                        <dd>{{ event.reason }}</dd>
+                      </div>
+                    }
+                  </dl>
+                  @if (event.affectedContext; as context) {
+                    <section
+                      class="affected-context"
+                      [attr.aria-label]="text().sensitiveActivity.fields.stay"
+                    >
+                      <h3>{{ text().sensitiveActivity.fields.stay }}</h3>
+                      <dl class="event-details">
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.stay }}</dt>
+                          <dd>{{ display(context.stayId) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.stayDates }}</dt>
+                          <dd>{{ display(context.startAt) }} – {{ display(context.endAt) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
+                          <dd>{{ context.owner.fullName }} ({{ context.owner.id }})</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.cats }}</dt>
+                          <dd>{{ catsLabel(context.cats) }}</dd>
+                        </div>
+                        @if (context.cancelledAt) {
+                          <div>
+                            <dt>{{ text().sensitiveActivity.fields.cancelledAt }}</dt>
+                            <dd>{{ context.cancelledAt }}</dd>
+                          </div>
+                        }
+                      </dl>
+                    </section>
+                  }
+                </mat-card-content>
+              </mat-card>
+            </article>
+          </li>
+        }
+      </ol>
+    }
+  </div>
+</section>

@@ -121,6 +121,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'sensitive-activity',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/sensitive-activity/pages/sensitive-activity-page/sensitive-activity-page').then(
+        (m) => m.SensitiveActivityPage,
+      ),
+  },
+  {
     path: '**',
     redirectTo: '',
   },
