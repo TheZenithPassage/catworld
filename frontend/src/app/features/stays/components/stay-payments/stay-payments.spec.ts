@@ -496,6 +496,54 @@ describe('StayPayments', () => {
     expect(document.activeElement).toBe(editButton);
   });
 
+  it('keeps edit focus provenance across a failed removal, failure dismissal, success, and cancellation', async () => {
+    const paymentB = { ...stay.payments[0], paymentId: 'payment-b', amount: '2' };
+    const mixedStay = { ...stay, payments: [stay.payments[0], paymentB] };
+    fixture.componentRef.setInput('stay', mixedStay);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const editB = compiled.querySelector(
+      '[data-payment-id="payment-b"][data-payment-action="edit"]',
+    ) as HTMLButtonElement;
+    const removeA = compiled.querySelector(
+      '[data-payment-id="payment-1"][data-payment-action="remove"]',
+    ) as HTMLButtonElement;
+    api.removePayment.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: 'stale payment' })),
+    );
+
+    editB.click();
+    fixture.detectChanges();
+    removeA.click();
+    dialogResult.next({ confirmed: true, reason: 'Remove payment A' });
+    component.cancelAction();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(editB);
+
+    dialogResult = new Subject();
+    editB.click();
+    fixture.detectChanges();
+    removeA.click();
+    dialogResult.next({ confirmed: true, reason: 'Remove payment A' });
+    component.amount.set('9999999999999999999');
+    component.reason.set('Edit payment B');
+    api.editPayment.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 403, error: 'forbidden' })),
+    );
+    component.submitAction();
+    component.dismissError();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(editB);
+
+    api.editPayment.mockReturnValueOnce(of(mixedStay));
+    component.submitAction();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(document.activeElement).toBe(editB);
+  });
+
   it('focuses annul reason and returns focus after failure dismissal and success', async () => {
     const annulButton = (fixture.nativeElement as HTMLElement).querySelector(
       '[data-payment-action="annul"]',

@@ -20,6 +20,7 @@ import { StayApiService } from '../../services/stay-api.service';
 import { getStayStatus } from '../../utils/stay-status.util';
 
 type PaymentAction = 'register' | 'edit' | 'annul' | null;
+type FocusContext = 'form' | 'removal';
 
 @Component({
   selector: 'app-stay-payments',
@@ -51,8 +52,11 @@ export class StayPayments {
   readonly removalPayment = signal<StayPayment | null>(null);
   readonly removalReason = signal('');
 
-  private returnFocusSelector: string | null = null;
-  private returnFocusPaymentId: string | null = null;
+  private formReturnFocusSelector: string | null = null;
+  private formReturnFocusPaymentId: string | null = null;
+  private removalReturnFocusSelector: string | null = null;
+  private removalReturnFocusPaymentId: string | null = null;
+  private errorFocusContext: FocusContext = 'form';
 
   readonly isAdmin = computed(() => this.authSession.hasRole('ADMIN'));
   readonly canMutate = computed(() => {
@@ -133,8 +137,8 @@ export class StayPayments {
     }
 
     request.subscribe({
-      next: (stay) => this.complete(stay),
-      error: (error: unknown) => this.fail(error),
+      next: (stay) => this.complete(stay, 'form'),
+      error: (error: unknown) => this.fail(error, 'form'),
     });
   }
 
@@ -186,9 +190,9 @@ export class StayPayments {
             next: (stay) => {
               this.removalPayment.set(null);
               this.removalReason.set('');
-              this.complete(stay);
+              this.complete(stay, 'removal');
             },
-            error: (error: unknown) => this.fail(error),
+            error: (error: unknown) => this.fail(error, 'removal'),
           });
       });
   }
@@ -206,7 +210,7 @@ export class StayPayments {
 
   dismissError(): void {
     this.error.set(null);
-    this.restoreFocus();
+    this.restoreFocus(this.errorFocusContext);
   }
 
   formatRegisteredAt(value: string): string {
@@ -222,21 +226,22 @@ export class StayPayments {
     return action === 'register' || this.reason().trim().length > 0;
   }
 
-  private complete(stay: Stay): void {
+  private complete(stay: Stay, focusContext: FocusContext): void {
     this.submitting.set(false);
-    const focusSelector = this.returnFocusSelector;
+    const focusSelector = this.returnFocusSelector(focusContext);
+    const focusPaymentId = this.returnFocusPaymentId(focusContext);
     this.resetForm();
     this.stayChange.emit(stay);
-    this.restoreFocus(focusSelector);
+    this.restoreFocus(focusContext, focusSelector, focusPaymentId);
   }
 
-  private fail(error: unknown): void {
+  private fail(error: unknown, focusContext: FocusContext): void {
     this.submitting.set(false);
+    this.errorFocusContext = focusContext;
     this.error.set(this.errorMessage(error));
   }
 
   private resetForm(restoreFocus = false): void {
-    const focusSelector = restoreFocus ? this.returnFocusSelector : null;
     this.action.set(null);
     this.selectedPayment.set(null);
     this.amount.set('');
@@ -245,7 +250,7 @@ export class StayPayments {
     this.reason.set('');
     this.error.set(null);
     this.attempted.set(false);
-    if (restoreFocus) this.restoreFocus(focusSelector);
+    if (restoreFocus) this.restoreFocus('form');
   }
 
   private captureReturnFocus(
@@ -253,12 +258,19 @@ export class StayPayments {
     action: 'register' | 'edit' | 'annul' | 'remove',
     paymentId?: string,
   ): void {
-    this.returnFocusPaymentId = paymentId ?? null;
-    this.returnFocusSelector = paymentId
+    const context: FocusContext = action === 'remove' ? 'removal' : 'form';
+    let selector = paymentId
       ? `[data-payment-id="${paymentId}"][data-payment-action="${action}"]`
       : `[data-payment-action="${action}"]`;
-    if (trigger instanceof HTMLElement && !trigger.matches(this.returnFocusSelector)) {
-      this.returnFocusSelector = null;
+    if (trigger instanceof HTMLElement && !trigger.matches(selector)) {
+      selector = '';
+    }
+    if (context === 'form') {
+      this.formReturnFocusSelector = selector || null;
+      this.formReturnFocusPaymentId = paymentId ?? null;
+    } else {
+      this.removalReturnFocusSelector = selector || null;
+      this.removalReturnFocusPaymentId = paymentId ?? null;
     }
   }
 
@@ -266,8 +278,11 @@ export class StayPayments {
     setTimeout(() => document.querySelector<HTMLElement>(`[name="${name}"]`)?.focus());
   }
 
-  private restoreFocus(selector = this.returnFocusSelector): void {
-    const paymentId = this.returnFocusPaymentId;
+  private restoreFocus(
+    context: FocusContext,
+    selector = this.returnFocusSelector(context),
+    paymentId = this.returnFocusPaymentId(context),
+  ): void {
     setTimeout(() => {
       const target = selector ? document.querySelector<HTMLElement>(selector) : null;
       const row = paymentId
@@ -282,10 +297,19 @@ export class StayPayments {
   }
 
   private clearRemovalAttempt(restoreFocus: boolean): void {
-    const selector = this.returnFocusSelector;
+    const selector = this.removalReturnFocusSelector;
+    const paymentId = this.removalReturnFocusPaymentId;
     this.removalPayment.set(null);
     this.removalReason.set('');
-    if (restoreFocus) this.restoreFocus(selector);
+    if (restoreFocus) this.restoreFocus('removal', selector, paymentId);
+  }
+
+  private returnFocusSelector(context: FocusContext): string | null {
+    return context === 'form' ? this.formReturnFocusSelector : this.removalReturnFocusSelector;
+  }
+
+  private returnFocusPaymentId(context: FocusContext): string | null {
+    return context === 'form' ? this.formReturnFocusPaymentId : this.removalReturnFocusPaymentId;
   }
 
   private errorMessage(error: unknown): string {
