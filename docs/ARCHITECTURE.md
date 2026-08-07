@@ -795,6 +795,19 @@ controls remain a separate integration boundary. Material inputs, supported
 native selects, checkboxes and buttons do not depend on legacy global
 native-control selectors.
 
+The individual stay route always exposes backend-authoritative economics and
+operational active and annulled payment history, including exact string amounts,
+payment dates, notes and registration attribution. Ordinary stay editing remains
+limited by the existing dynamic status rule. `ADMIN` receives payment mutation
+affordances in every status; `STAFF` receives register, edit and annul affordances
+only for reserved and checked-in stays and never receives permanent removal.
+These affordances are advisory and the backend remains the authorization and
+monetary-invariant boundary. Successful payment mutations replace the displayed
+stay from the complete backend response, and Angular neither derives payment
+totals nor converts monetary strings through JavaScript numbers. Administrator
+payment removal extends the shared permanent-deletion dialog with a mandatory
+reason while preserving its explicit-confirmation and dismissal semantics.
+
 ### Component Conventions
 
 Standalone Material imports belong in the standalone component that directly

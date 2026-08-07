@@ -31,6 +31,7 @@ describe('CalendarPage', () => {
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: true,
+    payments: [],
   };
 
   const stayApiService = {

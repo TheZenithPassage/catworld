@@ -25,11 +25,39 @@ export interface Stay {
   remainingAmount: MonetaryAmount | null;
   paymentCondition: PaymentCondition;
   outstandingCollectionEligible: boolean;
+  payments: StayPayment[];
 }
 
 export type MonetaryAmount = string;
 
 export type PaymentCondition = 'NO_PAYMENT' | 'PARTIAL_PAYMENT' | 'FULL_PAYMENT';
+
+export type PaymentState = 'ACTIVE' | 'ANNULLED';
+
+export interface StayPayment {
+  paymentId: string;
+  amount: MonetaryAmount;
+  paymentDate: string;
+  note: string | null;
+  state: PaymentState;
+  registeredByUsername: string;
+  registeredAt: string;
+}
+
+export interface PaymentRegistrationRequest {
+  amount: MonetaryAmount;
+  paymentDate: string;
+  note: string | null;
+}
+
+export interface PaymentEditRequest {
+  amount: MonetaryAmount;
+  reason: string;
+}
+
+export interface PaymentReasonRequest {
+  reason: string;
+}
 
 export interface PricingDecision {
   agreedAmount: MonetaryAmount;

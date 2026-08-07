@@ -49,6 +49,13 @@
   background: var(--color-surface);
 }
 
+.read-only-stay {
+  max-width: 58rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
 .stay-form mat-form-field {
   width: 100%;
 }

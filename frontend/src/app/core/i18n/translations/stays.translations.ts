@@ -46,6 +46,45 @@ export interface StaysTranslations {
       correctionFailed: string;
     };
   };
+  payments: {
+    title: string;
+    description: string;
+    empty: string;
+    amount: string;
+    date: string;
+    note: string;
+    state: string;
+    active: string;
+    annulled: string;
+    registeredBy: string;
+    registeredAt: string;
+    register: string;
+    edit: string;
+    annul: string;
+    remove: string;
+    save: string;
+    cancel: string;
+    paymentDate: string;
+    reason: string;
+    removalReason: string;
+    removingSubject: string;
+    readOnlyStay: string;
+    dismissError: string;
+    retryRemoval: string;
+    errors: {
+      amountRequired: string;
+      invalidAmount: string;
+      dateRequired: string;
+      reasonRequired: string;
+      validation: string;
+      overpayment: string;
+      activeFloor: string;
+      permission: string;
+      missing: string;
+      conflict: string;
+      generic: string;
+    };
+  };
   filters: {
     searchAriaLabel: string;
     paymentAriaLabel: string;
@@ -102,6 +141,7 @@ export interface StaysTranslations {
       actions: string;
     };
     edit: string;
+    paymentHistory: string;
     cancel: string;
     cancelling: string;
     alreadyCancelled: string;
@@ -205,6 +245,45 @@ export const STAYS_TRANSLATIONS = {
         correctionFailed: 'No se pudo corregir el importe acordado.',
       },
     },
+    payments: {
+      title: 'Pagos de la estancia',
+      description: 'Historial operativo y economía autoritativa de la estancia.',
+      empty: 'No hay pagos registrados.',
+      amount: 'Importe',
+      date: 'Fecha de pago',
+      note: 'Nota',
+      state: 'Estado',
+      active: 'Activo',
+      annulled: 'Anulado',
+      registeredBy: 'Registrado por',
+      registeredAt: 'Registrado el',
+      register: 'Registrar pago',
+      edit: 'Editar',
+      annul: 'Anular',
+      remove: 'Eliminar permanentemente',
+      save: 'Guardar',
+      cancel: 'Cancelar',
+      paymentDate: 'Fecha real del pago',
+      reason: 'Motivo obligatorio',
+      removalReason: 'Motivo de la eliminación',
+      removingSubject: 'pago',
+      readOnlyStay: 'Las fechas y notas de esta estancia son de solo lectura.',
+      dismissError: 'Cerrar error',
+      retryRemoval: 'Reintentar eliminación',
+      errors: {
+        amountRequired: 'Indica el importe recibido.',
+        invalidAmount: 'Introduce un importe entero positivo de hasta 19 dígitos.',
+        dateRequired: 'Indica la fecha real del pago.',
+        reasonRequired: 'Indica un motivo.',
+        validation: 'El pago no cumple la validación del servidor.',
+        overpayment: 'El pago supera el importe acordado.',
+        activeFloor: 'El cambio dejaría el acuerdo por debajo de los pagos activos.',
+        permission: 'No tienes permiso para realizar esta acción.',
+        missing: 'La estancia o el pago ya no existe.',
+        conflict: 'Los datos cambiaron. Revisa el estado actual e inténtalo de nuevo.',
+        generic: 'No se pudo completar la acción de pago.',
+      },
+    },
     filters: {
       searchAriaLabel: 'Filtros de búsqueda de estancias',
       paymentAriaLabel: 'Filtros de cobro de estancias',
@@ -262,6 +341,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Acciones',
       },
       edit: 'Editar',
+      paymentHistory: 'Ver pagos',
       cancel: 'Cancelar',
       cancelling: 'Cancelando...',
       alreadyCancelled: 'Cancelada',
@@ -363,6 +443,45 @@ export const STAYS_TRANSLATIONS = {
         correctionFailed: 'The agreed amount could not be corrected.',
       },
     },
+    payments: {
+      title: 'Stay payments',
+      description: 'Operational history and authoritative stay economics.',
+      empty: 'No payments registered.',
+      amount: 'Amount',
+      date: 'Payment date',
+      note: 'Note',
+      state: 'State',
+      active: 'Active',
+      annulled: 'Annulled',
+      registeredBy: 'Registered by',
+      registeredAt: 'Registered at',
+      register: 'Register payment',
+      edit: 'Edit',
+      annul: 'Annul',
+      remove: 'Delete permanently',
+      save: 'Save',
+      cancel: 'Cancel',
+      paymentDate: 'Actual payment date',
+      reason: 'Required reason',
+      removalReason: 'Removal reason',
+      removingSubject: 'payment',
+      readOnlyStay: "This stay's dates and notes are read-only.",
+      dismissError: 'Dismiss error',
+      retryRemoval: 'Retry removal',
+      errors: {
+        amountRequired: 'Enter the amount received.',
+        invalidAmount: 'Enter a positive whole amount with at most 19 digits.',
+        dateRequired: 'Enter the actual payment date.',
+        reasonRequired: 'Provide a reason.',
+        validation: 'The payment did not pass server validation.',
+        overpayment: 'The payment exceeds the agreed amount.',
+        activeFloor: 'The change would put the agreement below active payments.',
+        permission: 'You do not have permission to perform this action.',
+        missing: 'The stay or payment no longer exists.',
+        conflict: 'The data changed. Review the current state and try again.',
+        generic: 'The payment action could not be completed.',
+      },
+    },
     filters: {
       searchAriaLabel: 'Stay search filters',
       paymentAriaLabel: 'Stay payment filters',
@@ -420,6 +539,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Actions',
       },
       edit: 'Edit',
+      paymentHistory: 'View payments',
       cancel: 'Cancel',
       cancelling: 'Cancelling...',
       alreadyCancelled: 'Already cancelled',

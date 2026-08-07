@@ -134,6 +134,7 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
     outstandingCollectionEligible: true,
+    payments: [],
     ...overrides,
   };
 }

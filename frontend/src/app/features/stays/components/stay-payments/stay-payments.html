@@ -1,0 +1,208 @@
+<section class="payments-panel" aria-labelledby="payments-title">
+  <header class="payments-header">
+    <div>
+      <h3 id="payments-title">{{ text().stays.payments.title }}</h3>
+      <p>{{ text().stays.payments.description }}</p>
+    </div>
+    @if (canMutate()) {
+      <button
+        mat-flat-button
+        type="button"
+        data-payment-action="register"
+        [disabled]="mutationLocked()"
+        (click)="startRegister($event.currentTarget)"
+      >
+        {{ text().stays.payments.register }}
+      </button>
+    }
+  </header>
+
+  <dl class="economics-summary">
+    <div>
+      <dt>{{ text().stays.pricing.agreement }}</dt>
+      <dd>{{ stay().agreedAmount ?? text().stays.pricing.unavailable }}</dd>
+    </div>
+    <div>
+      <dt>{{ text().stays.pricing.totalPaid }}</dt>
+      <dd>{{ stay().totalPaid }}</dd>
+    </div>
+    <div>
+      <dt>{{ text().stays.pricing.remaining }}</dt>
+      <dd>{{ stay().remainingAmount ?? text().stays.pricing.unavailable }}</dd>
+    </div>
+  </dl>
+
+  @if (error(); as message) {
+    <app-ui-state
+      kind="error"
+      [message]="message"
+      [actionLabel]="text().stays.payments.dismissError"
+      (actionTriggered)="dismissError()"
+    ></app-ui-state>
+    @if (removalPayment()) {
+      <div class="removal-recovery-actions">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="mutationLocked()"
+          (click)="retryRemoval()"
+        >
+          {{ text().stays.payments.retryRemoval }}
+        </button>
+        <button mat-button type="button" (click)="abandonRemoval()">
+          {{ text().stays.payments.cancel }}
+        </button>
+      </div>
+    }
+  }
+
+  @if (action(); as currentAction) {
+    <form class="payment-form" (ngSubmit)="submitAction()">
+      @if (currentAction === 'register' || currentAction === 'edit') {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().stays.payments.amount }}</mat-label>
+          <input
+            matInput
+            name="paymentAmount"
+            inputmode="numeric"
+            [ngModel]="amount()"
+            (ngModelChange)="amount.set($event)"
+          />
+          @if (attempted() && !amount()) {
+            <mat-error>{{ text().stays.payments.errors.amountRequired }}</mat-error>
+          } @else if (attempted() && !amountValid()) {
+            <mat-error>{{ text().stays.payments.errors.invalidAmount }}</mat-error>
+          }
+        </mat-form-field>
+      }
+      @if (currentAction === 'register') {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().stays.payments.paymentDate }}</mat-label>
+          <input
+            matInput
+            type="date"
+            name="paymentDate"
+            [ngModel]="paymentDate()"
+            (ngModelChange)="paymentDate.set($event)"
+          />
+          @if (attempted() && !paymentDate()) {
+            <mat-error>{{ text().stays.payments.errors.dateRequired }}</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().stays.payments.note }}</mat-label>
+          <textarea
+            matInput
+            name="paymentNote"
+            rows="2"
+            [ngModel]="note()"
+            (ngModelChange)="note.set($event)"
+          ></textarea>
+        </mat-form-field>
+      } @else {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().stays.payments.reason }}</mat-label>
+          <textarea
+            matInput
+            name="paymentReason"
+            rows="2"
+            [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)"
+          ></textarea>
+          @if (attempted() && !reason().trim()) {
+            <mat-error>{{ text().stays.payments.errors.reasonRequired }}</mat-error>
+          }
+        </mat-form-field>
+      }
+      <div class="payment-form-actions">
+        <button mat-button type="button" [disabled]="mutationLocked()" (click)="cancelAction()">
+          {{ text().stays.payments.cancel }}
+        </button>
+        <button mat-flat-button type="submit" [disabled]="submitting()">
+          {{ text().stays.payments.save }}
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (stay().payments.length === 0) {
+    <p class="empty-history">{{ text().stays.payments.empty }}</p>
+  } @else {
+    <ol class="payment-history">
+      @for (payment of stay().payments; track payment.paymentId) {
+        <li
+          class="payment-row"
+          [class.payment-annulled]="payment.state === 'ANNULLED'"
+          [attr.data-payment-row-id]="payment.paymentId"
+          tabindex="-1"
+        >
+          <div class="payment-state" [attr.aria-label]="text().stays.payments.state">
+            {{
+              payment.state === 'ANNULLED'
+                ? text().stays.payments.annulled
+                : text().stays.payments.active
+            }}
+          </div>
+          <dl>
+            <div>
+              <dt>{{ text().stays.payments.amount }}</dt>
+              <dd>{{ payment.amount }}</dd>
+            </div>
+            <div>
+              <dt>{{ text().stays.payments.date }}</dt>
+              <dd>{{ payment.paymentDate }}</dd>
+            </div>
+            <div>
+              <dt>{{ text().stays.payments.note }}</dt>
+              <dd>{{ payment.note || text().stays.emptyValue }}</dd>
+            </div>
+            <div>
+              <dt>{{ text().stays.payments.registeredBy }}</dt>
+              <dd>{{ payment.registeredByUsername }}</dd>
+            </div>
+            <div>
+              <dt>{{ text().stays.payments.registeredAt }}</dt>
+              <dd>{{ formatRegisteredAt(payment.registeredAt) }}</dd>
+            </div>
+          </dl>
+          <div class="payment-actions">
+            @if (payment.state === 'ACTIVE' && canMutate()) {
+              <button
+                mat-stroked-button
+                type="button"
+                data-payment-action="edit"
+                [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
+                (click)="startEdit(payment, $event.currentTarget)"
+              >
+                {{ text().stays.payments.edit }}
+              </button>
+              <button
+                mat-stroked-button
+                type="button"
+                data-payment-action="annul"
+                [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
+                (click)="startAnnul(payment, $event.currentTarget)"
+              >
+                {{ text().stays.payments.annul }}
+              </button>
+            }
+            @if (isAdmin()) {
+              <button
+                mat-button
+                type="button"
+                data-payment-action="remove"
+                [attr.data-payment-id]="payment.paymentId"
+                [disabled]="mutationLocked()"
+                (click)="remove(payment, $event.currentTarget)"
+              >
+                {{ text().stays.payments.remove }}
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ol>
+  }
+</section>
