@@ -156,6 +156,48 @@ describe('SensitiveEconomicActivityApiService', () => {
     ]);
   });
 
+  it('accepts an empty payment note while preserving exact monetary strings', () => {
+    let result: unknown;
+    service
+      .getActivity({
+        actorId: '',
+        occurredFrom: '',
+        occurredTo: '',
+        eventType: '',
+        ownerId: '',
+        catId: '',
+        stayId: '',
+      })
+      .subscribe((events) => (result = events));
+    http.expectOne(`${API_BASE_URL}/sensitive-economic-activity`).flush([
+      {
+        eventId: 'event-1',
+        eventType: 'PAYMENT_REMOVED',
+        occurredAt: '2026-08-01T12:00:00Z',
+        actor: { id: 'actor-1', username: 'admin' },
+        affectedContext: {
+          stayId: 'stay-1',
+          startAt: '2026-08-01T10:00:00',
+          endAt: '2026-08-03T10:00:00',
+          cancelledAt: null,
+          owner: { id: 'owner-1', fullName: 'Owner' },
+          cats: [{ id: 'cat-1', name: 'Cat' }],
+        },
+        paymentId: 'payment-1',
+        amount: '9999999999999999999.123456789',
+        paymentDate: '2026-08-01',
+        note: '',
+        registeredBy: { id: 'actor-1', username: 'admin' },
+        registeredAt: '2026-08-01T11:00:00Z',
+        annulled: false,
+        reason: 'reason',
+      },
+    ]);
+    expect(result).toEqual([
+      expect.objectContaining({ note: '', amount: '9999999999999999999.123456789' }),
+    ]);
+  });
+
   it.each([
     [{ eventType: 'UNKNOWN' }],
     [{ eventType: 'NIGHTLY_RATE_CHANGED', newRate: 123 }],

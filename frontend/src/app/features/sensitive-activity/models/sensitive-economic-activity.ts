@@ -187,7 +187,7 @@ function payment(item: Record<string, unknown>): PaymentContext {
   return {
     paymentId: text(item['paymentId']),
     paymentDate: localDate(item['paymentDate']),
-    note: nullableText(item['note']),
+    note: nullableString(item['note']),
     registeredBy: actor(item['registeredBy']),
     registeredAt: instant(item['registeredAt']),
     reason: text(item['reason']),
@@ -248,8 +248,11 @@ function text(value: unknown): string {
   return value;
 }
 
-function nullableText(value: unknown): string | null {
-  return value === null ? null : text(value);
+function nullableString(value: unknown): string | null {
+  if (value !== null && typeof value !== 'string') {
+    throw new MalformedSensitiveActivityError('Expected nullable string');
+  }
+  return value;
 }
 
 function instant(value: unknown): string {
