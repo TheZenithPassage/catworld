@@ -119,7 +119,7 @@ function parseEvent(value: unknown): SensitiveEconomicActivityEvent {
   const item = object(value);
   const common: BaseEvent = {
     eventId: text(item['eventId']),
-    occurredAt: text(item['occurredAt']),
+    occurredAt: instant(item['occurredAt']),
     actor: actor(item['actor']),
   };
   const eventType = text(item['eventType']);
@@ -186,10 +186,10 @@ function parseEvent(value: unknown): SensitiveEconomicActivityEvent {
 function payment(item: Record<string, unknown>): PaymentContext {
   return {
     paymentId: text(item['paymentId']),
-    paymentDate: text(item['paymentDate']),
+    paymentDate: localDate(item['paymentDate']),
     note: nullableText(item['note']),
     registeredBy: actor(item['registeredBy']),
-    registeredAt: text(item['registeredAt']),
+    registeredAt: instant(item['registeredAt']),
     reason: text(item['reason']),
   };
 }
@@ -208,9 +208,9 @@ function context(value: unknown): SensitiveStayContext {
   const owner = object(item['owner']);
   return {
     stayId: text(item['stayId']),
-    startAt: text(item['startAt']),
-    endAt: text(item['endAt']),
-    cancelledAt: nullableText(item['cancelledAt']),
+    startAt: localDateTime(item['startAt']),
+    endAt: localDateTime(item['endAt']),
+    cancelledAt: nullableLocalDateTime(item['cancelledAt']),
     owner: { id: text(owner['id']), fullName: text(owner['fullName']) },
     cats: cats.map((catValue) => {
       const cat = object(catValue);
@@ -250,6 +250,63 @@ function text(value: unknown): string {
 
 function nullableText(value: unknown): string | null {
   return value === null ? null : text(value);
+}
+
+function instant(value: unknown): string {
+  const candidate = text(value);
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|([+-])(\d{2}):(\d{2}))$/.exec(
+      candidate,
+    );
+  const offsetHour = match?.[9] ? Number(match[9]) : 0;
+  const offsetMinute = match?.[10] ? Number(match[10]) : 0;
+  if (
+    !match ||
+    !validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3])) ||
+    Number(match[4]) > 23 ||
+    Number(match[5]) > 59 ||
+    Number(match[6]) > 59 ||
+    offsetHour > 18 ||
+    offsetMinute > 59 ||
+    (offsetHour === 18 && offsetMinute !== 0) ||
+    Number.isNaN(Date.parse(candidate))
+  ) {
+    throw new MalformedSensitiveActivityError('Expected an ISO instant');
+  }
+  return candidate;
+}
+
+function localDate(value: unknown): string {
+  const candidate = text(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(candidate);
+  if (!match || !validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]))) {
+    throw new MalformedSensitiveActivityError('Expected an ISO local date');
+  }
+  return candidate;
+}
+
+function localDateTime(value: unknown): string {
+  const candidate = text(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?$/.exec(candidate);
+  if (
+    !match ||
+    !validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3])) ||
+    Number(match[4]) > 23 ||
+    Number(match[5]) > 59 ||
+    Number(match[6]) > 59
+  ) {
+    throw new MalformedSensitiveActivityError('Expected an ISO local date-time');
+  }
+  return candidate;
+}
+
+function nullableLocalDateTime(value: unknown): string | null {
+  return value === null ? null : localDateTime(value);
+}
+
+function validCalendarDate(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
 function money(value: unknown): string;

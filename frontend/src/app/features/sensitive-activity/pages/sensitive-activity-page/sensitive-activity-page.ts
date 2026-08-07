@@ -52,6 +52,9 @@ export class SensitiveActivityPage {
   readonly dateLocale = this.i18n.dateLocale;
   readonly eventTypes = SENSITIVE_EVENT_TYPES;
   readonly filters = signal<SensitiveActivityFilters>({ ...EMPTY_SENSITIVE_ACTIVITY_FILTERS });
+  readonly appliedFilters = signal<SensitiveActivityFilters>({
+    ...EMPTY_SENSITIVE_ACTIVITY_FILTERS,
+  });
   readonly events = signal<readonly SensitiveEconomicActivityEvent[]>([]);
   readonly loading = signal(true);
   readonly loadError = signal<LoadError>(null);
@@ -62,7 +65,7 @@ export class SensitiveActivityPage {
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const eventTypeValue = params.get('eventType') ?? '';
-      this.filters.set({
+      const routeFilters: SensitiveActivityFilters = {
         actorId: params.get('actorId') ?? '',
         occurredFrom: this.toLocalDateTime(params.get('occurredFrom')),
         occurredTo: this.toLocalDateTime(params.get('occurredTo')),
@@ -72,8 +75,10 @@ export class SensitiveActivityPage {
         ownerId: params.get('ownerId') ?? '',
         catId: params.get('catId') ?? '',
         stayId: params.get('stayId') ?? '',
-      });
-      if (this.validPeriod()) {
+      };
+      this.filters.set(routeFilters);
+      this.appliedFilters.set(routeFilters);
+      if (this.validPeriod(routeFilters)) {
         this.load();
       } else {
         this.cancelLoad();
@@ -90,7 +95,7 @@ export class SensitiveActivityPage {
   }
 
   applyFilters(): void {
-    if (!this.validPeriod()) return;
+    if (!this.validPeriod(this.filters())) return;
     const queryParams = Object.fromEntries(
       Object.entries(this.filters()).filter(([, value]) => Boolean(value)),
     );
@@ -98,7 +103,7 @@ export class SensitiveActivityPage {
   }
 
   refresh(): void {
-    if (this.validPeriod()) this.load();
+    if (this.validPeriod(this.appliedFilters())) this.load();
   }
 
   clearFilters(): void {
@@ -150,7 +155,7 @@ export class SensitiveActivityPage {
     this.loading.set(true);
     this.loadError.set(null);
     this.loadSubscription = this.api
-      .getActivity(this.filters())
+      .getActivity(this.appliedFilters())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (events) => {
@@ -180,8 +185,8 @@ export class SensitiveActivityPage {
     this.loadSubscription = null;
   }
 
-  private validPeriod(): boolean {
-    const { occurredFrom, occurredTo } = this.filters();
+  private validPeriod(filters: SensitiveActivityFilters): boolean {
+    const { occurredFrom, occurredTo } = filters;
     const invalid = Boolean(
       occurredFrom && occurredTo && new Date(occurredFrom) >= new Date(occurredTo),
     );

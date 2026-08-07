@@ -1,9 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 
-import { SensitiveEconomicActivityEvent } from '../../models/sensitive-economic-activity';
+import {
+  MalformedSensitiveActivityError,
+  SensitiveEconomicActivityEvent,
+} from '../../models/sensitive-economic-activity';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import { SensitiveActivityPage } from './sensitive-activity-page';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -142,5 +145,41 @@ describe('SensitiveActivityPage', () => {
     expect(root.textContent).toContain('Ada Owner (deleted-owner)');
     expect(root.textContent).toContain('Miso (deleted-cat)');
     expect(root.querySelectorAll('article a')).toHaveLength(0);
+  });
+
+  it('shows the localized malformed-contract state when temporal parsing fails', () => {
+    fixture.destroy();
+    api.getActivity.mockReturnValue(
+      throwError(() => new MalformedSensitiveActivityError('Invalid timestamp')),
+    );
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement | null;
+    expect(alert?.textContent).toContain('unrecognized format');
+    expect(fixture.nativeElement.querySelectorAll('article')).toHaveLength(0);
+  });
+
+  it('refreshes the applied query filters instead of unapplied draft edits', () => {
+    fixture.destroy();
+    params.next(convertToParamMap({ ownerId: 'owner-A' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    component.updateFilter('ownerId', 'owner-B');
+    component.refresh();
+
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ownerId: 'owner-A' }),
+    );
+    expect(params.value.get('ownerId')).toBe('owner-A');
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    component.applyFilters();
+    expect(router.navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({ queryParams: expect.objectContaining({ ownerId: 'owner-B' }) }),
+    );
   });
 });

@@ -201,4 +201,56 @@ describe('SensitiveEconomicActivityApiService', () => {
     http.expectOne(`${API_BASE_URL}/sensitive-economic-activity`).flush(payload);
     expect(error).toBeInstanceOf(MalformedSensitiveActivityError);
   });
+
+  it.each([
+    ['occurredAt', 'not-an-instant'],
+    ['occurredAt', '2026-02-30T12:00:00Z'],
+    ['registeredAt', '2026-08-01T12:00:00'],
+    ['paymentDate', '2026-02-30'],
+    ['startAt', '2026-08-01T25:00:00'],
+    ['endAt', '2026-13-01T10:00:00'],
+    ['cancelledAt', '2026-08-01'],
+  ] as const)('rejects an invalid %s temporal value at the HTTP boundary', (field, invalid) => {
+    const affectedContext = {
+      stayId: 'stay-1',
+      startAt: '2026-08-01T10:00:00',
+      endAt: '2026-08-03T10:00:00',
+      cancelledAt: null as string | null,
+      owner: { id: 'owner-1', fullName: 'Owner' },
+      cats: [{ id: 'cat-1', name: 'Cat' }],
+    };
+    const payload: Record<string, unknown> = {
+      eventId: 'event-1',
+      eventType: 'PAYMENT_REMOVED',
+      occurredAt: '2026-08-01T12:00:00Z',
+      actor: { id: 'actor-1', username: 'admin' },
+      affectedContext,
+      paymentId: 'payment-1',
+      amount: '9999999999999999999',
+      paymentDate: '2026-08-01',
+      note: null,
+      registeredBy: { id: 'actor-1', username: 'admin' },
+      registeredAt: '2026-08-01T11:00:00Z',
+      annulled: false,
+      reason: 'reason',
+    };
+    if (field in affectedContext)
+      affectedContext[field as keyof typeof affectedContext] = invalid as never;
+    else payload[field] = invalid;
+
+    let error: unknown;
+    service
+      .getActivity({
+        actorId: '',
+        occurredFrom: '',
+        occurredTo: '',
+        eventType: '',
+        ownerId: '',
+        catId: '',
+        stayId: '',
+      })
+      .subscribe({ error: (value) => (error = value) });
+    http.expectOne(`${API_BASE_URL}/sensitive-economic-activity`).flush([payload]);
+    expect(error).toBeInstanceOf(MalformedSensitiveActivityError);
+  });
 });
