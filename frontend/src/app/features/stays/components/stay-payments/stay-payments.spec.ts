@@ -404,25 +404,39 @@ describe('StayPayments', () => {
     );
   });
 
-  it('discards failed removal recovery before an unrelated edit failure', () => {
-    api.removePayment.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 409, error: 'stale payment' })),
-    );
+  it('discards failed removal recovery when an already-open edit is submitted', () => {
+    const paymentB = { ...stay.payments[0], paymentId: 'payment-b', amount: '1' };
+    component.startEdit(paymentB);
+    component.amount.set('9999999999999999999');
+    component.reason.set('Edit payment B');
+
+    const removal = new Subject<Stay>();
+    api.removePayment.mockReturnValue(removal.asObservable());
     component.remove(stay.payments[0]);
     dialogResult.next({ confirmed: true, reason: 'Keep removal A' });
+    removal.error(new HttpErrorResponse({ status: 409, error: 'stale payment' }));
     expect(component.removalPayment()?.paymentId).toBe('payment-1');
+    expect(component.removalReason()).toBe('Keep removal A');
 
-    const paymentB = { ...stay.payments[0], paymentId: 'payment-b', amount: '1' };
-    api.editPayment.mockReturnValue(
-      throwError(() => new HttpErrorResponse({ status: 403, error: 'forbidden' })),
-    );
-    component.startEdit(paymentB);
-    component.reason.set('Edit payment B');
+    const edit = new Subject<Stay>();
+    api.editPayment.mockReturnValue(edit.asObservable());
     component.submitAction();
     fixture.detectChanges();
 
     expect(component.removalPayment()).toBeNull();
     expect(component.removalReason()).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('.removal-recovery-actions'),
+    ).toBeNull();
+
+    edit.error(new HttpErrorResponse({ status: 403, error: 'forbidden' }));
+    fixture.detectChanges();
+
+    expect(component.removalPayment()).toBeNull();
+    expect(component.removalReason()).toBe('');
+    expect(component.action()).toBe('edit');
+    expect(component.amount()).toBe('9999999999999999999');
+    expect(component.reason()).toBe('Edit payment B');
     expect(component.error()).toBe(component.text().stays.payments.errors.permission);
     expect(
       (fixture.nativeElement as HTMLElement).querySelector('.removal-recovery-actions'),

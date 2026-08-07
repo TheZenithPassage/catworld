@@ -107,6 +107,7 @@ export class StayPayments {
 
     if (!this.canMutate() || !action || !this.actionIsValid(action)) return;
 
+    this.clearRemovalAttempt(false);
     this.submitting.set(true);
     const request =
       action === 'register'
