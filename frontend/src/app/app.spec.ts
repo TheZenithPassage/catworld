@@ -46,6 +46,7 @@ describe('App', () => {
     ) as HTMLAnchorElement[];
     expect(links.some((link) => link.getAttribute('href') === '/accounts')).toBe(true);
     expect(links.some((link) => link.getAttribute('href') === '/nightly-rates')).toBe(true);
+    expect(links.some((link) => link.getAttribute('href') === '/sensitive-activity')).toBe(true);
   });
 
   it('hides account management navigation from STAFF', () => {
@@ -63,5 +64,6 @@ describe('App', () => {
     ) as HTMLAnchorElement[];
     expect(links.some((link) => link.getAttribute('href') === '/accounts')).toBe(false);
     expect(links.some((link) => link.getAttribute('href') === '/nightly-rates')).toBe(true);
+    expect(links.some((link) => link.getAttribute('href') === '/sensitive-activity')).toBe(false);
   });
 });

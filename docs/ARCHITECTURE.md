@@ -808,6 +808,23 @@ totals nor converts monetary strings through JavaScript numbers. Administrator
 payment removal extends the shared permanent-deletion dialog with a mandatory
 reason while preserving its explicit-confirmation and dismissal semantics.
 
+The authenticated shell also exposes one independent sensitive-economic-activity
+route to `ADMIN` only. The route uses the existing administrator guard while the
+backend remains authoritative for direct API authorization. Its feature-local
+HTTP boundary validates the six approved discriminated event variants at
+runtime, preserves monetary JSON strings and nullable amounts without numeric
+conversion, and rejects malformed or unknown variants instead of inferring an
+event. The page preserves backend ordering and durable owner, cat, stay and
+payment context without requiring live operational routes.
+
+Actor, period, event-type, owner, cat and stay filters share one page-owned state
+with supported query parameters. Refinement and refresh preserve active
+criteria, clear removes every criterion, and Angular sends the composed filter
+set to the backend rather than filtering or deduplicating sensitive events
+locally. Loading, empty, authorization, malformed-contract and request-failure
+states use localized accessible presentation. This global audit surface remains
+separate from stay details and operational active and annulled payment history.
+
 ### Component Conventions
 
 Standalone Material imports belong in the standalone component that directly
