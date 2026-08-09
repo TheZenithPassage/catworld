@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
@@ -792,6 +793,13 @@ public class StayServiceTest {
             StayUpdateDTO request = StayUpdateDTO.builder()
                     .startAt(startAt.plusDays(1))
                     .endAt(startAt.plusDays(3))
+                    .confirmation(ExistingStayPricingConfirmationDTO.builder()
+                            .previousNumberOfNights(99L)
+                            .previousAgreedAmount(new BigDecimal("999"))
+                            .numberOfNights(100L)
+                            .retainedNightlyRate(new BigDecimal("999"))
+                            .suggestedAmount(new BigDecimal("99900"))
+                            .build())
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -947,7 +955,7 @@ public class StayServiceTest {
         }
 
         @Test
-        void concurrentMatchingNightCountStillRejectsOldConfirmation() {
+        void concurrentNightCountChangeStillRejectsOldConfirmation() {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
             Stay stay = Stay.builder().id(UUID.randomUUID())
                     .startAt(startAt).endAt(startAt.plusDays(2))
@@ -965,7 +973,7 @@ public class StayServiceTest {
                             .agreedAmount(new BigDecimal("30")).build())
                     .confirmation(preview.getConfirmation()).build();
 
-            stay.setEndAt(startAt.plusDays(3));
+            stay.setEndAt(startAt.plusDays(4));
             stay.setAgreedAmount(new BigDecimal("25"));
 
             assertThrows(StalePricingConfirmationException.class,

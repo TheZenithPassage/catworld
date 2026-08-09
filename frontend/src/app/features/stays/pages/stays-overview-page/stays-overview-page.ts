@@ -203,6 +203,10 @@ export class StaysOverviewPage {
   }
 
   startCorrection(stay: Stay): void {
+    if (this.correctionSubmitting()) {
+      return;
+    }
+
     this.correctingStayId.set(stay.stayId);
     this.correctionAmount.set(stay.agreedAmount ?? '');
     this.correctionReason.set('');
@@ -210,6 +214,10 @@ export class StaysOverviewPage {
   }
 
   cancelCorrection(): void {
+    if (this.correctionSubmitting()) {
+      return;
+    }
+
     this.correctingStayId.set(null);
     this.correctionAmount.set('');
     this.correctionReason.set('');

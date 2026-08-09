@@ -174,13 +174,23 @@
                     >
                       {{ text().stays.pricing.correct }}
                     </button>
-                    <button mat-button type="button" (click)="cancelCorrection()">
+                    <button
+                      mat-button
+                      type="button"
+                      (click)="cancelCorrection()"
+                      [disabled]="correctionSubmitting()"
+                    >
                       {{ text().stays.pricing.cancelCorrection }}
                     </button>
                   </div>
                 </div>
               } @else {
-                <button mat-stroked-button type="button" (click)="startCorrection(stay)">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="startCorrection(stay)"
+                  [disabled]="correctionSubmitting()"
+                >
                   {{ text().stays.pricing.correctAgreement }}
                 </button>
               }
