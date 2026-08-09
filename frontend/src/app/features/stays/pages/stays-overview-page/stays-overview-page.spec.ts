@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -403,5 +403,38 @@ describe('StaysOverviewPage', () => {
     expect(component.stays().find((stay) => stay.stayId === 'stay-2')?.agreedAmount).toBe(
       '9999999999999999999',
     );
+  });
+
+  it('prevents starting another correction while one is being submitted', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'secret' },
+    );
+    const pendingCorrection = new Subject<Stay>();
+    stayApiService.correctAgreedAmount.mockReturnValue(pendingCorrection);
+    createComponent();
+    component.startCorrection(reservedStay);
+    component.correctionAmount.set('100');
+    component.submitCorrection(reservedStay);
+    fixture.detectChanges();
+
+    const correctionButtons = [...fixture.nativeElement.querySelectorAll('button')].filter(
+      (button: HTMLButtonElement) =>
+        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
+    ) as HTMLButtonElement[];
+
+    expect(correctionButtons.length).toBeGreaterThan(0);
+    expect(correctionButtons.every((button) => button.disabled)).toBe(true);
+
+    correctionButtons[0].click();
+    pendingCorrection.next({ ...reservedStay, agreedAmount: '100' });
+    pendingCorrection.complete();
+    fixture.detectChanges();
+
+    const availableCorrectionButtons = [...fixture.nativeElement.querySelectorAll('button')].filter(
+      (button: HTMLButtonElement) =>
+        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
+    ) as HTMLButtonElement[];
+    expect(availableCorrectionButtons.every((button) => !button.disabled)).toBe(true);
   });
 });

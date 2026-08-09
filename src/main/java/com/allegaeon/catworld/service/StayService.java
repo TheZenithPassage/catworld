@@ -267,16 +267,12 @@ public class StayService implements IStayService {
         if (pricingAffecting) {
             currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
-        }
-        if (pricingAffecting || stayUpdateDTO.getConfirmation() != null) {
             validateDateChangeConfirmation(
                     stayUpdateDTO.getConfirmation(), previousNumberOfNights,
                     previousAgreedAmount, newNumberOfNights,
                     stay.getRetainedNightlyRate(),
                     stayMapper.calculateSuggestedAmount(
                             stay.getRetainedNightlyRate(), newNumberOfNights));
-        }
-        if (pricingAffecting) {
             newAgreedAmount = validatePricingDecision(
                     stayUpdateDTO.getPricingDecision(),
                     stayMapper.calculateSuggestedAmount(
