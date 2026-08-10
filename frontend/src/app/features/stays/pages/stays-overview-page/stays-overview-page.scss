@@ -134,11 +134,18 @@
   border-radius: inherit;
 }
 
-.status-filter:hover,
-.status-filter:focus-within {
+:host ::ng-deep .status-filter:has(input:focus-visible) {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
   box-shadow: 0 4px 12px rgb(232 137 63 / 0.14);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .status-filter:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+    box-shadow: 0 4px 12px rgb(232 137 63 / 0.14);
+  }
 }
 
 @media (max-width: 900px) {
