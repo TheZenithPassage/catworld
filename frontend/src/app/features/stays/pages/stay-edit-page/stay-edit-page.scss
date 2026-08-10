@@ -27,7 +27,7 @@
 .stay-summary {
   display: grid;
   gap: 0.5rem;
-  max-width: 34rem;
+  width: min(100%, 68rem);
   padding: 1rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-md);
@@ -41,8 +41,9 @@
 
 .stay-form {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 34rem;
+  width: min(100%, 68rem);
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
@@ -60,9 +61,29 @@
   font-weight: 750;
 }
 
+.stay-form > app-ui-state,
+.stay-form > .night-count,
+.stay-form > mat-form-field:has(textarea),
+.stay-form > .form-actions {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .stay-form {
+    grid-template-columns: 1fr;
+  }
+
+  .stay-form > app-ui-state,
+  .stay-form > .night-count,
+  .stay-form > mat-form-field:has(textarea),
+  .stay-form > .form-actions {
+    grid-column: auto;
   }
 }
 

@@ -48,16 +48,17 @@
 .table-wrapper {
   max-width: 100%;
   overflow-x: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .owners-table {
   width: 100%;
-  min-width: 58rem;
+  table-layout: fixed;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .owners-table .mat-mdc-header-cell {
@@ -70,7 +71,7 @@
 
 .owners-table .mat-mdc-header-cell,
 .owners-table .mat-mdc-cell {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.65rem;
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: top;
@@ -78,6 +79,25 @@
 
 .owners-table .mat-mdc-cell {
   color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.owners-table .mat-column-name,
+.owners-table .mat-column-primaryPhone,
+.owners-table .mat-column-secondaryPhone {
+  width: 15%;
+}
+
+.owners-table .mat-column-address {
+  width: 20%;
+}
+
+.owners-table .mat-column-social {
+  width: 24%;
+}
+
+.owners-table .mat-column-actions {
+  width: 11%;
 }
 
 .owners-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
@@ -95,4 +115,25 @@
 
 .owners-table .mat-mdc-row.selected-row:hover .mat-mdc-cell {
   background: var(--color-secondary-soft);
+}
+
+@media (max-width: 760px) {
+  .owners-table {
+    min-width: 48rem;
+  }
+
+  .owners-table .mat-column-name,
+  .owners-table .mat-column-actions {
+    position: sticky;
+    z-index: 2;
+    background: var(--color-surface);
+  }
+
+  .owners-table .mat-column-name {
+    left: 0;
+  }
+
+  .owners-table .mat-column-actions {
+    right: 0;
+  }
 }

@@ -1,3 +1,10 @@
+:host {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -22,8 +29,12 @@
 }
 
 .app-brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.55rem;
+  align-items: center;
   min-height: 2.8rem;
-  padding-inline: 0.2rem 0.7rem;
+  padding-inline: 0.2rem 0.65rem;
   color: var(--color-text);
   font-weight: 800;
   letter-spacing: 0;
@@ -34,7 +45,6 @@
   place-items: center;
   width: 2.35rem;
   height: 2.35rem;
-  margin-right: 0.55rem;
   padding: 0.16rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: 999px;
@@ -55,12 +65,14 @@
   flex: 1 1 auto;
   gap: 0.2rem;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .app-nav a {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-inline: 0.7rem;
   color: var(--color-text-muted);
   font-weight: 750;
   letter-spacing: 0;
@@ -120,29 +132,15 @@
 }
 
 .app-main {
+  flex: 1 0 auto;
   width: min(100%, 1180px);
   margin: 0 auto;
   padding: 2rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1120px) {
   .app-header {
     padding: 0.75rem 1rem;
-  }
-
-  .app-nav {
-    max-width: 48vw;
-  }
-
-  .app-main {
-    padding: 1rem;
-  }
-}
-
-@media (max-width: 720px) {
-  .app-header {
-    position: sticky;
-    min-height: 4rem;
   }
 
   .app-nav {
@@ -155,6 +153,19 @@
 
   .toolbar-spacer {
     flex-grow: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    position: sticky;
+    min-height: 4rem;
   }
 }
 
@@ -177,7 +188,6 @@
   .app-brand-logo {
     width: 2rem;
     height: 2rem;
-    margin-right: 0.4rem;
   }
 
   .app-actions {

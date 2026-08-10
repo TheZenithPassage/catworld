@@ -24,8 +24,9 @@
 
 .owner-form {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 34rem;
+  width: min(100%, 58rem);
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
@@ -36,8 +37,22 @@
   width: 100%;
 }
 
+.owner-form .form-actions,
+.owner-form app-ui-state {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 760px) {
   .page-header {
     flex-direction: column;
+  }
+
+  .owner-form {
+    grid-template-columns: 1fr;
+  }
+
+  .owner-form .form-actions,
+  .owner-form app-ui-state {
+    grid-column: auto;
   }
 }

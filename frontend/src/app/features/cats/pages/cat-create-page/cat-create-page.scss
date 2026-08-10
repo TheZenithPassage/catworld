@@ -15,8 +15,9 @@
 
 .cat-form {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 44rem;
+  width: min(100%, 68rem);
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
@@ -32,8 +33,26 @@
   gap: 0.6rem;
 }
 
+.cat-form > app-ui-state,
+.cat-form > .form-actions,
+.cat-form > mat-form-field:has(textarea) {
+  grid-column: 1 / -1;
+}
+
 .related-action {
   justify-self: start;
+}
+
+@media (max-width: 700px) {
+  .cat-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cat-form > app-ui-state,
+  .cat-form > .form-actions,
+  .cat-form > mat-form-field:has(textarea) {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 520px) {

@@ -48,16 +48,17 @@
 .table-wrapper {
   max-width: 100%;
   overflow-x: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .cats-table {
   width: 100%;
-  min-width: 84rem;
+  table-layout: fixed;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .cats-table .mat-mdc-header-cell {
@@ -70,7 +71,7 @@
 
 .cats-table .mat-mdc-header-cell,
 .cats-table .mat-mdc-cell {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.55rem;
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: top;
@@ -78,6 +79,7 @@
 
 .cats-table .mat-mdc-cell {
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .cats-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
@@ -89,19 +91,36 @@
 }
 
 .cats-table .mat-column-name {
-  min-width: 7rem;
+  width: 8%;
 }
 
 .cats-table .mat-column-owner {
-  min-width: 10rem;
+  width: 11%;
 }
 
 .cats-table .mat-column-sex {
-  min-width: 5.5rem;
+  width: 6%;
 }
 
 .cats-table .mat-column-birthDate {
-  min-width: 8rem;
+  width: 9%;
+}
+
+.cats-table .mat-column-appearance,
+.cats-table .mat-column-vet {
+  width: 10%;
+}
+
+.cats-table .mat-column-care {
+  width: 15%;
+}
+
+.cats-table .mat-column-health {
+  width: 22%;
+}
+
+.cats-table .mat-column-actions {
+  width: 9%;
 }
 
 .cats-table .owner-search-link {
@@ -123,4 +142,25 @@
   background: transparent;
   color: var(--color-primary-hover);
   text-decoration-color: currentColor;
+}
+
+@media (max-width: 900px) {
+  .cats-table {
+    min-width: 66rem;
+  }
+
+  .cats-table .mat-column-name,
+  .cats-table .mat-column-actions {
+    position: sticky;
+    z-index: 2;
+    background: var(--color-surface);
+  }
+
+  .cats-table .mat-column-name {
+    left: 0;
+  }
+
+  .cats-table .mat-column-actions {
+    right: 0;
+  }
 }

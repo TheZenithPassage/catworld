@@ -43,16 +43,17 @@
 .table-wrapper {
   max-width: 100%;
   overflow-x: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .vets-table {
   width: 100%;
-  min-width: 42rem;
+  table-layout: fixed;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .vets-table .mat-mdc-header-cell {
@@ -65,7 +66,7 @@
 
 .vets-table .mat-mdc-header-cell,
 .vets-table .mat-mdc-cell {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.65rem;
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: top;
@@ -73,6 +74,20 @@
 
 .vets-table .mat-mdc-cell {
   color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.vets-table .mat-column-name,
+.vets-table .mat-column-phoneNumber {
+  width: 24%;
+}
+
+.vets-table .mat-column-address {
+  width: 39%;
+}
+
+.vets-table .mat-column-actions {
+  width: 13%;
 }
 
 .vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
@@ -81,4 +96,25 @@
 
 .vets-table .mat-mdc-row:hover .mat-mdc-cell {
   background: var(--color-secondary-soft);
+}
+
+@media (max-width: 620px) {
+  .vets-table {
+    min-width: 38rem;
+  }
+
+  .vets-table .mat-column-name,
+  .vets-table .mat-column-actions {
+    position: sticky;
+    z-index: 2;
+    background: var(--color-surface);
+  }
+
+  .vets-table .mat-column-name {
+    left: 0;
+  }
+
+  .vets-table .mat-column-actions {
+    right: 0;
+  }
 }

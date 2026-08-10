@@ -40,21 +40,22 @@
 .accounts-table-wrapper {
   max-width: 100%;
   overflow-x: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .accounts-table {
   width: 100%;
-  min-width: 56rem;
+  table-layout: fixed;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .accounts-table .mat-mdc-header-cell,
 .accounts-table .mat-mdc-cell {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.65rem;
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: middle;
@@ -70,6 +71,23 @@
 
 .accounts-table .mat-mdc-cell {
   color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.accounts-table .mat-column-username {
+  width: 24%;
+}
+
+.accounts-table .mat-column-role {
+  width: 39%;
+}
+
+.accounts-table .mat-column-enabled {
+  width: 17%;
+}
+
+.accounts-table .mat-column-actions {
+  width: 20%;
 }
 
 .accounts-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
@@ -117,5 +135,24 @@
 
   .role-select {
     width: 100%;
+  }
+
+  .accounts-table {
+    min-width: 46rem;
+  }
+
+  .accounts-table .mat-column-username,
+  .accounts-table .mat-column-actions {
+    position: sticky;
+    z-index: 2;
+    background: var(--color-surface);
+  }
+
+  .accounts-table .mat-column-username {
+    left: 0;
+  }
+
+  .accounts-table .mat-column-actions {
+    right: 0;
   }
 }

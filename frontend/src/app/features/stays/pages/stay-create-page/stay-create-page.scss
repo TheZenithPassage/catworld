@@ -15,8 +15,9 @@
 
 .stay-form {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  max-width: 42rem;
+  width: min(100%, 68rem);
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
@@ -37,6 +38,16 @@
 .field-with-action {
   display: grid;
   gap: 0.6rem;
+}
+
+.stay-form > app-ui-state,
+.stay-form > .field-with-action,
+.stay-form > .cat-selection,
+.stay-form > .related-action,
+.stay-form > .night-count,
+.stay-form > mat-form-field:has(textarea),
+.stay-form > .form-actions {
+  grid-column: 1 / -1;
 }
 
 .related-action {
@@ -63,6 +74,22 @@
 
 .empty-options {
   margin: 0;
+}
+
+@media (max-width: 700px) {
+  .stay-form {
+    grid-template-columns: 1fr;
+  }
+
+  .stay-form > app-ui-state,
+  .stay-form > .field-with-action,
+  .stay-form > .cat-selection,
+  .stay-form > .related-action,
+  .stay-form > .night-count,
+  .stay-form > mat-form-field:has(textarea),
+  .stay-form > .form-actions {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 520px) {
