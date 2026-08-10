@@ -2,7 +2,6 @@ import { AppLanguage } from '../app-language';
 
 export interface AppShellTranslations {
   brand: string;
-  logoAlt: string;
   navigationLabel: string;
   navigationMenuLabel: string;
   nav: {
@@ -25,7 +24,6 @@ export interface AppShellTranslations {
 export const APP_SHELL_TRANSLATIONS = {
   es: {
     brand: 'CatWorld',
-    logoAlt: 'Logo de CatWorld',
     navigationLabel: 'Navegación principal',
     navigationMenuLabel: 'Abrir navegación',
     nav: {
@@ -46,7 +44,6 @@ export const APP_SHELL_TRANSLATIONS = {
   },
   en: {
     brand: 'CatWorld',
-    logoAlt: 'CatWorld logo',
     navigationLabel: 'Primary navigation',
     navigationMenuLabel: 'Open navigation',
     nav: {

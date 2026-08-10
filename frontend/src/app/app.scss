@@ -10,9 +10,10 @@
   top: 0;
   z-index: 20;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
-  min-height: 4.35rem;
+  min-height: 6rem;
   padding: 0.75rem 2rem;
   border-bottom: 1px solid rgb(234 216 198 / 0.85);
   background: rgb(255 253 248 / 0.9);
@@ -31,10 +32,9 @@
 .app-brand {
   display: inline-flex;
   flex: 0 0 auto;
-  gap: 0.55rem;
   align-items: center;
-  min-height: 2.8rem;
-  padding-inline: 0.2rem 0.65rem;
+  min-height: 3.4rem;
+  padding-inline: 0.2rem;
   color: var(--color-text);
   font-weight: 800;
   letter-spacing: 0;
@@ -43,8 +43,8 @@
 .app-brand-logo {
   display: inline-grid;
   place-items: center;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 5rem;
+  height: 5rem;
   padding: 0.16rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: 999px;
@@ -63,9 +63,8 @@
 .app-nav {
   display: flex;
   flex: 1 1 auto;
-  gap: 0.2rem;
+  gap: 0.3rem;
   min-width: 0;
-  justify-content: center;
   overflow: hidden;
 }
 
@@ -74,6 +73,7 @@
   min-width: 0;
   padding-inline: 0.7rem;
   color: var(--color-text-muted);
+  font-size: 0.925rem;
   font-weight: 750;
   letter-spacing: 0;
   white-space: nowrap;
@@ -86,6 +86,7 @@
 }
 
 .nav-menu-button {
+  flex: 0 0 auto;
   display: none;
   color: var(--color-text);
 }
@@ -106,11 +107,13 @@
 
 .toolbar-spacer {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .app-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-end;
@@ -138,7 +141,7 @@
   padding: 2rem;
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1200px) {
   .app-header {
     padding: 0.75rem 1rem;
   }
@@ -162,17 +165,11 @@
   }
 }
 
-@media (max-width: 720px) {
-  .app-header {
-    position: sticky;
-    min-height: 4rem;
-  }
-}
-
 @media (max-width: 520px) {
   .app-header {
-    gap: 0.35rem;
-    padding-inline: 0.6rem;
+    gap: 0.25rem;
+    min-height: 3.75rem;
+    padding: 0.4rem;
   }
 
   .app-header h1 {
@@ -181,22 +178,34 @@
 
   .app-brand {
     min-width: 0;
-    max-width: 10.5rem;
-    padding-inline: 0.1rem 0.35rem;
+    min-height: 2.8rem;
+    padding: 0;
   }
 
   .app-brand-logo {
-    width: 2rem;
-    height: 2rem;
+    width: 2.6rem;
+    height: 2.6rem;
   }
 
   .app-actions {
-    gap: 0.35rem;
+    gap: 0.2rem;
+  }
+
+  .nav-menu-button {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0.5rem;
+  }
+
+  .language-toggle {
+    min-width: 2.5rem;
+    padding-inline: 0.45rem;
   }
 
   .logout-button {
     min-width: 0;
-    padding-inline: 0.65rem;
+    padding-inline: 0.5rem;
+    font-size: 0.875rem;
   }
 
   .app-main {
@@ -206,15 +215,25 @@
 
 @media (max-width: 360px) {
   .app-header {
-    flex-wrap: wrap;
+    gap: 0.15rem;
+    padding-inline: 0.3rem;
   }
 
-  .toolbar-spacer {
-    display: none;
+  .app-brand-logo {
+    width: 2.35rem;
+    height: 2.35rem;
   }
 
   .app-actions {
-    flex: 1 0 100%;
-    justify-content: flex-end;
+    gap: 0.15rem;
+  }
+
+  .language-toggle {
+    min-width: 2.25rem;
+    padding-inline: 0.35rem;
+  }
+
+  .logout-button {
+    padding-inline: 0.4rem;
   }
 }
