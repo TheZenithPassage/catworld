@@ -49,7 +49,7 @@
 
 .vets-table {
   width: 100%;
-  table-layout: fixed;
+  table-layout: auto;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
@@ -70,24 +70,12 @@
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .vets-table .mat-mdc-cell {
   color: var(--color-text);
-  overflow-wrap: anywhere;
-}
-
-.vets-table .mat-column-name,
-.vets-table .mat-column-phoneNumber {
-  width: 24%;
-}
-
-.vets-table .mat-column-address {
-  width: 39%;
-}
-
-.vets-table .mat-column-actions {
-  width: 13%;
 }
 
 .vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
@@ -101,13 +89,41 @@
 @media (max-width: 620px) {
   .vets-table {
     min-width: 38rem;
+    font-size: 0.92rem;
   }
 
-  .vets-table .mat-column-name,
-  .vets-table .mat-column-actions {
+  .vets-table .mat-mdc-header-cell,
+  .vets-table .mat-mdc-cell {
+    padding: 0.6rem 0.5rem;
+  }
+
+  .vets-table .mat-mdc-header-cell.mat-column-name,
+  .vets-table .mat-mdc-header-cell.mat-column-actions,
+  .vets-table .mat-mdc-cell.mat-column-name,
+  .vets-table .mat-mdc-cell.mat-column-actions {
     position: sticky;
     z-index: 2;
+  }
+
+  .vets-table .mat-mdc-header-cell.mat-column-name,
+  .vets-table .mat-mdc-header-cell.mat-column-actions {
+    z-index: 3;
+    background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
+  }
+
+  .vets-table .mat-mdc-row .mat-mdc-cell.mat-column-name,
+  .vets-table .mat-mdc-row .mat-mdc-cell.mat-column-actions {
     background: var(--color-surface);
+  }
+
+  .vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell.mat-column-name,
+  .vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell.mat-column-actions {
+    background: #fffaf2;
+  }
+
+  .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-name,
+  .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
+    background: var(--color-secondary-soft);
   }
 
   .vets-table .mat-column-name {
