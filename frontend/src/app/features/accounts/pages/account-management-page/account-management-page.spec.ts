@@ -74,8 +74,10 @@ describe('AccountManagementPage', () => {
   it('identifies the current account in the rendered account list', () => {
     fixture.detectChanges();
 
-    const marker = fixture.nativeElement.querySelector('.you-marker') as HTMLElement | null;
-    expect(marker?.textContent?.trim()).toBe(component.text().accounts.you);
+    const marker = fixture.nativeElement.querySelector(
+      '.current-account-marker',
+    ) as HTMLElement | null;
+    expect(marker?.textContent?.trim()).toBe(`(${component.text().accounts.you})`);
   });
 
   it('renders the account list through a Material table with existing row actions', () => {
@@ -93,6 +95,7 @@ describe('AccountManagementPage', () => {
     expect(compiled.textContent).toContain('staff');
     expect(compiled.querySelectorAll('.account-form mat-form-field')).toHaveLength(3);
     expect(compiled.querySelectorAll('.role-action mat-form-field')).toHaveLength(2);
+    expect(compiled.querySelectorAll('.role-action button')).toHaveLength(0);
     expect(compiled.querySelector('button[mat-flat-button]')?.textContent).toContain(
       component.text().accounts.create.submit,
     );

@@ -74,10 +74,12 @@
         <ng-container matColumnDef="username">
           <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.username }}</th>
           <td mat-cell *matCellDef="let account">
-            {{ account.username }}
-            @if (isCurrentAccount(account)) {
-              <span class="you-marker">{{ text().accounts.you }}</span>
-            }
+            <div class="username-cell">
+              <span class="username-value">{{ account.username }}</span>
+              @if (isCurrentAccount(account)) {
+                <span class="current-account-marker">({{ text().accounts.you }})</span>
+              }
+            </div>
           </td>
         </ng-container>
 
@@ -99,18 +101,20 @@
                   <option value="STAFF">{{ text().accounts.roles.staff }}</option>
                 </select>
               </mat-form-field>
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="changeRole(account)"
-                [disabled]="isPending(account.id) || selectedRole(account) === account.role"
-              >
-                {{
-                  isPending(account.id)
-                    ? text().accounts.actions.updating
-                    : text().accounts.actions.saveRole
-                }}
-              </button>
+              @if (selectedRole(account) !== account.role) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="changeRole(account)"
+                  [disabled]="isPending(account.id)"
+                >
+                  {{
+                    isPending(account.id)
+                      ? text().accounts.actions.updating
+                      : text().accounts.actions.saveRole
+                  }}
+                </button>
+              }
             </div>
           </td>
         </ng-container>

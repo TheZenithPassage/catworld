@@ -82,24 +82,52 @@
 .role-action {
   display: flex;
   gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
 
 .role-select {
   min-width: 9rem;
 }
 
-.you-marker,
+.role-action button {
+  margin-top: 0.5rem;
+}
+
+:host ::ng-deep .role-select .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.username-cell {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.username-value {
+  font-weight: 650;
+}
+
+.current-account-marker {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
 .state-marker {
   display: inline-flex;
-  margin-left: 0.4rem;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
   background: var(--color-secondary-soft);
   color: var(--color-text);
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.accounts-table .mat-column-username {
+  text-align: center;
 }
 
 .state-marker.disabled {
@@ -113,13 +141,23 @@
     padding: 1rem;
   }
 
+  .account-submit {
+    width: 100%;
+  }
+
   .role-action {
     align-items: stretch;
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .role-select {
     width: 100%;
+  }
+
+  .role-action button {
+    width: 100%;
+    margin-top: 0;
   }
 
   .accounts-table {
