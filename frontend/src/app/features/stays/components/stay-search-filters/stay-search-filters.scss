@@ -28,12 +28,18 @@
   flex: 1;
 }
 
-.search-control button {
-  width: fit-content;
-}
-
 .empty-options {
   font-weight: 600;
+}
+
+.filter-actions {
+  display: flex;
+  flex: 0 0 100%;
+  justify-content: center;
+}
+
+.filter-actions button {
+  width: fit-content;
 }
 
 @media (max-width: 520px) {
@@ -42,7 +48,7 @@
   }
 
   .search-field,
-  .search-control button {
+  .filter-actions button {
     width: 100%;
   }
 }
