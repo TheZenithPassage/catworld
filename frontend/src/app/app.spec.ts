@@ -20,15 +20,15 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('should render application title', () => {
+  it('shows only the language action in the public shell', () => {
     const fixture = TestBed.createComponent(App);
 
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelector<HTMLImageElement>('h1 img')?.alt).toBe('CatWorld');
-    expect(compiled.querySelector('mat-toolbar')).not.toBeNull();
+    expect(compiled.querySelector('mat-toolbar')).toBeNull();
+    expect(compiled.querySelector('.public-language-action .language-toggle')).not.toBeNull();
   });
 
   it('shows account management navigation to ADMIN', () => {

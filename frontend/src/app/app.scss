@@ -1,8 +1,16 @@
 :host {
+  position: relative;
   display: flex;
   min-height: 100vh;
   min-height: 100dvh;
   flex-direction: column;
+}
+
+.public-language-action {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 20;
 }
 
 .app-header {
@@ -129,6 +137,30 @@
   padding-inline: 0.65rem;
 }
 
+.public-language-action .language-toggle {
+  min-width: 3.25rem;
+  min-height: 3rem;
+  padding-inline: 0.8rem;
+  border: 1px solid rgb(201 111 47 / 0.82);
+  background: linear-gradient(135deg, #b9dddc 0%, #f4c79f 100%);
+  box-shadow: 0 6px 16px rgb(91 63 38 / 0.2);
+  color: var(--color-primary-hover);
+  font-size: 0.95rem;
+  font-weight: 850;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .public-language-action .language-toggle:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 8px 20px rgb(232 137 63 / 0.22);
+    filter: saturate(1.08);
+  }
+}
+
 .logout-button {
   --mdc-filled-button-container-color: var(--color-primary);
   --mdc-filled-button-label-text-color: #ffffff;
@@ -139,6 +171,12 @@
   width: min(100%, 1180px);
   margin: 0 auto;
   padding: 2rem;
+}
+
+.app-main.public-main {
+  display: grid;
+  align-content: start;
+  width: 100%;
 }
 
 @media (max-width: 1200px) {
@@ -166,6 +204,12 @@
 }
 
 @media (max-width: 520px) {
+  .public-language-action {
+    position: static;
+    align-self: flex-end;
+    margin: 0.75rem 0.75rem 0;
+  }
+
   .app-header {
     gap: 0.25rem;
     min-height: 3.75rem;

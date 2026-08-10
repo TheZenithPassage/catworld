@@ -1,13 +1,13 @@
-<mat-toolbar class="app-header">
-  <h1>
-    <a mat-button routerLink="/" class="app-brand">
-      <span class="app-brand-logo">
-        <img src="/catworld-logo.png" [alt]="text().app.brand" />
-      </span>
-    </a>
-  </h1>
+@if (authenticated()) {
+  <mat-toolbar class="app-header">
+    <h1>
+      <a mat-button routerLink="/" class="app-brand">
+        <span class="app-brand-logo">
+          <img src="/catworld-logo.png" [alt]="text().app.brand" />
+        </span>
+      </a>
+    </h1>
 
-  @if (authenticated()) {
     <nav class="app-nav" [attr.aria-label]="text().app.navigationLabel">
       @for (item of navigationItems(); track item.path) {
         <a
@@ -47,11 +47,32 @@
         </a>
       }
     </mat-menu>
-  }
 
-  <span class="toolbar-spacer"></span>
+    <span class="toolbar-spacer"></span>
 
-  <div class="app-actions">
+    <div class="app-actions">
+      <button
+        mat-stroked-button
+        type="button"
+        class="language-toggle"
+        (click)="toggleLanguage()"
+        [attr.aria-label]="text().app.language.toggleLabel"
+        [title]="
+          language() === 'es'
+            ? text().app.language.switchToEnglish
+            : text().app.language.switchToSpanish
+        "
+      >
+        {{ language().toUpperCase() }}
+      </button>
+
+      <button mat-flat-button type="button" class="logout-button" (click)="logout()">
+        {{ text().app.logout }}
+      </button>
+    </div>
+  </mat-toolbar>
+} @else {
+  <div class="public-language-action">
     <button
       mat-stroked-button
       type="button"
@@ -66,15 +87,9 @@
     >
       {{ language().toUpperCase() }}
     </button>
-
-    @if (authenticated()) {
-      <button mat-flat-button type="button" class="logout-button" (click)="logout()">
-        {{ text().app.logout }}
-      </button>
-    }
   </div>
-</mat-toolbar>
+}
 
-<main class="app-main">
+<main class="app-main" [class.public-main]="!authenticated()">
   <router-outlet></router-outlet>
 </main>
