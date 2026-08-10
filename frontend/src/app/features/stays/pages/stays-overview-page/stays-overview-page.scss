@@ -108,7 +108,37 @@
 }
 
 .status-filter {
+  position: relative;
   width: fit-content;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.status-filter-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.status-filter::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.status-filter:hover,
+.status-filter:focus-within {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 4px 12px rgb(232 137 63 / 0.14);
 }
 
 @media (max-width: 900px) {
