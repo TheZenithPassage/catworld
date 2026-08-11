@@ -42,33 +42,35 @@
       </div>
 
       @if (selectedOwnerId()) {
-        <fieldset class="cat-selection">
-          <legend>{{ text().stays.create.cats }}</legend>
+        <div class="cat-group">
+          <fieldset class="cat-selection">
+            <legend>{{ text().stays.create.cats }}</legend>
 
-          @if (filteredCats().length === 0) {
-            <p class="empty-options">{{ text().stays.create.noCatsForOwner }}</p>
-          } @else {
-            <div class="cat-options">
-              @for (cat of filteredCats(); track cat.id) {
-                <mat-checkbox
-                  [checked]="isCatSelected(cat.id)"
-                  (change)="onCatToggle(cat.id, $event.checked)"
-                >
-                  {{ cat.name }}
-                </mat-checkbox>
-              }
-            </div>
-          }
-        </fieldset>
+            @if (filteredCats().length === 0) {
+              <p class="empty-options">{{ text().stays.create.noCatsForOwner }}</p>
+            } @else {
+              <div class="cat-options">
+                @for (cat of filteredCats(); track cat.id) {
+                  <mat-checkbox
+                    [checked]="isCatSelected(cat.id)"
+                    (change)="onCatToggle(cat.id, $event.checked)"
+                  >
+                    {{ cat.name }}
+                  </mat-checkbox>
+                }
+              </div>
+            }
+          </fieldset>
 
-        <a
-          mat-stroked-button
-          routerLink="/cats/new"
-          [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
-          class="related-action"
-        >
-          {{ text().stays.create.createCat }}
-        </a>
+          <a
+            mat-stroked-button
+            routerLink="/cats/new"
+            [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
+            class="related-action"
+          >
+            {{ text().stays.create.createCat }}
+          </a>
+        </div>
       }
 
       <mat-form-field appearance="outline">
