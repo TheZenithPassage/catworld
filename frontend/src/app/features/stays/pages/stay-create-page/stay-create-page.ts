@@ -86,6 +86,9 @@ export class StayCreatePage {
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),
   );
+  readonly selectedOwnerName = computed(
+    () => this.owners().find((owner) => owner.id === this.selectedOwnerId())?.fullName ?? '',
+  );
 
   constructor() {
     this.loadData();
@@ -124,6 +127,14 @@ export class StayCreatePage {
     }
 
     this.selectedCatIds.update((catIds) => catIds.filter((currentCatId) => currentCatId !== catId));
+  }
+
+  toggleCatFromPill(event: MouseEvent, catId: string): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    this.onCatToggle(catId, !this.isCatSelected(catId));
   }
 
   isCatSelected(catId: string): boolean {
