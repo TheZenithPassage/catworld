@@ -205,6 +205,14 @@ export class CalendarPage {
     }));
   }
 
+  toggleStatusFromPill(event: MouseEvent, status: StayStatus): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    this.setStatusVisibility(status, !this.isStatusVisible(status));
+  }
+
   setSearchFilters(filters: StaySearchFilters): void {
     const hadEntityFilter = this.hasEntityFilter();
     const willHaveEntityFilter = hasActiveStayEntityFilter(filters);

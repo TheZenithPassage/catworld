@@ -108,7 +108,7 @@ describe('StaySearchFiltersComponent', () => {
     );
   });
 
-  it('selects and clears cat filters while preserving emitted filter values', () => {
+  it('selects and clears all search filters from one action', () => {
     component.onCatSearchChange('mil');
     fixture.detectChanges();
 
@@ -130,6 +130,9 @@ describe('StaySearchFiltersComponent', () => {
     fixture.detectChanges();
 
     expect(component.catSearch()).toBe('');
+    expect(component.ownerSearch()).toBe('');
+    expect(component.selectedCatId()).toBeNull();
+    expect(component.selectedOwnerId()).toBeNull();
     expect(emittedFilters).toContainEqual({ catId: null, ownerId: null });
   });
 

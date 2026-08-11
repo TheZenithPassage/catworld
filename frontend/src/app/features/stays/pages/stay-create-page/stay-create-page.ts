@@ -97,6 +97,9 @@ export class StayCreatePage {
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),
   );
+  readonly selectedOwnerName = computed(
+    () => this.owners().find((owner) => owner.id === this.selectedOwnerId())?.fullName ?? '',
+  );
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;
     return (
@@ -180,6 +183,14 @@ export class StayCreatePage {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
     }
+  }
+
+  toggleCatFromPill(event: MouseEvent, catId: string): void {
+    if (event.target !== event.currentTarget) {
+      return;
+    }
+
+    this.onCatToggle(catId, !this.isCatSelected(catId));
   }
 
   isCatSelected(catId: string): boolean {

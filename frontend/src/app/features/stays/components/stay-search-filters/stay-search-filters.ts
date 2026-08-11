@@ -61,6 +61,14 @@ export class StaySearchFiltersComponent {
     return this.ownerOptions().filter((option) => option.searchText.includes(searchText));
   });
 
+  readonly hasSearchFilters = computed(
+    () =>
+      Boolean(this.selectedCatId()) ||
+      Boolean(this.selectedOwnerId()) ||
+      Boolean(this.catSearch().trim()) ||
+      Boolean(this.ownerSearch().trim()),
+  );
+
   onCatSearchChange(value: string): void {
     this.catSearch.set(value);
 
@@ -115,13 +123,9 @@ export class StaySearchFiltersComponent {
     return typeof option === 'string' ? option : (option?.label ?? '');
   }
 
-  clearCat(): void {
+  clearFilters(): void {
     this.selectedCatId.set(null);
     this.catSearch.set('');
-    this.emitFilters();
-  }
-
-  clearOwner(): void {
     this.selectedOwnerId.set(null);
     this.ownerSearch.set('');
     this.emitFilters();

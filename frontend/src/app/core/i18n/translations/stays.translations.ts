@@ -158,7 +158,7 @@ export interface StaysTranslations {
     owner: string;
     selectOwner: string;
     createOwner: string;
-    cats: string;
+    catsForOwner: string;
     noCatsForOwner: string;
     createCat: string;
     startDateTime: string;
@@ -358,7 +358,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Dueño',
       selectOwner: 'Selecciona un dueño',
       createOwner: 'Crear dueño',
-      cats: 'Gatos',
+      catsForOwner: 'Gatos de',
       noCatsForOwner: 'No se encontraron gatos para este dueño.',
       createCat: 'Crear gato',
       startDateTime: 'Fecha/hora de inicio',
@@ -556,7 +556,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Owner',
       selectOwner: 'Select an owner',
       createOwner: 'Create owner',
-      cats: 'Cats',
+      catsForOwner: 'Cats of',
       noCatsForOwner: 'No cats found for this owner.',
       createCat: 'Create cat',
       startDateTime: 'Start date/time',

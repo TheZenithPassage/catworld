@@ -42,33 +42,41 @@
       </div>
 
       @if (selectedOwnerId()) {
-        <fieldset class="cat-selection">
-          <legend>{{ text().stays.create.cats }}</legend>
+        <div class="cat-group">
+          <h3 id="stay-cat-selection-title" class="cat-group-title">
+            {{ text().stays.create.catsForOwner }} {{ selectedOwnerName() }}
+          </h3>
 
-          @if (filteredCats().length === 0) {
-            <p class="empty-options">{{ text().stays.create.noCatsForOwner }}</p>
-          } @else {
+          <div class="cat-selection" role="group" aria-labelledby="stay-cat-selection-title">
+            @if (filteredCats().length === 0) {
+              <p class="empty-options">{{ text().stays.create.noCatsForOwner }}</p>
+            }
+
             <div class="cat-options">
-              @for (cat of filteredCats(); track cat.id) {
-                <mat-checkbox
-                  [checked]="isCatSelected(cat.id)"
-                  (change)="onCatToggle(cat.id, $event.checked)"
-                >
-                  {{ cat.name }}
-                </mat-checkbox>
+              @if (filteredCats().length > 0) {
+                @for (cat of filteredCats(); track cat.id) {
+                  <mat-checkbox
+                    class="cat-option"
+                    [checked]="isCatSelected(cat.id)"
+                    (click)="toggleCatFromPill($event, cat.id)"
+                    (change)="onCatToggle(cat.id, $event.checked)"
+                  >
+                    <span class="cat-option-label">{{ cat.name }}</span>
+                  </mat-checkbox>
+                }
               }
-            </div>
-          }
-        </fieldset>
 
-        <a
-          mat-stroked-button
-          routerLink="/cats/new"
-          [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
-          class="related-action"
-        >
-          {{ text().stays.create.createCat }}
-        </a>
+              <a
+                mat-stroked-button
+                routerLink="/cats/new"
+                [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
+                class="create-cat-option"
+              >
+                {{ text().stays.create.createCat }}
+              </a>
+            </div>
+          </div>
+        </div>
       }
 
       <mat-form-field appearance="outline">
