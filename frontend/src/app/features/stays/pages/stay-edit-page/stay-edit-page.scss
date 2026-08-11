@@ -27,7 +27,7 @@
 .stay-summary {
   display: grid;
   gap: 0.5rem;
-  width: min(100%, 68rem);
+  width: 100%;
   padding: 1rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-md);
@@ -43,7 +43,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
-  width: min(100%, 68rem);
+  width: 100%;
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);

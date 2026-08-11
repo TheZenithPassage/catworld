@@ -55,6 +55,7 @@
 }
 
 .ui-state--error {
+  width: 100%;
   border-color: rgb(180 35 24 / 0.35);
   background: var(--color-danger-soft);
   color: var(--color-danger);
