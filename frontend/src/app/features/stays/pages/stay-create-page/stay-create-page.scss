@@ -37,7 +37,10 @@
 
 .field-with-action {
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  min-width: 0;
   margin-bottom: 0.5rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--color-border);
@@ -58,40 +61,42 @@
 
 .related-action {
   justify-self: start;
+  margin-top: 0.5rem;
 }
 
 .cat-group {
   display: grid;
-  gap: 1.5rem;
+  gap: 1rem;
+  min-width: 0;
   margin-bottom: 0.5rem;
   padding-bottom: 1.5rem;
   border-bottom: 1px solid var(--color-border);
 }
 
-.cat-selection {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.25rem 0 0;
-  border: 0;
+.cat-group-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 750;
+  text-align: center;
 }
 
-.cat-selection legend {
-  padding: 0;
-  color: var(--color-text);
-  font-weight: 750;
+.cat-selection {
+  display: grid;
+  gap: 1rem;
+  padding-top: 0.5rem;
 }
 
 .cat-options {
-  display: flex;
-  flex-wrap: wrap;
-  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: 0.75rem;
   align-items: center;
 }
 
 .cat-option {
   position: relative;
-  width: fit-content;
+  width: 100%;
   padding: 0.2rem 1rem 0.2rem 0.65rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -116,6 +121,16 @@
   font-weight: 600;
 }
 
+.create-cat-option {
+  width: 100%;
+  min-height: 3rem;
+  border-color: var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  font-weight: 700;
+}
+
 :host ::ng-deep .cat-option:has(input:focus-visible) {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
@@ -128,15 +143,49 @@
     background: var(--color-primary-soft);
     box-shadow: 0 4px 12px rgb(232 137 63 / 0.14);
   }
+
+  .create-cat-option:hover {
+    background: var(--color-primary);
+    color: #fff;
+  }
 }
 
 .empty-options {
-  margin: 1rem 0 0;
+  margin: 0;
+  text-align: center;
+}
+
+@media (min-width: 701px) {
+  .cat-options {
+    grid-template-columns: minmax(0, 1fr);
+    width: 20%;
+    margin-inline: auto;
+  }
+
+  .cat-options:has(.cat-option) {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    width: 100%;
+  }
 }
 
 @media (max-width: 700px) {
   .stay-form {
     grid-template-columns: 1fr;
+  }
+
+  .cat-options {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .cat-option,
+  .create-cat-option {
+    flex: 1 1 calc(50% - 0.375rem);
+    width: auto;
+  }
+
+  .cat-option {
+    min-width: min(100%, max-content);
   }
 
   .stay-form > app-ui-state,
@@ -153,5 +202,32 @@
   .stay-form {
     padding: 1rem;
     border-radius: var(--radius-md);
+  }
+}
+
+@media (max-width: 360px) {
+  .field-with-action {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-bottom: 1rem;
+  }
+
+  .cat-group {
+    margin-bottom: 1rem;
+  }
+
+  .cat-options {
+    flex-direction: column;
+  }
+
+  .cat-option,
+  .create-cat-option {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .related-action {
+    width: 100%;
+    margin-top: 0;
   }
 }

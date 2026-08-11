@@ -43,13 +43,17 @@
 
       @if (selectedOwnerId()) {
         <div class="cat-group">
-          <fieldset class="cat-selection">
-            <legend>{{ text().stays.create.catsForOwner }} {{ selectedOwnerName() }}</legend>
+          <h3 id="stay-cat-selection-title" class="cat-group-title">
+            {{ text().stays.create.catsForOwner }} {{ selectedOwnerName() }}
+          </h3>
 
+          <div class="cat-selection" role="group" aria-labelledby="stay-cat-selection-title">
             @if (filteredCats().length === 0) {
               <p class="empty-options">{{ text().stays.create.noCatsForOwner }}</p>
-            } @else {
-              <div class="cat-options">
+            }
+
+            <div class="cat-options">
+              @if (filteredCats().length > 0) {
                 @for (cat of filteredCats(); track cat.id) {
                   <mat-checkbox
                     class="cat-option"
@@ -60,18 +64,18 @@
                     <span class="cat-option-label">{{ cat.name }}</span>
                   </mat-checkbox>
                 }
-              </div>
-            }
-          </fieldset>
+              }
 
-          <a
-            mat-stroked-button
-            routerLink="/cats/new"
-            [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
-            class="related-action"
-          >
-            {{ text().stays.create.createCat }}
-          </a>
+              <a
+                mat-stroked-button
+                routerLink="/cats/new"
+                [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
+                class="create-cat-option"
+              >
+                {{ text().stays.create.createCat }}
+              </a>
+            </div>
+          </div>
         </div>
       }
 
