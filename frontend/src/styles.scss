@@ -137,6 +137,19 @@ textarea {
   font: inherit;
 }
 
+.mat-mdc-form-field-type-mat-native-select .mat-mdc-floating-label {
+  pointer-events: none;
+}
+
+.mat-mdc-form-field-type-mat-native-select select.mat-mdc-form-field-input-control {
+  position: absolute;
+  inset: 0 -1rem;
+  width: calc(100% + 2rem);
+  height: 100%;
+  padding-right: 1.95rem;
+  padding-left: 1rem;
+}
+
 .page-header {
   padding: 1.35rem;
   border: 1px solid rgb(234 216 198 / 0.9);
