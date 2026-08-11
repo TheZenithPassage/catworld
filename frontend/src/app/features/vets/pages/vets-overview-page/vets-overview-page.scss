@@ -109,8 +109,10 @@
   background: #fffaf2;
 }
 
-.vets-table .mat-mdc-row:hover .mat-mdc-cell {
-  background: var(--color-secondary-soft);
+@media (hover: hover) and (pointer: fine) {
+  .vets-table .mat-mdc-row:hover .mat-mdc-cell {
+    background: var(--color-secondary-soft);
+  }
 }
 
 @media (max-width: 620px) {
@@ -148,16 +150,18 @@
     background: #fffaf2;
   }
 
-  .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-name,
-  .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
-    background: var(--color-secondary-soft);
-  }
-
   .vets-table .mat-column-name {
     left: 0;
   }
 
   .vets-table .mat-column-actions {
     right: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-name,
+    .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
+      background: var(--color-secondary-soft);
+    }
   }
 }

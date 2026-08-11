@@ -64,10 +64,6 @@
   background: #fffaf2;
 }
 
-.stays-table .mat-mdc-row:hover .mat-mdc-cell {
-  background: var(--color-secondary-soft);
-}
-
 .stays-table .mat-mdc-row.selected-row .mat-mdc-cell {
   background: var(--color-warning-soft);
   border-top: 2px solid var(--color-primary);
@@ -141,6 +137,10 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .stays-table .mat-mdc-row:hover .mat-mdc-cell {
+    background: var(--color-secondary-soft);
+  }
+
   .status-filter:hover {
     border-color: var(--color-primary);
     background: var(--color-primary-soft);
@@ -187,11 +187,6 @@
     background: #fffaf2;
   }
 
-  .stays-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-cats,
-  .stays-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
-    background: var(--color-secondary-soft);
-  }
-
   .stays-table .mat-mdc-row.selected-row .mat-mdc-cell.mat-column-cats,
   .stays-table .mat-mdc-row.selected-row .mat-mdc-cell.mat-column-actions {
     background: var(--color-warning-soft);
@@ -203,5 +198,12 @@
 
   .stays-table .mat-column-actions {
     right: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .stays-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-cats,
+    .stays-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
+      background: var(--color-secondary-soft);
+    }
   }
 }
