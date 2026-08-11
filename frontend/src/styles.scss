@@ -175,18 +175,6 @@ textarea {
   color: var(--color-text-muted);
 }
 
-.error-message {
-  padding: 0.85rem 1rem;
-  border: 1px solid rgb(180 35 24 / 0.35);
-  border-radius: var(--radius-md);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.error-message p {
-  margin: 0;
-}
-
 .secondary-line,
 .cat-name-summary,
 .action-unavailable,

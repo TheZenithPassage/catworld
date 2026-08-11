@@ -4,6 +4,10 @@
     <p>{{ text().accounts.description }}</p>
   </header>
 
+  @if (actionError(); as errorMessage) {
+    <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
+  }
+
   <form class="account-form" (ngSubmit)="createAccount()">
     <h3>{{ text().accounts.create.title }}</h3>
 
@@ -51,21 +55,15 @@
     </div>
   </form>
 
-  @if (actionError()) {
-    <div class="error-message" role="alert">
-      <p>{{ actionError() }}</p>
-    </div>
-  }
-
   @if (loading()) {
     <p>{{ text().accounts.loading }}</p>
-  } @else if (loadError()) {
-    <div class="error-message">
-      <p>{{ loadError() }}</p>
-      <button mat-stroked-button type="button" (click)="loadAccounts()">
-        {{ text().accounts.retry }}
-      </button>
-    </div>
+  } @else if (loadError(); as errorMessage) {
+    <app-ui-state
+      kind="error"
+      [message]="errorMessage"
+      [actionLabel]="text().accounts.retry"
+      (actionTriggered)="loadAccounts()"
+    ></app-ui-state>
   } @else if (accounts().length === 0) {
     <p>{{ text().accounts.empty }}</p>
   } @else {
