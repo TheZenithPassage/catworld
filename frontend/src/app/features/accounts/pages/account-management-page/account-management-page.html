@@ -4,6 +4,10 @@
     <p>{{ text().accounts.description }}</p>
   </header>
 
+  @if (actionError(); as errorMessage) {
+    <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
+  }
+
   <form class="account-form" (ngSubmit)="createAccount()">
     <h3>{{ text().accounts.create.title }}</h3>
 
@@ -51,21 +55,15 @@
     </div>
   </form>
 
-  @if (actionError()) {
-    <div class="error-message" role="alert">
-      <p>{{ actionError() }}</p>
-    </div>
-  }
-
   @if (loading()) {
     <p>{{ text().accounts.loading }}</p>
-  } @else if (loadError()) {
-    <div class="error-message">
-      <p>{{ loadError() }}</p>
-      <button mat-stroked-button type="button" (click)="loadAccounts()">
-        {{ text().accounts.retry }}
-      </button>
-    </div>
+  } @else if (loadError(); as errorMessage) {
+    <app-ui-state
+      kind="error"
+      [message]="errorMessage"
+      [actionLabel]="text().accounts.retry"
+      (actionTriggered)="loadAccounts()"
+    ></app-ui-state>
   } @else if (accounts().length === 0) {
     <p>{{ text().accounts.empty }}</p>
   } @else {
@@ -74,10 +72,12 @@
         <ng-container matColumnDef="username">
           <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.username }}</th>
           <td mat-cell *matCellDef="let account">
-            {{ account.username }}
-            @if (isCurrentAccount(account)) {
-              <span class="you-marker">{{ text().accounts.you }}</span>
-            }
+            <div class="username-cell">
+              <span class="username-value">{{ account.username }}</span>
+              @if (isCurrentAccount(account)) {
+                <span class="current-account-marker">({{ text().accounts.you }})</span>
+              }
+            </div>
           </td>
         </ng-container>
 
@@ -99,18 +99,20 @@
                   <option value="STAFF">{{ text().accounts.roles.staff }}</option>
                 </select>
               </mat-form-field>
-              <button
-                mat-stroked-button
-                type="button"
-                (click)="changeRole(account)"
-                [disabled]="isPending(account.id) || selectedRole(account) === account.role"
-              >
-                {{
-                  isPending(account.id)
-                    ? text().accounts.actions.updating
-                    : text().accounts.actions.saveRole
-                }}
-              </button>
+              @if (selectedRole(account) !== account.role) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  (click)="changeRole(account)"
+                  [disabled]="isPending(account.id)"
+                >
+                  {{
+                    isPending(account.id)
+                      ? text().accounts.actions.updating
+                      : text().accounts.actions.saveRole
+                  }}
+                </button>
+              }
             </div>
           </td>
         </ng-container>

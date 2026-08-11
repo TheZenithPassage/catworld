@@ -1061,8 +1061,8 @@ public class StayServiceTest {
         @Test
         void updateSkipsVaccineRevalidationWhenEndIsUnchanged() {
 
-            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime persistedStartAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = persistedStartAt.plusDays(4);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -1099,8 +1099,8 @@ public class StayServiceTest {
         @Test
         void updateSkipsVaccineRevalidationWhenEndIsShortened() {
 
-            LocalDateTime persistedStartAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime persistedStartAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = persistedStartAt.plusDays(4);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -1135,9 +1135,9 @@ public class StayServiceTest {
         @Test
         void updateAllowsCoveredExtensionWithoutOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = startAt.plusDays(2);
+            LocalDateTime requestedEndAt = startAt.plusDays(4);
             Cat cat = vaccineCat(
                     "Milo",
                     requestedEndAt.toLocalDate(),
@@ -1175,9 +1175,9 @@ public class StayServiceTest {
         @Test
         void updateBlocksConflictingStaffExtensionEvenWithOverrideIntent() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = startAt.plusDays(2);
+            LocalDateTime requestedEndAt = startAt.plusDays(4);
             Cat cat = vaccineCat(
                     "Milo",
                     requestedEndAt.toLocalDate().minusYears(1),
@@ -1211,9 +1211,9 @@ public class StayServiceTest {
         @Test
         void updateBlocksConflictingAdminExtensionWithoutExplicitOverride() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = startAt.plusDays(2);
+            LocalDateTime requestedEndAt = startAt.plusDays(4);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -1238,9 +1238,9 @@ public class StayServiceTest {
         @Test
         void updateAllowsExplicitAdminOverrideForConflictingExtension() {
 
-            LocalDateTime startAt = LocalDateTime.of(2026, 8, 1, 12, 0);
-            LocalDateTime persistedEndAt = LocalDateTime.of(2026, 8, 3, 12, 0);
-            LocalDateTime requestedEndAt = LocalDateTime.of(2026, 8, 5, 12, 0);
+            LocalDateTime startAt = LocalDate.now().plusMonths(1).atTime(12, 0);
+            LocalDateTime persistedEndAt = startAt.plusDays(2);
+            LocalDateTime requestedEndAt = startAt.plusDays(4);
             Cat cat = vaccineCat("Milo", null, null);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())

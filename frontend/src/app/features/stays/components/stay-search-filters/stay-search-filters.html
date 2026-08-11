@@ -25,12 +25,6 @@
           }
         </mat-autocomplete>
       </mat-form-field>
-
-      @if (selectedCatId()) {
-        <button mat-stroked-button type="button" (click)="clearCat()">
-          {{ text().stays.filters.clear }}
-        </button>
-      }
     </div>
 
     @if (matchingCatOptions().length === 0 && catSearch().trim() && !selectedCatId()) {
@@ -64,16 +58,18 @@
           }
         </mat-autocomplete>
       </mat-form-field>
-
-      @if (selectedOwnerId()) {
-        <button mat-stroked-button type="button" (click)="clearOwner()">
-          {{ text().stays.filters.clear }}
-        </button>
-      }
     </div>
 
     @if (matchingOwnerOptions().length === 0 && ownerSearch().trim() && !selectedOwnerId()) {
       <small class="empty-options">{{ text().stays.filters.noOwnersMatch }}</small>
     }
   </div>
+
+  @if (hasSearchFilters()) {
+    <div class="filter-actions">
+      <button mat-stroked-button type="button" (click)="clearFilters()">
+        {{ text().stays.filters.clear }}
+      </button>
+    </div>
+  }
 </div>

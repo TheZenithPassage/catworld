@@ -12,12 +12,21 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UserRole } from '../../../../core/auth/auth.model';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { UserAccount } from '../../models/user-account.model';
 import { UserAccountApiService } from '../../services/user-account-api.service';
 
 @Component({
   selector: 'app-account-management-page',
-  imports: [FormsModule, MatButton, MatFormField, MatInput, MatLabel, MatTableModule],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    MatTableModule,
+    UiStateComponent,
+  ],
   templateUrl: './account-management-page.html',
   styleUrl: './account-management-page.scss',
 })

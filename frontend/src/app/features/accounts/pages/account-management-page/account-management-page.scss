@@ -40,24 +40,27 @@
 .accounts-table-wrapper {
   max-width: 100%;
   overflow-x: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 
 .accounts-table {
   width: 100%;
-  min-width: 56rem;
+  table-layout: auto;
   overflow: hidden;
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-  box-shadow: var(--shadow-soft);
 }
 
 .accounts-table .mat-mdc-header-cell,
 .accounts-table .mat-mdc-cell {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.65rem;
   border-bottom-color: var(--color-border);
   text-align: left;
   vertical-align: middle;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .accounts-table .mat-mdc-header-cell {
@@ -79,24 +82,52 @@
 .role-action {
   display: flex;
   gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  flex-wrap: nowrap;
 }
 
 .role-select {
   min-width: 9rem;
 }
 
-.you-marker,
+.role-action button {
+  margin-top: 0.5rem;
+}
+
+:host ::ng-deep .role-select .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.username-cell {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.username-value {
+  font-weight: 650;
+}
+
+.current-account-marker {
+  color: var(--color-text-muted);
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+
 .state-marker {
   display: inline-flex;
-  margin-left: 0.4rem;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
   background: var(--color-secondary-soft);
   color: var(--color-text);
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+.accounts-table .mat-column-username {
+  text-align: center;
 }
 
 .state-marker.disabled {
@@ -110,12 +141,64 @@
     padding: 1rem;
   }
 
+  .account-submit {
+    width: 100%;
+  }
+
   .role-action {
     align-items: stretch;
     flex-direction: column;
+    gap: 0.5rem;
   }
 
   .role-select {
     width: 100%;
+  }
+
+  .role-action button {
+    width: 100%;
+    margin-top: 0;
+  }
+
+  .accounts-table {
+    min-width: 46rem;
+    font-size: 0.92rem;
+  }
+
+  .accounts-table .mat-mdc-header-cell,
+  .accounts-table .mat-mdc-cell {
+    padding: 0.6rem 0.5rem;
+  }
+
+  .accounts-table .mat-mdc-header-cell.mat-column-username,
+  .accounts-table .mat-mdc-header-cell.mat-column-actions,
+  .accounts-table .mat-mdc-cell.mat-column-username,
+  .accounts-table .mat-mdc-cell.mat-column-actions {
+    position: sticky;
+    z-index: 2;
+  }
+
+  .accounts-table .mat-mdc-header-cell.mat-column-username,
+  .accounts-table .mat-mdc-header-cell.mat-column-actions {
+    z-index: 3;
+    background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
+  }
+
+  .accounts-table .mat-mdc-row .mat-mdc-cell.mat-column-username,
+  .accounts-table .mat-mdc-row .mat-mdc-cell.mat-column-actions {
+    background: var(--color-surface);
+  }
+
+  .accounts-table .mat-mdc-row:nth-child(even) .mat-mdc-cell.mat-column-username,
+  .accounts-table .mat-mdc-row:nth-child(even) .mat-mdc-cell.mat-column-actions {
+    background: #fffaf2;
+  }
+
+  .accounts-table .mat-column-username {
+    left: 0;
+  }
+
+  .accounts-table .mat-column-actions {
+    right: 0;
   }
 }

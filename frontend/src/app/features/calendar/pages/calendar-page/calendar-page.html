@@ -21,9 +21,12 @@
       <mat-checkbox
         class="status-filter"
         [checked]="isStatusVisible(option.status)"
+        (click)="toggleStatusFromPill($event, option.status)"
         (change)="setStatusVisibility(option.status, $event.checked)"
       >
-        {{ text().stays.status[option.status] }}
+        <span class="status-filter-label">
+          {{ text().stays.status[option.status] }}
+        </span>
       </mat-checkbox>
     }
   </div>
