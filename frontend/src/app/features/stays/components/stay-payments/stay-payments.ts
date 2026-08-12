@@ -11,6 +11,7 @@ import { MatInput } from '@angular/material/input';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import {
   isPermanentDeletionConfirmed,
   PermanentDeletionConfirmationDialog,
@@ -180,7 +181,7 @@ export class StayPayments {
         boolean | PermanentDeletionConfirmationResult
       >(PermanentDeletionConfirmationDialog, {
         data: {
-          subject: `${copy.removingSubject} ${payment.amount} · ${payment.paymentDate}`,
+          subject: `${copy.removingSubject} ${payment.amount} · ${this.formatPaymentDate(payment.paymentDate)}`,
           reasonLabel: copy.removalReason,
           reasonRequiredMessage: copy.errors.reasonRequired,
           initialReason: this.removalReason(),
@@ -232,6 +233,10 @@ export class StayPayments {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(new Date(value));
+  }
+
+  formatPaymentDate(value: string): string {
+    return formatLocalDate(value, this.dateLocale());
   }
 
   private actionIsValid(action: Exclude<PaymentAction, null>): boolean {

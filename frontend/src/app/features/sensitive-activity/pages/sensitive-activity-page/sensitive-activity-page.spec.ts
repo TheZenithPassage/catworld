@@ -142,9 +142,32 @@ describe('SensitiveActivityPage', () => {
     expect(root.textContent).toContain('Edit');
     expect(root.textContent).toContain('Annul');
     expect(root.textContent).toContain('Remove');
+    expect(
+      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
+    ).toEqual(['01/08/2026', '01/08/2026', '01/08/2026']);
     expect(root.textContent).toContain('Ada Owner (deleted-owner)');
     expect(root.textContent).toContain('Miso (deleted-cat)');
     expect(root.querySelectorAll('article a')).toHaveLength(0);
+  });
+
+  it('localizes payment dates without changing their calendar day', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    api.getActivity.mockReturnValue(
+      of(
+        events.map((event) =>
+          'paymentDate' in event ? { ...event, paymentDate: '2026-01-01' } : event,
+        ),
+      ),
+    );
+    fixture.destroy();
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(
+      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
+    ).toEqual(['01/01/2026', '01/01/2026', '01/01/2026']);
   });
 
   it('shows the localized malformed-contract state when temporal parsing fails', () => {

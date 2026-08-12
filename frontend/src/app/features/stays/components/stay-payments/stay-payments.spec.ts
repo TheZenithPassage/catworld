@@ -102,6 +102,28 @@ describe('StayPayments', () => {
     expect(compiled.textContent).not.toContain('entered twice');
   });
 
+  it('localizes payment calendar dates without changing their day', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    fixture.componentRef.setInput('stay', {
+      ...stay,
+      payments: [{ ...stay.payments[0], paymentDate: '2026-08-12' }],
+    });
+    fixture.detectChanges();
+
+    const paymentDate = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('.payment-row dl div:nth-child(2) dd')
+        ?.textContent;
+
+    expect(paymentDate()).toContain('12/08/2026');
+    expect(paymentDate()).not.toContain('2026-08-12');
+
+    i18n.language.set('en');
+    fixture.detectChanges();
+
+    expect(paymentDate()).toContain('12/08/2026');
+  });
+
   it('renders an accessible empty history without changing authoritative economics', () => {
     fixture.componentRef.setInput('stay', { ...stay, payments: [] });
     fixture.detectChanges();
@@ -501,6 +523,20 @@ describe('StayPayments', () => {
       expect.any(Function),
       expect.objectContaining({ data: expect.objectContaining({ initialReason: 'Wrong stay' }) }),
     );
+  });
+
+  it('localizes the payment date in permanent removal confirmation', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    component.remove({ ...stay.payments[0], paymentDate: '2026-01-01' });
+
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: expect.objectContaining({ subject: expect.stringContaining('01/01/2026') }),
+      }),
+    );
+    expect(dialog.open.mock.calls[0][1].data.subject).not.toContain('2026-01-01');
   });
 
   it('discards failed removal recovery when an already-open edit is submitted', () => {

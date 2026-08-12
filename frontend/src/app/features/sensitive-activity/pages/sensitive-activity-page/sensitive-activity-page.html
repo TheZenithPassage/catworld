@@ -227,7 +227,7 @@
                       </div>
                       <div>
                         <dt>{{ text().sensitiveActivity.fields.paymentDate }}</dt>
-                        <dd>{{ event.paymentDate }}</dd>
+                        <dd class="payment-date">{{ formatPaymentDate(event.paymentDate) }}</dd>
                       </div>
                       <div>
                         <dt>{{ text().sensitiveActivity.fields.note }}</dt>

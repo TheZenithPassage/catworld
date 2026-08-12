@@ -11,6 +11,7 @@ import { Subscription } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import {
   EMPTY_SENSITIVE_ACTIVITY_FILTERS,
@@ -141,6 +142,10 @@ export class SensitiveActivityPage {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(new Date(value));
+  }
+
+  formatPaymentDate(value: string): string {
+    return formatLocalDate(value, this.dateLocale());
   }
 
   catsLabel(cats: SensitiveStayContext['cats']): string {
