@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -49,6 +50,9 @@ export class StayPayments {
   readonly removalDialogOpen = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly attempted = signal(false);
+  readonly attemptedErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.attempted(),
+  };
   readonly removalPayment = signal<StayPayment | null>(null);
   readonly removalReason = signal('');
 

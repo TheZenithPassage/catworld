@@ -130,6 +130,49 @@ describe('StayPayments', () => {
     });
   });
 
+  it.each([
+    ['', 'amountRequired'],
+    ['0', 'invalidAmount'],
+    ['1.5', 'invalidAmount'],
+    ['10000000000000000000', 'invalidAmount'],
+  ] as const)('shows the local amount error for %j without registering', (amount, errorKey) => {
+    component.startRegister();
+    component.amount.set(amount);
+    component.paymentDate.set('2026-08-05');
+    fixture.detectChanges();
+
+    submitPaymentForm();
+
+    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors[errorKey]);
+    expect(api.registerPayment).not.toHaveBeenCalled();
+  });
+
+  it('shows the required payment date without registering', () => {
+    component.startRegister();
+    component.amount.set('1');
+    fixture.detectChanges();
+
+    submitPaymentForm();
+
+    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.dateRequired);
+    expect(api.registerPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(['edit', 'annul'] as const)('shows the required reason without calling %s', (action) => {
+    if (action === 'edit') {
+      component.startEdit(stay.payments[0]);
+    } else {
+      component.startAnnul(stay.payments[0]);
+    }
+    fixture.detectChanges();
+
+    submitPaymentForm();
+
+    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.reasonRequired);
+    expect(api.editPayment).not.toHaveBeenCalled();
+    expect(api.annulPayment).not.toHaveBeenCalled();
+  });
+
   it('serializes every mutation trigger while registration remains pending', () => {
     const registration = new Subject<Stay>();
     api.registerPayment.mockReturnValue(registration.asObservable());
@@ -607,4 +650,19 @@ describe('StayPayments', () => {
     expect(englishTimestamp).not.toBe(spanishTimestamp);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Registered at');
   });
+
+  function submitPaymentForm(): void {
+    component.submitAction();
+    fixture.detectChanges();
+  }
+
+  function visibleFormErrors(): string {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+        'mat-error, .mat-mdc-form-field-error',
+      ),
+    )
+      .map((error) => error.textContent?.trim())
+      .join(' ');
+  }
 });
