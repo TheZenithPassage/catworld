@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -25,7 +26,16 @@ type FocusContext = 'form' | 'removal';
 
 @Component({
   selector: 'app-stay-payments',
-  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    NgTemplateOutlet,
+    UiStateComponent,
+  ],
   templateUrl: './stay-payments.html',
   styleUrl: './stay-payments.scss',
 })

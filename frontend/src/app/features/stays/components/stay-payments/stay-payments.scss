@@ -52,8 +52,20 @@ dd {
   border-radius: var(--radius-md);
   background: rgb(255 249 241 / 0.75);
 }
+.payment-form-inline {
+  background: rgb(248 239 228 / 0.9);
+}
 .payment-form mat-form-field {
   width: 100%;
+}
+.payment-form-title {
+  margin: 0 0 0.5rem;
+  color: var(--color-text);
+  font-size: 1.05rem;
+}
+.payment-action-active {
+  background: var(--color-primary);
+  color: var(--color-text);
 }
 .payment-form-actions,
 .payment-actions,
@@ -62,6 +74,9 @@ dd {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+.payment-actions {
+  margin-top: 1.5rem;
 }
 .payment-history {
   display: grid;

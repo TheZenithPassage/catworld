@@ -114,6 +114,62 @@ describe('StayPayments', () => {
     expect(compiled.textContent).toContain('9999999999999999998');
   });
 
+  it('renders edit and annul forms only inside the selected payment row', () => {
+    const secondActivePayment = {
+      ...stay.payments[0],
+      paymentId: 'payment-2',
+      amount: stay.payments[0].amount,
+    };
+    fixture.componentRef.setInput('stay', {
+      ...stay,
+      payments: [stay.payments[0], secondActivePayment],
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled
+      .querySelector<HTMLButtonElement>('[data-payment-id="payment-2"][data-payment-action="edit"]')
+      ?.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.payments-panel > .payment-form')).toBeNull();
+    expect(compiled.querySelectorAll('.payment-row .payment-form')).toHaveLength(1);
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-2"] > .payment-form'),
+    ).not.toBeNull();
+    expect(compiled.querySelector('[data-payment-row-id="payment-1"] > .payment-form')).toBeNull();
+    const activeEdit = compiled.querySelector<HTMLButtonElement>(
+      '[data-payment-id="payment-2"][data-payment-action="edit"]',
+    );
+    expect(activeEdit?.getAttribute('aria-pressed')).toBe('true');
+    expect(activeEdit?.classList).toContain('payment-action-active');
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-2"] .payment-form-title')?.textContent,
+    ).toContain(component.text().stays.payments.edit);
+
+    compiled
+      .querySelector<HTMLButtonElement>(
+        '[data-payment-id="payment-1"][data-payment-action="annul"]',
+      )
+      ?.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelectorAll('.payment-row .payment-form')).toHaveLength(1);
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-1"] > .payment-form'),
+    ).not.toBeNull();
+    expect(compiled.querySelector('[data-payment-row-id="payment-2"] > .payment-form')).toBeNull();
+    const activeAnnul = compiled.querySelector<HTMLButtonElement>(
+      '[data-payment-id="payment-1"][data-payment-action="annul"]',
+    );
+    expect(activeAnnul?.getAttribute('aria-pressed')).toBe('true');
+    expect(activeAnnul?.classList).toContain('payment-action-active');
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-1"] .payment-form-title')?.textContent,
+    ).toContain(component.text().stays.payments.annul);
+    expect(compiled.querySelectorAll('.payment-row')).toHaveLength(2);
+  });
+
   it('submits an exact whole-unit registration and blocks fractional input', () => {
     api.registerPayment.mockReturnValue(of(stay));
     component.startRegister();
