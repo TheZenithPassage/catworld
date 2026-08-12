@@ -650,6 +650,18 @@ to make owner, cat or vet deletion succeed.
 
 ## Frontend UI Foundation
 
+Frontend operational time uses `BusinessTimeService` as the single boundary
+between absolute instants and the deployment's business timezone. The timezone
+is loaded at runtime from `frontend/public/runtime-config.json` (currently
+`America/Argentina/Buenos_Aires`), so deployments can replace it without a
+component change or deployment-specific build. `Instant` values are formatted
+and `datetime-local` sensitive-activity filters are interpreted in that IANA
+zone. Stay `LocalDateTime` values retain their wall-clock fields, and payment
+`LocalDate` formatting remains separate from timezone conversion.
+The standard nginx container generates that file at startup from the
+`BUSINESS_TIME_ZONE` environment variable, which accepts an IANA timezone such
+as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
+
 The authenticated Angular administration interface uses Angular Material and
 Angular CDK as its default UI foundation for interactive components,
 application-wide theming and shared UI behavior.

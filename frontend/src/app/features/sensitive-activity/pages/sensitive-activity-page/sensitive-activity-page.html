@@ -25,8 +25,10 @@
         id="sensitive-occurred-from"
         matInput
         type="datetime-local"
-        [attr.aria-describedby]="invalidPeriod() ? 'sensitive-period-error' : null"
-        [attr.aria-invalid]="invalidPeriod()"
+        [attr.aria-describedby]="
+          invalidPeriod() || invalidBusinessDateTime() ? 'sensitive-period-error' : null
+        "
+        [attr.aria-invalid]="invalidPeriod() || invalidBusinessDateTime()"
         [ngModel]="filters().occurredFrom"
         (ngModelChange)="updateFilter('occurredFrom', $event)"
         name="occurredFrom"
@@ -37,8 +39,10 @@
       <input
         matInput
         type="datetime-local"
-        [attr.aria-describedby]="invalidPeriod() ? 'sensitive-period-error' : null"
-        [attr.aria-invalid]="invalidPeriod()"
+        [attr.aria-describedby]="
+          invalidPeriod() || invalidBusinessDateTime() ? 'sensitive-period-error' : null
+        "
+        [attr.aria-invalid]="invalidPeriod() || invalidBusinessDateTime()"
         [ngModel]="filters().occurredTo"
         (ngModelChange)="updateFilter('occurredTo', $event)"
         name="occurredTo"
@@ -47,6 +51,10 @@
     @if (invalidPeriod()) {
       <p id="sensitive-period-error" class="period-error" role="alert">
         {{ text().sensitiveActivity.filters.invalidPeriod }}
+      </p>
+    } @else if (invalidBusinessDateTime()) {
+      <p id="sensitive-period-error" class="period-error" role="alert">
+        {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
       </p>
     }
     <mat-form-field appearance="outline">
@@ -262,7 +270,10 @@
                         </div>
                         <div>
                           <dt>{{ text().sensitiveActivity.fields.stayDates }}</dt>
-                          <dd>{{ display(context.startAt) }} – {{ display(context.endAt) }}</dd>
+                          <dd>
+                            {{ formatStayDateTime(context.startAt) }} –
+                            {{ formatStayDateTime(context.endAt) }}
+                          </dd>
                         </div>
                         <div>
                           <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
@@ -275,7 +286,7 @@
                         @if (context.cancelledAt) {
                           <div>
                             <dt>{{ text().sensitiveActivity.fields.cancelledAt }}</dt>
-                            <dd>{{ context.cancelledAt }}</dd>
+                            <dd>{{ formatStayDateTime(context.cancelledAt) }}</dd>
                           </div>
                         }
                       </dl>

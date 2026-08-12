@@ -10,6 +10,7 @@ import {
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import { SensitiveActivityPage } from './sensitive-activity-page';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 
 describe('SensitiveActivityPage', () => {
   const params = new BehaviorSubject(convertToParamMap({}));
@@ -147,7 +148,140 @@ describe('SensitiveActivityPage', () => {
     ).toEqual(['01/08/2026', '01/08/2026', '01/08/2026']);
     expect(root.textContent).toContain('Ada Owner (deleted-owner)');
     expect(root.textContent).toContain('Miso (deleted-cat)');
+    expect(root.textContent).toContain('1 Aug 2026, 09:00');
+    expect(root.textContent).toContain('1 Aug 2026, 10:00');
+    expect(root.textContent).toContain('3 Aug 2026, 10:00');
+    expect(root.textContent).not.toContain('2026-08-01T10:00:00');
     expect(root.querySelectorAll('article a')).toHaveLength(0);
+  });
+
+  it('reconstructs and submits datetime filters in business time', () => {
+    fixture.destroy();
+    params.next(convertToParamMap({ occurredFrom: '2026-08-12T13:00:00.000Z' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+
+    expect(component.filters().occurredFrom).toBe('2026-08-12T10:00');
+    component.updateFilter('occurredTo', '2026-08-12T11:30');
+    component.applyFilters();
+
+    expect(router.navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({
+          occurredFrom: '2026-08-12T13:00:00.000Z',
+          occurredTo: '2026-08-12T14:30:00.000Z',
+        }),
+      }),
+    );
+  });
+
+  it('preserves the exact second ambiguous Instant loaded from the query', () => {
+    TestBed.inject(RuntimeConfigService).businessTimeZone.set('Europe/Madrid');
+    fixture.destroy();
+    params.next(convertToParamMap({ occurredFrom: '2026-10-25T01:30:00.000Z' }));
+
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.filters().occurredFrom).toBe('2026-10-25T02:30');
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ occurredFrom: '2026-10-25T01:30:00.000Z' }),
+    );
+
+    fixture.componentInstance.refresh();
+
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ occurredFrom: '2026-10-25T01:30:00.000Z' }),
+    );
+  });
+
+  it('accepts an Instant range crossing the DST fallback even when local times look inverted', () => {
+    TestBed.inject(RuntimeConfigService).businessTimeZone.set('Europe/Madrid');
+    fixture.destroy();
+    params.next(
+      convertToParamMap({
+        occurredFrom: '2026-10-25T00:45:00.000Z',
+        occurredTo: '2026-10-25T01:15:00.000Z',
+      }),
+    );
+
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.filters()).toEqual(
+      expect.objectContaining({
+        occurredFrom: '2026-10-25T02:45',
+        occurredTo: '2026-10-25T02:15',
+      }),
+    );
+    expect(fixture.componentInstance.invalidPeriod()).toBe(false);
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        occurredFrom: '2026-10-25T00:45:00.000Z',
+        occurredTo: '2026-10-25T01:15:00.000Z',
+      }),
+    );
+  });
+
+  it('applies the normal first-occurrence policy after an ambiguous local time is edited', () => {
+    TestBed.inject(RuntimeConfigService).businessTimeZone.set('Europe/Madrid');
+    fixture.destroy();
+    params.next(convertToParamMap({ occurredFrom: '2026-10-25T01:30:00.000Z' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    router.navigate.mockClear();
+
+    component.updateFilter('occurredFrom', '2026-10-25T02:30');
+    component.applyFilters();
+
+    expect(router.navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({ occurredFrom: '2026-10-25T00:30:00.000Z' }),
+      }),
+    );
+  });
+
+  it('rejects a nonexistent business local time without navigation or another request', () => {
+    const config = TestBed.inject(RuntimeConfigService);
+    config.businessTimeZone.set('Europe/Madrid');
+    const component = fixture.componentInstance;
+    const requestsBeforeApply = api.getActivity.mock.calls.length;
+    component.updateFilter('occurredFrom', '2026-03-29T02:30');
+    fixture.detectChanges();
+
+    expect(() => component.applyFilters()).not.toThrow();
+    fixture.detectChanges();
+
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply);
+    expect(component.filters().occurredFrom).toBe('2026-03-29T02:30');
+    expect(component.invalidBusinessDateTime()).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')?.textContent,
+    ).toContain(component.text().sensitiveActivity.filters.invalidBusinessDateTime);
+  });
+
+  it('changes Instant presentation when runtime business timezone changes', () => {
+    const config = TestBed.inject(RuntimeConfigService);
+    const component = fixture.componentInstance;
+    config.businessTimeZone.set('America/Argentina/Buenos_Aires');
+    expect(component.formatDate('2026-08-12T13:00:00Z')).toContain('10:00');
+
+    config.businessTimeZone.set('Europe/Madrid');
+    expect(component.formatDate('2026-08-12T13:00:00Z')).toContain('15:00');
+  });
+
+  it('presents stay LocalDateTime fields without timezone displacement', () => {
+    const component = fixture.componentInstance;
+    const config = TestBed.inject(RuntimeConfigService);
+    config.businessTimeZone.set('Europe/Madrid');
+
+    expect(component.formatStayDateTime('2026-08-12T23:30:00')).toContain('23:30');
+    expect(component.formatStayDateTime('2026-08-13T00:15:00')).toContain('00:15');
   });
 
   it('localizes payment dates without changing their calendar day', () => {

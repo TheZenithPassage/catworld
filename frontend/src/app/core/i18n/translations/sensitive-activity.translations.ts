@@ -28,6 +28,7 @@ export interface SensitiveActivityTranslations {
     refresh: string;
     clear: string;
     invalidPeriod: string;
+    invalidBusinessDateTime: string;
   };
   events: Record<SensitiveEconomicEventType, string>;
   categories: Record<NightlyRateCategory, string>;
@@ -98,6 +99,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       refresh: 'Actualizar',
       clear: 'Limpiar filtros',
       invalidPeriod: 'La fecha inicial debe ser anterior a la final.',
+      invalidBusinessDateTime: 'La fecha y hora no existe en la zona horaria del negocio.',
     },
     events: {
       NIGHTLY_RATE_CHANGED: 'Tarifa nocturna cambiada',
@@ -167,6 +169,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       refresh: 'Refresh',
       clear: 'Clear filters',
       invalidPeriod: 'The start date must be earlier than the end date.',
+      invalidBusinessDateTime: 'The date and time does not exist in the business timezone.',
     },
     events: sharedEvents,
     categories: {

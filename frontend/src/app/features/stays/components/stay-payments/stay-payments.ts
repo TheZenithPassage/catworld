@@ -12,6 +12,7 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import {
   isPermanentDeletionConfirmed,
   PermanentDeletionConfirmationDialog,
@@ -45,6 +46,7 @@ export class StayPayments {
   private readonly api = inject(StayApiService);
   private readonly dialog = inject(MatDialog);
   private readonly i18n = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
 
   readonly stay = input.required<Stay>();
   readonly stayChange = output<Stay>();
@@ -229,10 +231,7 @@ export class StayPayments {
   }
 
   formatRegisteredAt(value: string): string {
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    return this.businessTime.formatInstant(value, this.dateLocale());
   }
 
   formatPaymentDate(value: string): string {

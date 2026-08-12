@@ -12,6 +12,7 @@ import { Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import {
   EMPTY_SENSITIVE_ACTIVITY_FILTERS,
@@ -48,6 +49,7 @@ export class SensitiveActivityPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
 
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
@@ -60,16 +62,20 @@ export class SensitiveActivityPage {
   readonly loading = signal(true);
   readonly loadError = signal<LoadError>(null);
   readonly invalidPeriod = signal(false);
+  readonly invalidBusinessDateTime = signal(false);
   private loadSubscription: Subscription | null = null;
   private loadVersion = 0;
+  private readonly editedTemporalFilters = new Set<'occurredFrom' | 'occurredTo'>();
 
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const eventTypeValue = params.get('eventType') ?? '';
+      const occurredFromInstant = params.get('occurredFrom') ?? '';
+      const occurredToInstant = params.get('occurredTo') ?? '';
       const routeFilters: SensitiveActivityFilters = {
         actorId: params.get('actorId') ?? '',
-        occurredFrom: this.toLocalDateTime(params.get('occurredFrom')),
-        occurredTo: this.toLocalDateTime(params.get('occurredTo')),
+        occurredFrom: this.toLocalDateTime(occurredFromInstant),
+        occurredTo: this.toLocalDateTime(occurredToInstant),
         eventType: SENSITIVE_EVENT_TYPES.includes(eventTypeValue as never)
           ? (eventTypeValue as SensitiveActivityFilters['eventType'])
           : '',
@@ -77,9 +83,15 @@ export class SensitiveActivityPage {
         catId: params.get('catId') ?? '',
         stayId: params.get('stayId') ?? '',
       };
+      const appliedRouteFilters = {
+        ...routeFilters,
+        occurredFrom: occurredFromInstant,
+        occurredTo: occurredToInstant,
+      };
+      this.editedTemporalFilters.clear();
       this.filters.set(routeFilters);
-      this.appliedFilters.set(routeFilters);
-      if (this.validPeriod(routeFilters)) {
+      this.appliedFilters.set(appliedRouteFilters);
+      if (this.validAppliedPeriod(appliedRouteFilters)) {
         this.load();
       } else {
         this.cancelLoad();
@@ -92,24 +104,42 @@ export class SensitiveActivityPage {
 
   updateFilter(key: keyof SensitiveActivityFilters, value: string): void {
     this.filters.update((current) => ({ ...current, [key]: value }));
+    if (key === 'occurredFrom' || key === 'occurredTo') {
+      this.editedTemporalFilters.add(key);
+    }
     this.invalidPeriod.set(false);
+    this.invalidBusinessDateTime.set(false);
   }
 
   applyFilters(): void {
-    if (!this.validPeriod(this.filters())) return;
+    const occurredFrom = this.resolveAppliedInstant('occurredFrom');
+    const occurredTo = this.resolveAppliedInstant('occurredTo');
+    if (occurredFrom === null || occurredTo === null) {
+      this.invalidBusinessDateTime.set(true);
+      return;
+    }
+    this.invalidBusinessDateTime.set(false);
+    const appliedFilters: SensitiveActivityFilters = {
+      ...this.filters(),
+      occurredFrom: occurredFrom ?? '',
+      occurredTo: occurredTo ?? '',
+    };
+    if (!this.validAppliedPeriod(appliedFilters)) return;
     const queryParams = Object.fromEntries(
-      Object.entries(this.filters()).filter(([, value]) => Boolean(value)),
+      Object.entries(appliedFilters).filter(([, value]) => Boolean(value)),
     );
     this.router.navigate([], { relativeTo: this.route, queryParams });
   }
 
   refresh(): void {
-    if (this.validPeriod(this.appliedFilters())) this.load();
+    if (this.validAppliedPeriod(this.appliedFilters())) this.load();
   }
 
   clearFilters(): void {
     this.filters.set({ ...EMPTY_SENSITIVE_ACTIVITY_FILTERS });
     this.invalidPeriod.set(false);
+    this.invalidBusinessDateTime.set(false);
+    this.editedTemporalFilters.clear();
     this.router.navigate([], { relativeTo: this.route, queryParams: {} });
   }
 
@@ -138,14 +168,15 @@ export class SensitiveActivityPage {
   }
 
   formatDate(value: string): string {
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    return this.businessTime.formatInstant(value, this.dateLocale());
   }
 
   formatPaymentDate(value: string): string {
     return formatLocalDate(value, this.dateLocale());
+  }
+
+  formatStayDateTime(value: string): string {
+    return this.businessTime.formatLocalDateTime(value, this.dateLocale());
   }
 
   catsLabel(cats: SensitiveStayContext['cats']): string {
@@ -190,21 +221,32 @@ export class SensitiveActivityPage {
     this.loadSubscription = null;
   }
 
-  private validPeriod(filters: SensitiveActivityFilters): boolean {
+  private validAppliedPeriod(filters: SensitiveActivityFilters): boolean {
     const { occurredFrom, occurredTo } = filters;
     const invalid = Boolean(
-      occurredFrom && occurredTo && new Date(occurredFrom) >= new Date(occurredTo),
+      occurredFrom && occurredTo && Date.parse(occurredFrom) >= Date.parse(occurredTo),
     );
     this.invalidPeriod.set(invalid);
     if (invalid) setTimeout(() => document.getElementById('sensitive-occurred-from')?.focus());
     return !invalid;
   }
 
-  private toLocalDateTime(value: string | null): string {
+  private toLocalDateTime(value: string): string {
     if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-    return local.toISOString().slice(0, 16);
+    try {
+      return this.businessTime.instantToLocalDateTime(value);
+    } catch {
+      return '';
+    }
+  }
+
+  private resolveAppliedInstant(key: 'occurredFrom' | 'occurredTo'): string | undefined | null {
+    if (!this.editedTemporalFilters.has(key)) {
+      return this.appliedFilters()[key] || undefined;
+    }
+    const value = this.filters()[key];
+    if (!value) return undefined;
+    const resolution = this.businessTime.resolveLocalDateTime(value);
+    return resolution.valid ? resolution.instant : null;
   }
 }
