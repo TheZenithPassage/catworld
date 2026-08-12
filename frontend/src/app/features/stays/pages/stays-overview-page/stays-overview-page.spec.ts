@@ -405,6 +405,54 @@ describe('StaysOverviewPage', () => {
     );
   });
 
+  it('keeps the table and active correction values visible after a rejected correction', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'secret' },
+    );
+    stayApiService.correctAgreedAmount.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 400,
+            error: { agreedAmount: 'must not be below active payments' },
+          }),
+      ),
+    );
+    createComponent();
+    component.startCorrection(reservedStay);
+    component.correctionAmount.set('25');
+    component.correctionReason.set('Correct signed amount');
+
+    component.submitCorrection(reservedStay);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const activeRow = compiled.querySelector('#stay-stay-1');
+    const correctionError = activeRow?.querySelector('app-ui-state.correction-error');
+
+    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
+    expect(compiled.textContent).toContain('Grace Hopper');
+    expect(component.correctingStayId()).toBe('stay-1');
+    expect(component.correctionAmount()).toBe('25');
+    expect(component.correctionReason()).toBe('Correct signed amount');
+    expect(component.error()).toBeNull();
+    expect(correctionError?.textContent).toContain('must not be below active payments');
+
+    stayApiService.correctAgreedAmount.mockReturnValueOnce(
+      of({ ...reservedStay, agreedAmount: '125', remainingAmount: '125' }),
+    );
+    component.correctionAmount.set('125');
+    component.submitCorrection(reservedStay);
+
+    expect(stayApiService.correctAgreedAmount).toHaveBeenLastCalledWith('stay-1', {
+      agreedAmount: '125',
+      reason: 'Correct signed amount',
+    });
+    expect(component.correctingStayId()).toBeNull();
+    expect(component.stays().find((stay) => stay.stayId === 'stay-1')?.agreedAmount).toBe('125');
+  });
+
   it('prevents starting another correction while one is being submitted', () => {
     TestBed.inject(AuthSessionService).login(
       { username: 'admin', role: 'ADMIN' },

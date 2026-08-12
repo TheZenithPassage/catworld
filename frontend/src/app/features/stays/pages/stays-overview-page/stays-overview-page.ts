@@ -102,6 +102,7 @@ export class StaysOverviewPage {
   readonly correctingStayId = signal<string | null>(null);
   readonly correctionAmount = signal('');
   readonly correctionReason = signal('');
+  readonly correctionError = createLanguageResetError(this.i18nService.language);
   readonly correctionSubmitting = signal(false);
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
 
@@ -210,7 +211,7 @@ export class StaysOverviewPage {
     this.correctingStayId.set(stay.stayId);
     this.correctionAmount.set(stay.agreedAmount ?? '');
     this.correctionReason.set('');
-    this.error.set(null);
+    this.correctionError.set(null);
   }
 
   cancelCorrection(): void {
@@ -221,11 +222,12 @@ export class StaysOverviewPage {
     this.correctingStayId.set(null);
     this.correctionAmount.set('');
     this.correctionReason.set('');
+    this.correctionError.set(null);
   }
 
   submitCorrection(stay: Stay): void {
     if (!this.isAdmin() || !isValidWholeMoney(this.correctionAmount())) {
-      this.error.set(this.text().stays.pricing.errors.invalidAmount);
+      this.correctionError.set(this.text().stays.pricing.errors.invalidAmount);
       return;
     }
 
@@ -233,12 +235,12 @@ export class StaysOverviewPage {
       this.correctionAmount().replace(/^0+(?=\d)/, '') !==
       (stay.agreedAmount ?? '').replace(/^0+(?=\d)/, '');
     if (amountChanged && !this.correctionReason().trim()) {
-      this.error.set(this.text().stays.pricing.errors.correctionReasonRequired);
+      this.correctionError.set(this.text().stays.pricing.errors.correctionReasonRequired);
       return;
     }
 
     this.correctionSubmitting.set(true);
-    this.error.set(null);
+    this.correctionError.set(null);
     this.stayApiService
       .correctAgreedAmount(stay.stayId, {
         agreedAmount: this.correctionAmount(),
@@ -253,7 +255,7 @@ export class StaysOverviewPage {
           this.cancelCorrection();
         },
         error: (error: unknown) => {
-          this.error.set(
+          this.correctionError.set(
             this.getApiErrorMessage(error, this.text().stays.pricing.errors.correctionFailed),
           );
           this.correctionSubmitting.set(false);

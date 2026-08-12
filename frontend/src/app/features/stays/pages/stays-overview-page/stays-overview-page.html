@@ -168,6 +168,13 @@
                       (ngModelChange)="correctionReason.set($event)"
                     ></textarea>
                   </mat-form-field>
+                  @if (correctionError()) {
+                    <app-ui-state
+                      class="correction-error"
+                      kind="error"
+                      [message]="correctionError() ?? ''"
+                    ></app-ui-state>
+                  }
                   <div class="row-actions">
                     <button
                       mat-flat-button
