@@ -371,7 +371,9 @@ Stay reads return payment history ordered by creation time and derive
 `outstandingCollectionEligible` from the active rows and current agreement.
 `NO_PAYMENT`, `PARTIAL_PAYMENT` and `FULL_PAYMENT` are response values, never
 persisted state. Annulled rows remain visible but contribute nothing to the
-active total.
+active total. For a cancelled stay with a known agreement, `remainingAmount`
+is the operational balance `0` and outstanding eligibility is false, while
+`paymentCondition` continues to describe the real active-payment history.
 
 Inherited stays with a null agreement return zero paid, null remaining,
 `NO_PAYMENT`, false outstanding eligibility and empty history. Payment
