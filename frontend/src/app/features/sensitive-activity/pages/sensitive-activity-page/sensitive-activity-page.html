@@ -5,59 +5,77 @@
   </header>
 
   <form
+    #filtersForm="ngForm"
     class="filters"
     role="search"
     [attr.aria-label]="text().sensitiveActivity.filters.label"
-    (ngSubmit)="applyFilters()"
+    (ngSubmit)="applyFilters(filtersForm)"
   >
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.actorId }}</mat-label>
       <input
         matInput
+        [errorStateMatcher]="filterErrorStateMatchers.actorId"
         [ngModel]="filters().actorId"
         (ngModelChange)="updateFilter('actorId', $event)"
         name="actorId"
       />
+      <mat-error>
+        @if (filterErrors().actorId === 'invalidUuid') {
+          {{ text().sensitiveActivity.filters.invalidId }}
+        }
+      </mat-error>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.occurredFrom }}</mat-label>
       <input
         id="sensitive-occurred-from"
+        #occurredFromModel="ngModel"
+        appNativeBadInput
         matInput
         type="datetime-local"
-        [attr.aria-describedby]="
-          invalidPeriod() || invalidBusinessDateTime() ? 'sensitive-period-error' : null
-        "
-        [attr.aria-invalid]="invalidPeriod() || invalidBusinessDateTime()"
+        [errorStateMatcher]="filterErrorStateMatchers.occurredFrom"
         [ngModel]="filters().occurredFrom"
         (ngModelChange)="updateFilter('occurredFrom', $event)"
         name="occurredFrom"
       />
+      <mat-error>
+        @if (filterErrors().occurredFrom === 'nonexistentBusinessTime') {
+          {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
+        } @else if (
+          filterErrors().occurredFrom === 'invalidDateTime' ||
+          occurredFromModel.hasError('badInput')
+        ) {
+          {{ text().sensitiveActivity.filters.invalidDateTime }}
+        }
+      </mat-error>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.occurredTo }}</mat-label>
       <input
+        id="sensitive-occurred-to"
+        #occurredToModel="ngModel"
+        appNativeBadInput
         matInput
         type="datetime-local"
-        [attr.aria-describedby]="
-          invalidPeriod() || invalidBusinessDateTime() ? 'sensitive-period-error' : null
-        "
-        [attr.aria-invalid]="invalidPeriod() || invalidBusinessDateTime()"
+        [errorStateMatcher]="filterErrorStateMatchers.occurredTo"
         [ngModel]="filters().occurredTo"
         (ngModelChange)="updateFilter('occurredTo', $event)"
         name="occurredTo"
       />
+      <mat-error>
+        @if (filterErrors().occurredTo === 'invalidPeriod') {
+          {{ text().sensitiveActivity.filters.invalidPeriod }}
+        } @else if (filterErrors().occurredTo === 'nonexistentBusinessTime') {
+          {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
+        } @else if (
+          filterErrors().occurredTo === 'invalidDateTime' || occurredToModel.hasError('badInput')
+        ) {
+          {{ text().sensitiveActivity.filters.invalidDateTime }}
+        }
+      </mat-error>
     </mat-form-field>
-    @if (invalidPeriod()) {
-      <p id="sensitive-period-error" class="period-error" role="alert">
-        {{ text().sensitiveActivity.filters.invalidPeriod }}
-      </p>
-    } @else if (invalidBusinessDateTime()) {
-      <p id="sensitive-period-error" class="period-error" role="alert">
-        {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
-      </p>
-    }
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.eventType }}</mat-label>
       <select
         matNativeControl
@@ -71,32 +89,50 @@
         }
       </select>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.ownerId }}</mat-label>
       <input
         matInput
+        [errorStateMatcher]="filterErrorStateMatchers.ownerId"
         [ngModel]="filters().ownerId"
         (ngModelChange)="updateFilter('ownerId', $event)"
         name="ownerId"
       />
+      <mat-error>
+        @if (filterErrors().ownerId === 'invalidUuid') {
+          {{ text().sensitiveActivity.filters.invalidId }}
+        }
+      </mat-error>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.catId }}</mat-label>
       <input
         matInput
+        [errorStateMatcher]="filterErrorStateMatchers.catId"
         [ngModel]="filters().catId"
         (ngModelChange)="updateFilter('catId', $event)"
         name="catId"
       />
+      <mat-error>
+        @if (filterErrors().catId === 'invalidUuid') {
+          {{ text().sensitiveActivity.filters.invalidId }}
+        }
+      </mat-error>
     </mat-form-field>
-    <mat-form-field appearance="outline">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ text().sensitiveActivity.filters.stayId }}</mat-label>
       <input
         matInput
+        [errorStateMatcher]="filterErrorStateMatchers.stayId"
         [ngModel]="filters().stayId"
         (ngModelChange)="updateFilter('stayId', $event)"
         name="stayId"
       />
+      <mat-error>
+        @if (filterErrors().stayId === 'invalidUuid') {
+          {{ text().sensitiveActivity.filters.invalidId }}
+        }
+      </mat-error>
     </mat-form-field>
     <div class="filter-actions">
       <button mat-flat-button type="submit">{{ text().sensitiveActivity.filters.apply }}</button>

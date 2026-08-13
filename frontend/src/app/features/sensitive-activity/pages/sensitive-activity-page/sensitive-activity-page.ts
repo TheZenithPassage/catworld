@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { ErrorStateMatcher } from '@angular/material/core';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -11,6 +12,7 @@ import { Subscription } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { NativeBadInputDirective } from '../../../../shared/forms/native-bad-input.directive';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
@@ -25,6 +27,23 @@ import {
 } from '../../models/sensitive-economic-activity';
 
 type LoadError = 'forbidden' | 'malformed' | 'failure' | null;
+type IdFilterKey = 'actorId' | 'ownerId' | 'catId' | 'stayId';
+type TemporalFilterKey = 'occurredFrom' | 'occurredTo';
+type ValidatedFilterKey = IdFilterKey | TemporalFilterKey;
+type FilterError =
+  | 'invalidUuid'
+  | 'invalidDateTime'
+  | 'nonexistentBusinessTime'
+  | 'invalidPeriod'
+  | null;
+
+interface ResolvedTemporalFilter {
+  instant: string | undefined;
+  error: FilterError;
+}
+
+const ID_FILTER_KEYS: readonly IdFilterKey[] = ['actorId', 'ownerId', 'catId', 'stayId'];
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 @Component({
   selector: 'app-sensitive-activity-page',
@@ -35,9 +54,11 @@ type LoadError = 'forbidden' | 'malformed' | 'failure' | null;
     MatCardContent,
     MatCardHeader,
     MatCardTitle,
+    MatError,
     MatFormField,
     MatInput,
     MatLabel,
+    NativeBadInputDirective,
     UiStateComponent,
   ],
   templateUrl: './sensitive-activity-page.html',
@@ -61,8 +82,22 @@ export class SensitiveActivityPage {
   readonly events = signal<readonly SensitiveEconomicActivityEvent[]>([]);
   readonly loading = signal(true);
   readonly loadError = signal<LoadError>(null);
-  readonly invalidPeriod = signal(false);
-  readonly invalidBusinessDateTime = signal(false);
+  readonly filterErrors = signal<Record<ValidatedFilterKey, FilterError>>({
+    actorId: null,
+    ownerId: null,
+    catId: null,
+    stayId: null,
+    occurredFrom: null,
+    occurredTo: null,
+  });
+  readonly filterErrorStateMatchers: Record<ValidatedFilterKey, ErrorStateMatcher> = {
+    actorId: this.errorStateMatcher('actorId'),
+    ownerId: this.errorStateMatcher('ownerId'),
+    catId: this.errorStateMatcher('catId'),
+    stayId: this.errorStateMatcher('stayId'),
+    occurredFrom: this.errorStateMatcher('occurredFrom'),
+    occurredTo: this.errorStateMatcher('occurredTo'),
+  };
   private loadSubscription: Subscription | null = null;
   private loadVersion = 0;
   private readonly editedTemporalFilters = new Set<'occurredFrom' | 'occurredTo'>();
@@ -91,11 +126,13 @@ export class SensitiveActivityPage {
       this.editedTemporalFilters.clear();
       this.filters.set(routeFilters);
       this.appliedFilters.set(appliedRouteFilters);
-      if (this.validAppliedPeriod(appliedRouteFilters)) {
+      this.clearFilterErrors();
+      const idsValid = this.validateIdFilters(routeFilters);
+      const periodValid = this.validateAppliedPeriod(appliedRouteFilters);
+      if (idsValid && periodValid) {
         this.load();
       } else {
         this.cancelLoad();
-        this.events.set([]);
         this.loading.set(false);
         this.loadError.set(null);
       }
@@ -106,25 +143,30 @@ export class SensitiveActivityPage {
     this.filters.update((current) => ({ ...current, [key]: value }));
     if (key === 'occurredFrom' || key === 'occurredTo') {
       this.editedTemporalFilters.add(key);
+      this.clearFilterError(key);
+      this.clearFilterError('occurredTo', 'invalidPeriod');
+    } else if (ID_FILTER_KEYS.includes(key as IdFilterKey)) {
+      this.clearFilterError(key as IdFilterKey);
     }
-    this.invalidPeriod.set(false);
-    this.invalidBusinessDateTime.set(false);
   }
 
-  applyFilters(): void {
+  applyFilters(form?: NgForm): void {
+    const idsValid = this.validateIdFilters(this.filters());
+    const occurredFromBadInput = form?.controls['occurredFrom']?.hasError('badInput') ?? false;
+    const occurredToBadInput = form?.controls['occurredTo']?.hasError('badInput') ?? false;
     const occurredFrom = this.resolveAppliedInstant('occurredFrom');
     const occurredTo = this.resolveAppliedInstant('occurredTo');
-    if (occurredFrom === null || occurredTo === null) {
-      this.invalidBusinessDateTime.set(true);
-      return;
-    }
-    this.invalidBusinessDateTime.set(false);
+    const occurredFromError = occurredFromBadInput ? 'invalidDateTime' : occurredFrom.error;
+    const occurredToError = occurredToBadInput ? 'invalidDateTime' : occurredTo.error;
+    this.setFilterError('occurredFrom', occurredFromError);
+    this.setFilterError('occurredTo', occurredToError);
+    if (!idsValid || occurredFromError || occurredToError) return;
     const appliedFilters: SensitiveActivityFilters = {
       ...this.filters(),
-      occurredFrom: occurredFrom ?? '',
-      occurredTo: occurredTo ?? '',
+      occurredFrom: occurredFrom.instant ?? '',
+      occurredTo: occurredTo.instant ?? '',
     };
-    if (!this.validAppliedPeriod(appliedFilters)) return;
+    if (!this.validateAppliedPeriod(appliedFilters)) return;
     const queryParams = Object.fromEntries(
       Object.entries(appliedFilters).filter(([, value]) => Boolean(value)),
     );
@@ -132,13 +174,13 @@ export class SensitiveActivityPage {
   }
 
   refresh(): void {
-    if (this.validAppliedPeriod(this.appliedFilters())) this.load();
+    const applied = this.appliedFilters();
+    if (this.idFiltersValid(applied) && !this.periodInvalid(applied)) this.load();
   }
 
   clearFilters(): void {
     this.filters.set({ ...EMPTY_SENSITIVE_ACTIVITY_FILTERS });
-    this.invalidPeriod.set(false);
-    this.invalidBusinessDateTime.set(false);
+    this.clearFilterErrors();
     this.editedTemporalFilters.clear();
     this.router.navigate([], { relativeTo: this.route, queryParams: {} });
   }
@@ -221,14 +263,32 @@ export class SensitiveActivityPage {
     this.loadSubscription = null;
   }
 
-  private validAppliedPeriod(filters: SensitiveActivityFilters): boolean {
+  private validateAppliedPeriod(filters: SensitiveActivityFilters): boolean {
+    const invalid = this.periodInvalid(filters);
+    this.setFilterError('occurredTo', invalid ? 'invalidPeriod' : null);
+    if (invalid) setTimeout(() => document.getElementById('sensitive-occurred-to')?.focus());
+    return !invalid;
+  }
+
+  private validateIdFilters(filters: SensitiveActivityFilters): boolean {
+    let valid = true;
+    for (const key of ID_FILTER_KEYS) {
+      const invalid = Boolean(filters[key] && !UUID_PATTERN.test(filters[key]));
+      this.setFilterError(key, invalid ? 'invalidUuid' : null);
+      valid &&= !invalid;
+    }
+    return valid;
+  }
+
+  private idFiltersValid(filters: SensitiveActivityFilters): boolean {
+    return ID_FILTER_KEYS.every((key) => !filters[key] || UUID_PATTERN.test(filters[key]));
+  }
+
+  private periodInvalid(filters: SensitiveActivityFilters): boolean {
     const { occurredFrom, occurredTo } = filters;
-    const invalid = Boolean(
+    return Boolean(
       occurredFrom && occurredTo && Date.parse(occurredFrom) >= Date.parse(occurredTo),
     );
-    this.invalidPeriod.set(invalid);
-    if (invalid) setTimeout(() => document.getElementById('sensitive-occurred-from')?.focus());
-    return !invalid;
   }
 
   private toLocalDateTime(value: string): string {
@@ -240,13 +300,44 @@ export class SensitiveActivityPage {
     }
   }
 
-  private resolveAppliedInstant(key: 'occurredFrom' | 'occurredTo'): string | undefined | null {
+  private resolveAppliedInstant(key: TemporalFilterKey): ResolvedTemporalFilter {
     if (!this.editedTemporalFilters.has(key)) {
-      return this.appliedFilters()[key] || undefined;
+      return { instant: this.appliedFilters()[key] || undefined, error: null };
     }
     const value = this.filters()[key];
-    if (!value) return undefined;
+    if (!value) return { instant: undefined, error: null };
     const resolution = this.businessTime.resolveLocalDateTime(value);
-    return resolution.valid ? resolution.instant : null;
+    if (resolution.valid) return { instant: resolution.instant, error: null };
+    return {
+      instant: undefined,
+      error: resolution.reason === 'malformed' ? 'invalidDateTime' : 'nonexistentBusinessTime',
+    };
+  }
+
+  private errorStateMatcher(key: ValidatedFilterKey): ErrorStateMatcher {
+    return {
+      isErrorState: (control) =>
+        this.filterErrors()[key] !== null || Boolean(control?.hasError('badInput')),
+    };
+  }
+
+  private setFilterError(key: ValidatedFilterKey, error: FilterError): void {
+    this.filterErrors.update((current) => ({ ...current, [key]: error }));
+  }
+
+  private clearFilterError(key: ValidatedFilterKey, onlyIf?: FilterError): void {
+    if (onlyIf && this.filterErrors()[key] !== onlyIf) return;
+    this.setFilterError(key, null);
+  }
+
+  private clearFilterErrors(): void {
+    this.filterErrors.set({
+      actorId: null,
+      ownerId: null,
+      catId: null,
+      stayId: null,
+      occurredFrom: null,
+      occurredTo: null,
+    });
   }
 }

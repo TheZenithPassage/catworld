@@ -11,7 +11,9 @@ interface DateTimeParts {
   second: number;
 }
 
-export type BusinessLocalDateTimeResolution = { valid: true; instant: string } | { valid: false };
+export type BusinessLocalDateTimeResolution =
+  | { valid: true; instant: string }
+  | { valid: false; reason: 'malformed' | 'nonexistent' };
 
 @Injectable({ providedIn: 'root' })
 export class BusinessTimeService {
@@ -41,7 +43,13 @@ export class BusinessTimeService {
   }
 
   resolveLocalDateTime(value: string): BusinessLocalDateTimeResolution {
-    const expected = this.parseLocalDateTime(value);
+    let expected: DateTimeParts;
+    try {
+      expected = this.parseLocalDateTime(value);
+    } catch (error) {
+      if (error instanceof RangeError) return { valid: false, reason: 'malformed' };
+      throw error;
+    }
     const wallClockUtc = this.partsAsUtc(expected);
     const offsets = new Set<number>();
 
@@ -55,7 +63,9 @@ export class BusinessTimeService {
       .filter((candidate) => this.sameParts(this.partsInBusinessZone(candidate), expected))
       .sort((left, right) => left.getTime() - right.getTime());
 
-    return matches.length ? { valid: true, instant: matches[0].toISOString() } : { valid: false };
+    return matches.length
+      ? { valid: true, instant: matches[0].toISOString() }
+      : { valid: false, reason: 'nonexistent' };
   }
 
   instantToLocalDateTime(value: string): string {

@@ -40,7 +40,10 @@ describe('BusinessTimeService', () => {
   it('represents a nonexistent DST wall time as an invalid resolution', () => {
     config.businessTimeZone.set('Europe/Madrid');
 
-    expect(service.resolveLocalDateTime('2026-03-29T02:30')).toEqual({ valid: false });
+    expect(service.resolveLocalDateTime('2026-03-29T02:30')).toEqual({
+      valid: false,
+      reason: 'nonexistent',
+    });
   });
 
   it('formats LocalDateTime without shifting its wall-clock fields', () => {
