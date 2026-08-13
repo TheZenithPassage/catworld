@@ -22,8 +22,12 @@ export interface StaysTranslations {
     agreement: string;
     currentAgreement: string;
     reason: string;
+    reasonDifferentPlaceholder: string;
+    reasonSuggestedPlaceholder: string;
     unavailable: string;
+    useSuggestedAmount: string;
     confirm: string;
+    confirmAfterReason: string;
     confirmed: string;
     stale: string;
     noReconfirmation: string;
@@ -221,8 +225,12 @@ export const STAYS_TRANSLATIONS = {
       agreement: 'Importe acordado',
       currentAgreement: 'Importe acordado actual',
       reason: 'Motivo económico',
+      reasonDifferentPlaceholder: 'Aclarar motivo es necesario si no se usa el importe sugerido',
+      reasonSuggestedPlaceholder: 'Motivo opcional',
       unavailable: 'No disponible',
+      useSuggestedAmount: 'Usar importe sugerido',
       confirm: 'Confirmar precio',
+      confirmAfterReason: 'Añade un motivo para confirmar',
       confirmed: 'Precio confirmado',
       stale: 'La base del precio cambió. Revisa la nueva propuesta y vuelve a confirmarla.',
       noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
@@ -419,8 +427,12 @@ export const STAYS_TRANSLATIONS = {
       agreement: 'Agreed amount',
       currentAgreement: 'Current agreed amount',
       reason: 'Economic reason',
+      reasonDifferentPlaceholder: 'Explain the reason when not using the suggested amount',
+      reasonSuggestedPlaceholder: 'Optional reason',
       unavailable: 'Unavailable',
+      useSuggestedAmount: 'Use suggested amount',
       confirm: 'Confirm pricing',
+      confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',
       stale: 'The pricing basis changed. Review the fresh preview and confirm it again.',
       noReconfirmation: 'This change does not require pricing reconfirmation.',

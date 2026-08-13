@@ -63,6 +63,7 @@ export class StayEditPage {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
@@ -106,6 +107,15 @@ export class StayEditPage {
       (!this.reasonRequired() || !!this.pricingReason().trim()),
   );
   readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
+  readonly pricingReasonPlaceholder = computed(() => {
+    if (this.pricingReasonContext() === 'suggested') {
+      return this.text().stays.pricing.reasonSuggestedPlaceholder;
+    }
+    if (this.pricingReasonContext() === 'manual') {
+      return this.text().stays.pricing.reasonDifferentPlaceholder;
+    }
+    return '';
+  });
 
   private readonly stayId = this.route.snapshot.paramMap.get('id');
   private previewRequestSequence = 0;
@@ -302,14 +312,36 @@ export class StayEditPage {
     this.pricingConfirmed.set(false);
   }
 
+  onAgreedAmountChange(value: string): void {
+    this.agreedAmount.set(value);
+    this.pricingReasonContext.set('manual');
+    this.onPricingDecisionChange();
+  }
+
   confirmPricing(): void {
     if (this.isAdmin() && this.pricingPreview()?.pricingDecisionRequired && this.decisionValid()) {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
+      this.scrollToSubmit();
     }
   }
 
+  useSuggestedAmount(): void {
+    const preview = this.pricingPreview();
+    if (!this.isAdmin() || !preview?.pricingDecisionRequired || preview.suggestedAmount === null) {
+      return;
+    }
+
+    this.agreedAmount.set(preview.suggestedAmount);
+    this.pricingReason.set('');
+    this.pricingReasonContext.set('suggested');
+    this.pricingConfirmed.set(true);
+    this.stalePricing.set(false);
+    this.scrollToSubmit();
+  }
+
   private refreshPricingPreview(): void {
+    if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.pricingPreview.set(null);
     this.previewError.set(null);
@@ -350,6 +382,12 @@ export class StayEditPage {
 
   private currentPreviewBasis(): string {
     return JSON.stringify([this.stayId, this.startAt(), this.endAt()]);
+  }
+
+  private scrollToSubmit(): void {
+    document
+      .getElementById('update-stay-submit')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }
 
   private clearVaccineOverrideRecovery(): void {

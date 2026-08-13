@@ -90,25 +90,31 @@
                 @if (stalePricing()) {
                   <p class="pricing-warning" role="alert">{{ text().stays.pricing.stale }}</p>
                 }
-                <mat-form-field appearance="outline">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
                   <input
                     matInput
                     name="agreedAmount"
                     inputmode="numeric"
                     [ngModel]="agreedAmount()"
-                    (ngModelChange)="agreedAmount.set($event); onPricingDecisionChange()"
+                    (ngModelChange)="onAgreedAmountChange($event)"
                   />
                   @if (agreedAmount() && !amountValid()) {
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
                   }
                 </mat-form-field>
-                <mat-form-field appearance="outline">
+                @if (preview.suggestedAmount !== null) {
+                  <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
+                    {{ text().stays.pricing.useSuggestedAmount }}
+                  </button>
+                }
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>{{ text().stays.pricing.reason }}</mat-label>
                   <textarea
                     matInput
                     name="pricingReason"
                     rows="2"
+                    [placeholder]="pricingReasonPlaceholder()"
                     [ngModel]="pricingReason()"
                     (ngModelChange)="pricingReason.set($event); onPricingDecisionChange()"
                   ></textarea>
@@ -120,12 +126,14 @@
                   mat-stroked-button
                   type="button"
                   (click)="confirmPricing()"
-                  [disabled]="!decisionValid()"
+                  [disabled]="!decisionValid() || pricingConfirmed()"
                 >
                   {{
                     pricingConfirmed()
                       ? text().stays.pricing.confirmed
-                      : text().stays.pricing.confirm
+                      : reasonRequired() && !pricingReason().trim()
+                        ? text().stays.pricing.confirmAfterReason
+                        : text().stays.pricing.confirm
                   }}
                 </button>
               }
@@ -145,6 +153,7 @@
 
           <div class="form-actions">
             <button
+              id="update-stay-submit"
               mat-flat-button
               type="submit"
               [disabled]="

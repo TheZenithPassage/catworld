@@ -148,6 +148,118 @@ describe('StayEditPage', () => {
     component = fixture.componentInstance;
   }
 
+  it('adopts and confirms the active repricing suggestion without updating the stay', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+    createComponent();
+    component.pricingReason.set('Previous reason');
+    component.stalePricing.set(true);
+    fixture.detectChanges();
+    const scrollIntoView = vi.fn();
+    const submitButton = (fixture.nativeElement as HTMLElement).querySelector(
+      '#update-stay-submit',
+    ) as HTMLElement;
+    submitButton.scrollIntoView = scrollIntoView;
+
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (candidate) =>
+        candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+    );
+    button?.click();
+
+    expect(button).toBeDefined();
+    expect(component.agreedAmount()).toBe('400');
+    expect(component.pricingReason()).toBe('');
+    expect(component.pricingConfirmed()).toBe(true);
+    expect(component.stalePricing()).toBe(false);
+    expect(stayApiService.updateStay).not.toHaveBeenCalled();
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    fixture.detectChanges();
+    const confirmedButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirmed,
+    ) as HTMLButtonElement;
+    expect(confirmedButton.disabled).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('textarea[name="pricingReason"]')
+        ?.getAttribute('placeholder'),
+    ).toBe(component.text().stays.pricing.reasonSuggestedPlaceholder);
+
+    component.onAgreedAmountChange('401');
+    fixture.detectChanges();
+    const reasonRequiredButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) =>
+        candidate.textContent?.trim() === component.text().stays.pricing.confirmAfterReason,
+    ) as HTMLButtonElement;
+    expect(reasonRequiredButton.disabled).toBe(true);
+
+    component.pricingReason.set('Different agreement');
+    fixture.detectChanges();
+    expect(component.pricingConfirmed()).toBe(false);
+    const confirmButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirm,
+    ) as HTMLButtonElement;
+    expect(confirmButton.disabled).toBe(false);
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('textarea[name="pricingReason"]')
+        ?.getAttribute('placeholder'),
+    ).toBe(component.text().stays.pricing.reasonDifferentPlaceholder);
+    confirmButton.click();
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not offer suggested amount adoption when repricing has no suggestion', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+    createComponent();
+    fixture.detectChanges();
+
+    const actions = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(
+      actions.some(
+        (candidate) =>
+          candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+      ),
+    ).toBe(false);
+  });
+
   it('loads the stay and renders Material edit fields and actions', async () => {
     createComponent();
     fixture.detectChanges();

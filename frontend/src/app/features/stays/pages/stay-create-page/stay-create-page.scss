@@ -50,6 +50,7 @@
 .stay-form > .field-with-action,
 .stay-form > .cat-group,
 .stay-form > .night-count,
+.stay-form > .pricing-panel,
 .stay-form > mat-form-field:has(textarea),
 .stay-form > .form-actions {
   grid-column: 1 / -1;
@@ -57,6 +58,10 @@
 
 .stay-form > app-ui-state {
   margin-bottom: 0.75rem;
+}
+
+.form-actions button {
+  width: 100%;
 }
 
 .related-action {
@@ -192,6 +197,7 @@
   .stay-form > .field-with-action,
   .stay-form > .cat-group,
   .stay-form > .night-count,
+  .stay-form > .pricing-panel,
   .stay-form > mat-form-field:has(textarea),
   .stay-form > .form-actions {
     grid-column: auto;

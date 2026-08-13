@@ -70,9 +70,14 @@
 
 .stay-form > app-ui-state,
 .stay-form > .night-count,
+.stay-form > .pricing-panel,
 .stay-form > mat-form-field:has(textarea),
 .stay-form > .form-actions {
   grid-column: 1 / -1;
+}
+
+.form-actions button {
+  width: 100%;
 }
 
 .pricing-panel {
@@ -88,6 +93,7 @@
 .pricing-summary dd {
   margin: 0;
 }
+
 .pricing-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -122,6 +128,7 @@
 
   .stay-form > app-ui-state,
   .stay-form > .night-count,
+  .stay-form > .pricing-panel,
   .stay-form > mat-form-field:has(textarea),
   .stay-form > .form-actions {
     grid-column: auto;
