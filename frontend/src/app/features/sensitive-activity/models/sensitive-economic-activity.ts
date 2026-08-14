@@ -257,26 +257,30 @@ function nullableString(value: unknown): string | null {
 
 function instant(value: unknown): string {
   const candidate = text(value);
+  if (!isSensitiveActivityInstant(candidate)) {
+    throw new MalformedSensitiveActivityError('Expected an ISO instant');
+  }
+  return candidate;
+}
+
+export function isSensitiveActivityInstant(candidate: string): boolean {
   const match =
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|([+-])(\d{2}):(\d{2}))$/.exec(
       candidate,
     );
   const offsetHour = match?.[9] ? Number(match[9]) : 0;
   const offsetMinute = match?.[10] ? Number(match[10]) : 0;
-  if (
-    !match ||
-    !validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3])) ||
-    Number(match[4]) > 23 ||
-    Number(match[5]) > 59 ||
-    Number(match[6]) > 59 ||
-    offsetHour > 18 ||
-    offsetMinute > 59 ||
-    (offsetHour === 18 && offsetMinute !== 0) ||
-    Number.isNaN(Date.parse(candidate))
-  ) {
-    throw new MalformedSensitiveActivityError('Expected an ISO instant');
-  }
-  return candidate;
+  return Boolean(
+    match &&
+    validCalendarDate(Number(match[1]), Number(match[2]), Number(match[3])) &&
+    Number(match[4]) <= 23 &&
+    Number(match[5]) <= 59 &&
+    Number(match[6]) <= 59 &&
+    offsetHour <= 18 &&
+    offsetMinute <= 59 &&
+    (offsetHour !== 18 || offsetMinute === 0) &&
+    !Number.isNaN(Date.parse(candidate)),
+  );
 }
 
 function localDate(value: unknown): string {

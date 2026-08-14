@@ -18,6 +18,7 @@ import { BusinessTimeService } from '../../../../core/time/business-time.service
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import {
   EMPTY_SENSITIVE_ACTIVITY_FILTERS,
+  isSensitiveActivityInstant,
   MalformedSensitiveActivityError,
   NightlyRateCategory,
   SENSITIVE_EVENT_TYPES,
@@ -128,8 +129,11 @@ export class SensitiveActivityPage {
       this.appliedFilters.set(appliedRouteFilters);
       this.clearFilterErrors();
       const idsValid = this.validateIdFilters(routeFilters);
-      const periodValid = this.validateAppliedPeriod(appliedRouteFilters);
-      if (idsValid && periodValid) {
+      const temporalFiltersValid = this.validateRouteTemporalFilters(appliedRouteFilters);
+      const periodValid = temporalFiltersValid
+        ? this.validateAppliedPeriod(appliedRouteFilters)
+        : false;
+      if (idsValid && temporalFiltersValid && periodValid) {
         this.load();
       } else {
         this.cancelLoad();
@@ -175,7 +179,13 @@ export class SensitiveActivityPage {
 
   refresh(): void {
     const applied = this.appliedFilters();
-    if (this.idFiltersValid(applied) && !this.periodInvalid(applied)) this.load();
+    if (
+      this.idFiltersValid(applied) &&
+      this.temporalFiltersValid(applied) &&
+      !this.periodInvalid(applied)
+    ) {
+      this.load();
+    }
   }
 
   clearFilters(): void {
@@ -282,6 +292,23 @@ export class SensitiveActivityPage {
 
   private idFiltersValid(filters: SensitiveActivityFilters): boolean {
     return ID_FILTER_KEYS.every((key) => !filters[key] || UUID_PATTERN.test(filters[key]));
+  }
+
+  private validateRouteTemporalFilters(filters: SensitiveActivityFilters): boolean {
+    const valid = this.temporalFiltersValid(filters);
+    for (const key of ['occurredFrom', 'occurredTo'] as const) {
+      this.setFilterError(
+        key,
+        filters[key] && !isSensitiveActivityInstant(filters[key]) ? 'invalidDateTime' : null,
+      );
+    }
+    return valid;
+  }
+
+  private temporalFiltersValid(filters: SensitiveActivityFilters): boolean {
+    return (['occurredFrom', 'occurredTo'] as const).every(
+      (key) => !filters[key] || isSensitiveActivityInstant(filters[key]),
+    );
   }
 
   private periodInvalid(filters: SensitiveActivityFilters): boolean {

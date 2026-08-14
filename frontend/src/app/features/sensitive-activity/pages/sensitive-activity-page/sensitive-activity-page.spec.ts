@@ -443,6 +443,53 @@ describe('SensitiveActivityPage', () => {
     expect(api.getActivity).not.toHaveBeenCalled();
   });
 
+  it('rejects an invalid occurredFrom query param contextually without requesting', () => {
+    fixture.destroy();
+    api.getActivity.mockClear();
+    params.next(convertToParamMap({ occurredFrom: 'not-an-instant' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(api.getActivity).not.toHaveBeenCalled();
+    expect(component.appliedFilters().occurredFrom).toBe('not-an-instant');
+    expect(component.filterErrors().occurredFrom).toBe('invalidDateTime');
+    expect(component.filterErrors().occurredTo).toBeNull();
+    expect(fieldFor(root, 'occurredFrom').classList.contains('mat-form-field-invalid')).toBe(true);
+    expect(fieldFor(root, 'occurredTo').classList.contains('mat-form-field-invalid')).toBe(false);
+    expect(fieldFor(root, 'occurredFrom').querySelector('mat-error')?.textContent).toContain(
+      component.text().sensitiveActivity.filters.invalidDateTime,
+    );
+    expect(component.loadError()).toBeNull();
+    expect(root.textContent).not.toContain(component.text().sensitiveActivity.retry);
+
+    component.refresh();
+    expect(api.getActivity).not.toHaveBeenCalled();
+  });
+
+  it('rejects an invalid occurredTo query param only on To without requesting', () => {
+    fixture.destroy();
+    api.getActivity.mockClear();
+    params.next(convertToParamMap({ occurredTo: 'not-an-instant' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(api.getActivity).not.toHaveBeenCalled();
+    expect(component.appliedFilters().occurredTo).toBe('not-an-instant');
+    expect(component.filterErrors().occurredFrom).toBeNull();
+    expect(component.filterErrors().occurredTo).toBe('invalidDateTime');
+    expect(fieldFor(root, 'occurredFrom').classList.contains('mat-form-field-invalid')).toBe(false);
+    expect(fieldFor(root, 'occurredTo').classList.contains('mat-form-field-invalid')).toBe(true);
+    expect(fieldFor(root, 'occurredTo').querySelector('mat-error')?.textContent).toContain(
+      component.text().sensitiveActivity.filters.invalidDateTime,
+    );
+    expect(component.loadError()).toBeNull();
+    expect(root.textContent).not.toContain(component.text().sensitiveActivity.retry);
+  });
+
   it('changes Instant presentation when runtime business timezone changes', () => {
     const config = TestBed.inject(RuntimeConfigService);
     const component = fixture.componentInstance;
