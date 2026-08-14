@@ -46,6 +46,7 @@ describe('SensitiveActivityPage', () => {
       eventType: 'PRICING_OVERRIDE',
       retainedNightlyRate: '10.00',
       numberOfNights: 2,
+      suggestedAmount: '20.00',
       agreedAmount: '20.00',
       reason: 'Override',
     },

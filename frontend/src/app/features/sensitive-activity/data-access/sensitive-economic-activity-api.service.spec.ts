@@ -108,6 +108,7 @@ describe('SensitiveEconomicActivityApiService', () => {
         eventType: 'PRICING_OVERRIDE',
         retainedNightlyRate: '2',
         numberOfNights: 3,
+        suggestedAmount: '6',
         agreedAmount: '6',
         reason: 'reason',
       },

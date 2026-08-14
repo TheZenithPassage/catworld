@@ -13,6 +13,7 @@ public record PricingOverrideActivityDTO(
         SensitiveStayContextDTO affectedContext,
         @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal retainedNightlyRate,
         long numberOfNights,
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal suggestedAmount,
         @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal agreedAmount,
         String reason)
         implements SensitiveEconomicActivityResponseDTO {

@@ -47,9 +47,11 @@ public class SensitiveEconomicActivityMapper {
                     projection.occurredAt(),
                     actor,
                     context,
-                    WholeMonetaryAmount.canonicalize(
-                            projection.retainedNightlyRate()),
+                    canonicalizeNullable(projection.retainedNightlyRate()),
                     projection.numberOfNights(),
+                    suggestedAmount(
+                            projection.retainedNightlyRate(),
+                            projection.numberOfNights()),
                     WholeMonetaryAmount.canonicalize(
                             projection.agreedAmount()),
                     projection.reason()
@@ -120,6 +122,15 @@ public class SensitiveEconomicActivityMapper {
                     projection.reason()
             );
         };
+    }
+
+    private BigDecimal suggestedAmount(
+            BigDecimal retainedNightlyRate,
+            long numberOfNights) {
+        return retainedNightlyRate == null
+                ? null
+                : WholeMonetaryAmount.canonicalize(retainedNightlyRate)
+                        .multiply(BigDecimal.valueOf(numberOfNights));
     }
 
     private SensitiveActorDTO actor(UUID id, String username) {

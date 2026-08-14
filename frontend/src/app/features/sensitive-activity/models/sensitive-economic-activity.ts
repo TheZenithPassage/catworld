@@ -61,6 +61,7 @@ export type SensitiveEconomicActivityEvent =
       eventType: 'PRICING_OVERRIDE';
       retainedNightlyRate: string;
       numberOfNights: number;
+      suggestedAmount: string | null;
       agreedAmount: string;
       reason: string;
     })
@@ -140,6 +141,7 @@ function parseEvent(value: unknown): SensitiveEconomicActivityEvent {
         eventType,
         retainedNightlyRate: money(item['retainedNightlyRate']),
         numberOfNights: integer(item['numberOfNights']),
+        suggestedAmount: money(item['suggestedAmount'], true),
         agreedAmount: money(item['agreedAmount']),
         reason: text(item['reason']),
       };
