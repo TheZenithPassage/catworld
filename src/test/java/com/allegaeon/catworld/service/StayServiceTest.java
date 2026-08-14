@@ -821,6 +821,41 @@ public class StayServiceTest {
         }
 
         @Test
+        void nullAgreementSurvivesEqualNightOperationalUpdate() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(null)
+                    .build();
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt.plusHours(1))
+                    .endAt(startAt.plusDays(2).plusHours(1))
+                    .notes("Updated historical note")
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(stayMapper.updateEntity(stay, request)).thenAnswer(invocation -> {
+                stay.setStartAt(request.getStartAt());
+                stay.setEndAt(request.getEndAt());
+                stay.setNotes(request.getNotes());
+                return stay;
+            });
+            when(stayRepository.save(stay)).thenReturn(stay);
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+
+            service.updateStay(stay.getId(), request);
+
+            assertNull(stay.getAgreedAmount());
+            assertEquals("Updated historical note", stay.getNotes());
+            verify(currentUserAccountService, never()).getCurrentUserAccount();
+            verify(stayPricingDecisionRepository, never())
+                    .saveAndFlush(any(StayPricingDecision.class));
+        }
+
+        @Test
         void sameLocalDateTimeAndNotesChangeRequiresNoPricingDecisionOrEvent() {
             LocalDateTime startAt = LocalDateTime.now().plusDays(2)
                     .withHour(8).withMinute(0).withSecond(0).withNano(0);
@@ -1350,8 +1385,9 @@ public class StayServiceTest {
         }
 
         @Test
-        void inheritedNullAgreementIsReadableButRejectsPaymentMutation() {
+        void inheritedNullAgreementIsReadableButRejectsEveryPaymentMutation() {
             Stay stay = paymentStay(null, false);
+            StayPayment payment = payment(stay, "1", false);
             StayResponseDTO response = new StayResponseDTO();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
@@ -1376,6 +1412,44 @@ public class StayServiceTest {
                                     .build()
                     )
             );
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.editPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentEditRequestDTO.builder()
+                                    .amount(new BigDecimal("2"))
+                                    .reason("Correction")
+                                    .build()
+                    )
+            );
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.annulPayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentAnnulmentRequestDTO.builder()
+                                    .reason("Duplicate")
+                                    .build()
+                    )
+            );
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.removePayment(
+                            stay.getId(),
+                            payment.getId(),
+                            PaymentRemovalRequestDTO.builder()
+                                    .reason("Incorrect historical payment")
+                                    .build()
+                    )
+            );
+
+            verify(stayPaymentRepository, never()).findByIdAndStay_Id(any(), any());
+            verify(stayPaymentRepository, never()).saveAndFlush(any(StayPayment.class));
+            verify(stayPaymentEditRepository, never()).saveAndFlush(any());
+            verify(stayPaymentAnnulmentRepository, never()).saveAndFlush(any());
+            verify(stayPaymentRemovalRepository, never()).saveAndFlush(any());
+            verify(stayPaymentRepository, never()).delete(any());
         }
 
         @Test

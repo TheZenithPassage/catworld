@@ -424,6 +424,7 @@ public class StayService implements IStayService {
                 currentUser,
                 stay.getStatus()
         );
+        requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         BigDecimal newAmount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -486,6 +487,7 @@ public class StayService implements IStayService {
                 currentUser,
                 stay.getStatus()
         );
+        requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         String reason = requireReason(
                 paymentRequest == null ? null : paymentRequest.getReason(),
@@ -527,6 +529,7 @@ public class StayService implements IStayService {
         Stay stay = getStayEntityForUpdate(stayId);
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeRemoval(currentUser);
+        requirePaymentAgreement(stay);
         StayPayment payment = getPayment(stayId, paymentId);
         String reason = requireReason(
                 paymentRequest == null ? null : paymentRequest.getReason(),

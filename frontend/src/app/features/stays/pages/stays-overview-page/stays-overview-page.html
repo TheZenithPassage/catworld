@@ -92,26 +92,25 @@
         <ng-container matColumnDef="economics">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.pricing.economics }}</th>
           <td mat-cell *matCellDef="let stay" class="economics-cell">
-            <div class="economics-content">
-              <span
-                >{{ text().stays.pricing.retainedRate }}:
-                {{ stay.retainedNightlyRate ?? text().stays.pricing.unavailable }}</span
-              >
-              <span
-                >{{ text().stays.pricing.suggestion }}:
-                {{ stay.suggestedAmount ?? text().stays.pricing.unavailable }}</span
-              >
-              <span
-                >{{ text().stays.pricing.agreement }}:
-                {{ stay.agreedAmount ?? text().stays.pricing.unavailable }}</span
-              >
-              <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
-              <span
-                >{{ text().stays.pricing.remaining }}:
-                {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
-              >
-              <span>{{ getPaymentCondition(stay) }}</span>
-            </div>
+            @if (stay.agreedAmount !== null) {
+              <div class="economics-content">
+                <span
+                  >{{ text().stays.pricing.retainedRate }}:
+                  {{ stay.retainedNightlyRate ?? text().stays.pricing.unavailable }}</span
+                >
+                <span
+                  >{{ text().stays.pricing.suggestion }}:
+                  {{ stay.suggestedAmount ?? text().stays.pricing.unavailable }}</span
+                >
+                <span>{{ text().stays.pricing.agreement }}: {{ stay.agreedAmount }}</span>
+                <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
+                <span
+                  >{{ text().stays.pricing.remaining }}:
+                  {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
+                >
+                <span>{{ getPaymentCondition(stay) }}</span>
+              </div>
+            }
           </td>
         </ng-container>
 
@@ -142,13 +141,15 @@
           <td mat-cell *matCellDef="let stay">
             <div class="actions-content">
               <div class="row-actions">
-                <a
-                  mat-stroked-button
-                  class="payment-history-link"
-                  [routerLink]="['/stays', stay.stayId, 'edit']"
-                >
-                  {{ text().stays.overview.paymentHistory }}
-                </a>
+                @if (stay.agreedAmount !== null) {
+                  <a
+                    mat-stroked-button
+                    class="payment-history-link"
+                    [routerLink]="['/stays', stay.stayId, 'edit']"
+                  >
+                    {{ text().stays.overview.paymentHistory }}
+                  </a>
+                }
               </div>
               @if (isAdmin()) {
                 @if (correctingStayId() === stay.stayId) {

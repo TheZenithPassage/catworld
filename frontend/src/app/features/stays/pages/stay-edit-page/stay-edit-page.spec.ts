@@ -291,6 +291,61 @@ describe('StayEditPage', () => {
     expect(fixture.nativeElement.querySelector('form.stay-form')).toBeNull();
   });
 
+  it('hides payment management and submits ordinary edits for a historical null agreement', () => {
+    const historicalStay: Stay = {
+      ...stay,
+      agreedAmount: null,
+      totalPaid: '0',
+      remainingAmount: null,
+      paymentCondition: 'NO_PAYMENT',
+      outstandingCollectionEligible: false,
+      payments: [],
+    };
+    stayApiService.getStayById.mockReturnValue(of(historicalStay));
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: null,
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '350',
+        confirmation: null,
+      }),
+    );
+    stayApiService.updateStay.mockReturnValue(of(historicalStay));
+
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.agreedAmount()).toBe('');
+    expect(fixture.nativeElement.querySelector('app-stay-payments')).toBeNull();
+
+    component.notes.set('Updated historical note');
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledWith('stay-1', {
+      startAt: '2099-01-02T10:00',
+      endAt: '2099-01-09T10:00',
+      notes: 'Updated historical note',
+      overrideVaccineConflicts: false,
+    });
+  });
+
+  it('keeps payment management for zero agreements and known agreements without retained rates', () => {
+    for (const knownAgreementStay of [
+      { ...stay, agreedAmount: '0', remainingAmount: '0' },
+      { ...stay, retainedNightlyRate: null, suggestedAmount: null },
+    ]) {
+      stayApiService.getStayById.mockReturnValue(of(knownAgreementStay));
+      createComponent();
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('app-stay-payments')).not.toBeNull();
+      fixture.destroy();
+    }
+  });
+
   it('does not update when the end date is not after the start date', () => {
     createComponent();
 
