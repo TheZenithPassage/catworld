@@ -1112,7 +1112,7 @@ public class StayServiceTest {
         }
 
         @Test
-        void adminInitializesLegacyNullAgreementWithExactAuditSnapshot() {
+        void correctionRejectsLegacyNullAgreementWithoutWrites() {
             Stay stay = correctionStay("CHECKED_OUT", null);
             UserAccount admin = user(UserRole.ADMIN);
             PricingDecisionRequestDTO request = correction(
@@ -1122,23 +1122,16 @@ public class StayServiceTest {
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
-            when(stayRepository.save(stay)).thenReturn(stay);
-            when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+            assertThrows(
+                    ConflictException.class,
+                    () -> service.correctAgreedAmount(stay.getId(), request)
+            );
 
-            service.correctAgreedAmount(stay.getId(), request);
-
-            verify(stayAgreedAmountCorrectionRepository).saveAndFlush(
-                    correctionCaptor.capture()
-            );
-            assertNull(correctionCaptor.getValue().getPreviousAgreedAmount());
-            assertEquals(
-                    new BigDecimal("1000000000000000000"),
-                    correctionCaptor.getValue().getNewAgreedAmount()
-            );
-            assertEquals(
-                    "Recorded inherited client agreement",
-                    correctionCaptor.getValue().getReason()
-            );
+            assertNull(stay.getAgreedAmount());
+            verify(stayRepository, never()).save(any(Stay.class));
+            verify(stayPaymentRepository, never()).sumActiveAmountByStayId(any());
+            verify(stayAgreedAmountCorrectionRepository, never())
+                    .saveAndFlush(any(StayAgreedAmountCorrection.class));
         }
 
         @Test

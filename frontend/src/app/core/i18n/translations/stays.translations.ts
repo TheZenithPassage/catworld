@@ -33,6 +33,7 @@ export interface StaysTranslations {
     noReconfirmation: string;
     adminRequired: string;
     economics: string;
+    noPaymentInformation: string;
     totalPaid: string;
     remaining: string;
     correctAgreement: string;
@@ -236,6 +237,7 @@ export const STAYS_TRANSLATIONS = {
       noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
       adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
       economics: 'Economía',
+      noPaymentInformation: 'No hay información de pago',
       totalPaid: 'Total pagado',
       remaining: 'Pendiente',
       correctAgreement: 'Corregir importe',
@@ -438,6 +440,7 @@ export const STAYS_TRANSLATIONS = {
       noReconfirmation: 'This change does not require pricing reconfirmation.',
       adminRequired: 'Only an administrator can complete a pricing-affecting change.',
       economics: 'Economics',
+      noPaymentInformation: 'No payment information available',
       totalPaid: 'Total paid',
       remaining: 'Remaining',
       correctAgreement: 'Correct agreement',

@@ -338,6 +338,12 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
 
+        if (stay.getAgreedAmount() == null) {
+            throw new ConflictException(
+                    "The stay agreement must exist before it can be corrected"
+            );
+        }
+
         BigDecimal newAgreedAmount = validateCorrectionAmount(pricingDecision);
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
 
