@@ -64,7 +64,7 @@ export class StayPayments {
   readonly error = createLanguageResetError(this.i18n.language);
   readonly attempted = signal(false);
   readonly attemptedErrorStateMatcher: ErrorStateMatcher = {
-    isErrorState: () => this.attempted(),
+    isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
   };
   readonly removalPayment = signal<StayPayment | null>(null);
   readonly removalReason = signal('');

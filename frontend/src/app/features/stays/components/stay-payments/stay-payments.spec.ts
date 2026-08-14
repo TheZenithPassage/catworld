@@ -213,43 +213,62 @@ describe('StayPayments', () => {
     ['0', 'invalidAmount'],
     ['1.5', 'invalidAmount'],
     ['10000000000000000000', 'invalidAmount'],
-  ] as const)('shows the local amount error for %j without registering', (amount, errorKey) => {
-    component.startRegister();
-    component.amount.set(amount);
-    component.paymentDate.set('2026-08-05');
-    fixture.detectChanges();
+  ] as const)(
+    'shows the local amount error for %j without registering',
+    async (amount, errorKey) => {
+      component.startRegister();
+      component.amount.set(amount);
+      component.paymentDate.set('2026-08-05');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
 
-    submitPaymentForm();
+      submitPaymentForm();
 
-    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors[errorKey]);
-    expect(api.registerPayment).not.toHaveBeenCalled();
-  });
+      expect(visibleFormErrors()).toContain(component.text().stays.payments.errors[errorKey]);
+      expect(formField('paymentAmount').classList).toContain('mat-form-field-invalid');
+      expect(api.registerPayment).not.toHaveBeenCalled();
+    },
+  );
 
-  it('shows the required payment date without registering', () => {
+  it('shows the required payment date without registering', async () => {
     component.startRegister();
     component.amount.set('1');
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     submitPaymentForm();
 
     expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.dateRequired);
+    expect(formField('paymentDate').classList).toContain('mat-form-field-invalid');
+    expect(formField('paymentAmount').classList).not.toContain('mat-form-field-invalid');
     expect(api.registerPayment).not.toHaveBeenCalled();
   });
 
-  it.each(['edit', 'annul'] as const)('shows the required reason without calling %s', (action) => {
-    if (action === 'edit') {
-      component.startEdit(stay.payments[0]);
-    } else {
-      component.startAnnul(stay.payments[0]);
-    }
-    fixture.detectChanges();
+  it.each(['edit', 'annul'] as const)(
+    'shows the required reason without calling %s',
+    async (action) => {
+      if (action === 'edit') {
+        component.startEdit(stay.payments[0]);
+      } else {
+        component.startAnnul(stay.payments[0]);
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
 
-    submitPaymentForm();
+      submitPaymentForm();
 
-    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.reasonRequired);
-    expect(api.editPayment).not.toHaveBeenCalled();
-    expect(api.annulPayment).not.toHaveBeenCalled();
-  });
+      expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.reasonRequired);
+      expect(formField('paymentReason').classList).toContain('mat-form-field-invalid');
+      if (action === 'edit') {
+        expect(formField('paymentAmount').classList).not.toContain('mat-form-field-invalid');
+      }
+      expect(api.editPayment).not.toHaveBeenCalled();
+      expect(api.annulPayment).not.toHaveBeenCalled();
+    },
+  );
 
   it('serializes every mutation trigger while registration remains pending', () => {
     const registration = new Subject<Stay>();
@@ -756,5 +775,13 @@ describe('StayPayments', () => {
     )
       .map((error) => error.textContent?.trim())
       .join(' ');
+  }
+
+  function formField(controlName: string): HTMLElement {
+    const field = (fixture.nativeElement as HTMLElement)
+      .querySelector(`[name="${controlName}"]`)
+      ?.closest('mat-form-field');
+    if (!(field instanceof HTMLElement)) throw new Error(`Missing form field: ${controlName}`);
+    return field;
   }
 });

@@ -124,6 +124,7 @@
               name="paymentReason"
               rows="2"
               required
+              pattern="[\s\S]*\S[\s\S]*"
               [errorStateMatcher]="attemptedErrorStateMatcher"
               [ngModel]="reason()"
               (ngModelChange)="reason.set($event)"
