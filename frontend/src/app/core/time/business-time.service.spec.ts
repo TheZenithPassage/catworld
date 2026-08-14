@@ -46,6 +46,26 @@ describe('BusinessTimeService', () => {
     });
   });
 
+  it.each([
+    '2026-02-30T10:00',
+    '2026-13-01T10:00',
+    '2026-01-01T25:00',
+    '2026-01-01T10:60',
+    '2026-01-01T10:00:60',
+    '2026-02-29T10:00',
+  ])('rejects semantically invalid LocalDateTime %s as malformed', (value) => {
+    expect(service.resolveLocalDateTime(value)).toEqual({ valid: false, reason: 'malformed' });
+  });
+
+  it('accepts a valid leap day', () => {
+    config.businessTimeZone.set('America/Argentina/Buenos_Aires');
+
+    expect(service.resolveLocalDateTime('2028-02-29T10:00')).toEqual({
+      valid: true,
+      instant: '2028-02-29T13:00:00.000Z',
+    });
+  });
+
   it('formats LocalDateTime without shifting its wall-clock fields', () => {
     config.businessTimeZone.set('America/Argentina/Buenos_Aires');
     expect(service.formatLocalDateTime('2026-08-12T23:30:00', 'es-ES')).toContain('23:30');

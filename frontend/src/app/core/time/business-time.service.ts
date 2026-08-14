@@ -101,7 +101,7 @@ export class BusinessTimeService {
       value,
     );
     if (!match) throw new RangeError(`Invalid local date-time: ${value}`);
-    return {
+    const parts: DateTimeParts = {
       year: Number(match[1]),
       month: Number(match[2]),
       day: Number(match[3]),
@@ -109,6 +109,26 @@ export class BusinessTimeService {
       minute: Number(match[5]),
       second: Number(match[6] ?? 0),
     };
+    if (!this.validLocalDateTimeParts(parts)) {
+      throw new RangeError(`Invalid local date-time: ${value}`);
+    }
+    return parts;
+  }
+
+  private validLocalDateTimeParts(parts: DateTimeParts): boolean {
+    if (
+      parts.month < 1 ||
+      parts.month > 12 ||
+      parts.day < 1 ||
+      parts.hour > 23 ||
+      parts.minute > 59 ||
+      parts.second > 59
+    ) {
+      return false;
+    }
+    const leapYear = parts.year % 4 === 0 && (parts.year % 100 !== 0 || parts.year % 400 === 0);
+    const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    return parts.day <= daysInMonth[parts.month - 1];
   }
 
   private partsAsUtc(parts: DateTimeParts): number {
