@@ -346,13 +346,14 @@ confirmation is not a client-authoritative quote and is never persisted.
 ### Agreed Amounts Have a Focused Administrative Correction Path
 
 `PATCH /api/stays/{id}/agreed-amount` lets an authenticated persisted `ADMIN`
-correct only the agreement, independently of the stay lifecycle. The operation
-also initializes an inherited stay whose current agreement is null; this is an
-individual correction, not a legacy backfill.
+correct an existing known agreement independently of the stay lifecycle. An
+inherited stay whose current agreement is null has no recorded economic value
+to correct, so the operation rejects it without changing the stay or appending
+evidence.
 
 The submitted amount follows the normal non-negative whole-unit monetary
-contract of at most 19 digits. Every real correction, including null-to-value,
-requires a non-blank reason. Numerically equal values such as `20` and `20.0`
+contract of at most 19 digits. Every real correction requires a non-blank
+reason. Numerically equal values such as `20` and `20.0`
 are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
@@ -377,9 +378,11 @@ is the operational balance `0` and outstanding eligibility is false, while
 
 Inherited stays with a null agreement return zero paid, null remaining,
 `NO_PAYMENT`, false outstanding eligibility and empty history. Payment
-mutations are rejected until the focused agreement-correction path initializes
-the agreement. Otherwise active payments may never exceed the agreement,
-including an agreement of zero.
+mutations and focused agreement corrections are rejected because no recorded
+economic agreement exists to mutate. The overview renders a localized absence
+message instead of economic values and exposes neither payment management nor
+the agreed-amount correction action. Otherwise active payments may never exceed
+the agreement, including an agreement of zero.
 
 Registration, amount-only edits, annulments, pricing reconfirmation and focused
 agreement correction all serialize through the existing pessimistic `Stay`
@@ -800,8 +803,9 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders backend-supplied retained rate,
 suggestion, agreement, paid total and remaining amount, and exposes focused
-agreement correction only to `ADMIN`; successful correction replaces the row
-with the complete authoritative response.
+agreement correction only to `ADMIN` for stays with a known agreement;
+successful correction replaces the row with the complete authoritative
+response.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
@@ -809,12 +813,17 @@ controls remain a separate integration boundary. Material inputs, supported
 native selects, checkboxes and buttons do not depend on legacy global
 native-control selectors.
 
-The individual stay route always exposes backend-authoritative economics and
-operational active and annulled payment history, including exact string amounts,
-payment dates, notes and registration attribution. Ordinary stay editing remains
-limited by the existing dynamic status rule. `ADMIN` receives payment mutation
-affordances in every status; `STAFF` receives register, edit and annul affordances
-only for reserved and checked-in stays and never receives permanent removal.
+For stays with a known agreement, the individual stay route exposes
+backend-authoritative economics and operational active and annulled payment
+history, including exact string amounts, payment dates, notes and registration
+attribution. Historical stays whose agreement is null expose neither payment
+economics nor payment-management entry points or actions in the overview and
+individual route. Ordinary stay editing remains limited by the existing dynamic
+status rule and remains available for otherwise-allowed non-pricing changes to
+those historical stays. `ADMIN` receives payment mutation affordances in every
+status for known agreements; `STAFF` receives register, edit and annul
+affordances only for reserved and checked-in stays and never receives permanent
+removal.
 These affordances are advisory and the backend remains the authorization and
 monetary-invariant boundary. Successful payment mutations replace the displayed
 stay from the complete backend response, and Angular neither derives payment

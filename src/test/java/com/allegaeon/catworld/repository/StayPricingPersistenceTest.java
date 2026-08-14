@@ -6,6 +6,7 @@ import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
@@ -248,36 +249,29 @@ class StayPricingPersistenceTest {
     }
 
     @Test
-    void legacyNullAgreementCorrectionPersistsExactNullableSnapshot() {
+    void legacyNullAgreementCorrectionIsRejectedWithoutPersistence() {
         PersistenceFixture fixture = createPersistenceFixture();
         Stay legacyStay = stay(fixture, null, null);
         legacyStay = stayRepository.saveAndFlush(legacyStay);
         when(currentUserAccountService.getCurrentUserAccount())
                 .thenReturn(fixture.actor());
 
-        stayService.correctAgreedAmount(
-                legacyStay.getId(),
-                correctionRequest(
-                        new BigDecimal("25"),
-                        "Recorded inherited agreement"
+        UUID stayId = legacyStay.getId();
+
+        assertThrows(
+                ConflictException.class,
+                () -> stayService.correctAgreedAmount(
+                        stayId,
+                        correctionRequest(
+                                new BigDecimal("25"),
+                                "Recorded inherited agreement"
+                        )
                 )
         );
 
-        Stay corrected = stayRepository.findById(legacyStay.getId()).orElseThrow();
-        assertEquals(new BigDecimal("25"), corrected.getAgreedAmount());
-        List<StayAgreedAmountCorrection> corrections =
-                stayAgreedAmountCorrectionRepository.findAllByStayId(
-                        legacyStay.getId()
-                );
-        assertEquals(1, corrections.size());
-        assertNull(corrections.get(0).getPreviousAgreedAmount());
-        assertEquals(
-                new BigDecimal("25"),
-                corrections.get(0).getNewAgreedAmount()
-        );
-        assertEquals(fixture.actor().getId(), corrections.get(0).getDecidedBy().getId());
-        assertEquals(DECIDED_AT, corrections.get(0).getDecidedAt());
-        assertEquals("Recorded inherited agreement", corrections.get(0).getReason());
+        Stay unchanged = stayRepository.findById(stayId).orElseThrow();
+        assertNull(unchanged.getAgreedAmount());
+        assertTrue(stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).isEmpty());
     }
 
     @Test

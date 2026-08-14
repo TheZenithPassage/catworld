@@ -179,7 +179,7 @@ describe('StaysOverviewPage', () => {
     expect(compiled.textContent).toContain(component.text().stays.overview.alreadyCancelled);
   });
 
-  it('links every stay status to operational payment history for admin and staff', () => {
+  it('links every known-agreement stay status to operational payment history for admin and staff', () => {
     for (const role of ['ADMIN', 'STAFF'] as const) {
       TestBed.inject(AuthSessionService).login(
         { username: role.toLowerCase(), role },
@@ -188,7 +188,7 @@ describe('StaysOverviewPage', () => {
       createComponent();
 
       const links = fixture.nativeElement.querySelectorAll('a.payment-history-link');
-      expect(links).toHaveLength(5);
+      expect(links).toHaveLength(4);
       expect(
         fixture.nativeElement
           .querySelector('#stay-stay-2 a.payment-history-link')
@@ -199,6 +199,7 @@ describe('StaysOverviewPage', () => {
           .querySelector('#stay-stay-3 a.payment-history-link')
           ?.getAttribute('href'),
       ).toBe('/stays/stay-3/edit');
+      expect(fixture.nativeElement.querySelector('#stay-stay-5 a.payment-history-link')).toBeNull();
 
       fixture.destroy();
     }
@@ -216,12 +217,22 @@ describe('StaysOverviewPage', () => {
     expect(zeroEconomics).toContain(`${component.text().stays.pricing.agreement}: 0`);
     expect(zeroEconomics).toContain(`${component.text().stays.pricing.totalPaid}: 0`);
     expect(zeroEconomics).toContain(`${component.text().stays.pricing.remaining}: 0`);
-    expect(nullPermittedEconomics).toContain(
-      `${component.text().stays.pricing.agreement}: ${component.text().stays.pricing.unavailable}`,
+    expect(nullPermittedEconomics?.trim()).toBe(
+      component.text().stays.pricing.noPaymentInformation,
     );
-    expect(nullPermittedEconomics).toContain(
-      `${component.text().stays.pricing.remaining}: ${component.text().stays.pricing.unavailable}`,
+    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.retainedRate}:`);
+    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.suggestion}:`);
+    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.agreement}:`);
+    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.totalPaid}:`);
+    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.remaining}:`);
+    expect(nullPermittedEconomics).not.toContain(
+      component.text().stays.filters.paymentCondition.NO_PAYMENT,
     );
+    expect(
+      [...compiled.querySelectorAll('#stay-stay-5 button')].some((button) =>
+        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
+      ),
+    ).toBe(false);
     expect(compiled.textContent).toContain('9999999999999999999');
     expect(compiled.textContent).toContain('9999999999999999998');
     expect(compiled.textContent).toContain(

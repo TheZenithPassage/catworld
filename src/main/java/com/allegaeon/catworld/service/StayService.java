@@ -338,6 +338,12 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
 
+        if (stay.getAgreedAmount() == null) {
+            throw new ConflictException(
+                    "The stay agreement must exist before it can be corrected"
+            );
+        }
+
         BigDecimal newAgreedAmount = validateCorrectionAmount(pricingDecision);
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
 
@@ -424,6 +430,7 @@ public class StayService implements IStayService {
                 currentUser,
                 stay.getStatus()
         );
+        requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         BigDecimal newAmount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -486,6 +493,7 @@ public class StayService implements IStayService {
                 currentUser,
                 stay.getStatus()
         );
+        requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         String reason = requireReason(
                 paymentRequest == null ? null : paymentRequest.getReason(),
@@ -527,6 +535,7 @@ public class StayService implements IStayService {
         Stay stay = getStayEntityForUpdate(stayId);
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeRemoval(currentUser);
+        requirePaymentAgreement(stay);
         StayPayment payment = getPayment(stayId, paymentId);
         String reason = requireReason(
                 paymentRequest == null ? null : paymentRequest.getReason(),
