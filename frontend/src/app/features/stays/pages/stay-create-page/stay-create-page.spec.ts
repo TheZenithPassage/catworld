@@ -260,6 +260,91 @@ describe('StayCreatePage', () => {
     component.confirmPricing();
   }
 
+  it('adopts and confirms an available zero suggestion without creating the stay', () => {
+    createComponent();
+    component.pricingPreview.set({
+      ...pricingPreview,
+      suggestedAmount: '0',
+      confirmation: { ...pricingPreview.confirmation, suggestedAmount: '0' },
+    });
+    component.agreedAmount.set('250');
+    component.pricingReason.set('Previous reason');
+    component.stalePricing.set(true);
+    fixture.detectChanges();
+    const scrollIntoView = vi.fn();
+    const submitButton = (fixture.nativeElement as HTMLElement).querySelector(
+      '#create-stay-submit',
+    ) as HTMLElement;
+    submitButton.scrollIntoView = scrollIntoView;
+
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (candidate) =>
+        candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+    );
+    button?.click();
+
+    expect(button).toBeDefined();
+    expect(component.agreedAmount()).toBe('0');
+    expect(component.pricingReason()).toBe('');
+    expect(component.pricingConfirmed()).toBe(true);
+    expect(component.stalePricing()).toBe(false);
+    expect(stayApiService.createStay).not.toHaveBeenCalled();
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    fixture.detectChanges();
+    const confirmedButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirmed,
+    ) as HTMLButtonElement;
+    expect(confirmedButton.disabled).toBe(true);
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('textarea[name="pricingReason"]')
+        ?.getAttribute('placeholder'),
+    ).toBe(component.text().stays.pricing.reasonSuggestedPlaceholder);
+
+    component.onAgreedAmountChange('1');
+    fixture.detectChanges();
+    const reasonRequiredButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) =>
+        candidate.textContent?.trim() === component.text().stays.pricing.confirmAfterReason,
+    ) as HTMLButtonElement;
+    expect(reasonRequiredButton.disabled).toBe(true);
+
+    component.pricingReason.set('Different agreement');
+    fixture.detectChanges();
+    expect(component.pricingConfirmed()).toBe(false);
+    const confirmButton = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ].find(
+      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirm,
+    ) as HTMLButtonElement;
+    expect(confirmButton.disabled).toBe(false);
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('textarea[name="pricingReason"]')
+        ?.getAttribute('placeholder'),
+    ).toBe(component.text().stays.pricing.reasonDifferentPlaceholder);
+    confirmButton.click();
+    expect(scrollIntoView).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not offer suggested amount adoption when creation preview has no suggestion', () => {
+    createComponent();
+    component.pricingPreview.set({ ...pricingPreview, suggestedAmount: null });
+    fixture.detectChanges();
+
+    const actions = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(
+      actions.some(
+        (candidate) =>
+          candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+      ),
+    ).toBe(false);
+  });
+
   it('renders Material stay create fields, owner select, link and submit action', () => {
     createComponent();
     fixture.detectChanges();

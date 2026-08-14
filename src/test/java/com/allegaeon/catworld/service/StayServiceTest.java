@@ -1410,6 +1410,9 @@ public class StayServiceTest {
                     List.of(first, second),
                     true
             );
+            assertEquals(new BigDecimal("30"), cancelled.totalPaid());
+            assertEquals(BigDecimal.ZERO, cancelled.remainingAmount());
+            assertEquals(PaymentCondition.PARTIAL_PAYMENT, cancelled.paymentCondition());
             assertFalse(cancelled.outstandingCollectionEligible());
 
             StayPaymentEconomics zeroAgreement = StayPaymentEconomics.calculate(
@@ -1420,6 +1423,18 @@ public class StayServiceTest {
             assertEquals(PaymentCondition.NO_PAYMENT, zeroAgreement.paymentCondition());
             assertEquals(BigDecimal.ZERO, zeroAgreement.remainingAmount());
             assertFalse(zeroAgreement.outstandingCollectionEligible());
+
+            StayPaymentEconomics cancelledUnknownAgreement = StayPaymentEconomics.calculate(
+                    null,
+                    List.of(),
+                    true
+            );
+            assertNull(cancelledUnknownAgreement.remainingAmount());
+            assertEquals(
+                    PaymentCondition.NO_PAYMENT,
+                    cancelledUnknownAgreement.paymentCondition()
+            );
+            assertFalse(cancelledUnknownAgreement.outstandingCollectionEligible());
         }
 
         @Test

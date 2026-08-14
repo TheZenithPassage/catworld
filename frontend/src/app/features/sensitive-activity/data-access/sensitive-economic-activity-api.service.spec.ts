@@ -25,8 +25,8 @@ describe('SensitiveEconomicActivityApiService', () => {
     service
       .getActivity({
         actorId: 'actor-1',
-        occurredFrom: '2026-08-01T10:00',
-        occurredTo: '2026-08-02T11:30',
+        occurredFrom: '2026-08-01T13:00:00.000Z',
+        occurredTo: '2026-08-02T14:30:00.000Z',
         eventType: 'NIGHTLY_RATE_CHANGED',
         ownerId: 'owner-1',
         catId: 'cat-1',
@@ -39,7 +39,8 @@ describe('SensitiveEconomicActivityApiService', () => {
     expect(request.request.params.keys().sort()).toEqual(
       ['actorId', 'occurredFrom', 'occurredTo', 'eventType', 'ownerId', 'catId', 'stayId'].sort(),
     );
-    expect(request.request.params.get('occurredFrom')).toContain('2026-08-01T');
+    expect(request.request.params.get('occurredFrom')).toBe('2026-08-01T13:00:00.000Z');
+    expect(request.request.params.get('occurredTo')).toBe('2026-08-02T14:30:00.000Z');
     request.flush([
       {
         eventId: 'event-1',

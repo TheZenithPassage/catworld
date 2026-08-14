@@ -71,6 +71,7 @@ export class StayCreatePage {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<CreationPricingPreview | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
@@ -114,6 +115,15 @@ export class StayCreatePage {
       (!this.reasonRequired() || this.pricingReason().trim().length > 0),
   );
   readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
+  readonly pricingReasonPlaceholder = computed(() => {
+    if (this.pricingReasonContext() === 'suggested') {
+      return this.text().stays.pricing.reasonSuggestedPlaceholder;
+    }
+    if (this.pricingReasonContext() === 'manual') {
+      return this.text().stays.pricing.reasonDifferentPlaceholder;
+    }
+    return '';
+  });
 
   private previewRequestSequence = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
@@ -178,11 +188,30 @@ export class StayCreatePage {
     this.pricingConfirmed.set(false);
   }
 
+  onAgreedAmountChange(value: string): void {
+    this.agreedAmount.set(value);
+    this.pricingReasonContext.set('manual');
+    this.onPricingDecisionChange();
+  }
+
   confirmPricing(): void {
     if (this.pricingPreview() && this.decisionValid()) {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
+      this.scrollToSubmit();
     }
+  }
+
+  useSuggestedAmount(): void {
+    const suggestedAmount = this.pricingPreview()?.suggestedAmount;
+    if (suggestedAmount === null || suggestedAmount === undefined) return;
+
+    this.agreedAmount.set(suggestedAmount);
+    this.pricingReason.set('');
+    this.pricingReasonContext.set('suggested');
+    this.pricingConfirmed.set(true);
+    this.stalePricing.set(false);
+    this.scrollToSubmit();
   }
 
   toggleCatFromPill(event: MouseEvent, catId: string): void {
@@ -331,6 +360,7 @@ export class StayCreatePage {
   }
 
   private refreshPricingPreview(): void {
+    if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.pricingPreview.set(null);
     this.previewError.set(null);
@@ -370,6 +400,12 @@ export class StayCreatePage {
 
   private currentPreviewBasis(): string {
     return JSON.stringify([this.startAt(), this.endAt(), [...this.selectedCatIds()].sort()]);
+  }
+
+  private scrollToSubmit(): void {
+    document
+      .getElementById('create-stay-submit')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   }
 
   private clearVaccineOverrideRecovery(): void {

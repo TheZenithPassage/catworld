@@ -42,8 +42,8 @@ public record StayPaymentEconomics(
 
         BigDecimal canonicalAgreement =
                 WholeMonetaryAmount.canonicalize(agreedAmount);
-        BigDecimal remainingAmount = canonicalAgreement.subtract(totalPaid);
-        if (remainingAmount.signum() < 0) {
+        BigDecimal historicalRemainingAmount = canonicalAgreement.subtract(totalPaid);
+        if (historicalRemainingAmount.signum() < 0) {
             throw new IllegalStateException(
                     "Active payments cannot exceed the agreed amount"
             );
@@ -52,7 +52,7 @@ public record StayPaymentEconomics(
         PaymentCondition condition;
         if (activePayments.isEmpty()) {
             condition = PaymentCondition.NO_PAYMENT;
-        } else if (remainingAmount.signum() == 0) {
+        } else if (historicalRemainingAmount.signum() == 0) {
             condition = PaymentCondition.FULL_PAYMENT;
         } else {
             condition = PaymentCondition.PARTIAL_PAYMENT;
@@ -60,9 +60,9 @@ public record StayPaymentEconomics(
 
         return new StayPaymentEconomics(
                 totalPaid,
-                remainingAmount,
+                cancelled ? BigDecimal.ZERO : historicalRemainingAmount,
                 condition,
-                !cancelled && remainingAmount.signum() > 0
+                !cancelled && historicalRemainingAmount.signum() > 0
         );
     }
 }

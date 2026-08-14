@@ -17,14 +17,10 @@ export class SensitiveEconomicActivityApiService {
     let params = new HttpParams();
     for (const key of Object.keys(filters) as (keyof SensitiveActivityFilters)[]) {
       const value = filters[key];
-      if (value) params = params.set(key, this.serialize(key, value));
+      if (value) params = params.set(key, value);
     }
     return this.http
       .get<unknown>(`${API_BASE_URL}/sensitive-economic-activity`, { params })
       .pipe(map(parseSensitiveActivity));
-  }
-
-  private serialize(key: keyof SensitiveActivityFilters, value: string): string {
-    return key === 'occurredFrom' || key === 'occurredTo' ? new Date(value).toISOString() : value;
   }
 }

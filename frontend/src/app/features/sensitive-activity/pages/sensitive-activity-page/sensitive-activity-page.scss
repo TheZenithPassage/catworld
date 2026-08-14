@@ -21,12 +21,6 @@
   flex-wrap: wrap;
   gap: 0.65rem;
 }
-.period-error {
-  grid-column: 1 / -1;
-  margin: -0.5rem 0 0;
-  color: var(--mat-sys-error);
-  font-size: 0.875rem;
-}
 .activity-list {
   display: grid;
   gap: 1rem;

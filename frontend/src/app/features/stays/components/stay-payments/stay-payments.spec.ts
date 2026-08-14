@@ -102,6 +102,28 @@ describe('StayPayments', () => {
     expect(compiled.textContent).not.toContain('entered twice');
   });
 
+  it('localizes payment calendar dates without changing their day', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    fixture.componentRef.setInput('stay', {
+      ...stay,
+      payments: [{ ...stay.payments[0], paymentDate: '2026-08-12' }],
+    });
+    fixture.detectChanges();
+
+    const paymentDate = () =>
+      (fixture.nativeElement as HTMLElement).querySelector('.payment-row dl div:nth-child(2) dd')
+        ?.textContent;
+
+    expect(paymentDate()).toContain('12/08/2026');
+    expect(paymentDate()).not.toContain('2026-08-12');
+
+    i18n.language.set('en');
+    fixture.detectChanges();
+
+    expect(paymentDate()).toContain('12/08/2026');
+  });
+
   it('renders an accessible empty history without changing authoritative economics', () => {
     fixture.componentRef.setInput('stay', { ...stay, payments: [] });
     fixture.detectChanges();
@@ -112,6 +134,62 @@ describe('StayPayments', () => {
     );
     expect(compiled.textContent).toContain('9999999999999999999');
     expect(compiled.textContent).toContain('9999999999999999998');
+  });
+
+  it('renders edit and annul forms only inside the selected payment row', () => {
+    const secondActivePayment = {
+      ...stay.payments[0],
+      paymentId: 'payment-2',
+      amount: stay.payments[0].amount,
+    };
+    fixture.componentRef.setInput('stay', {
+      ...stay,
+      payments: [stay.payments[0], secondActivePayment],
+    });
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    compiled
+      .querySelector<HTMLButtonElement>('[data-payment-id="payment-2"][data-payment-action="edit"]')
+      ?.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelector('.payments-panel > .payment-form')).toBeNull();
+    expect(compiled.querySelectorAll('.payment-row .payment-form')).toHaveLength(1);
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-2"] > .payment-form'),
+    ).not.toBeNull();
+    expect(compiled.querySelector('[data-payment-row-id="payment-1"] > .payment-form')).toBeNull();
+    const activeEdit = compiled.querySelector<HTMLButtonElement>(
+      '[data-payment-id="payment-2"][data-payment-action="edit"]',
+    );
+    expect(activeEdit?.getAttribute('aria-pressed')).toBe('true');
+    expect(activeEdit?.classList).toContain('payment-action-active');
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-2"] .payment-form-title')?.textContent,
+    ).toContain(component.text().stays.payments.edit);
+
+    compiled
+      .querySelector<HTMLButtonElement>(
+        '[data-payment-id="payment-1"][data-payment-action="annul"]',
+      )
+      ?.click();
+    fixture.detectChanges();
+
+    expect(compiled.querySelectorAll('.payment-row .payment-form')).toHaveLength(1);
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-1"] > .payment-form'),
+    ).not.toBeNull();
+    expect(compiled.querySelector('[data-payment-row-id="payment-2"] > .payment-form')).toBeNull();
+    const activeAnnul = compiled.querySelector<HTMLButtonElement>(
+      '[data-payment-id="payment-1"][data-payment-action="annul"]',
+    );
+    expect(activeAnnul?.getAttribute('aria-pressed')).toBe('true');
+    expect(activeAnnul?.classList).toContain('payment-action-active');
+    expect(
+      compiled.querySelector('[data-payment-row-id="payment-1"] .payment-form-title')?.textContent,
+    ).toContain(component.text().stays.payments.annul);
+    expect(compiled.querySelectorAll('.payment-row')).toHaveLength(2);
   });
 
   it('submits an exact whole-unit registration and blocks fractional input', () => {
@@ -129,6 +207,68 @@ describe('StayPayments', () => {
       note: null,
     });
   });
+
+  it.each([
+    ['', 'amountRequired'],
+    ['0', 'invalidAmount'],
+    ['1.5', 'invalidAmount'],
+    ['10000000000000000000', 'invalidAmount'],
+  ] as const)(
+    'shows the local amount error for %j without registering',
+    async (amount, errorKey) => {
+      component.startRegister();
+      component.amount.set(amount);
+      component.paymentDate.set('2026-08-05');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      submitPaymentForm();
+
+      expect(visibleFormErrors()).toContain(component.text().stays.payments.errors[errorKey]);
+      expect(formField('paymentAmount').classList).toContain('mat-form-field-invalid');
+      expect(api.registerPayment).not.toHaveBeenCalled();
+    },
+  );
+
+  it('shows the required payment date without registering', async () => {
+    component.startRegister();
+    component.amount.set('1');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    submitPaymentForm();
+
+    expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.dateRequired);
+    expect(formField('paymentDate').classList).toContain('mat-form-field-invalid');
+    expect(formField('paymentAmount').classList).not.toContain('mat-form-field-invalid');
+    expect(api.registerPayment).not.toHaveBeenCalled();
+  });
+
+  it.each(['edit', 'annul'] as const)(
+    'shows the required reason without calling %s',
+    async (action) => {
+      if (action === 'edit') {
+        component.startEdit(stay.payments[0]);
+      } else {
+        component.startAnnul(stay.payments[0]);
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      submitPaymentForm();
+
+      expect(visibleFormErrors()).toContain(component.text().stays.payments.errors.reasonRequired);
+      expect(formField('paymentReason').classList).toContain('mat-form-field-invalid');
+      if (action === 'edit') {
+        expect(formField('paymentAmount').classList).not.toContain('mat-form-field-invalid');
+      }
+      expect(api.editPayment).not.toHaveBeenCalled();
+      expect(api.annulPayment).not.toHaveBeenCalled();
+    },
+  );
 
   it('serializes every mutation trigger while registration remains pending', () => {
     const registration = new Subject<Stay>();
@@ -404,6 +544,20 @@ describe('StayPayments', () => {
     );
   });
 
+  it('localizes the payment date in permanent removal confirmation', () => {
+    const i18n = TestBed.inject(I18nService);
+    i18n.language.set('es');
+    component.remove({ ...stay.payments[0], paymentDate: '2026-01-01' });
+
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: expect.objectContaining({ subject: expect.stringContaining('01/01/2026') }),
+      }),
+    );
+    expect(dialog.open.mock.calls[0][1].data.subject).not.toContain('2026-01-01');
+  });
+
   it('discards failed removal recovery when an already-open edit is submitted', () => {
     const paymentB = { ...stay.payments[0], paymentId: 'payment-b', amount: '1' };
     component.startEdit(paymentB);
@@ -607,4 +761,27 @@ describe('StayPayments', () => {
     expect(englishTimestamp).not.toBe(spanishTimestamp);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Registered at');
   });
+
+  function submitPaymentForm(): void {
+    component.submitAction();
+    fixture.detectChanges();
+  }
+
+  function visibleFormErrors(): string {
+    return Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+        'mat-error, .mat-mdc-form-field-error',
+      ),
+    )
+      .map((error) => error.textContent?.trim())
+      .join(' ');
+  }
+
+  function formField(controlName: string): HTMLElement {
+    const field = (fixture.nativeElement as HTMLElement)
+      .querySelector(`[name="${controlName}"]`)
+      ?.closest('mat-form-field');
+    if (!(field instanceof HTMLElement)) throw new Error(`Missing form field: ${controlName}`);
+    return field;
+  }
 });

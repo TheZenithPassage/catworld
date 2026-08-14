@@ -371,7 +371,9 @@ Stay reads return payment history ordered by creation time and derive
 `outstandingCollectionEligible` from the active rows and current agreement.
 `NO_PAYMENT`, `PARTIAL_PAYMENT` and `FULL_PAYMENT` are response values, never
 persisted state. Annulled rows remain visible but contribute nothing to the
-active total.
+active total. For a cancelled stay with a known agreement, `remainingAmount`
+is the operational balance `0` and outstanding eligibility is false, while
+`paymentCondition` continues to describe the real active-payment history.
 
 Inherited stays with a null agreement return zero paid, null remaining,
 `NO_PAYMENT`, false outstanding eligibility and empty history. Payment
@@ -647,6 +649,18 @@ protection, and no dependent record is cascaded, detached or reassigned merely
 to make owner, cat or vet deletion succeed.
 
 ## Frontend UI Foundation
+
+Frontend operational time uses `BusinessTimeService` as the single boundary
+between absolute instants and the deployment's business timezone. The timezone
+is loaded at runtime from `frontend/public/runtime-config.json` (currently
+`America/Argentina/Buenos_Aires`), so deployments can replace it without a
+component change or deployment-specific build. `Instant` values are formatted
+and `datetime-local` sensitive-activity filters are interpreted in that IANA
+zone. Stay `LocalDateTime` values retain their wall-clock fields, and payment
+`LocalDate` formatting remains separate from timezone conversion.
+The standard nginx container generates that file at startup from the
+`BUSINESS_TIME_ZONE` environment variable, which accepts an IANA timezone such
+as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
 
 The authenticated Angular administration interface uses Angular Material and
 Angular CDK as its default UI foundation for interactive components,

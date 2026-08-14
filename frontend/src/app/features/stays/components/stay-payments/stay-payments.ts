@@ -1,7 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -9,6 +11,8 @@ import { MatInput } from '@angular/material/input';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { formatLocalDate } from '../../../../shared/date/local-date-format';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import {
   isPermanentDeletionConfirmed,
   PermanentDeletionConfirmationDialog,
@@ -24,7 +28,16 @@ type FocusContext = 'form' | 'removal';
 
 @Component({
   selector: 'app-stay-payments',
-  imports: [FormsModule, MatButton, MatError, MatFormField, MatInput, MatLabel, UiStateComponent],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    NgTemplateOutlet,
+    UiStateComponent,
+  ],
   templateUrl: './stay-payments.html',
   styleUrl: './stay-payments.scss',
 })
@@ -33,6 +46,7 @@ export class StayPayments {
   private readonly api = inject(StayApiService);
   private readonly dialog = inject(MatDialog);
   private readonly i18n = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
 
   readonly stay = input.required<Stay>();
   readonly stayChange = output<Stay>();
@@ -49,6 +63,9 @@ export class StayPayments {
   readonly removalDialogOpen = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly attempted = signal(false);
+  readonly attemptedErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
+  };
   readonly removalPayment = signal<StayPayment | null>(null);
   readonly removalReason = signal('');
 
@@ -166,7 +183,7 @@ export class StayPayments {
         boolean | PermanentDeletionConfirmationResult
       >(PermanentDeletionConfirmationDialog, {
         data: {
-          subject: `${copy.removingSubject} ${payment.amount} · ${payment.paymentDate}`,
+          subject: `${copy.removingSubject} ${payment.amount} · ${this.formatPaymentDate(payment.paymentDate)}`,
           reasonLabel: copy.removalReason,
           reasonRequiredMessage: copy.errors.reasonRequired,
           initialReason: this.removalReason(),
@@ -214,10 +231,11 @@ export class StayPayments {
   }
 
   formatRegisteredAt(value: string): string {
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    return this.businessTime.formatInstant(value, this.dateLocale());
+  }
+
+  formatPaymentDate(value: string): string {
+    return formatLocalDate(value, this.dateLocale());
   }
 
   private actionIsValid(action: Exclude<PaymentAction, null>): boolean {

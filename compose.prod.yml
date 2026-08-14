@@ -39,6 +39,8 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-4200}:80"
+    environment:
+      BUSINESS_TIME_ZONE: ${BUSINESS_TIME_ZONE:-America/Argentina/Buenos_Aires}
     depends_on:
       - app
 
