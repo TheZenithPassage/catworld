@@ -200,6 +200,47 @@ describe('SensitiveEconomicActivityApiService', () => {
     ]);
   });
 
+  it('accepts backend pricing overrides with exact or unavailable suggestions', () => {
+    let result: unknown;
+    service
+      .getActivity({
+        actorId: '',
+        occurredFrom: '',
+        occurredTo: '',
+        eventType: '',
+        ownerId: '',
+        catId: '',
+        stayId: '',
+      })
+      .subscribe((events) => (result = events));
+    const common = {
+      eventType: 'PRICING_OVERRIDE',
+      occurredAt: '2026-08-14T12:00:00Z',
+      actor: { id: 'actor-1', username: 'admin' },
+      affectedContext: {
+        stayId: 'stay-1',
+        startAt: '2026-09-01T10:00:00',
+        endAt: '2026-09-04T10:00:00',
+        cancelledAt: null,
+        owner: { id: 'owner-1', fullName: 'Owner' },
+        cats: [{ id: 'cat-1', name: 'Cat' }],
+      },
+      retainedNightlyRate: '50',
+      numberOfNights: 3,
+      agreedAmount: '125',
+      reason: 'Exception',
+    };
+    http.expectOne(`${API_BASE_URL}/sensitive-economic-activity`).flush([
+      { ...common, eventId: 'event-1', suggestedAmount: '150' },
+      { ...common, eventId: 'event-2', suggestedAmount: null },
+    ]);
+
+    expect(result).toEqual([
+      expect.objectContaining({ eventId: 'event-1', suggestedAmount: '150' }),
+      expect.objectContaining({ eventId: 'event-2', suggestedAmount: null }),
+    ]);
+  });
+
   it.each([
     [{ eventType: 'UNKNOWN' }],
     [{ eventType: 'NIGHTLY_RATE_CHANGED', newRate: 123 }],

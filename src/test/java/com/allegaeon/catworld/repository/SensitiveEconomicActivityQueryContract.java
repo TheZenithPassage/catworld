@@ -220,6 +220,7 @@ final class SensitiveEconomicActivityQueryContract {
         PricingOverrideActivityDTO pricing = assertInstanceOf(
                 PricingOverrideActivityDTO.class, all.get(2));
         assertEquals(new BigDecimal("10"), pricing.retainedNightlyRate());
+        assertEquals(new BigDecimal("20"), pricing.suggestedAmount());
         assertEquals(new BigDecimal("15"), pricing.agreedAmount());
         AgreedAmountCorrectedActivityDTO correction = assertInstanceOf(
                 AgreedAmountCorrectedActivityDTO.class, all.get(3));

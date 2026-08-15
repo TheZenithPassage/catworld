@@ -70,4 +70,48 @@ class SensitiveEconomicActivityControllerTest {
                         .param("eventType", "NOT_AN_EVENT"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void pricingOverrideSerializesExactSuggestedAmountAndExplicitNull() throws Exception {
+        UUID actorId = UUID.randomUUID();
+        UUID stayId = UUID.randomUUID();
+        SensitiveActorDTO actor = new SensitiveActorDTO(actorId, "admin");
+        SensitiveStayContextDTO context = new SensitiveStayContextDTO(
+                stayId,
+                java.time.LocalDateTime.parse("2026-09-01T10:00:00"),
+                java.time.LocalDateTime.parse("2026-09-04T10:00:00"),
+                null,
+                new SensitiveOwnerContextDTO(UUID.randomUUID(), "Owner"),
+                List.of(new SensitiveCatContextDTO(UUID.randomUUID(), "Cat")));
+        when(service.getActivity(any())).thenReturn(List.of(
+                new PricingOverrideActivityDTO(
+                        UUID.randomUUID(),
+                        SensitiveEconomicEventType.PRICING_OVERRIDE,
+                        Instant.parse("2026-08-14T12:00:00Z"),
+                        actor,
+                        context,
+                        new BigDecimal("50"),
+                        3,
+                        new BigDecimal("150"),
+                        new BigDecimal("125"),
+                        "Exception"),
+                new PricingOverrideActivityDTO(
+                        UUID.randomUUID(),
+                        SensitiveEconomicEventType.PRICING_OVERRIDE,
+                        Instant.parse("2026-08-14T11:00:00Z"),
+                        actor,
+                        context,
+                        null,
+                        3,
+                        null,
+                        new BigDecimal("125"),
+                        "Historical exception")));
+
+        mockMvc.perform(get("/api/sensitive-economic-activity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].suggestedAmount").value("150"))
+                .andExpect(jsonPath("$[0].suggestedAmount").isString())
+                .andExpect(jsonPath("$[1].suggestedAmount").value(
+                        org.hamcrest.Matchers.nullValue()));
+    }
 }
