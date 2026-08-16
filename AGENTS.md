@@ -50,7 +50,11 @@ implementation routing or pull request review workflows.
 
 ## Repository Boundaries
 
-* Work only from the current checked-out branch and working tree, except when following the local branch preparation defined by `.agents/skills/catworld-implement-issue/SKILL.md` for an end-to-end GitHub issue implementation request or performing the read-only inspection of a freshly fetched `origin/main` required by `.agents/skills/catworld-feature-planning/SKILL.md`. The feature-planning exception does not permit checking out or updating local `main`.
+* Work only in the current worktree. The issue workflow may create or switch to
+  its issue branch inside that worktree from the exact captured starting commit;
+  it must not create, remove, coordinate, or mutate other worktrees. Feature
+  planning may inspect a freshly fetched `origin/main` read-only and must not
+  check out or update local `main`.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
@@ -77,11 +81,17 @@ implementation routing or pull request review workflows.
 
 * Codex may commit scoped changes, push the active issue branch with a normal non-force push, and create or update pull requests when the active CatWorld workflow allows delivery.
 * Review fixes for an existing pull request should normally be delivered as new follow-up commits on the same PR branch, then pushed normally.
-* Codex may fetch or inspect `main` when needed, but must not update local `main`, pull unrelated changes into `main`, or use `main` as a delivery branch unless the user explicitly requests a specific maintenance operation.
-* Never commit directly on `main`, merge any branch into local `main`, push directly to `main`, merge a pull request, enable auto-merge, or approve Codex's own pull request.
+* For issue implementation, Codex must capture the operator-selected starting
+  branch as the fixed pull-request base, create the issue branch from the exact
+  starting commit, and synchronize the issue branch with a compatible remote
+  parent advance before first delivery. It must not mutate the parent branch.
+* Never commit or push directly to a captured parent branch, merge a pull
+  request, enable auto-merge, or approve Codex's own pull request.
 * Never amend commits, rebase-push, force-push, use `--force` or `--force-with-lease`, or perform any history-rewriting remote update unless explicitly approved by the user.
 * Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, modify GitHub issues, or post public GitHub comments unless explicitly requested where applicable.
 * Create pull requests as ready for review by default. Create a draft pull request only when the user explicitly requests draft status.
+* After an issue branch is created or activated, keep it checked out through
+  delivery, review, remediation, normal completion, and terminal stops.
 
 ## Language and Documentation
 

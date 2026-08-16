@@ -656,7 +656,7 @@ Workflow files:
 
 Both workflows:
 
-- run on pull requests targeting `main`
+- run on pull requests targeting any branch
 - run on pushes to `main`
 - support manual `workflow_dispatch`
 
