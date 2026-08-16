@@ -43,6 +43,7 @@ export interface SensitiveActivityTranslations {
     | 'newRate'
     | 'retainedRate'
     | 'nights'
+    | 'suggestedAmount'
     | 'agreement'
     | 'previousAgreement'
     | 'newAgreement'
@@ -127,6 +128,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       newRate: 'Tarifa nueva',
       retainedRate: 'Tarifa conservada',
       nights: 'Noches',
+      suggestedAmount: 'Importe sugerido',
       agreement: 'Importe acordado',
       previousAgreement: 'Acuerdo anterior',
       newAgreement: 'Acuerdo nuevo',
@@ -192,6 +194,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       newRate: 'New rate',
       retainedRate: 'Retained rate',
       nights: 'Nights',
+      suggestedAmount: 'Suggested amount',
       agreement: 'Agreed amount',
       previousAgreement: 'Previous agreement',
       newAgreement: 'New agreement',
