@@ -27,4 +27,6 @@ public class StayPaymentResponseDTO {
     private PaymentState state;
     private String registeredByUsername;
     private Instant registeredAt;
+    private String annulledByUsername;
+    private Instant annulledAt;
 }

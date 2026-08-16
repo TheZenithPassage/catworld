@@ -614,11 +614,50 @@ public class StayControllerTest {
                             .value("admin"))
                     .andExpect(jsonPath("$.payments[0].registeredAt")
                             .value(registeredAt.toString()))
+                    .andExpect(jsonPath("$.payments[0].annulledByUsername")
+                            .value(nullValue()))
+                    .andExpect(jsonPath("$.payments[0].annulledAt")
+                            .value(nullValue()))
                     .andExpect(jsonPath("$.payments[0].reason").doesNotExist())
                     .andExpect(jsonPath("$.payments[0].editedBy").doesNotExist())
                     .andExpect(jsonPath("$.payments[0].annulledBy").doesNotExist())
                     .andExpect(jsonPath("$.payments[0].previousAmount")
                             .doesNotExist());
+        }
+
+        @Test
+        void annulmentReturnsOperationalActorAndTimestamp() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            Instant annulledAt = Instant.parse("2026-08-04T10:30:00Z");
+            when(stayService.annulPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .payments(List.of(StayPaymentResponseDTO.builder()
+                                    .paymentId(paymentId)
+                                    .amount(new BigDecimal("30"))
+                                    .state(PaymentState.ANNULLED)
+                                    .registeredByUsername("staff")
+                                    .registeredAt(Instant.parse(
+                                            "2026-08-04T09:00:00Z"))
+                                    .annulledByUsername("admin")
+                                    .annulledAt(annulledAt)
+                                    .build()))
+                            .build());
+
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"reason\":\"Duplicate\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.payments[0].state")
+                            .value("ANNULLED"))
+                    .andExpect(jsonPath("$.payments[0].annulledByUsername")
+                            .value("admin"))
+                    .andExpect(jsonPath("$.payments[0].annulledAt")
+                            .value(annulledAt.toString()));
         }
 
         @Test

@@ -111,6 +111,19 @@ public class StayService implements IStayService {
                                 HashMap::new,
                                 Collectors.toList()
                         ));
+        Map<UUID, Map<UUID, StayPaymentAnnulment>> annulmentsByStay =
+                Optional.ofNullable(stayPaymentAnnulmentRepository
+                        .findAllByStayIdInOrderByAnnulledAtAsc(
+                                stays.stream().map(Stay::getId).toList()))
+                        .orElseGet(List::of)
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                StayPaymentAnnulment::getStayId,
+                                Collectors.toMap(
+                                        StayPaymentAnnulment::getPaymentId,
+                                        Function.identity()
+                                )
+                        ));
 
         Map<UUID, Boolean> deletionAuthorizationByStay = stays.stream()
                 .collect(Collectors.toMap(
@@ -130,6 +143,7 @@ public class StayService implements IStayService {
                 .map(stay -> toResponseDTO(
                         stay,
                         paymentsByStay.getOrDefault(stay.getId(), List.of()),
+                        annulmentsByStay.getOrDefault(stay.getId(), Map.of()),
                         canDeleteStay(
                                 deletionAuthorizationByStay.get(stay.getId()),
                                 !paymentsByStay.getOrDefault(
@@ -1018,17 +1032,27 @@ public class StayService implements IStayService {
         return toResponseDTO(
                 stay,
                 stayPaymentRepository
-                        .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId())
+                        .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()),
+                Optional.ofNullable(stayPaymentAnnulmentRepository
+                        .findAllByStayIdOrderByAnnulledAtAsc(stay.getId()))
+                        .orElseGet(List::of)
+                        .stream()
+                        .collect(Collectors.toMap(
+                                StayPaymentAnnulment::getPaymentId,
+                                Function.identity()
+                        ))
         );
     }
 
     private StayResponseDTO toResponseDTO(
             Stay stay,
-            List<StayPayment> payments) {
+            List<StayPayment> payments,
+            Map<UUID, StayPaymentAnnulment> annulmentsByPayment) {
         boolean deletionAuthorized = hasDeletionAuthorization(stay);
         return toResponseDTO(
                 stay,
                 payments,
+                annulmentsByPayment,
                 canDeleteStay(
                         deletionAuthorized,
                         !payments.isEmpty(),
@@ -1042,6 +1066,7 @@ public class StayService implements IStayService {
     private StayResponseDTO toResponseDTO(
             Stay stay,
             List<StayPayment> payments,
+            Map<UUID, StayPaymentAnnulment> annulmentsByPayment,
             boolean canDelete) {
         StayResponseDTO response = stayMapper.toResponseDTO(
                 stay,
@@ -1060,7 +1085,10 @@ public class StayService implements IStayService {
         );
         response.setPayments(
                 payments.stream()
-                        .map(stayMapper::toPaymentResponseDTO)
+                        .map(payment -> stayMapper.toPaymentResponseDTO(
+                                payment,
+                                annulmentsByPayment.get(payment.getId())
+                        ))
                         .toList()
         );
         return response;

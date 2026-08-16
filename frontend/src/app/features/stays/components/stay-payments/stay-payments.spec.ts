@@ -47,6 +47,8 @@ describe('StayPayments', () => {
         state: 'ACTIVE',
         registeredByUsername: 'admin',
         registeredAt: '2026-08-05T09:00:00Z',
+        annulledByUsername: null,
+        annulledAt: null,
       },
       {
         paymentId: 'payment-2',
@@ -56,6 +58,8 @@ describe('StayPayments', () => {
         state: 'ANNULLED',
         registeredByUsername: 'staff',
         registeredAt: '2026-08-04T09:00:00Z',
+        annulledByUsername: 'admin',
+        annulledAt: '2026-08-04T10:30:00Z',
       },
     ],
   };
@@ -99,6 +103,10 @@ describe('StayPayments', () => {
     const rows = compiled.querySelectorAll('.payment-row');
     expect(rows[1].classList).toContain('payment-annulled');
     expect(rows[1].querySelectorAll('button')).toHaveLength(1);
+    expect(rows[1].textContent).toContain(component.text().stays.payments.annulledBy);
+    expect(rows[1].textContent).toContain(component.text().stays.payments.annulledAt);
+    expect(rows[1].textContent).toContain('admin');
+    expect(rows[0].textContent).not.toContain(component.text().stays.payments.annulledBy);
     expect(compiled.textContent).not.toContain('entered twice');
   });
 

@@ -816,7 +816,10 @@ native-control selectors.
 For stays with a known agreement, the individual stay route exposes
 backend-authoritative economics and operational active and annulled payment
 history, including exact string amounts, payment dates, notes and registration
-attribution. Historical stays whose agreement is null expose neither payment
+attribution. Annulled operational entries also expose the user and instant
+recorded by the existing immutable annulment, so both `ADMIN` and `STAFF` can
+understand ordinary payment history without access to sensitive economic
+activity. Historical stays whose agreement is null expose neither payment
 economics nor payment-management entry points or actions in the overview and
 individual route. Ordinary stay editing remains limited by the existing dynamic
 status rule and remains available for otherwise-allowed non-pricing changes to
