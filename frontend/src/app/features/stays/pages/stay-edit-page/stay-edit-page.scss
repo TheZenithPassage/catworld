@@ -111,15 +111,6 @@
   overflow-wrap: anywhere;
   font-weight: 750;
 }
-.retained-rate-value {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-}
-.retained-rate-value button {
-  min-width: 0;
-}
 .pricing-warning {
   color: var(--color-error);
 }

@@ -81,16 +81,7 @@
                 </div>
                 <div>
                   <dt>{{ text().stays.pricing.retainedRate }}</dt>
-                  <dd class="retained-rate-value">
-                    <span>{{
-                      workingRetainedNightlyRate() ?? text().stays.pricing.unavailable
-                    }}</span>
-                    @if (retainedRateActionLabel(); as actionLabel) {
-                      <button mat-stroked-button type="button" (click)="toggleRetainedRate()">
-                        {{ actionLabel }}
-                      </button>
-                    }
-                  </dd>
+                  <dd>{{ workingRetainedNightlyRate() ?? text().stays.pricing.unavailable }}</dd>
                 </div>
                 <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
@@ -118,10 +109,10 @@
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
                   }
                 </mat-form-field>
-                @if (workingSuggestedAmount() !== null) {
+                @if (retainedRateActionLabel(); as actionLabel) {
                   <div class="pricing-helper-actions">
-                    <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
-                      {{ text().stays.pricing.useSuggestedAmount }}
+                    <button mat-stroked-button type="button" (click)="toggleRetainedRate()">
+                      {{ actionLabel }}
                     </button>
                   </div>
                 }

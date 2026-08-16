@@ -372,13 +372,13 @@ export class StayEditPage {
   onStartAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.startAt.set(value);
-    this.refreshPricingPreview();
+    this.refreshPricingPreview(true);
   }
 
   onEndAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.endAt.set(value);
-    this.refreshPricingPreview();
+    this.refreshPricingPreview(true);
   }
 
   onPricingDecisionChange(): void {
@@ -397,19 +397,6 @@ export class StayEditPage {
       this.stalePricing.set(false);
       this.scrollToSubmit();
     }
-  }
-
-  useSuggestedAmount(): void {
-    const suggestion = this.workingSuggestedAmount();
-    if (!this.isAdmin() || !this.pricingPreview()?.pricingDecisionRequired || suggestion === null) {
-      return;
-    }
-
-    this.agreedAmount.set(suggestion);
-    this.pricingReason.set('');
-    this.pricingReasonContext.set('suggested');
-    this.pricingConfirmed.set(false);
-    this.stalePricing.set(false);
   }
 
   toggleRetainedRate(): void {
@@ -440,7 +427,7 @@ export class StayEditPage {
     this.onPricingDecisionChange();
   }
 
-  private refreshPricingPreview(): void {
+  private refreshPricingPreview(resetAgreementForNightChange = false): void {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.pricingPreview.set(null);
@@ -466,6 +453,18 @@ export class StayEditPage {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
             return;
           this.pricingPreview.set(preview);
+          if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
+            const retainedRate = this.workingRetainedNightlyRate();
+            const suggestion =
+              retainedRate === null
+                ? null
+                : multiplyWholeMoney(retainedRate, preview.numberOfNights);
+            this.agreedAmount.set(suggestion ?? preview.currentAgreedAmount ?? '');
+            this.pricingReasonContext.set(suggestion === null ? 'manual' : 'suggested');
+            if (this.stay()?.retainedNightlyRate === null) {
+              this.agreedAmountBeforeCurrentRate = preview.currentAgreedAmount ?? '';
+            }
+          }
           this.previewLoading.set(false);
         },
         error: (error: unknown) => {

@@ -158,7 +158,7 @@ describe('StayEditPage', () => {
     component = fixture.componentInstance;
   }
 
-  it('adopts the active repricing suggestion and requires a fresh confirmation', () => {
+  it('does not offer suggested amount adoption in existing-stay repricing', () => {
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({
         pricingDecisionRequired: true,
@@ -177,67 +177,14 @@ describe('StayEditPage', () => {
       }),
     );
     createComponent();
-    component.pricingReason.set('Previous reason');
-    component.stalePricing.set(true);
     fixture.detectChanges();
-    const scrollIntoView = vi.fn();
-    const submitButton = (fixture.nativeElement as HTMLElement).querySelector(
-      '#update-stay-submit',
-    ) as HTMLElement;
-    submitButton.scrollIntoView = scrollIntoView;
 
     const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
       (candidate) =>
         candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
     );
-    button?.click();
 
-    expect(button).toBeDefined();
-    expect(component.agreedAmount()).toBe('400');
-    expect(component.pricingReason()).toBe('');
-    expect(component.pricingConfirmed()).toBe(false);
-    expect(component.stalePricing()).toBe(false);
-    expect(stayApiService.updateStay).not.toHaveBeenCalled();
-    expect(scrollIntoView).not.toHaveBeenCalled();
-    fixture.detectChanges();
-    const confirmSuggestionButton = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
-    ].find(
-      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirm,
-    ) as HTMLButtonElement;
-    expect(confirmSuggestionButton.disabled).toBe(false);
-    expect(
-      (fixture.nativeElement as HTMLElement)
-        .querySelector('textarea[name="pricingReason"]')
-        ?.getAttribute('placeholder'),
-    ).toBe(component.text().stays.pricing.reasonSuggestedPlaceholder);
-
-    component.onAgreedAmountChange('401');
-    fixture.detectChanges();
-    const reasonRequiredButton = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
-    ].find(
-      (candidate) =>
-        candidate.textContent?.trim() === component.text().stays.pricing.confirmAfterReason,
-    ) as HTMLButtonElement;
-    expect(reasonRequiredButton.disabled).toBe(true);
-
-    component.pricingReason.set('Different agreement');
-    fixture.detectChanges();
-    expect(component.pricingConfirmed()).toBe(false);
-    const confirmButton = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
-    ].find(
-      (candidate) => candidate.textContent?.trim() === component.text().stays.pricing.confirm,
-    ) as HTMLButtonElement;
-    expect(confirmButton.disabled).toBe(false);
-    expect(
-      (fixture.nativeElement as HTMLElement)
-        .querySelector('textarea[name="pricingReason"]')
-        ?.getAttribute('placeholder'),
-    ).toBe(component.text().stays.pricing.reasonDifferentPlaceholder);
-    confirmButton.click();
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(button).toBeUndefined();
   });
 
   it('does not offer suggested amount adoption when repricing has no suggestion', () => {
@@ -309,6 +256,9 @@ describe('StayEditPage', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       component.text().stays.pricing.useOriginalRate,
     );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-helper-actions button'),
+    ).toHaveLength(1);
     const localizedOriginalAction = component.text().stays.pricing.useOriginalRate;
     TestBed.inject(I18nService).toggleLanguage();
     TestBed.flushEffects();
@@ -365,6 +315,100 @@ describe('StayEditPage', () => {
     expect(component.agreedAmount()).toBe('123');
   });
 
+  it('resets the agreement to the selected-rate suggestion when the night count changes', () => {
+    createComponent();
+    component.workingRetainedNightlyRate.set('60');
+    component.agreedAmount.set('777');
+    component.pricingConfirmed.set(true);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+
+    component.onEndAtChange('2099-01-10T10:00');
+
+    expect(component.workingRetainedNightlyRate()).toBe('60');
+    expect(component.workingSuggestedAmount()).toBe('480');
+    expect(component.agreedAmount()).toBe('480');
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it('restores the persisted agreement when nights change with no retained rate', () => {
+    stayApiService.getStayById.mockReturnValue(
+      of({ ...stay, retainedNightlyRate: null, suggestedAmount: null, agreedAmount: '123' }),
+    );
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    createComponent();
+    component.agreedAmount.set('777');
+    component.pricingConfirmed.set(true);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '123',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+
+    component.onEndAtChange('2099-01-10T10:00');
+
+    expect(component.workingRetainedNightlyRate()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.agreedAmount()).toBe('123');
+    expect(component.pricingConfirmed()).toBe(false);
+
+    component.toggleRetainedRate();
+    expect(component.agreedAmount()).toBe('480');
+    component.toggleRetainedRate();
+    expect(component.agreedAmount()).toBe('123');
+  });
+
+  it('preserves a manual agreement when a date edit keeps the same night count', () => {
+    createComponent();
+    component.agreedAmount.set('777');
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '350',
+        confirmation: null,
+      }),
+    );
+
+    component.onStartAtChange('2099-01-02T11:00');
+
+    expect(component.workingRetainedNightlyRate()).toBe('50');
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.agreedAmount()).toBe('777');
+  });
+
   it.each([null, 'malformed', '0', '50'])(
     'hides the retained-rate action on the visible surface for current rate %s',
     (nightlyRate) => {
@@ -396,6 +440,9 @@ describe('StayEditPage', () => {
         ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
       ].map((button) => button.textContent?.trim());
       expect(visibleActions).not.toContain(component.text().stays.pricing.useCurrentRate);
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-helper-actions button'),
+      ).toHaveLength(0);
     },
   );
 
