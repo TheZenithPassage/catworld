@@ -403,10 +403,69 @@ describe('StayEditPage', () => {
     );
 
     component.onStartAtChange('2099-01-02T11:00');
+    fixture.detectChanges();
 
     expect(component.workingRetainedNightlyRate()).toBe('50');
-    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBe('350');
     expect(component.agreedAmount()).toBe('777');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.pricing-summary > div:nth-child(4) dd')
+        ?.textContent?.trim(),
+    ).toBe('350');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.noReconfirmation,
+    );
+  });
+
+  it('restores persisted pricing state after returning to the original night count', () => {
+    stayApiService.getStayById.mockReturnValue(
+      of({ ...stay, retainedNightlyRate: null, suggestedAmount: null, agreedAmount: '123' }),
+    );
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    createComponent();
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '123',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+    component.onEndAtChange('2099-01-10T10:00');
+    component.toggleRetainedRate();
+    expect(component.workingRetainedNightlyRate()).toBe('60');
+    expect(component.workingSuggestedAmount()).toBe('480');
+
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 7,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: null,
+      }),
+    );
+    component.onEndAtChange('2099-01-09T10:00');
+
+    expect(component.pricingPreview()?.pricingDecisionRequired).toBe(false);
+    expect(component.workingRetainedNightlyRate()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.retainedRateActionLabel()).toBeNull();
+    expect(component.pricingConfirmed()).toBe(false);
   });
 
   it.each([null, 'malformed', '0', '50'])(

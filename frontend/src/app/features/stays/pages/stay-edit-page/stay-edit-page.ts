@@ -132,9 +132,7 @@ export class StayEditPage {
   readonly workingSuggestedAmount = computed(() => {
     const preview = this.pricingPreview();
     const rate = this.workingRetainedNightlyRate();
-    return preview?.pricingDecisionRequired && rate !== null
-      ? multiplyWholeMoney(rate, preview.numberOfNights)
-      : null;
+    return preview && rate !== null ? multiplyWholeMoney(rate, preview.numberOfNights) : null;
   });
   readonly retainedRateActionLabel = computed(() => {
     const current = this.applicableCurrentRate();
@@ -453,6 +451,10 @@ export class StayEditPage {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
             return;
           this.pricingPreview.set(preview);
+          if (!preview.pricingDecisionRequired) {
+            this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+            this.agreedAmountBeforeCurrentRate = null;
+          }
           if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
             const retainedRate = this.workingRetainedNightlyRate();
             const suggestion =
