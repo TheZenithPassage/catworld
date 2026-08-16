@@ -80,8 +80,12 @@
                   <dd>{{ preview.numberOfNights }}</dd>
                 </div>
                 <div>
+                  <dt>{{ text().stays.pricing.retainedRate }}</dt>
+                  <dd>{{ workingRetainedNightlyRate() ?? text().stays.pricing.unavailable }}</dd>
+                </div>
+                <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
-                  <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
+                  <dd>{{ workingSuggestedAmount() ?? text().stays.pricing.unavailable }}</dd>
                 </div>
               </dl>
               @if (!preview.pricingDecisionRequired) {
@@ -105,10 +109,12 @@
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
                   }
                 </mat-form-field>
-                @if (preview.suggestedAmount !== null) {
-                  <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
-                    {{ text().stays.pricing.useSuggestedAmount }}
-                  </button>
+                @if (retainedRateActionLabel(); as actionLabel) {
+                  <div class="pricing-helper-actions">
+                    <button mat-stroked-button type="button" (click)="toggleRetainedRate()">
+                      {{ actionLabel }}
+                    </button>
+                  </div>
                 }
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>{{ text().stays.pricing.reason }}</mat-label>

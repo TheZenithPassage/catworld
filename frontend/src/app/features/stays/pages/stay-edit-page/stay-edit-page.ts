@@ -11,6 +11,11 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import {
+  NightlyReferenceRate,
+  NightlyReferenceRateApiService,
+  NightlyRateThreshold,
+} from '../../../nightly-rates/services/nightly-reference-rate-api.service';
 import { StayPayments } from '../../components/stay-payments/stay-payments';
 import {
   VaccineConflictDialog,
@@ -27,7 +32,7 @@ import {
 import { StayApiService } from '../../services/stay-api.service';
 import { calculateStayNights } from '../../utils/stay-nights.util';
 import { canModifyStay } from '../../utils/stay-status.util';
-import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
+import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 
 @Component({
   selector: 'app-stay-edit-page',
@@ -49,6 +54,7 @@ export class StayEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly stayApiService = inject(StayApiService);
+  private readonly nightlyReferenceRateApiService = inject(NightlyReferenceRateApiService);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
@@ -65,6 +71,8 @@ export class StayEditPage {
   readonly pricingReason = signal('');
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
+  readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
+  readonly workingRetainedNightlyRate = signal<string | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
@@ -93,8 +101,53 @@ export class StayEditPage {
     return current !== null && canModifyStay(current);
   });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
+  readonly applicableCurrentRate = computed(() => {
+    const preview = this.pricingPreview();
+    const catCount = this.stay()?.cats.length ?? 0;
+
+    if (!preview?.pricingDecisionRequired || catCount < 1) {
+      return null;
+    }
+
+    const threshold = Math.min(catCount, 3) as NightlyRateThreshold;
+    const currentRate = this.currentNightlyRates().find(
+      (rate) => rate.minimumCatCount === threshold,
+    )?.nightlyRate;
+
+    if (
+      currentRate === null ||
+      currentRate === undefined ||
+      !isValidWholeMoney(currentRate) ||
+      /^0+$/.test(currentRate) ||
+      multiplyWholeMoney(currentRate, preview.numberOfNights) === null ||
+      (this.stay()?.retainedNightlyRate !== null &&
+        this.stay()?.retainedNightlyRate !== undefined &&
+        sameWholeMoney(currentRate, this.stay()!.retainedNightlyRate!))
+    ) {
+      return null;
+    }
+
+    return currentRate;
+  });
+  readonly workingSuggestedAmount = computed(() => {
+    const preview = this.pricingPreview();
+    const rate = this.workingRetainedNightlyRate();
+    return preview && rate !== null ? multiplyWholeMoney(rate, preview.numberOfNights) : null;
+  });
+  readonly retainedRateActionLabel = computed(() => {
+    const current = this.applicableCurrentRate();
+    if (current === null) return null;
+    const original = this.stay()?.retainedNightlyRate ?? null;
+    const working = this.workingRetainedNightlyRate();
+    if (working === null || !sameWholeMoney(working, current)) {
+      return this.text().stays.pricing.useCurrentRate;
+    }
+    return original === null
+      ? this.text().stays.pricing.returnWithoutRate
+      : this.text().stays.pricing.useOriginalRate;
+  });
   readonly reasonRequired = computed(() => {
-    const suggestion = this.pricingPreview()?.suggestedAmount;
+    const suggestion = this.workingSuggestedAmount();
     return (
       suggestion !== null &&
       suggestion !== undefined &&
@@ -120,9 +173,18 @@ export class StayEditPage {
   private readonly stayId = this.route.snapshot.paramMap.get('id');
   private previewRequestSequence = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
+  private agreedAmountBeforeCurrentRate: string | null = null;
 
   constructor() {
+    this.loadCurrentNightlyRates();
     this.loadStay();
+  }
+
+  private loadCurrentNightlyRates(): void {
+    this.nightlyReferenceRateApiService.getCurrentRates().subscribe({
+      next: (rates) => this.currentNightlyRates.set(rates),
+      error: () => this.currentNightlyRates.set([]),
+    });
   }
 
   loadStay(): void {
@@ -209,7 +271,11 @@ export class StayEditPage {
               agreedAmount: this.agreedAmount(),
               reason: this.pricingReason().trim() || null,
             },
-            confirmation: preview.confirmation,
+            confirmation: {
+              ...preview.confirmation,
+              retainedNightlyRate: this.workingRetainedNightlyRate(),
+              suggestedAmount: this.workingSuggestedAmount(),
+            },
           }
         : {}),
     };
@@ -236,6 +302,9 @@ export class StayEditPage {
           this.submitting.set(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
+          this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+          this.agreedAmountBeforeCurrentRate = null;
+          this.loadCurrentNightlyRates();
           this.showError(this.text().stays.pricing.errors.stale);
           this.refreshPricingPreview();
           return;
@@ -289,6 +358,8 @@ export class StayEditPage {
     this.endAt.set(this.toDateTimeLocalValue(stay.endAt));
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
+    this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
+    this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
 
@@ -299,13 +370,13 @@ export class StayEditPage {
   onStartAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.startAt.set(value);
-    this.refreshPricingPreview();
+    this.refreshPricingPreview(true);
   }
 
   onEndAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.endAt.set(value);
-    this.refreshPricingPreview();
+    this.refreshPricingPreview(true);
   }
 
   onPricingDecisionChange(): void {
@@ -326,21 +397,35 @@ export class StayEditPage {
     }
   }
 
-  useSuggestedAmount(): void {
+  toggleRetainedRate(): void {
+    const currentRate = this.applicableCurrentRate();
+    const originalRate = this.stay()?.retainedNightlyRate ?? null;
     const preview = this.pricingPreview();
-    if (!this.isAdmin() || !preview?.pricingDecisionRequired || preview.suggestedAmount === null) {
+    if (!this.isAdmin() || currentRate === null || !preview?.pricingDecisionRequired) {
       return;
     }
 
-    this.agreedAmount.set(preview.suggestedAmount);
+    const workingRate = this.workingRetainedNightlyRate();
+    if (workingRate === null || !sameWholeMoney(workingRate, currentRate)) {
+      if (originalRate === null) this.agreedAmountBeforeCurrentRate = this.agreedAmount();
+      this.workingRetainedNightlyRate.set(currentRate);
+      const currentSuggestion = multiplyWholeMoney(currentRate, preview.numberOfNights);
+      if (currentSuggestion === null) return;
+      this.agreedAmount.set(currentSuggestion);
+    } else {
+      this.workingRetainedNightlyRate.set(originalRate);
+      const restoredAgreement =
+        originalRate === null
+          ? (this.agreedAmountBeforeCurrentRate ?? this.agreedAmount())
+          : multiplyWholeMoney(originalRate, preview.numberOfNights);
+      if (restoredAgreement !== null) this.agreedAmount.set(restoredAgreement);
+    }
     this.pricingReason.set('');
     this.pricingReasonContext.set('suggested');
-    this.pricingConfirmed.set(true);
-    this.stalePricing.set(false);
-    this.scrollToSubmit();
+    this.onPricingDecisionChange();
   }
 
-  private refreshPricingPreview(): void {
+  private refreshPricingPreview(resetAgreementForNightChange = false): void {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.pricingPreview.set(null);
@@ -366,6 +451,22 @@ export class StayEditPage {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
             return;
           this.pricingPreview.set(preview);
+          if (!preview.pricingDecisionRequired) {
+            this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+            this.agreedAmountBeforeCurrentRate = null;
+          }
+          if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
+            const retainedRate = this.workingRetainedNightlyRate();
+            const suggestion =
+              retainedRate === null
+                ? null
+                : multiplyWholeMoney(retainedRate, preview.numberOfNights);
+            this.agreedAmount.set(suggestion ?? preview.currentAgreedAmount ?? '');
+            this.pricingReasonContext.set(suggestion === null ? 'manual' : 'suggested');
+            if (this.stay()?.retainedNightlyRate === null) {
+              this.agreedAmountBeforeCurrentRate = preview.currentAgreedAmount ?? '';
+            }
+          }
           this.previewLoading.set(false);
         },
         error: (error: unknown) => {
