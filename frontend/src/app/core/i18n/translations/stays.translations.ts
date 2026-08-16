@@ -26,6 +26,7 @@ export interface StaysTranslations {
     reasonSuggestedPlaceholder: string;
     unavailable: string;
     useSuggestedAmount: string;
+    useCurrentRate: string;
     confirm: string;
     confirmAfterReason: string;
     confirmed: string;
@@ -232,6 +233,7 @@ export const STAYS_TRANSLATIONS = {
       reasonSuggestedPlaceholder: 'Motivo opcional',
       unavailable: 'No disponible',
       useSuggestedAmount: 'Usar importe sugerido',
+      useCurrentRate: 'Usar tarifa actual',
       confirm: 'Confirmar precio',
       confirmAfterReason: 'Añade un motivo para confirmar',
       confirmed: 'Precio confirmado',
@@ -437,6 +439,7 @@ export const STAYS_TRANSLATIONS = {
       reasonSuggestedPlaceholder: 'Optional reason',
       unavailable: 'Unavailable',
       useSuggestedAmount: 'Use suggested amount',
+      useCurrentRate: 'Use current rate',
       confirm: 'Confirm pricing',
       confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',

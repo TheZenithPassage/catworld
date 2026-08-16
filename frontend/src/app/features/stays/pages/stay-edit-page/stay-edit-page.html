@@ -105,10 +105,19 @@
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
                   }
                 </mat-form-field>
-                @if (preview.suggestedAmount !== null) {
-                  <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
-                    {{ text().stays.pricing.useSuggestedAmount }}
-                  </button>
+                @if (preview.suggestedAmount !== null || currentRateAmount() !== null) {
+                  <div class="pricing-helper-actions">
+                    @if (preview.suggestedAmount !== null) {
+                      <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
+                        {{ text().stays.pricing.useSuggestedAmount }}
+                      </button>
+                    }
+                    @if (currentRateAmount() !== null) {
+                      <button mat-stroked-button type="button" (click)="useCurrentRate()">
+                        {{ text().stays.pricing.useCurrentRate }}
+                      </button>
+                    }
+                  </div>
                 }
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>{{ text().stays.pricing.reason }}</mat-label>

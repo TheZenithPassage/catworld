@@ -115,6 +115,16 @@
   color: var(--color-error);
 }
 
+.pricing-helper-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.pricing-helper-actions button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;
@@ -143,5 +153,9 @@
   }
   .pricing-summary {
     grid-template-columns: 1fr;
+  }
+
+  .pricing-helper-actions {
+    gap: 0.5rem;
   }
 }

@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { NightlyReferenceRateApiService } from '../../../nightly-rates/services/nightly-reference-rate-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
@@ -54,6 +55,10 @@ describe('StayEditPage', () => {
     getStayById: vi.fn(),
     updateStay: vi.fn(),
     previewDateChangePricing: vi.fn(),
+  };
+
+  const nightlyReferenceRateApiService = {
+    getCurrentRates: vi.fn(),
   };
 
   const router = {
@@ -103,6 +108,7 @@ describe('StayEditPage', () => {
         confirmation: null,
       }),
     );
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(of([]));
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
@@ -112,6 +118,10 @@ describe('StayEditPage', () => {
         {
           provide: StayApiService,
           useValue: stayApiService,
+        },
+        {
+          provide: NightlyReferenceRateApiService,
+          useValue: nightlyReferenceRateApiService,
         },
         {
           provide: ActivatedRoute,

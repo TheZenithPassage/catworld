@@ -11,6 +11,11 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import {
+  NightlyReferenceRate,
+  NightlyReferenceRateApiService,
+  NightlyRateThreshold,
+} from '../../../nightly-rates/services/nightly-reference-rate-api.service';
 import { StayPayments } from '../../components/stay-payments/stay-payments';
 import {
   VaccineConflictDialog,
@@ -27,7 +32,7 @@ import {
 import { StayApiService } from '../../services/stay-api.service';
 import { calculateStayNights } from '../../utils/stay-nights.util';
 import { canModifyStay } from '../../utils/stay-status.util';
-import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
+import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 
 @Component({
   selector: 'app-stay-edit-page',
@@ -49,6 +54,7 @@ export class StayEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly stayApiService = inject(StayApiService);
+  private readonly nightlyReferenceRateApiService = inject(NightlyReferenceRateApiService);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
@@ -65,6 +71,7 @@ export class StayEditPage {
   readonly pricingReason = signal('');
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
+  readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
@@ -93,6 +100,32 @@ export class StayEditPage {
     return current !== null && canModifyStay(current);
   });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
+  readonly currentRateAmount = computed(() => {
+    const preview = this.pricingPreview();
+    const catCount = this.stay()?.cats.length ?? 0;
+
+    if (!preview?.pricingDecisionRequired || catCount < 1) {
+      return null;
+    }
+
+    const threshold = Math.min(catCount, 3) as NightlyRateThreshold;
+    const currentRate = this.currentNightlyRates().find(
+      (rate) => rate.minimumCatCount === threshold,
+    )?.nightlyRate;
+
+    if (
+      currentRate === null ||
+      currentRate === undefined ||
+      !isValidWholeMoney(currentRate) ||
+      /^0+$/.test(currentRate) ||
+      (preview.retainedNightlyRate !== null &&
+        sameWholeMoney(currentRate, preview.retainedNightlyRate))
+    ) {
+      return null;
+    }
+
+    return multiplyWholeMoney(currentRate, preview.numberOfNights);
+  });
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;
     return (
@@ -122,7 +155,15 @@ export class StayEditPage {
   private vaccineOverrideRecoveryBasis: string | null = null;
 
   constructor() {
+    this.loadCurrentNightlyRates();
     this.loadStay();
+  }
+
+  private loadCurrentNightlyRates(): void {
+    this.nightlyReferenceRateApiService.getCurrentRates().subscribe({
+      next: (rates) => this.currentNightlyRates.set(rates),
+      error: () => this.currentNightlyRates.set([]),
+    });
   }
 
   loadStay(): void {
@@ -338,6 +379,17 @@ export class StayEditPage {
     this.pricingConfirmed.set(true);
     this.stalePricing.set(false);
     this.scrollToSubmit();
+  }
+
+  useCurrentRate(): void {
+    const amount = this.currentRateAmount();
+    if (!this.isAdmin() || amount === null) {
+      return;
+    }
+
+    this.agreedAmount.set(amount);
+    this.pricingReasonContext.set('manual');
+    this.onPricingDecisionChange();
   }
 
   private refreshPricingPreview(): void {
