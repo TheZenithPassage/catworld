@@ -63,6 +63,8 @@ export interface StaysTranslations {
     annulled: string;
     registeredBy: string;
     registeredAt: string;
+    annulledBy: string;
+    annulledAt: string;
     register: string;
     edit: string;
     annul: string;
@@ -267,6 +269,8 @@ export const STAYS_TRANSLATIONS = {
       annulled: 'Anulado',
       registeredBy: 'Registrado por',
       registeredAt: 'Registrado el',
+      annulledBy: 'Anulado por',
+      annulledAt: 'Anulado el',
       register: 'Registrar pago',
       edit: 'Editar',
       annul: 'Anular',
@@ -470,6 +474,8 @@ export const STAYS_TRANSLATIONS = {
       annulled: 'Annulled',
       registeredBy: 'Registered by',
       registeredAt: 'Registered at',
+      annulledBy: 'Annulled by',
+      annulledAt: 'Annulled at',
       register: 'Register payment',
       edit: 'Edit',
       annul: 'Annul',

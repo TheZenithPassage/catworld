@@ -189,6 +189,16 @@
               <dt>{{ text().stays.payments.registeredAt }}</dt>
               <dd>{{ formatRegisteredAt(payment.registeredAt) }}</dd>
             </div>
+            @if (payment.state === 'ANNULLED') {
+              <div>
+                <dt>{{ text().stays.payments.annulledBy }}</dt>
+                <dd>{{ payment.annulledByUsername }}</dd>
+              </div>
+              <div>
+                <dt>{{ text().stays.payments.annulledAt }}</dt>
+                <dd>{{ formatRegisteredAt(payment.annulledAt!) }}</dd>
+              </div>
+            }
           </dl>
           <div class="payment-actions">
             @if (payment.state === 'ACTIVE' && canMutate()) {

@@ -8,6 +8,7 @@ import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayPayment;
+import com.allegaeon.catworld.model.StayPaymentAnnulment;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -70,7 +71,9 @@ public class StayMapper {
 
     }
 
-    public StayPaymentResponseDTO toPaymentResponseDTO(StayPayment payment) {
+    public StayPaymentResponseDTO toPaymentResponseDTO(
+            StayPayment payment,
+            StayPaymentAnnulment annulment) {
         return StayPaymentResponseDTO.builder()
                 .paymentId(payment.getId())
                 .amount(payment.getAmount())
@@ -81,6 +84,12 @@ public class StayMapper {
                         : PaymentState.ACTIVE)
                 .registeredByUsername(payment.getRegisteredBy().getUsername())
                 .registeredAt(payment.getCreatedAt())
+                .annulledByUsername(annulment == null
+                        ? null
+                        : annulment.getAnnulledBy().getUsername())
+                .annulledAt(annulment == null
+                        ? null
+                        : annulment.getAnnulledAt())
                 .build();
     }
 

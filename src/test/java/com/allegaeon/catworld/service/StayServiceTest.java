@@ -1621,6 +1621,13 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment payment = payment(stay, "100", false);
             UserAccount admin = user(UserRole.ADMIN);
+            StayPaymentAnnulment existingAnnulment = StayPaymentAnnulment.builder()
+                    .stayId(stay.getId())
+                    .paymentId(payment.getId())
+                    .annulledBy(admin)
+                    .annulledAt(Instant.parse("2026-08-04T10:30:00Z"))
+                    .reason("Payment entered twice")
+                    .build();
             StayResponseDTO response = new StayResponseDTO();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
@@ -1631,6 +1638,9 @@ public class StayServiceTest {
             when(stayPaymentRepository
                     .findAllByStay_IdOrderByCreatedAtAscIdAsc(stay.getId()))
                     .thenReturn(List.of(payment));
+            when(stayPaymentAnnulmentRepository
+                    .findAllByStayIdOrderByAnnulledAtAsc(stay.getId()))
+                    .thenReturn(List.of(existingAnnulment));
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
 
             service.annulPayment(
@@ -1651,6 +1661,7 @@ public class StayServiceTest {
             assertEquals(BigDecimal.ZERO, response.getTotalPaid());
             assertEquals(PaymentCondition.NO_PAYMENT, response.getPaymentCondition());
             assertEquals(new BigDecimal("100"), response.getRemainingAmount());
+            verify(stayMapper).toPaymentResponseDTO(payment, existingAnnulment);
         }
 
         @Test

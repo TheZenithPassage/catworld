@@ -13,6 +13,9 @@ public interface StayPaymentAnnulmentRepository
 
     List<StayPaymentAnnulment> findAllByStayIdOrderByAnnulledAtAsc(UUID stayId);
 
+    List<StayPaymentAnnulment> findAllByStayIdInOrderByAnnulledAtAsc(
+            List<UUID> stayIds);
+
     boolean existsByAnnulledBy_Id(UUID annulledById);
 
     boolean existsByRegisteredBy_Id(UUID registeredById);

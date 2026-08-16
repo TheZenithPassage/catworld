@@ -42,6 +42,8 @@ export interface StayPayment {
   state: PaymentState;
   registeredByUsername: string;
   registeredAt: string;
+  annulledByUsername: string | null;
+  annulledAt: string | null;
 }
 
 export interface PaymentRegistrationRequest {
