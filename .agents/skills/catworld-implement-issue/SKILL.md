@@ -85,14 +85,19 @@ fixed values:
      prefixes such as `[Chore]` or `feat:`. Lowercase it, preserve meaningful
      technical terms, replace non-alphanumeric runs with hyphens, collapse
      repeated hyphens, and keep it concise.
-5. Check whether `refs/heads/<branch>` already exists. If it exists and the
+5. If the derived issue branch equals `startingBaseRef`, stop before Spec Kit,
+   edits, synchronization, or delivery and require an independent intended
+   parent ref from the operator or reliable invocation context. Do not infer a
+   parent through reachability, silently recover another branch, or default to
+   `main`.
+6. Check whether `refs/heads/<branch>` already exists. If it exists and the
    user did not explicitly ask to reuse it, abort. If reuse was authorized,
    inspect `git worktree list --porcelain` read-only before switching. Stop and
    report the blocking worktree if that branch is checked out elsewhere;
    otherwise switch without merging, rebasing, or rewriting history.
-6. If the branch does not exist, create and switch to it from the exact captured
+7. If the branch does not exist, create and switch to it from the exact captured
    commit with `git switch -c <branch> <startingBaseSha>`.
-7. Confirm the issue branch is active before Spec Kit or edits. From this point,
+8. Confirm the issue branch is active before Spec Kit or edits. From this point,
    remain on it for all success, handoff, remediation, and stop paths. Do not
    create, remove, move, clean, allocate, coordinate, or mutate worktrees.
 
@@ -577,6 +582,8 @@ Stop and report the blocker when any of these occur:
 - Working tree is dirty before branch preparation.
 - Detached HEAD has no reliable explicit intended base ref.
 - Target branch already exists without explicit reuse permission.
+- The derived issue branch equals `startingBaseRef` and no independent intended
+  parent ref was explicitly supplied.
 - An explicitly reusable target branch is checked out in another worktree.
 - Spec, plan, or tasks conflict with the issue or constitution.
 - A new human decision is required and not already approved.
@@ -651,7 +658,8 @@ unverified native behavior.
 
 - Starting `HEAD` and intended parent ref are captured independently; the local
   issue branch is created from the exact starting SHA or safely reused, without
-  inferring a detached base or mutating another worktree.
+  inferring a detached base, allowing the issue branch to become its own parent,
+  or mutating another worktree.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
 - The leader completed the initial implementation, confirmed that every earlier
