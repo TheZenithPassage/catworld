@@ -302,6 +302,13 @@ Run this flow in order:
       safe mechanical inconsistency before continuing.
     - Do not stop merely because a generated artifact requested tests that the
       gate does not authorize.
+    - Preserve the validation-stage boundary from the active issue. Evidence
+      that can exist only after commit, push, or pull-request creation—such as
+      live exact-head GitHub Actions runs—must remain pending for the delivery
+      gate. It is not incomplete convergence or pre-delivery implementation
+      work. Mechanically correct any generated spec, plan, task, analysis, or
+      convergence artifact that makes delivery-only evidence a pre-delivery
+      blocker, then rerun `speckit-analyze` before continuing.
 13. Run `speckit-implement`.
 14. When an approved implementation materially changes documented architecture
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
@@ -344,6 +351,11 @@ Run this flow in order:
       of preserving it through consolidation. Rewrite mixed tasks to retain only
       the permitted non-permanent validation, preserve authorized tests, and
       rerun `speckit-analyze` after any resulting artifact edit.
+    - Apply the active issue's validation-stage boundary. Do not classify
+      evidence requiring an opened PR, pushed head, or live exact-head Actions
+      run as remaining convergence work. If a generated artifact incorrectly
+      does so, mechanically reconcile it with the issue, rerun
+      `speckit-analyze`, and keep that evidence pending for delivery.
     - When a convergence task requires MySQL or full-stack backend evidence,
       follow `Isolated Native MySQL Validation` before classifying that evidence
       as unavailable. An initially stopped Docker daemon is not sufficient
@@ -366,8 +378,8 @@ Run this flow in order:
     including authorized convergence tasks that remain after the cycle cap,
     apply the existing stop rules and do not continue to normal ready delivery.
     Otherwise, the leader resumes control for final validation, final test-diff
-    and scope-drift reviews, delivery, checkout restoration, and completion
-    reporting.
+    and scope-drift reviews, delivery, branch-retention verification, and
+    completion reporting.
 20. Run all validations required by the issue, plan, and tasks. When required
     evidence still depends on real MySQL after convergence, the leader must
     follow `Isolated Native MySQL Validation` before treating final validation
