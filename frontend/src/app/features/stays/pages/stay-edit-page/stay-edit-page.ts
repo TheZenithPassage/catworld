@@ -72,6 +72,7 @@ export class StayEditPage {
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
+  readonly workingRetainedNightlyRate = signal<string | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
@@ -100,7 +101,7 @@ export class StayEditPage {
     return current !== null && canModifyStay(current);
   });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
-  readonly currentRateAmount = computed(() => {
+  readonly applicableCurrentRate = computed(() => {
     const preview = this.pricingPreview();
     const catCount = this.stay()?.cats.length ?? 0;
 
@@ -118,16 +119,37 @@ export class StayEditPage {
       currentRate === undefined ||
       !isValidWholeMoney(currentRate) ||
       /^0+$/.test(currentRate) ||
-      (preview.retainedNightlyRate !== null &&
-        sameWholeMoney(currentRate, preview.retainedNightlyRate))
+      multiplyWholeMoney(currentRate, preview.numberOfNights) === null ||
+      (this.stay()?.retainedNightlyRate !== null &&
+        this.stay()?.retainedNightlyRate !== undefined &&
+        sameWholeMoney(currentRate, this.stay()!.retainedNightlyRate!))
     ) {
       return null;
     }
 
-    return multiplyWholeMoney(currentRate, preview.numberOfNights);
+    return currentRate;
+  });
+  readonly workingSuggestedAmount = computed(() => {
+    const preview = this.pricingPreview();
+    const rate = this.workingRetainedNightlyRate();
+    return preview?.pricingDecisionRequired && rate !== null
+      ? multiplyWholeMoney(rate, preview.numberOfNights)
+      : null;
+  });
+  readonly retainedRateActionLabel = computed(() => {
+    const current = this.applicableCurrentRate();
+    if (current === null) return null;
+    const original = this.stay()?.retainedNightlyRate ?? null;
+    const working = this.workingRetainedNightlyRate();
+    if (working === null || !sameWholeMoney(working, current)) {
+      return this.text().stays.pricing.useCurrentRate;
+    }
+    return original === null
+      ? this.text().stays.pricing.returnWithoutRate
+      : this.text().stays.pricing.useOriginalRate;
   });
   readonly reasonRequired = computed(() => {
-    const suggestion = this.pricingPreview()?.suggestedAmount;
+    const suggestion = this.workingSuggestedAmount();
     return (
       suggestion !== null &&
       suggestion !== undefined &&
@@ -153,6 +175,7 @@ export class StayEditPage {
   private readonly stayId = this.route.snapshot.paramMap.get('id');
   private previewRequestSequence = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
+  private agreedAmountBeforeCurrentRate: string | null = null;
 
   constructor() {
     this.loadCurrentNightlyRates();
@@ -250,7 +273,11 @@ export class StayEditPage {
               agreedAmount: this.agreedAmount(),
               reason: this.pricingReason().trim() || null,
             },
-            confirmation: preview.confirmation,
+            confirmation: {
+              ...preview.confirmation,
+              retainedNightlyRate: this.workingRetainedNightlyRate(),
+              suggestedAmount: this.workingSuggestedAmount(),
+            },
           }
         : {}),
     };
@@ -277,6 +304,9 @@ export class StayEditPage {
           this.submitting.set(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
+          this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+          this.agreedAmountBeforeCurrentRate = null;
+          this.loadCurrentNightlyRates();
           this.showError(this.text().stays.pricing.errors.stale);
           this.refreshPricingPreview();
           return;
@@ -330,6 +360,8 @@ export class StayEditPage {
     this.endAt.set(this.toDateTimeLocalValue(stay.endAt));
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
+    this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
+    this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
 
@@ -368,27 +400,43 @@ export class StayEditPage {
   }
 
   useSuggestedAmount(): void {
-    const preview = this.pricingPreview();
-    if (!this.isAdmin() || !preview?.pricingDecisionRequired || preview.suggestedAmount === null) {
+    const suggestion = this.workingSuggestedAmount();
+    if (!this.isAdmin() || !this.pricingPreview()?.pricingDecisionRequired || suggestion === null) {
       return;
     }
 
-    this.agreedAmount.set(preview.suggestedAmount);
+    this.agreedAmount.set(suggestion);
     this.pricingReason.set('');
     this.pricingReasonContext.set('suggested');
-    this.pricingConfirmed.set(true);
+    this.pricingConfirmed.set(false);
     this.stalePricing.set(false);
-    this.scrollToSubmit();
   }
 
-  useCurrentRate(): void {
-    const amount = this.currentRateAmount();
-    if (!this.isAdmin() || amount === null) {
+  toggleRetainedRate(): void {
+    const currentRate = this.applicableCurrentRate();
+    const originalRate = this.stay()?.retainedNightlyRate ?? null;
+    const preview = this.pricingPreview();
+    if (!this.isAdmin() || currentRate === null || !preview?.pricingDecisionRequired) {
       return;
     }
 
-    this.agreedAmount.set(amount);
-    this.pricingReasonContext.set('manual');
+    const workingRate = this.workingRetainedNightlyRate();
+    if (workingRate === null || !sameWholeMoney(workingRate, currentRate)) {
+      if (originalRate === null) this.agreedAmountBeforeCurrentRate = this.agreedAmount();
+      this.workingRetainedNightlyRate.set(currentRate);
+      const currentSuggestion = multiplyWholeMoney(currentRate, preview.numberOfNights);
+      if (currentSuggestion === null) return;
+      this.agreedAmount.set(currentSuggestion);
+    } else {
+      this.workingRetainedNightlyRate.set(originalRate);
+      const restoredAgreement =
+        originalRate === null
+          ? (this.agreedAmountBeforeCurrentRate ?? this.agreedAmount())
+          : multiplyWholeMoney(originalRate, preview.numberOfNights);
+      if (restoredAgreement !== null) this.agreedAmount.set(restoredAgreement);
+    }
+    this.pricingReason.set('');
+    this.pricingReasonContext.set('suggested');
     this.onPricingDecisionChange();
   }
 

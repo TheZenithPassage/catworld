@@ -80,8 +80,21 @@
                   <dd>{{ preview.numberOfNights }}</dd>
                 </div>
                 <div>
+                  <dt>{{ text().stays.pricing.retainedRate }}</dt>
+                  <dd class="retained-rate-value">
+                    <span>{{
+                      workingRetainedNightlyRate() ?? text().stays.pricing.unavailable
+                    }}</span>
+                    @if (retainedRateActionLabel(); as actionLabel) {
+                      <button mat-stroked-button type="button" (click)="toggleRetainedRate()">
+                        {{ actionLabel }}
+                      </button>
+                    }
+                  </dd>
+                </div>
+                <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
-                  <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
+                  <dd>{{ workingSuggestedAmount() ?? text().stays.pricing.unavailable }}</dd>
                 </div>
               </dl>
               @if (!preview.pricingDecisionRequired) {
@@ -105,18 +118,11 @@
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
                   }
                 </mat-form-field>
-                @if (preview.suggestedAmount !== null || currentRateAmount() !== null) {
+                @if (workingSuggestedAmount() !== null) {
                   <div class="pricing-helper-actions">
-                    @if (preview.suggestedAmount !== null) {
-                      <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
-                        {{ text().stays.pricing.useSuggestedAmount }}
-                      </button>
-                    }
-                    @if (currentRateAmount() !== null) {
-                      <button mat-stroked-button type="button" (click)="useCurrentRate()">
-                        {{ text().stays.pricing.useCurrentRate }}
-                      </button>
-                    }
+                    <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
+                      {{ text().stays.pricing.useSuggestedAmount }}
+                    </button>
                   </div>
                 }
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">

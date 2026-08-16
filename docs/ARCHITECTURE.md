@@ -110,6 +110,13 @@ A `Stay` contains:
 - participating cats through `StayCat`
 - the application account that created it
 
+When an ADMIN changes the authoritative night count, the pricing confirmation
+may retain the stay's original nullable nightly rate or select the current
+applicable `ONE_CAT`/`TWO_CATS`/`THREE_PLUS_CATS` rate. The service locks the
+stay and, for a current-rate selection, the applicable rate row; it rejects
+arbitrary or stale selections, derives the suggestion from the selected rate,
+and changes the stay snapshot only after the complete update validates.
+
 #### StayCat
 
 Represents the link between a `Stay` and a `Cat`.
@@ -148,7 +155,7 @@ It records the category, exact previous and new nullable amounts, the
 #### StayPricingDecision
 
 Represents one immutable pricing confirmation for a stay. It records the
-retained nightly rate, previous and new authoritative night counts, previous
+selected retained nightly rate, previous and new authoritative night counts, previous
 and new agreed amounts, optional reason, deciding `UserAccount` and
 application-clock timestamp. It stores the stay UUID as audit evidence rather
 than a foreign key so the history survives operational stay deletion.
@@ -314,10 +321,12 @@ most 19 digits, including zero. A non-blank reason is required exactly when an
 available suggestion differs numerically from the agreement.
 
 Only a change to the authoritative night count is pricing-affecting. Such an
-update requires `ADMIN`, a fresh explicit pricing decision and the stay's
-retained rate. The service pessimistically locks the stay before comparing
-night counts, then changes the agreement and appends its immutable decision in
-one transaction. Equal-night date or time changes do not reconfirm pricing.
+update requires `ADMIN`, a fresh explicit pricing decision and a selected
+retained rate that is either the locked stay's original nullable value or the
+locked current applicable category rate. The service derives the suggestion
+from that selected rate, then changes the retained-rate snapshot and agreement
+and appends its immutable decision in one transaction only after the complete
+stay update validates. Equal-night date or time changes do not reconfirm pricing.
 
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
 read-only authoritative creation preview from proposed dates and selected cats.
@@ -336,12 +345,14 @@ nested operational payments and sensitive economic activity variants, serialize
 as JSON strings when non-null so supported 19-digit values remain exact.
 
 The final pricing decision carries that confirmation. Creation locks and rereads
-the applicable category rate; a pricing-affecting update uses the already locked
-stay. The service recalculates the complete basis inside the mutation transaction
-and compares the confirmation before any operational or pricing-history write.
-A missing confirmation is invalid, while a changed rate, requested pricing input,
-or persisted existing-stay basis returns `409 Conflict` atomically. The
-confirmation is not a client-authoritative quote and is never persisted.
+the applicable category rate. A pricing-affecting update locks the stay and also
+locks the applicable category row when the client selects the current rate. The
+service authorizes only the original or current selected rate, recalculates the
+complete basis inside the mutation transaction and compares the confirmation
+before any operational or pricing-history write. A missing confirmation is
+invalid, while a stale current rate, arbitrary selected rate, requested pricing
+input, or persisted existing-stay basis returns `409 Conflict` atomically. The
+confirmation is not otherwise client-authoritative and is never persisted.
 
 ### Agreed Amounts Have a Focused Administrative Correction Path
 

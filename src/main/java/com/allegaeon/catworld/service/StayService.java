@@ -276,33 +276,31 @@ public class StayService implements IStayService {
         boolean pricingAffecting = previousNumberOfNights != newNumberOfNights;
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
         BigDecimal newAgreedAmount = null;
+        BigDecimal selectedRetainedNightlyRate = stay.getRetainedNightlyRate();
         UserAccount currentUser = null;
 
         if (pricingAffecting) {
             currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
-            validateDateChangeConfirmation(
+            selectedRetainedNightlyRate = validateDateChangeConfirmation(
                     stayUpdateDTO.getConfirmation(), previousNumberOfNights,
                     previousAgreedAmount, newNumberOfNights,
-                    stay.getRetainedNightlyRate(),
-                    stayMapper.calculateSuggestedAmount(
-                            stay.getRetainedNightlyRate(), newNumberOfNights));
+                    stay);
+            BigDecimal selectedSuggestion = stayMapper.calculateSuggestedAmount(
+                    selectedRetainedNightlyRate, newNumberOfNights);
+            if (!sameMoney(
+                    stayUpdateDTO.getConfirmation().getSuggestedAmount(),
+                    selectedSuggestion)) {
+                throw new StalePricingConfirmationException();
+            }
             newAgreedAmount = validatePricingDecision(
                     stayUpdateDTO.getPricingDecision(),
-                    stayMapper.calculateSuggestedAmount(
-                            stay.getRetainedNightlyRate(),
-                            newNumberOfNights
-                    )
+                    selectedSuggestion
             );
             validateAgreementFloor(stayId, newAgreedAmount);
         }
 
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
-
-        stay = stayMapper.updateEntity(stay, stayUpdateDTO);
-        if (pricingAffecting) {
-            stay.setAgreedAmount(newAgreedAmount);
-        }
 
         List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
 
@@ -321,6 +319,12 @@ public class StayService implements IStayService {
                         stayUpdateDTO.isOverrideVaccineConflicts(),
                         currentUser);
             }
+        }
+
+        stay = stayMapper.updateEntity(stay, stayUpdateDTO);
+        if (pricingAffecting) {
+            stay.setRetainedNightlyRate(selectedRetainedNightlyRate);
+            stay.setAgreedAmount(newAgreedAmount);
         }
 
         Stay savedStay = stayRepository.save(stay);
@@ -780,11 +784,10 @@ public class StayService implements IStayService {
         }
     }
 
-    private void validateDateChangeConfirmation(
+    private BigDecimal validateDateChangeConfirmation(
             ExistingStayPricingConfirmationDTO confirmation,
             long previousNights, BigDecimal previousAgreement,
-            long proposedNights, BigDecimal retainedRate,
-            BigDecimal suggestion) {
+            long proposedNights, Stay stay) {
         if (confirmation == null
                 || confirmation.getPreviousNumberOfNights() == null
                 || confirmation.getNumberOfNights() == null) {
@@ -792,11 +795,37 @@ public class StayService implements IStayService {
         }
         if (confirmation.getPreviousNumberOfNights() != previousNights
                 || !sameMoney(confirmation.getPreviousAgreedAmount(), previousAgreement)
-                || confirmation.getNumberOfNights() != proposedNights
-                || !sameMoney(confirmation.getRetainedNightlyRate(), retainedRate)
-                || !sameMoney(confirmation.getSuggestedAmount(), suggestion)) {
+                || confirmation.getNumberOfNights() != proposedNights) {
             throw new StalePricingConfirmationException();
         }
+
+        BigDecimal submittedRate = confirmation.getRetainedNightlyRate();
+        if (submittedRate != null
+                && (submittedRate.signum() <= 0
+                || !WholeMonetaryAmount.isSupported(submittedRate))) {
+            throw new StalePricingConfirmationException();
+        }
+        BigDecimal selectedRate = canonicalizeNullable(submittedRate);
+        BigDecimal originalRate = canonicalizeNullable(
+                stay.getRetainedNightlyRate());
+        if (sameMoney(selectedRate, originalRate)) {
+            return originalRate;
+        }
+
+        NightlyReferenceRateCategory category = NightlyReferenceRateCategory
+                .fromActualCatCount(stay.getStayCats().size())
+                .orElseThrow(StalePricingConfirmationException::new);
+        BigDecimal currentRate = nightlyReferenceRateRepository
+                .findByCategoryForUpdate(category)
+                .map(NightlyReferenceRate::getNightlyRate)
+                .filter(rate -> rate.signum() > 0)
+                .filter(WholeMonetaryAmount::isSupported)
+                .map(WholeMonetaryAmount::canonicalize)
+                .orElseThrow(StalePricingConfirmationException::new);
+        if (!sameMoney(selectedRate, currentRate)) {
+            throw new StalePricingConfirmationException();
+        }
+        return currentRate;
     }
 
     private boolean sameMoney(BigDecimal clientValue, BigDecimal authoritative) {

@@ -781,6 +781,152 @@ public class StayServiceTest {
         }
 
         @Test
+        void selectedCurrentRatePersistsAndIsRecordedByPricingDecision() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(3))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(new BigDecimal("30"))
+                    .build();
+            linkStayAndCat(stay, Cat.builder().id(UUID.randomUUID()).build());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(2))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("24"))
+                            .build())
+                    .confirmation(ExistingStayPricingConfirmationDTO.builder()
+                            .previousNumberOfNights(3L)
+                            .previousAgreedAmount(new BigDecimal("30"))
+                            .numberOfNights(2L)
+                            .retainedNightlyRate(new BigDecimal("12"))
+                            .suggestedAmount(new BigDecimal("24"))
+                            .build())
+                    .build();
+            UserAccount admin = user(UserRole.ADMIN);
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
+                    NightlyReferenceRateCategory.ONE_CAT))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .nightlyRate(new BigDecimal("12"))
+                            .build()));
+            when(stayMapper.updateEntity(stay, request)).thenAnswer(invocation -> {
+                stay.setStartAt(request.getStartAt());
+                stay.setEndAt(request.getEndAt());
+                return stay;
+            });
+            when(stayRepository.save(stay)).thenReturn(stay);
+            when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+
+            service.updateStay(stay.getId(), request);
+
+            assertEquals(new BigDecimal("12"), stay.getRetainedNightlyRate());
+            assertEquals(new BigDecimal("24"), stay.getAgreedAmount());
+            verify(stayPricingDecisionRepository).saveAndFlush(
+                    pricingDecisionCaptor.capture());
+            assertEquals(new BigDecimal("12"),
+                    pricingDecisionCaptor.getValue().getRetainedNightlyRate());
+            assertEquals(new BigDecimal("24"),
+                    pricingDecisionCaptor.getValue().getNewAgreedAmount());
+        }
+
+        @Test
+        void changedCurrentRateRejectsSelectedRateBeforeAnyStayMutation() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(3))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(new BigDecimal("30"))
+                    .build();
+            linkStayAndCat(stay, Cat.builder().id(UUID.randomUUID()).build());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(2))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("24"))
+                            .build())
+                    .confirmation(ExistingStayPricingConfirmationDTO.builder()
+                            .previousNumberOfNights(3L)
+                            .previousAgreedAmount(new BigDecimal("30"))
+                            .numberOfNights(2L)
+                            .retainedNightlyRate(new BigDecimal("12"))
+                            .suggestedAmount(new BigDecimal("24"))
+                            .build())
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
+                    NightlyReferenceRateCategory.ONE_CAT))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .nightlyRate(new BigDecimal("13"))
+                            .build()));
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+
+            assertEquals(new BigDecimal("10"), stay.getRetainedNightlyRate());
+            assertEquals(new BigDecimal("30"), stay.getAgreedAmount());
+            verify(stayMapper, never()).updateEntity(any(), any());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        void overlapAfterCurrentRateSelectionPreservesOriginalPricing() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID()).startAt(startAt)
+                    .endAt(startAt.plusDays(3))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .agreedAmount(new BigDecimal("30")).build();
+            Stay conflict = Stay.builder()
+                    .id(UUID.randomUUID()).startAt(startAt.plusDays(1))
+                    .endAt(startAt.plusDays(4)).build();
+            Cat cat = Cat.builder().id(UUID.randomUUID()).name("Overlap Cat").build();
+            linkStayAndCat(stay, cat);
+            linkStayAndCat(conflict, cat);
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(startAt).endAt(startAt.plusDays(2))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("24")).build())
+                    .confirmation(ExistingStayPricingConfirmationDTO.builder()
+                            .previousNumberOfNights(3L)
+                            .previousAgreedAmount(new BigDecimal("30"))
+                            .numberOfNights(2L)
+                            .retainedNightlyRate(new BigDecimal("12"))
+                            .suggestedAmount(new BigDecimal("24")).build())
+                    .build();
+
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
+                    NightlyReferenceRateCategory.ONE_CAT))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .nightlyRate(new BigDecimal("12")).build()));
+
+            assertThrows(ConflictException.class,
+                    () -> service.updateStay(stay.getId(), request));
+
+            assertEquals(new BigDecimal("10"), stay.getRetainedNightlyRate());
+            assertEquals(new BigDecimal("30"), stay.getAgreedAmount());
+            verify(stayMapper, never()).updateEntity(any(), any());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
         void equalNightCountDateShiftRequiresNoPricingDecisionOrEvent() {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder()
@@ -2375,7 +2521,6 @@ public class StayServiceTest {
             linkStayAndCat(stayToModify, cat);
 
             when(stayRepository.findById(stayToModify.getId())).thenReturn(Optional.of(stayToModify));
-            when(stayMapper.updateEntity(stayToModify, updateDto)).thenReturn(stayToModify);
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
@@ -2934,7 +3079,6 @@ public class StayServiceTest {
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(stayMapper.updateEntity(stay, request)).thenReturn(stay);
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
 
             confirmDateChange(stay, request);
