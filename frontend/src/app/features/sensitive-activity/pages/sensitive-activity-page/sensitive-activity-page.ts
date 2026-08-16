@@ -219,6 +219,20 @@ export class SensitiveActivityPage {
     return value ?? this.text().sensitiveActivity.unavailable;
   }
 
+  suggestedAmount(event: { retainedNightlyRate: string; numberOfNights: number }): string {
+    const negative = event.retainedNightlyRate.startsWith('-');
+    const unsignedAmount = negative
+      ? event.retainedNightlyRate.slice(1)
+      : event.retainedNightlyRate;
+    const [whole, fraction = ''] = unsignedAmount.split('.');
+    const scaledProduct = BigInt(`${whole}${fraction}`) * BigInt(event.numberOfNights);
+    const scaledText = scaledProduct.toString().padStart(fraction.length + 1, '0');
+    const amount = fraction.length
+      ? `${scaledText.slice(0, -fraction.length)}.${scaledText.slice(-fraction.length)}`
+      : scaledText;
+    return negative && scaledProduct !== 0n ? `-${amount}` : amount;
+  }
+
   formatDate(value: string): string {
     return this.businessTime.formatInstant(value, this.dateLocale());
   }
