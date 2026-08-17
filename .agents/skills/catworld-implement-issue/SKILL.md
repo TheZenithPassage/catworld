@@ -37,16 +37,18 @@ issue URL, treat it as an end-to-end CatWorld issue implementation request.
 - May create and switch local branches for the active issue.
 - May commit scoped implementation changes on the active issue branch after the required implementation and validation work is complete.
 - May push the active issue branch to `origin` with a normal non-force push.
-- May open a pull request targeting `main`, or update the existing pull request for the same active issue branch.
+- May open a pull request targeting the captured `startingBaseRef`, or update
+  the existing pull request for the same active issue branch and base.
 - May implement review fixes as new follow-up commits on the same PR branch, then push normally.
 - Do not modify GitHub issues unless explicitly requested.
-- Do not merge.
-- Do not merge pull requests.
+- Do not merge pull requests or merge the issue branch into its captured parent.
+- The only permitted branch merge is the explicitly scoped
+  `origin/<startingBaseRef>`-into-issue-branch synchronization in step 24.
 - Do not enable auto-merge.
 - Do not approve Codex's own pull request.
-- Do not write directly to `main`.
-- Do not commit directly on `main`, merge any branch into local `main`, push directly to `main`, or use `main` as a delivery branch.
-- Do not update local `main` or pull unrelated changes into `main` unless the user explicitly requests a specific maintenance operation.
+- Do not write directly to the captured parent branch.
+- Do not commit or push directly to the captured parent, use it as a delivery
+  branch, or mutate its checkout in this or another worktree.
 - Do not use `git push --force`, `git push --force-with-lease`, rebase-push workflows, or any history-rewriting remote update unless the user explicitly requests it.
 - Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, or post public GitHub comments unless explicitly requested where applicable.
 - Do not generate example feature directories.
@@ -54,15 +56,26 @@ issue URL, treat it as an end-to-end CatWorld issue implementation request.
 ## Branch Preparation
 
 Fetch the issue title and labels read-only for branch naming, then prepare the
-local branch before running Spec Kit. Branch preparation may fetch and inspect
-`main`, but it must not update local `main` or use `main` as the delivery
-branch.
+local branch from the operator-selected starting context before running Spec
+Kit. Treat the exact starting commit and intended pull-request base as separate
+fixed values:
+
+- `startingBaseSha` is the exact `HEAD` captured before any branch switch or
+  creation.
+- `startingBaseRef` is the symbolic branch selected by the operator, or an
+  explicit reliable base ref supplied by invocation/runtime context for a
+  detached start. Keep it fixed for the run.
 
 1. Confirm the working tree is clean with `git status --porcelain`. If any
    output appears, abort and report the dirty paths.
-2. Fetch the current remote main ref with `git fetch origin main`. If
-   `origin/main` is unavailable after the fetch, abort.
-3. Derive the target local branch name from the issue number, title, and labels:
+2. Capture `startingBaseSha` from `git rev-parse HEAD` before any branch change.
+3. Resolve `startingBaseRef` independently:
+   - Use the current symbolic branch when one is checked out.
+   - For detached HEAD, require an explicit reliable base ref from invocation
+     or runtime context or the operator; if none exists, stop before editing.
+   - Never search for branches containing `startingBaseSha`, infer a base from
+     commit reachability, or fall back to `main`.
+4. Derive the target local branch name from the issue number, title, and labels:
    - Format: `<type>/<issue-number>-<short-description>`.
    - Infer `<type>` from the issue title prefix first, then labels. Recognize
      common conventional types such as `feat`, `fix`, `docs`, `test`, `chore`,
@@ -73,13 +86,21 @@ branch.
      prefixes such as `[Chore]` or `feat:`. Lowercase it, preserve meaningful
      technical terms, replace non-alphanumeric runs with hyphens, collapse
      repeated hyphens, and keep it concise.
-4. Check whether `refs/heads/<branch>` already exists. If it exists and the
-   user did not explicitly ask to reuse it, abort. If reuse was explicitly
-   requested, switch to it without merging.
-5. If the branch does not exist, create and switch to it from `origin/main` with
-   `git switch -c <branch> origin/main`.
-6. Confirm the current branch is not `main` before running any Spec Kit command
-   or editing files.
+5. If the derived issue branch equals `startingBaseRef`, stop before Spec Kit,
+   edits, synchronization, or delivery and require an independent intended
+   parent ref from the operator or reliable invocation context. Do not infer a
+   parent through reachability, silently recover another branch, or default to
+   `main`.
+6. Check whether `refs/heads/<branch>` already exists. If it exists and the
+   user did not explicitly ask to reuse it, abort. If reuse was authorized,
+   inspect `git worktree list --porcelain` read-only before switching. Stop and
+   report the blocking worktree if that branch is checked out elsewhere;
+   otherwise switch without merging, rebasing, or rewriting history.
+7. If the branch does not exist, create and switch to it from the exact captured
+   commit with `git switch -c <branch> <startingBaseSha>`.
+8. Confirm the issue branch is active before Spec Kit or edits. From this point,
+   remain on it for all success, handoff, remediation, and stop paths. Do not
+   create, remove, move, clean, allocate, coordinate, or mutate worktrees.
 
 Examples:
 
@@ -287,6 +308,13 @@ Run this flow in order:
       safe mechanical inconsistency before continuing.
     - Do not stop merely because a generated artifact requested tests that the
       gate does not authorize.
+    - Preserve the validation-stage boundary from the active issue. Evidence
+      that can exist only after commit, push, or pull-request creation—such as
+      live exact-head GitHub Actions runs—must remain pending for the delivery
+      gate. It is not incomplete convergence or pre-delivery implementation
+      work. Mechanically correct any generated spec, plan, task, analysis, or
+      convergence artifact that makes delivery-only evidence a pre-delivery
+      blocker, then rerun `speckit-analyze` before continuing.
 13. Run `speckit-implement`.
 14. When an approved implementation materially changes documented architecture
     or implemented behavior recorded in `docs/ARCHITECTURE.md`, update that
@@ -329,6 +357,11 @@ Run this flow in order:
       of preserving it through consolidation. Rewrite mixed tasks to retain only
       the permitted non-permanent validation, preserve authorized tests, and
       rerun `speckit-analyze` after any resulting artifact edit.
+    - Apply the active issue's validation-stage boundary. Do not classify
+      evidence requiring an opened PR, pushed head, or live exact-head Actions
+      run as remaining convergence work. If a generated artifact incorrectly
+      does so, mechanically reconcile it with the issue, rerun
+      `speckit-analyze`, and keep that evidence pending for delivery.
     - When a convergence task requires MySQL or full-stack backend evidence,
       follow `Isolated Native MySQL Validation` before classifying that evidence
       as unavailable. An initially stopped Docker daemon is not sufficient
@@ -351,8 +384,8 @@ Run this flow in order:
     including authorized convergence tasks that remain after the cycle cap,
     apply the existing stop rules and do not continue to normal ready delivery.
     Otherwise, the leader resumes control for final validation, final test-diff
-    and scope-drift reviews, delivery, checkout restoration, and completion
-    reporting.
+    and scope-drift reviews, delivery, branch-retention verification, and
+    completion reporting.
 20. Run all validations required by the issue, plan, and tasks. When required
     evidence still depends on real MySQL after convergence, the leader must
     follow `Isolated Native MySQL Validation` before treating final validation
@@ -386,10 +419,35 @@ Run this flow in order:
       justification, especially late cleanup touching shared shell, global styles,
       shared components, routing, contracts, migrations, authorization, persistence,
       security, or other cross-cutting surfaces.
-24. After implementation and required validation, if the current branch is not
-    `main`, commit the scoped changes with a conventional commit title, push the
-    active issue branch to `origin` with a normal non-force push, and open or
-    update a pull request targeting `main`.
+24. After implementation, convergence, required fresh local validation, test-
+    diff review, and scope-drift review, commit the scoped changes normally so
+    the active issue branch is clean. Immediately before its first push and
+    pull-request delivery, synchronize it with the captured parent:
+    - Fetch only the required parent ref with
+      `git fetch origin <startingBaseRef>`.
+    - Stop without retargeting if `origin/<startingBaseRef>` does not exist.
+    - Verify `startingBaseSha` is an ancestor of the current remote parent. Stop
+      without guessing a replacement base, rebasing, force-pushing, or mutating
+      the parent when it is not; this includes unpublished local starts and
+      rewritten or diverged remote parent history.
+    - If the issue branch already contains the current remote parent, do not
+      merge. Otherwise merge `origin/<startingBaseRef>` normally into the issue
+      branch.
+    - Resolve merge conflicts only when the issue, constitution, current parent
+      behavior, and repository sources of truth make the correct result fully
+      deterministic. Stop for human direction when resolution requires a new
+      product, architecture, authorization, persistence, shared-contract, UX,
+      correctness-sensitive, operational, or scope decision.
+    - Complete a normal merge commit when required. A parent merge makes
+      affected earlier evidence stale: rerun all issue-required and affected
+      validation. Correct exposed incompatibilities only within approved scope,
+      reapply the permanent-test and scope gates, create normal follow-up
+      commits, and rerun affected validation. Stop on decision or scope expansion.
+    - Do not repeatedly poll or merge later parent advances merely because the
+      parent moves again after the pull request opens.
+    After synchronization and fresh validation, push only the active issue
+    branch to `origin` with a normal non-force push and open or update a pull
+    request targeting the fixed `startingBaseRef`.
     - Skip commit, push, and pull request delivery only when the user explicitly
       asks for local-only or no-delivery execution, or when a stop condition
       prevents safe delivery.
@@ -410,9 +468,6 @@ Run this flow in order:
       - Record `reviewed remote head SHAs: none`.
       - Record `final review result: not run — external review requested`.
       - Record `automatic remediation commits: none`.
-      - If the working tree is clean, switch back to `main` without pulling,
-        merging, rebasing, pruning, deleting branches, or otherwise updating
-        `main`.
       - Continue directly to step 30 and then stop.
     - Otherwise, keep the active issue branch checked out and continue to the
       independent review gate in step 25.
@@ -426,6 +481,9 @@ Run this flow in order:
     - Never switch branches while remediation changes remain uncommitted.
 26. Before every review round, wait for all required checks tied to the expected
     head SHA to reach a terminal state:
+    - Backend CI and Frontend CI are expected for every pull-request base.
+      Absence of either expected workflow is missing or unavailable evidence,
+      never success or a special non-`main` exemption.
     - Use the available bounded wait or monitoring mechanism. Pending checks do
       not consume a review verdict or review-round budget.
     - Failed terminal checks remain review evidence; they do not bypass the
@@ -462,35 +520,34 @@ Run this flow in order:
     - Non-blocking findings or optional improvements never enter automatic
       implementation. Preserve them for the final report and finish the gate
       when no blocking finding remains.
-    - When verdict one or two contains bounded blocking findings and the
-      reviewer supplies a remediation brief requiring no human decision, the
-      leader may apply only that bounded remediation on the active issue branch.
+    - When verdict one, two, or three contains bounded blocking findings and
+      the reviewer supplies a remediation brief requiring no human decision,
+      the leader may apply only that bounded remediation on the active issue branch.
       Preserve any accompanying non-blocking observations as report-only.
     - For every allowed remediation, reapply the permanent-test authorization
       gate, remove unauthorized permanent-test work, rerun affected and
       issue-required validation, inspect test and scope diffs, create a normal
       follow-up commit, and push normally without rewriting history. Capture
-      the new remote head SHA, increment the automatic remediation count, then
-      return to step 26 and use a fresh reviewer for the complete new head.
+      the new remote head SHA and increment the automatic remediation count.
+      After remediation from verdict one or two, return to step 26 and use a
+      fresh reviewer for the complete new head. After remediation from verdict
+      three, do not return to step 26 or launch a fourth reviewer: stop because
+      the review budget is exhausted and report the new remote head as `not
+      independently reviewed after third remediation`, not as approved.
     - Stop without further automatic changes when a human decision is required,
       remediation is unbounded or scope-expanding, repository state is unsafe,
       required evidence is unavailable, remediation or required validation
       fails outside safely correctable approved scope, or any other existing
       workflow stop applies.
-    - A blocking third verdict is terminal even when its remediation would
-      otherwise be bounded. Do not perform a third remediation or seek a fourth
-      verdict.
-    - Across the gate, allow no more than three verdicts and no more than two
+    - When verdict three has no usable bounded remediation, requires a human
+      decision, or its remediation or required validation fails, preserve the
+      applicable terminal-stop behavior without a fourth verdict.
+    - Across the gate, allow no more than three verdicts and no more than three
       automatic remediation rounds.
-29. After the review gate approves or reaches a terminal stop, restore checkout
-    only when the working tree contains no uncommitted remediation:
-    - Switch the local checkout back to `main` after recording the final gate
-      outcome. A terminal stop remains a blocker and must be reported even when
-      clean checkout restoration succeeds.
-    - If remediation changes remain uncommitted, do not switch branches; stop
-      and report the active branch and dirty paths.
-    - Do not pull, merge, rebase, prune remotes, delete branches, or otherwise
-      update `main` during checkout restoration.
+29. After the review gate approves or reaches a terminal stop, keep the active
+    issue branch checked out. If remediation changes remain uncommitted, stop
+    and report the dirty paths without switching branches. Never restore the
+    captured parent, `main`, or another branch.
 30. Report final status with:
     - concise summary;
     - validation commands executed and explicit statuses;
@@ -506,6 +563,7 @@ Run this flow in order:
     - number of independent review rounds;
     - reviewed remote head SHA for every round;
     - final review result;
+    - final remote head SHA and whether that head was independently reviewed;
     - automatic remediation commit hashes;
     - unresolved blocking findings;
     - reported non-blocking observations;
@@ -516,8 +574,8 @@ Run this flow in order:
       exact scenario and observed evidence, cleanup status, and any remaining
       unverified native behavior;
     - current local checkout branch;
-    - confirmation that the checkout was switched back to `main` when delivery
-      and review-gate handling completed with a clean working tree.
+    - `startingBaseSha` and fixed `startingBaseRef`, parent-synchronization
+      result, and confirmation that the issue branch remains checked out.
     If delivery cannot be completed, or if the user explicitly requested
     local-only or no-delivery execution, include the blocker or reason, the
     current branch state, a suggested conventional commit title, and a suggested
@@ -528,8 +586,11 @@ Run this flow in order:
 Stop and report the blocker when any of these occur:
 
 - Working tree is dirty before branch preparation.
-- `origin/main` cannot be fetched or inspected for branch preparation.
+- Detached HEAD has no reliable explicit intended base ref.
 - Target branch already exists without explicit reuse permission.
+- The derived issue branch equals `startingBaseRef` and no independent intended
+  parent ref was explicitly supplied.
+- An explicitly reusable target branch is checked out in another worktree.
 - Spec, plan, or tasks conflict with the issue or constitution.
 - A new human decision is required and not already approved.
 - The plan selects a materially different approach from the approved issue or a
@@ -558,8 +619,12 @@ Stop and report the blocker when any of these occur:
 - Review remediation requires a human decision, is unbounded or scope-expanding,
   encounters unsafe repository state, or cannot complete required validation
   within approved scope.
-- A third independent verdict remains blocking. No third remediation or fourth
+- A third independent verdict has no usable bounded remediation, requires a
+  human decision, or its remediation or required validation fails. No fourth
   verdict is allowed.
+- A third automatic remediation completed and its new remote head was captured.
+  Stop because the review budget is exhausted, do not launch a fourth reviewer,
+  and report that head as not independently reviewed rather than approved.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
   for draft PR review with the failure clearly reported.
@@ -567,6 +632,10 @@ Stop and report the blocker when any of these occur:
   honestly reported within the approved scope.
 - Changed files or surfaces outside the issue/spec/plan/tasks source map cannot be
   justified without changing approved scope.
+- `origin/<startingBaseRef>` is missing at first delivery, or `startingBaseSha`
+  is not an ancestor of that remote parent.
+- Parent synchronization has a conflict whose correct resolution requires a new
+  material decision, or exposes an incompatibility requiring scope expansion.
 
 ## Completion Report
 
@@ -585,7 +654,8 @@ validation freshness status, and any scope-drift review findings. When delivery
 operations were performed, include the commit hash or hashes, PR URL, ready or
 draft PR status, review-round count and per-round head SHAs, final review
 result, automatic remediation commit hashes, unresolved blocking findings,
-non-blocking observations, and current local checkout branch. When delivery
+non-blocking observations, the final remote head SHA and whether it was
+independently reviewed, and current local checkout branch. When delivery
 operations were not performed, include the suggested commit title and pull
 request description.
 
@@ -597,8 +667,10 @@ unverified native behavior.
 
 ## Done When
 
-- Local issue branch is prepared from current `origin/main` without using
-  `main` as a delivery branch.
+- Starting `HEAD` and intended parent ref are captured independently; the local
+  issue branch is created from the exact starting SHA or safely reused, without
+  inferring a detached base, allowing the issue branch to become its own parent,
+  or mutating another worktree.
 - Spec Kit artifacts are generated and checked against the issue and
   constitution.
 - The leader completed the initial implementation, confirmed that every earlier
@@ -628,16 +700,20 @@ unverified native behavior.
   - no authorized convergence tasks remain after the worker's final pass;
   - scoped changes have been committed on the active issue branch;
   - the branch has been pushed normally;
-  - a PR targeting `main` has been opened or updated;
+  - the compatible current remote captured parent was integrated before first
+    delivery and affected evidence was refreshed;
+  - a PR targeting the fixed `startingBaseRef` has been opened or updated;
   - required checks for every reviewed head reached a terminal state before its
     counted review;
   - every review round used a fresh project-scoped read-only reviewer that
     reconstructed and assessed the complete live PR head;
-  - the final independent verdict is tied to the final remote head SHA;
-  - no more than three verdicts or two automatic remediation rounds occurred;
+  - the final independent verdict is tied to the final remote head SHA, unless
+    a bounded third remediation produced the terminal post-remediation head;
+    that head is reported as not independently reviewed after third remediation
+    and is not described as approved;
+  - no more than three verdicts or three automatic remediation rounds occurred;
   - non-blocking observations were reported without automatic implementation;
-  - checkout restoration occurred only after review approval or a recorded
-    terminal stop and never while remediation remained uncommitted;
+  - the active issue branch remained checked out through completion or stop;
   - no merge, auto-merge, force-push, branch deletion, remote pruning, issue
     mutation, public GitHub comment, or formal self-approval was performed.
 - When delivery cannot be completed, final status includes:
