@@ -41,8 +41,9 @@ issue URL, treat it as an end-to-end CatWorld issue implementation request.
   the existing pull request for the same active issue branch and base.
 - May implement review fixes as new follow-up commits on the same PR branch, then push normally.
 - Do not modify GitHub issues unless explicitly requested.
-- Do not merge.
-- Do not merge pull requests.
+- Do not merge pull requests or merge the issue branch into its captured parent.
+- The only permitted branch merge is the explicitly scoped
+  `origin/<startingBaseRef>`-into-issue-branch synchronization in step 24.
 - Do not enable auto-merge.
 - Do not approve Codex's own pull request.
 - Do not write directly to the captured parent branch.
