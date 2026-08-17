@@ -99,7 +99,7 @@ Use high-risk depth when the PR affects one or more of:
 
 Review the complete affected flow across contract, responsible service,
 persistence, validation, authorization, error mapping, tests, CI, regressions,
-maintainability, and readiness for `main`.
+maintainability, and readiness for the pull request's actual captured base.
 
 Escalate the selected depth when checks fail or cannot be verified, scope and
 diff disagree, a request or response shape changes, endpoint behavior changes,
@@ -212,7 +212,7 @@ decision. Include:
 
 State that the later execution must re-read the live PR and verify that its head
 still matches or deliberately supersedes the reviewed SHA. It must use
-follow-up commits on the PR branch, never write to `main`, rewrite history,
+follow-up commits on the PR branch, never write to the PR base, rewrite history,
 merge, post public comments, or expand scope. The brief is an instruction, not
 authorization to execute or publish changes.
 
