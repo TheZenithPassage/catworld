@@ -520,25 +520,29 @@ Run this flow in order:
     - Non-blocking findings or optional improvements never enter automatic
       implementation. Preserve them for the final report and finish the gate
       when no blocking finding remains.
-    - When verdict one or two contains bounded blocking findings and the
-      reviewer supplies a remediation brief requiring no human decision, the
-      leader may apply only that bounded remediation on the active issue branch.
+    - When verdict one, two, or three contains bounded blocking findings and
+      the reviewer supplies a remediation brief requiring no human decision,
+      the leader may apply only that bounded remediation on the active issue branch.
       Preserve any accompanying non-blocking observations as report-only.
     - For every allowed remediation, reapply the permanent-test authorization
       gate, remove unauthorized permanent-test work, rerun affected and
       issue-required validation, inspect test and scope diffs, create a normal
       follow-up commit, and push normally without rewriting history. Capture
-      the new remote head SHA, increment the automatic remediation count, then
-      return to step 26 and use a fresh reviewer for the complete new head.
+      the new remote head SHA and increment the automatic remediation count.
+      After remediation from verdict one or two, return to step 26 and use a
+      fresh reviewer for the complete new head. After remediation from verdict
+      three, do not return to step 26 or launch a fourth reviewer: stop because
+      the review budget is exhausted and report the new remote head as `not
+      independently reviewed after third remediation`, not as approved.
     - Stop without further automatic changes when a human decision is required,
       remediation is unbounded or scope-expanding, repository state is unsafe,
       required evidence is unavailable, remediation or required validation
       fails outside safely correctable approved scope, or any other existing
       workflow stop applies.
-    - A blocking third verdict is terminal even when its remediation would
-      otherwise be bounded. Do not perform a third remediation or seek a fourth
-      verdict.
-    - Across the gate, allow no more than three verdicts and no more than two
+    - When verdict three has no usable bounded remediation, requires a human
+      decision, or its remediation or required validation fails, preserve the
+      applicable terminal-stop behavior without a fourth verdict.
+    - Across the gate, allow no more than three verdicts and no more than three
       automatic remediation rounds.
 29. After the review gate approves or reaches a terminal stop, keep the active
     issue branch checked out. If remediation changes remain uncommitted, stop
@@ -559,6 +563,7 @@ Run this flow in order:
     - number of independent review rounds;
     - reviewed remote head SHA for every round;
     - final review result;
+    - final remote head SHA and whether that head was independently reviewed;
     - automatic remediation commit hashes;
     - unresolved blocking findings;
     - reported non-blocking observations;
@@ -614,8 +619,12 @@ Stop and report the blocker when any of these occur:
 - Review remediation requires a human decision, is unbounded or scope-expanding,
   encounters unsafe repository state, or cannot complete required validation
   within approved scope.
-- A third independent verdict remains blocking. No third remediation or fourth
+- A third independent verdict has no usable bounded remediation, requires a
+  human decision, or its remediation or required validation fails. No fourth
   verdict is allowed.
+- A third automatic remediation completed and its new remote head was captured.
+  Stop because the review budget is exhausted, do not launch a fourth reviewer,
+  and report that head as not independently reviewed rather than approved.
 - Validation fails and cannot be fixed without changing approved scope, unless
   delivery operations were explicitly requested and the branch is still useful
   for draft PR review with the failure clearly reported.
@@ -645,7 +654,8 @@ validation freshness status, and any scope-drift review findings. When delivery
 operations were performed, include the commit hash or hashes, PR URL, ready or
 draft PR status, review-round count and per-round head SHAs, final review
 result, automatic remediation commit hashes, unresolved blocking findings,
-non-blocking observations, and current local checkout branch. When delivery
+non-blocking observations, the final remote head SHA and whether it was
+independently reviewed, and current local checkout branch. When delivery
 operations were not performed, include the suggested commit title and pull
 request description.
 
@@ -697,8 +707,11 @@ unverified native behavior.
     counted review;
   - every review round used a fresh project-scoped read-only reviewer that
     reconstructed and assessed the complete live PR head;
-  - the final independent verdict is tied to the final remote head SHA;
-  - no more than three verdicts or two automatic remediation rounds occurred;
+  - the final independent verdict is tied to the final remote head SHA, unless
+    a bounded third remediation produced the terminal post-remediation head;
+    that head is reported as not independently reviewed after third remediation
+    and is not described as approved;
+  - no more than three verdicts or three automatic remediation rounds occurred;
   - non-blocking observations were reported without automatic implementation;
   - the active issue branch remained checked out through completion or stop;
   - no merge, auto-merge, force-push, branch deletion, remote pruning, issue
