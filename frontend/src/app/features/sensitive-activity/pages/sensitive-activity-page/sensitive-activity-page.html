@@ -170,15 +170,11 @@
                   <dl class="event-details">
                     <div>
                       <dt>{{ text().sensitiveActivity.fields.actor }}</dt>
-                      <dd>{{ event.actor.username }} ({{ event.actor.id }})</dd>
+                      <dd>{{ event.actor.username }}</dd>
                     </div>
                     <div>
                       <dt>{{ text().sensitiveActivity.fields.occurredAt }}</dt>
                       <dd>{{ formatDate(event.occurredAt) }}</dd>
-                    </div>
-                    <div>
-                      <dt>{{ text().sensitiveActivity.fields.eventId }}</dt>
-                      <dd>{{ event.eventId }}</dd>
                     </div>
                     @switch (event.eventType) {
                       @case ('NIGHTLY_RATE_CHANGED') {
@@ -270,10 +266,6 @@
                       event.eventType === 'PAYMENT_REMOVED'
                     ) {
                       <div>
-                        <dt>{{ text().sensitiveActivity.fields.paymentId }}</dt>
-                        <dd>{{ event.paymentId }}</dd>
-                      </div>
-                      <div>
                         <dt>{{ text().sensitiveActivity.fields.paymentDate }}</dt>
                         <dd class="payment-date">{{ formatPaymentDate(event.paymentDate) }}</dd>
                       </div>
@@ -283,7 +275,7 @@
                       </div>
                       <div>
                         <dt>{{ text().sensitiveActivity.fields.registeredBy }}</dt>
-                        <dd>{{ event.registeredBy.username }} ({{ event.registeredBy.id }})</dd>
+                        <dd>{{ event.registeredBy.username }}</dd>
                       </div>
                       <div>
                         <dt>{{ text().sensitiveActivity.fields.registeredAt }}</dt>
@@ -305,8 +297,12 @@
                       <h3>{{ text().sensitiveActivity.fields.stay }}</h3>
                       <dl class="event-details">
                         <div>
-                          <dt>{{ text().sensitiveActivity.fields.stay }}</dt>
-                          <dd>{{ display(context.stayId) }}</dd>
+                          <dt>{{ text().sensitiveActivity.fields.cats }}</dt>
+                          <dd>{{ catsLabel(context.cats) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
+                          <dd>{{ context.owner.fullName }}</dd>
                         </div>
                         <div>
                           <dt>{{ text().sensitiveActivity.fields.stayDates }}</dt>
@@ -314,14 +310,6 @@
                             {{ formatStayDateTime(context.startAt) }} –
                             {{ formatStayDateTime(context.endAt) }}
                           </dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
-                          <dd>{{ context.owner.fullName }} ({{ context.owner.id }})</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.cats }}</dt>
-                          <dd>{{ catsLabel(context.cats) }}</dd>
                         </div>
                         @if (context.cancelledAt) {
                           <div>

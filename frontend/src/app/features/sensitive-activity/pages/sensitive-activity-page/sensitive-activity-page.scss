@@ -28,6 +28,9 @@
   padding: 0;
   list-style: none;
 }
+mat-card-header {
+  margin-bottom: 1rem;
+}
 .event-details {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
