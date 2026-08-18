@@ -110,6 +110,7 @@
                     inputmode="numeric"
                     [ngModel]="agreedAmount()"
                     (ngModelChange)="onAgreedAmountChange($event)"
+                    [disabled]="previewLoading()"
                   />
                   @if (agreedAmount() && !amountValid()) {
                     <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
@@ -136,6 +137,7 @@
                     [placeholder]="pricingReasonPlaceholder()"
                     [ngModel]="pricingReason()"
                     (ngModelChange)="pricingReason.set($event); onPricingDecisionChange()"
+                    [disabled]="previewLoading()"
                   ></textarea>
                   @if (reasonRequired() && !pricingReason().trim()) {
                     <mat-error>{{ text().stays.pricing.errors.reasonRequired }}</mat-error>
