@@ -88,10 +88,17 @@
 
 .row-actions a,
 .row-actions button {
-  width: fit-content;
+  flex: 1 1 0;
+  width: 100%;
 }
 
-.status-filters {
+.action-unavailable {
+  width: 100%;
+  text-align: center;
+}
+
+.status-filters,
+.payment-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
@@ -101,6 +108,10 @@
   border-radius: var(--radius-lg);
   background: rgb(255 253 248 / 0.92);
   box-shadow: var(--shadow-soft);
+}
+
+.payment-filter {
+  width: fit-content;
 }
 
 .status-filter {
@@ -146,6 +157,10 @@
     background: var(--color-primary-soft);
     box-shadow: 0 4px 12px rgb(232 137 63 / 0.14);
   }
+}
+
+.outstanding-filter {
+  margin-inline-start: auto;
 }
 
 @media (max-width: 900px) {
@@ -205,5 +220,35 @@
     .stays-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-actions {
       background: var(--color-secondary-soft);
     }
+  }
+}
+.economics-content,
+.actions-content,
+.correction-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.economics-content,
+.correction-form {
+  min-width: 12rem;
+}
+
+.economics-content {
+  gap: 0.35rem;
+}
+
+.economics-content span {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .outstanding-filter {
+    margin-inline-start: 0;
+  }
+
+  .economics-content,
+  .correction-form {
+    min-width: 10rem;
   }
 }

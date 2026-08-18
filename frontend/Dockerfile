@@ -18,6 +18,9 @@ RUN mkdir -p /tmp/frontend-build \
 FROM nginx:alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY --from=build /tmp/frontend-build /usr/share/nginx/html
+
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 
 EXPOSE 80

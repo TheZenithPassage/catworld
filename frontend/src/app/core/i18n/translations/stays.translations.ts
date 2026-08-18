@@ -12,8 +12,98 @@ export interface StaysTranslations {
     'checked-out': string;
     cancelled: string;
   };
+  pricing: {
+    title: string;
+    loading: string;
+    enterInputs: string;
+    nights: string;
+    retainedRate: string;
+    suggestion: string;
+    agreement: string;
+    currentAgreement: string;
+    reason: string;
+    reasonDifferentPlaceholder: string;
+    reasonSuggestedPlaceholder: string;
+    unavailable: string;
+    useSuggestedAmount: string;
+    useCurrentRate: string;
+    useOriginalRate: string;
+    returnWithoutRate: string;
+    confirm: string;
+    confirmAfterReason: string;
+    confirmed: string;
+    stale: string;
+    noReconfirmation: string;
+    adminRequired: string;
+    economics: string;
+    noPaymentInformation: string;
+    totalPaid: string;
+    remaining: string;
+    correctAgreement: string;
+    correct: string;
+    cancelCorrection: string;
+    errors: {
+      invalidAmount: string;
+      reasonRequired: string;
+      confirmationRequired: string;
+      previewRequired: string;
+      previewFailed: string;
+      stale: string;
+      adminRequired: string;
+      correctionReasonRequired: string;
+      correctionFailed: string;
+    };
+  };
+  payments: {
+    title: string;
+    description: string;
+    empty: string;
+    amount: string;
+    date: string;
+    note: string;
+    state: string;
+    active: string;
+    annulled: string;
+    registeredBy: string;
+    registeredAt: string;
+    annulledBy: string;
+    annulledAt: string;
+    register: string;
+    edit: string;
+    annul: string;
+    remove: string;
+    save: string;
+    cancel: string;
+    paymentDate: string;
+    reason: string;
+    removalReason: string;
+    removingSubject: string;
+    readOnlyStay: string;
+    dismissError: string;
+    retryRemoval: string;
+    errors: {
+      amountRequired: string;
+      invalidAmount: string;
+      dateRequired: string;
+      reasonRequired: string;
+      validation: string;
+      overpayment: string;
+      activeFloor: string;
+      permission: string;
+      missing: string;
+      conflict: string;
+      generic: string;
+    };
+  };
   filters: {
     searchAriaLabel: string;
+    paymentAriaLabel: string;
+    outstandingOnly: string;
+    paymentCondition: {
+      NO_PAYMENT: string;
+      PARTIAL_PAYMENT: string;
+      FULL_PAYMENT: string;
+    };
     cat: string;
     searchCat: string;
     clear: string;
@@ -61,6 +151,7 @@ export interface StaysTranslations {
       actions: string;
     };
     edit: string;
+    paymentHistory: string;
     cancel: string;
     cancelling: string;
     alreadyCancelled: string;
@@ -130,8 +221,98 @@ export const STAYS_TRANSLATIONS = {
       'checked-out': 'Finalizada',
       cancelled: 'Cancelada',
     },
+    pricing: {
+      title: 'Precio acordado',
+      loading: 'Calculando la propuesta autoritativa...',
+      enterInputs: 'Selecciona fechas y gatos válidos para obtener la propuesta.',
+      nights: 'Noches',
+      retainedRate: 'Tarifa retenida',
+      suggestion: 'Importe sugerido',
+      agreement: 'Importe acordado',
+      currentAgreement: 'Importe acordado actual',
+      reason: 'Motivo económico',
+      reasonDifferentPlaceholder: 'Aclarar motivo es necesario si no se usa el importe sugerido',
+      reasonSuggestedPlaceholder: 'Motivo opcional',
+      unavailable: 'No disponible',
+      useSuggestedAmount: 'Usar importe sugerido',
+      useCurrentRate: 'Usar tarifa actual',
+      useOriginalRate: 'Usar tarifa original',
+      returnWithoutRate: 'Volver sin tarifa',
+      confirm: 'Confirmar precio',
+      confirmAfterReason: 'Añade un motivo para confirmar',
+      confirmed: 'Precio confirmado',
+      stale: 'La base del precio cambió. Revisa la nueva propuesta y vuelve a confirmarla.',
+      noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
+      adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
+      economics: 'Economía',
+      noPaymentInformation: 'No hay información de pago',
+      totalPaid: 'Total pagado',
+      remaining: 'Pendiente',
+      correctAgreement: 'Corregir importe',
+      correct: 'Guardar corrección',
+      cancelCorrection: 'Cancelar',
+      errors: {
+        invalidAmount: 'Introduce un importe entero no negativo de hasta 19 dígitos.',
+        reasonRequired: 'Indica un motivo cuando el importe difiere de la propuesta.',
+        confirmationRequired: 'Revisa y confirma el precio actual antes de continuar.',
+        previewRequired: 'Es necesaria una propuesta de precio actual.',
+        previewFailed: 'No se pudo obtener la propuesta de precio.',
+        stale: 'La confirmación del precio está desactualizada. Confirma la nueva propuesta.',
+        adminRequired: 'Solo un administrador puede confirmar este nuevo precio.',
+        correctionReasonRequired: 'Indica el motivo de la corrección.',
+        correctionFailed: 'No se pudo corregir el importe acordado.',
+      },
+    },
+    payments: {
+      title: 'Pagos de la estancia',
+      description: 'Historial operativo y economía autoritativa de la estancia.',
+      empty: 'No hay pagos registrados.',
+      amount: 'Importe',
+      date: 'Fecha de pago',
+      note: 'Nota',
+      state: 'Estado',
+      active: 'Activo',
+      annulled: 'Anulado',
+      registeredBy: 'Registrado por',
+      registeredAt: 'Registrado el',
+      annulledBy: 'Anulado por',
+      annulledAt: 'Anulado el',
+      register: 'Registrar pago',
+      edit: 'Editar',
+      annul: 'Anular',
+      remove: 'Eliminar permanentemente',
+      save: 'Guardar',
+      cancel: 'Cancelar',
+      paymentDate: 'Fecha real del pago',
+      reason: 'Motivo obligatorio',
+      removalReason: 'Motivo de la eliminación',
+      removingSubject: 'pago',
+      readOnlyStay: 'Las fechas y notas de esta estancia son de solo lectura.',
+      dismissError: 'Cerrar error',
+      retryRemoval: 'Reintentar eliminación',
+      errors: {
+        amountRequired: 'Indica el importe recibido.',
+        invalidAmount: 'Introduce un importe entero positivo de hasta 19 dígitos.',
+        dateRequired: 'Indica la fecha real del pago.',
+        reasonRequired: 'Indica un motivo.',
+        validation: 'El pago no cumple la validación del servidor.',
+        overpayment: 'El pago supera el importe acordado.',
+        activeFloor: 'El cambio dejaría el acuerdo por debajo de los pagos activos.',
+        permission: 'No tienes permiso para realizar esta acción.',
+        missing: 'La estancia o el pago ya no existe.',
+        conflict: 'Los datos cambiaron. Revisa el estado actual e inténtalo de nuevo.',
+        generic: 'No se pudo completar la acción de pago.',
+      },
+    },
     filters: {
       searchAriaLabel: 'Filtros de búsqueda de estancias',
+      paymentAriaLabel: 'Filtros de cobro de estancias',
+      outstandingOnly: 'Solo cobros pendientes',
+      paymentCondition: {
+        NO_PAYMENT: 'Sin pagos',
+        PARTIAL_PAYMENT: 'Pago parcial',
+        FULL_PAYMENT: 'Pago completo',
+      },
       cat: 'Gato',
       searchCat: 'Buscar gato',
       clear: 'Limpiar',
@@ -180,6 +361,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Acciones',
       },
       edit: 'Editar',
+      paymentHistory: 'Ver pagos',
       cancel: 'Cancelar',
       cancelling: 'Cancelando...',
       alreadyCancelled: 'Cancelada',
@@ -247,8 +429,98 @@ export const STAYS_TRANSLATIONS = {
       'checked-out': 'Checked-out',
       cancelled: 'Cancelled',
     },
+    pricing: {
+      title: 'Agreed pricing',
+      loading: 'Loading authoritative pricing...',
+      enterInputs: 'Select valid dates and cats to obtain pricing.',
+      nights: 'Nights',
+      retainedRate: 'Retained rate',
+      suggestion: 'Suggested amount',
+      agreement: 'Agreed amount',
+      currentAgreement: 'Current agreed amount',
+      reason: 'Economic reason',
+      reasonDifferentPlaceholder: 'Explain the reason when not using the suggested amount',
+      reasonSuggestedPlaceholder: 'Optional reason',
+      unavailable: 'Unavailable',
+      useSuggestedAmount: 'Use suggested amount',
+      useCurrentRate: 'Use current rate',
+      useOriginalRate: 'Use original rate',
+      returnWithoutRate: 'Return without rate',
+      confirm: 'Confirm pricing',
+      confirmAfterReason: 'Add a reason to confirm',
+      confirmed: 'Pricing confirmed',
+      stale: 'The pricing basis changed. Review the fresh preview and confirm it again.',
+      noReconfirmation: 'This change does not require pricing reconfirmation.',
+      adminRequired: 'Only an administrator can complete a pricing-affecting change.',
+      economics: 'Economics',
+      noPaymentInformation: 'No payment information available',
+      totalPaid: 'Total paid',
+      remaining: 'Remaining',
+      correctAgreement: 'Correct agreement',
+      correct: 'Save correction',
+      cancelCorrection: 'Cancel',
+      errors: {
+        invalidAmount: 'Enter a non-negative whole amount with at most 19 digits.',
+        reasonRequired: 'Provide a reason when the agreement differs from the suggestion.',
+        confirmationRequired: 'Review and confirm the current pricing before continuing.',
+        previewRequired: 'A current pricing preview is required.',
+        previewFailed: 'Pricing preview could not be loaded.',
+        stale: 'The pricing confirmation is stale. Confirm the fresh preview.',
+        adminRequired: 'Only an administrator can confirm this new pricing.',
+        correctionReasonRequired: 'Provide a reason for the correction.',
+        correctionFailed: 'The agreed amount could not be corrected.',
+      },
+    },
+    payments: {
+      title: 'Stay payments',
+      description: 'Operational history and authoritative stay economics.',
+      empty: 'No payments registered.',
+      amount: 'Amount',
+      date: 'Payment date',
+      note: 'Note',
+      state: 'State',
+      active: 'Active',
+      annulled: 'Annulled',
+      registeredBy: 'Registered by',
+      registeredAt: 'Registered at',
+      annulledBy: 'Annulled by',
+      annulledAt: 'Annulled at',
+      register: 'Register payment',
+      edit: 'Edit',
+      annul: 'Annul',
+      remove: 'Delete permanently',
+      save: 'Save',
+      cancel: 'Cancel',
+      paymentDate: 'Actual payment date',
+      reason: 'Required reason',
+      removalReason: 'Removal reason',
+      removingSubject: 'payment',
+      readOnlyStay: "This stay's dates and notes are read-only.",
+      dismissError: 'Dismiss error',
+      retryRemoval: 'Retry removal',
+      errors: {
+        amountRequired: 'Enter the amount received.',
+        invalidAmount: 'Enter a positive whole amount with at most 19 digits.',
+        dateRequired: 'Enter the actual payment date.',
+        reasonRequired: 'Provide a reason.',
+        validation: 'The payment did not pass server validation.',
+        overpayment: 'The payment exceeds the agreed amount.',
+        activeFloor: 'The change would put the agreement below active payments.',
+        permission: 'You do not have permission to perform this action.',
+        missing: 'The stay or payment no longer exists.',
+        conflict: 'The data changed. Review the current state and try again.',
+        generic: 'The payment action could not be completed.',
+      },
+    },
     filters: {
       searchAriaLabel: 'Stay search filters',
+      paymentAriaLabel: 'Stay payment filters',
+      outstandingOnly: 'Outstanding collection only',
+      paymentCondition: {
+        NO_PAYMENT: 'No payment',
+        PARTIAL_PAYMENT: 'Partial payment',
+        FULL_PAYMENT: 'Full payment',
+      },
       cat: 'Cat',
       searchCat: 'Search cat',
       clear: 'Clear',
@@ -297,6 +569,7 @@ export const STAYS_TRANSLATIONS = {
         actions: 'Actions',
       },
       edit: 'Edit',
+      paymentHistory: 'View payments',
       cancel: 'Cancel',
       cancelling: 'Cancelling...',
       alreadyCancelled: 'Already cancelled',

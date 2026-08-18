@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.exception;
 
 import com.allegaeon.catworld.dto.VaccineConflictResponseDTO;
+import com.allegaeon.catworld.dto.StalePricingConfirmationResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -39,6 +40,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<String> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
+    }
+
+    @ExceptionHandler(StalePricingConfirmationException.class)
+    public ResponseEntity<StalePricingConfirmationResponseDTO> handleStalePricingConfirmation(
+            StalePricingConfirmationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                new StalePricingConfirmationResponseDTO(
+                        StalePricingConfirmationResponseDTO.CODE));
     }
 
     @ExceptionHandler(VaccineConflictException.class)

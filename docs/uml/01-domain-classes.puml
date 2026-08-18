@@ -66,6 +66,8 @@ package "catworld.domain" {
     +LocalDateTime endAt    <<NotNull>>
     +LocalDateTime cancelledAt
     +String notes
+    +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable>>
+    +BigDecimal agreedAmount  <<Decimal(19,0),Nullable>>
     +StayStatus status  <<Transient/Computed>>
     +UserAccount createdBy  <<NotNull>>
   }
@@ -109,6 +111,101 @@ package "catworld.domain" {
     +Instant changedAt  <<NotNull,Immutable>>
   }
 
+  class StayPricingDecision {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable,Immutable>>
+    +Long previousNumberOfNights  <<Nullable,Immutable>>
+    +long newNumberOfNights  <<NotNull,Immutable>>
+    +BigDecimal previousAgreedAmount  <<Decimal(19,0),Nullable,Immutable>>
+    +BigDecimal newAgreedAmount  <<Decimal(19,0),NotNull,Immutable>>
+    +UserAccount decidedBy  <<NotNull,Immutable>>
+    +Instant decidedAt  <<NotNull,Immutable>>
+    +String reason  <<Nullable,Immutable>>
+    +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
+  }
+
+  class StayAgreedAmountCorrection {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +BigDecimal previousAgreedAmount  <<Decimal(19,0),Nullable,Immutable>>
+    +BigDecimal newAgreedAmount  <<Decimal(19,0),NotNull,Immutable>>
+    +UserAccount decidedBy  <<NotNull,Immutable>>
+    +Instant decidedAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+    +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
+  }
+
+  class StayPayment extends Auditable {
+    +UUID id
+    +Stay stay  <<NotNull,Immutable>>
+    +BigDecimal amount  <<Decimal(19,0),Positive>>
+    +LocalDate paymentDate  <<NotNull,Immutable>>
+    +String note  <<Nullable,Immutable>>
+    +boolean annulled  <<NotNull,Terminal>>
+    +UserAccount registeredBy  <<NotNull,Immutable>>
+  }
+
+  class StayPaymentEdit {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID paymentId  <<NotNull,Immutable>>
+    +BigDecimal previousAmount  <<Decimal(19,0),Positive,Immutable>>
+    +BigDecimal newAmount  <<Decimal(19,0),Positive,Immutable>>
+    +UserAccount editedBy  <<NotNull,Immutable>>
+    +Instant editedAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+    +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
+    +LocalDate paymentDate  <<Nullable,Immutable>>
+    +UserAccount registeredBy  <<Nullable,Immutable>>
+    +Instant registeredAt  <<Nullable,Immutable>>
+  }
+
+  class StayPaymentAnnulment {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID paymentId  <<NotNull,Unique,Immutable>>
+    +UserAccount annulledBy  <<NotNull,Immutable>>
+    +Instant annulledAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+    +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
+    +BigDecimal amount  <<Decimal(19,0),Nullable,Immutable>>
+    +LocalDate paymentDate  <<Nullable,Immutable>>
+    +UserAccount registeredBy  <<Nullable,Immutable>>
+    +Instant registeredAt  <<Nullable,Immutable>>
+  }
+
+  class SensitiveStayContext {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID ownerId  <<NotNull,Immutable>>
+    +String ownerFullName  <<NotBlank,Immutable>>
+    +LocalDateTime stayStartAt  <<NotNull,Immutable>>
+    +LocalDateTime stayEndAt  <<NotNull,Immutable>>
+    +LocalDateTime stayCancelledAt  <<Nullable,Immutable>>
+  }
+
+  class SensitiveStayContextCat {
+    +UUID contextId  <<PK,Immutable>>
+    +UUID catId  <<PK,Immutable>>
+    +String catName  <<NotBlank,Immutable>>
+  }
+
+  class StayPaymentRemoval {
+    +UUID id
+    +UUID stayId  <<NotNull,Immutable>>
+    +UUID paymentId  <<NotNull,Unique,Immutable>>
+    +BigDecimal amount  <<Decimal(19,0),Positive,Immutable>>
+    +LocalDate paymentDate  <<NotNull,Immutable>>
+    +String paymentNote  <<Nullable,Immutable>>
+    +boolean annulled  <<NotNull,Immutable>>
+    +UserAccount registeredBy  <<NotNull,Immutable>>
+    +Instant registeredAt  <<NotNull,Immutable>>
+    +UserAccount removedBy  <<NotNull,Immutable>>
+    +Instant removedAt  <<NotNull,Immutable>>
+    +String reason  <<NotBlank,Immutable>>
+  }
+
   Owner "1" o-- "0..*" Cat : owns >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >
@@ -121,6 +218,20 @@ package "catworld.domain" {
   NightlyReferenceRateCategory "1" <-- "1" NightlyReferenceRate : category
   NightlyReferenceRateCategory "1" <-- "0..*" NightlyReferenceRateChange : category
   UserAccount "1" <-- "0..*" NightlyReferenceRateChange : changedBy
+  UserAccount "1" <-- "0..*" StayPricingDecision : decidedBy
+  UserAccount "1" <-- "0..*" StayAgreedAmountCorrection : decidedBy
+  Stay "1" *-- "0..*" StayPayment : payments
+  UserAccount "1" <-- "0..*" StayPayment : registeredBy
+  UserAccount "1" <-- "0..*" StayPaymentEdit : editedBy
+  UserAccount "1" <-- "0..*" StayPaymentAnnulment : annulledBy
+  SensitiveStayContext "1" *-- "0..*" SensitiveStayContextCat : cats
+  SensitiveStayContext "1" <-- "0..1" StayPricingDecision : snapshot
+  SensitiveStayContext "1" <-- "0..1" StayAgreedAmountCorrection : snapshot
+  SensitiveStayContext "1" <-- "0..1" StayPaymentEdit : snapshot
+  SensitiveStayContext "1" <-- "0..1" StayPaymentAnnulment : snapshot
+  SensitiveStayContext "1" <-- "0..1" StayPaymentRemoval : snapshot
+  UserAccount "1" <-- "0..*" StayPaymentRemoval : registeredBy
+  UserAccount "1" <-- "0..*" StayPaymentRemoval : removedBy
 }
 
 note right of Stay
@@ -137,6 +248,7 @@ Rules:
 - at least 1 cat per stay
 - all cats in a stay must belong to the same owner
 - no overlapping stays per cat, ignoring cancelled stays
+- retained rate is null or positive; agreed amount is null or non-negative
 end note
 
 note bottom of StayCat
@@ -156,6 +268,39 @@ note bottom of NightlyReferenceRateChange
 Append-only audit snapshot.
 Exactly one of previous/new may be null,
 and a transition must change the value.
+end note
+
+note bottom of StayPricingDecision
+Append-only pricing confirmation.
+stayId is indexed evidence, not an
+operational Stay relationship, so it
+survives deletion of the stay.
+end note
+
+note bottom of StayAgreedAmountCorrection
+Append-only administrative correction.
+stayId is indexed evidence, not an
+operational Stay relationship. A nullable
+previous amount supports explicit legacy
+initialization. Reason is always required.
+end note
+
+note bottom of StayPayment
+Operational history retained on stay reads.
+Only amount may change; annulment is terminal.
+Active totals and balances are response-derived.
+end note
+
+note bottom of StayPaymentEdit
+Append-only amount-correction evidence.
+stayId and paymentId are indexed scalar
+identities, not operational relationships.
+end note
+
+note bottom of StayPaymentAnnulment
+Append-only terminal-action evidence.
+One annulment is allowed per payment.
+Scalar identities survive operational deletion.
 end note
 
 @enduml

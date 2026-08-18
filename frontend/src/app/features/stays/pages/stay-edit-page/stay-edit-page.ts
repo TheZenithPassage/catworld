@@ -3,8 +3,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -12,22 +13,42 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
+  NightlyReferenceRate,
+  NightlyReferenceRateApiService,
+  NightlyRateThreshold,
+} from '../../../nightly-rates/services/nightly-reference-rate-api.service';
+import { StayPayments } from '../../components/stay-payments/stay-payments';
+import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
 } from '../../components/vaccine-conflict-dialog/vaccine-conflict-dialog';
 import {
   isVaccineConflictError,
+  isStalePricingConfirmationError,
   Stay,
+  StayDatePricingPreview,
   UpdateStayRequest,
   VaccineConflictResponse,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { calculateStayNights } from '../../utils/stay-nights.util';
 import { canModifyStay } from '../../utils/stay-status.util';
+import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 
 @Component({
   selector: 'app-stay-edit-page',
-  imports: [FormsModule, MatButton, MatFormField, MatInput, MatLabel, RouterLink, UiStateComponent],
+  imports: [
+    FormsModule,
+    MatButton,
+    MatError,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    MatProgressSpinner,
+    RouterLink,
+    UiStateComponent,
+    StayPayments,
+  ],
   templateUrl: './stay-edit-page.html',
   styleUrl: './stay-edit-page.scss',
 })
@@ -35,6 +56,7 @@ export class StayEditPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly stayApiService = inject(StayApiService);
+  private readonly nightlyReferenceRateApiService = inject(NightlyReferenceRateApiService);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
@@ -47,6 +69,16 @@ export class StayEditPage {
   readonly startAt = signal('');
   readonly endAt = signal('');
   readonly notes = signal('');
+  readonly agreedAmount = signal('');
+  readonly pricingReason = signal('');
+  readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
+  readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
+  readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
+  readonly workingRetainedNightlyRate = signal<string | null>(null);
+  readonly previewLoading = signal(false);
+  readonly previewError = createLanguageResetError(this.i18nService.language);
+  readonly pricingConfirmed = signal(false);
+  readonly stalePricing = signal(false);
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -65,11 +97,96 @@ export class StayEditPage {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly stayLoaded = signal(false);
+  readonly stay = signal<Stay | null>(null);
+  readonly canEditStay = computed(() => {
+    const current = this.stay();
+    return current !== null && canModifyStay(current);
+  });
+  readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
+  readonly applicableCurrentRate = computed(() => {
+    const preview = this.pricingPreview();
+    const catCount = this.stay()?.cats.length ?? 0;
+
+    if (!preview?.pricingDecisionRequired || catCount < 1) {
+      return null;
+    }
+
+    const threshold = Math.min(catCount, 3) as NightlyRateThreshold;
+    const currentRate = this.currentNightlyRates().find(
+      (rate) => rate.minimumCatCount === threshold,
+    )?.nightlyRate;
+
+    if (
+      currentRate === null ||
+      currentRate === undefined ||
+      !isValidWholeMoney(currentRate) ||
+      /^0+$/.test(currentRate) ||
+      multiplyWholeMoney(currentRate, preview.numberOfNights) === null ||
+      (this.stay()?.retainedNightlyRate !== null &&
+        this.stay()?.retainedNightlyRate !== undefined &&
+        sameWholeMoney(currentRate, this.stay()!.retainedNightlyRate!))
+    ) {
+      return null;
+    }
+
+    return currentRate;
+  });
+  readonly workingSuggestedAmount = computed(() => {
+    const preview = this.pricingPreview();
+    const rate = this.workingRetainedNightlyRate();
+    return preview && rate !== null ? multiplyWholeMoney(rate, preview.numberOfNights) : null;
+  });
+  readonly retainedRateActionLabel = computed(() => {
+    const current = this.applicableCurrentRate();
+    if (current === null) return null;
+    const original = this.stay()?.retainedNightlyRate ?? null;
+    const working = this.workingRetainedNightlyRate();
+    if (working === null || !sameWholeMoney(working, current)) {
+      return this.text().stays.pricing.useCurrentRate;
+    }
+    return original === null
+      ? this.text().stays.pricing.returnWithoutRate
+      : this.text().stays.pricing.useOriginalRate;
+  });
+  readonly reasonRequired = computed(() => {
+    const suggestion = this.workingSuggestedAmount();
+    return (
+      suggestion !== null &&
+      suggestion !== undefined &&
+      !sameWholeMoney(this.agreedAmount(), suggestion)
+    );
+  });
+  readonly decisionValid = computed(
+    () =>
+      isValidWholeMoney(this.agreedAmount()) &&
+      (!this.reasonRequired() || !!this.pricingReason().trim()),
+  );
+  readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
+  readonly pricingReasonPlaceholder = computed(() => {
+    if (this.pricingReasonContext() === 'suggested') {
+      return this.text().stays.pricing.reasonSuggestedPlaceholder;
+    }
+    if (this.pricingReasonContext() === 'manual') {
+      return this.text().stays.pricing.reasonDifferentPlaceholder;
+    }
+    return '';
+  });
 
   private readonly stayId = this.route.snapshot.paramMap.get('id');
+  private previewRequestSequence = 0;
+  private vaccineOverrideRecoveryBasis: string | null = null;
+  private agreedAmountBeforeCurrentRate: string | null = null;
 
   constructor() {
+    this.loadCurrentNightlyRates();
     this.loadStay();
+  }
+
+  private loadCurrentNightlyRates(): void {
+    this.nightlyReferenceRateApiService.getCurrentRates().subscribe({
+      next: (rates) => this.currentNightlyRates.set(rates),
+      error: () => this.currentNightlyRates.set([]),
+    });
   }
 
   loadStay(): void {
@@ -85,12 +202,7 @@ export class StayEditPage {
 
     this.stayApiService.getStayById(this.stayId).subscribe({
       next: (stay) => {
-        if (!canModifyStay(stay)) {
-          this.showError(this.text().stays.edit.errors.closedCannotBeModified);
-          this.loading.set(false);
-          return;
-        }
-
+        this.stay.set(stay);
         this.setFormValues(stay);
         this.stayLoaded.set(true);
         this.loading.set(false);
@@ -110,6 +222,11 @@ export class StayEditPage {
       return;
     }
 
+    if (!this.canEditStay()) {
+      this.showError(this.text().stays.edit.errors.closedCannotBeModified);
+      return;
+    }
+
     if (!this.stayId) {
       this.showError(this.text().stays.edit.errors.stayIdMissing);
       return;
@@ -125,17 +242,50 @@ export class StayEditPage {
       return;
     }
 
+    const preview = this.pricingPreview();
+    if (this.previewLoading() || !preview) {
+      this.showError(this.text().stays.pricing.errors.previewRequired);
+      return;
+    }
+
+    if (
+      preview.pricingDecisionRequired &&
+      (!this.isAdmin() || !this.pricingConfirmed() || !this.decisionValid())
+    ) {
+      this.showError(
+        this.isAdmin()
+          ? this.text().stays.pricing.errors.confirmationRequired
+          : this.text().stays.pricing.errors.adminRequired,
+      );
+      return;
+    }
+
+    const basis = this.currentPreviewBasis();
+    const overrideVaccineConflicts = this.vaccineOverrideRecoveryBasis === basis;
     const request: UpdateStayRequest = {
       startAt: this.startAt(),
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
-      overrideVaccineConflicts: false,
+      overrideVaccineConflicts,
+      ...(preview.pricingDecisionRequired
+        ? {
+            pricingDecision: {
+              agreedAmount: this.agreedAmount(),
+              reason: this.pricingReason().trim() || null,
+            },
+            confirmation: {
+              ...preview.confirmation,
+              retainedNightlyRate: this.workingRetainedNightlyRate(),
+              suggestedAmount: this.workingSuggestedAmount(),
+            },
+          }
+        : {}),
     };
 
-    this.saveStay(request, true);
+    this.saveStay(request, !overrideVaccineConflicts, basis);
   }
 
-  private saveStay(request: UpdateStayRequest, showVaccineConflict: boolean): void {
+  private saveStay(request: UpdateStayRequest, showVaccineConflict: boolean, basis: string): void {
     if (!this.stayId) {
       this.showError(this.text().stays.edit.errors.stayIdMissing);
       return;
@@ -149,12 +299,27 @@ export class StayEditPage {
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
+        if (isStalePricingConfirmationError(error)) {
+          this.vaccineOverrideRecoveryBasis = request.overrideVaccineConflicts ? basis : null;
+          this.submitting.set(false);
+          this.stalePricing.set(true);
+          this.pricingConfirmed.set(false);
+          this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+          this.agreedAmountBeforeCurrentRate = null;
+          this.loadCurrentNightlyRates();
+          this.showError(this.text().stays.pricing.errors.stale);
+          this.refreshPricingPreview();
+          return;
+        }
         if (showVaccineConflict && isVaccineConflictError(error)) {
           this.submitting.set(false);
-          this.openVaccineConflictDialog(error.error, request);
+          this.openVaccineConflictDialog(error.error, request, basis);
           return;
         }
 
+        if (request.overrideVaccineConflicts) {
+          this.clearVaccineOverrideRecovery();
+        }
         this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed));
         this.submitting.set(false);
       },
@@ -164,6 +329,7 @@ export class StayEditPage {
   private openVaccineConflictDialog(
     conflict: VaccineConflictResponse,
     request: UpdateStayRequest,
+    basis: string,
   ): void {
     const canOverride = this.authSessionService.hasRole('ADMIN');
     const data: VaccineConflictDialogData = {
@@ -183,7 +349,7 @@ export class StayEditPage {
           return;
         }
 
-        this.saveStay({ ...request, overrideVaccineConflicts: true }, false);
+        this.saveStay({ ...request, overrideVaccineConflicts: true }, false, basis);
       });
   }
 
@@ -193,6 +359,153 @@ export class StayEditPage {
     this.startAt.set(this.toDateTimeLocalValue(stay.startAt));
     this.endAt.set(this.toDateTimeLocalValue(stay.endAt));
     this.notes.set(stay.notes ?? '');
+    this.agreedAmount.set(stay.agreedAmount ?? '');
+    this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
+    this.agreedAmountBeforeCurrentRate = null;
+    this.refreshPricingPreview();
+  }
+
+  onStayChanged(stay: Stay): void {
+    this.stay.set(stay);
+  }
+
+  onStartAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
+    this.startAt.set(value);
+    this.refreshPricingPreview(true);
+  }
+
+  onEndAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
+    this.endAt.set(value);
+    this.refreshPricingPreview(true);
+  }
+
+  onPricingDecisionChange(): void {
+    this.pricingConfirmed.set(false);
+  }
+
+  onAgreedAmountChange(value: string): void {
+    this.agreedAmount.set(value);
+    this.pricingReasonContext.set('manual');
+    this.onPricingDecisionChange();
+  }
+
+  confirmPricing(): void {
+    if (
+      !this.previewLoading() &&
+      this.isAdmin() &&
+      this.pricingPreview()?.pricingDecisionRequired &&
+      this.decisionValid()
+    ) {
+      this.pricingConfirmed.set(true);
+      this.stalePricing.set(false);
+      this.scrollToSubmit();
+    }
+  }
+
+  toggleRetainedRate(): void {
+    const currentRate = this.applicableCurrentRate();
+    const originalRate = this.stay()?.retainedNightlyRate ?? null;
+    const preview = this.pricingPreview();
+    if (
+      this.previewLoading() ||
+      !this.isAdmin() ||
+      currentRate === null ||
+      !preview?.pricingDecisionRequired
+    ) {
+      return;
+    }
+
+    const workingRate = this.workingRetainedNightlyRate();
+    if (workingRate === null || !sameWholeMoney(workingRate, currentRate)) {
+      if (originalRate === null) this.agreedAmountBeforeCurrentRate = this.agreedAmount();
+      this.workingRetainedNightlyRate.set(currentRate);
+      const currentSuggestion = multiplyWholeMoney(currentRate, preview.numberOfNights);
+      if (currentSuggestion === null) return;
+      this.agreedAmount.set(currentSuggestion);
+    } else {
+      this.workingRetainedNightlyRate.set(originalRate);
+      const restoredAgreement =
+        originalRate === null
+          ? (this.agreedAmountBeforeCurrentRate ?? this.agreedAmount())
+          : multiplyWholeMoney(originalRate, preview.numberOfNights);
+      if (restoredAgreement !== null) this.agreedAmount.set(restoredAgreement);
+    }
+    this.pricingReason.set('');
+    this.pricingReasonContext.set('suggested');
+    this.onPricingDecisionChange();
+  }
+
+  private refreshPricingPreview(resetAgreementForNightChange = false): void {
+    if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
+    this.pricingConfirmed.set(false);
+    this.previewError.set(null);
+    const sequence = ++this.previewRequestSequence;
+
+    if (
+      !this.stayId ||
+      !this.startAt() ||
+      !this.endAt() ||
+      new Date(this.endAt()) <= new Date(this.startAt())
+    ) {
+      this.pricingPreview.set(null);
+      this.previewLoading.set(false);
+      return;
+    }
+
+    const basis = this.currentPreviewBasis();
+    this.previewLoading.set(true);
+    this.stayApiService
+      .previewDateChangePricing(this.stayId, { startAt: this.startAt(), endAt: this.endAt() })
+      .subscribe({
+        next: (preview) => {
+          if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
+            return;
+          this.pricingPreview.set(preview);
+          if (!preview.pricingDecisionRequired) {
+            this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+            this.agreedAmountBeforeCurrentRate = null;
+          }
+          if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
+            const retainedRate = this.workingRetainedNightlyRate();
+            const suggestion =
+              retainedRate === null
+                ? null
+                : multiplyWholeMoney(retainedRate, preview.numberOfNights);
+            this.agreedAmount.set(suggestion ?? preview.currentAgreedAmount ?? '');
+            this.pricingReasonContext.set(suggestion === null ? 'manual' : 'suggested');
+            if (this.stay()?.retainedNightlyRate === null) {
+              this.agreedAmountBeforeCurrentRate = preview.currentAgreedAmount ?? '';
+            }
+          }
+          this.previewLoading.set(false);
+        },
+        error: (error: unknown) => {
+          if (sequence !== this.previewRequestSequence) return;
+          this.pricingPreview.set(null);
+          this.previewLoading.set(false);
+          this.previewError.set(
+            !this.isAdmin() && error instanceof HttpErrorResponse && error.status === 403
+              ? this.text().stays.pricing.errors.adminRequired
+              : this.text().stays.pricing.errors.previewFailed,
+          );
+        },
+      });
+  }
+
+  private currentPreviewBasis(): string {
+    return JSON.stringify([this.stayId, this.startAt(), this.endAt()]);
+  }
+
+  private scrollToSubmit(): void {
+    document
+      .getElementById('update-stay-submit')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }
+
+  private clearVaccineOverrideRecovery(): void {
+    this.vaccineOverrideRecoveryBasis = null;
   }
 
   private toDateTimeLocalValue(value: string): string {

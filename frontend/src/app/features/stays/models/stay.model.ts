@@ -18,6 +18,99 @@ export interface Stay {
   ownerId: string;
   ownerName: string;
   cats: StayCatSummary[];
+  retainedNightlyRate: MonetaryAmount | null;
+  suggestedAmount: MonetaryAmount | null;
+  agreedAmount: MonetaryAmount | null;
+  totalPaid: MonetaryAmount;
+  remainingAmount: MonetaryAmount | null;
+  paymentCondition: PaymentCondition;
+  outstandingCollectionEligible: boolean;
+  payments: StayPayment[];
+}
+
+export type MonetaryAmount = string;
+
+export type PaymentCondition = 'NO_PAYMENT' | 'PARTIAL_PAYMENT' | 'FULL_PAYMENT';
+
+export type PaymentState = 'ACTIVE' | 'ANNULLED';
+
+export interface StayPayment {
+  paymentId: string;
+  amount: MonetaryAmount;
+  paymentDate: string;
+  note: string | null;
+  state: PaymentState;
+  registeredByUsername: string;
+  registeredAt: string;
+  annulledByUsername: string | null;
+  annulledAt: string | null;
+}
+
+export interface PaymentRegistrationRequest {
+  amount: MonetaryAmount;
+  paymentDate: string;
+  note: string | null;
+}
+
+export interface PaymentEditRequest {
+  amount: MonetaryAmount;
+  reason: string;
+}
+
+export interface PaymentReasonRequest {
+  reason: string;
+}
+
+export interface PricingDecision {
+  agreedAmount: MonetaryAmount;
+  reason?: string | null;
+}
+
+export interface CreationPricingConfirmation {
+  numberOfNights: number;
+  retainedNightlyRate: MonetaryAmount | null;
+  suggestedAmount: MonetaryAmount | null;
+}
+
+export interface ExistingStayPricingConfirmation {
+  previousNumberOfNights: number;
+  previousAgreedAmount: MonetaryAmount | null;
+  numberOfNights: number;
+  retainedNightlyRate: MonetaryAmount | null;
+  suggestedAmount: MonetaryAmount | null;
+}
+
+export interface CreationPricingPreview extends CreationPricingConfirmation {
+  confirmation: CreationPricingConfirmation;
+}
+
+interface StayDatePricingPreviewBase {
+  currentNumberOfNights: number;
+  currentAgreedAmount: MonetaryAmount | null;
+  numberOfNights: number;
+  retainedNightlyRate: MonetaryAmount | null;
+  suggestedAmount: MonetaryAmount | null;
+}
+
+export type StayDatePricingPreview =
+  | (StayDatePricingPreviewBase & {
+      pricingDecisionRequired: false;
+      confirmation: null;
+    })
+  | (StayDatePricingPreviewBase & {
+      pricingDecisionRequired: true;
+      confirmation: ExistingStayPricingConfirmation;
+    });
+
+export interface CreationPricingPreviewRequest {
+  startAt: string;
+  endAt: string;
+  catIds: string[];
+}
+
+export interface StayDatePricingPreviewRequest {
+  startAt: string;
+  endAt: string;
 }
 
 export interface CreateStayRequest {
@@ -26,6 +119,8 @@ export interface CreateStayRequest {
   endAt: string;
   notes: string | null;
   overrideVaccineConflicts: boolean;
+  pricingDecision: PricingDecision;
+  confirmation: CreationPricingConfirmation;
 }
 
 export interface UpdateStayRequest {
@@ -33,6 +128,23 @@ export interface UpdateStayRequest {
   endAt: string;
   notes: string | null;
   overrideVaccineConflicts: boolean;
+  pricingDecision?: PricingDecision;
+  confirmation?: ExistingStayPricingConfirmation;
+}
+
+export interface StalePricingConfirmationResponse {
+  code: 'STALE_PRICING_CONFIRMATION';
+}
+
+export function isStalePricingConfirmationError(
+  error: unknown,
+): error is HttpErrorResponse & { error: StalePricingConfirmationResponse } {
+  return (
+    error instanceof HttpErrorResponse &&
+    error.status === 409 &&
+    isRecord(error.error) &&
+    error.error['code'] === 'STALE_PRICING_CONFIRMATION'
+  );
 }
 
 export type VaccineType = 'RABIES' | 'TRIPLE_FELINE';

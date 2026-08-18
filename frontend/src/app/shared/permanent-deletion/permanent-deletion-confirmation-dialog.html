@@ -6,13 +6,35 @@
     <strong class="deletion-subject">{{ data.subject }}</strong
     >. {{ text().deletion.confirmation.descriptionSuffix }}
   </p>
+  @if (reasonRequired()) {
+    <mat-form-field appearance="outline">
+      <mat-label>{{ data.reasonLabel }}</mat-label>
+      <textarea
+        matInput
+        name="deletionReason"
+        rows="3"
+        required
+        [ngModel]="reason()"
+        (ngModelChange)="reason.set($event)"
+      ></textarea>
+      @if (!reason().trim()) {
+        <mat-error>{{ data.reasonRequiredMessage }}</mat-error>
+      }
+    </mat-form-field>
+  }
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
   <button mat-button type="button" [mat-dialog-close]="false">
     {{ text().deletion.confirmation.actions.cancel }}
   </button>
-  <button mat-flat-button type="button" color="warn" [mat-dialog-close]="true">
+  <button
+    mat-flat-button
+    type="button"
+    color="warn"
+    [disabled]="!canConfirm()"
+    [mat-dialog-close]="confirmationResult()"
+  >
     {{ text().deletion.confirmation.actions.deletePermanently }}
   </button>
 </mat-dialog-actions>

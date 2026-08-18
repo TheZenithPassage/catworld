@@ -1,8 +1,17 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
+import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
 import com.allegaeon.catworld.service.IStayService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +44,69 @@ public class StayController {
         return ResponseEntity.status(HttpStatus.CREATED).body(stayService.createStay(stayRequestDTO));
     }
 
+    @PostMapping("/pricing-preview")
+    public ResponseEntity<StayPricingPreviewResponseDTO> previewCreationPricing(
+            @Valid @RequestBody StayCreationPricingPreviewRequestDTO request) {
+        return ResponseEntity.ok(stayService.previewCreationPricing(request));
+    }
+
+    @PostMapping("/{id}/pricing-preview")
+    public ResponseEntity<StayDatePricingPreviewResponseDTO> previewDateChangePricing(
+            @PathVariable UUID id,
+            @Valid @RequestBody StayDatePricingPreviewRequestDTO request) {
+        return ResponseEntity.ok(stayService.previewDateChangePricing(id, request));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<StayResponseDTO> updateStay(@PathVariable UUID id, @Valid @RequestBody StayUpdateDTO stayUpdateDTO) {
         return ResponseEntity.ok(stayService.updateStay(id, stayUpdateDTO));
+    }
+
+    @PatchMapping("/{id}/agreed-amount")
+    public ResponseEntity<StayResponseDTO> correctAgreedAmount(
+            @PathVariable UUID id,
+            @Valid @RequestBody PricingDecisionRequestDTO pricingDecision) {
+        return ResponseEntity.ok(
+                stayService.correctAgreedAmount(id, pricingDecision)
+        );
+    }
+
+    @PostMapping("/{stayId}/payments")
+    public ResponseEntity<StayResponseDTO> registerPayment(
+            @PathVariable UUID stayId,
+            @Valid @RequestBody PaymentRegistrationRequestDTO paymentRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(stayService.registerPayment(stayId, paymentRequest));
+    }
+
+    @PatchMapping("/{stayId}/payments/{paymentId}")
+    public ResponseEntity<StayResponseDTO> editPayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentEditRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.editPayment(stayId, paymentId, paymentRequest)
+        );
+    }
+
+    @PatchMapping("/{stayId}/payments/{paymentId}/annul")
+    public ResponseEntity<StayResponseDTO> annulPayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentAnnulmentRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.annulPayment(stayId, paymentId, paymentRequest)
+        );
+    }
+
+    @DeleteMapping("/{stayId}/payments/{paymentId}")
+    public ResponseEntity<StayResponseDTO> removePayment(
+            @PathVariable UUID stayId,
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody PaymentRemovalRequestDTO paymentRequest) {
+        return ResponseEntity.ok(
+                stayService.removePayment(stayId, paymentId, paymentRequest)
+        );
     }
 
     @PatchMapping("/{id}/cancel")

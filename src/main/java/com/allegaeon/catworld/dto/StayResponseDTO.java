@@ -1,9 +1,12 @@
 package com.allegaeon.catworld.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +28,14 @@ public class StayResponseDTO {
     private String ownerName;
     private Set<StayCatSummaryDTO> cats;
     private long numberOfNights;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedNightlyRate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal suggestedAmount;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal agreedAmount;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal totalPaid;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal remainingAmount;
+    private PaymentCondition paymentCondition;
+    private boolean outstandingCollectionEligible;
+    private List<StayPaymentResponseDTO> payments;
     private boolean canDelete;
 
 }

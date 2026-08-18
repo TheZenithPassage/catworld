@@ -46,11 +46,11 @@ class NightlyReferenceRateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[0].minimumCatCount").value(1))
-                .andExpect(jsonPath("$[0].nightlyRate").value(12))
+                .andExpect(jsonPath("$[0].nightlyRate").value("12"))
                 .andExpect(jsonPath("$[1].minimumCatCount").value(2))
                 .andExpect(jsonPath("$[1].nightlyRate").value(nullValue()))
                 .andExpect(jsonPath("$[2].minimumCatCount").value(3))
-                .andExpect(jsonPath("$[2].nightlyRate").value(30));
+                .andExpect(jsonPath("$[2].nightlyRate").value("30"));
     }
 
     @Test
@@ -63,7 +63,7 @@ class NightlyReferenceRateControllerTest {
                         .content("{\"nightlyRate\":21}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.minimumCatCount").value(2))
-                .andExpect(jsonPath("$.nightlyRate").value(21));
+                .andExpect(jsonPath("$.nightlyRate").value("21"));
 
         verify(nightlyReferenceRateService).configureRate(2, new BigDecimal("21"));
     }
@@ -78,7 +78,8 @@ class NightlyReferenceRateControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nightlyRate\":9999999999999999999}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.minimumCatCount").value(1));
+                .andExpect(jsonPath("$.minimumCatCount").value(1))
+                .andExpect(jsonPath("$.nightlyRate").value("9999999999999999999"));
 
         verify(nightlyReferenceRateService).configureRate(1, boundary);
     }

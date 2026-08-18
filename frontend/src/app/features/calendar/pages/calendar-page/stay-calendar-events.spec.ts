@@ -127,6 +127,14 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
     ownerId: 'owner-1',
     ownerName: 'Owner One',
     cats: [{ catId: 'cat-1', name: 'John' }],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
+    paymentCondition: 'NO_PAYMENT',
+    outstandingCollectionEligible: true,
+    payments: [],
     ...overrides,
   };
 }

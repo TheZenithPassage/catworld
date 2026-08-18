@@ -1,12 +1,18 @@
 package com.allegaeon.catworld.mapper;
 
 import com.allegaeon.catworld.dto.StayCatSummaryDTO;
+import com.allegaeon.catworld.dto.PaymentState;
 import com.allegaeon.catworld.dto.StayRequestDTO;
+import com.allegaeon.catworld.dto.StayPaymentResponseDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayPayment;
+import com.allegaeon.catworld.model.StayPaymentAnnulment;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,9 +38,14 @@ public class StayMapper {
                 .ownerId(stay.getOwner().getId())
                 .ownerName(stay.getOwner().getFullName())
                 .cats(toCatSummaries(stay))
-                .numberOfNights(ChronoUnit.DAYS.between(
-                        stay.getStartAt().toLocalDate(),
-                        stay.getEndAt().toLocalDate()))
+                .numberOfNights(calculateNumberOfNights(
+                        stay.getStartAt(),
+                        stay.getEndAt()))
+                .retainedNightlyRate(stay.getRetainedNightlyRate())
+                .suggestedAmount(calculateSuggestedAmount(
+                        stay.getRetainedNightlyRate(),
+                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())))
+                .agreedAmount(stay.getAgreedAmount())
                 .canDelete(canDelete)
                 .build();
 
@@ -58,6 +69,40 @@ public class StayMapper {
 
         return stay;
 
+    }
+
+    public StayPaymentResponseDTO toPaymentResponseDTO(
+            StayPayment payment,
+            StayPaymentAnnulment annulment) {
+        return StayPaymentResponseDTO.builder()
+                .paymentId(payment.getId())
+                .amount(payment.getAmount())
+                .paymentDate(payment.getPaymentDate())
+                .note(payment.getNote())
+                .state(payment.isAnnulled()
+                        ? PaymentState.ANNULLED
+                        : PaymentState.ACTIVE)
+                .registeredByUsername(payment.getRegisteredBy().getUsername())
+                .registeredAt(payment.getCreatedAt())
+                .annulledByUsername(annulment == null
+                        ? null
+                        : annulment.getAnnulledBy().getUsername())
+                .annulledAt(annulment == null
+                        ? null
+                        : annulment.getAnnulledAt())
+                .build();
+    }
+
+    public long calculateNumberOfNights(LocalDateTime startAt, LocalDateTime endAt) {
+        return ChronoUnit.DAYS.between(startAt.toLocalDate(), endAt.toLocalDate());
+    }
+
+    public BigDecimal calculateSuggestedAmount(
+            BigDecimal retainedNightlyRate,
+            long numberOfNights) {
+        return retainedNightlyRate == null
+                ? null
+                : retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights));
     }
 
     private Set<StayCatSummaryDTO> toCatSummaries(Stay stay) {

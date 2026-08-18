@@ -12,6 +12,8 @@ export interface AppShellTranslations {
     owners: string;
     vets: string;
     accounts: string;
+    nightlyRates: string;
+    sensitiveActivity: string;
   };
   language: {
     toggleLabel: string;
@@ -34,6 +36,8 @@ export const APP_SHELL_TRANSLATIONS = {
       owners: 'Dueños',
       vets: 'Veterinarios',
       accounts: 'Cuentas',
+      nightlyRates: 'Tarifas nocturnas',
+      sensitiveActivity: 'Actividad sensible',
     },
     language: {
       toggleLabel: 'Cambiar idioma',
@@ -54,6 +58,8 @@ export const APP_SHELL_TRANSLATIONS = {
       owners: 'Owners',
       vets: 'Vets',
       accounts: 'Accounts',
+      nightlyRates: 'Nightly rates',
+      sensitiveActivity: 'Sensitive activity',
     },
     language: {
       toggleLabel: 'Change language',

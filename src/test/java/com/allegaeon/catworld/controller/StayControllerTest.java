@@ -1,8 +1,14 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.PaymentState;
+import com.allegaeon.catworld.dto.StayPaymentResponseDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
+import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.VaccineConflictReason;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.dto.VaccineType;
@@ -10,6 +16,7 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.service.IStayService;
 import org.junit.jupiter.api.Nested;
@@ -25,14 +32,24 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 @WebMvcTest(StayController.class)
 public class StayControllerTest {
+
+    private static CreationPricingConfirmationDTO creationConfirmation(long nights) {
+        return CreationPricingConfirmationDTO.builder()
+                .numberOfNights(nights)
+                .retainedNightlyRate(new BigDecimal("25"))
+                .suggestedAmount(new BigDecimal("100"))
+                .build();
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -67,6 +84,13 @@ public class StayControllerTest {
             when(stayService.getStay(stayId)).thenReturn(StayResponseDTO.builder()
                     .stayId(stayId)
                     .numberOfNights(3)
+                    .retainedNightlyRate(new BigDecimal("25"))
+                    .suggestedAmount(new BigDecimal("75"))
+                    .agreedAmount(new BigDecimal("70"))
+                    .totalPaid(new BigDecimal("50"))
+                    .remainingAmount(new BigDecimal("20"))
+                    .payments(List.of(StayPaymentResponseDTO.builder()
+                            .amount(new BigDecimal("50")).build()))
                     .canDelete(true)
                     .build());
 
@@ -74,6 +98,12 @@ public class StayControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
                     .andExpect(jsonPath("$.numberOfNights").value(3))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value("25"))
+                    .andExpect(jsonPath("$.suggestedAmount").value("75"))
+                    .andExpect(jsonPath("$.agreedAmount").value("70"))
+                    .andExpect(jsonPath("$.totalPaid").value("50"))
+                    .andExpect(jsonPath("$.remainingAmount").value("20"))
+                    .andExpect(jsonPath("$.payments[0].amount").value("50"))
                     .andExpect(jsonPath("$.canDelete").value(true));
 
             verify(stayService).getStay(stayId);
@@ -110,15 +140,29 @@ public class StayControllerTest {
                     .catIds(Set.of(UUID.randomUUID()))
                     .notes("Test stay")
                     .overrideVaccineConflicts(true)
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
+                    .confirmation(creationConfirmation(1))
                     .build();
 
-            when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+            when(stayService.createStay(any(StayRequestDTO.class))).thenReturn(
+                    StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .retainedNightlyRate(new BigDecimal("25"))
+                            .suggestedAmount(new BigDecimal("25"))
+                            .agreedAmount(new BigDecimal("100"))
+                            .build()
+            );
 
             mockMvc.perform(post("/api/stays")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.retainedNightlyRate").value("25"))
+                    .andExpect(jsonPath("$.suggestedAmount").value("25"))
+                    .andExpect(jsonPath("$.agreedAmount").value("100"))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -126,6 +170,43 @@ public class StayControllerTest {
 
             verify(stayService).createStay(argThat(StayRequestDTO::isOverrideVaccineConflicts));
 
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenPricingDecisionIsMissingOrFractional() throws Exception {
+            String baseRequest = """
+                    {
+                      "startAt": "2026-08-01T12:00:00",
+                      "endAt": "2026-08-03T12:00:00",
+                      "catIds": ["%s"],
+                      "overrideVaccineConflicts": false,
+                      %s
+                    }
+                    """;
+            UUID catId = UUID.randomUUID();
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(baseRequest.formatted(
+                                    catId,
+                                    "\"pricingDecision\": null"
+                            )))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.pricingDecision")
+                            .value("pricingDecision is required"));
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(baseRequest.formatted(
+                                    catId,
+                                    "\"pricingDecision\": {\"agreedAmount\": 1.5}"
+                            )))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath(
+                            "$['pricingDecision.agreedAmountSupported']"
+                    ).exists());
+
+            verify(stayService, never()).createStay(any(StayRequestDTO.class));
         }
 
         @Test
@@ -155,6 +236,10 @@ public class StayControllerTest {
                     .endAt(LocalDateTime.now().plusDays(2))
                     .catIds(Set.of(UUID.randomUUID()))
                     .notes("Test stay")
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
+                    .confirmation(creationConfirmation(1))
                     .build();
 
             when(stayService.createStay(any(StayRequestDTO.class))).thenThrow(new BadRequestException("Bad Request"));
@@ -178,6 +263,10 @@ public class StayControllerTest {
                     .startAt(LocalDateTime.of(2026, 8, 1, 12, 0))
                     .endAt(LocalDateTime.of(2026, 8, 5, 12, 0))
                     .catIds(Set.of(catId))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
+                    .confirmation(creationConfirmation(4))
                     .build();
             VaccineConflictViolationDTO violation = VaccineConflictViolationDTO.builder()
                     .catId(catId)
@@ -221,6 +310,27 @@ public class StayControllerTest {
 
         }
 
+        @Test
+        void shouldReturnStableStalePricingConfirmationCode() throws Exception {
+            StayRequestDTO request = StayRequestDTO.builder()
+                    .startAt(LocalDateTime.now().plusDays(1))
+                    .endAt(LocalDateTime.now().plusDays(2))
+                    .catIds(Set.of(UUID.randomUUID()))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100")).build())
+                    .confirmation(creationConfirmation(1))
+                    .build();
+            when(stayService.createStay(any()))
+                    .thenThrow(new StalePricingConfirmationException());
+
+            mockMvc.perform(post("/api/stays")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code")
+                            .value("STALE_PRICING_CONFIRMATION"));
+        }
+
     }
 
     @Nested
@@ -236,6 +346,10 @@ public class StayControllerTest {
                     .endAt(LocalDateTime.now().plusDays(2))
                     .notes("Test stay")
                     .overrideVaccineConflicts(true)
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .reason("Changed duration")
+                            .build())
                     .build();
 
             when(stayService.updateStay(eq(stayId), any(StayUpdateDTO.class))).thenReturn(StayResponseDTO.builder().stayId(stayId).build());
@@ -248,8 +362,33 @@ public class StayControllerTest {
 
             verify(stayService).updateStay(
                     eq(stayId),
-                    argThat(StayUpdateDTO::isOverrideVaccineConflicts));
+                    argThat(actual -> actual.isOverrideVaccineConflicts()
+                            && actual.getPricingDecision() != null
+                            && actual.getPricingDecision().getAgreedAmount()
+                            .compareTo(new BigDecimal("100")) == 0));
 
+        }
+
+        @Test
+        void shouldReturnForbidden_whenServiceDeniesStaffNightCountChange() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(LocalDateTime.of(2026, 8, 1, 12, 0))
+                    .endAt(LocalDateTime.of(2026, 8, 4, 12, 0))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("100"))
+                            .build())
+                    .build();
+
+            when(stayService.updateStay(eq(stayId), any(StayUpdateDTO.class)))
+                    .thenThrow(new ForbiddenException(
+                            "Only administrators can change a stay's number of nights"
+                    ));
+
+            mockMvc.perform(put("/api/stays/{id}", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isForbidden());
         }
 
         @Test
@@ -301,6 +440,115 @@ public class StayControllerTest {
     class PatchStayTests {
 
         @Test
+        void shouldReturnOk_whenCorrectingAgreedAmount() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            PricingDecisionRequestDTO request = PricingDecisionRequestDTO.builder()
+                    .agreedAmount(new BigDecimal("25"))
+                    .reason("Administrative correction")
+                    .build();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("25"))
+                            .build());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.agreedAmount").value(25));
+
+            verify(stayService).correctAgreedAmount(
+                    eq(stayId),
+                    argThat(actual -> actual.getAgreedAmount()
+                            .compareTo(new BigDecimal("25")) == 0
+                            && "Administrative correction"
+                            .equals(actual.getReason()))
+            );
+        }
+
+        @Test
+        void shouldReturnOk_whenNumericCorrectionIsNoOpWithoutReason()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("20"))
+                            .build());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"agreedAmount": 20.0}
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.agreedAmount").value(20));
+
+            verify(stayService).correctAgreedAmount(
+                    eq(stayId),
+                    argThat(actual -> actual.getReason() == null)
+            );
+        }
+
+        @Test
+        void shouldReturnBadRequest_whenCorrectionAmountIsUnsupported()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"agreedAmount": 1.5, "reason": "Reason"}
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.agreedAmountSupported").exists());
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "agreedAmount": 1e2147483647,
+                                      "reason": "Reason"
+                                    }
+                                    """))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.agreedAmountSupported").exists());
+
+            verify(stayService, never()).correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)
+            );
+        }
+
+        @Test
+        void shouldReturnForbidden_whenServiceDeniesStaffCorrection()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            when(stayService.correctAgreedAmount(
+                    eq(stayId),
+                    any(PricingDecisionRequestDTO.class)))
+                    .thenThrow(new ForbiddenException(
+                            "Only administrators can correct a stay's agreed amount"
+                    ));
+
+            mockMvc.perform(patch("/api/stays/{id}/agreed-amount", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "agreedAmount": 25,
+                                      "reason": "Administrative correction"
+                                    }
+                                    """))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
         void shouldReturnNoContent_whenCancellingStay() throws Exception {
 
             UUID stayId = UUID.randomUUID();
@@ -312,6 +560,210 @@ public class StayControllerTest {
 
         }
 
+    }
+
+    @Nested
+    class StayPaymentContractTests {
+
+        @Test
+        void registrationReturnsOperationalHistoryAndDerivedEconomicsWithoutAuditDetails()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            Instant registeredAt = Instant.parse("2026-07-30T12:00:00Z");
+            when(stayService.registerPayment(eq(stayId), any())).thenReturn(
+                    StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .agreedAmount(new BigDecimal("100"))
+                            .totalPaid(new BigDecimal("30"))
+                            .remainingAmount(new BigDecimal("70"))
+                            .paymentCondition(PaymentCondition.PARTIAL_PAYMENT)
+                            .outstandingCollectionEligible(true)
+                            .payments(List.of(StayPaymentResponseDTO.builder()
+                                    .paymentId(paymentId)
+                                    .amount(new BigDecimal("30"))
+                                    .paymentDate(LocalDate.of(2026, 7, 30))
+                                    .note("Card")
+                                    .state(PaymentState.ACTIVE)
+                                    .registeredByUsername("admin")
+                                    .registeredAt(registeredAt)
+                                    .build()))
+                            .build()
+            );
+
+            mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "amount": 30,
+                                      "paymentDate": "2026-07-30",
+                                      "note": "Card"
+                                    }
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.totalPaid").value(30))
+                    .andExpect(jsonPath("$.remainingAmount").value(70))
+                    .andExpect(jsonPath("$.paymentCondition")
+                            .value("PARTIAL_PAYMENT"))
+                    .andExpect(jsonPath("$.outstandingCollectionEligible")
+                            .value(true))
+                    .andExpect(jsonPath("$.payments[0].paymentId")
+                            .value(paymentId.toString()))
+                    .andExpect(jsonPath("$.payments[0].state").value("ACTIVE"))
+                    .andExpect(jsonPath("$.payments[0].registeredByUsername")
+                            .value("admin"))
+                    .andExpect(jsonPath("$.payments[0].registeredAt")
+                            .value(registeredAt.toString()))
+                    .andExpect(jsonPath("$.payments[0].annulledByUsername")
+                            .value(nullValue()))
+                    .andExpect(jsonPath("$.payments[0].annulledAt")
+                            .value(nullValue()))
+                    .andExpect(jsonPath("$.payments[0].reason").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].editedBy").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].annulledBy").doesNotExist())
+                    .andExpect(jsonPath("$.payments[0].previousAmount")
+                            .doesNotExist());
+        }
+
+        @Test
+        void annulmentReturnsOperationalActorAndTimestamp() throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            Instant annulledAt = Instant.parse("2026-08-04T10:30:00Z");
+            when(stayService.annulPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder()
+                            .stayId(stayId)
+                            .payments(List.of(StayPaymentResponseDTO.builder()
+                                    .paymentId(paymentId)
+                                    .amount(new BigDecimal("30"))
+                                    .state(PaymentState.ANNULLED)
+                                    .registeredByUsername("staff")
+                                    .registeredAt(Instant.parse(
+                                            "2026-08-04T09:00:00Z"))
+                                    .annulledByUsername("admin")
+                                    .annulledAt(annulledAt)
+                                    .build()))
+                            .build());
+
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"reason\":\"Duplicate\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.payments[0].state")
+                            .value("ANNULLED"))
+                    .andExpect(jsonPath("$.payments[0].annulledByUsername")
+                            .value("admin"))
+                    .andExpect(jsonPath("$.payments[0].annulledAt")
+                            .value(annulledAt.toString()));
+        }
+
+        @Test
+        void registrationRejectsInvalidIntegerInputsBeforeServiceDelegation()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            for (String amount : List.of(
+                    "0",
+                    "-1",
+                    "1.5",
+                    "10000000000000000000",
+                    "\"malformed\"")) {
+                mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "amount": %s,
+                                          "paymentDate": "2026-07-30"
+                                        }
+                                        """.formatted(amount)))
+                        .andExpect(status().isBadRequest());
+            }
+
+            verify(stayService, never()).registerPayment(eq(stayId), any());
+        }
+
+        @Test
+        void editAndAnnulRoutesValidateAndDelegateFocusedRequests()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            when(stayService.editPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+            when(stayService.annulPayment(eq(stayId), eq(paymentId), any()))
+                    .thenReturn(StayResponseDTO.builder().stayId(stayId).build());
+
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 25, "reason": "Correct entry"}
+                                    """))
+                    .andExpect(status().isOk());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"reason": "Entered twice"}
+                                    """))
+                    .andExpect(status().isOk());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 25, "reason": "   "}
+                                    """))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}/annul",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"reason": "   "}
+                                    """))
+                    .andExpect(status().isBadRequest());
+
+            verify(stayService).editPayment(eq(stayId), eq(paymentId), any());
+            verify(stayService).annulPayment(eq(stayId), eq(paymentId), any());
+        }
+
+        @Test
+        void paymentRoutesMapServiceForbiddenAndConflictResults()
+                throws Exception {
+            UUID stayId = UUID.randomUUID();
+            UUID paymentId = UUID.randomUUID();
+            when(stayService.registerPayment(eq(stayId), any()))
+                    .thenThrow(new ForbiddenException("Forbidden"));
+            when(stayService.editPayment(eq(stayId), eq(paymentId), any()))
+                    .thenThrow(new ConflictException("Immutable"));
+
+            mockMvc.perform(post("/api/stays/{stayId}/payments", stayId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "amount": 10,
+                                      "paymentDate": "2026-07-30"
+                                    }
+                                    """))
+                    .andExpect(status().isForbidden());
+            mockMvc.perform(patch(
+                            "/api/stays/{stayId}/payments/{paymentId}",
+                            stayId,
+                            paymentId)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"amount": 20, "reason": "Correction"}
+                                    """))
+                    .andExpect(status().isConflict());
+        }
     }
 
     @Nested
@@ -371,6 +823,89 @@ public class StayControllerTest {
 
         }
 
+    }
+
+    @Test
+    void removesPaymentWithReasonAndReturnsRefreshedEconomics() throws Exception {
+        UUID stayId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        when(stayService.removePayment(eq(stayId), eq(paymentId), any()))
+                .thenReturn(StayResponseDTO.builder()
+                        .stayId(stayId)
+                        .totalPaid(new BigDecimal("20"))
+                        .remainingAmount(new BigDecimal("80"))
+                        .build());
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Duplicate payment\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stayId").value(stayId.toString()))
+                .andExpect(jsonPath("$.totalPaid").value(20))
+                .andExpect(jsonPath("$.remainingAmount").value(80));
+
+        verify(stayService).removePayment(eq(stayId), eq(paymentId),
+                argThat(request -> "Duplicate payment".equals(request.getReason())));
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void returnsConflictWhenPaymentRemovalHitsPersistenceRace() throws Exception {
+        UUID stayId = UUID.randomUUID();
+        UUID paymentId = UUID.randomUUID();
+        when(stayService.removePayment(eq(stayId), eq(paymentId), any()))
+                .thenThrow(new ConflictException("Payment removal conflict"));
+
+        mockMvc.perform(delete(
+                        "/api/stays/{stayId}/payments/{paymentId}",
+                        stayId, paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"Concurrent actor deletion\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void returnsExactStringCreationPricingPreview() throws Exception {
+        when(stayService.previewCreationPricing(any())).thenReturn(
+                StayPricingPreviewResponseDTO.builder()
+                        .numberOfNights(1)
+                        .retainedNightlyRate(new BigDecimal("9999999999999999999"))
+                        .suggestedAmount(new BigDecimal("9999999999999999999"))
+                        .confirmation(CreationPricingConfirmationDTO.builder()
+                                .numberOfNights(1L)
+                                .retainedNightlyRate(new BigDecimal("9999999999999999999"))
+                                .suggestedAmount(new BigDecimal("9999999999999999999"))
+                                .build())
+                        .build());
+
+        mockMvc.perform(post("/api/stays/pricing-preview")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startAt": "2027-08-01T12:00:00",
+                                  "endAt": "2027-08-02T12:00:00",
+                                  "catIds": ["00000000-0000-0000-0000-000000000001"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numberOfNights").value(1))
+                .andExpect(jsonPath("$.retainedNightlyRate")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.suggestedAmount")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.confirmation.numberOfNights").value(1))
+                .andExpect(jsonPath("$.confirmation.retainedNightlyRate")
+                        .value("9999999999999999999"))
+                .andExpect(jsonPath("$.confirmation.suggestedAmount")
+                        .value("9999999999999999999"));
     }
 
 

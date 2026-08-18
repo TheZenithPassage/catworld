@@ -4,8 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
@@ -23,11 +24,14 @@ import {
 } from '../../components/vaccine-conflict-dialog/vaccine-conflict-dialog';
 import {
   CreateStayRequest,
+  CreationPricingPreview,
+  isStalePricingConfirmationError,
   isVaccineConflictError,
   VaccineConflictResponse,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { calculateStayNights } from '../../utils/stay-nights.util';
+import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 
 @Component({
   selector: 'app-stay-create-page',
@@ -36,8 +40,10 @@ import { calculateStayNights } from '../../utils/stay-nights.util';
     MatButton,
     MatCheckbox,
     MatFormField,
+    MatError,
     MatInput,
     MatLabel,
+    MatProgressSpinner,
     RouterLink,
     UiStateComponent,
   ],
@@ -65,6 +71,14 @@ export class StayCreatePage {
   readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
   readonly notes = signal('');
+  readonly agreedAmount = signal('');
+  readonly pricingReason = signal('');
+  readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
+  readonly pricingPreview = signal<CreationPricingPreview | null>(null);
+  readonly previewLoading = signal(false);
+  readonly previewError = createLanguageResetError(this.i18nService.language);
+  readonly pricingConfirmed = signal(false);
+  readonly stalePricing = signal(false);
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -89,6 +103,32 @@ export class StayCreatePage {
   readonly selectedOwnerName = computed(
     () => this.owners().find((owner) => owner.id === this.selectedOwnerId())?.fullName ?? '',
   );
+  readonly reasonRequired = computed(() => {
+    const suggestion = this.pricingPreview()?.suggestedAmount;
+    return (
+      suggestion !== null &&
+      suggestion !== undefined &&
+      !sameWholeMoney(this.agreedAmount(), suggestion)
+    );
+  });
+  readonly decisionValid = computed(
+    () =>
+      isValidWholeMoney(this.agreedAmount()) &&
+      (!this.reasonRequired() || this.pricingReason().trim().length > 0),
+  );
+  readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
+  readonly pricingReasonPlaceholder = computed(() => {
+    if (this.pricingReasonContext() === 'suggested') {
+      return this.text().stays.pricing.reasonSuggestedPlaceholder;
+    }
+    if (this.pricingReasonContext() === 'manual') {
+      return this.text().stays.pricing.reasonDifferentPlaceholder;
+    }
+    return '';
+  });
+
+  private previewRequestSequence = 0;
+  private vaccineOverrideRecoveryBasis: string | null = null;
 
   constructor() {
     this.loadData();
@@ -116,17 +156,66 @@ export class StayCreatePage {
   }
 
   onOwnerChange(ownerId: string): void {
+    this.clearVaccineOverrideRecovery();
     this.selectedOwnerId.set(ownerId);
     this.selectedCatIds.set([]);
+    this.refreshPricingPreview();
   }
 
   onCatToggle(catId: string, checked: boolean): void {
+    this.clearVaccineOverrideRecovery();
     if (checked) {
       this.selectedCatIds.update((catIds) => [...catIds, catId]);
+      this.refreshPricingPreview();
       return;
     }
 
     this.selectedCatIds.update((catIds) => catIds.filter((currentCatId) => currentCatId !== catId));
+    this.refreshPricingPreview();
+  }
+
+  onStartAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
+    this.startAt.set(value);
+    this.refreshPricingPreview();
+  }
+
+  onEndAtChange(value: string): void {
+    this.clearVaccineOverrideRecovery();
+    this.endAt.set(value);
+    this.refreshPricingPreview();
+  }
+
+  onPricingDecisionChange(): void {
+    this.pricingConfirmed.set(false);
+  }
+
+  onAgreedAmountChange(value: string): void {
+    this.agreedAmount.set(value);
+    this.pricingReasonContext.set('manual');
+    this.onPricingDecisionChange();
+  }
+
+  confirmPricing(): void {
+    if (!this.previewLoading() && this.pricingPreview() && this.decisionValid()) {
+      this.pricingConfirmed.set(true);
+      this.stalePricing.set(false);
+      this.scrollToSubmit();
+    }
+  }
+
+  useSuggestedAmount(): void {
+    if (this.previewLoading()) return;
+
+    const suggestedAmount = this.pricingPreview()?.suggestedAmount;
+    if (suggestedAmount === null || suggestedAmount === undefined) return;
+
+    this.agreedAmount.set(suggestedAmount);
+    this.pricingReason.set('');
+    this.pricingReasonContext.set('suggested');
+    this.pricingConfirmed.set(true);
+    this.stalePricing.set(false);
+    this.scrollToSubmit();
   }
 
   toggleCatFromPill(event: MouseEvent, catId: string): void {
@@ -159,18 +248,31 @@ export class StayCreatePage {
       return;
     }
 
+    const preview = this.pricingPreview();
+    if (this.previewLoading() || !preview || !this.pricingConfirmed() || !this.decisionValid()) {
+      this.error.set(this.text().stays.pricing.errors.confirmationRequired);
+      return;
+    }
+
+    const basis = this.currentPreviewBasis();
+    const overrideVaccineConflicts = this.vaccineOverrideRecoveryBasis === basis;
     const request: CreateStayRequest = {
       catIds: this.selectedCatIds(),
       startAt: this.startAt(),
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
-      overrideVaccineConflicts: false,
+      overrideVaccineConflicts,
+      pricingDecision: {
+        agreedAmount: this.agreedAmount(),
+        reason: this.pricingReason().trim() || null,
+      },
+      confirmation: preview.confirmation,
     };
 
-    this.saveStay(request, true);
+    this.saveStay(request, !overrideVaccineConflicts, basis);
   }
 
-  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean): void {
+  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean, basis: string): void {
     this.submitting.set(true);
 
     this.stayApiService.createStay(request).subscribe({
@@ -179,12 +281,24 @@ export class StayCreatePage {
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
+        if (isStalePricingConfirmationError(error)) {
+          this.vaccineOverrideRecoveryBasis = request.overrideVaccineConflicts ? basis : null;
+          this.submitting.set(false);
+          this.stalePricing.set(true);
+          this.pricingConfirmed.set(false);
+          this.error.set(this.text().stays.pricing.errors.stale);
+          this.refreshPricingPreview();
+          return;
+        }
         if (showVaccineConflict && isVaccineConflictError(error)) {
           this.submitting.set(false);
-          this.openVaccineConflictDialog(error.error, request);
+          this.openVaccineConflictDialog(error.error, request, basis);
           return;
         }
 
+        if (request.overrideVaccineConflicts) {
+          this.clearVaccineOverrideRecovery();
+        }
         this.error.set(this.getCreateStayErrorMessage(error));
         this.submitting.set(false);
       },
@@ -194,6 +308,7 @@ export class StayCreatePage {
   private openVaccineConflictDialog(
     conflict: VaccineConflictResponse,
     request: CreateStayRequest,
+    basis: string,
   ): void {
     const canOverride = this.authSessionService.hasRole('ADMIN');
     const data: VaccineConflictDialogData = {
@@ -213,7 +328,7 @@ export class StayCreatePage {
           return;
         }
 
-        this.saveStay({ ...request, overrideVaccineConflicts: true }, false);
+        this.saveStay({ ...request, overrideVaccineConflicts: true }, false, basis);
       });
   }
 
@@ -244,6 +359,62 @@ export class StayCreatePage {
     if (catExistsForOwner) {
       this.selectedCatIds.set([queryCatId]);
     }
+
+    this.refreshPricingPreview();
+  }
+
+  private refreshPricingPreview(): void {
+    if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
+    this.pricingConfirmed.set(false);
+    this.previewError.set(null);
+    const sequence = ++this.previewRequestSequence;
+
+    if (
+      this.selectedCatIds().length === 0 ||
+      !this.startAt() ||
+      !this.endAt() ||
+      new Date(this.endAt()) <= new Date(this.startAt())
+    ) {
+      this.pricingPreview.set(null);
+      this.previewLoading.set(false);
+      return;
+    }
+
+    const catIds = [...this.selectedCatIds()].sort();
+    const basis = JSON.stringify([this.startAt(), this.endAt(), catIds]);
+    this.previewLoading.set(true);
+
+    this.stayApiService
+      .previewCreationPricing({ startAt: this.startAt(), endAt: this.endAt(), catIds })
+      .subscribe({
+        next: (preview) => {
+          if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis()) {
+            return;
+          }
+          this.pricingPreview.set(preview);
+          this.previewLoading.set(false);
+        },
+        error: () => {
+          if (sequence !== this.previewRequestSequence) return;
+          this.pricingPreview.set(null);
+          this.previewLoading.set(false);
+          this.previewError.set(this.text().stays.pricing.errors.previewFailed);
+        },
+      });
+  }
+
+  private currentPreviewBasis(): string {
+    return JSON.stringify([this.startAt(), this.endAt(), [...this.selectedCatIds()].sort()]);
+  }
+
+  private scrollToSubmit(): void {
+    document
+      .getElementById('create-stay-submit')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }
+
+  private clearVaccineOverrideRecovery(): void {
+    this.vaccineOverrideRecoveryBasis = null;
   }
 
   private getCreateStayErrorMessage(error: unknown): string {
