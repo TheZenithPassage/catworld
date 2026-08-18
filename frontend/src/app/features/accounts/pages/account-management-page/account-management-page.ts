@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
@@ -12,6 +13,11 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UserRole } from '../../../../core/auth/auth.model';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { deletionErrorKind } from '../../../../shared/permanent-deletion/deletion-error';
+import {
+  isPermanentDeletionConfirmed,
+  PermanentDeletionConfirmationDialog,
+} from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { UserAccount } from '../../models/user-account.model';
 import { UserAccountApiService } from '../../services/user-account-api.service';
@@ -35,6 +41,7 @@ export class AccountManagementPage {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18nService.text;
   readonly accounts = signal<UserAccount[]>([]);
@@ -46,6 +53,7 @@ export class AccountManagementPage {
   readonly newAccountRole = signal<UserRole>('STAFF');
   readonly creating = signal(false);
   readonly pendingAccountIds = signal<ReadonlySet<string>>(new Set());
+  readonly deletingAccountIds = signal<ReadonlySet<string>>(new Set());
   readonly roleSelections = signal<Record<string, UserRole>>({});
   readonly displayedColumns = ['username', 'role', 'enabled', 'actions'];
 
@@ -194,6 +202,25 @@ export class AccountManagementPage {
     });
   }
 
+  confirmDeleteAccount(account: UserAccount): void {
+    if (this.isCurrentAccount(account) || this.isPending(account.id)) {
+      return;
+    }
+
+    this.actionError.set(null);
+
+    this.dialog
+      .open(PermanentDeletionConfirmationDialog, {
+        data: { subject: account.username },
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (isPermanentDeletionConfirmed(result)) {
+          this.deleteAccount(account);
+        }
+      });
+  }
+
   isCurrentAccount(account: UserAccount): boolean {
     return account.username === this.authSessionService.getUsername();
   }
@@ -202,10 +229,69 @@ export class AccountManagementPage {
     return this.pendingAccountIds().has(accountId);
   }
 
+  isDeleting(accountId: string): boolean {
+    return this.deletingAccountIds().has(accountId);
+  }
+
   private replaceAccount(updatedAccount: UserAccount): void {
     this.accounts.update((accounts) =>
       accounts.map((account) => (account.id === updatedAccount.id ? updatedAccount : account)),
     );
+  }
+
+  private deleteAccount(account: UserAccount): void {
+    if (this.isPending(account.id)) {
+      return;
+    }
+
+    this.setPending(account.id, true);
+    this.setDeleting(account.id, true);
+
+    this.userAccountApiService.deleteAccount(account.id).subscribe({
+      next: () => {
+        this.accounts.update((accounts) =>
+          accounts.filter((candidate) => candidate.id !== account.id),
+        );
+        this.roleSelections.update((selections) => {
+          const nextSelections = { ...selections };
+          delete nextSelections[account.id];
+          return nextSelections;
+        });
+        this.setDeleting(account.id, false);
+        this.setPending(account.id, false);
+      },
+      error: (error: unknown) => {
+        this.setDeleting(account.id, false);
+        this.setPending(account.id, false);
+        this.refreshAccountsIfNotFound(error);
+        this.actionError.set(this.getDeletionErrorMessage(error));
+      },
+    });
+  }
+
+  private setDeleting(accountId: string, deleting: boolean): void {
+    this.deletingAccountIds.update((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (deleting) {
+        nextIds.add(accountId);
+      } else {
+        nextIds.delete(accountId);
+      }
+
+      return nextIds;
+    });
+  }
+
+  private getDeletionErrorMessage(error: unknown): string {
+    switch (deletionErrorKind(error)) {
+      case 'notFound':
+        return this.text().accounts.errors.deletionNotFound;
+      case 'conflict':
+        return this.text().accounts.errors.deletionConflict;
+      default:
+        return this.text().accounts.errors.deletionFailed;
+    }
   }
 
   private setPending(accountId: string, pending: boolean): void {

@@ -3,17 +3,19 @@ import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
+import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { LoginPage } from './login-page';
 
 describe('LoginPage', () => {
   let component: LoginPage;
   let fixture: ComponentFixture<LoginPage>;
+  let redirectReason: string | null;
 
   const authApiService = {
     login: vi.fn(),
@@ -30,6 +32,7 @@ describe('LoginPage', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    redirectReason = null;
     router.navigateByUrl.mockResolvedValue(true);
 
     await TestBed.configureTestingModule({
@@ -48,9 +51,15 @@ describe('LoginPage', () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: convertToParamMap({
-                returnUrl: '/owners',
-              }),
+              queryParamMap: {
+                get: (key: string) => {
+                  if (key === 'returnUrl') {
+                    return '/owners';
+                  }
+
+                  return key === 'reason' ? redirectReason : null;
+                },
+              },
             },
           },
         },
@@ -106,6 +115,18 @@ describe('LoginPage', () => {
     expect(compiled.querySelector('input[name="username"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="password"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
+  });
+
+  it('renders a localized explanation after a forbidden account deletion redirect', () => {
+    fixture.destroy();
+    redirectReason = ACCOUNT_DELETION_FORBIDDEN_REASON;
+    fixture = TestBed.createComponent(LoginPage);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().auth.login.errors.accountDeletionForbidden,
+    );
   });
 
   it('does not submit when the username is blank', async () => {

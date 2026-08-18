@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 
 import { API_BASE_URL } from '../config/api.config';
 
+import { ACCOUNT_DELETION_FORBIDDEN_REASON } from './auth-redirect-reason';
 import { authInterceptor } from './auth.interceptor';
 import { AuthSessionService } from './auth-session.service';
 
@@ -172,6 +173,26 @@ describe('authInterceptor', () => {
     expect(navigateSpy).toHaveBeenCalledWith(['/login'], {
       queryParams: {
         returnUrl: router.url,
+      },
+    });
+  });
+
+  it('redirects a forbidden account deletion with a fixed explanatory reason', () => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    authSessionService.login(adminUser, adminCredentials);
+
+    httpClient.delete(`${API_BASE_URL}/users/user-1`).subscribe({
+      error: () => undefined,
+    });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/users/user-1`);
+    request.flush({ error: 'Forbidden' }, { status: 403, statusText: 'Forbidden' });
+
+    expect(authSessionService.authenticated()).toBeNull();
+    expect(navigateSpy).toHaveBeenCalledWith(['/login'], {
+      queryParams: {
+        returnUrl: router.url,
+        reason: ACCOUNT_DELETION_FORBIDDEN_REASON,
       },
     });
   });

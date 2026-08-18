@@ -1,8 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -30,6 +31,10 @@ describe('AccountManagementPage', () => {
     createAccount: vi.fn(),
     changeRole: vi.fn(),
     changeEnabled: vi.fn(),
+    deleteAccount: vi.fn(),
+  };
+  const dialog = {
+    open: vi.fn(),
   };
   const authSessionService = {
     getUsername: vi.fn(),
@@ -47,6 +52,7 @@ describe('AccountManagementPage', () => {
     userAccountApiService.getAccounts.mockReturnValue(of([adminAccount, staffAccount]));
     authSessionService.getUsername.mockReturnValue('admin');
     router.navigate.mockResolvedValue(true);
+    dialog.open.mockReturnValue({ afterClosed: () => of(false) });
 
     await TestBed.configureTestingModule({
       imports: [AccountManagementPage],
@@ -55,6 +61,7 @@ describe('AccountManagementPage', () => {
         { provide: UserAccountApiService, useValue: userAccountApiService },
         { provide: AuthSessionService, useValue: authSessionService },
         { provide: Router, useValue: router },
+        { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
 
@@ -101,6 +108,103 @@ describe('AccountManagementPage', () => {
     );
     expect(compiled.querySelectorAll('button[mat-stroked-button]').length).toBeGreaterThanOrEqual(
       2,
+    );
+  });
+
+  it('renders permanent deletion only for the non-current account', () => {
+    fixture.detectChanges();
+
+    const deleteActions = [
+      ...fixture.nativeElement.querySelectorAll('.delete-account-action'),
+    ] as HTMLButtonElement[];
+
+    expect(deleteActions).toHaveLength(1);
+    expect(deleteActions[0].textContent).toContain(
+      component.text().accounts.actions.deletePermanently,
+    );
+    expect(deleteActions[0].closest('tr')?.textContent).toContain(staffAccount.username);
+    expect(deleteActions[0].closest('tr')?.textContent).not.toContain(adminAccount.username);
+  });
+
+  it('uses the shared confirmation subject and sends no request when deletion is cancelled', () => {
+    component.confirmDeleteAccount(staffAccount);
+
+    expect(dialog.open).toHaveBeenCalledWith(expect.any(Function), {
+      data: { subject: staffAccount.username },
+    });
+    expect(userAccountApiService.deleteAccount).not.toHaveBeenCalled();
+    expect(component.accounts()).toEqual([adminAccount, staffAccount]);
+  });
+
+  it('removes a confirmed deleted account from the rendered list without reloading', () => {
+    dialog.open.mockReturnValue({ afterClosed: () => of(true) });
+    userAccountApiService.deleteAccount.mockReturnValue(of(undefined));
+
+    component.confirmDeleteAccount(staffAccount);
+    fixture.detectChanges();
+
+    expect(userAccountApiService.deleteAccount).toHaveBeenCalledOnce();
+    expect(userAccountApiService.deleteAccount).toHaveBeenCalledWith(staffAccount.id);
+    expect(userAccountApiService.getAccounts).toHaveBeenCalledOnce();
+    expect(component.accounts()).toEqual([adminAccount]);
+    expect(fixture.nativeElement.textContent).not.toContain(staffAccount.username);
+  });
+
+  it('prevents duplicate account actions while confirmed deletion is pending', () => {
+    const deletion = new Subject<void>();
+    dialog.open.mockReturnValue({ afterClosed: () => of(true) });
+    userAccountApiService.deleteAccount.mockReturnValue(deletion);
+
+    component.confirmDeleteAccount(staffAccount);
+    component.confirmDeleteAccount(staffAccount);
+    fixture.detectChanges();
+
+    expect(dialog.open).toHaveBeenCalledOnce();
+    expect(userAccountApiService.deleteAccount).toHaveBeenCalledOnce();
+    expect(component.isPending(staffAccount.id)).toBe(true);
+    expect(component.isDeleting(staffAccount.id)).toBe(true);
+    const row = [...fixture.nativeElement.querySelectorAll('tr')].find((candidate: Element) =>
+      candidate.textContent?.includes(staffAccount.username),
+    );
+    const rowButtons = [...(row?.querySelectorAll('button') ?? [])] as HTMLButtonElement[];
+    expect(rowButtons.length).toBeGreaterThan(0);
+    expect(rowButtons.every((button) => button.disabled)).toBe(true);
+    expect(row?.textContent).toContain(component.text().accounts.actions.deleting);
+  });
+
+  it.each([[409, 'deletionConflict']] as const)(
+    'keeps the account and shows the expected deletion error for status %i',
+    (status, messageKey) => {
+      dialog.open.mockReturnValue({ afterClosed: () => of(true) });
+      userAccountApiService.deleteAccount.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status })),
+      );
+
+      component.confirmDeleteAccount(staffAccount);
+      fixture.detectChanges();
+
+      expect(component.accounts()).toEqual([adminAccount, staffAccount]);
+      expect(component.isPending(staffAccount.id)).toBe(false);
+      expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+        component.text().accounts.errors[messageKey],
+      );
+    },
+  );
+
+  it('refreshes stale accounts and shows a useful message after deletion returns not found', () => {
+    dialog.open.mockReturnValue({ afterClosed: () => of(true) });
+    userAccountApiService.deleteAccount.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+    userAccountApiService.getAccounts.mockReturnValueOnce(of([adminAccount]));
+
+    component.confirmDeleteAccount(staffAccount);
+    fixture.detectChanges();
+
+    expect(userAccountApiService.getAccounts).toHaveBeenCalledTimes(2);
+    expect(component.accounts()).toEqual([adminAccount]);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().accounts.errors.deletionNotFound,
     );
   });
 
