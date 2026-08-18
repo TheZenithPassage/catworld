@@ -609,7 +609,7 @@ concurrent reference creation, and an integrity or optimistic-locking race maps
 to `409 Conflict`. The operation never cascades, detaches, reassigns or deletes
 operational records to make account deletion succeed.
 
-Account deletion, every requested role change to `STAFF`, and every requested
+Account deletion, every non-self role change to `STAFF`, and every non-self
 enabled change to `false` share one enabled-admin critical section. Each path
 resolves its target before acquiring the enabled-admin write lock, validates
 that the locked current set contains an enabled administrator with a different
@@ -622,6 +622,14 @@ pre-lock target snapshot already contains its requested value. Each focused
 statement also advances `updatedAt`. This target-first lock ordering and focused
 persistence protocol serialize deletion, demotion and disabling without
 changing their existing HTTP contracts.
+
+Before an administrator role change to `STAFF` or enabled change to `false`
+enters that critical section, the service compares the target with the
+persisted authenticated account and rejects removal of the current
+administrator's own access with `409 Conflict`. This self-mutation rule applies
+even when another enabled administrator exists. Account management mirrors the
+rule by fixing the current administrator's role and omitting its disable action;
+the backend remains authoritative for stale UI state and direct requests.
 
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 

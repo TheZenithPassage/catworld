@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -38,14 +39,16 @@ class UserAccountMutationPersistenceTest {
     private JdbcTemplate jdbcTemplate;
 
     private UserAccountService userAccountService;
+    private CurrentUserAccountService currentUserAccountService;
 
     @BeforeEach
     void setUp() {
+        currentUserAccountService = mock(CurrentUserAccountService.class);
         userAccountService = new UserAccountService(
                 userAccountRepository,
                 new UserAccountMapper(),
                 PasswordEncoderFactories.createDelegatingPasswordEncoder(),
-                mock(CurrentUserAccountService.class),
+                currentUserAccountService,
                 mock(OwnerRepository.class),
                 mock(CatRepository.class),
                 mock(VetRepository.class),
@@ -63,7 +66,8 @@ class UserAccountMutationPersistenceTest {
     @Test
     void roleReducerPersistsRequestedValueAndPreservesCurrentEnabledState() {
         UserAccount staleTarget = saveAccount("stale-role-target", UserRole.STAFF, false);
-        saveAccount("other-role-admin", UserRole.ADMIN, true);
+        UserAccount currentAdministrator = saveAccount("other-role-admin", UserRole.ADMIN, true);
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentAdministrator);
         UUID targetId = staleTarget.getId();
         makeTargetCurrentEnabledAdmin(targetId);
         Instant previousUpdatedAt = storedUpdatedAt(targetId);
@@ -84,7 +88,8 @@ class UserAccountMutationPersistenceTest {
     @Test
     void enabledReducerPersistsRequestedValueAndPreservesCurrentRole() {
         UserAccount staleTarget = saveAccount("stale-enabled-target", UserRole.STAFF, false);
-        saveAccount("other-enabled-admin", UserRole.ADMIN, true);
+        UserAccount currentAdministrator = saveAccount("other-enabled-admin", UserRole.ADMIN, true);
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(currentAdministrator);
         UUID targetId = staleTarget.getId();
         makeTargetCurrentEnabledAdmin(targetId);
         Instant previousUpdatedAt = storedUpdatedAt(targetId);

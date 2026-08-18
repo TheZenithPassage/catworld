@@ -188,20 +188,43 @@ class UserAccountControllerSecurityTest {
     }
 
     @Test
-    void lastEnabledAdminCannotBeDisabledOrDemoted() throws Exception {
+    void currentAdminCannotBeDisabledOrDemotedWhenItIsLastEnabledAdmin() throws Exception {
         mockMvc.perform(patch("/api/users/{id}/enabled", administrator.getId())
                         .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"enabled\":false}"))
                 .andExpect(status().isConflict())
-                .andExpect(content().string("At least one enabled ADMIN account is required"));
+                .andExpect(content().string("Administrators cannot remove their own administrative access"));
 
         mockMvc.perform(patch("/api/users/{id}/role", administrator.getId())
                         .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"role\":\"STAFF\"}"))
                 .andExpect(status().isConflict())
-                .andExpect(content().string("At least one enabled ADMIN account is required"));
+                .andExpect(content().string("Administrators cannot remove their own administrative access"));
+    }
+
+    @Test
+    void currentAdminCannotBeDisabledOrDemotedWhenAnotherEnabledAdminExists() throws Exception {
+        saveUser("other-admin", "other-password", UserRole.ADMIN, true);
+
+        mockMvc.perform(patch("/api/users/{id}/enabled", administrator.getId())
+                        .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\":false}"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Administrators cannot remove their own administrative access"));
+
+        mockMvc.perform(patch("/api/users/{id}/role", administrator.getId())
+                        .with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"role\":\"STAFF\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Administrators cannot remove their own administrative access"));
+
+        UserAccount unchanged = userAccountRepository.findById(administrator.getId()).orElseThrow();
+        assertTrue(unchanged.isEnabled());
+        assertEquals(UserRole.ADMIN, unchanged.getRole());
     }
 
     @ParameterizedTest(name = "STAFF receives 403 for {0}")
