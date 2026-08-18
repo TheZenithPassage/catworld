@@ -143,7 +143,14 @@ export class AccountManagementPage {
   changeRole(account: UserAccount): void {
     const role = this.selectedRole(account);
 
-    if (role === account.role || this.isPending(account.id)) {
+    if (
+      role === account.role ||
+      this.isPending(account.id) ||
+      (this.isCurrentAccount(account) && role !== 'ADMIN')
+    ) {
+      if (this.isCurrentAccount(account)) {
+        this.selectRole(account.id, 'ADMIN');
+      }
       return;
     }
 
@@ -174,7 +181,7 @@ export class AccountManagementPage {
   }
 
   changeEnabled(account: UserAccount): void {
-    if (this.isPending(account.id)) {
+    if (this.isCurrentAccount(account) || this.isPending(account.id)) {
       return;
     }
 
