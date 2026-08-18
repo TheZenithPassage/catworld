@@ -374,6 +374,14 @@ statement also advances `updatedAt`. This target-first lock ordering and focused
 persistence protocol serialize deletion, demotion and disabling without
 changing their existing HTTP contracts.
 
+Before an administrator role change to `STAFF` or enabled change to `false`
+enters that critical section, the service compares the target with the
+persisted authenticated account and rejects removal of the current
+administrator's own access with `409 Conflict`. This self-mutation rule applies
+even when another enabled administrator exists. Account management mirrors the
+rule by fixing the current administrator's role and omitting its disable action;
+the backend remains authoritative for stale UI state and direct requests.
+
 On a fresh database, the configured `catworld.security.username` and `catworld.security.password` create the first `ADMIN` account. The password is encoded before it is stored. When any user already exists, startup does not create, update, re-enable or overwrite accounts.
 
 When authenticated users create owner, cat, vet or stay records, the backend

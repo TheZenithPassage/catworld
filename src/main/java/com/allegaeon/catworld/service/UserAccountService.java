@@ -77,6 +77,7 @@ public class UserAccountService implements IUserAccountService {
     public UserAccountResponseDTO changeRole(UUID id, UserRole role) {
         getEntity(id);
         if (role == UserRole.STAFF) {
+            validateCurrentAdminRetainsAccess(id);
             validateAnotherEnabledAdminExists(id);
         }
 
@@ -89,6 +90,7 @@ public class UserAccountService implements IUserAccountService {
     public UserAccountResponseDTO changeEnabled(UUID id, boolean enabled) {
         getEntity(id);
         if (!enabled) {
+            validateCurrentAdminRetainsAccess(id);
             validateAnotherEnabledAdminExists(id);
         }
 
@@ -132,6 +134,13 @@ public class UserAccountService implements IUserAccountService {
 
         if (!anotherEnabledAdminExists) {
             throw new ConflictException("At least one enabled ADMIN account is required");
+        }
+    }
+
+    private void validateCurrentAdminRetainsAccess(UUID targetId) {
+        UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
+        if (Objects.equals(currentUser.getId(), targetId)) {
+            throw new ConflictException("Administrators cannot remove their own administrative access");
         }
     }
 

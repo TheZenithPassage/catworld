@@ -101,7 +101,7 @@ describe('AccountManagementPage', () => {
     expect(compiled.textContent).toContain('admin');
     expect(compiled.textContent).toContain('staff');
     expect(compiled.querySelectorAll('.account-form mat-form-field')).toHaveLength(3);
-    expect(compiled.querySelectorAll('.role-action mat-form-field')).toHaveLength(2);
+    expect(compiled.querySelectorAll('.role-action mat-form-field')).toHaveLength(1);
     expect(compiled.querySelectorAll('.role-action button')).toHaveLength(0);
     expect(compiled.querySelector('button[mat-flat-button]')?.textContent).toContain(
       component.text().accounts.create.submit,
@@ -124,6 +124,20 @@ describe('AccountManagementPage', () => {
     );
     expect(deleteActions[0].closest('tr')?.textContent).toContain(staffAccount.username);
     expect(deleteActions[0].closest('tr')?.textContent).not.toContain(adminAccount.username);
+  });
+
+  it('fixes the current administrator role and omits its disable action', () => {
+    fixture.detectChanges();
+
+    const currentRow = fixture.nativeElement
+      .querySelector('.current-account-marker')
+      ?.closest('tr') as HTMLTableRowElement | null;
+    const rows = [...fixture.nativeElement.querySelectorAll('tr')] as HTMLTableRowElement[];
+    const otherRow = rows.find((row) => row.textContent?.includes(staffAccount.username));
+    expect(currentRow?.querySelector('select')).toBeNull();
+    expect(currentRow?.textContent).toContain(component.text().accounts.roles.admin);
+    expect(currentRow?.textContent).not.toContain(component.text().accounts.actions.disable);
+    expect(otherRow?.textContent).toContain(component.text().accounts.actions.disable);
   });
 
   it('uses the shared confirmation subject and sends no request when deletion is cancelled', () => {
@@ -337,7 +351,10 @@ describe('AccountManagementPage', () => {
     expect(component.accounts()).toEqual([adminAccount, disabledStaffAccount]);
   });
 
-  it('shows the last-enabled-ADMIN error and restores role selection after failure', () => {
+  it('shows the last-enabled-ADMIN error and restores another account role after failure', () => {
+    const otherAdmin = { ...staffAccount, role: 'ADMIN' as const };
+    component.accounts.set([adminAccount, otherAdmin]);
+    component.selectRole(otherAdmin.id, 'STAFF');
     userAccountApiService.changeRole.mockReturnValue(
       throwError(
         () =>
@@ -348,12 +365,10 @@ describe('AccountManagementPage', () => {
           }),
       ),
     );
-    component.selectRole(adminAccount.id, 'STAFF');
+    component.changeRole(otherAdmin);
 
-    component.changeRole(adminAccount);
-
-    expect(component.accounts()).toEqual([adminAccount, staffAccount]);
-    expect(component.selectedRole(adminAccount)).toBe('ADMIN');
+    expect(component.accounts()).toEqual([adminAccount, otherAdmin]);
+    expect(component.selectedRole(otherAdmin)).toBe('ADMIN');
     expect(component.actionError()).toBe(component.text().accounts.errors.lastEnabledAdmin);
     expect(authSessionService.logout).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
@@ -376,41 +391,23 @@ describe('AccountManagementPage', () => {
     expect(component.actionError()).toBe(component.text().accounts.errors.updateFailed);
   });
 
-  it('keeps the current session and list state after a failed self-disable', () => {
-    userAccountApiService.changeEnabled.mockReturnValue(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 409,
-            statusText: 'Conflict',
-            error: 'At least one enabled ADMIN account is required',
-          }),
-      ),
-    );
-
+  it('does not send a self-disable request or end the current session', () => {
     component.changeEnabled(adminAccount);
 
     expect(component.accounts()).toEqual([adminAccount, staffAccount]);
+    expect(userAccountApiService.changeEnabled).not.toHaveBeenCalled();
     expect(authSessionService.logout).not.toHaveBeenCalled();
     expect(router.navigate).not.toHaveBeenCalled();
   });
 
-  it('logs out and redirects after successfully demoting the current administrator', () => {
-    userAccountApiService.changeRole.mockReturnValue(of({ ...adminAccount, role: 'STAFF' }));
+  it('does not send a self-demotion request or end the current session', () => {
     component.selectRole(adminAccount.id, 'STAFF');
 
     component.changeRole(adminAccount);
 
-    expect(authSessionService.logout).toHaveBeenCalledOnce();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
-  });
-
-  it('logs out and redirects after successfully disabling the current administrator', () => {
-    userAccountApiService.changeEnabled.mockReturnValue(of({ ...adminAccount, enabled: false }));
-
-    component.changeEnabled(adminAccount);
-
-    expect(authSessionService.logout).toHaveBeenCalledOnce();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    expect(component.selectedRole(adminAccount)).toBe('ADMIN');
+    expect(userAccountApiService.changeRole).not.toHaveBeenCalled();
+    expect(authSessionService.logout).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
   });
 });

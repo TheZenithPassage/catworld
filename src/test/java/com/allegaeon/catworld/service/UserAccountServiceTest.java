@@ -44,6 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -89,6 +90,8 @@ class UserAccountServiceTest {
                 stayRepository,
                 nightlyReferenceRateChangeRepository
         );
+        lenient().when(currentUserAccountService.getCurrentUserAccount())
+                .thenReturn(account(UserRole.ADMIN, true));
     }
 
     @Test
@@ -178,6 +181,20 @@ class UserAccountServiceTest {
     }
 
     @Test
+    void preventsCurrentAdminDemotionBeforeEnabledAdminValidation() {
+        UserAccount administrator = account(UserRole.ADMIN, true);
+        when(userAccountRepository.findById(administrator.getId())).thenReturn(Optional.of(administrator));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
+
+        assertThrows(ConflictException.class,
+                () -> userAccountService.changeRole(administrator.getId(), UserRole.STAFF));
+
+        verify(userAccountRepository, never()).findEnabledByRoleForUpdate(UserRole.ADMIN);
+        verify(userAccountRepository, never())
+                .updateRole(eq(administrator.getId()), eq(UserRole.STAFF), any(Instant.class));
+    }
+
+    @Test
     void rejectsRoleChangeToStaffWhenStaffSnapshotIsNowLastEnabledAdmin() {
         UserAccount staffSnapshot = account(UserRole.STAFF, true);
         UserAccount currentTarget = UserAccount.builder()
@@ -229,6 +246,20 @@ class UserAccountServiceTest {
         assertTrue(administrator.isEnabled());
         assertFalse(response.isEnabled());
         verify(userAccountRepository)
+                .updateEnabled(eq(administrator.getId()), eq(false), any(Instant.class));
+    }
+
+    @Test
+    void preventsCurrentAdminDisableEvenWhenAnotherEnabledAdminExists() {
+        UserAccount administrator = account(UserRole.ADMIN, true);
+        when(userAccountRepository.findById(administrator.getId())).thenReturn(Optional.of(administrator));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
+
+        assertThrows(ConflictException.class,
+                () -> userAccountService.changeEnabled(administrator.getId(), false));
+
+        verify(userAccountRepository, never()).findEnabledByRoleForUpdate(UserRole.ADMIN);
+        verify(userAccountRepository, never())
                 .updateEnabled(eq(administrator.getId()), eq(false), any(Instant.class));
     }
 
