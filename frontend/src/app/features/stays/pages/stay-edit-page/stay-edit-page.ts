@@ -5,6 +5,7 @@ import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -43,6 +44,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
     MatFormField,
     MatInput,
     MatLabel,
+    MatProgressSpinner,
     RouterLink,
     UiStateComponent,
     StayPayments,

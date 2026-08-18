@@ -225,6 +225,9 @@ describe('StaysOverviewPage', () => {
     expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.agreement}:`);
     expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.totalPaid}:`);
     expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.remaining}:`);
+    expect(nullPermittedEconomics).not.toContain(
+      component.text().stays.filters.paymentCondition.NO_PAYMENT,
+    );
     expect(
       [...compiled.querySelectorAll('#stay-stay-5 button')].some((button) =>
         button.textContent?.includes(component.text().stays.pricing.correctAgreement),
