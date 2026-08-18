@@ -5,6 +5,7 @@ import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -43,6 +44,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
     MatFormField,
     MatInput,
     MatLabel,
+    MatProgressSpinner,
     RouterLink,
     UiStateComponent,
     StayPayments,
@@ -241,7 +243,7 @@ export class StayEditPage {
     }
 
     const preview = this.pricingPreview();
-    if (!preview) {
+    if (this.previewLoading() || !preview) {
       this.showError(this.text().stays.pricing.errors.previewRequired);
       return;
     }
@@ -390,7 +392,12 @@ export class StayEditPage {
   }
 
   confirmPricing(): void {
-    if (this.isAdmin() && this.pricingPreview()?.pricingDecisionRequired && this.decisionValid()) {
+    if (
+      !this.previewLoading() &&
+      this.isAdmin() &&
+      this.pricingPreview()?.pricingDecisionRequired &&
+      this.decisionValid()
+    ) {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
       this.scrollToSubmit();
@@ -401,7 +408,12 @@ export class StayEditPage {
     const currentRate = this.applicableCurrentRate();
     const originalRate = this.stay()?.retainedNightlyRate ?? null;
     const preview = this.pricingPreview();
-    if (!this.isAdmin() || currentRate === null || !preview?.pricingDecisionRequired) {
+    if (
+      this.previewLoading() ||
+      !this.isAdmin() ||
+      currentRate === null ||
+      !preview?.pricingDecisionRequired
+    ) {
       return;
     }
 
@@ -428,7 +440,6 @@ export class StayEditPage {
   private refreshPricingPreview(resetAgreementForNightChange = false): void {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
-    this.pricingPreview.set(null);
     this.previewError.set(null);
     const sequence = ++this.previewRequestSequence;
 
@@ -438,6 +449,7 @@ export class StayEditPage {
       !this.endAt() ||
       new Date(this.endAt()) <= new Date(this.startAt())
     ) {
+      this.pricingPreview.set(null);
       this.previewLoading.set(false);
       return;
     }
@@ -471,6 +483,7 @@ export class StayEditPage {
         },
         error: (error: unknown) => {
           if (sequence !== this.previewRequestSequence) return;
+          this.pricingPreview.set(null);
           this.previewLoading.set(false);
           this.previewError.set(
             !this.isAdmin() && error instanceof HttpErrorResponse && error.status === 403

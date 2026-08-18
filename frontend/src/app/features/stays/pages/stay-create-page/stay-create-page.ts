@@ -6,6 +6,7 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
@@ -42,6 +43,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatError,
     MatInput,
     MatLabel,
+    MatProgressSpinner,
     RouterLink,
     UiStateComponent,
   ],
@@ -195,7 +197,7 @@ export class StayCreatePage {
   }
 
   confirmPricing(): void {
-    if (this.pricingPreview() && this.decisionValid()) {
+    if (!this.previewLoading() && this.pricingPreview() && this.decisionValid()) {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
       this.scrollToSubmit();
@@ -203,6 +205,8 @@ export class StayCreatePage {
   }
 
   useSuggestedAmount(): void {
+    if (this.previewLoading()) return;
+
     const suggestedAmount = this.pricingPreview()?.suggestedAmount;
     if (suggestedAmount === null || suggestedAmount === undefined) return;
 
@@ -245,7 +249,7 @@ export class StayCreatePage {
     }
 
     const preview = this.pricingPreview();
-    if (!preview || !this.pricingConfirmed() || !this.decisionValid()) {
+    if (this.previewLoading() || !preview || !this.pricingConfirmed() || !this.decisionValid()) {
       this.error.set(this.text().stays.pricing.errors.confirmationRequired);
       return;
     }
@@ -362,7 +366,6 @@ export class StayCreatePage {
   private refreshPricingPreview(): void {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
-    this.pricingPreview.set(null);
     this.previewError.set(null);
     const sequence = ++this.previewRequestSequence;
 
@@ -372,6 +375,7 @@ export class StayCreatePage {
       !this.endAt() ||
       new Date(this.endAt()) <= new Date(this.startAt())
     ) {
+      this.pricingPreview.set(null);
       this.previewLoading.set(false);
       return;
     }
@@ -392,6 +396,7 @@ export class StayCreatePage {
         },
         error: () => {
           if (sequence !== this.previewRequestSequence) return;
+          this.pricingPreview.set(null);
           this.previewLoading.set(false);
           this.previewError.set(this.text().stays.pricing.errors.previewFailed);
         },

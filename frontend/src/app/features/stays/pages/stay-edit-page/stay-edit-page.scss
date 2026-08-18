@@ -94,6 +94,12 @@
   margin: 0;
 }
 
+.pricing-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .pricing-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
