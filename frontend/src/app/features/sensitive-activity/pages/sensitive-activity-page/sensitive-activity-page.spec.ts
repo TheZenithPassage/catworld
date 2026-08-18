@@ -146,8 +146,8 @@ describe('SensitiveActivityPage', () => {
     expect(
       Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
     ).toEqual(['01/08/2026', '01/08/2026', '01/08/2026']);
-    expect(root.textContent).toContain('Ada Owner (deleted-owner)');
-    expect(root.textContent).toContain('Miso (deleted-cat)');
+    expect(root.textContent).toContain('Ada Owner');
+    expect(root.textContent).toContain('Miso');
     expect(root.textContent).toContain('1 Aug 2026, 09:00');
     expect(root.textContent).toContain('1 Aug 2026, 10:00');
     expect(root.textContent).toContain('3 Aug 2026, 10:00');

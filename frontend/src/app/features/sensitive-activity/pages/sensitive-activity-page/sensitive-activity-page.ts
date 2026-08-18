@@ -247,7 +247,7 @@ export class SensitiveActivityPage {
 
   catsLabel(cats: SensitiveStayContext['cats']): string {
     return cats.length
-      ? cats.map((cat) => `${cat.name} (${cat.id})`).join(', ')
+      ? cats.map((cat) => cat.name).join(', ')
       : this.text().sensitiveActivity.unavailable;
   }
 
