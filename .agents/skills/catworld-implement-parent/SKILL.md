@@ -67,6 +67,12 @@ It must not:
 6. Otherwise create and switch to the integration branch from exactly
    `startingBaseSha`. Keep the primary worktree on this branch throughout
    scheduling, integration, final delivery, and terminal stops.
+7. Publish the parent integration branch to `origin` with a normal non-force
+   push, then fetch or otherwise observe `origin/<integration-branch>` and
+   verify that it resolves to the exact current local integration `HEAD`. Stop
+   if the remote branch cannot be created or updated normally, or if its
+   observed head differs. The branch must exist remotely at this exact head
+   before any child worktree or subagent is launched.
 
 Record `startingBaseSha`, fixed `startingBaseRef`, integration branch, parent
 number, and parent title in the run state.
@@ -132,6 +138,11 @@ runtime has fewer available agent slots than ready children, launch as many as
 capacity permits and keep the remainder in a FIFO-ready queue. Capacity queueing
 must not add DAG edges, change readiness, or serialize later independent work
 once capacity becomes available.
+
+Before every launch batch, verify that `origin/<integration-branch>` exists and
+resolves to the current local parent integration `HEAD`. Stop launching new
+children if the remote head is absent, stale, or different; restore the invariant
+only through a normal non-force push and explicit remote-head verification.
 
 For each child launch:
 
@@ -199,10 +210,12 @@ on the parent integration branch:
 2. Attempt a normal non-fast-forward merge of that child head into the parent
    integration branch. Do not squash, rebase, cherry-pick, amend, or force.
 3. If the merge succeeds, record the merge commit and integration order, push
-   the parent integration branch normally when remote coordination requires it,
-   mark the child integrated, and immediately recompute dependency readiness.
-   Newly ready children become launch candidates without waiting for unrelated
-   siblings.
+   the updated parent integration branch normally to `origin`, and verify that
+   `origin/<integration-branch>` resolves to the exact new local integration
+   `HEAD`. Only after that verification may the child be marked integrated and
+   dependency readiness be recomputed. Newly ready descendants must be launched
+   from this published head; they become launch candidates without waiting for
+   unrelated siblings.
 4. Do not update, merge into, or restart still-open sibling branches merely
    because the integration branch advanced.
 
