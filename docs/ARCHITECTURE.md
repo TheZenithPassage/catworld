@@ -360,7 +360,7 @@ concurrent reference creation, and an integrity or optimistic-locking race maps
 to `409 Conflict`. The operation never cascades, detaches, reassigns or deletes
 operational records to make account deletion succeed.
 
-Account deletion, every requested role change to `STAFF`, and every requested
+Account deletion, every non-self role change to `STAFF`, and every non-self
 enabled change to `false` share one enabled-admin critical section. Each path
 resolves its target before acquiring the enabled-admin write lock, validates
 that the locked current set contains an enabled administrator with a different
