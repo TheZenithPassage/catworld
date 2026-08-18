@@ -109,11 +109,17 @@
 
       <section class="pricing-panel" aria-live="polite">
         <h3>{{ text().stays.pricing.title }}</h3>
-        @if (previewLoading()) {
+        @if (previewLoading() && !pricingPreview()) {
           <app-ui-state kind="loading" [message]="text().stays.pricing.loading"></app-ui-state>
         } @else if (previewError()) {
           <app-ui-state kind="error" [message]="previewError() ?? ''"></app-ui-state>
         } @else if (pricingPreview(); as preview) {
+          <p class="pricing-recalculation" role="status" aria-atomic="true">
+            <span class="pricing-recalculation__reserve" aria-hidden="true">
+              {{ text().stays.pricing.loading }}
+            </span>
+            <span>{{ previewLoading() ? text().stays.pricing.loading : '' }}</span>
+          </p>
           <dl class="pricing-summary">
             <div>
               <dt>{{ text().stays.pricing.nights }}</dt>
@@ -145,7 +151,12 @@
             }
           </mat-form-field>
           @if (preview.suggestedAmount !== null) {
-            <button mat-stroked-button type="button" (click)="useSuggestedAmount()">
+            <button
+              mat-stroked-button
+              type="button"
+              (click)="useSuggestedAmount()"
+              [disabled]="previewLoading()"
+            >
               {{ text().stays.pricing.useSuggestedAmount }}
             </button>
           }
@@ -167,7 +178,7 @@
             mat-stroked-button
             type="button"
             (click)="confirmPricing()"
-            [disabled]="!decisionValid() || pricingConfirmed()"
+            [disabled]="previewLoading() || !decisionValid() || pricingConfirmed()"
           >
             {{
               pricingConfirmed()
@@ -198,7 +209,7 @@
           id="create-stay-submit"
           mat-flat-button
           type="submit"
-          [disabled]="submitting() || !pricingConfirmed()"
+          [disabled]="submitting() || previewLoading() || !pricingConfirmed()"
         >
           {{ submitting() ? text().stays.create.submitting : text().stays.create.submit }}
         </button>
