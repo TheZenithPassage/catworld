@@ -14,6 +14,7 @@ export interface AuthTranslations {
       passwordRequired: string;
       invalidCredentials: string;
       loginFailed: string;
+      accountDeletionForbidden: string;
     };
   };
 }
@@ -33,6 +34,8 @@ export const AUTH_TRANSLATIONS = {
         passwordRequired: 'La contraseña es obligatoria',
         invalidCredentials: 'Usuario o contraseña incorrectos',
         loginFailed: 'Error al iniciar sesión',
+        accountDeletionForbidden:
+          'Tu sesión ya no permite eliminar esa cuenta. Inicia sesión de nuevo para continuar.',
       },
     },
   },
@@ -50,6 +53,8 @@ export const AUTH_TRANSLATIONS = {
         passwordRequired: 'Password is required',
         invalidCredentials: 'Invalid username or password',
         loginFailed: 'Error logging in',
+        accountDeletionForbidden:
+          'Your session no longer permits deleting that account. Log in again to continue.',
       },
     },
   },

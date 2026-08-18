@@ -51,7 +51,6 @@ export interface AccountsTranslations {
     lastEnabledAdmin: string;
     notFound: string;
     invalidInput: string;
-    deletionForbidden: string;
     deletionNotFound: string;
     deletionConflict: string;
     deletionFailed: string;
@@ -110,7 +109,6 @@ export const ACCOUNTS_TRANSLATIONS = {
       lastEnabledAdmin: 'Debe existir al menos una cuenta administradora habilitada.',
       notFound: 'La cuenta ya no existe.',
       invalidInput: 'Los datos enviados no son válidos.',
-      deletionForbidden: 'Esta cuenta ya no se puede eliminar con tu sesión actual.',
       deletionNotFound: 'La cuenta que intentabas eliminar ya no existe.',
       deletionConflict:
         'Esta cuenta no se puede eliminar porque protege registros existentes o porque debe permanecer al menos una cuenta administradora habilitada.',
@@ -168,7 +166,6 @@ export const ACCOUNTS_TRANSLATIONS = {
       lastEnabledAdmin: 'At least one enabled administrator account is required.',
       notFound: 'The account no longer exists.',
       invalidInput: 'The submitted data is invalid.',
-      deletionForbidden: 'This account can no longer be deleted with your current session.',
       deletionNotFound: 'The account you tried to delete no longer exists.',
       deletionConflict:
         'This account cannot be deleted because it protects existing records or because at least one enabled administrator account must remain.',

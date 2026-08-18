@@ -285,8 +285,6 @@ export class AccountManagementPage {
 
   private getDeletionErrorMessage(error: unknown): string {
     switch (deletionErrorKind(error)) {
-      case 'forbidden':
-        return this.text().accounts.errors.deletionForbidden;
       case 'notFound':
         return this.text().accounts.errors.deletionNotFound;
       case 'conflict':

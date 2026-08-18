@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api.config';
+import { ACCOUNT_DELETION_FORBIDDEN_REASON } from './auth-redirect-reason';
 import { AuthSessionService } from './auth-session.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
@@ -16,6 +17,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const isAccountManagementRequest =
     request.url === accountManagementBaseUrl ||
     request.url.startsWith(`${accountManagementBaseUrl}/`);
+  const isAccountDeletionRequest =
+    request.method === 'DELETE' && request.url.startsWith(`${accountManagementBaseUrl}/`);
   const hasAuthorizationHeader = request.headers.has('Authorization');
 
   const authorizationHeader = authSessionService.getAuthorizationHeader();
@@ -41,6 +44,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
         router.navigate(['/login'], {
           queryParams: {
             returnUrl: router.url,
+            ...(error.status === 403 && isAccountDeletionRequest
+              ? { reason: ACCOUNT_DELETION_FORBIDDEN_REASON }
+              : {}),
           },
         });
       }

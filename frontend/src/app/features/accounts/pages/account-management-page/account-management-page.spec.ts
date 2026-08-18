@@ -172,10 +172,7 @@ describe('AccountManagementPage', () => {
     expect(row?.textContent).toContain(component.text().accounts.actions.deleting);
   });
 
-  it.each([
-    [403, 'deletionForbidden'],
-    [409, 'deletionConflict'],
-  ] as const)(
+  it.each([[409, 'deletionConflict']] as const)(
     'keeps the account and shows the expected deletion error for status %i',
     (status, messageKey) => {
       dialog.open.mockReturnValue({ afterClosed: () => of(true) });
