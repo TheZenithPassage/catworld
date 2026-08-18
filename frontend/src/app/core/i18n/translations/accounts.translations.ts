@@ -42,13 +42,18 @@ export interface AccountsTranslations {
     saveRole: string;
     enable: string;
     disable: string;
+    deletePermanently: string;
     updating: string;
+    deleting: string;
   };
   errors: {
     updateFailed: string;
     lastEnabledAdmin: string;
     notFound: string;
     invalidInput: string;
+    deletionNotFound: string;
+    deletionConflict: string;
+    deletionFailed: string;
   };
 }
 
@@ -95,13 +100,19 @@ export const ACCOUNTS_TRANSLATIONS = {
       saveRole: 'Guardar',
       enable: 'Habilitar',
       disable: 'Deshabilitar',
+      deletePermanently: 'Eliminar de forma permanente',
       updating: 'Actualizando…',
+      deleting: 'Eliminando…',
     },
     errors: {
       updateFailed: 'No se pudo actualizar la cuenta.',
       lastEnabledAdmin: 'Debe existir al menos una cuenta administradora habilitada.',
       notFound: 'La cuenta ya no existe.',
       invalidInput: 'Los datos enviados no son válidos.',
+      deletionNotFound: 'La cuenta que intentabas eliminar ya no existe.',
+      deletionConflict:
+        'Esta cuenta no se puede eliminar porque protege registros existentes o porque debe permanecer al menos una cuenta administradora habilitada.',
+      deletionFailed: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
     },
   },
   en: {
@@ -146,13 +157,19 @@ export const ACCOUNTS_TRANSLATIONS = {
       saveRole: 'Save role',
       enable: 'Enable',
       disable: 'Disable',
+      deletePermanently: 'Delete permanently',
       updating: 'Updating…',
+      deleting: 'Deleting…',
     },
     errors: {
       updateFailed: 'The account could not be updated.',
       lastEnabledAdmin: 'At least one enabled administrator account is required.',
       notFound: 'The account no longer exists.',
       invalidInput: 'The submitted data is invalid.',
+      deletionNotFound: 'The account you tried to delete no longer exists.',
+      deletionConflict:
+        'This account cannot be deleted because it protects existing records or because at least one enabled administrator account must remain.',
+      deletionFailed: 'The account could not be deleted. Try again.',
     },
   },
 } satisfies Record<AppLanguage, AccountsTranslations>;

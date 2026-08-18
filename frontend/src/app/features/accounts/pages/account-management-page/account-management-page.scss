@@ -135,6 +135,17 @@
   color: var(--color-danger);
 }
 
+.account-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.delete-account-action {
+  color: var(--color-danger);
+}
+
 @media (max-width: 760px) {
   .account-form {
     grid-template-columns: 1fr;
@@ -158,6 +169,15 @@
   .role-action button {
     width: 100%;
     margin-top: 0;
+  }
+
+  .account-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-actions button {
+    width: 100%;
   }
 
   .accounts-table {

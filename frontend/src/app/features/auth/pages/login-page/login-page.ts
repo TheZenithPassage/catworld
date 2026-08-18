@@ -7,6 +7,7 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
+import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
@@ -42,6 +43,12 @@ export class LoginPage {
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly usernameError = createLanguageResetError(this.i18nService.language);
   readonly passwordError = createLanguageResetError(this.i18nService.language);
+
+  constructor() {
+    if (this.route.snapshot.queryParamMap.get('reason') === ACCOUNT_DELETION_FORBIDDEN_REASON) {
+      this.error.set(this.text().auth.login.errors.accountDeletionForbidden);
+    }
+  }
 
   submit(): void {
     this.error.set(null);
