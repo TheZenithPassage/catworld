@@ -133,29 +133,51 @@ Record normalized edges and the exact source statements supporting them.
 1. Require git status --porcelain to have no output. Ignored local Spec Kit
    artifacts do not make the worktree dirty; any versioned or untracked output
    is a stop and must be reported.
-2. Before any branch change, capture startingBaseSha from git rev-parse HEAD and
-   startingBaseRef independently from the current symbolic branch.
-3. For detached HEAD, require an explicit reliable intended base ref from the
-   operator or invocation context. Never infer it from reachability or default
-   it to main.
-4. Derive one normal issue branch as
+2. Classify setup as exactly one of these modes before selecting any base:
+   - **New run:** no recovery was explicitly authorized. Before any branch
+     change, capture startingBaseSha from git rev-parse HEAD and
+     startingBaseRef independently from the current symbolic branch.
+   - **Authorized recovery:** require explicit operator authorization plus
+     reliable recorded values for the original issue number/title,
+     startingBaseSha, fixed startingBaseRef, issue branch and primary worktree
+     path. Also require the last published remote head and pull-request number
+     when either existed. Never substitute the current HEAD, reachability,
+     remote default or a reconstructed ledger for missing original values.
+3. For a new run from detached HEAD, require an explicit reliable intended base
+   ref from the operator or invocation context. Never infer it from reachability
+   or default it to main. For recovery, verify the recorded startingBaseSha
+   still exists and is an ancestor of the recorded issue branch.
+4. Derive the expected issue branch as
    <type>/<issue-number>-<short-description>. Infer the conventional type from
    the issue title prefix first and labels second, using chore when neither is
-   clear. Keep the description concise and deterministic.
-5. Stop if the derived issue branch equals startingBaseRef without a separately
-   supplied reliable intended base.
-6. If the local branch already exists, require explicit operator authorization
-   to reuse it. Inspect git worktree list --porcelain before reuse and stop when
-   it is checked out elsewhere. Existing branches or worktrees from an earlier
-   stopped run are not automatic resume state; require explicit reliable
-   recovery direction rather than reconstructing a ledger by guesswork.
-7. Otherwise create and switch to the issue branch from exactly
-   startingBaseSha.
-8. Confirm the issue branch is active, the primary worktree is clean and no
-   remote issue branch has been created.
+   clear. Keep the description concise and deterministic. In recovery, require
+   the recorded issue branch to match this expected branch.
+5. Stop if the issue branch equals startingBaseRef without a separately supplied
+   reliable intended base.
+6. For a new run, stop if the local issue branch already exists. Otherwise
+   create and switch to it from exactly startingBaseSha.
+7. For authorized recovery:
+   - require the recorded local issue branch to exist, inspect git worktree list
+     --porcelain and stop if it is checked out in another worktree, then switch
+     to it without rewriting history;
+   - fetch and inspect only its exact remote ref when the recorded state says it
+     was published; require the fetched remote head to equal the recorded last
+     published head and to be an ancestor of the local issue-branch HEAD;
+   - when the recorded state says the branch was not published, require the
+     exact remote issue ref to be absent;
+   - query pull requests for the exact issue head. If a pull request was
+     recorded, require exactly that open PR, its head branch, fixed base ref and
+     head SHA to match the verified remote state, and require explicit
+     authorization to reuse it. If none was recorded, require no matching PR.
+   Stop on missing, divergent, ambiguous or contradictory recovery evidence;
+   do not fast-forward, merge, rebase, force-push or guess a replacement state.
+8. Confirm the issue branch is active and the primary worktree is clean. For a
+   new run also confirm that no remote issue branch or matching pull request
+   exists. For recovery, retain the verified remote and PR state for delivery.
 
-Record the issue number/title, startingBaseSha, fixed startingBaseRef, issue
-branch and primary worktree path in the parent-session ledger.
+Record the setup mode, issue number/title, startingBaseSha, fixed
+startingBaseRef, issue branch, primary worktree path, verified remote head and
+authorized PR identity in the parent-session ledger.
 
 ## 3. Run one canonical local planning cycle
 
@@ -493,9 +515,13 @@ Only after global completeness and fresh validation succeed:
 6. A parent merge makes affected evidence stale. Rerun required and affected
    validation, test-diff review and scope review, then create any necessary
    normal follow-up commit without rewriting history.
-7. Push only the final issue branch to origin with a normal non-force push.
-8. Open one ready pull request to the fixed startingBaseRef, or update the one
-   explicitly authorized matching pull request during a reused run.
+7. Push only the final issue branch to origin with a normal non-force push. In
+   authorized recovery, the verified remote head must remain an ancestor of the
+   final local head immediately before pushing.
+8. Open one ready pull request to the fixed startingBaseRef when the verified
+   setup state had no PR. In authorized recovery with an explicitly authorized
+   matching PR, reuse only that PR and update it without changing its fixed base
+   or head branch. Stop if a different or additional matching PR appears.
 9. The pull-request body must contain:
    - Closes #<issue-number>;
    - a concise whole-issue summary;
@@ -504,7 +530,8 @@ Only after global completeness and fresh validation succeed:
 10. Request external review through the ready pull request and report it as
     awaiting external read-only review. Do not select or notify a specific
     reviewer without separate user instruction.
-11. Capture PR number, URL, ready status and exact remote head SHA.
+11. Capture PR number, URL, ready status and exact remote head SHA, and verify
+    that they match the final branch and the retained new-run or recovery state.
 
 The only GitHub implementation artifacts created by a successful new run are
 the final issue branch and final pull request. Do not launch a Codex reviewer,
