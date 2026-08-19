@@ -8,7 +8,13 @@
 * Treat `docs/ARCHITECTURE.md` as the implemented starting state and default
   implementation context, not as an immutable restriction on approved future
   changes.
-* For end-to-end GitHub issue implementation requests, read and follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing files.
+* For ordinary end-to-end GitHub issue implementation requests, read and
+  follow `.agents/skills/catworld-implement-issue/SKILL.md` before changing
+  files.
+* For an issue with a valid explicit slice model, read and follow
+  `.agents/skills/catworld-implement-parent/SKILL.md`. Its local workers use
+  `.agents/skills/catworld-implement-slice/SKILL.md` only through a bounded
+  parent-generated handoff; the slice skill is never a direct user route.
 * For pull request review requests, read and follow
   `.agents/skills/catworld-review-pr/SKILL.md`. Reviews are read-only unless the
   user separately authorizes a specific repository-facing action.
@@ -18,27 +24,45 @@
 
 ## Shorthand GitHub Prompt Routing
 
-When the user prompt identifies exactly one GitHub item by bare number or
-reference such as `#148`, fetch and classify it read-only before selecting a
-workflow.
+When the user prompt identifies exactly one GitHub item by bare number,
+reference such as `#148`, or URL, fetch and classify the complete remote item
+read-only before selecting a workflow.
 
 * If the item is a pull request, route it to
   `.agents/skills/catworld-review-pr/SKILL.md`.
-* If the item is an ordinary issue, treat it as an end-to-end implementation
-  request and route it to
-  `.agents/skills/catworld-implement-issue/SKILL.md`.
+* If the item is an issue, inspect its body for the exact top-level sections
+  `## Implementation slices` and `## Hard dependencies between slices`.
+  Mentions in prose, inline code, block quotes, examples, or fenced code blocks
+  are not top-level sections.
+  * When neither section exists, treat the issue as an ordinary end-to-end
+    implementation request and route it to
+    `.agents/skills/catworld-implement-issue/SKILL.md`.
+  * When both sections exist, validate the complete slice model and route it to
+    `.agents/skills/catworld-implement-parent/SKILL.md` only when it is valid.
+  * When exactly one required section exists, or an attempted slice model is
+    malformed, stop instead of falling back to the ordinary issue workflow.
+* A valid slice model contains at least two unique level-three headings inside
+  `## Implementation slices`, each exactly shaped as
+  `### S<number> — <title>`, plus a valid hard-dependency model. Missing or
+  empty titles, duplicate slice IDs, other malformed slice declarations,
+  unknown required dependency IDs, contradictory dependency directions, and
+  dependency cycles are terminal routing/setup errors.
+* Explicit invocation of `catworld-implement-parent` remains valid but MUST
+  reject an issue without a valid slice model. The internal
+  `catworld-implement-slice` skill MUST NOT become a shorthand or direct user
+  route.
 * A pull request URL or explicit request such as `review PR #148` always routes
   to `catworld-review-pr`.
-* An issue URL always routes to `catworld-implement-issue` after confirming that
-  the remote item is not a pull request.
+* An issue URL follows the same ordinary-versus-sliced classification after
+  confirming that the remote item is not a pull request.
 * If the item does not exist or cannot be classified reliably, stop and report
   the lookup blocker instead of guessing.
 * If a prompt contains multiple issue or pull request references without a
   clear target, stop and ask which item to handle.
 * Do not infer a review target from the current local branch in the review MVP;
   require a PR identifier or URL.
-* Additional issue wording such as `parallel` or `sequential` does not activate
-  another implementation mode.
+* Additional wording such as `parallel` or `sequential` does not override the
+  workflow selected from the fetched item.
 
 ## Feature Planning Routing
 
@@ -46,17 +70,17 @@ Use `.agents/skills/catworld-feature-planning/SKILL.md` when the user asks to
 plan features for a CatWorld release, convert a feature description into an epic
 and implementation issues, resume an existing feature plan, or publish an
 approved feature plan. This route does not override numbered-issue
-implementation routing or pull request review workflows.
+implementation routing, sliced-issue routing, or pull request review workflows.
 
 ## Repository Boundaries
 
 * Work only in the current worktree. The ordinary single-issue workflow may
   create or switch to its issue branch inside that worktree from the exact
   captured starting commit; it must not create, remove, coordinate, or mutate
-  other worktrees. Only the explicitly invoked
+  other worktrees. Only the valid sliced-issue
   `.agents/skills/catworld-implement-parent/SKILL.md` workflow may create and
-  coordinate isolated child worktrees, and only within that skill's parent and
-  child execution boundaries. Feature planning may inspect a freshly fetched
+  coordinate isolated slice worktrees, and only within that skill's parent and
+  slice execution boundaries. Feature planning may inspect a freshly fetched
   `origin/main` read-only and must not check out or update local `main`.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.

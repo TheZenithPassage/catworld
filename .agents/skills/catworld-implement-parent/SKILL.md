@@ -1,336 +1,594 @@
 ---
 name: "catworld-implement-parent"
-description: "Explicitly orchestrate one CatWorld parent GitHub issue by delegating its incomplete implementation children through the existing issue workflow, integrating their ready pull requests, and delivering one accumulated parent pull request. Use only when the user explicitly requests this parent-issue workflow; do not use for ordinary numbered issues or pull requests."
+description: "Orchestrate one CatWorld GitHub issue with a valid explicit slice model by planning it once, delegating bounded slices to isolated local workers, integrating unpublished commits, and delivering one final pull request. Use for automatically routed sliced issues or explicit parent-workflow requests; reject ordinary issues and pull requests."
 metadata:
   author: "catworld"
-  source: "issue-379"
+  source: "issue-385"
 ---
 
-# CatWorld Implement Parent Issue
+# CatWorld Implement Sliced Issue
 
-Use this skill only when the user explicitly invokes the parent-issue
-orchestrator with exactly one parent issue number or URL. It coordinates child
-implementations; it does not replace or change the single-issue shorthand route.
+Use this skill for exactly one GitHub issue whose body declares a valid slice
+model. It may be selected automatically by AGENTS.md or explicitly requested by
+the user. It replaces the former child-issue and child-pull-request parent
+workflow.
 
-Every child owns its complete lifecycle through
-`.agents/skills/catworld-implement-issue/SKILL.md`. Do not generate, share,
-rewrite, consolidate, or optimize child Spec Kit artifacts from this workflow.
+The parent owns whole-issue planning, execution coverage, permanent-test
+authorization, scheduling, qualification, local integration, final validation
+and delivery. Each slice worker owns only the bounded local implementation in
+its handoff.
 
-## Authority and boundaries
+Never route a user directly to
+.agents/skills/catworld-implement-slice/SKILL.md. Keep
+.agents/skills/catworld-implement-issue/SKILL.md and every Spec Kit skill,
+template and script unchanged.
 
-Before scheduling work, read:
+## Required context and authority
 
-- `AGENTS.md`;
-- `.specify/memory/constitution.md`;
-- `docs/ARCHITECTURE.md`;
+Before changing repository state, read:
+
+- AGENTS.md;
+- .specify/memory/constitution.md;
+- docs/ARCHITECTURE.md;
 - this skill; and
-- the complete parent issue.
+- the complete GitHub issue, including title, body, labels and state.
 
-The parent issue and its discovered child issues define scope. Do not modify
-issue bodies, sub-issue relationships, checklists, dependency declarations,
-labels, milestones, assignees, or completion state. Do not modify the existing
-single-issue or Spec Kit skills.
+Confirm that the remote item is an open or otherwise implementable issue rather
+than a pull request. The issue, repository instructions, constitution,
+implemented architecture and the canonical local feature artifacts created by
+this workflow are the complete scope and decision contract.
 
-This workflow may create a parent integration branch, isolated child worktrees,
-child issue branches through the single-issue workflow, normal commits, normal
-non-force pushes, child PRs to the integration branch, and one final parent PR.
+This workflow may:
+
+- create and keep one local issue branch in the primary worktree;
+- create deterministic unpublished local slice branches and isolated worktrees;
+- spawn bounded local slice workers;
+- integrate qualified slice commits locally;
+- create normal commits required by deterministic final-base synchronization;
+- push the final issue branch normally; and
+- open or update one ready final pull request to the fixed captured base.
+
 It must not:
 
-- commit or push to the captured parent branch or `main`;
-- merge the final parent PR or write its changes into the captured parent;
-- enable auto-merge, approve a Codex-authored PR, or launch a Codex PR reviewer;
-- amend, rebase-push, force-push, or otherwise rewrite published history;
-- delete branches, prune remotes, or perform branch cleanup; or
-- post public GitHub comments unless separately requested.
+- publish the issue branch before final delivery;
+- publish a slice branch or create a child issue or child pull request;
+- run the ordinary issue workflow for a slice;
+- run speckit-implement or speckit-converge;
+- commit, push or otherwise publish Spec Kit artifacts;
+- generate example feature directories or versioned orchestration artifacts;
+- commit or push directly to the captured base or main;
+- merge the final pull request, enable auto-merge or approve it;
+- launch catworld_pr_reviewer or perform automatic pull-request remediation;
+- amend commits, squash automatically, force-push, rebase published history or
+  otherwise rewrite published history;
+- modify GitHub issues or post public comments without separate user authority;
+- delete or clean branches/worktrees, prune remotes or automatically resume a
+  previous run; or
+- inspect or mutate unrelated worktrees or implementations.
 
-## 1. Establish the parent and integration branch
+After the issue branch is active, keep the primary worktree on it through
+success and every terminal stop.
 
-1. Require exactly one parent issue number or URL. Fetch the complete issue,
-   including its body, state, sub-issue relationships when the GitHub interface
-   exposes them, and metadata needed for a branch name. Stop if it does not
-   exist, is a pull request, or cannot be read reliably.
-2. Require a clean starting worktree with `git status --porcelain`. Stop and
-   report every dirty path if it has output.
-3. Before switching or creating a branch, capture independently:
-   - `startingBaseSha` from `git rev-parse HEAD`; and
-   - `startingBaseRef` from the current symbolic branch.
-   For detached HEAD, require an explicit reliable intended base ref. Never
-   infer it from reachability or default it to `main`.
-4. Derive the parent integration branch as
-   `<type>/<parent-number>-<short-description>-integration`, using the issue
-   title prefix first and labels second for the conventional type. If that name
-   equals `startingBaseRef`, stop for an independent intended parent ref.
-5. If the integration branch already exists, require explicit permission to
-   reuse it. Before reuse, inspect `git worktree list --porcelain`; stop if it is
-   checked out in another worktree. Do not merge, rebase, or rewrite it merely
-   to prepare the run.
-6. Otherwise create and switch to the integration branch from exactly
-   `startingBaseSha`. Keep the primary worktree on this branch throughout
-   scheduling, integration, final delivery, and terminal stops.
-7. Publish the parent integration branch to `origin` with a normal non-force
-   push, then fetch or otherwise observe `origin/<integration-branch>` and
-   verify that it resolves to the exact current local integration `HEAD`. Stop
-   if the remote branch cannot be created or updated normally, or if its
-   observed head differs. The branch must exist remotely at this exact head
-   before any child worktree or subagent is launched.
+## 1. Validate the issue slice model
 
-Record `startingBaseSha`, fixed `startingBaseRef`, integration branch, parent
-number, and parent title in the run state.
+Perform this validation before branch creation, Spec Kit or worker launch.
 
-## 2. Discover implementation children
+### Authoritative sections
 
-Determine the required child set once before scheduling:
+Find actual Markdown level-two headings whose complete trimmed text is exactly:
 
-1. When the GitHub interface exposes sub-issues for the parent, use those
-   sub-issues as the authoritative child set.
-2. Only when sub-issues are unavailable, parse explicit GitHub issue references
-   from checklist items under the parent's `## Implementation issues` section.
-   Do not treat references elsewhere as implementation children.
-3. Fetch and read every discovered child completely. Verify each reference is
-   an issue rather than a pull request.
-4. Exclude children already completed at discovery. A closed issue is
-   completed. When authoritative sub-issue/checklist completion metadata is
-   available, honor that metadata as well; do not infer completion from a
-   branch, commit, or PR alone.
-5. The remaining open children are required for final delivery. Stop if no
-   implementation children are discoverable. If all discovered children are
-   already completed, report that there is no incomplete implementation work
-   and stop without creating an empty final PR.
+- ## Implementation slices
+- ## Hard dependencies between slices
 
-Preserve the discovered child list and completion classification in the final
-report. Do not silently add, remove, or substitute children later in the run.
+Inline-code mentions, prose, quoted examples and fenced-code content do not
+count as top-level sections. Each section extends to the next actual level-two
+heading or the end of the issue body.
 
-## 3. Build the hard-dependency DAG
+Stop when either required section is absent. This rule applies even when the
+user explicitly invoked the parent workflow. Automatic shorthand routing must
+already have treated an issue with neither section as ordinary and stopped on
+an issue with exactly one section; do not reinterpret either case here.
 
-Read dependency declarations from only:
+### Slice declarations
 
-- an explicit dependency section in the parent body; and
-- explicit hard-dependency statements in a discovered child body.
+Only level-three headings inside the Implementation slices section with the
+exact form “### S<number> — <title>” declare slices. The identifier uses an
+uppercase S followed by digits, the separator is the em dash shown above and
+the title must remain non-blank after trimming.
 
-Normalize each declaration to `prerequisite -> dependent` only when both ends
-identify discovered implementation children. A reference, ordering in a list,
-likely file overlap, shared surface, suggested sequence, or descriptive phrase
-is not independently a hard dependency. Do not invent edges to avoid possible
-merge conflicts.
+Stop when:
 
-Compare duplicate declarations before scheduling:
+- fewer than two valid slices exist;
+- a slice identifier is duplicated;
+- a slice-like level-three declaration is malformed; or
+- the section structure makes declaration boundaries unreliable.
 
-- Identical declarations agree.
-- A declaration that reverses another declaration, says a named prerequisite is
-  both required and explicitly not required, or otherwise assigns incompatible
-  directions is contradictory. Stop scheduling affected work and report the
-  exact source statements instead of choosing one.
-- A reference to an unknown issue does not silently enlarge the child set. Stop
-  if it is expressed as a required implementation dependency; otherwise report
-  the unusable declaration and do not manufacture an edge.
+Preserve declaration order as the deterministic tie-breaker for ready-queue
+ordering. Record every slice ID, title and authoritative section body. Do not
+invent slices from canonical planning output or repository inspection.
 
-Run cycle detection over the explicit edges after excluding already completed
-children. A cycle is a terminal stop for normal final delivery; report the
-cycle path. Completed child prerequisites count as satisfied. An incomplete
-child is dependency-ready only when every explicit prerequisite is completed
-or has been successfully integrated into the parent branch.
+### Hard dependencies
 
-## 4. Launch dependency-ready children
+Read dependency declarations only from the Hard dependencies between slices
+section. Normalize an unambiguous declaration to prerequisite -> dependent only
+when both IDs are declared slices. “None” or equivalent explicit absence yields
+an empty graph.
 
-At each scheduling point, identify every not-yet-launched ready child and launch
-all of them concurrently. Do not impose an arbitrary concurrency cap. If the
-runtime has fewer available agent slots than ready children, launch as many as
-capacity permits and keep the remainder in a FIFO-ready queue. Capacity queueing
-must not add DAG edges, change readiness, or serialize later independent work
-once capacity becomes available.
+Do not infer an edge from slice order, likely file overlap, shared concepts,
+suggested sequencing or text outside the authoritative dependency section.
 
-Before every launch batch, verify that `origin/<integration-branch>` exists and
-resolves to the current local parent integration `HEAD`. Stop launching new
-children if the remote head is absent, stale, or different; restore the invariant
-only through a normal non-force push and explicit remote-head verification.
+Stop before planning or launch when a required declaration:
 
-For each child launch:
+- names an unknown slice;
+- makes a slice depend on itself;
+- contradicts another direction or says the same dependency is both required
+  and not required;
+- has no reliably determinable direction; or
+- creates a cycle.
 
-1. Capture the current parent integration `HEAD`.
-2. Create a unique isolated Git worktree from that exact commit without
-   switching the primary worktree. Choose a deterministic path that includes
-   the parent and child issue numbers, verify it does not pre-exist, and record
-   it in run state. Do not reuse another child's worktree.
-3. Start one fresh subagent whose filesystem working directory is that isolated
-   worktree. Give it exactly one child issue and no sibling implementation.
-4. The handoff must direct the child to:
-   - read the repository `AGENTS.md`, constitution, architecture, and
-     `.agents/skills/catworld-implement-issue/SKILL.md`;
-   - fetch and read the complete child issue independently;
-   - use the parent integration branch as the explicit reliable intended PR
-     base, even though its isolated worktree starts at a detached commit;
-   - follow `catworld-implement-issue` unchanged through its complete Spec Kit,
-     implementation, convergence, validation, synchronization, commit, push,
-     and delivery lifecycle;
-   - request external review explicitly so the child workflow records zero
-     independent review rounds and does not launch `catworld_pr_reviewer` or
-     perform automatic review remediation;
-   - deliver a ready PR targeting the parent integration branch; and
-   - avoid merging its own PR, modifying issues, cleaning branches/worktrees,
-     or touching the primary worktree.
-5. Do not pass parent-generated specs, plans, tasks, implementation advice, or
-   sibling artifacts. Parent context may be supplied only to identify the
-   reliable PR base and explain dependency-approved behavior already integrated
-   into that base.
+Record normalized edges and the exact source statements supporting them.
 
-Track each child as queued, running, blocked, failed, delivered, or integrated,
-including its worktree, branch, PR, validation result, and remote head SHA.
+## 2. Prepare the primary issue branch
 
-## 5. Monitor and qualify child results
+1. Require git status --porcelain to have no output. Ignored local Spec Kit
+   artifacts do not make the worktree dirty; any versioned or untracked output
+   is a stop and must be reported.
+2. Before any branch change, capture startingBaseSha from git rev-parse HEAD and
+   startingBaseRef independently from the current symbolic branch.
+3. For detached HEAD, require an explicit reliable intended base ref from the
+   operator or invocation context. Never infer it from reachability or default
+   it to main.
+4. Derive one normal issue branch as
+   <type>/<issue-number>-<short-description>. Infer the conventional type from
+   the issue title prefix first and labels second, using chore when neither is
+   clear. Keep the description concise and deterministic.
+5. Stop if the derived issue branch equals startingBaseRef without a separately
+   supplied reliable intended base.
+6. If the local branch already exists, require explicit operator authorization
+   to reuse it. Inspect git worktree list --porcelain before reuse and stop when
+   it is checked out elsewhere. Existing branches or worktrees from an earlier
+   stopped run are not automatic resume state; require explicit reliable
+   recovery direction rather than reconstructing a ledger by guesswork.
+7. Otherwise create and switch to the issue branch from exactly
+   startingBaseSha.
+8. Confirm the issue branch is active, the primary worktree is clean and no
+   remote issue branch has been created.
 
-Wait for child agents and process completions while continuing to fill available
-capacity from the ready queue. A child is eligible for integration only when
-its single-issue workflow reports all of the following and live GitHub evidence
-agrees:
+Record the issue number/title, startingBaseSha, fixed startingBaseRef, issue
+branch and primary worktree path in the parent-session ledger.
 
-- implementation completed without an unresolved stop;
-- required and change-affected validation passed after the latest relevant
-  child change;
-- its branch was pushed normally;
-- a non-draft, ready PR targets the exact parent integration branch;
-- the PR head matches the child's reported remote head; and
-- the child branch/worktree is clean.
+## 3. Run one canonical local planning cycle
 
-Do not wait for a Codex review gate and do not launch a reviewer. Child PRs are
-integration artifacts in this workflow. A draft PR, failed or incomplete
-validation, missing PR/head evidence, wrong base, or unsafe repository state is
-not eligible and blocks that child.
+Use the complete issue body plus loaded repository context for exactly one
+whole-issue cycle:
 
-When a child is blocked or fails, do not start any of its descendants.
-Independent running or ready children may continue. Preserve their useful
-results, but a required blocked child prevents normal final ready delivery.
+1. Load and run speckit-specify.
+2. Validate spec.md against the issue, constitution and implemented
+   architecture. Stop on scope drift or an unresolved material question.
+3. Load and run speckit-plan.
+4. Inspect its decision state. Continue only when “Assessment required: No” or
+   when every required significant decision has explicit human approval or a
+   still-applicable approved source. Stop on pending approval, changed selected
+   architecture or unresolved product, security, authorization, persistence,
+   shared-contract, UX, correctness-sensitive or operational decisions.
+5. Load and run speckit-tasks.
+6. Load and run speckit-analyze.
+7. Resolve only safe mechanical artifact inconsistencies or true duplicate
+   tasks, then rerun speckit-analyze. Stop when reconciliation would change
+   approved scope or a material inconsistency remains.
 
-## 6. Integrate eligible children
+The complete issue and resulting spec.md, plan.md and tasks.md are the canonical
+feature contract for every slice and the accumulated implementation.
 
-Integrate one eligible child at a time from the primary worktree while it remains
-on the parent integration branch:
+Verify every generated artifact is ignored and absent from the versioned diff.
+Do not modify ignore files merely to make an unexpected artifact disappear;
+stop if the repository cannot keep these artifacts local. Do not create a
+planning commit. Do not push the issue branch.
 
-1. Fetch the exact child branch or PR head and confirm the observed PR is still
-   ready, still targets the integration branch, and still has the expected head.
-2. Attempt a normal non-fast-forward merge of that child head into the parent
-   integration branch. Do not squash, rebase, cherry-pick, amend, or force.
-3. If the merge succeeds, record the merge commit and integration order, push
-   the updated parent integration branch normally to `origin`, and verify that
-   `origin/<integration-branch>` resolves to the exact new local integration
-   `HEAD`. Only after that verification may the child be marked integrated and
-   dependency readiness be recomputed. Newly ready descendants must be launched
-   from this published head; they become launch candidates without waiting for
-   unrelated siblings.
-4. Do not update, merge into, or restart still-open sibling branches merely
-   because the integration branch advanced.
+Never run speckit-implement or speckit-converge in this workflow. Workers also
+must not run them.
 
-### Conflict remediation
+## 4. Decide permanent-test and validation policy
 
-When the child cannot merge cleanly because the parent integration branch has
-advanced:
+Before building handoffs, decide the authorization and ceiling for every slice
+from only the issue, constitution and materially affected risk.
 
-1. Abort only the uncommitted merge attempt, leaving the parent integration
-   branch clean and checked out.
-2. In that child's isolated worktree, confirm the child issue branch is active
-   and clean, fetch the current parent integration branch, and merge it normally
-   into the child branch.
-3. Resolve conflicts only when the correct result follows deterministically
-   from the child issue, parent issue, already integrated behavior, `AGENTS.md`,
-   constitution, architecture, and current repository sources of truth.
-4. Stop that child without guessing when resolution requires a new product,
-   architecture, authorization, persistence, shared-contract, UX,
-   correctness-sensitive, operational, or scope decision.
-5. After deterministic resolution, rerun every child-required validation and
-   every check affected by the conflict. Apply the single-issue workflow's
-   permanent-test and scope gates to any remediation.
-6. Create a normal conflict-resolution commit, push the child branch normally,
-   recapture its remote head and ready PR evidence, and retry integration from
-   the primary worktree.
+Permanent coverage may be considered when the issue explicitly requires it,
+the constitution requires it, or the slice materially affects a business rule,
+protected invariant, authorization, security, persistence, Flyway migration,
+shared/external contract or operational safety. Generated artifacts cannot
+authorize coverage independently.
 
-Record conflicted paths, resolution commits, validation evidence, and whether a
-decision stop occurred. Never conceal conflict remediation inside the parent
-merge or use history rewriting to make a child integrate.
+Authorization is not a mandate. Include permanent coverage only when it
+protects a realistic high-value regression, existing evidence is inadequate,
+the responsible layer is singular and the maintenance cost is proportionate.
+Do not add tests for wording, file presence or incidental implementation
+details when structural validation, compilation, existing suites, directed
+inspection or a focused manual check is adequate.
 
-## 7. Complete and deliver the parent
+Remove unauthorized permanent-test work from generated tasks mechanically and
+rerun speckit-analyze. Rewrite mixed tasks to preserve only permitted existing
+suite, build, inspection or manual evidence. Stop for explicit human authority
+only when exceptional uncategorized risk genuinely requires maintained
+coverage.
 
-Do not begin final delivery until every required incomplete child discovered at
-the start is integrated. Never silently omit a failed, blocked, draft, or
-incomplete child.
+For every slice, record:
 
-1. Confirm no child subagent can resume working-tree mutations and the parent
-   integration branch is active and clean.
-2. Run validation explicitly required by the parent issue and all
-   integration-relevant validation for the accumulated implementation. Rerun
-   evidence made stale by the last integration or conflict remediation. Report
-   each result as passed, failed, skipped, timed out, interrupted, partial,
-   stale, or not revalidated; only passed evidence counts as success.
-3. Inspect the complete `startingBaseSha..HEAD` diff and changed-file list.
-   Separate expected accumulated child changes from integration-only changes.
-   Stop when an unexpected integration-only change cannot be justified by the
-   parent, children, conflict records, and sources of truth.
-4. Synchronize with the fixed captured parent before first final delivery:
-   - fetch only `origin/<startingBaseRef>`;
-   - stop if it is missing or `startingBaseSha` is not its ancestor;
-   - if the integration branch lacks the current remote parent, merge that
-     remote parent normally;
-   - resolve only deterministic conflicts within approved parent/child scope;
-   - rerun all affected parent and integration validation after the merge.
-5. Push only the parent integration branch normally to `origin`.
-6. Open one ready, non-draft PR from the integration branch to the fixed
-   `startingBaseRef`, or update the matching existing PR. The PR must summarize
-   the accumulated implementation, list the child issues/PRs, state the
-   validation performed, and request external review.
-7. Capture the final PR number, URL, ready status, and remote head SHA. Do not
-   launch `catworld_pr_reviewer`, do not wait for or perform automatic review
-   remediation, and do not merge the final PR. Record:
-   - `independent review rounds: 0`;
-   - `reviewed remote head SHAs: none`;
-   - `final review result: not run — external review requested`; and
-   - `automatic remediation commits: none`.
+- whether permanent coverage is prohibited or authorized;
+- the exact maximum files/scenarios or responsible behavior when authorized;
+- required slice-local commands and evidence;
+- integration-affected evidence the parent will rerun; and
+- any native-MySQL evidence the canonical plan requires.
 
-If final integration validation fails outside safely correctable approved
-scope, or any required child remains incomplete, stop normal final delivery.
-Do not downgrade the final result by opening a ready PR that omits required work.
+A worker must not broaden this policy. Final qualification and delivery reapply
+it to the complete diff.
 
-## 8. Final report
+## 5. Build the execution map before launch
 
-Keep the parent integration branch checked out and report:
+Use slice descriptions plus canonical spec, plan and tasks to build one
+parent-session execution map.
 
-- parent issue, `startingBaseSha`, fixed `startingBaseRef`, parent integration
-  branch, final local/remote head, and parent synchronization result;
-- every discovered child with completion classification, branch, PR URL/status,
-  final child head, validation status, and final workflow state;
-- dependency edges, launch batches or capacity queueing, and integration order;
-- every integration or synchronization merge commit and resolved conflict;
-- parent and integration validation commands with explicit statuses;
-- unexpected integration-only changes or scope findings;
-- final PR URL and ready status, or the exact blocker preventing delivery;
+Assign every implementable responsibility to exactly one declared slice.
+Include source surfaces, requirements/outcomes, relevant invariants/approved
+decisions, required evidence and hard prerequisites. Retain with the parent
+only global orchestration, accumulated completeness/scope review, final
+validation, fixed-base synchronization and delivery.
+
+Stop before launching any worker when:
+
+- important implementable work is unassigned;
+- the same work is assigned to multiple slices ambiguously;
+- a declared slice has no coherent assigned implementation;
+- an assignment contradicts a hard dependency; or
+- allocation requires a new product, architecture, authorization, persistence,
+  shared-contract, UX, correctness-sensitive, operational or scope decision.
+
+Do not create a versioned execution map, slice mapping or orchestration-state
+file. Keep the map and run ledger in the parent session.
+
+Initialize each slice as declared and track at least:
+
+- dependency state and ready-queue position;
+- deterministic branch and absolute worktree path;
+- exact starting issue-branch head;
+- worker identity and state;
+- delivery and correction count;
+- reported and final integrated commit SHAs;
+- changed files, validation and test-policy result;
+- qualification/rebase/conflict state; and
+- blocker or final integrated state.
+
+## 6. Create bounded slice handoffs
+
+Each dependency-ready slice receives one explicit handoff containing only:
+
+- parent issue number/title and slice ID/title;
+- concise objective;
+- required observable or technical behavior;
+- relevant feature-wide invariants and approved decisions;
+- concrete assigned responsibilities and source surfaces;
+- already integrated prerequisite behavior available in starting HEAD;
+- explicit exclusions, prohibited paths and prohibited actions;
+- parent-decided permanent-test authorization/ceiling;
+- required slice validation and freshness evidence;
+- exact starting commit; and
+- expected local branch and isolated worktree.
+
+Do not pass the complete issue body, complete spec.md, complete plan.md or
+complete tasks.md by default. Include a bounded excerpt or reference only when
+the worker cannot complete its assigned behavior without it, and identify why
+it is necessary.
+
+Direct every worker to load AGENTS.md, the constitution, architecture, current
+source tree and .agents/skills/catworld-implement-slice/SKILL.md. It must not
+fetch or reinterpret the full issue. It must return a blocker instead of
+deciding any missing material question.
+
+Tell the worker it owns only its named worktree/files, is not alone in the
+repository, must not revert or overwrite other slices, and must adapt only to
+already integrated prerequisite behavior present in its starting HEAD.
+
+## 7. Schedule dependency-ready slices dynamically
+
+A slice is ready only when all declared prerequisites are already integrated.
+Completed worker execution without integration does not satisfy a dependency.
+
+At every scheduling point:
+
+1. Add all not-yet-launched ready slices to the FIFO ready queue, using
+   declaration order to break simultaneous readiness.
+2. Launch as many queued slices as current agent capacity permits. Do not impose
+   another concurrency cap or form artificial batches.
+3. Leave excess ready slices queued without changing the DAG.
+4. After every successful integration, recalculate readiness immediately and
+   fill newly available capacity.
+5. When a slice blocks or fails, do not launch its descendants. Allow
+   independent queued/running slices to continue and preserve their useful
+   qualified results, but do not perform normal final delivery while any
+   required slice is not integrated.
+
+### Local branch and worktree creation
+
+For each initial launch, capture the current issue-branch HEAD and derive a
+unique deterministic local branch containing the issue number and slice ID,
+such as <issue-branch>-slice-<slice-id-lowercase>. Derive an absolute isolated
+worktree path outside the primary worktree that also contains the repository,
+issue number and slice ID.
+
+Before creation:
+
+- resolve and verify the path is outside the primary worktree;
+- verify the path does not exist;
+- verify the local branch does not exist; and
+- stop and require explicit reuse/recovery authority if retained state already
+  occupies either target.
+
+Create the branch from exactly the captured HEAD and add its worktree without
+switching the primary worktree. Record both before spawning the worker. Never
+create a remote slice branch.
+
+Spawn one fresh built-in worker in that worktree without inherited parent
+conversation or implementation history. Pass only the bounded handoff and tell
+it to follow catworld-implement-slice. The worker must not delegate or spawn
+another working-tree mutator.
+
+The parent may continue scheduling, qualifying and integrating other work in the
+primary worktree while slice workers mutate only their own worktrees. Never
+edit a slice worktree while its worker is active.
+
+## 8. Qualify every slice delivery
+
+Wait for worker completions while continuing to fill ready capacity. A worker
+report is evidence to verify, not automatic qualification.
+
+For each delivery, independently confirm:
+
+- the expected branch and worktree exist and are clean;
+- the worker is finished and cannot resume mutation;
+- reported commits exist, are descendants of the recorded starting commit and
+  contain the complete delivery;
+- the full starting-commit-to-branch diff fits the handoff;
+- prohibited artifacts and unrelated surfaces are unchanged;
+- every added or modified test respects the supplied authorization and value
+  ceiling;
+- required and affected validation passed after the latest slice change;
+- evidence statuses are explicit and no stale, partial, skipped, interrupted,
+  timed-out or not-revalidated result is represented as passed; and
+- no unresolved blocker or material decision remains.
+
+This is bounded implementation qualification, not pull-request review. Do not
+launch catworld_pr_reviewer.
+
+### One pre-integration correction
+
+When qualification finds a clear, bounded and deterministic violation of the
+handoff, return that exact finding to a worker in the same worktree. Allow at
+most one automatic pre-integration correction round for that delivery.
+
+The correction worker receives the original handoff, precise finding and
+current local head. It may add normal follow-up commits but must not amend,
+squash, publish or expand scope. Reapply test authorization, rerun affected
+validation and requalify the complete delivery.
+
+Stop the slice when the correction still cannot qualify, the same problem
+repeats without progress or any fix requires a new material decision.
+
+## 9. Rebase and fast-forward integrate qualified slices
+
+Integrate one qualified slice at a time from the clean primary worktree while
+it remains on the issue branch.
+
+### Slice still based on current issue HEAD
+
+When the slice's recorded starting commit equals current issue-branch HEAD,
+run git merge --ff-only <slice-branch>. Stop if fast-forward unexpectedly fails.
+
+### Issue branch advanced while the slice ran
+
+When the issue branch advanced:
+
+1. Ensure no worker is active in the slice worktree and both involved branches
+   are clean.
+2. In the slice worktree, rebase the unpublished slice branch onto the exact
+   current issue-branch HEAD. Never rebase a published branch.
+3. Resolve conflicts only when the correct result is deterministic from the
+   issue, canonical artifacts, already integrated behavior, repository
+   instructions, constitution, architecture and current sources of truth.
+4. Use a bounded slice-worker correction in that same worktree when code
+   adaptation or conflict resolution needs the slice's implementation context.
+   It may resolve only the identified deterministic conflict and must not use
+   the rebase as permission for new scope.
+5. Stop on a material product, architecture, authorization, persistence,
+   shared-contract, UX, correctness-sensitive, operational or scope decision.
+6. Rerun every slice-required or affected validation after the rebase/conflict
+   result. Reapply the permanent-test gate.
+7. Requalify the complete rebased delivery and recapture its rewritten local
+   commit SHAs.
+8. From the primary worktree, run git merge --ff-only <slice-branch>.
+
+Do not use squash, cherry-pick as the normal path, slice merge commits or parent
+merge commits for slice integration. Rebase is allowed only because every slice
+branch remains local and unpublished.
+
+After a successful fast-forward, record the slice's final integrated commits
+and order, mark it integrated, recalculate dependency readiness immediately and
+fill capacity. Do not remove its branch or worktree.
+
+## 10. Run one global completeness pass
+
+Begin only after every required slice is integrated and no slice worker can
+resume mutation. If a required slice is blocked, failed or unqualified, preserve
+independent results and stop normal final delivery.
+
+Compare the complete accumulated startingBaseSha..HEAD code and changed paths
+with:
+
+- the full issue;
+- canonical spec.md, plan.md and tasks.md;
+- the execution/source map;
+- every declared slice and assigned responsibility; and
+- the permanent-test and validation policy.
+
+Confirm every responsibility is complete exactly once and every changed surface
+is in scope. Do not run speckit-converge or speckit-implement.
+
+### One global corrective pass
+
+When bounded gaps belong unambiguously to existing slices, group them by the
+responsible slice and create one corrective delivery per affected slice from
+the current issue-branch HEAD. Use a new deterministic local branch/worktree or
+an explicitly safe retained context, and give the worker a bounded corrective
+handoff through catworld-implement-slice.
+
+Allow only one global corrective pass. Qualify and integrate its commits using
+the same unpublished rebase/fast-forward rules. Corrective commits may extend
+earlier slice history; do not rewrite earlier integrated commits merely to
+preserve a one-commit appearance.
+
+Rerun the complete global check after that pass. Stop when:
+
+- any gap remains or the same finding repeats without progress;
+- a new slice or unassigned responsibility would be required;
+- allocation or correction would expand scope; or
+- a new material decision is needed.
+
+## 11. Run final validation and diff gates
+
+Against the complete current issue branch:
+
+1. Run every issue-required, plan-required and integration-affected validation.
+2. When real MySQL evidence is required, use the isolated native-validation
+   safety procedure from catworld-implement-issue without invoking that
+   workflow, and include the required procedure in any relevant handoff.
+3. Rerun evidence made stale by a later integration, rebase, correction or
+   conflict change.
+4. Report each command/check as passed, failed, skipped, timed out, interrupted,
+   partial, stale or not revalidated. Only fresh passed evidence counts.
+5. Inspect every added or modified test in startingBaseSha..HEAD. Treat any
+   unauthorized or low-value broadened coverage as a missed qualification or
+   completeness failure. Correct it only through an unused allowed slice or
+   global correction round, then rerun affected validation; otherwise stop
+   rather than opening an extra corrective pass.
+6. Inspect changed paths against the issue, canonical source map and slice
+   ledger. Stop when an unexpected surface cannot be justified without scope
+   expansion.
+7. Confirm the primary issue branch is active and clean and every worker is
+   inactive.
+
+Failed or incomplete required final validation is a stop for normal final
+delivery.
+
+## 12. Synchronize and deliver once
+
+Only after global completeness and fresh validation succeed:
+
+1. Fetch only origin <startingBaseRef>.
+2. Stop if origin/<startingBaseRef> is missing.
+3. Verify startingBaseSha is an ancestor of current origin/<startingBaseRef>.
+   Stop on rewritten or incompatible parent history; do not choose another base.
+4. If the issue branch already contains the current remote base, do not merge.
+   Otherwise merge origin/<startingBaseRef> normally into the issue branch.
+5. Resolve only deterministic in-scope conflicts. Stop for any new material
+   decision or scope expansion.
+6. A parent merge makes affected evidence stale. Rerun required and affected
+   validation, test-diff review and scope review, then create any necessary
+   normal follow-up commit without rewriting history.
+7. Push only the final issue branch to origin with a normal non-force push.
+8. Open one ready pull request to the fixed startingBaseRef, or update the one
+   explicitly authorized matching pull request during a reused run.
+9. The pull-request body must contain:
+   - Closes #<issue-number>;
+   - a concise whole-issue summary;
+   - the final validation commands/results; and
+   - a mapping from every slice ID/title to its final integrated commit SHA(s).
+10. Request external review through the ready pull request and report it as
+    awaiting external read-only review. Do not select or notify a specific
+    reviewer without separate user instruction.
+11. Capture PR number, URL, ready status and exact remote head SHA.
+
+The only GitHub implementation artifacts created by a successful new run are
+the final issue branch and final pull request. Do not launch a Codex reviewer,
+wait for an automatic Codex review gate or perform automatic PR remediation.
+Do not merge the pull request or modify the issue.
+
+Record:
+
+- independent review rounds: 0;
+- reviewed remote head SHAs: none;
+- final review result: not run — external review requested; and
+- automatic remediation commits: none.
+
+## 13. Terminal stops and recovery
+
+Stop normal final delivery on:
+
+- a dirty or unreliable starting state;
+- a missing, unreadable, closed/non-implementable or non-issue target;
+- an invalid slice/dependency model;
+- an existing branch/worktree without explicit safe reuse authority;
+- a canonical artifact conflict or pending material decision;
+- incomplete or ambiguous execution coverage;
+- a worker or delivery that remains blocked, failed or unqualified;
+- a nondeterministic rebase, integration or parent-synchronization conflict;
+- remaining global gaps after the one corrective pass;
+- failed, incomplete or stale required validation;
+- unauthorized permanent-test coverage that cannot be removed safely;
+- unjustified changed surfaces;
+- missing/incompatible current remote base evidence; or
+- unsafe repository or worktree state.
+
+After a slice blocks, descendants must not start, but independent ready/running
+slices may finish and their qualified results may be integrated. No ready final
+pull request may omit a required slice.
+
+Never automatically delete, detach, move or clean local slice branches or
+worktrees, including after success. Never infer or resume a stopped run from
+retained Git state. A later reuse or recovery attempt requires explicit operator
+authorization and reliable state instructions.
+
+Keep the primary worktree on the issue branch. If it is dirty at a stop, report
+every path and do not switch branches.
+
+## 14. Final report
+
+Report:
+
+- issue number/title and final workflow state;
+- startingBaseSha, fixed startingBaseRef, issue branch, primary path, final
+  local/remote head and parent-synchronization result;
+- parsed slices and normalized dependency edges;
+- execution-map coverage result and permanent-test authorization per slice;
+- ready-queue/capacity events and launch/integration order;
+- every slice's state, branch, retained worktree path, starting head, reported
+  commits, final integrated commits, qualification/correction/rebase/conflict
+  result, changed files, validation and blocker;
+- global completeness and corrective-pass result;
+- final validation commands with explicit statuses and freshness;
+- final test-diff and scope-drift reviews;
+- git status --short and concise accumulated diff summary;
+- final PR URL and ready status, or the exact delivery blocker;
 - independent review fields fixed to zero/none/external review requested;
-- retained worktree paths and branch state, without branch cleanup;
-- `git status --short`, concise accumulated diff summary, and current checkout.
+- unresolved blocking findings and report-only risks; and
+- confirmation that the issue branch remains checked out and local slice
+  branches/worktrees were retained.
 
-## Terminal stops
-
-Stop normal final delivery for any of these conditions:
-
-- dirty starting worktree or unreliable starting base;
-- existing integration branch without reuse permission or in another worktree;
-- missing or unreadable parent, no discoverable children, or no incomplete work;
-- contradictory dependency declarations, unknown required dependency, or cycle;
-- required child failure, unsafe stop, incomplete validation, draft/wrong-base PR,
-  missing remote evidence, or unclean delivered state;
-- conflict resolution requiring a new material decision;
-- unexpected integration-only scope drift;
-- missing/incompatible current remote parent; or
-- final required validation that cannot pass within approved scope.
-
-Independent work may finish after a child blocks, but descendants of that child
-must not start and no final ready parent PR may omit it.
+When delivery did not complete, also provide one suggested conventional commit
+title and a concise pull-request description based only on completed scoped
+work.
 
 ## Done when
 
-- Every required incomplete child ran in an isolated worktree through the
-  unchanged single-issue lifecycle and explicit external-review path.
-- Every dependency-ready child was launched concurrently or capacity-queued
-  without changing DAG semantics.
-- Every required child ready PR was integrated through normal history-preserving
-  merges, with deterministic conflict remediation validated and recorded.
-- The accumulated parent branch passed fresh required validation and was
-  delivered as one ready PR to the fixed original base.
-- No Codex reviewer, automatic remediation, final merge, history rewrite,
-  branch cleanup, or issue mutation occurred.
+- One canonical local Spec Kit planning cycle covers the complete valid sliced
+  issue and its ignored artifacts were never published.
+- Every implementable responsibility was assigned exactly once before launch.
+- Every ready slice ran through a bounded internal worker in an isolated local
+  branch/worktree according to the explicit DAG and runtime capacity.
+- Every integrated delivery qualified and reached the issue branch through
+  unpublished rebase when needed and git merge --ff-only.
+- One bounded global completeness process found no remaining work.
+- Final evidence is fresh after the latest relevant change.
+- Only the final issue branch and one ready pull request were published, with
+  slice-to-commit traceability and external review requested.
+- The ordinary issue workflow and Spec Kit files remained unchanged.
+- No Codex review/remediation, final merge, history rewrite, branch/worktree
+  cleanup, issue mutation or public comment occurred.
