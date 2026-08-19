@@ -44,8 +44,10 @@ This workflow may:
 - create deterministic unpublished local slice branches and isolated worktrees;
 - spawn bounded local slice workers;
 - integrate qualified slice commits locally;
-- create normal commits required by deterministic final-base synchronization;
-- push the final issue branch normally; and
+- create only the merge commit and intrinsic deterministic conflict resolution
+  required by final-base synchronization;
+- create the final remote issue branch once through an atomic create-only
+  server operation; and
 - open one ready final pull request to the fixed captured base.
 
 It must not:
@@ -151,11 +153,31 @@ Record normalized edges and the exact source statements supporting them.
    ref from the operator or invocation context. Never infer it from reachability
    or default it to main. For pre-planning recovery, verify the recorded
    startingBaseSha still exists and is exactly the recorded issue branch HEAD.
-4. Derive the expected issue branch as
-   <type>/<issue-number>-<short-description>. Infer the conventional type from
-   the issue title prefix first and labels second, using chore when neither is
-   clear. Keep the description concise and deterministic. In pre-planning
-   recovery, require the recorded issue branch to match this expected branch.
+4. Derive the expected issue branch mechanically as
+   `<type>/<issue-number>-<short-description>`:
+   - infer `<type>` from a recognized leading title prefix first and recognized
+     labels second; match labels case-insensitively with locale-independent
+     ASCII folding, map aliases to canonical types, deduplicate them, and when
+     more than one remains select the first canonical ASCII type by ordinal byte
+     order; use `chore` when neither source is clear; recognize `feat`, `fix`,
+     `docs`, `test`, `chore`, `refactor`, `ci`, and `build`, and map `bug` to
+     `fix`, `feature` to `feat`, and `documentation` to `docs`;
+   - recognize a leading prefix only when one of those tokens or mapped words
+     is enclosed in square brackets or followed by a colon, case-insensitively,
+     and remove exactly that prefix plus immediately following whitespace;
+   - normalize the remaining title using the Unicode 15.1 NFKD tables, remove
+     combining marks, lowercase with locale-independent Unicode 15.1 rules,
+     replace every run outside ASCII `a` through `z` and `0` through `9` with
+     one hyphen, then collapse and trim hyphens; stop before branch creation if
+     the runtime cannot apply those exact tables;
+   - use `issue` when the result is empty; otherwise retain every normalized
+     token in order without stop-word removal, abbreviation or discretionary
+     shortening; and
+   - cap `<short-description>` at 48 ASCII characters by retaining its first 48
+     characters and trimming any resulting trailing hyphen.
+   The same issue number, exact title and labels must produce a byte-identical
+   branch name in every runtime. In pre-planning recovery, require the recorded
+   issue branch to match this expected branch.
 5. Stop if the issue branch equals startingBaseRef without a separately supplied
    reliable intended base.
 6. For a new run, check collisions only against the exact identities the run
@@ -177,8 +199,9 @@ Record normalized edges and the exact source statements supporting them.
      --porcelain and stop if it is checked out in another worktree, then switch
      to it without rewriting history;
    - require its HEAD to remain exactly startingBaseSha and require no target
-     issue implementation commits, canonical feature pointer/directory or
-     spec.md, plan.md or tasks.md output;
+     issue implementation commits or target-attributable canonical feature
+     pointer/directory, spec.md, plan.md or tasks.md output; unrelated ignored
+     planning state is not checkpoint evidence;
    - require no execution map, planning/slice ledger entry, exact slice branch,
      exact slice worktree, exact remote issue branch or open pull request using
      the exact issue branch as its head for this run.
@@ -193,15 +216,25 @@ Record normalized edges and the exact source statements supporting them.
 
 Initialize issueDiffBaseSha to startingBaseSha.
 
-Record the setup mode, issue number/title, startingBaseSha, fixed
-startingBaseRef, issueDiffBaseSha, issue branch, primary worktree path and
-verified pre-planning checkpoint evidence in the parent-session ledger.
+Before planning, snapshot read-only the pre-existing ignored `specs/` paths and
+the presence and exact content or target of `.specify/feature.json`. Leave this
+unrelated state untouched. Record the setup mode, issue number/title,
+startingBaseSha, fixed startingBaseRef, issueDiffBaseSha, issue branch, primary
+worktree path, planning-state snapshot and verified target-run pre-planning
+checkpoint evidence in the parent-session ledger.
 
 ## 3. Run one canonical local planning cycle
 
 Enter this section only from a new run or the verified pre-planning checkpoint
-defined in section 2. Any evidence of an earlier canonical cycle is a stop, not
-authority to call speckit-specify again.
+defined in section 2. Evidence of an earlier canonical cycle is a stop only
+when reliable evidence attributes it to this exact target issue and run. A
+pre-existing ignored `specs/` directory, `.specify/feature.json`, or planning
+artifact captured in section 2 and not reliably tied to this target is
+unrelated state: leave it untouched and do not treat it as planning, recovery
+or collision evidence. Only target feature state created or changed after the
+snapshot and reliably associated with the exact issue branch/session counts as
+this run's canonical-cycle evidence. Never call speckit-specify twice for
+target-run evidence or overwrite an unrelated planning context.
 
 Use the complete issue body plus loaded repository context for exactly one
 whole-issue cycle:
@@ -494,9 +527,31 @@ is in scope. Do not run speckit-converge or speckit-implement.
 
 When bounded gaps belong unambiguously to existing slices, group them by the
 responsible slice and create one corrective delivery per affected slice from
-the current issue-branch HEAD. Use a new deterministic local branch/worktree or
-an explicitly safe retained context, and give the worker a bounded corrective
-handoff through catworld-implement-slice.
+the current issue-branch HEAD. For each affected slice:
+
+1. Capture that current HEAD as both immutable correctionLaunchSha and initial
+   correctionQualificationBaseSha.
+2. Use the exact new unpublished branch
+   `<issue-branch>-slice-<slice-id-lowercase>-global-correction-1` and the exact
+   absolute worktree path formed beside the primary worktree as
+   `<primary-directory-name>-<issue-number>-slice-<slice-id-lowercase>-global-correction-1`.
+   Resolve the path and require it to be outside the primary worktree.
+3. Stop if that exact branch exists, is checked out in any worktree, or that
+   exact path exists. Ignore differently identified retained state, but never
+   reuse the initial slice branch/worktree or any retained context.
+4. Create the branch at exactly correctionLaunchSha, add the exact worktree,
+   record both identities and SHAs, and launch a fresh bounded worker through
+   catworld-implement-slice. Its handoff contains only the owned gap, original
+   slice responsibilities, exclusions, test ceiling, required evidence, exact
+   launch SHA, branch and worktree.
+5. Qualify the complete correctionQualificationBaseSha-to-branch delivery with
+   section 8. If the issue branch advanced, treat the result as stale, rebase
+   the unpublished correction branch onto the newly captured issue HEAD, set
+   correctionQualificationBaseSha to that rebase base, rerun affected evidence
+   and requalify exactly as section 9 requires.
+6. Verify the issue branch still equals correctionQualificationBaseSha and
+   integrate with `git merge --ff-only` only. Retain the correction branch and
+   worktree after integration.
 
 Allow only one global corrective pass. Qualify and integrate its commits using
 the same unpublished rebase/fast-forward rules. Corrective commits may extend
@@ -556,15 +611,27 @@ Only after global completeness and fresh validation succeed:
    currentBaseSha. Always rerun the permanent-test and scope/completeness gates
    against issueDiffBaseSha..HEAD, excluding unrelated base-only changes. When a
    merge changed the tree, also rerun required and affected validation because
-   that evidence is stale. Create any necessary normal follow-up commit without
-   rewriting history, then rerun the affected gates against the same
-   issueDiffBaseSha.
-7. Immediately before pushing, re-query the exact remote issue branch and open
+   that evidence is stale. The parent may commit only the synchronization merge
+   itself and deterministic conflict resolution intrinsic to that merge. It
+   must not author behavioral or source adaptation directly. Assign any such
+   post-sync gap to its existing slice and, only when the one global corrective
+   pass is still unused, run the fixed global-correction workflow from section
+   10 against the current synchronized HEAD. If that pass is exhausted,
+   ownership is ambiguous, scope would expand or a material decision is needed,
+   stop. After an integrated correction, rerun completeness, scope, test-policy
+   and affected validation gates against the same issueDiffBaseSha.
+7. Immediately before publication, re-query the exact remote issue branch and open
    pull requests in this repository whose head is the exact final issue branch.
    Require both to remain absent. If either exists, stop before any remote
    mutation; do not rely on earlier setup evidence or a cached remote ref.
-8. Push only the final issue branch to origin with a normal non-force push.
-9. After the push succeeds and before PR creation, re-query open pull requests
+8. Create `refs/heads/<issue-branch>` at the exact final local HEAD using an
+   authenticated server-side create-ref operation whose atomic precondition is
+   that the ref does not exist. Require a created response and exact returned
+   SHA. An already-existing ref must make this mutation fail; never update or
+   fast-forward it, never use force semantics, and never substitute a
+   check-then-normal-push sequence. If the runtime exposes no documented atomic
+   create-only ref operation, stop before remote mutation.
+9. After remote ref creation succeeds and before PR creation, re-query open pull requests
    in this repository whose head is the exact final issue branch. Open one ready
    pull request to the fixed startingBaseRef only when none exists; otherwise
    stop rather than creating or updating another PR.
@@ -650,9 +717,12 @@ Report:
 - confirmation that the issue branch remains checked out and local slice
   branches/worktrees were retained.
 
-When delivery did not complete, also provide one suggested conventional commit
-title and a concise pull-request description based only on completed scoped
-work.
+When delivery did not complete and a non-empty qualified scoped implementation
+diff exists, also provide one suggested conventional commit title and a concise
+pull-request description based only on that completed scoped work. For a
+routing, setup, collision, DAG or planning stop before any qualified
+implementation diff exists, state that no commit or pull-request suggestion is
+applicable; never fabricate one.
 
 ## Done when
 
