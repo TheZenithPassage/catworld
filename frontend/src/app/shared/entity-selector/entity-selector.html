@@ -1,0 +1,49 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ label }}</mat-label>
+  @if (disabled) {
+    <input
+      matInput
+      type="text"
+      role="combobox"
+      disabled
+      aria-disabled="true"
+      aria-expanded="false"
+      aria-haspopup="listbox"
+      [value]="searchText"
+    />
+  } @else {
+    <input
+      matInput
+      type="text"
+      role="combobox"
+      [matAutocomplete]="autocomplete"
+      [ngModel]="searchText"
+      (ngModelChange)="onSearchTextChange($event)"
+    />
+  }
+
+  @if (clearable && hasSelection) {
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      [attr.aria-label]="clearLabel"
+      [disabled]="disabled"
+      (click)="clearSelection()"
+    >
+      <span aria-hidden="true">×</span>
+    </button>
+  }
+
+  <mat-autocomplete
+    #autocomplete="matAutocomplete"
+    [displayWith]="displayOption"
+    (optionSelected)="selectOption($event)"
+  >
+    @for (option of filteredOptions; track option.id) {
+      <mat-option [value]="option.id">{{ option.label }}</mat-option>
+    } @empty {
+      <mat-option disabled>{{ noResultsText }}</mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>
