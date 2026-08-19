@@ -68,45 +68,28 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.owner }}</mat-label>
-          <select
-            matNativeControl
-            name="ownerId"
-            required
-            [ngModel]="ownerId()"
-            (ngModelChange)="ownerId.set($event)"
-          >
-            <option value="">{{ text().cats.form.selectOwner }}</option>
-
-            @for (owner of owners(); track owner.id) {
-              <option [value]="owner.id">
-                {{ owner.fullName }}
-              </option>
-            }
-          </select>
+        <div>
+          <app-entity-selector
+            [label]="text().cats.form.owner"
+            [noResultsText]="text().cats.form.noOwnersFound"
+            [options]="ownerOptions()"
+            [value]="ownerId() || null"
+            (valueChange)="onOwnerChange($event)"
+          ></app-entity-selector>
           @if (ownerIdError(); as message) {
             <mat-error>{{ message }}</mat-error>
           }
-        </mat-form-field>
+        </div>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.vet }}</mat-label>
-          <select
-            matNativeControl
-            name="vetId"
-            [ngModel]="vetId()"
-            (ngModelChange)="vetId.set($event)"
-          >
-            <option value="">{{ text().cats.form.noVet }}</option>
-
-            @for (vet of vets(); track vet.id) {
-              <option [value]="vet.id">
-                {{ vet.name }}
-              </option>
-            }
-          </select>
-        </mat-form-field>
+        <app-entity-selector
+          [label]="text().cats.form.vet"
+          [noResultsText]="text().cats.form.noVetsFound"
+          [clearLabel]="text().cats.form.clearVet"
+          [clearable]="true"
+          [options]="vetOptions()"
+          [value]="vetId() || null"
+          (valueChange)="onVetChange($event)"
+        ></app-entity-selector>
 
         <mat-form-field appearance="outline">
           <mat-label>{{ text().cats.form.breed }}</mat-label>

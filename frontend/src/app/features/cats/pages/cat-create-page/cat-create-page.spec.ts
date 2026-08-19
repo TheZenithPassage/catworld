@@ -166,7 +166,7 @@ describe('CatCreatePage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelector('input[name="birthDate"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="personality"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
