@@ -559,19 +559,24 @@ Only after global completeness and fresh validation succeed:
    that evidence is stale. Create any necessary normal follow-up commit without
    rewriting history, then rerun the affected gates against the same
    issueDiffBaseSha.
-7. Push only the final issue branch to origin with a normal non-force push.
-8. Open one ready pull request to the fixed startingBaseRef. Stop rather than
-   creating or updating another PR if an open pull request in this repository
-   already uses the exact final issue branch as its head.
-9. The pull-request body must contain:
+7. Immediately before pushing, re-query the exact remote issue branch and open
+   pull requests in this repository whose head is the exact final issue branch.
+   Require both to remain absent. If either exists, stop before any remote
+   mutation; do not rely on earlier setup evidence or a cached remote ref.
+8. Push only the final issue branch to origin with a normal non-force push.
+9. After the push succeeds and before PR creation, re-query open pull requests
+   in this repository whose head is the exact final issue branch. Open one ready
+   pull request to the fixed startingBaseRef only when none exists; otherwise
+   stop rather than creating or updating another PR.
+10. The pull-request body must contain:
    - Closes #<issue-number>;
    - a concise whole-issue summary;
    - the final validation commands/results; and
    - a mapping from every slice ID/title to its final integrated commit SHA(s).
-10. Request external review through the ready pull request and report it as
+11. Request external review through the ready pull request and report it as
     awaiting external read-only review. Do not select or notify a specific
     reviewer without separate user instruction.
-11. Capture currentBaseSha, PR number, URL, ready status and exact remote head
+12. Capture currentBaseSha, PR number, URL, ready status and exact remote head
     SHA, and verify that they match the final branch and the retained session
     state.
 
