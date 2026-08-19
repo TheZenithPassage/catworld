@@ -345,14 +345,14 @@ describe('StayCreatePage', () => {
     ).toBe(false);
   });
 
-  it('renders Material stay create fields, owner select, link and submit action', () => {
+  it('renders Material stay create fields, owner selector, link and submit action', () => {
     createComponent();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-entity-selector')).toHaveLength(1);
     expect(compiled.querySelector('input[name="startAt"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="endAt"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
