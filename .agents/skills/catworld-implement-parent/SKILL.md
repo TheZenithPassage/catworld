@@ -144,6 +144,9 @@ Record normalized edges and the exact source statements supporting them.
      run stopped after issue-branch creation but before speckit-specify began.
      Never substitute the current HEAD, reachability, remote default or a
      reconstructed ledger for missing original values or checkpoint evidence.
+   Historical branches, worktrees, pull requests, issue-closing references or
+   other retained artifacts never select recovery for a new run. Recovery
+   requires the explicit authorization and exact checkpoint evidence above.
 3. For a new run from detached HEAD, require an explicit reliable intended base
    ref from the operator or invocation context. Never infer it from reachability
    or default it to main. For pre-planning recovery, verify the recorded
@@ -155,8 +158,20 @@ Record normalized edges and the exact source statements supporting them.
    recovery, require the recorded issue branch to match this expected branch.
 5. Stop if the issue branch equals startingBaseRef without a separately supplied
    reliable intended base.
-6. For a new run, stop if the local issue branch already exists. Otherwise
-   create and switch to it from exactly startingBaseSha.
+6. For a new run, check collisions only against the exact identities the run
+   will own:
+   - inspect refs/heads/<issue-branch> and git worktree list --porcelain; stop if
+     that exact local branch exists, and report when that exact branch is
+     checked out in another worktree;
+   - stop if the exact corresponding refs/heads/<issue-branch> exists on origin;
+   - stop if an open pull request in this repository uses that exact issue
+     branch as its head.
+   A closed or unmerged historical PR, a PR with a different head branch, an
+   issue-closing reference, or a retained branch/worktree/artifact whose exact
+   identity is different is not a collision. Do not use issue-number text or
+   name fragments as a substitute for exact ref, PR-head or path equality. When
+   all exact identities are free, create and switch to the issue branch from
+   exactly startingBaseSha.
 7. For authorized pre-planning recovery:
    - require the recorded local issue branch to exist, inspect git worktree list
      --porcelain and stop if it is checked out in another worktree, then switch
@@ -164,15 +179,17 @@ Record normalized edges and the exact source statements supporting them.
    - require its HEAD to remain exactly startingBaseSha and require no target
      issue implementation commits, canonical feature pointer/directory or
      spec.md, plan.md or tasks.md output;
-   - require no execution map, planning/slice ledger entry, slice branch,
-     slice worktree, remote issue branch or matching pull request for this run.
+   - require no execution map, planning/slice ledger entry, exact slice branch,
+     exact slice worktree, exact remote issue branch or open pull request using
+     the exact issue branch as its head for this run.
    If any reliable evidence shows that speckit-specify, later planning, slice
    execution, synchronization or delivery began, stop before section 3. Preserve
    every retained artifact, branch and worktree for separately authorized manual
    recovery; never rerun Spec Kit or infer which completed stage to skip.
 8. Confirm the issue branch is active and the primary worktree is clean. For a
-   new run or authorized pre-planning recovery, confirm that no remote issue
-   branch or matching pull request exists.
+   new run or authorized pre-planning recovery, confirm that the exact remote
+   issue branch remains absent and no open pull request in this repository uses
+   the exact issue branch as its head.
 
 Initialize issueDiffBaseSha to startingBaseSha.
 
@@ -346,10 +363,14 @@ issue number and slice ID.
 Before creation:
 
 - resolve and verify the path is outside the primary worktree;
-- verify the path does not exist;
-- verify the local branch does not exist; and
-- stop if retained state already occupies either target; post-planning slice
-  state is not eligible for the pre-planning recovery path.
+- verify that exact path does not exist;
+- verify the exact local slice branch does not exist or appear as a checked-out
+  branch in git worktree list --porcelain; and
+- stop only when that exact deterministic branch or path is occupied.
+
+Other retained branches, worktrees or artifacts are not collisions merely
+because their names contain the same issue number or come from an earlier
+implementation. Do not delete, detach, move, clean or reinterpret them.
 
 Create the branch from exactly launchSha and add its worktree without switching
 the primary worktree. Record launchSha, qualificationBaseSha, branch and
@@ -540,7 +561,8 @@ Only after global completeness and fresh validation succeed:
    issueDiffBaseSha.
 7. Push only the final issue branch to origin with a normal non-force push.
 8. Open one ready pull request to the fixed startingBaseRef. Stop rather than
-   creating or updating another PR if any matching pull request already exists.
+   creating or updating another PR if an open pull request in this repository
+   already uses the exact final issue branch as its head.
 9. The pull-request body must contain:
    - Closes #<issue-number>;
    - a concise whole-issue summary;
@@ -572,8 +594,8 @@ Stop normal final delivery on:
 - a dirty or unreliable starting state;
 - a missing, unreadable, closed/non-implementable or non-issue target;
 - an invalid slice/dependency model;
-- an existing primary branch that does not satisfy authorized pre-planning
-  recovery, or any retained slice branch/worktree from a prior run;
+- an exact new-run issue-branch collision from section 2, or an exact target
+  slice branch/worktree-path collision from section 7;
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
