@@ -46,7 +46,7 @@ This workflow may:
 - integrate qualified slice commits locally;
 - create normal commits required by deterministic final-base synchronization;
 - push the final issue branch normally; and
-- open or update one ready final pull request to the fixed captured base.
+- open one ready final pull request to the fixed captured base.
 
 It must not:
 
