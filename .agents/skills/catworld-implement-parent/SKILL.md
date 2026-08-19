@@ -140,13 +140,16 @@ Record normalized edges and the exact source statements supporting them.
    - **Authorized recovery:** require explicit operator authorization plus
      reliable recorded values for the original issue number/title,
      startingBaseSha, fixed startingBaseRef, issue branch and primary worktree
-     path. Also require the last published remote head and pull-request number
-     when either existed. Never substitute the current HEAD, reachability,
-     remote default or a reconstructed ledger for missing original values.
+     path. Also require the last synchronized base SHA, last published remote
+     head and pull-request number when each existed. Never substitute the
+     current HEAD, reachability, remote default or a reconstructed ledger for
+     missing original values.
 3. For a new run from detached HEAD, require an explicit reliable intended base
    ref from the operator or invocation context. Never infer it from reachability
    or default it to main. For recovery, verify the recorded startingBaseSha
-   still exists and is an ancestor of the recorded issue branch.
+   still exists and is an ancestor of the recorded issue branch. When a last
+   synchronized base SHA was recorded, require startingBaseSha to be its
+   ancestor and that synchronized SHA to be an ancestor of the issue branch.
 4. Derive the expected issue branch as
    <type>/<issue-number>-<short-description>. Infer the conventional type from
    the issue title prefix first and labels second, using chore when neither is
@@ -175,9 +178,13 @@ Record normalized edges and the exact source statements supporting them.
    new run also confirm that no remote issue branch or matching pull request
    exists. For recovery, retain the verified remote and PR state for delivery.
 
+Initialize issueDiffBaseSha to startingBaseSha for a new or not-yet-synchronized
+run. For authorized recovery after a recorded parent synchronization, initialize
+it to that verified last synchronized base SHA instead.
+
 Record the setup mode, issue number/title, startingBaseSha, fixed
-startingBaseRef, issue branch, primary worktree path, verified remote head and
-authorized PR identity in the parent-session ledger.
+startingBaseRef, issueDiffBaseSha, issue branch, primary worktree path, verified
+remote head and authorized PR identity in the parent-session ledger.
 
 ## 3. Run one canonical local planning cycle
 
@@ -272,7 +279,7 @@ Initialize each slice as declared and track at least:
 
 - dependency state and ready-queue position;
 - deterministic branch and absolute worktree path;
-- exact starting issue-branch head;
+- immutable launch SHA and current qualification-base SHA;
 - worker identity and state;
 - delivery and correction count;
 - reported and final integrated commit SHAs;
@@ -293,7 +300,7 @@ Each dependency-ready slice receives one explicit handoff containing only:
 - explicit exclusions, prohibited paths and prohibited actions;
 - parent-decided permanent-test authorization/ceiling;
 - required slice validation and freshness evidence;
-- exact starting commit; and
+- exact immutable launch commit; and
 - expected local branch and isolated worktree.
 
 Do not pass the complete issue body, complete spec.md, complete plan.md or
@@ -331,7 +338,8 @@ At every scheduling point:
 
 ### Local branch and worktree creation
 
-For each initial launch, capture the current issue-branch HEAD and derive a
+For each initial launch, capture the current issue-branch HEAD as immutable
+launchSha and initialize qualificationBaseSha to that same SHA. Derive a
 unique deterministic local branch containing the issue number and slice ID,
 such as <issue-branch>-slice-<slice-id-lowercase>. Derive an absolute isolated
 worktree path outside the primary worktree that also contains the repository,
@@ -345,9 +353,9 @@ Before creation:
 - stop and require explicit reuse/recovery authority if retained state already
   occupies either target.
 
-Create the branch from exactly the captured HEAD and add its worktree without
-switching the primary worktree. Record both before spawning the worker. Never
-create a remote slice branch.
+Create the branch from exactly launchSha and add its worktree without switching
+the primary worktree. Record launchSha, qualificationBaseSha, branch and
+worktree before spawning the worker. Never create a remote slice branch.
 
 Spawn one fresh built-in worker in that worktree without inherited parent
 conversation or implementation history. Pass only the bounded handoff and tell
@@ -367,12 +375,15 @@ For each delivery, independently confirm:
 
 - the expected branch and worktree exist and are clean;
 - the worker is finished and cannot resume mutation;
-- reported commits exist, are descendants of the recorded starting commit and
-  contain the complete delivery;
-- the full starting-commit-to-branch diff fits the handoff;
+- reported commits exist, are descendants of the current qualificationBaseSha
+  and contain the complete slice delivery;
+- qualificationBaseSha is the immutable launchSha before any rebase, or the
+  exact issue-branch HEAD captured as the base of the latest rebase;
+- the full qualificationBaseSha-to-branch diff contains only the slice delivery
+  and fits the handoff;
 - prohibited artifacts and unrelated surfaces are unchanged;
-- every added or modified test respects the supplied authorization and value
-  ceiling;
+- every added or modified test in that qualification-base diff respects the
+  supplied authorization and value ceiling;
 - required and affected validation passed after the latest slice change;
 - evidence statuses are explicit and no stale, partial, skipped, interrupted,
   timed-out or not-revalidated result is represented as passed; and
@@ -402,7 +413,7 @@ it remains on the issue branch.
 
 ### Slice still based on current issue HEAD
 
-When the slice's recorded starting commit equals current issue-branch HEAD,
+When the slice's immutable launchSha equals current issue-branch HEAD,
 run git merge --ff-only <slice-branch>. Stop if fast-forward unexpectedly fails.
 
 ### Issue branch advanced while the slice ran
@@ -411,8 +422,9 @@ When the issue branch advanced:
 
 1. Ensure no worker is active in the slice worktree and both involved branches
    are clean.
-2. In the slice worktree, rebase the unpublished slice branch onto the exact
-   current issue-branch HEAD. Never rebase a published branch.
+2. Capture the exact current issue-branch HEAD as rebaseBaseSha. In the slice
+   worktree, rebase the unpublished slice branch onto exactly that SHA. Never
+   rebase a published branch.
 3. Resolve conflicts only when the correct result is deterministic from the
    issue, canonical artifacts, already integrated behavior, repository
    instructions, constitution, architecture and current sources of truth.
@@ -422,11 +434,16 @@ When the issue branch advanced:
    the rebase as permission for new scope.
 5. Stop on a material product, architecture, authorization, persistence,
    shared-contract, UX, correctness-sensitive, operational or scope decision.
-6. Rerun every slice-required or affected validation after the rebase/conflict
-   result. Reapply the permanent-test gate.
-7. Requalify the complete rebased delivery and recapture its rewritten local
-   commit SHAs.
-8. From the primary worktree, run git merge --ff-only <slice-branch>.
+6. After a successful rebase, set qualificationBaseSha to rebaseBaseSha while
+   retaining immutable launchSha only for traceability. Rerun every
+   slice-required or affected validation after the rebase/conflict result and
+   reapply the permanent-test gate only to qualificationBaseSha..slice-branch.
+7. Requalify the complete rebased delivery from
+   qualificationBaseSha..slice-branch and recapture its rewritten local commit
+   SHAs. Already integrated sibling changes are outside this diff and must not
+   be attributed to the slice.
+8. Verify current issue-branch HEAD still equals qualificationBaseSha, then from
+   the primary worktree run git merge --ff-only <slice-branch>.
 
 Do not use squash, cherry-pick as the normal path, slice merge commits or parent
 merge commits for slice integration. Rebase is allowed only because every slice
@@ -442,7 +459,7 @@ Begin only after every required slice is integrated and no slice worker can
 resume mutation. If a required slice is blocked, failed or unqualified, preserve
 independent results and stop normal final delivery.
 
-Compare the complete accumulated startingBaseSha..HEAD code and changed paths
+Compare the complete accumulated issueDiffBaseSha..HEAD code and changed paths
 with:
 
 - the full issue;
@@ -486,14 +503,14 @@ Against the complete current issue branch:
    conflict change.
 4. Report each command/check as passed, failed, skipped, timed out, interrupted,
    partial, stale or not revalidated. Only fresh passed evidence counts.
-5. Inspect every added or modified test in startingBaseSha..HEAD. Treat any
+5. Inspect every added or modified test in issueDiffBaseSha..HEAD. Treat any
    unauthorized or low-value broadened coverage as a missed qualification or
    completeness failure. Correct it only through an unused allowed slice or
    global correction round, then rerun affected validation; otherwise stop
    rather than opening an extra corrective pass.
-6. Inspect changed paths against the issue, canonical source map and slice
-   ledger. Stop when an unexpected surface cannot be justified without scope
-   expansion.
+6. Inspect changed paths in issueDiffBaseSha..HEAD against the issue, canonical
+   source map and slice ledger. Stop when an unexpected surface cannot be
+   justified without scope expansion.
 7. Confirm the primary issue branch is active and clean and every worker is
    inactive.
 
@@ -505,16 +522,24 @@ delivery.
 Only after global completeness and fresh validation succeed:
 
 1. Fetch only origin <startingBaseRef>.
-2. Stop if origin/<startingBaseRef> is missing.
-3. Verify startingBaseSha is an ancestor of current origin/<startingBaseRef>.
-   Stop on rewritten or incompatible parent history; do not choose another base.
-4. If the issue branch already contains the current remote base, do not merge.
-   Otherwise merge origin/<startingBaseRef> normally into the issue branch.
+2. Stop if origin/<startingBaseRef> is missing; otherwise capture its exact
+   fetched SHA as currentBaseSha.
+3. Verify startingBaseSha is an ancestor of currentBaseSha. Stop on rewritten
+   or incompatible parent history; do not choose another base.
+4. If the issue branch already contains currentBaseSha, do not merge. Otherwise
+   merge currentBaseSha normally into the issue branch.
 5. Resolve only deterministic in-scope conflicts. Stop for any new material
-   decision or scope expansion.
-6. A parent merge makes affected evidence stale. Rerun required and affected
-   validation, test-diff review and scope review, then create any necessary
-   normal follow-up commit without rewriting history.
+   decision or scope expansion. When a merge occurs, record its commit and
+   inspect every conflict resolution separately against both parents so
+   unrelated current-base behavior is not attributed to or overwritten by the
+   issue.
+6. Once currentBaseSha is an ancestor of HEAD, set issueDiffBaseSha to
+   currentBaseSha. Always rerun the permanent-test and scope/completeness gates
+   against issueDiffBaseSha..HEAD, excluding unrelated base-only changes. When a
+   merge changed the tree, also rerun required and affected validation because
+   that evidence is stale. Create any necessary normal follow-up commit without
+   rewriting history, then rerun the affected gates against the same
+   issueDiffBaseSha.
 7. Push only the final issue branch to origin with a normal non-force push. In
    authorized recovery, the verified remote head must remain an ancestor of the
    final local head immediately before pushing.
@@ -530,8 +555,9 @@ Only after global completeness and fresh validation succeed:
 10. Request external review through the ready pull request and report it as
     awaiting external read-only review. Do not select or notify a specific
     reviewer without separate user instruction.
-11. Capture PR number, URL, ready status and exact remote head SHA, and verify
-    that they match the final branch and the retained new-run or recovery state.
+11. Capture currentBaseSha, PR number, URL, ready status and exact remote head
+    SHA, and verify that they match the final branch and the retained new-run or
+    recovery state.
 
 The only GitHub implementation artifacts created by a successful new run are
 the final issue branch and final pull request. Do not launch a Codex reviewer,
@@ -581,8 +607,9 @@ every path and do not switch branches.
 Report:
 
 - issue number/title and final workflow state;
-- startingBaseSha, fixed startingBaseRef, issue branch, primary path, final
-  local/remote head and parent-synchronization result;
+- startingBaseSha, fixed startingBaseRef, final currentBaseSha/issueDiffBaseSha,
+  issue branch, primary path, final local/remote head and parent-synchronization
+  result;
 - parsed slices and normalized dependency edges;
 - execution-map coverage result and permanent-test authorization per slice;
 - ready-queue/capacity events and launch/integration order;
