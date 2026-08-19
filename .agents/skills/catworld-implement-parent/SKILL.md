@@ -137,56 +137,54 @@ Record normalized edges and the exact source statements supporting them.
    - **New run:** no recovery was explicitly authorized. Before any branch
      change, capture startingBaseSha from git rev-parse HEAD and
      startingBaseRef independently from the current symbolic branch.
-   - **Authorized recovery:** require explicit operator authorization plus
-     reliable recorded values for the original issue number/title,
-     startingBaseSha, fixed startingBaseRef, issue branch and primary worktree
-     path. Also require the last synchronized base SHA, last published remote
-     head and pull-request number when each existed. Never substitute the
-     current HEAD, reachability, remote default or a reconstructed ledger for
-     missing original values.
+   - **Authorized pre-planning recovery:** require explicit operator
+     authorization plus reliable recorded values for the original issue
+     number/title, startingBaseSha, fixed startingBaseRef, issue branch and
+     primary worktree path. Require reliable checkpoint evidence that the prior
+     run stopped after issue-branch creation but before speckit-specify began.
+     Never substitute the current HEAD, reachability, remote default or a
+     reconstructed ledger for missing original values or checkpoint evidence.
 3. For a new run from detached HEAD, require an explicit reliable intended base
    ref from the operator or invocation context. Never infer it from reachability
-   or default it to main. For recovery, verify the recorded startingBaseSha
-   still exists and is an ancestor of the recorded issue branch. When a last
-   synchronized base SHA was recorded, require startingBaseSha to be its
-   ancestor and that synchronized SHA to be an ancestor of the issue branch.
+   or default it to main. For pre-planning recovery, verify the recorded
+   startingBaseSha still exists and is exactly the recorded issue branch HEAD.
 4. Derive the expected issue branch as
    <type>/<issue-number>-<short-description>. Infer the conventional type from
    the issue title prefix first and labels second, using chore when neither is
-   clear. Keep the description concise and deterministic. In recovery, require
-   the recorded issue branch to match this expected branch.
+   clear. Keep the description concise and deterministic. In pre-planning
+   recovery, require the recorded issue branch to match this expected branch.
 5. Stop if the issue branch equals startingBaseRef without a separately supplied
    reliable intended base.
 6. For a new run, stop if the local issue branch already exists. Otherwise
    create and switch to it from exactly startingBaseSha.
-7. For authorized recovery:
+7. For authorized pre-planning recovery:
    - require the recorded local issue branch to exist, inspect git worktree list
      --porcelain and stop if it is checked out in another worktree, then switch
      to it without rewriting history;
-   - fetch and inspect only its exact remote ref when the recorded state says it
-     was published; require the fetched remote head to equal the recorded last
-     published head and to be an ancestor of the local issue-branch HEAD;
-   - when the recorded state says the branch was not published, require the
-     exact remote issue ref to be absent;
-   - query pull requests for the exact issue head. If a pull request was
-     recorded, require exactly that open PR, its head branch, fixed base ref and
-     head SHA to match the verified remote state, and require explicit
-     authorization to reuse it. If none was recorded, require no matching PR.
-   Stop on missing, divergent, ambiguous or contradictory recovery evidence;
-   do not fast-forward, merge, rebase, force-push or guess a replacement state.
+   - require its HEAD to remain exactly startingBaseSha and require no target
+     issue implementation commits, canonical feature pointer/directory or
+     spec.md, plan.md or tasks.md output;
+   - require no execution map, planning/slice ledger entry, slice branch,
+     slice worktree, remote issue branch or matching pull request for this run.
+   If any reliable evidence shows that speckit-specify, later planning, slice
+   execution, synchronization or delivery began, stop before section 3. Preserve
+   every retained artifact, branch and worktree for separately authorized manual
+   recovery; never rerun Spec Kit or infer which completed stage to skip.
 8. Confirm the issue branch is active and the primary worktree is clean. For a
-   new run also confirm that no remote issue branch or matching pull request
-   exists. For recovery, retain the verified remote and PR state for delivery.
+   new run or authorized pre-planning recovery, confirm that no remote issue
+   branch or matching pull request exists.
 
-Initialize issueDiffBaseSha to startingBaseSha for a new or not-yet-synchronized
-run. For authorized recovery after a recorded parent synchronization, initialize
-it to that verified last synchronized base SHA instead.
+Initialize issueDiffBaseSha to startingBaseSha.
 
 Record the setup mode, issue number/title, startingBaseSha, fixed
-startingBaseRef, issueDiffBaseSha, issue branch, primary worktree path, verified
-remote head and authorized PR identity in the parent-session ledger.
+startingBaseRef, issueDiffBaseSha, issue branch, primary worktree path and
+verified pre-planning checkpoint evidence in the parent-session ledger.
 
 ## 3. Run one canonical local planning cycle
+
+Enter this section only from a new run or the verified pre-planning checkpoint
+defined in section 2. Any evidence of an earlier canonical cycle is a stop, not
+authority to call speckit-specify again.
 
 Use the complete issue body plus loaded repository context for exactly one
 whole-issue cycle:
@@ -350,8 +348,8 @@ Before creation:
 - resolve and verify the path is outside the primary worktree;
 - verify the path does not exist;
 - verify the local branch does not exist; and
-- stop and require explicit reuse/recovery authority if retained state already
-  occupies either target.
+- stop if retained state already occupies either target; post-planning slice
+  state is not eligible for the pre-planning recovery path.
 
 Create the branch from exactly launchSha and add its worktree without switching
 the primary worktree. Record launchSha, qualificationBaseSha, branch and
@@ -540,13 +538,9 @@ Only after global completeness and fresh validation succeed:
    that evidence is stale. Create any necessary normal follow-up commit without
    rewriting history, then rerun the affected gates against the same
    issueDiffBaseSha.
-7. Push only the final issue branch to origin with a normal non-force push. In
-   authorized recovery, the verified remote head must remain an ancestor of the
-   final local head immediately before pushing.
-8. Open one ready pull request to the fixed startingBaseRef when the verified
-   setup state had no PR. In authorized recovery with an explicitly authorized
-   matching PR, reuse only that PR and update it without changing its fixed base
-   or head branch. Stop if a different or additional matching PR appears.
+7. Push only the final issue branch to origin with a normal non-force push.
+8. Open one ready pull request to the fixed startingBaseRef. Stop rather than
+   creating or updating another PR if any matching pull request already exists.
 9. The pull-request body must contain:
    - Closes #<issue-number>;
    - a concise whole-issue summary;
@@ -556,11 +550,11 @@ Only after global completeness and fresh validation succeed:
     awaiting external read-only review. Do not select or notify a specific
     reviewer without separate user instruction.
 11. Capture currentBaseSha, PR number, URL, ready status and exact remote head
-    SHA, and verify that they match the final branch and the retained new-run or
-    recovery state.
+    SHA, and verify that they match the final branch and the retained session
+    state.
 
-The only GitHub implementation artifacts created by a successful new run are
-the final issue branch and final pull request. Do not launch a Codex reviewer,
+A successful automated run creates only the final issue branch and final pull
+request as GitHub implementation artifacts. Do not launch a Codex reviewer,
 wait for an automatic Codex review gate or perform automatic PR remediation.
 Do not merge the pull request or modify the issue.
 
@@ -578,7 +572,8 @@ Stop normal final delivery on:
 - a dirty or unreliable starting state;
 - a missing, unreadable, closed/non-implementable or non-issue target;
 - an invalid slice/dependency model;
-- an existing branch/worktree without explicit safe reuse authority;
+- an existing primary branch that does not satisfy authorized pre-planning
+  recovery, or any retained slice branch/worktree from a prior run;
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
@@ -596,8 +591,10 @@ pull request may omit a required slice.
 
 Never automatically delete, detach, move or clean local slice branches or
 worktrees, including after success. Never infer or resume a stopped run from
-retained Git state. A later reuse or recovery attempt requires explicit operator
-authorization and reliable state instructions.
+retained Git state. This automated skill may recover only the explicitly
+authorized, reliably verified pre-planning checkpoint from section 2. Any later
+retained state requires separately authorized manual recovery and must stop
+before speckit-specify.
 
 Keep the primary worktree on the issue branch. If it is dirty at a stop, report
 every path and do not switch branches.
