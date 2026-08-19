@@ -13,6 +13,10 @@ import { forkJoin } from 'rxjs';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import {
+  EntitySelectorComponent,
+  EntitySelectorOption,
+} from '../../../../shared/entity-selector/entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
@@ -37,6 +41,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
   selector: 'app-stay-create-page',
   imports: [
     FormsModule,
+    EntitySelectorComponent,
     MatButton,
     MatCheckbox,
     MatFormField,
@@ -64,6 +69,9 @@ export class StayCreatePage {
 
   readonly owners = signal<Owner[]>([]);
   readonly cats = signal<Cat[]>([]);
+  readonly ownerOptions = computed<readonly EntitySelectorOption[]>(() =>
+    this.owners().map((owner) => ({ id: owner.id, label: owner.fullName })),
+  );
 
   readonly selectedOwnerId = signal('');
   readonly selectedCatIds = signal<string[]>([]);
@@ -155,9 +163,9 @@ export class StayCreatePage {
     });
   }
 
-  onOwnerChange(ownerId: string): void {
+  onOwnerChange(ownerId: string | null): void {
     this.clearVaccineOverrideRecovery();
-    this.selectedOwnerId.set(ownerId);
+    this.selectedOwnerId.set(ownerId ?? '');
     this.selectedCatIds.set([]);
     this.refreshPricingPreview();
   }
