@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -10,6 +10,10 @@ import { forkJoin } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import {
+  EntitySelectorComponent,
+  EntitySelectorOption,
+} from '../../../../shared/entity-selector/entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
@@ -22,6 +26,7 @@ import { CatApiService } from '../../services/cat-api.service';
   selector: 'app-cat-edit-page',
   imports: [
     FormsModule,
+    EntitySelectorComponent,
     MatButton,
     MatError,
     MatFormField,
@@ -46,6 +51,12 @@ export class CatEditPage {
 
   readonly owners = signal<Owner[]>([]);
   readonly vets = signal<Vet[]>([]);
+  readonly ownerOptions = computed<readonly EntitySelectorOption[]>(() =>
+    this.owners().map((owner) => ({ id: owner.id, label: owner.fullName })),
+  );
+  readonly vetOptions = computed<readonly EntitySelectorOption[]>(() =>
+    this.vets().map((vet) => ({ id: vet.id, label: vet.name })),
+  );
 
   readonly name = signal('');
   readonly birthDate = signal('');
@@ -179,6 +190,14 @@ export class CatEditPage {
         this.submitting.set(false);
       },
     });
+  }
+
+  onOwnerChange(ownerId: string | null): void {
+    this.ownerId.set(ownerId ?? '');
+  }
+
+  onVetChange(vetId: string | null): void {
+    this.vetId.set(vetId ?? '');
   }
 
   private setFormValues(cat: Cat): void {

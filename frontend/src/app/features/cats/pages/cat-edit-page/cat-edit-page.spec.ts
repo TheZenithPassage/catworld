@@ -172,7 +172,7 @@ describe('CatEditPage', () => {
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe('Milo');
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();

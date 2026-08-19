@@ -15,6 +15,9 @@ export interface CatsTranslations {
     vet: string;
     noVet: string;
     createVet: string;
+    noOwnersFound: string;
+    noVetsFound: string;
+    clearVet: string;
     breed: string;
     coat: string;
     color: string;
@@ -115,6 +118,9 @@ export const CATS_TRANSLATIONS = {
       vet: 'Veterinario',
       noVet: 'Sin veterinario',
       createVet: 'Crear veterinario',
+      noOwnersFound: 'No se encontraron dueños',
+      noVetsFound: 'No se encontraron veterinarios',
+      clearVet: 'Quitar veterinario',
       breed: 'Raza',
       coat: 'Pelaje',
       color: 'Color',
@@ -213,6 +219,9 @@ export const CATS_TRANSLATIONS = {
       vet: 'Vet',
       noVet: 'No vet',
       createVet: 'Create vet',
+      noOwnersFound: 'No owners found',
+      noVetsFound: 'No vets found',
+      clearVet: 'Clear vet',
       breed: 'Breed',
       coat: 'Coat',
       color: 'Color',
