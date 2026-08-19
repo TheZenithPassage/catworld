@@ -66,13 +66,12 @@
           <app-entity-selector
             [label]="text().cats.form.owner"
             [noResultsText]="text().cats.form.noOwnersFound"
+            [required]="true"
+            [errorText]="ownerIdError()"
             [options]="ownerOptions()"
             [value]="ownerId() || null"
             (valueChange)="onOwnerChange($event)"
           ></app-entity-selector>
-          @if (ownerIdError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
         </div>
 
         <a

@@ -66,19 +66,56 @@ describe('EntitySelectorComponent', () => {
 
   it('clears stale identifiers when selected text is edited or the option disappears', () => {
     const emitted: Array<string | null> = [];
-    component.value = 'owner-1';
-    component.valueChange.subscribe((value) => emitted.push(value));
+    fixture.componentRef.setInput('value', 'owner-1');
     fixture.detectChanges();
+    component.valueChange.subscribe((value) => emitted.push(value));
 
     type('José changed');
     expect(component.value).toBeNull();
+    expect(component.searchText).toBe('José changed');
+    expect(input().value).toBe('José changed');
     expect(emitted).toEqual([null]);
 
-    component.value = 'owner-2';
-    component.options = [options[0]];
+    fixture.componentRef.setInput('value', 'owner-2');
+    fixture.detectChanges();
+    fixture.componentRef.setInput('options', [options[0]]);
+    fixture.detectChanges();
     expect(component.value).toBeNull();
     expect(component.searchText).toBe('');
     expect(emitted).toEqual([null, null]);
+  });
+
+  it('clears the visible label when an external value changes from an identifier to null', () => {
+    const trigger = fixture.debugElement
+      .query(By.directive(MatAutocompleteTrigger))
+      .injector.get(MatAutocompleteTrigger);
+    trigger.openPanel();
+    fixture.detectChanges();
+    trigger.autocomplete.options.first._selectViaInteraction();
+    fixture.detectChanges();
+    expect(input().value).toBe('José Álvarez');
+
+    fixture.componentRef.setInput('value', null);
+    fixture.detectChanges();
+
+    expect(component.value).toBeNull();
+    expect(component.searchText).toBe('');
+    expect(input().value).toBe('');
+  });
+
+  it('exposes required state and associates an error with the combobox', () => {
+    fixture.componentRef.setInput('required', true);
+    fixture.componentRef.setInput('errorText', 'Owner is required');
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const searchInput = input();
+    const error = fixture.nativeElement.querySelector('mat-error') as HTMLElement;
+
+    expect(searchInput.required).toBe(true);
+    expect(searchInput.getAttribute('aria-required')).toBe('true');
+    expect(searchInput.getAttribute('aria-describedby')).toBe(error.id);
+    expect(error.textContent?.trim()).toBe('Owner is required');
   });
 
   it('exposes linked combobox/listbox semantics and selects the active option with the keyboard', async () => {
@@ -149,7 +186,7 @@ describe('EntitySelectorComponent', () => {
   it('prevents disabled selection and clearing interactions', async () => {
     const emitted: Array<string | null> = [];
     fixture.componentRef.setInput('clearable', true);
-    component.value = 'owner-1';
+    fixture.componentRef.setInput('value', 'owner-1');
     fixture.componentRef.setInput('disabled', true);
     component.valueChange.subscribe((value) => emitted.push(value));
     fixture.detectChanges();
@@ -173,9 +210,9 @@ describe('EntitySelectorComponent', () => {
 
   it('optionally clears both identifier and visible label', () => {
     const emitted: Array<string | null> = [];
-    component.clearable = true;
+    fixture.componentRef.setInput('clearable', true);
     component.clearLabel = 'Clear owner';
-    component.value = 'owner-1';
+    fixture.componentRef.setInput('value', 'owner-1');
     component.valueChange.subscribe((value) => emitted.push(value));
     fixture.detectChanges();
 
@@ -191,12 +228,12 @@ describe('EntitySelectorComponent', () => {
   });
 
   it('does not expose a clear action unless clearing is enabled with a selection', () => {
-    component.value = 'owner-1';
+    fixture.componentRef.setInput('value', 'owner-1');
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('button')).toBeNull();
 
-    component.clearable = true;
-    component.value = null;
+    fixture.componentRef.setInput('clearable', true);
+    fixture.componentRef.setInput('value', null);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('button')).toBeNull();
   });

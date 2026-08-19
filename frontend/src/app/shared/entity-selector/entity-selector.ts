@@ -1,13 +1,13 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import {
   MatAutocomplete,
   MatAutocompleteSelectedEvent,
   MatAutocompleteTrigger,
   MatOption,
 } from '@angular/material/autocomplete';
-import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 
 import { matchesSearchText } from '../../core/search/search-text.util';
@@ -20,9 +20,9 @@ export interface EntitySelectorOption {
 @Component({
   selector: 'app-entity-selector',
   imports: [
-    FormsModule,
     MatAutocomplete,
     MatAutocompleteTrigger,
+    MatError,
     MatFormField,
     MatIconButton,
     MatInput,
@@ -33,7 +33,8 @@ export interface EntitySelectorOption {
   templateUrl: './entity-selector.html',
   styleUrl: './entity-selector.scss',
 })
-export class EntitySelectorComponent {
+export class EntitySelectorComponent implements AfterViewInit {
+  private static nextErrorId = 0;
   private currentOptions: readonly EntitySelectorOption[] = [];
   private selectedId: string | null = null;
 
@@ -42,6 +43,30 @@ export class EntitySelectorComponent {
   @Input() clearLabel = 'Clear selection';
   @Input() clearable = false;
   @Input() disabled = false;
+  @Input() required = false;
+
+  @ViewChild(MatInput) private inputControl?: MatInput;
+
+  private currentErrorText: string | null = null;
+
+  @Input()
+  set errorText(errorText: string | null) {
+    this.currentErrorText = errorText;
+    this.inputControl?.updateErrorState();
+  }
+
+  get errorText(): string | null {
+    return this.currentErrorText;
+  }
+
+  readonly errorId = `entity-selector-error-${EntitySelectorComponent.nextErrorId++}`;
+  readonly errorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.errorText !== null,
+  };
+
+  ngAfterViewInit(): void {
+    this.inputControl?.updateErrorState();
+  }
 
   @Input()
   set options(options: readonly EntitySelectorOption[]) {
@@ -56,6 +81,10 @@ export class EntitySelectorComponent {
   @Input()
   set value(value: string | null) {
     this.selectedId = value;
+    if (value === null) {
+      this.searchText = '';
+      return;
+    }
     this.reconcileSelection();
   }
 

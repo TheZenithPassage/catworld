@@ -176,6 +176,30 @@ describe('CatEditPage', () => {
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe('Milo');
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
+    const ownerInput = compiled.querySelector(
+      'app-entity-selector input[role="combobox"]',
+    ) as HTMLInputElement;
+    expect(ownerInput.required).toBe(true);
+    expect(ownerInput.getAttribute('aria-required')).toBe('true');
+  });
+
+  it('associates the required-owner error with the owner combobox', async () => {
+    createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.ownerIdError.set(component.text().cats.edit.errors.ownerRequired);
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const ownerInput = fixture.nativeElement.querySelector(
+      'app-entity-selector input[role="combobox"]',
+    ) as HTMLInputElement;
+    const error = fixture.nativeElement.querySelector(
+      'app-entity-selector mat-error',
+    ) as HTMLElement;
+
+    expect(ownerInput.getAttribute('aria-describedby')?.split(' ')).toContain(error.id);
+    expect(error?.textContent?.trim()).toBe(component.text().cats.edit.errors.ownerRequired);
   });
 
   it('does not update when the name is blank', async () => {

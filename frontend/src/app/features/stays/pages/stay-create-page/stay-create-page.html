@@ -15,7 +15,7 @@
       <div class="field-with-action">
         <app-entity-selector
           [label]="text().stays.create.owner"
-          [noResultsText]="text().stays.create.selectOwner"
+          [noResultsText]="text().stays.filters.noOwnersMatch"
           [options]="ownerOptions()"
           [value]="selectedOwnerId() || null"
           (valueChange)="onOwnerChange($event)"

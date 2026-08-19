@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
@@ -8,6 +9,7 @@ import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { EntitySelectorComponent } from '../../../../shared/entity-selector/entity-selector';
 import { Cat } from '../../../cats/models/cat.model';
 import { CatApiService } from '../../../cats/services/cat-api.service';
 import { Owner } from '../../../owners/models/owner.model';
@@ -358,6 +360,9 @@ describe('StayCreatePage', () => {
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
+    const ownerSelector = fixture.debugElement.query(By.directive(EntitySelectorComponent))
+      .componentInstance as EntitySelectorComponent;
+    expect(ownerSelector.noResultsText).toBe(component.text().stays.filters.noOwnersMatch);
   });
 
   it('preserves owner and cat query-param preselection', () => {

@@ -171,6 +171,28 @@ describe('CatCreatePage', () => {
     expect(compiled.querySelector('textarea[name="personality"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelectorAll('a[mat-stroked-button]')).toHaveLength(2);
+    const ownerInput = compiled.querySelector(
+      'app-entity-selector input[role="combobox"]',
+    ) as HTMLInputElement;
+    expect(ownerInput.required).toBe(true);
+    expect(ownerInput.getAttribute('aria-required')).toBe('true');
+  });
+
+  it('associates the required-owner error with the owner combobox', () => {
+    createComponent();
+    component.ownerIdError.set(component.text().cats.create.errors.ownerRequired);
+    fixture.detectChanges();
+    fixture.detectChanges();
+
+    const ownerInput = fixture.nativeElement.querySelector(
+      'app-entity-selector input[role="combobox"]',
+    ) as HTMLInputElement;
+    const error = fixture.nativeElement.querySelector(
+      'app-entity-selector mat-error',
+    ) as HTMLElement;
+
+    expect(ownerInput.getAttribute('aria-describedby')?.split(' ')).toContain(error.id);
+    expect(error?.textContent?.trim()).toBe(component.text().cats.create.errors.ownerRequired);
   });
 
   it('does not create a cat when the name is blank', async () => {

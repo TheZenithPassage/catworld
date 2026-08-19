@@ -9,6 +9,9 @@
       aria-disabled="true"
       aria-expanded="false"
       aria-haspopup="listbox"
+      [required]="required"
+      [attr.aria-required]="required"
+      [errorStateMatcher]="errorStateMatcher"
       [value]="searchText"
     />
   } @else {
@@ -16,9 +19,12 @@
       matInput
       type="text"
       role="combobox"
+      [required]="required"
+      [attr.aria-required]="required"
+      [errorStateMatcher]="errorStateMatcher"
       [matAutocomplete]="autocomplete"
-      [ngModel]="searchText"
-      (ngModelChange)="onSearchTextChange($event)"
+      [value]="searchText"
+      (input)="onSearchTextChange($any($event.target).value)"
     />
   }
 
@@ -46,4 +52,8 @@
       <mat-option disabled>{{ noResultsText }}</mat-option>
     }
   </mat-autocomplete>
+
+  @if (errorText) {
+    <mat-error [id]="errorId">{{ errorText }}</mat-error>
+  }
 </mat-form-field>
