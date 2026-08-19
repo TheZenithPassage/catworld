@@ -61,8 +61,10 @@ It must not:
 - commit or push directly to the captured base or main;
 - merge the final pull request, enable auto-merge or approve it;
 - launch catworld_pr_reviewer or perform automatic pull-request remediation;
-- amend commits, squash automatically, force-push, rebase published history or
-  otherwise rewrite published history;
+- amend commits, squash automatically, use `--force`, rebase published history
+  or otherwise rewrite published history; the exact empty-expectation
+  `--force-with-lease` first-publication operation in section 12 is the sole
+  exception and may never update an existing ref;
 - modify GitHub issues or post public comments without separate user authority;
 - delete or clean branches/worktrees, prune remotes or automatically resume a
   previous run; or
@@ -217,11 +219,15 @@ Record normalized edges and the exact source statements supporting them.
 Initialize issueDiffBaseSha to startingBaseSha.
 
 Before planning, snapshot read-only the pre-existing ignored `specs/` paths and
-the presence and exact content or target of `.specify/feature.json`. Leave this
-unrelated state untouched. Record the setup mode, issue number/title,
-startingBaseSha, fixed startingBaseRef, issueDiffBaseSha, issue branch, primary
-worktree path, planning-state snapshot and verified target-run pre-planning
-checkpoint evidence in the parent-session ledger.
+the presence and exact content or target of `.specify/feature.json`. Preserve
+every pre-existing unrelated `specs/` directory and its contents unchanged. The
+previous feature pointer is attribution context, not a collision: the one
+authorized target-run speckit-specify call in section 3 may replace it as that
+skill requires. Do not restore it automatically afterward. Record the setup
+mode, issue number/title, startingBaseSha, fixed startingBaseRef,
+issueDiffBaseSha, issue branch, primary worktree path, planning-state snapshot
+and verified target-run pre-planning checkpoint evidence in the parent-session
+ledger.
 
 ## 3. Run one canonical local planning cycle
 
@@ -230,16 +236,24 @@ defined in section 2. Evidence of an earlier canonical cycle is a stop only
 when reliable evidence attributes it to this exact target issue and run. A
 pre-existing ignored `specs/` directory, `.specify/feature.json`, or planning
 artifact captured in section 2 and not reliably tied to this target is
-unrelated state: leave it untouched and do not treat it as planning, recovery
-or collision evidence. Only target feature state created or changed after the
-snapshot and reliably associated with the exact issue branch/session counts as
-this run's canonical-cycle evidence. Never call speckit-specify twice for
-target-run evidence or overwrite an unrelated planning context.
+unrelated state and is not planning, recovery or collision evidence. Leave
+unrelated directories and artifacts untouched. Preserve the prior pointer's
+target directory, but allow the required pointer transition below. Only target
+feature state created or changed after the snapshot and reliably associated
+with the exact issue branch/session counts as this run's canonical-cycle
+evidence. Never call speckit-specify twice for target-run evidence.
 
 Use the complete issue body plus loaded repository context for exactly one
 whole-issue cycle:
 
-1. Load and run speckit-specify.
+1. Load and run speckit-specify once. Allow it to replace
+   `.specify/feature.json` with the newly resolved target feature directory
+   exactly as that skill requires, without modifying or deleting the previous
+   target directory. Record the pointer transition and newly created target
+   directory/artifacts together as reliable evidence that this run's canonical
+   planning cycle has begun. From that transition onward, a second
+   speckit-specify invocation for this run is forbidden; do not restore the old
+   pointer automatically.
 2. Validate spec.md against the issue, constitution and implemented
    architecture. Stop on scope drift or an unresolved material question.
 3. Load and run speckit-plan.
@@ -624,14 +638,18 @@ Only after global completeness and fresh validation succeed:
    pull requests in this repository whose head is the exact final issue branch.
    Require both to remain absent. If either exists, stop before any remote
    mutation; do not rely on earlier setup evidence or a cached remote ref.
-8. Create `refs/heads/<issue-branch>` at the exact final local HEAD using an
-   authenticated server-side create-ref operation whose atomic precondition is
-   that the ref does not exist. Require a created response and exact returned
-   SHA. An already-existing ref must make this mutation fail; never update or
-   fast-forward it, never use force semantics, and never substitute a
-   check-then-normal-push sequence. If the runtime exposes no documented atomic
-   create-only ref operation, stop before remote mutation.
-9. After remote ref creation succeeds and before PR creation, re-query open pull requests
+8. Transfer the local commit, tree and blob graph and publish exact local `HEAD`
+   to `refs/heads/<issue-branch>` with
+   `git push --force-with-lease=refs/heads/<issue-branch>: origin HEAD:refs/heads/<issue-branch>`.
+   The empty expected value for that exact destination ref is the mutation-time
+   create-only guarantee: the push must fail without updating when the ref
+   exists, including when another actor creates it after step 7. Do not retry
+   with a normal push, use a non-empty lease expectation, use `--force`, or
+   update/rewrite any existing remote history. If the runtime cannot perform
+   this exact empty-expectation lease, stop before remote mutation.
+9. After the push succeeds, fetch or query the exact remote ref and require
+   `origin/<issue-branch>` to resolve to the exact local final HEAD. Then, before
+   PR creation, re-query open pull requests
    in this repository whose head is the exact final issue branch. Open one ready
    pull request to the fixed startingBaseRef only when none exists; otherwise
    stop rather than creating or updating another PR.

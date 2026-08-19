@@ -114,7 +114,15 @@ implementation routing, sliced-issue routing, or pull request review workflows.
   parent advance before first delivery. It must not mutate the parent branch.
 * Never commit or push directly to a captured parent branch, merge a pull
   request, enable auto-merge, or approve Codex's own pull request.
-* Never amend commits, rebase-push, force-push, use `--force` or `--force-with-lease`, or perform any history-rewriting remote update unless explicitly approved by the user.
+* Never amend commits, rebase-push, force-push, use `--force` or
+  `--force-with-lease`, or perform any history-rewriting remote update unless
+  explicitly approved by the user. The sole standing exception is
+  `catworld-implement-parent` first publication of its previously unpublished
+  final sliced-issue branch: it may use `--force-with-lease` for the exact
+  destination ref only with an empty expected remote value, so the push creates
+  an absent ref and fails instead of updating any existing ref. This exception
+  does not authorize a non-empty lease, `--force`, publication over an existing
+  branch, or any other history rewrite.
 * Do not delete local branches, delete remote branches, prune remotes, run branch cleanup, modify GitHub issues, or post public GitHub comments unless explicitly requested where applicable.
 * Create pull requests as ready for review by default. Create a draft pull request only when the user explicitly requests draft status.
 * After an issue branch is created or activated, keep it checked out through
