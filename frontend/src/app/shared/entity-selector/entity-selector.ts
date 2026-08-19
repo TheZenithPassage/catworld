@@ -80,6 +80,10 @@ export class EntitySelectorComponent implements AfterViewInit {
 
   @Input()
   set value(value: string | null) {
+    if (value === this.selectedId) {
+      return;
+    }
+
     this.selectedId = value;
     if (value === null) {
       this.searchText = '';

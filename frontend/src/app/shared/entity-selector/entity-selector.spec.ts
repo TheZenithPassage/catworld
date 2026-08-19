@@ -76,6 +76,11 @@ describe('EntitySelectorComponent', () => {
     expect(input().value).toBe('José changed');
     expect(emitted).toEqual([null]);
 
+    fixture.componentRef.setInput('value', null);
+    fixture.detectChanges();
+    expect(component.searchText).toBe('José changed');
+    expect(input().value).toBe('José changed');
+
     fixture.componentRef.setInput('value', 'owner-2');
     fixture.detectChanges();
     fixture.componentRef.setInput('options', [options[0]]);
