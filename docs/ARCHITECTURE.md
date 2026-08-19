@@ -772,6 +772,16 @@ filtering, retries and domain decisions; the shared state component owns only
 Material-themed presentation, accessible status or alert semantics and optional
 retry-action rendering.
 
+Reusable in-memory entity selection lives under
+`frontend/src/app/shared/entity-selector/`. The shared Material autocomplete
+accepts stable string identifiers and visible labels, emits only the selected
+identifier, filters labels case- and accent-insensitively through the existing
+search normalization, and clears stale identifiers when visible search text or
+the available options no longer represent the selection. It owns accessible
+combobox/listbox and keyboard behavior plus optional clearing, while feature
+forms remain responsible for loading options, localized copy, required-field
+rules and request payloads.
+
 Reusable permanent-deletion presentation lives under
 `frontend/src/app/shared/permanent-deletion/`. The shared Material confirmation
 dialog accepts plain-text record context and returns a positive result only for
