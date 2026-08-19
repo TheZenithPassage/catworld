@@ -1,5 +1,6 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+*.sh text eol=lf
 
 # Keep integration-manifest targets byte-stable across platforms.
 /.agents/skills/speckit-analyze/SKILL.md text eol=lf

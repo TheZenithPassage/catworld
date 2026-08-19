@@ -50,11 +50,14 @@ implementation routing or pull request review workflows.
 
 ## Repository Boundaries
 
-* Work only in the current worktree. The issue workflow may create or switch to
-  its issue branch inside that worktree from the exact captured starting commit;
-  it must not create, remove, coordinate, or mutate other worktrees. Feature
-  planning may inspect a freshly fetched `origin/main` read-only and must not
-  check out or update local `main`.
+* Work only in the current worktree. The ordinary single-issue workflow may
+  create or switch to its issue branch inside that worktree from the exact
+  captured starting commit; it must not create, remove, coordinate, or mutate
+  other worktrees. Only the explicitly invoked
+  `.agents/skills/catworld-implement-parent/SKILL.md` workflow may create and
+  coordinate isolated child worktrees, and only within that skill's parent and
+  child execution boundaries. Feature planning may inspect a freshly fetched
+  `origin/main` read-only and must not check out or update local `main`.
 * Do not inspect, copy, or infer decisions from other branches, pull requests, or discarded implementations unless explicitly instructed.
 * Keep changes focused on the active feature.
 * Do not introduce unrelated refactors, speculative abstractions, or unrequested cleanup.
