@@ -38,6 +38,13 @@ than a pull request. The issue, repository instructions, constitution,
 implemented architecture and the canonical local feature artifacts created by
 this workflow are the complete scope and decision contract.
 
+Resolve the current repository through the remote API and capture its canonical
+`nameWithOwner` as repositoryFullName. For every pull-request head comparison in
+this workflow, the exact same-repository issue head means both
+`headRepository.nameWithOwner == repositoryFullName` and
+`headRefName == issueBranch`. A fork pull request with the same headRefName is a
+different head identity.
+
 This workflow may:
 
 - create and keep one local issue branch in the primary worktree;
@@ -188,8 +195,8 @@ Record normalized edges and the exact source statements supporting them.
      that exact local branch exists, and report when that exact branch is
      checked out in another worktree;
    - stop if the exact corresponding refs/heads/<issue-branch> exists on origin;
-   - stop if an open pull request in this repository uses that exact issue
-     branch as its head.
+   - stop if an open pull request uses the exact same-repository issue head and
+     `baseRefName == startingBaseRef`.
    A closed or unmerged historical PR, a PR with a different head branch, an
    issue-closing reference, or a retained branch/worktree/artifact whose exact
    identity is different is not a collision. Do not use issue-number text or
@@ -206,15 +213,15 @@ Record normalized edges and the exact source statements supporting them.
      planning state is not checkpoint evidence;
    - require no execution map, planning/slice ledger entry, exact slice branch,
      exact slice worktree, exact remote issue branch or open pull request using
-     the exact issue branch as its head for this run.
+     the exact same-repository issue head and fixed startingBaseRef for this run.
    If any reliable evidence shows that speckit-specify, later planning, slice
    execution, synchronization or delivery began, stop before section 3. Preserve
    every retained artifact, branch and worktree for separately authorized manual
    recovery; never rerun Spec Kit or infer which completed stage to skip.
 8. Confirm the issue branch is active and the primary worktree is clean. For a
    new run or authorized pre-planning recovery, confirm that the exact remote
-   issue branch remains absent and no open pull request in this repository uses
-   the exact issue branch as its head.
+   issue branch remains absent and no open pull request uses the exact
+   same-repository issue head with `baseRefName == startingBaseRef`.
 
 Initialize issueDiffBaseSha to startingBaseSha.
 
@@ -225,9 +232,9 @@ previous feature pointer is attribution context, not a collision: the one
 authorized target-run speckit-specify call in section 3 may replace it as that
 skill requires. Do not restore it automatically afterward. Record the setup
 mode, issue number/title, startingBaseSha, fixed startingBaseRef,
-issueDiffBaseSha, issue branch, primary worktree path, planning-state snapshot
-and verified target-run pre-planning checkpoint evidence in the parent-session
-ledger.
+issueDiffBaseSha, repositoryFullName, issue branch, primary worktree path,
+planning-state snapshot and verified target-run pre-planning checkpoint evidence
+in the parent-session ledger.
 
 ## 3. Run one canonical local planning cycle
 
@@ -401,11 +408,14 @@ At every scheduling point:
 ### Local branch and worktree creation
 
 For each initial launch, capture the current issue-branch HEAD as immutable
-launchSha and initialize qualificationBaseSha to that same SHA. Derive a
-unique deterministic local branch containing the issue number and slice ID,
-such as <issue-branch>-slice-<slice-id-lowercase>. Derive an absolute isolated
-worktree path outside the primary worktree that also contains the repository,
-issue number and slice ID.
+launchSha and initialize qualificationBaseSha to that same SHA. Use exactly:
+
+- branch: `<issue-branch>-slice-<slice-id-lowercase>`; and
+- absolute worktree path: the sibling of the primary worktree named
+  `<primary-directory-name>-<issue-number>-slice-<slice-id-lowercase>`.
+
+All initial-slice collision checks, handoffs and ledger entries must use those
+exact identities.
 
 Before creation:
 
@@ -645,10 +655,13 @@ Only after global completeness and fresh validation succeed:
    ownership is ambiguous, scope would expand or a material decision is needed,
    stop. After an integrated correction, rerun completeness, scope, test-policy
    and affected validation gates against the same issueDiffBaseSha.
-7. Immediately before publication, re-query the exact remote issue branch and open
-   pull requests in this repository whose head is the exact final issue branch.
-   Require both to remain absent. If either exists, stop before any remote
-   mutation; do not rely on earlier setup evidence or a cached remote ref.
+7. Immediately before publication, re-query the exact remote issue branch and
+   open pull requests using the exact same-repository issue head with
+   `baseRefName == startingBaseRef`. Require both the remote branch and that
+   exact head/base PR pair to remain absent. If either exists, stop before any
+   remote mutation; do not rely on earlier setup evidence or a cached remote
+   ref. Open PRs from the same head to another base may be reported but do not
+   block this run.
 8. Transfer the local commit, tree and blob graph and publish exact local `HEAD`
    to `refs/heads/<issue-branch>` with
    `git push --force-with-lease=refs/heads/<issue-branch>: origin HEAD:refs/heads/<issue-branch>`.
@@ -660,10 +673,13 @@ Only after global completeness and fresh validation succeed:
    this exact empty-expectation lease, stop before remote mutation.
 9. After the push succeeds, fetch or query the exact remote ref and require
    `origin/<issue-branch>` to resolve to the exact local final HEAD. Then, before
-   PR creation, re-query open pull requests
-   in this repository whose head is the exact final issue branch. Open one ready
-   pull request to the fixed startingBaseRef only when none exists; otherwise
-   stop rather than creating or updating another PR.
+   PR creation, re-query open pull requests using the exact same-repository
+   issue head with `baseRefName == startingBaseRef`. Stop if that exact pair
+   already exists. Otherwise create one ready pull request with exactly that
+   head and base. If GitHub rejects creation because an equivalent PR appeared
+   concurrently, stop and report the collision; do not update, adopt or reuse
+   it. A same-repository same-head PR to another base is external state and does
+   not block creation for the fixed base.
 10. The pull-request body must contain:
    - Closes #<issue-number>;
    - a concise whole-issue summary;
@@ -673,8 +689,10 @@ Only after global completeness and fresh validation succeed:
     awaiting external read-only review. Do not select or notify a specific
     reviewer without separate user instruction.
 12. Capture currentBaseSha, PR number, URL, ready status and exact remote head
-    SHA, and verify that they match the final branch and the retained session
-    state.
+    SHA. Verify the created PR has
+    `headRepository.nameWithOwner == repositoryFullName`,
+    `headRefName == issueBranch`, `baseRefName == startingBaseRef`, and a remote
+    head SHA equal to the exact final local HEAD and retained session state.
 
 A successful automated run creates only the final issue branch and final pull
 request as GitHub implementation artifacts. Do not launch a Codex reviewer,
