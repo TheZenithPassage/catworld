@@ -1,74 +1,49 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { of } from 'rxjs';
 import { vi } from 'vitest';
 
-import { Stay } from '../../models/stay.model';
+import { CatLookupOption } from '../../../cats/models/cat.model';
+import { CatApiService } from '../../../cats/services/cat-api.service';
+import { OwnerLookupOption } from '../../../owners/models/owner.model';
+import { OwnerApiService } from '../../../owners/services/owner-api.service';
+import { RemoteSearchSelectorComponent } from '../../../../shared/remote-search-selector/remote-search-selector';
 import { StaySearchFiltersComponent } from './stay-search-filters';
 
 describe('StaySearchFiltersComponent', () => {
-  const stays: Stay[] = [
-    {
-      stayId: 'stay-1',
-      startAt: '2099-01-02T10:00:00',
-      endAt: '2099-01-09T10:00:00',
-      numberOfNights: 7,
-      cancelledAt: null,
-      createdAt: '2026-07-03T10:00:00',
-      updatedAt: '2026-07-03T10:00:00',
-      notes: null,
-      catIds: ['cat-1'],
-      ownerId: 'owner-1',
-      ownerName: 'Ada Lovelace',
-      cats: [{ catId: 'cat-1', name: 'Milo' }],
-      retainedNightlyRate: '50',
-      suggestedAmount: '100',
-      agreedAmount: '100',
-      totalPaid: '0',
-      remainingAmount: '100',
-      paymentCondition: 'NO_PAYMENT',
-      outstandingCollectionEligible: true,
-      payments: [],
-    },
-    {
-      stayId: 'stay-2',
-      startAt: '2099-02-02T10:00:00',
-      endAt: '2099-02-09T10:00:00',
-      numberOfNights: 7,
-      cancelledAt: null,
-      createdAt: '2026-07-03T10:00:00',
-      updatedAt: '2026-07-03T10:00:00',
-      notes: null,
-      catIds: ['cat-2'],
-      ownerId: 'owner-2',
-      ownerName: 'Grace Hopper',
-      cats: [{ catId: 'cat-2', name: 'Luna' }],
-      retainedNightlyRate: '50',
-      suggestedAmount: '100',
-      agreedAmount: '100',
-      totalPaid: '0',
-      remainingAmount: '100',
-      paymentCondition: 'NO_PAYMENT',
-      outstandingCollectionEligible: true,
-      payments: [],
-    },
-  ];
+  const milo: CatLookupOption = { id: 'cat-1', name: 'Milo', ownerName: 'Ada Lovelace' };
+  const grace: OwnerLookupOption = {
+    id: 'owner-2',
+    fullName: 'Grace Hopper',
+    catNames: ['Luna'],
+  };
 
   let component: StaySearchFiltersComponent;
   let fixture: ComponentFixture<StaySearchFiltersComponent>;
   let emittedFilters: unknown[];
+  let catApiService: { searchLookupOptions: ReturnType<typeof vi.fn> };
+  let ownerApiService: { searchLookupOptions: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     emittedFilters = [];
+    catApiService = {
+      searchLookupOptions: vi.fn().mockReturnValue(of({ items: [], page: 0, hasNext: false })),
+    };
+    ownerApiService = {
+      searchLookupOptions: vi.fn().mockReturnValue(of({ items: [], page: 0, hasNext: false })),
+    };
 
     await TestBed.configureTestingModule({
       imports: [StaySearchFiltersComponent],
-      providers: [provideNoopAnimations()],
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: catApiService },
+        { provide: OwnerApiService, useValue: ownerApiService },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(StaySearchFiltersComponent);
     component = fixture.componentInstance;
-    fixture.componentRef.setInput('stays', stays);
     component.filtersChange.subscribe((filters) => emittedFilters.push(filters));
     fixture.detectChanges();
   });
@@ -83,41 +58,36 @@ describe('StaySearchFiltersComponent', () => {
     fixture.detectChanges();
   }
 
-  function selectedEvent(value: unknown): MatAutocompleteSelectedEvent {
-    return { option: { value } } as MatAutocompleteSelectedEvent;
-  }
-
-  it('renders Material search fields and autocomplete controls', () => {
+  it('renders two shared remote search selectors', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
+    expect(compiled.querySelectorAll('app-remote-search-selector')).toHaveLength(2);
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(2);
     expect(compiled.querySelectorAll('mat-autocomplete')).toHaveLength(2);
     expect(compiled.textContent).toContain(component.text().stays.filters.cat);
     expect(compiled.textContent).toContain(component.text().stays.filters.owner);
   });
 
-  it('shows no-match messages for unmatched cat and owner searches', () => {
+  it('delegates unmatched cat and owner searches to their lookup APIs', async () => {
+    vi.useFakeTimers();
     const inputs = fixture.nativeElement.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
 
     setInputValue(inputs[0], 'no-cat');
-    expect(fixture.nativeElement.textContent).toContain(component.text().stays.filters.noCatsMatch);
-
     setInputValue(inputs[1], 'no-owner');
-    expect(fixture.nativeElement.textContent).toContain(
-      component.text().stays.filters.noOwnersMatch,
-    );
+    await vi.advanceTimersByTimeAsync(250);
+    fixture.detectChanges();
+
+    expect(catApiService.searchLookupOptions).toHaveBeenCalledWith('no-cat', 0);
+    expect(ownerApiService.searchLookupOptions).toHaveBeenCalledWith('no-owner', 0);
+    expect(component.selectedCatId()).toBeNull();
+    expect(component.selectedOwnerId()).toBeNull();
+    vi.useRealTimers();
   });
 
   it('selects and clears all search filters from one action', () => {
-    component.onCatSearchChange('mil');
+    component.selectCat(milo);
     fixture.detectChanges();
 
-    expect(component.matchingCatOptions()[0].label).toBe('Milo (Ada Lovelace)');
-
-    component.selectCatFromAutocomplete(selectedEvent(component.matchingCatOptions()[0]));
-    fixture.detectChanges();
-
-    expect(component.catSearch()).toBe('Milo (Ada Lovelace)');
     expect(emittedFilters).toContainEqual({ catId: 'cat-1', ownerId: null });
     expect(
       fixture.nativeElement.querySelector('button[mat-stroked-button]')?.textContent,
@@ -129,8 +99,6 @@ describe('StaySearchFiltersComponent', () => {
     clearButton.click();
     fixture.detectChanges();
 
-    expect(component.catSearch()).toBe('');
-    expect(component.ownerSearch()).toBe('');
     expect(component.selectedCatId()).toBeNull();
     expect(component.selectedOwnerId()).toBeNull();
     expect(emittedFilters).toContainEqual({ catId: null, ownerId: null });
@@ -140,16 +108,14 @@ describe('StaySearchFiltersComponent', () => {
     const emitSpy = vi.fn();
     component.filtersChange.subscribe(emitSpy);
 
-    component.selectCat(component.catOptions()[0]);
-    component.onOwnerSearchChange('grace');
+    component.selectCat(milo);
     fixture.detectChanges();
 
-    component.selectOwnerFromAutocomplete(selectedEvent(component.matchingOwnerOptions()[0]));
+    component.selectOwner(grace);
     fixture.detectChanges();
 
     expect(component.selectedCatId()).toBeNull();
-    expect(component.catSearch()).toBe('');
-    expect(component.ownerSearch()).toBe('Grace Hopper (Luna)');
+    expect(component.selectedOwner()?.fullName).toBe('Grace Hopper');
     expect(emitSpy).toHaveBeenLastCalledWith({ catId: null, ownerId: 'owner-2' });
   });
 });

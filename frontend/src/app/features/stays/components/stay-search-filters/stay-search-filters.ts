@@ -1,133 +1,83 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
-import {
-  MatAutocompleteModule,
-  MatAutocompleteSelectedEvent,
-} from '@angular/material/autocomplete';
+import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
-import { MatInput } from '@angular/material/input';
-import { FormsModule } from '@angular/forms';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { RemoteSearchSelectorComponent } from '../../../../shared/remote-search-selector/remote-search-selector';
+import { CatLookupOption, catLookupOptionLabel } from '../../../cats/models/cat.model';
+import { CatApiService } from '../../../cats/services/cat-api.service';
+import { OwnerLookupOption, ownerLookupLabel } from '../../../owners/models/owner.model';
+import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Stay } from '../../models/stay.model';
 import {
   getDefaultStaySearchFilters,
-  getStayCatFilterOptions,
-  getStayOwnerFilterOptions,
-  normalizeSearchText,
-  StayCatFilterOption,
-  StayOwnerFilterOption,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 
 @Component({
   selector: 'app-stay-search-filters',
-  imports: [FormsModule, MatAutocompleteModule, MatButton, MatFormField, MatInput, MatLabel],
+  imports: [MatButton, RemoteSearchSelectorComponent],
   templateUrl: './stay-search-filters.html',
   styleUrl: './stay-search-filters.scss',
 })
 export class StaySearchFiltersComponent {
   private readonly i18nService = inject(I18nService);
+  private readonly catApiService = inject(CatApiService);
+  private readonly ownerApiService = inject(OwnerApiService);
+  private readonly catSelector =
+    viewChild<RemoteSearchSelectorComponent<CatLookupOption>>('catSelector');
+  private readonly ownerSelector =
+    viewChild<RemoteSearchSelectorComponent<OwnerLookupOption>>('ownerSelector');
 
   readonly text = this.i18nService.text;
   readonly stays = input<Stay[]>([]);
   readonly filtersChange = output<StaySearchFilters>();
 
-  readonly catSearch = signal('');
-  readonly ownerSearch = signal('');
-  readonly selectedCatId = signal<string | null>(null);
-  readonly selectedOwnerId = signal<string | null>(null);
-
-  readonly catOptions = computed(() => getStayCatFilterOptions(this.stays()));
-  readonly ownerOptions = computed(() => getStayOwnerFilterOptions(this.stays()));
-
-  readonly matchingCatOptions = computed(() => {
-    const searchText = normalizeSearchText(this.catSearch());
-
-    if (!searchText || this.selectedCatId()) {
-      return [];
-    }
-
-    return this.catOptions().filter((option) => option.searchText.includes(searchText));
-  });
-
-  readonly matchingOwnerOptions = computed(() => {
-    const searchText = normalizeSearchText(this.ownerSearch());
-
-    if (!searchText || this.selectedOwnerId()) {
-      return [];
-    }
-
-    return this.ownerOptions().filter((option) => option.searchText.includes(searchText));
-  });
-
+  readonly selectedCat = signal<CatLookupOption | null>(null);
+  readonly selectedOwner = signal<OwnerLookupOption | null>(null);
+  readonly selectedCatId = computed(() => this.selectedCat()?.id ?? null);
+  readonly selectedOwnerId = computed(() => this.selectedOwner()?.id ?? null);
   readonly hasSearchFilters = computed(
     () =>
-      Boolean(this.selectedCatId()) ||
-      Boolean(this.selectedOwnerId()) ||
-      Boolean(this.catSearch().trim()) ||
-      Boolean(this.ownerSearch().trim()),
+      this.selectedCatId() !== null ||
+      this.selectedOwnerId() !== null ||
+      Boolean(this.catSelector()?.searchText().trim()) ||
+      Boolean(this.ownerSelector()?.searchText().trim()),
   );
 
-  onCatSearchChange(value: string): void {
-    this.catSearch.set(value);
+  readonly searchCats = (query: string, page: number) =>
+    this.catApiService.searchLookupOptions(query, page);
+  readonly searchOwners = (query: string, page: number) =>
+    this.ownerApiService.searchLookupOptions(query, page);
+  readonly catOptionId = (option: CatLookupOption): string => option.id;
+  readonly catOptionLabel = catLookupOptionLabel;
+  readonly ownerOptionId = (option: OwnerLookupOption): string => option.id;
+  readonly ownerOptionLabel = ownerLookupLabel;
 
-    if (this.selectedCatId()) {
-      this.selectedCatId.set(null);
-      this.emitFilters();
+  selectCat(option: CatLookupOption | null): void {
+    this.selectedCat.set(option);
+
+    if (option !== null) {
+      this.selectedOwner.set(null);
     }
-  }
-
-  onOwnerSearchChange(value: string): void {
-    this.ownerSearch.set(value);
-
-    if (this.selectedOwnerId()) {
-      this.selectedOwnerId.set(null);
-      this.emitFilters();
-    }
-  }
-
-  selectCat(option: StayCatFilterOption): void {
-    this.selectedCatId.set(option.catId);
-    this.catSearch.set(option.label);
-
-    this.selectedOwnerId.set(null);
-    this.ownerSearch.set('');
 
     this.emitFilters();
   }
 
-  selectCatFromAutocomplete(event: MatAutocompleteSelectedEvent): void {
-    this.selectCat(event.option.value as StayCatFilterOption);
-  }
+  selectOwner(option: OwnerLookupOption | null): void {
+    this.selectedOwner.set(option);
 
-  selectOwner(option: StayOwnerFilterOption): void {
-    this.selectedOwnerId.set(option.ownerId);
-    this.ownerSearch.set(option.label);
-
-    this.selectedCatId.set(null);
-    this.catSearch.set('');
+    if (option !== null) {
+      this.selectedCat.set(null);
+    }
 
     this.emitFilters();
-  }
-
-  selectOwnerFromAutocomplete(event: MatAutocompleteSelectedEvent): void {
-    this.selectOwner(event.option.value as StayOwnerFilterOption);
-  }
-
-  displayCatOption(option: StayCatFilterOption | string | null): string {
-    return typeof option === 'string' ? option : (option?.label ?? '');
-  }
-
-  displayOwnerOption(option: StayOwnerFilterOption | string | null): string {
-    return typeof option === 'string' ? option : (option?.label ?? '');
   }
 
   clearFilters(): void {
-    this.selectedCatId.set(null);
-    this.catSearch.set('');
-    this.selectedOwnerId.set(null);
-    this.ownerSearch.set('');
+    this.selectedCat.set(null);
+    this.selectedOwner.set(null);
+    this.catSelector()?.clear();
+    this.ownerSelector()?.clear();
     this.emitFilters();
   }
 

@@ -1,68 +1,28 @@
 <div class="stay-search-filters" [attr.aria-label]="text().stays.filters.searchAriaLabel">
   <div class="search-filter">
-    <div class="search-control">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>{{ text().stays.filters.cat }}</mat-label>
-        <input
-          matInput
-          type="text"
-          autocomplete="off"
-          [placeholder]="text().stays.filters.searchCat"
-          [ngModel]="catSearch()"
-          (ngModelChange)="onCatSearchChange($event)"
-          [matAutocomplete]="catAutocomplete"
-        />
-
-        <mat-autocomplete
-          #catAutocomplete="matAutocomplete"
-          [displayWith]="displayCatOption"
-          (optionSelected)="selectCatFromAutocomplete($event)"
-        >
-          @for (option of matchingCatOptions(); track option.catId) {
-            <mat-option [value]="option">
-              {{ option.label }}
-            </mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
-    </div>
-
-    @if (matchingCatOptions().length === 0 && catSearch().trim() && !selectedCatId()) {
-      <small class="empty-options">{{ text().stays.filters.noCatsMatch }}</small>
-    }
+    <app-remote-search-selector
+      #catSelector
+      [label]="text().stays.filters.cat"
+      [placeholder]="text().stays.filters.searchCat"
+      [lookup]="searchCats"
+      [optionId]="catOptionId"
+      [optionLabel]="catOptionLabel"
+      [initialOption]="selectedCat()"
+      (selectionChange)="selectCat($event)"
+    ></app-remote-search-selector>
   </div>
 
   <div class="search-filter">
-    <div class="search-control">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>{{ text().stays.filters.owner }}</mat-label>
-        <input
-          matInput
-          type="text"
-          autocomplete="off"
-          [placeholder]="text().stays.filters.searchOwnerOrCats"
-          [ngModel]="ownerSearch()"
-          (ngModelChange)="onOwnerSearchChange($event)"
-          [matAutocomplete]="ownerAutocomplete"
-        />
-
-        <mat-autocomplete
-          #ownerAutocomplete="matAutocomplete"
-          [displayWith]="displayOwnerOption"
-          (optionSelected)="selectOwnerFromAutocomplete($event)"
-        >
-          @for (option of matchingOwnerOptions(); track option.ownerId) {
-            <mat-option [value]="option">
-              {{ option.label }}
-            </mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
-    </div>
-
-    @if (matchingOwnerOptions().length === 0 && ownerSearch().trim() && !selectedOwnerId()) {
-      <small class="empty-options">{{ text().stays.filters.noOwnersMatch }}</small>
-    }
+    <app-remote-search-selector
+      #ownerSelector
+      [label]="text().stays.filters.owner"
+      [placeholder]="text().stays.filters.searchOwnerOrCats"
+      [lookup]="searchOwners"
+      [optionId]="ownerOptionId"
+      [optionLabel]="ownerOptionLabel"
+      [initialOption]="selectedOwner()"
+      (selectionChange)="selectOwner($event)"
+    ></app-remote-search-selector>
   </div>
 
   @if (hasSearchFilters()) {
