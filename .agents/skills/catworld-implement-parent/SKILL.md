@@ -332,6 +332,17 @@ decisions, required evidence and hard prerequisites. Retain with the parent
 only global orchestration, accumulated completeness/scope review, final
 validation, fixed-base synchronization and delivery.
 
+For every declared prerequisite -> dependent edge, inspect the canonical issue,
+spec, plan and tasks for concrete producer output or behavior that the dependent
+must consume. Record each such edge contract in the execution map as a
+producer-owned outgoing obligation and the matching dependent prerequisite
+expectation. When ordinary integration is the only requirement, record that no
+additional edge contract exists; do not invent an API, payload or responsibility.
+For example, when a producer-owned Owner lookup must let a dependent populate
+the owner's current selectable cats without loading the global Cat collection,
+the edge contract requires the current cat identifiers and names; names alone do
+not satisfy it. Never move a producer-owned edge obligation into the dependent.
+
 Stop before launching any worker when:
 
 - important implementable work is unassigned;
@@ -347,6 +358,7 @@ file. Keep the map and run ledger in the parent session.
 Initialize each slice as declared and track at least:
 
 - dependency state and ready-queue position;
+- incoming expectations and producer-owned outgoing edge obligations;
 - deterministic branch and absolute worktree path;
 - immutable launch SHA and current qualification-base SHA;
 - worker identity and state;
@@ -365,6 +377,7 @@ Each dependency-ready slice receives one explicit handoff containing only:
 - required observable or technical behavior;
 - relevant feature-wide invariants and approved decisions;
 - concrete assigned responsibilities and source surfaces;
+- every producer-owned outgoing edge obligation assigned to this slice;
 - already integrated prerequisite behavior available in starting HEAD;
 - explicit exclusions, prohibited paths and prohibited actions;
 - parent-decided permanent-test authorization/ceiling;
@@ -457,6 +470,8 @@ For each delivery, independently confirm:
   exact issue-branch HEAD captured as the base of the latest rebase;
 - the full qualificationBaseSha-to-branch diff contains only the slice delivery
   and fits the handoff;
+- every producer-owned outgoing edge obligation in the handoff is implemented
+  and evidenced, including the concrete data/behavior required by dependents;
 - prohibited artifacts and unrelated surfaces are unchanged;
 - every added or modified test in that qualification-base diff respects the
   supplied authorization and value ceiling;
@@ -482,23 +497,118 @@ validation and requalify the complete delivery.
 Stop the slice when the correction still cannot qualify, the same problem
 repeats without progress or any fix requires a new material decision.
 
+### One dependency repair per prerequisite
+
+When a dependent worker reports that an already integrated prerequisite omitted
+behavior, preserve the blocked dependent and allow unrelated ready/running work
+to continue under the existing scheduler. Before repair, independently verify
+from the original execution map, edge contract and prerequisite handoff that:
+
+- the missing behavior was already an approved responsibility of that
+  prerequisite;
+- repair adds no scope or material decision; and
+- the finding is not owned by the dependent.
+
+Stop on ambiguous ownership, new scope or a material decision. Otherwise allow
+at most one dependency repair for that prerequisite in the run. This allowance
+is separate from its original pre-integration correction and from the one global
+corrective pass; record a dedicated repair count.
+
+Use exactly:
+
+- branch:
+  `<issue-branch>-slice-<slice-id-lowercase>-dependency-repair-1`; and
+- absolute sibling worktree:
+  `<primary-directory-name>-<issue-number>-slice-<slice-id-lowercase>-dependency-repair-1`.
+
+Capture the exact current issue HEAD as repairLaunchSha and initial
+repairQualificationBaseSha. Resolve and verify the worktree is outside the
+primary worktree, and stop if the exact branch exists, is checked out in any
+worktree or the exact path exists. Create the unpublished branch/worktree from
+repairLaunchSha and launch a fresh catworld-implement-slice worker without prior
+conversation. Give it a complete valid correction handoff containing the
+complete original prerequisite handoff, precise downstream-discovered edge
+contract violation, exact repair boundary, integrated prerequisite context at
+repairLaunchSha, original decisions/invariants, source ownership, exclusions,
+test ceiling, validation/freshness policy, and exact repair branch, worktree,
+starting commit and current head. Include every other slice-required field, but
+not the complete issue, spec, plan or tasks.
+
+For compatibility with catworld-implement-slice's fixed correction vocabulary,
+classify the downstream-discovered violation as a global finding and its worker
+delivery kind as `global correction`; this label does not consume or open the
+parent's section 10 global corrective pass. Preserve the original handoff's
+semantic contract and immutable launch only for traceability, but explicitly
+replace its authoritative expected branch, absolute worktree, exact starting
+commit, current local head and integrated-prerequisite context with the repair
+branch, repair worktree and repairLaunchSha values. The replacement fields
+govern the worker's local-state checks; do not present both identity sets as
+simultaneously authoritative.
+
+Qualify the repair with section 8 and integrate it through the section 9
+single-flight unpublished rebase/validation/requalification/ff-only rules. If
+the same prerequisite contract remains broken after this repair, stop instead
+of opening another repair.
+
+After successful integration, retry every dependent blocked specifically by the
+repaired contract. Require its retained branch/worktree to remain clean and
+unpublished. Capture the new exact issue HEAD as retryBaseSha and rebase that
+branch onto it using the deterministic unpublished-rebase safety rules from
+section 9, without retaining the exclusive integration lane while the retried
+worker runs. Update qualificationBaseSha to retryBaseSha and the handoff's
+integrated-prerequisite context. Preserve already valid in-scope unpublished
+dependent work only when the rebase and attribution are deterministic;
+otherwise stop.
+Launch a fresh worker without the previous conversation using the complete
+original bounded dependent handoff plus the repaired prerequisite context,
+precise prior blocker, allowed continuation boundary, exact current local head,
+branch and worktree. Requalify the complete dependent delivery normally.
+
+Classify this retry as a `rebase correction`: the rebase finding is that the
+dependent's prior prerequisite blocker is resolved in retryBaseSha and the
+bounded correction must continue only its original assigned work against that
+context. Retain the original immutable launch commit only for traceability. The
+unchanged retained dependent branch/worktree and its exact post-rebase local
+HEAD are the authoritative correction identity/current-head fields; the worker
+must not treat the original starting commit as the expected current HEAD.
+
 ## 9. Rebase and fast-forward integrate qualified slices
 
-Integrate one qualified slice at a time from the clean primary worktree while
-it remains on the issue branch.
+Initial worker execution and qualification against an existing qualification
+base may remain concurrent. Once any completed slice, correction or repair is
+selected as the next integration candidate, enter one exclusive local
+integration lane from the clean primary worktree while it remains on the issue
+branch. Candidate selection does not change ready-queue order, scheduling
+priority or launch behavior.
 
-### Slice still based on current issue HEAD
+While the lane is active, other workers may continue implementing and completed
+deliveries may be inspected or queued, but no sibling integration, correction or
+repair may advance the issue branch. In the lane:
 
-When the slice's immutable launchSha equals current issue-branch HEAD,
-run git merge --ff-only <slice-branch>. Stop if fast-forward unexpectedly fails.
+1. Capture the exact current issue HEAD as laneBaseSha.
+2. If the candidate is stale, rebase its unpublished branch onto exactly
+   laneBaseSha and resolve only deterministic conflicts.
+3. Rerun required and affected validation after any rebase/conflict result.
+4. Set qualificationBaseSha to laneBaseSha when rebased and requalify the
+   complete candidate delivery against that base.
+5. Verify the issue HEAD still equals laneBaseSha.
+6. Integrate with `git merge --ff-only <candidate-branch>`.
+7. Release the lane only after the fast-forward completes or the candidate
+   stops without advancing the issue branch.
 
-### Issue branch advanced while the slice ran
+### Candidate still based on current issue HEAD
 
-When the issue branch advanced:
+When the candidate's current qualificationBaseSha equals laneBaseSha, reconfirm
+qualification and run git merge --ff-only <candidate-branch>. Stop if
+fast-forward unexpectedly fails.
+
+### Issue branch advanced since candidate qualification
+
+When qualificationBaseSha differs from laneBaseSha:
 
 1. Ensure no worker is active in the slice worktree and both involved branches
    are clean.
-2. Capture the exact current issue-branch HEAD as rebaseBaseSha. In the slice
+2. Use the laneBaseSha already captured as rebaseBaseSha. In the slice
    worktree, rebase the unpublished slice branch onto exactly that SHA. Never
    rebase a published branch.
 3. Resolve conflicts only when the correct result is deterministic from the
@@ -520,6 +630,11 @@ When the issue branch advanced:
    be attributed to the slice.
 8. Verify current issue-branch HEAD still equals qualificationBaseSha, then from
    the primary worktree run git merge --ff-only <slice-branch>.
+
+Do not leave the lane between rebase, validation, requalification, HEAD
+verification and fast-forward integration. This prevents sibling integrations
+from making freshly collected evidence stale and normally bounds a stale
+candidate to one final orchestrator-caused rebase.
 
 Do not use squash, cherry-pick as the normal path, slice merge commits or parent
 merge commits for slice integration. Rebase is allowed only because every slice
@@ -714,7 +829,8 @@ Stop normal final delivery on:
 - a missing, unreadable, closed/non-implementable or non-issue target;
 - an invalid slice/dependency model;
 - an exact new-run issue-branch collision from section 2, or an exact target
-  slice branch/worktree-path collision from section 7;
+  slice branch/worktree-path collision from section 7 or dependency-repair
+  identity collision from section 8;
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
@@ -753,7 +869,8 @@ Report:
 - ready-queue/capacity events and launch/integration order;
 - every slice's state, branch, retained worktree path, starting head, reported
   commits, final integrated commits, qualification/correction/rebase/conflict
-  result, changed files, validation and blocker;
+  result, dependency-repair identity/count/result, changed files, validation
+  and blocker;
 - global completeness and corrective-pass result;
 - final validation commands with explicit statuses and freshness;
 - final test-diff and scope-drift reviews;
@@ -776,6 +893,9 @@ applicable; never fabricate one.
 - One canonical local Spec Kit planning cycle covers the complete valid sliced
   issue and its ignored artifacts were never published.
 - Every implementable responsibility was assigned exactly once before launch.
+- Every concrete prerequisite-to-dependent contract was assigned to its
+  producer and qualified before integration, or repaired at most once through
+  the bounded dependency-repair path.
 - Every ready slice ran through a bounded internal worker in an isolated local
   branch/worktree according to the explicit DAG and runtime capacity.
 - Every integrated delivery qualified and reached the issue branch through
