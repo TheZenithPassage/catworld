@@ -98,7 +98,7 @@ class CatLookupMySqlIntegrationTest {
         assertTrue(first.hasNext());
         assertEquals(List.of(
                         prefix + " Mála Five", prefix + " Mala Four", prefix + " Mála One",
-                        prefix + " Mala Six", prefix + " Mála Seven"),
+                        prefix + " Mála Seven", prefix + " Mala Six"),
                 first.items().stream().map(CatLookupOptionDTO::name).toList());
         assertTrue(first.items().stream()
                 .allMatch(option -> option.ownerName().equals(owner.getFullName())));

@@ -28,7 +28,7 @@ public interface VetRepository extends JpaRepository<Vet, UUID> {
     Set<UUID> findVetIdsReferencedByCats(@Param("candidateIds") Collection<UUID> candidateIds);
 
     @Query(value = """
-            select v.id as id, v.name as name
+            select bin_to_uuid(v.id) as id, v.name as name
             from vets v
             where v.name collate utf8mb4_0900_ai_ci
                 like concat('%', :query, '%') collate utf8mb4_0900_ai_ci

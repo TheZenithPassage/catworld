@@ -20,13 +20,11 @@ public interface CatRepository extends JpaRepository<Cat, UUID> {
     }
 
     @Query(value = """
-            select c.id as id, c.name as name, o.full_name as ownerName
+            select bin_to_uuid(c.id) as id, c.name as name, o.full_name as ownerName
             from cats c
             join owners o on o.id = c.owner_id
-            where locate(
-                convert(:query using utf8mb4) collate utf8mb4_0900_ai_ci,
-                c.name collate utf8mb4_0900_ai_ci
-            ) > 0
+            where c.name collate utf8mb4_0900_ai_ci
+                like concat('%', convert(:query using utf8mb4) collate utf8mb4_0900_ai_ci, '%')
             order by c.name collate utf8mb4_0900_ai_ci, c.id
             """, nativeQuery = true)
     Slice<CatLookupProjection> searchLookupOptions(
