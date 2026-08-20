@@ -3,7 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateVetRequest, UpdateVetRequest, Vet } from '../models/vet.model';
+import {
+  CreateVetRequest,
+  UpdateVetRequest,
+  Vet,
+  VetLookupOption,
+  VetLookupPage,
+} from '../models/vet.model';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +24,16 @@ export class VetApiService {
 
   getVetById(vetId: string): Observable<Vet> {
     return this.http.get<Vet>(`${this.baseUrl}/${vetId}`);
+  }
+
+  searchVets(query: string, page: number): Observable<VetLookupPage> {
+    return this.http.get<VetLookupPage>(`${this.baseUrl}/search`, {
+      params: { q: query, page },
+    });
+  }
+
+  resolveVetLookupOption(vetId: string): Observable<VetLookupOption> {
+    return this.http.get<VetLookupOption>(`${this.baseUrl}/${vetId}/lookup-option`);
   }
 
   createVet(request: CreateVetRequest): Observable<Vet> {

@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.VetLookupOptionDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -36,6 +38,48 @@ public class VetControllerTest {
 
     @Nested
     class GetVetTests {
+
+        @Test
+        void shouldReturnBoundedLookupPage() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            VetLookupOptionDTO option = new VetLookupOptionDTO(vetId, "Clínica Central");
+            when(vetService.searchLookupOptions("clin", 2))
+                    .thenReturn(new LookupPageResponseDTO<>(List.of(option), 2, true));
+
+            mockMvc.perform(get("/api/vets/search").param("q", "clin").param("page", "2"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].id").value(vetId.toString()))
+                    .andExpect(jsonPath("$.items[0].name").value("Clínica Central"))
+                    .andExpect(jsonPath("$.items[0].address").doesNotExist())
+                    .andExpect(jsonPath("$.page").value(2))
+                    .andExpect(jsonPath("$.hasNext").value(true));
+
+            verify(vetService).searchLookupOptions("clin", 2);
+        }
+
+        @Test
+        void shouldReturnCurrentLookupOptionById() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            when(vetService.getLookupOption(vetId))
+                    .thenReturn(new VetLookupOptionDTO(vetId, "Vet Clinic"));
+
+            mockMvc.perform(get("/api/vets/{id}/lookup-option", vetId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(vetId.toString()))
+                    .andExpect(jsonPath("$.name").value("Vet Clinic"));
+
+            verify(vetService).getLookupOption(vetId);
+        }
+
+        @Test
+        void shouldReturnNotFound_whenLookupOptionDoesNotExist() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            when(vetService.getLookupOption(vetId))
+                    .thenThrow(new ResourceNotFoundException("Vet", vetId));
+
+            mockMvc.perform(get("/api/vets/{id}/lookup-option", vetId))
+                    .andExpect(status().isNotFound());
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllVets() throws Exception {

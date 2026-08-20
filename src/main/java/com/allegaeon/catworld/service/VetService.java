@@ -2,12 +2,16 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.VetLookupOptionDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.VetMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.VetRepository;
+import com.allegaeon.catworld.repository.VetLookupProjection;
+import com.allegaeon.catworld.service.lookup.LookupPageSupport;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -61,6 +65,21 @@ public class VetService implements IVetService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public LookupPageResponseDTO<VetLookupOptionDTO> searchLookupOptions(String query, int page) {
+        return LookupPageSupport.toResponse(vetRepository
+                .searchLookupOptions(query, LookupPageSupport.pageRequest(query, page))
+                .map(this::toLookupOption));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VetLookupOptionDTO getLookupOption(UUID id) {
+        Vet vet = getEntity(id);
+        return new VetLookupOptionDTO(vet.getId(), vet.getName());
+    }
+
+    @Override
     public VetResponseDTO createVet(VetRequestDTO vetRequestDTO) {
         Vet vet = vetMapper.toEntity(vetRequestDTO);
         vet.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
@@ -103,6 +122,10 @@ public class VetService implements IVetService {
                 && !vetRepository.existsByIdAndCatsIsNotEmpty(vet.getId());
 
         return vetMapper.toResponseDTO(vet, canDelete);
+    }
+
+    private VetLookupOptionDTO toLookupOption(VetLookupProjection vet) {
+        return new VetLookupOptionDTO(vet.getId(), vet.getName());
     }
 
 }
