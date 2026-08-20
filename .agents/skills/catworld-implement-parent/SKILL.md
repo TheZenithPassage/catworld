@@ -80,6 +80,42 @@ It must not:
 After the issue branch is active, keep the primary worktree on it through
 success and every terminal stop.
 
+## Run-level reasoning policy
+
+The parent always keeps the reasoning effort with which the operator launched
+the current Codex task through the UI/runtime. This workflow defines no parent
+default, does not parse a parent reasoning override from the prompt, and must
+not inspect, validate, change, replace or synchronize the parent's effort.
+Worker effort is never derived from parent effort.
+
+Before the first catworld-implement-slice spawn, select and record one immutable
+workerReasoningEffort for the run:
+
+- when the current invocation contains no explicit worker/subagent reasoning
+  instruction, use runtime reasoning effort `low` (`light` in user-facing
+  wording); or
+- when the user explicitly requests an equivalent of
+  `workers reasoning: <supported-level>`, use that supported runtime level for
+  every slice worker.
+
+If an explicit worker value is unsupported by the runtime, stop before the
+first worker spawn and report it; do not substitute another level.
+
+Do not infer this setting from slice complexity, role, content, correction kind
+or the parent's effort. Do not escalate, downgrade or change it during the run,
+and do not add model routing, token budgeting, per-slice heuristics or task-type
+reasoning rules. Reasoning configuration changes execution resources only; it
+must not affect scope, DAG semantics, handoffs, ownership, qualification,
+correction, recovery, validation or delivery.
+
+Pass `workerReasoningEffort` through the runtime's per-worker reasoning control
+on every catworld-implement-slice spawn: initial delivery, fresh qualification
+fallback, dependency repair, dependent retry, rebase correction and global
+correction. A resumed worker thread keeps the effort recorded for its original
+spawn. If the runtime cannot apply the selected effort to a required worker,
+stop before spawning it and report the limitation; never silently inherit or
+fall back to the parent's effort.
+
 ## 1. Validate the issue slice model
 
 Perform this validation before branch creation, Spec Kit or worker launch.
@@ -447,9 +483,10 @@ the primary worktree. Record launchSha, qualificationBaseSha, branch and
 worktree before spawning the worker. Never create a remote slice branch.
 
 Spawn one fresh built-in worker in that worktree without inherited parent
-conversation or implementation history. Pass only the bounded handoff and tell
-it to follow catworld-implement-slice. The worker must not delegate or spawn
-another working-tree mutator.
+conversation or implementation history, explicitly applying the recorded
+workerReasoningEffort. Pass only the bounded handoff and tell it to follow
+catworld-implement-slice. The worker must not delegate or spawn another
+working-tree mutator.
 
 The parent may continue scheduling, qualifying and integrating other work in the
 primary worktree while slice workers mutate only their own worktrees. Never
@@ -519,8 +556,9 @@ Stop correction instead of continuing when:
 If runtime lifecycle limitations make the original worker thread unavailable,
 launch a fresh catworld-implement-slice worker in the same retained
 branch/worktree with the complete bounded correction handoff, exact current HEAD
-and full ordered progress/finding history. This fallback continues the same
-delivery and does not reset or widen it.
+and full ordered progress/finding history, explicitly applying the same recorded
+workerReasoningEffort. This fallback continues the same delivery and does not
+reset or widen it.
 
 Apply this policy whenever section 8 qualification is used for an initial slice,
 a stale/rebased slice, a dependency-repair delivery or a global-correction
@@ -556,7 +594,8 @@ repairQualificationBaseSha. Resolve and verify the worktree is outside the
 primary worktree, and stop if the exact branch exists, is checked out in any
 worktree or the exact path exists. Create the unpublished branch/worktree from
 repairLaunchSha and launch a fresh catworld-implement-slice worker without prior
-conversation. Give it a complete valid correction handoff containing the
+conversation, explicitly applying the recorded workerReasoningEffort. Give it a
+complete valid correction handoff containing the
 complete original prerequisite handoff, precise downstream-discovered edge
 contract violation, exact repair boundary, integrated prerequisite context at
 repairLaunchSha, original decisions/invariants, source ownership, exclusions,
@@ -589,8 +628,9 @@ worker runs. Update qualificationBaseSha to retryBaseSha and the handoff's
 integrated-prerequisite context. Preserve already valid in-scope unpublished
 dependent work only when the rebase and attribution are deterministic;
 otherwise stop.
-Launch a fresh worker without the previous conversation using the complete
-original bounded dependent handoff plus the repaired prerequisite context,
+Launch a fresh worker without the previous conversation, explicitly applying
+the recorded workerReasoningEffort, using the complete original bounded
+dependent handoff plus the repaired prerequisite context,
 precise prior blocker, allowed continuation boundary, exact current local head,
 branch and worktree. Requalify the complete dependent delivery normally.
 
@@ -647,7 +687,8 @@ When qualificationBaseSha differs from laneBaseSha:
 4. Use a bounded slice-worker correction in that same worktree when code
    adaptation or conflict resolution needs the slice's implementation context.
    It may resolve only the identified deterministic conflict and must not use
-   the rebase as permission for new scope.
+   the rebase as permission for new scope. Resume the existing worker when safe;
+   any fresh worker spawn must explicitly apply workerReasoningEffort.
 5. Stop on a material product, architecture, authorization, persistence,
    shared-contract, UX, correctness-sensitive, operational or scope decision.
 6. After a successful rebase, set qualificationBaseSha to rebaseBaseSha while
@@ -710,7 +751,8 @@ the current issue-branch HEAD. For each affected slice:
    reuse the initial slice branch/worktree or any retained context.
 4. Create the branch at exactly correctionLaunchSha, add the exact worktree,
    record both identities and SHAs, and launch a fresh bounded worker through
-   catworld-implement-slice with a complete valid correction handoff. Preserve
+   catworld-implement-slice with the recorded workerReasoningEffort and a
+   complete valid correction handoff. Preserve
    the complete original bounded slice handoff, then add the precise
    global-completeness or post-sync finding and its allowed correction boundary.
    Set both the correction starting commit and current local head to
