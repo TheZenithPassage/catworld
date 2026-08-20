@@ -483,10 +483,11 @@ the primary worktree. Record launchSha, qualificationBaseSha, branch and
 worktree before spawning the worker. Never create a remote slice branch.
 
 Spawn one fresh built-in worker in that worktree without inherited parent
-conversation or implementation history, explicitly applying the recorded
-workerReasoningEffort. Pass only the bounded handoff and tell it to follow
-catworld-implement-slice. The worker must not delegate or spawn another
-working-tree mutator.
+conversation or implementation history. Set the runtime spawn control exactly
+to `fork_turns="none"` and independently apply the recorded
+workerReasoningEffort. Pass only the bounded handoff; the worker then loads the
+required repository/runtime instructions and catworld-implement-slice. It must
+not delegate or spawn another working-tree mutator.
 
 The parent may continue scheduling, qualifying and integrating other work in the
 primary worktree while slice workers mutate only their own worktrees. Never
@@ -531,10 +532,11 @@ concrete progress and remains within the original bounded handoff.
 Prefer a follow-up turn to the same slice worker when its thread can still be
 resumed safely. Give each round the original bounded handoff and allowed
 correction boundary, the exact current local HEAD, and only the newly verified
-qualification finding. Keep the same branch/worktree. Every round must add
-normal follow-up commits; never amend, squash, publish or rewrite earlier
-commits. Record the ordered finding, resulting commits and verified progress so
-a fresh fallback worker cannot reset correction history.
+qualification finding. A follow-up to an existing worker is not a fresh spawn;
+do not apply `fork_turns="none"` to it. Keep the same branch/worktree. Every
+round must add normal follow-up commits; never amend, squash, publish or rewrite
+earlier commits. Record the ordered finding, resulting commits and verified
+progress so a fresh fallback worker cannot reset correction history.
 
 After every correction, reapply the original permanent-test authorization and
 source ownership, rerun all stale or affected validation, and requalify the
@@ -556,9 +558,9 @@ Stop correction instead of continuing when:
 If runtime lifecycle limitations make the original worker thread unavailable,
 launch a fresh catworld-implement-slice worker in the same retained
 branch/worktree with the complete bounded correction handoff, exact current HEAD
-and full ordered progress/finding history, explicitly applying the same recorded
-workerReasoningEffort. This fallback continues the same delivery and does not
-reset or widen it.
+and full ordered progress/finding history. Set `fork_turns="none"` and
+independently apply the same recorded workerReasoningEffort. This fallback
+continues the same delivery and does not reset or widen it.
 
 Apply this policy whenever section 8 qualification is used for an initial slice,
 a stale/rebased slice, a dependency-repair delivery or a global-correction
@@ -594,8 +596,9 @@ repairQualificationBaseSha. Resolve and verify the worktree is outside the
 primary worktree, and stop if the exact branch exists, is checked out in any
 worktree or the exact path exists. Create the unpublished branch/worktree from
 repairLaunchSha and launch a fresh catworld-implement-slice worker without prior
-conversation, explicitly applying the recorded workerReasoningEffort. Give it a
-complete valid correction handoff containing the
+conversation, setting `fork_turns="none"` and independently applying the
+recorded workerReasoningEffort. Give it a complete valid correction handoff
+containing the
 complete original prerequisite handoff, precise downstream-discovered edge
 contract violation, exact repair boundary, integrated prerequisite context at
 repairLaunchSha, original decisions/invariants, source ownership, exclusions,
@@ -628,9 +631,10 @@ worker runs. Update qualificationBaseSha to retryBaseSha and the handoff's
 integrated-prerequisite context. Preserve already valid in-scope unpublished
 dependent work only when the rebase and attribution are deterministic;
 otherwise stop.
-Launch a fresh worker without the previous conversation, explicitly applying
-the recorded workerReasoningEffort, using the complete original bounded
-dependent handoff plus the repaired prerequisite context,
+Launch a fresh worker without the previous conversation, setting
+`fork_turns="none"` and independently applying the recorded
+workerReasoningEffort, using the complete original bounded dependent handoff
+plus the repaired prerequisite context,
 precise prior blocker, allowed continuation boundary, exact current local head,
 branch and worktree. Requalify the complete dependent delivery normally.
 
@@ -687,8 +691,9 @@ When qualificationBaseSha differs from laneBaseSha:
 4. Use a bounded slice-worker correction in that same worktree when code
    adaptation or conflict resolution needs the slice's implementation context.
    It may resolve only the identified deterministic conflict and must not use
-   the rebase as permission for new scope. Resume the existing worker when safe;
-   any fresh worker spawn must explicitly apply workerReasoningEffort.
+   the rebase as permission for new scope. Resume the existing worker when safe
+   without applying a no-history spawn control. Any required fresh worker must
+   set `fork_turns="none"` and independently apply workerReasoningEffort.
 5. Stop on a material product, architecture, authorization, persistence,
    shared-contract, UX, correctness-sensitive, operational or scope decision.
 6. After a successful rebase, set qualificationBaseSha to rebaseBaseSha while
@@ -751,8 +756,9 @@ the current issue-branch HEAD. For each affected slice:
    reuse the initial slice branch/worktree or any retained context.
 4. Create the branch at exactly correctionLaunchSha, add the exact worktree,
    record both identities and SHAs, and launch a fresh bounded worker through
-   catworld-implement-slice with the recorded workerReasoningEffort and a
-   complete valid correction handoff. Preserve
+   catworld-implement-slice with `fork_turns="none"`, independently applying the
+   recorded workerReasoningEffort, and a complete valid correction handoff.
+   Preserve
    the complete original bounded slice handoff, then add the precise
    global-completeness or post-sync finding and its allowed correction boundary.
    Set both the correction starting commit and current local head to
