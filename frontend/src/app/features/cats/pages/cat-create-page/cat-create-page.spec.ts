@@ -70,11 +70,13 @@ describe('CatCreatePage', () => {
   };
 
   const ownerApiService = {
-    getOwners: vi.fn(),
+    searchLookupOptions: vi.fn(),
+    getLookupOption: vi.fn(),
   };
 
   const vetApiService = {
-    getVets: vi.fn(),
+    searchVets: vi.fn(),
+    resolveVetLookupOption: vi.fn(),
   };
 
   const router = {
@@ -85,8 +87,14 @@ describe('CatCreatePage', () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
     queryParams = {};
-    ownerApiService.getOwners.mockReturnValue(of(owners));
-    vetApiService.getVets.mockReturnValue(of(vets));
+    ownerApiService.searchLookupOptions.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
+    vetApiService.searchVets.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
+    ownerApiService.getLookupOption.mockReturnValue(
+      of({ id: owners[0].id, fullName: owners[0].fullName, catNames: [] }),
+    );
+    vetApiService.resolveVetLookupOption.mockReturnValue(
+      of({ id: vets[0].id, name: vets[0].name }),
+    );
 
     await TestBed.configureTestingModule({
       imports: [CatCreatePage],
@@ -166,7 +174,8 @@ describe('CatCreatePage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-remote-search-selector')).toHaveLength(2);
     expect(compiled.querySelector('input[name="birthDate"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="personality"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();

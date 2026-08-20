@@ -1,11 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
@@ -14,10 +14,11 @@ import {
   isEntityNameLengthValid,
 } from '../../../../shared/forms/entity-name-length.directive';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import { RemoteSearchSelectorComponent } from '../../../../shared/remote-search-selector/remote-search-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Owner } from '../../../owners/models/owner.model';
+import { OwnerLookupOption, ownerLookupLabel } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
-import { Vet } from '../../../vets/models/vet.model';
+import { VetLookupOption, vetLookupOptionLabel } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
@@ -34,6 +35,7 @@ import { CatApiService } from '../../services/cat-api.service';
     RouterLink,
     EntityNameLengthDirective,
     TrimRequiredDirective,
+    RemoteSearchSelectorComponent,
     UiStateComponent,
   ],
   templateUrl: './cat-edit-page.html',
@@ -49,14 +51,24 @@ export class CatEditPage {
 
   readonly text = this.i18nService.text;
 
-  readonly owners = signal<Owner[]>([]);
-  readonly vets = signal<Vet[]>([]);
+  private readonly ownerSelector = viewChild(RemoteSearchSelectorComponent<OwnerLookupOption>);
+  private readonly vetSelector = viewChild(RemoteSearchSelectorComponent<VetLookupOption>);
 
   readonly name = signal('');
   readonly birthDate = signal('');
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
   readonly vetId = signal('');
+  readonly initialOwner = signal<OwnerLookupOption | null>(null);
+  readonly initialVet = signal<VetLookupOption | null>(null);
+
+  readonly searchOwners = (query: string, page: number) =>
+    this.ownerApiService.searchLookupOptions(query, page);
+  readonly ownerOptionId = (option: OwnerLookupOption) => option.id;
+  readonly ownerOptionLabel = ownerLookupLabel;
+  readonly searchVets = (query: string, page: number) => this.vetApiService.searchVets(query, page);
+  readonly vetOptionId = (option: VetLookupOption) => option.id;
+  readonly vetOptionLabel = vetLookupOptionLabel;
 
   readonly breed = signal('');
   readonly coat = signal('');
@@ -97,25 +109,32 @@ export class CatEditPage {
 
     this.loadingData.set(true);
 
-    forkJoin({
-      cat: this.catApiService.getCatById(this.catId),
-      owners: this.ownerApiService.getOwners(),
-      vets: this.vetApiService.getVets(),
-    }).subscribe({
-      next: ({ cat, owners, vets }) => {
-        this.owners.set(owners);
-        this.vets.set(vets);
-        this.setFormValues(cat);
-        this.catLoaded.set(true);
-        this.loadingData.set(false);
-      },
-      error: (error: unknown) => {
-        this.showError(
-          this.getApiErrorMessage(error, this.text().cats.edit.errors.loadFormDataFailed),
-        );
-        this.loadingData.set(false);
-      },
-    });
+    this.catApiService
+      .getCatById(this.catId)
+      .pipe(
+        switchMap((cat) =>
+          forkJoin({
+            cat: of(cat),
+            owner: this.ownerApiService.getLookupOption(cat.ownerId),
+            vet: cat.vetId ? this.vetApiService.resolveVetLookupOption(cat.vetId) : of(null),
+          }),
+        ),
+      )
+      .subscribe({
+        next: ({ cat, owner, vet }) => {
+          this.initialOwner.set(owner);
+          this.initialVet.set(vet);
+          this.setFormValues(cat);
+          this.catLoaded.set(true);
+          this.loadingData.set(false);
+        },
+        error: (error: unknown) => {
+          this.showError(
+            this.getApiErrorMessage(error, this.text().cats.edit.errors.loadFormDataFailed),
+          );
+          this.loadingData.set(false);
+        },
+      });
   }
 
   submit(): void {
@@ -154,8 +173,15 @@ export class CatEditPage {
       return;
     }
 
-    if (!this.ownerId()) {
+    this.ownerSelector()?.markAsTouched();
+    this.vetSelector()?.markAsTouched();
+
+    if (!this.ownerId() || this.ownerSelector()?.isValid() === false) {
       this.ownerIdError.set(this.text().cats.edit.errors.ownerRequired);
+      return;
+    }
+
+    if (this.vetSelector()?.isValid() === false) {
       return;
     }
 
@@ -212,6 +238,15 @@ export class CatEditPage {
     this.lastExternalDewormingDate.set(cat.lastExternalDewormingDate ?? '');
     this.lastTripleFelineDate.set(cat.lastTripleFelineDate ?? '');
     this.lastRabiesDate.set(cat.lastRabiesDate ?? '');
+  }
+
+  onOwnerSelection(option: OwnerLookupOption | null): void {
+    this.ownerId.set(option?.id ?? '');
+    this.ownerIdError.set(null);
+  }
+
+  onVetSelection(option: VetLookupOption | null): void {
+    this.vetId.set(option?.id ?? '');
   }
 
   private toNullableString(value: string): string | null {

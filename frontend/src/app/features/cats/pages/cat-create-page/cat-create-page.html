@@ -63,27 +63,17 @@
       </mat-form-field>
 
       <div class="field-with-action">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.owner }}</mat-label>
-          <select
-            matNativeControl
-            name="ownerId"
-            required
-            [ngModel]="ownerId()"
-            (ngModelChange)="ownerId.set($event)"
-          >
-            <option value="">{{ text().cats.form.selectOwner }}</option>
-
-            @for (owner of owners(); track owner.id) {
-              <option [value]="owner.id">
-                {{ owner.fullName }}
-              </option>
-            }
-          </select>
-          @if (ownerIdError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
+        <app-remote-search-selector
+          [label]="text().cats.form.owner"
+          [placeholder]="text().cats.form.ownerSearchPlaceholder"
+          [required]="true"
+          [disabled]="submitting()"
+          [lookup]="searchOwners"
+          [optionId]="ownerOptionId"
+          [optionLabel]="ownerOptionLabel"
+          [initialOption]="initialOwner()"
+          (selectionChange)="onOwnerSelection($event)"
+        />
 
         <a
           mat-stroked-button
@@ -96,23 +86,16 @@
       </div>
 
       <div class="field-with-action">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.vet }}</mat-label>
-          <select
-            matNativeControl
-            name="vetId"
-            [ngModel]="vetId()"
-            (ngModelChange)="vetId.set($event)"
-          >
-            <option value="">{{ text().cats.form.noVet }}</option>
-
-            @for (vet of vets(); track vet.id) {
-              <option [value]="vet.id">
-                {{ vet.name }}
-              </option>
-            }
-          </select>
-        </mat-form-field>
+        <app-remote-search-selector
+          [label]="text().cats.form.vet"
+          [placeholder]="text().cats.form.vetSearchPlaceholder"
+          [disabled]="submitting()"
+          [lookup]="searchVets"
+          [optionId]="vetOptionId"
+          [optionLabel]="vetOptionLabel"
+          [initialOption]="initialVet()"
+          (selectionChange)="onVetSelection($event)"
+        />
 
         <a
           mat-stroked-button

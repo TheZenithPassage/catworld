@@ -71,11 +71,13 @@ describe('CatEditPage', () => {
   };
 
   const ownerApiService = {
-    getOwners: vi.fn(),
+    searchLookupOptions: vi.fn(),
+    getLookupOption: vi.fn(),
   };
 
   const vetApiService = {
-    getVets: vi.fn(),
+    searchVets: vi.fn(),
+    resolveVetLookupOption: vi.fn(),
   };
 
   const router = {
@@ -87,8 +89,14 @@ describe('CatEditPage', () => {
     router.navigate.mockResolvedValue(true);
     routeParams = { id: 'cat-1' };
     catApiService.getCatById.mockReturnValue(of(cat));
-    ownerApiService.getOwners.mockReturnValue(of(owners));
-    vetApiService.getVets.mockReturnValue(of(vets));
+    ownerApiService.searchLookupOptions.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
+    ownerApiService.getLookupOption.mockReturnValue(
+      of({ id: owners[0].id, fullName: owners[0].fullName, catNames: [] }),
+    );
+    vetApiService.searchVets.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
+    vetApiService.resolveVetLookupOption.mockReturnValue(
+      of({ id: vets[0].id, name: vets[0].name }),
+    );
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
@@ -172,7 +180,8 @@ describe('CatEditPage', () => {
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-remote-search-selector')).toHaveLength(2);
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe('Milo');
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();

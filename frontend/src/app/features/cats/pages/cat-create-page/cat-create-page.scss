@@ -29,6 +29,10 @@
   width: 100%;
 }
 
+.cat-form app-remote-search-selector {
+  min-width: 0;
+}
+
 .field-with-action {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

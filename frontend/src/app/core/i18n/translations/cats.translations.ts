@@ -11,9 +11,11 @@ export interface CatsTranslations {
     female: string;
     owner: string;
     selectOwner: string;
+    ownerSearchPlaceholder: string;
     createOwner: string;
     vet: string;
     noVet: string;
+    vetSearchPlaceholder: string;
     createVet: string;
     breed: string;
     coat: string;
@@ -113,9 +115,11 @@ export const CATS_TRANSLATIONS = {
       female: 'Hembra',
       owner: 'Dueño',
       selectOwner: 'Selecciona un dueño',
+      ownerSearchPlaceholder: 'Busca un dueño por nombre o gato',
       createOwner: 'Crear dueño',
       vet: 'Veterinario',
       noVet: 'Sin veterinario',
+      vetSearchPlaceholder: 'Busca un veterinario por nombre',
       createVet: 'Crear veterinario',
       breed: 'Raza',
       coat: 'Pelaje',
@@ -213,9 +217,11 @@ export const CATS_TRANSLATIONS = {
       female: 'Female',
       owner: 'Owner',
       selectOwner: 'Select an owner',
+      ownerSearchPlaceholder: 'Search owners by name or cat',
       createOwner: 'Create owner',
       vet: 'Vet',
       noVet: 'No vet',
+      vetSearchPlaceholder: 'Search vets by name',
       createVet: 'Create vet',
       breed: 'Breed',
       coat: 'Coat',

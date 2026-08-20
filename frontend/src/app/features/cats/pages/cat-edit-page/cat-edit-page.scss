@@ -37,6 +37,10 @@
   width: 100%;
 }
 
+.cat-form app-remote-search-selector {
+  min-width: 0;
+}
+
 .cat-form > app-ui-state,
 .cat-form > .form-actions,
 .cat-form > mat-form-field:has(textarea) {
