@@ -64,6 +64,40 @@ Main package responsibilities:
 
 The project keeps business rules out of controllers. Controllers delegate to services and focus on the HTTP contract.
 
+## Entity Lookup and Selection
+
+Owner, cat and vet selection uses focused domain lookup APIs instead of loading
+complete collections. Search requests use `GET /api/owners/search?q&page`,
+`GET /api/cats/search?q&page` and `GET /api/vets/search?q&page`. Each response
+has exactly `items`, `page` and `hasNext`: pages are zero-based, the server page
+size is five, at most one additional candidate is fetched to determine
+`hasNext`, and total counts are deliberately absent. A submitted query shorter
+than three characters and a negative page are rejected. The query-length check
+uses the raw submitted string and does not silently trim it.
+
+Each domain owns its lightweight lookup-option DTO and the context needed to
+identify its results. Selected identities are resolved independently through
+`GET /api/owners/{id}/lookup-option`,
+`GET /api/cats/{id}/lookup-option` and
+`GET /api/vets/{id}/lookup-option`, so a saved selection does not depend on its
+search page still being loaded. Search results use stable primary-name then
+UUID ordering and explicit MySQL `utf8mb4_0900_ai_ci` matching. Owner
+search first pages de-duplicated owner identities and only then loads the
+complete current-cat context for those owners; relationship joins therefore
+cannot duplicate owners or truncate the option context.
+
+Angular uses one shared, API-agnostic Angular Material selector for these
+domain contracts. A new search or requested page replaces the displayed option
+page rather than accumulating an unbounded client-side collection. Form state
+keeps selection explicit and the selected ID authoritative; display text never
+silently becomes a selected entity.
+
+This lookup contract introduces no full-collection loading, total count,
+schema change, external service, generic entity endpoint or service, or fuzzy
+matching. Its only generic backend support is the item-shaped page envelope and
+shared paging/input guard; repositories, option shapes, mappings and endpoint
+behavior remain domain-specific.
+
 ## Domain Model
 
 ### Main Entities
