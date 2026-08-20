@@ -555,9 +555,19 @@ the current issue-branch HEAD. For each affected slice:
    reuse the initial slice branch/worktree or any retained context.
 4. Create the branch at exactly correctionLaunchSha, add the exact worktree,
    record both identities and SHAs, and launch a fresh bounded worker through
-   catworld-implement-slice. Its handoff contains only the owned gap, original
-   slice responsibilities, exclusions, test ceiling, required evidence, exact
-   launch SHA, branch and worktree.
+   catworld-implement-slice with a complete valid correction handoff. Preserve
+   the complete original bounded slice handoff, then add the precise
+   global-completeness or post-sync finding and its allowed correction boundary.
+   Set both the correction starting commit and current local head to
+   correctionLaunchSha, and replace the original integrated-prerequisite field
+   with the behavior actually present at that correction starting head. Supply
+   the deterministic global-correction branch and absolute worktree path.
+   Retain every original approved decision and invariant, objective and required
+   behavior, assigned responsibility and source surface, exclusion, prohibited
+   path/action, permanent-test authorization and ceiling, and required
+   validation/freshness expectation, plus every other field required by
+   catworld-implement-slice. Keep the correction bounded to the finding; do not
+   pass the complete issue, spec.md, plan.md or tasks.md.
 5. Qualify the complete correctionQualificationBaseSha-to-branch delivery with
    section 8. If the issue branch advanced, treat the result as stale, rebase
    the unpublished correction branch onto the newly captured issue HEAD, set
@@ -629,8 +639,9 @@ Only after global completeness and fresh validation succeed:
    itself and deterministic conflict resolution intrinsic to that merge. It
    must not author behavioral or source adaptation directly. Assign any such
    post-sync gap to its existing slice and, only when the one global corrective
-   pass is still unused, run the fixed global-correction workflow from section
-   10 against the current synchronized HEAD. If that pass is exhausted,
+   pass is still unused, run the fixed global-correction workflow and its
+   complete correction-handoff contract from section 10 against the current
+   synchronized HEAD. If that pass is exhausted,
    ownership is ambiguous, scope would expand or a material decision is needed,
    stop. After an integrated correction, rerun completeness, scope, test-policy
    and affected validation gates against the same issueDiffBaseSha.
