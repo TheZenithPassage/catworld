@@ -98,15 +98,18 @@ not inspect, validate, change, replace or synchronize the parent's effort.
 Worker effort is never derived from parent effort.
 
 Independent slice reviewers use the project-scoped `catworld_slice_reviewer`
-role defined in `.codex/agents/catworld-slice-reviewer.toml`. Require that role
-to set `sandbox_mode = "read-only"` and omit model and reasoning-effort settings.
-On every fresh spawn, select that role, set `fork_turns="none"` and omit model,
+role defined in `.codex/agents/catworld-slice-reviewer.toml`. The current runtime
+does not technically enforce a read-only sandbox from that project-scoped role,
+so require behavioral read-only isolation through the role and reviewer-skill
+instructions. Require the role to omit model and reasoning-effort settings. On
+every fresh spawn, select that role, set `fork_turns="none"` and omit model,
 reasoning-effort and token-budget overrides so runtime inheritance preserves the
 parent task configuration without its conversation/history. Never apply
 workerReasoningEffort or any slice-worker reasoning policy to a reviewer. A
 resumed reviewer keeps its existing thread/configuration. Stop before review if
-the dedicated role is missing, not read-only, or fixes model or reasoning
-configuration.
+the dedicated role is missing, fixes model or reasoning configuration, or no
+longer instructs the reviewer to remain behaviorally read-only and never
+delegate.
 
 Before the first catworld-implement-slice spawn, select and record one immutable
 workerReasoningEffort for the run:

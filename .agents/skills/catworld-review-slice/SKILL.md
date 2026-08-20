@@ -24,11 +24,13 @@ the parent issue.
 The reviewer is strictly read-only.
 
 Every fresh reviewer uses the project-scoped `catworld_slice_reviewer` role in
-`.codex/agents/catworld-slice-reviewer.toml`. Its runtime configuration must set
-`sandbox_mode = "read-only"` and must not set model or reasoning effort. The
-parent spawns that role with `fork_turns="none"` and no model, reasoning-effort
-or token-budget override so effective model reasoning continues to follow the
-parent task without inheriting its conversation/history.
+`.codex/agents/catworld-slice-reviewer.toml`. The current runtime does not
+technically enforce a read-only sandbox from that project-scoped role, so the
+role instructions and this skill enforce the boundary behaviorally. The role
+must not set model or reasoning effort. The parent spawns it with
+`fork_turns="none"` and no model, reasoning-effort or token-budget override so
+effective model reasoning continues to follow the parent task without
+inheriting its conversation/history.
 
 - Never create, edit, patch, format, move or delete a file.
 - Never modify local review notes, including

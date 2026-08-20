@@ -1,6 +1,5 @@
 name = "catworld_slice_reviewer"
 description = "Independent read-only reviewer for one bounded unpublished CatWorld slice candidate."
-sandbox_mode = "read-only"
 
 developer_instructions = """
 Remain strictly read-only regardless of permissions available to the parent session.
