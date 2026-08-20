@@ -91,7 +91,7 @@ describe('CatEditPage', () => {
     catApiService.getCatById.mockReturnValue(of(cat));
     ownerApiService.searchLookupOptions.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
     ownerApiService.getLookupOption.mockReturnValue(
-      of({ id: owners[0].id, fullName: owners[0].fullName, catNames: [] }),
+      of({ id: owners[0].id, fullName: owners[0].fullName, cats: [] }),
     );
     vetApiService.searchVets.mockReturnValue(of({ items: [], page: 0, hasNext: false }));
     vetApiService.resolveVetLookupOption.mockReturnValue(
