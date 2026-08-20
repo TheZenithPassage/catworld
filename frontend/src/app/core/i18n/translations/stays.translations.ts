@@ -178,6 +178,7 @@ export interface StaysTranslations {
     submitting: string;
     errors: {
       loadFormDataFailed: string;
+      ownerRequired: string;
       selectAtLeastOneCat: string;
       datesRequired: string;
       endAfterStart: string;
@@ -388,6 +389,7 @@ export const STAYS_TRANSLATIONS = {
       submitting: 'Creando...',
       errors: {
         loadFormDataFailed: 'Error al cargar los datos del formulario',
+        ownerRequired: 'Selecciona un dueño de la lista',
         selectAtLeastOneCat: 'Selecciona al menos un gato',
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
@@ -596,6 +598,7 @@ export const STAYS_TRANSLATIONS = {
       submitting: 'Creating...',
       errors: {
         loadFormDataFailed: 'Error loading form data',
+        ownerRequired: 'Select an owner from the list',
         selectAtLeastOneCat: 'Select at least one cat',
         datesRequired: 'Start and end date are required',
         endAfterStart: 'End date must be after start date',

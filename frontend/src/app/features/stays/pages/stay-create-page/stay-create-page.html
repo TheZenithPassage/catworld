@@ -13,23 +13,17 @@
       }
 
       <div class="field-with-action">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().stays.create.owner }}</mat-label>
-          <select
-            matNativeControl
-            name="ownerId"
-            [ngModel]="selectedOwnerId()"
-            (ngModelChange)="onOwnerChange($event)"
-          >
-            <option value="">{{ text().stays.create.selectOwner }}</option>
-
-            @for (owner of owners(); track owner.id) {
-              <option [value]="owner.id">
-                {{ owner.fullName }}
-              </option>
-            }
-          </select>
-        </mat-form-field>
+        <app-remote-search-selector
+          [label]="text().stays.create.owner"
+          [placeholder]="text().stays.create.selectOwner"
+          [required]="true"
+          [disabled]="submitting()"
+          [lookup]="searchOwners"
+          [optionId]="ownerOptionId"
+          [optionLabel]="ownerOptionLabel"
+          [initialOption]="initialOwner()"
+          (selectionChange)="onOwnerSelection($event)"
+        />
 
         <a
           mat-stroked-button

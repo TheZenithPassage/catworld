@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -8,15 +8,13 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { RemoteSearchSelectorComponent } from '../../../../shared/remote-search-selector/remote-search-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Cat } from '../../../cats/models/cat.model';
-import { CatApiService } from '../../../cats/services/cat-api.service';
-import { Owner } from '../../../owners/models/owner.model';
+import { OwnerLookupOption, ownerLookupLabel } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import {
   VaccineConflictDialog,
@@ -45,6 +43,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatLabel,
     MatProgressSpinner,
     RouterLink,
+    RemoteSearchSelectorComponent,
     UiStateComponent,
   ],
   templateUrl: './stay-create-page.html',
@@ -52,7 +51,6 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 })
 export class StayCreatePage {
   private readonly ownerApiService = inject(OwnerApiService);
-  private readonly catApiService = inject(CatApiService);
   private readonly stayApiService = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -62,11 +60,17 @@ export class StayCreatePage {
 
   readonly text = this.i18nService.text;
 
-  readonly owners = signal<Owner[]>([]);
-  readonly cats = signal<Cat[]>([]);
+  private readonly ownerSelector = viewChild(RemoteSearchSelectorComponent<OwnerLookupOption>);
 
   readonly selectedOwnerId = signal('');
+  readonly selectedOwner = signal<OwnerLookupOption | null>(null);
+  readonly initialOwner = signal<OwnerLookupOption | null>(null);
   readonly selectedCatIds = signal<string[]>([]);
+
+  readonly searchOwners = (query: string, page: number) =>
+    this.ownerApiService.searchLookupOptions(query, page);
+  readonly ownerOptionId = (option: OwnerLookupOption) => option.id;
+  readonly ownerOptionLabel = ownerLookupLabel;
 
   readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
@@ -97,12 +101,8 @@ export class StayCreatePage {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
 
-  readonly filteredCats = computed(() =>
-    this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),
-  );
-  readonly selectedOwnerName = computed(
-    () => this.owners().find((owner) => owner.id === this.selectedOwnerId())?.fullName ?? '',
-  );
+  readonly filteredCats = computed(() => this.selectedOwner()?.cats ?? []);
+  readonly selectedOwnerName = computed(() => this.selectedOwner()?.fullName ?? '');
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;
     return (
@@ -138,14 +138,16 @@ export class StayCreatePage {
     this.loadingData.set(true);
     this.error.set(null);
 
-    forkJoin({
-      owners: this.ownerApiService.getOwners(),
-      cats: this.catApiService.getCats(),
-    }).subscribe({
-      next: ({ owners, cats }) => {
-        this.owners.set(owners);
-        this.cats.set(cats);
-        this.setInitialSelectionFromQueryParams();
+    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+    if (!queryOwnerId) {
+      this.loadingData.set(false);
+      return;
+    }
+
+    this.ownerApiService.getLookupOption(queryOwnerId).subscribe({
+      next: (owner) => {
+        this.initialOwner.set(owner);
+        this.applyOwnerSelection(owner, this.route.snapshot.queryParamMap.get('catId'));
         this.loadingData.set(false);
       },
       error: () => {
@@ -155,10 +157,9 @@ export class StayCreatePage {
     });
   }
 
-  onOwnerChange(ownerId: string): void {
+  onOwnerSelection(owner: OwnerLookupOption | null): void {
     this.clearVaccineOverrideRecovery();
-    this.selectedOwnerId.set(ownerId);
-    this.selectedCatIds.set([]);
+    this.applyOwnerSelection(owner, null);
     this.refreshPricingPreview();
   }
 
@@ -232,6 +233,12 @@ export class StayCreatePage {
 
   submit(): void {
     this.error.set(null);
+
+    this.ownerSelector()?.markAsTouched();
+    if (!this.selectedOwnerId()) {
+      this.error.set(this.text().stays.create.errors.ownerRequired);
+      return;
+    }
 
     if (this.selectedCatIds().length === 0) {
       this.error.set(this.text().stays.create.errors.selectAtLeastOneCat);
@@ -332,35 +339,19 @@ export class StayCreatePage {
       });
   }
 
-  private setInitialSelectionFromQueryParams(): void {
-    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
-    const queryCatId = this.route.snapshot.queryParamMap.get('catId');
-
-    if (!queryOwnerId) {
-      return;
-    }
-
-    const ownerExists = this.owners().some((owner) => owner.id === queryOwnerId);
-
-    if (!ownerExists) {
-      return;
-    }
-
-    this.selectedOwnerId.set(queryOwnerId);
-
-    if (!queryCatId) {
-      return;
-    }
-
-    const catExistsForOwner = this.cats().some(
-      (cat) => cat.id === queryCatId && cat.ownerId === queryOwnerId,
+  private applyOwnerSelection(
+    owner: OwnerLookupOption | null,
+    preferredCatId: string | null,
+  ): void {
+    this.selectedOwner.set(owner);
+    this.selectedOwnerId.set(owner?.id ?? '');
+    this.selectedCatIds.set(
+      owner && preferredCatId && owner.cats.some((cat) => cat.id === preferredCatId)
+        ? [preferredCatId]
+        : [],
     );
 
-    if (catExistsForOwner) {
-      this.selectedCatIds.set([queryCatId]);
-    }
-
-    this.refreshPricingPreview();
+    if (this.selectedCatIds().length > 0) this.refreshPricingPreview();
   }
 
   private refreshPricingPreview(): void {
