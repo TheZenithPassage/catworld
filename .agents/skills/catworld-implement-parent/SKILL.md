@@ -483,19 +483,49 @@ For each delivery, independently confirm:
 This is bounded implementation qualification, not pull-request review. Do not
 launch catworld_pr_reviewer.
 
-### One pre-integration correction
+### Progress-bounded qualification correction
 
 When qualification finds a clear, bounded and deterministic violation of the
-handoff, return that exact finding to a worker in the same worktree. Allow at
-most one automatic pre-integration correction round for that delivery.
+handoff, return that finding to the responsible slice worker in the same
+retained branch/worktree. Qualification may repeat this correction process
+without an arbitrary numeric round limit only while every round demonstrates
+concrete progress and remains within the original bounded handoff.
 
-The correction worker receives the original handoff, precise finding and
-current local head. It may add normal follow-up commits but must not amend,
-squash, publish or expand scope. Reapply test authorization, rerun affected
-validation and requalify the complete delivery.
+Prefer a follow-up turn to the same slice worker when its thread can still be
+resumed safely. Give each round the original bounded handoff and allowed
+correction boundary, the exact current local HEAD, and only the newly verified
+qualification finding. Keep the same branch/worktree. Every round must add
+normal follow-up commits; never amend, squash, publish or rewrite earlier
+commits. Record the ordered finding, resulting commits and verified progress so
+a fresh fallback worker cannot reset correction history.
 
-Stop the slice when the correction still cannot qualify, the same problem
-repeats without progress or any fix requires a new material decision.
+After every correction, reapply the original permanent-test authorization and
+source ownership, rerun all stale or affected validation, and requalify the
+complete delivery against its authoritative qualificationBaseSha. Never broaden
+scope, dependencies, approved decisions, source ownership or the permanent-test
+ceiling.
+
+Stop correction instead of continuing when:
+
+- the same material finding repeats without meaningful progress;
+- fixes oscillate between previously rejected states;
+- a new product, architecture, authorization, persistence, shared-contract,
+  UX, correctness-sensitive, operational or scope decision is required;
+- the finding cannot be satisfied within assigned source ownership or the
+  existing permanent-test ceiling;
+- the worker cannot produce fresh required validation; or
+- the local branch/worktree state becomes unreliable.
+
+If runtime lifecycle limitations make the original worker thread unavailable,
+launch a fresh catworld-implement-slice worker in the same retained
+branch/worktree with the complete bounded correction handoff, exact current HEAD
+and full ordered progress/finding history. This fallback continues the same
+delivery and does not reset or widen it.
+
+Apply this policy whenever section 8 qualification is used for an initial slice,
+a stale/rebased slice, a dependency-repair delivery or a global-correction
+delivery. It does not change the one dependency-repair-per-prerequisite limit or
+the one global corrective pass.
 
 ### One dependency repair per prerequisite
 
@@ -511,8 +541,8 @@ from the original execution map, edge contract and prerequisite handoff that:
 
 Stop on ambiguous ownership, new scope or a material decision. Otherwise allow
 at most one dependency repair for that prerequisite in the run. This allowance
-is separate from its original pre-integration correction and from the one global
-corrective pass; record a dedicated repair count.
+is separate from the delivery's progress-bounded qualification corrections and
+from the one global corrective pass; record a dedicated repair count.
 
 Use exactly:
 
