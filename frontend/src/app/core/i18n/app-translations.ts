@@ -23,6 +23,7 @@ import {
   SENSITIVE_ACTIVITY_TRANSLATIONS,
   SensitiveActivityTranslations,
 } from './translations/sensitive-activity.translations';
+import { LOOKUP_TRANSLATIONS, LookupTranslations } from './translations/lookup.translations';
 
 export interface AppTranslations {
   app: AppShellTranslations;
@@ -37,6 +38,7 @@ export interface AppTranslations {
   accounts: AccountsTranslations;
   nightlyRates: NightlyRatesTranslations;
   sensitiveActivity: SensitiveActivityTranslations;
+  lookup: LookupTranslations;
 }
 
 export const APP_TRANSLATIONS = {
@@ -53,6 +55,7 @@ export const APP_TRANSLATIONS = {
     accounts: ACCOUNTS_TRANSLATIONS.es,
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.es,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.es,
+    lookup: LOOKUP_TRANSLATIONS.es,
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
@@ -67,5 +70,6 @@ export const APP_TRANSLATIONS = {
     accounts: ACCOUNTS_TRANSLATIONS.en,
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.en,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.en,
+    lookup: LOOKUP_TRANSLATIONS.en,
   },
 } satisfies Record<AppLanguage, AppTranslations>;

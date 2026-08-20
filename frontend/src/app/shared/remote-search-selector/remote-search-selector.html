@@ -1,0 +1,90 @@
+<div class="remote-search-selector" [attr.aria-busy]="loading()">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ label() }}</mat-label>
+    <input
+      #searchInput
+      matInput
+      type="text"
+      autocomplete="off"
+      [placeholder]="placeholder()"
+      [required]="required()"
+      [disabled]="disabled()"
+      [value]="searchText()"
+      [attr.aria-invalid]="!isValid()"
+      [matAutocomplete]="autocomplete"
+      (input)="onSearchTextInput($event)"
+      (blur)="onBlur()"
+    />
+
+    <mat-autocomplete
+      #autocomplete="matAutocomplete"
+      [autoActiveFirstOption]="false"
+      [displayWith]="displayOption"
+      (optionSelected)="selectFromAutocomplete($event)"
+    >
+      @for (option of results(); track optionId()(option)) {
+        <mat-option class="remote-search-option" [value]="option">
+          <span class="remote-search-option-label">{{ optionLabel()(option) }}</span>
+        </mat-option>
+      }
+    </mat-autocomplete>
+  </mat-form-field>
+
+  @if (showSelectionError()) {
+    <p class="selection-error" role="alert">
+      {{
+        selectionError() === 'required'
+          ? text().lookup.errors.required
+          : text().lookup.errors.unresolved
+      }}
+    </p>
+  }
+
+  @if (hasSubmittedQuery() && selectedOption() === null) {
+    @if (loading()) {
+      <p class="search-state" role="status" aria-live="polite">
+        {{ text().lookup.loading }}
+      </p>
+    } @else if (searchFailed()) {
+      <p class="search-state search-state--error" role="alert">
+        {{ text().lookup.error }}
+      </p>
+    } @else if (searchCompleted() && results().length === 0) {
+      <p class="search-state" role="status" aria-live="polite">
+        {{ text().lookup.empty }}
+      </p>
+    }
+
+    @if (searchCompleted() && results().length > 0 && (page() > 0 || hasNext())) {
+      <nav class="pagination" [attr.aria-label]="text().lookup.navigation.label">
+        @if (page() > 0) {
+          <button
+            mat-stroked-button
+            type="button"
+            (mousedown)="$event.preventDefault()"
+            (click)="previousPage()"
+          >
+            {{ text().lookup.navigation.previous }}
+          </button>
+        }
+
+        @if (hasNext()) {
+          <button
+            mat-stroked-button
+            type="button"
+            (mousedown)="$event.preventDefault()"
+            (click)="nextPage()"
+          >
+            {{ text().lookup.navigation.next }}
+          </button>
+        }
+      </nav>
+    }
+  }
+
+  @if (canClear()) {
+    <button class="clear-selection" mat-button type="button" (click)="clear()">
+      {{ text().lookup.clear }}
+    </button>
+  }
+</div>
