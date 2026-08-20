@@ -37,6 +37,7 @@ export interface CatsTranslations {
     errors: {
       loadFormDataFailed: string;
       nameRequired: string;
+      nameLength: string;
       birthDateRequired: string;
       sexRequired: string;
       ownerRequired: string;
@@ -55,6 +56,7 @@ export interface CatsTranslations {
       loadFormDataFailed: string;
       dataNotLoaded: string;
       nameRequired: string;
+      nameLength: string;
       birthDateRequired: string;
       sexRequired: string;
       ownerRequired: string;
@@ -137,6 +139,7 @@ export const CATS_TRANSLATIONS = {
       errors: {
         loadFormDataFailed: 'Error al cargar los datos del formulario',
         nameRequired: 'El nombre es obligatorio',
+        nameLength: 'El nombre debe tener entre 3 y 100 caracteres',
         birthDateRequired: 'La fecha de nacimiento es obligatoria',
         sexRequired: 'El sexo es obligatorio',
         ownerRequired: 'El dueño es obligatorio',
@@ -155,6 +158,7 @@ export const CATS_TRANSLATIONS = {
         loadFormDataFailed: 'Error al cargar los datos del formulario del gato',
         dataNotLoaded: 'Los datos del gato no están cargados',
         nameRequired: 'El nombre es obligatorio',
+        nameLength: 'El nombre debe tener entre 3 y 100 caracteres',
         birthDateRequired: 'La fecha de nacimiento es obligatoria',
         sexRequired: 'El sexo es obligatorio',
         ownerRequired: 'El dueño es obligatorio',
@@ -235,6 +239,7 @@ export const CATS_TRANSLATIONS = {
       errors: {
         loadFormDataFailed: 'Error loading form data',
         nameRequired: 'Name is required',
+        nameLength: 'Name must be between 3 and 100 characters',
         birthDateRequired: 'Birth date is required',
         sexRequired: 'Sex is required',
         ownerRequired: 'Owner is required',
@@ -253,6 +258,7 @@ export const CATS_TRANSLATIONS = {
         loadFormDataFailed: 'Error loading cat form data',
         dataNotLoaded: 'Cat data is not loaded',
         nameRequired: 'Name is required',
+        nameLength: 'Name must be between 3 and 100 characters',
         birthDateRequired: 'Birth date is required',
         sexRequired: 'Sex is required',
         ownerRequired: 'Owner is required',

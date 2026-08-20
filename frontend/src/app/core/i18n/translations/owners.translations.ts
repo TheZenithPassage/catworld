@@ -18,6 +18,7 @@ export interface OwnersTranslations {
     submitting: string;
     errors: {
       fullNameRequired: string;
+      fullNameLength: string;
       primaryPhoneRequired: string;
       createFailed: string;
     };
@@ -33,6 +34,7 @@ export interface OwnersTranslations {
       ownerIdMissing: string;
       loadFailed: string;
       fullNameRequired: string;
+      fullNameLength: string;
       primaryPhoneRequired: string;
       updateFailed: string;
     };
@@ -84,6 +86,7 @@ export const OWNERS_TRANSLATIONS = {
       submitting: 'Creando...',
       errors: {
         fullNameRequired: 'El nombre completo es obligatorio',
+        fullNameLength: 'El nombre completo debe tener entre 3 y 100 caracteres',
         primaryPhoneRequired: 'El teléfono principal es obligatorio',
         createFailed: 'Error al crear el dueño',
       },
@@ -99,6 +102,7 @@ export const OWNERS_TRANSLATIONS = {
         ownerIdMissing: 'Falta el id del dueño',
         loadFailed: 'Error al cargar el dueño',
         fullNameRequired: 'El nombre completo es obligatorio',
+        fullNameLength: 'El nombre completo debe tener entre 3 y 100 caracteres',
         primaryPhoneRequired: 'El teléfono principal es obligatorio',
         updateFailed: 'Error al actualizar el dueño',
       },
@@ -148,6 +152,7 @@ export const OWNERS_TRANSLATIONS = {
       submitting: 'Creating...',
       errors: {
         fullNameRequired: 'Full name is required',
+        fullNameLength: 'Full name must be between 3 and 100 characters',
         primaryPhoneRequired: 'Primary phone is required',
         createFailed: 'Error creating owner',
       },
@@ -163,6 +168,7 @@ export const OWNERS_TRANSLATIONS = {
         ownerIdMissing: 'Owner id is missing',
         loadFailed: 'Error loading owner',
         fullNameRequired: 'Full name is required',
+        fullNameLength: 'Full name must be between 3 and 100 characters',
         primaryPhoneRequired: 'Primary phone is required',
         updateFailed: 'Error updating owner',
       },

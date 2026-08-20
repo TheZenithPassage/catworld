@@ -9,6 +9,10 @@ import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import {
+  EntityNameLengthDirective,
+  isEntityNameLengthValid,
+} from '../../../../shared/forms/entity-name-length.directive';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../../owners/models/owner.model';
@@ -28,6 +32,7 @@ import { CatApiService } from '../../services/cat-api.service';
     MatInput,
     MatLabel,
     RouterLink,
+    EntityNameLengthDirective,
     TrimRequiredDirective,
     UiStateComponent,
   ],
@@ -127,8 +132,15 @@ export class CatEditPage {
       return;
     }
 
-    if (!this.name().trim()) {
+    const trimmedName = this.name().trim();
+
+    if (!trimmedName) {
       this.nameError.set(this.text().cats.edit.errors.nameRequired);
+      return;
+    }
+
+    if (!isEntityNameLengthValid(trimmedName)) {
+      this.nameError.set(this.text().cats.edit.errors.nameLength);
       return;
     }
 
@@ -148,7 +160,7 @@ export class CatEditPage {
     }
 
     const request: UpdateCatRequest = {
-      name: this.name().trim(),
+      name: trimmedName,
       birthDate: this.birthDate(),
       sex: this.sex() as Sex,
       breed: this.toNullableString(this.breed()),

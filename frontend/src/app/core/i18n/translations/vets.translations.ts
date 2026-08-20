@@ -14,6 +14,7 @@ export interface VetsTranslations {
     submitting: string;
     errors: {
       nameRequired: string;
+      nameLength: string;
       createFailed: string;
     };
   };
@@ -29,6 +30,7 @@ export interface VetsTranslations {
       loadFailed: string;
       dataNotLoaded: string;
       nameRequired: string;
+      nameLength: string;
       updateFailed: string;
     };
   };
@@ -69,6 +71,7 @@ export const VETS_TRANSLATIONS = {
       submitting: 'Creando...',
       errors: {
         nameRequired: 'El nombre es obligatorio',
+        nameLength: 'El nombre debe tener entre 3 y 100 caracteres',
         createFailed: 'Error al crear el veterinario',
       },
     },
@@ -84,6 +87,7 @@ export const VETS_TRANSLATIONS = {
         loadFailed: 'Error al cargar el veterinario',
         dataNotLoaded: 'Los datos del veterinario no están cargados',
         nameRequired: 'El nombre es obligatorio',
+        nameLength: 'El nombre debe tener entre 3 y 100 caracteres',
         updateFailed: 'Error al actualizar el veterinario',
       },
     },
@@ -122,6 +126,7 @@ export const VETS_TRANSLATIONS = {
       submitting: 'Creating...',
       errors: {
         nameRequired: 'Name is required',
+        nameLength: 'Name must be between 3 and 100 characters',
         createFailed: 'Error creating vet',
       },
     },
@@ -137,6 +142,7 @@ export const VETS_TRANSLATIONS = {
         loadFailed: 'Error loading vet',
         dataNotLoaded: 'Vet data is not loaded',
         nameRequired: 'Name is required',
+        nameLength: 'Name must be between 3 and 100 characters',
         updateFailed: 'Error updating vet',
       },
     },

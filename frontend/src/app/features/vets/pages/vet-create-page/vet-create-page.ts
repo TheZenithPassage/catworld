@@ -8,6 +8,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import {
+  EntityNameLengthDirective,
+  isEntityNameLengthValid,
+} from '../../../../shared/forms/entity-name-length.directive';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { CreateVetRequest } from '../../models/vet.model';
@@ -22,6 +26,7 @@ import { VetApiService } from '../../services/vet-api.service';
     MatFormField,
     MatInput,
     MatLabel,
+    EntityNameLengthDirective,
     TrimRequiredDirective,
     UiStateComponent,
   ],
@@ -48,13 +53,20 @@ export class VetCreatePage {
     this.error.set(null);
     this.clearValidationErrors();
 
-    if (!this.name().trim()) {
+    const trimmedName = this.name().trim();
+
+    if (!trimmedName) {
       this.nameError.set(this.text().vets.create.errors.nameRequired);
       return;
     }
 
+    if (!isEntityNameLengthValid(trimmedName)) {
+      this.nameError.set(this.text().vets.create.errors.nameLength);
+      return;
+    }
+
     const request: CreateVetRequest = {
-      name: this.name().trim(),
+      name: trimmedName,
       address: this.toNullableString(this.address()),
       phoneNumber: this.toNullableString(this.phoneNumber()),
     };

@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.validation.TrimmedSize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -11,7 +12,7 @@ import lombok.*;
 public class OwnerRequestDTO {
 
     @NotBlank(message = "Full name is required")
-    @Size(max = 100, message = "Full name must not exceed 100 characters")
+    @TrimmedSize(min = 3, max = 100, message = "Full name must be between 3 and 100 characters")
     private String fullName;
 
     @Size(max = 100, message = "Address must not exceed 100 characters")

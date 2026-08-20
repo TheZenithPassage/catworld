@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import com.allegaeon.catworld.model.Sex;
+import com.allegaeon.catworld.validation.TrimmedSize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -17,7 +18,7 @@ import java.util.UUID;
 public class CatRequestDTO {
 
     @NotBlank(message = "Name is required")
-    @Size(max = 100, message = "Name must not exceed 100 characters")
+    @TrimmedSize(min = 3, max = 100, message = "Name must be between 3 and 100 characters")
     private String name;
 
     @NotNull(message = "Birth date is required")

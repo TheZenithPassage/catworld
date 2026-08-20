@@ -8,6 +8,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import {
+  EntityNameLengthDirective,
+  isEntityNameLengthValid,
+} from '../../../../shared/forms/entity-name-length.directive';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner, UpdateOwnerRequest } from '../../models/owner.model';
@@ -23,6 +27,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
     MatFormField,
     MatInput,
     MatLabel,
+    EntityNameLengthDirective,
     TrimRequiredDirective,
     UiStateComponent,
   ],
@@ -91,8 +96,15 @@ export class OwnerEditPage {
       return;
     }
 
-    if (!this.fullName().trim()) {
+    const trimmedFullName = this.fullName().trim();
+
+    if (!trimmedFullName) {
       this.fullNameError.set(this.text().owners.edit.errors.fullNameRequired);
+      return;
+    }
+
+    if (!isEntityNameLengthValid(trimmedFullName)) {
+      this.fullNameError.set(this.text().owners.edit.errors.fullNameLength);
       return;
     }
 
@@ -102,7 +114,7 @@ export class OwnerEditPage {
     }
 
     const request: UpdateOwnerRequest = {
-      fullName: this.fullName().trim(),
+      fullName: trimmedFullName,
       address: this.toNullableString(this.address()),
       primaryPhone: this.primaryPhone().trim(),
       secondaryPhone: this.toNullableString(this.secondaryPhone()),
