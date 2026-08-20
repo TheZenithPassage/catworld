@@ -15,7 +15,7 @@ describe('StaySearchFiltersComponent', () => {
   const grace: OwnerLookupOption = {
     id: 'owner-2',
     fullName: 'Grace Hopper',
-    catNames: ['Luna'],
+    cats: [{ id: 'cat-luna', name: 'Luna' }],
   };
 
   let component: StaySearchFiltersComponent;
