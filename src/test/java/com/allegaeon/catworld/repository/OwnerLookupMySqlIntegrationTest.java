@@ -57,6 +57,8 @@ class OwnerLookupMySqlIntegrationTest {
                 """, bytes(creatorId), "lookup-" + marker);
 
         UUID resolvedId = null;
+        UUID miloId = null;
+        UUID zoeId = null;
         for (int index = 0; index < 7; index++) {
             UUID ownerId = UUID.randomUUID();
             String ownerName = index == 0
@@ -69,8 +71,10 @@ class OwnerLookupMySqlIntegrationTest {
                     """, bytes(ownerId), ownerName, bytes(creatorId));
             if (index == 0) {
                 resolvedId = ownerId;
-                insertCat(UUID.randomUUID(), ownerId, creatorId, "Mílo");
-                insertCat(UUID.randomUUID(), ownerId, creatorId, "Zoe");
+                miloId = UUID.randomUUID();
+                zoeId = UUID.randomUUID();
+                insertCat(miloId, ownerId, creatorId, "Mílo");
+                insertCat(zoeId, ownerId, creatorId, "Zoe");
             } else {
                 insertCat(UUID.randomUUID(), ownerId, creatorId, marker + " cat " + index);
             }
@@ -80,7 +84,10 @@ class OwnerLookupMySqlIntegrationTest {
         assertEquals(5, firstPage.items().size());
         assertTrue(firstPage.hasNext());
         assertEquals(marker + " Álvaro Owner", firstPage.items().get(0).fullName());
-        assertEquals(List.of("Mílo", "Zoe"), firstPage.items().get(0).catNames());
+        assertEquals(List.of(miloId, zoeId), firstPage.items().get(0).cats().stream()
+                .map(cat -> cat.id()).toList());
+        assertEquals(List.of("Mílo", "Zoe"), firstPage.items().get(0).cats().stream()
+                .map(cat -> cat.name()).toList());
         assertEquals(5, firstPage.items().stream().map(OwnerLookupOptionDTO::id).distinct().count());
 
         var accentInsensitiveMatch = ownerService.searchLookupOptions("alvaro", 0);
@@ -94,7 +101,8 @@ class OwnerLookupMySqlIntegrationTest {
         assertFalse(secondPage.hasNext());
 
         OwnerLookupOptionDTO resolved = ownerService.getLookupOption(resolvedId);
-        assertEquals(List.of("Mílo", "Zoe"), resolved.catNames());
+        assertEquals(List.of(miloId, zoeId), resolved.cats().stream().map(cat -> cat.id()).toList());
+        assertEquals(List.of("Mílo", "Zoe"), resolved.cats().stream().map(cat -> cat.name()).toList());
 
         assertThrows(BadRequestException.class, () -> ownerService.searchLookupOptions("ab", 0));
         assertThrows(BadRequestException.class, () -> ownerService.searchLookupOptions("valid", -1));

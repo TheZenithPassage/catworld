@@ -21,10 +21,15 @@ export interface CreateOwnerRequest {
 
 export type UpdateOwnerRequest = CreateOwnerRequest;
 
+export interface OwnerLookupCat {
+  id: string;
+  name: string;
+}
+
 export interface OwnerLookupOption {
   id: string;
   fullName: string;
-  catNames: string[];
+  cats: OwnerLookupCat[];
 }
 
 export interface OwnerLookupPage {
@@ -34,7 +39,7 @@ export interface OwnerLookupPage {
 }
 
 export function ownerLookupLabel(option: OwnerLookupOption): string {
-  return option.catNames.length > 0
-    ? `${option.fullName} (${option.catNames.join(', ')})`
+  return option.cats.length > 0
+    ? `${option.fullName} (${option.cats.map((cat) => cat.name).join(', ')})`
     : option.fullName;
 }

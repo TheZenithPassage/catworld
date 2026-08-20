@@ -8,6 +8,7 @@ import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IOwnerService;
 import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.OwnerLookupCatDTO;
 import com.allegaeon.catworld.dto.lookup.OwnerLookupOptionDTO;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,16 +44,22 @@ public class OwnerControllerTest {
         @Test
         void shouldReturnOwnerLookupPage() throws Exception {
             UUID ownerId = UUID.randomUUID();
+            UUID miloId = UUID.randomUUID();
+            UUID zoeId = UUID.randomUUID();
             when(ownerService.searchLookupOptions("milo", 2)).thenReturn(
                     new LookupPageResponseDTO<>(List.of(
-                            new OwnerLookupOptionDTO(ownerId, "Ana Owner", List.of("Milo", "Zoe"))),
+                            new OwnerLookupOptionDTO(ownerId, "Ana Owner", List.of(
+                                    new OwnerLookupCatDTO(miloId, "Milo"),
+                                    new OwnerLookupCatDTO(zoeId, "Zoe")))),
                             2,
                             true));
 
             mockMvc.perform(get("/api/owners/search").param("q", "milo").param("page", "2"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items[0].id").value(ownerId.toString()))
-                    .andExpect(jsonPath("$.items[0].catNames[1]").value("Zoe"))
+                    .andExpect(jsonPath("$.items[0].cats[0].id").value(miloId.toString()))
+                    .andExpect(jsonPath("$.items[0].cats[1].id").value(zoeId.toString()))
+                    .andExpect(jsonPath("$.items[0].cats[1].name").value("Zoe"))
                     .andExpect(jsonPath("$.page").value(2))
                     .andExpect(jsonPath("$.hasNext").value(true));
 
@@ -73,13 +80,16 @@ public class OwnerControllerTest {
         @Test
         void shouldResolveOwnerLookupOption() throws Exception {
             UUID ownerId = UUID.randomUUID();
+            UUID catId = UUID.randomUUID();
             when(ownerService.getLookupOption(ownerId)).thenReturn(
-                    new OwnerLookupOptionDTO(ownerId, "Ana Owner", List.of("Milo")));
+                    new OwnerLookupOptionDTO(ownerId, "Ana Owner", List.of(
+                            new OwnerLookupCatDTO(catId, "Milo"))));
 
             mockMvc.perform(get("/api/owners/{id}/lookup-option", ownerId))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(ownerId.toString()))
-                    .andExpect(jsonPath("$.catNames[0]").value("Milo"));
+                    .andExpect(jsonPath("$.cats[0].id").value(catId.toString()))
+                    .andExpect(jsonPath("$.cats[0].name").value("Milo"));
 
             verify(ownerService).getLookupOption(ownerId);
         }

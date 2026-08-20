@@ -31,7 +31,7 @@ public interface OwnerRepository extends JpaRepository<Owner, UUID> {
     Set<UUID> findOwnerIdsReferencedByCats(@Param("candidateIds") Collection<UUID> candidateIds);
 
     @Query(value = """
-            select o.id as id, o.full_name as fullName
+            select bin_to_uuid(o.id) as id, o.full_name as fullName
             from owners o
             where o.full_name collate utf8mb4_0900_ai_ci
                     like concat('%', convert(:query using utf8mb4) collate utf8mb4_0900_ai_ci, '%')
@@ -49,14 +49,14 @@ public interface OwnerRepository extends JpaRepository<Owner, UUID> {
             Pageable pageable);
 
     @Query(value = """
-            select o.id as id, o.full_name as fullName
+            select bin_to_uuid(o.id) as id, o.full_name as fullName
             from owners o
             where o.id = :id
             """, nativeQuery = true)
     OwnerLookupCandidateProjection findLookupCandidateById(@Param("id") UUID id);
 
     @Query(value = """
-            select c.owner_id as ownerId, c.name as name
+            select bin_to_uuid(c.owner_id) as ownerId, bin_to_uuid(c.id) as id, c.name as name
             from cats c
             where c.owner_id in :ownerIds
             order by c.owner_id, c.name collate utf8mb4_0900_ai_ci, c.id

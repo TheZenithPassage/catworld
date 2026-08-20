@@ -49,6 +49,13 @@ describe('OwnerApiService', () => {
 
     const request = httpTestingController.expectOne(`${API_BASE_URL}/owners/owner-1/lookup-option`);
     expect(request.request.method).toBe('GET');
-    request.flush({ id: 'owner-1', fullName: 'Ana Owner', catNames: ['Milo', 'Zoe'] });
+    request.flush({
+      id: 'owner-1',
+      fullName: 'Ana Owner',
+      cats: [
+        { id: 'cat-1', name: 'Milo' },
+        { id: 'cat-2', name: 'Zoe' },
+      ],
+    });
   });
 });

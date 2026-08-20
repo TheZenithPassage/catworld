@@ -5,5 +5,7 @@ import java.util.UUID;
 public interface OwnerLookupCatProjection {
     UUID getOwnerId();
 
+    UUID getId();
+
     String getName();
 }

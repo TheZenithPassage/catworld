@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.OwnerLookupCatDTO;
 import com.allegaeon.catworld.dto.lookup.OwnerLookupOptionDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -83,12 +84,12 @@ public class OwnerService implements IOwnerService {
         var candidates = ownerRepository.searchLookupCandidates(
                 query,
                 LookupPageSupport.pageRequest(query, page));
-        var catNamesByOwner = catNamesByOwner(candidates.getContent().stream()
+        var catsByOwner = catsByOwner(candidates.getContent().stream()
                 .map(OwnerLookupCandidateProjection::getId)
                 .toList());
         return LookupPageSupport.toResponse(candidates.map(candidate -> toLookupOption(
                 candidate,
-                catNamesByOwner.getOrDefault(candidate.getId(), List.of()))));
+                catsByOwner.getOrDefault(candidate.getId(), List.of()))));
     }
 
     @Override
@@ -98,7 +99,7 @@ public class OwnerService implements IOwnerService {
         if (candidate == null) {
             throw new ResourceNotFoundException("Owner", id);
         }
-        return toLookupOption(candidate, catNamesByOwner(List.of(id)).getOrDefault(id, List.of()));
+        return toLookupOption(candidate, catsByOwner(List.of(id)).getOrDefault(id, List.of()));
     }
 
     @Override
@@ -150,22 +151,22 @@ public class OwnerService implements IOwnerService {
         return ownerMapper.toResponseDTO(owner, canDelete);
     }
 
-    private java.util.Map<UUID, List<String>> catNamesByOwner(List<UUID> ownerIds) {
+    private java.util.Map<UUID, List<OwnerLookupCatDTO>> catsByOwner(List<UUID> ownerIds) {
         if (ownerIds.isEmpty()) {
             return java.util.Map.of();
         }
-        java.util.Map<UUID, List<String>> result = new LinkedHashMap<>();
+        java.util.Map<UUID, List<OwnerLookupCatDTO>> result = new LinkedHashMap<>();
         for (OwnerLookupCatProjection cat : ownerRepository.findLookupCats(ownerIds)) {
             result.computeIfAbsent(cat.getOwnerId(), ignored -> new java.util.ArrayList<>())
-                    .add(cat.getName());
+                    .add(new OwnerLookupCatDTO(cat.getId(), cat.getName()));
         }
         return result;
     }
 
     private OwnerLookupOptionDTO toLookupOption(
             OwnerLookupCandidateProjection candidate,
-            List<String> catNames) {
-        return new OwnerLookupOptionDTO(candidate.getId(), candidate.getFullName(), catNames);
+            List<OwnerLookupCatDTO> cats) {
+        return new OwnerLookupOptionDTO(candidate.getId(), candidate.getFullName(), cats);
     }
 
 }
