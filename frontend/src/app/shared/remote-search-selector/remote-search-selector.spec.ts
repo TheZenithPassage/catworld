@@ -108,7 +108,7 @@ describe('RemoteSearchSelectorComponent', () => {
     expect(fixture.nativeElement.querySelector('.clear-selection')).toBeNull();
     expect(document.querySelector('.remote-search-option')).toBeNull();
 
-    enterText('  abc  ');
+    enterText('  a');
     await vi.advanceTimersByTimeAsync(249);
     expect(lookup).not.toHaveBeenCalled();
 
@@ -116,10 +116,10 @@ describe('RemoteSearchSelectorComponent', () => {
     fixture.detectChanges();
 
     expect(lookup).toHaveBeenCalledOnce();
-    expect(lookup).toHaveBeenCalledWith('abc', 0);
+    expect(lookup).toHaveBeenCalledWith('  a', 0);
     expect(fixture.nativeElement.textContent).toContain(component.text().lookup.loading);
 
-    respond('abc', 0, []);
+    respond('  a', 0, []);
     expect(fixture.nativeElement.textContent).toContain(component.text().lookup.empty);
   });
 
@@ -128,7 +128,7 @@ describe('RemoteSearchSelectorComponent', () => {
     await finishDebounce();
     const staleQueryResponse = responses.get('first:0');
 
-    enterText('second');
+    enterText(' second ');
     await finishDebounce();
     staleQueryResponse?.next({ items: [firstOption], hasNext: true });
     fixture.detectChanges();
@@ -136,23 +136,23 @@ describe('RemoteSearchSelectorComponent', () => {
     expect(component.results()).toEqual([]);
     expect(component.loading()).toBe(true);
 
-    respond('second', 0, [secondOption], true);
+    respond(' second ', 0, [secondOption], true);
     expect(component.results()).toEqual([secondOption]);
     expect(fixture.nativeElement.textContent).toContain(component.text().lookup.navigation.next);
     expect(fixture.nativeElement.textContent).not.toContain(
       component.text().lookup.navigation.previous,
     );
 
-    const stalePageResponse = responses.get('second:0');
+    const stalePageResponse = responses.get(' second :0');
     component.nextPage();
     fixture.detectChanges();
 
-    expect(lookup).toHaveBeenLastCalledWith('second', 1);
+    expect(lookup).toHaveBeenLastCalledWith(' second ', 1);
     expect(component.results()).toEqual([]);
     expect(component.page()).toBe(1);
 
     stalePageResponse?.next({ items: [firstOption], hasNext: false });
-    respond('second', 1, [longOption], false);
+    respond(' second ', 1, [longOption], false);
 
     expect(component.results()).toEqual([longOption]);
     expect(component.results()).not.toContain(secondOption);

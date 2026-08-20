@@ -132,7 +132,7 @@ export class RemoteSearchSelectorComponent<T> implements OnDestroy {
       this.selectionChange.emit(null);
     }
 
-    const query = value.trim();
+    const query = value;
     if (query.length < 3) {
       return;
     }
@@ -208,7 +208,7 @@ export class RemoteSearchSelectorComponent<T> implements OnDestroy {
   }
 
   private submittedQuery(): string {
-    return this.searchText().trim();
+    return this.searchText();
   }
 
   private loadPage(page: number): void {
