@@ -20,3 +20,21 @@ export interface CreateOwnerRequest {
 }
 
 export type UpdateOwnerRequest = CreateOwnerRequest;
+
+export interface OwnerLookupOption {
+  id: string;
+  fullName: string;
+  catNames: string[];
+}
+
+export interface OwnerLookupPage {
+  items: OwnerLookupOption[];
+  page: number;
+  hasNext: boolean;
+}
+
+export function ownerLookupLabel(option: OwnerLookupOption): string {
+  return option.catNames.length > 0
+    ? `${option.fullName} (${option.catNames.join(', ')})`
+    : option.fullName;
+}

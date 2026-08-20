@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.OwnerLookupOptionDTO;
 import com.allegaeon.catworld.service.IOwnerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,18 @@ public class OwnerController {
     @GetMapping("/{id}")
     public ResponseEntity<OwnerResponseDTO> getOwner(@PathVariable UUID id) {
         return ResponseEntity.ok(ownerService.getOwner(id));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<LookupPageResponseDTO<OwnerLookupOptionDTO>> searchLookupOptions(
+            @RequestParam("q") String query,
+            @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(ownerService.searchLookupOptions(query, page));
+    }
+
+    @GetMapping("/{id}/lookup-option")
+    public ResponseEntity<OwnerLookupOptionDTO> getLookupOption(@PathVariable UUID id) {
+        return ResponseEntity.ok(ownerService.getLookupOption(id));
     }
 
     @PostMapping

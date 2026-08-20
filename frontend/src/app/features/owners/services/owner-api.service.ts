@@ -3,7 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateOwnerRequest, Owner, UpdateOwnerRequest } from '../models/owner.model';
+import {
+  CreateOwnerRequest,
+  Owner,
+  OwnerLookupOption,
+  OwnerLookupPage,
+  UpdateOwnerRequest,
+} from '../models/owner.model';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +24,16 @@ export class OwnerApiService {
 
   getOwnerById(ownerId: string): Observable<Owner> {
     return this.http.get<Owner>(`${this.baseUrl}/${ownerId}`);
+  }
+
+  searchLookupOptions(query: string, page: number): Observable<OwnerLookupPage> {
+    return this.http.get<OwnerLookupPage>(`${this.baseUrl}/search`, {
+      params: { q: query, page },
+    });
+  }
+
+  getLookupOption(ownerId: string): Observable<OwnerLookupOption> {
+    return this.http.get<OwnerLookupOption>(`${this.baseUrl}/${ownerId}/lookup-option`);
   }
 
   createOwner(request: CreateOwnerRequest): Observable<Owner> {

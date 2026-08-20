@@ -2,12 +2,17 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
+import com.allegaeon.catworld.dto.lookup.OwnerLookupOptionDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.OwnerRepository;
+import com.allegaeon.catworld.repository.projection.OwnerLookupCandidateProjection;
+import com.allegaeon.catworld.repository.projection.OwnerLookupCatProjection;
+import com.allegaeon.catworld.service.lookup.LookupPageSupport;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -72,6 +78,30 @@ public class OwnerService implements IOwnerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public LookupPageResponseDTO<OwnerLookupOptionDTO> searchLookupOptions(String query, int page) {
+        var candidates = ownerRepository.searchLookupCandidates(
+                query,
+                LookupPageSupport.pageRequest(query, page));
+        var catNamesByOwner = catNamesByOwner(candidates.getContent().stream()
+                .map(OwnerLookupCandidateProjection::getId)
+                .toList());
+        return LookupPageSupport.toResponse(candidates.map(candidate -> toLookupOption(
+                candidate,
+                catNamesByOwner.getOrDefault(candidate.getId(), List.of()))));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OwnerLookupOptionDTO getLookupOption(UUID id) {
+        OwnerLookupCandidateProjection candidate = ownerRepository.findLookupCandidateById(id);
+        if (candidate == null) {
+            throw new ResourceNotFoundException("Owner", id);
+        }
+        return toLookupOption(candidate, catNamesByOwner(List.of(id)).getOrDefault(id, List.of()));
+    }
+
+    @Override
     public OwnerResponseDTO createOwner(OwnerRequestDTO ownerRequestDTO) {
         Owner owner = ownerMapper.toEntity(ownerRequestDTO);
         owner.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
@@ -118,6 +148,24 @@ public class OwnerService implements IOwnerService {
                 && !stayRepository.existsByOwner_Id(owner.getId());
 
         return ownerMapper.toResponseDTO(owner, canDelete);
+    }
+
+    private java.util.Map<UUID, List<String>> catNamesByOwner(List<UUID> ownerIds) {
+        if (ownerIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<UUID, List<String>> result = new LinkedHashMap<>();
+        for (OwnerLookupCatProjection cat : ownerRepository.findLookupCats(ownerIds)) {
+            result.computeIfAbsent(cat.getOwnerId(), ignored -> new java.util.ArrayList<>())
+                    .add(cat.getName());
+        }
+        return result;
+    }
+
+    private OwnerLookupOptionDTO toLookupOption(
+            OwnerLookupCandidateProjection candidate,
+            List<String> catNames) {
+        return new OwnerLookupOptionDTO(candidate.getId(), candidate.getFullName(), catNames);
     }
 
 }
