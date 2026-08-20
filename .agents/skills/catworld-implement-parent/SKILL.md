@@ -620,13 +620,15 @@ rebased, repaired, retried or globally corrected candidate:
    each other's findings. The parent must not mutate the candidate worktree
    while either gate is active, but may continue scheduling, qualifying,
    reviewing and integrating independent slices.
-4. Wait for both results before classifying, correcting or integrating the
-   candidate. Require the review to be tied to the recorded base/head/diff and
-   to return exactly one state: `clean`, `must-fix`, `deferred-only` or
-   `blocked-insufficient-surface`. Require every finding to include the tightest
-   location, finding, evidence, impact and either minimum correction or
-   deferral reason, plus the inspected surface, every justified expansion,
-   observational validation and remaining uncertainty.
+4. Wait for both completed results before classifying, correcting or integrating
+   the candidate. Require the review to be tied to the recorded base/head/diff
+   and to return exactly one final state: `clean`, `must-fix`, `deferred-only`
+   or `blocked-insufficient-surface`. Require every finding to include the
+   tightest location, finding, evidence, impact and either minimum correction
+   or deferral reason, plus the inspected surface, every justified expansion,
+   observational validation and remaining uncertainty. A bounded
+   `review-input-refresh-required` response under step 7 is a pre-result
+   lifecycle event, not a completed review result or finding classification.
 5. Treat the review classifications as recommendations. The parent verifies
    their evidence and owns final classification. A finding is must-fix before
    integration when leaving it unresolved can cause incorrect behavior,
@@ -641,29 +643,62 @@ rebased, repaired, retried or globally corrected candidate:
    `local-notes/review-findings/issue-<number>.md`; the reviewer never writes
    notes. Note persistence is operator-local, and failure to write it must be
    reported but must not block integration.
-7. `blocked-insufficient-surface`, a failed reviewer, an unusable result, a
-   candidate-identity mismatch or review evidence that cannot be tied to the
-   exact candidate blocks that candidate. Do not self-authorize a broad audit,
-   integrate it or return only the qualification result.
+7. A reviewer may return `review-input-refresh-required` before substantive
+   review only when it identifies a precise missing bounded handoff field,
+   stale or mismatched captured candidate evidence, or another deterministic
+   review-input deficiency that the parent can safely correct or recapture
+   without changing scope. The response must name the exact deficiency and the
+   minimum bounded parent refresh. It is not one of the four final review
+   states, does not classify findings and does not make the candidate eligible
+   for integration.
+
+   Before retrying, wait until the current gate activity is inactive, verify
+   that the slice worker is inactive and cannot resume mutation, and confirm
+   that the candidate branch/worktree, Git objects and repository state remain
+   reliable with no unexplained change. Correct only the bounded handoff input,
+   or recapture the exact qualification base, candidate head, changed files and
+   complete diff from that reliable state. Invalidate the incomplete gate
+   attempt, then restart parent qualification and independent review
+   concurrently against the same refreshed candidate identity. The reviewer
+   must not fill the missing input itself or widen its surface to compensate.
+   Retry only while the deficiency is deterministic, the refresh makes concrete
+   progress and the original responsibility, ownership, decisions, invariants,
+   exclusions and permanent-test ceiling remain unchanged.
+8. `blocked-insufficient-surface` is terminal for the candidate. Use it when an
+   adequate review genuinely requires broad or unbounded exploration, the
+   candidate or repository state is unreliable, a bounded refresh would expand
+   scope, a material decision is required, or the input cannot otherwise be
+   made reliable within the original handoff. A failed reviewer, unusable final
+   result or repeated refresh deficiency without concrete progress is also a
+   stop. Do not self-authorize a broad audit, integrate the candidate or return
+   only the qualification result.
 
 ### Progress-bounded qualification and review correction
 
 When a non-reviewed candidate's qualification finds a clear, bounded and
 deterministic violation of the handoff, return that finding through the existing
 path. For a review-required candidate, wait for qualification and review to
-finish, verify and finally classify both results, then send every must-fix
-finding together as one bounded correction handoff to the responsible slice
-worker in the same retained branch/worktree. Never send a partial qualification
-or review finding while the other initial gate remains active. The correction
-process may repeat without an arbitrary numeric round limit only while every
-round demonstrates concrete progress and remains within the original bounded
-handoff.
+finish, then verify and finally classify every finding from both results.
+Consolidate every parent-classified pre-integration must-fix item into one
+`pre-integration correction` handoff using the unchanged
+catworld-implement-slice vocabulary: the original slice handoff, exact current
+local HEAD, allowed correction boundary and one precise consolidated
+qualification finding. The consolidated qualification finding may enumerate
+several violations, but it remains one worker-facing qualification finding and
+does not create a reviewer correction kind or require the worker to interpret a
+review state, reviewer classification or reviewer-specific finding schema. The
+parent may retain review origin as non-normative traceability metadata. Exclude
+every deferred finding from the correction handoff. Never send a partial
+qualification or review finding while the other initial gate remains active.
+The correction process may repeat without an arbitrary numeric round limit only
+while every round demonstrates concrete progress and remains within the
+original bounded handoff.
 
 Prefer a follow-up turn to the same slice worker when its thread can still be
 resumed safely. Give each round the original bounded handoff and allowed
 correction boundary, the exact current local HEAD, and only the newly verified
-must-fix finding set. Exclude deferred findings. A follow-up to an existing
-worker is not a fresh spawn;
+consolidated qualification finding in the existing pre-integration correction
+shape. A follow-up to an existing worker is not a fresh spawn;
 do not apply `fork_turns="none"` to it. Keep the same branch/worktree. Every
 round must add normal follow-up commits; never amend, squash, publish or rewrite
 earlier commits. Record the ordered finding, resulting commits and verified
@@ -1072,10 +1107,11 @@ Stop normal final delivery on:
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
-- a review-required candidate whose reviewer fails, returns an unusable result,
-  cannot tie its result to the exact candidate, reports
-  `blocked-insufficient-surface`, or cannot complete safely within its bounded
-  review surface;
+- a review-required candidate whose reviewer fails, returns an unusable final
+  result, reports `blocked-insufficient-surface`, cannot complete safely within
+  its bounded review surface, or reports a recoverable input deficiency that
+  cannot be refreshed safely with an inactive worker and reliable bounded
+  candidate state;
 - a review-required candidate with an unresolved parent-classified must-fix
   finding or stale review evidence after correction, rebase, repair, retry or
   global correction;

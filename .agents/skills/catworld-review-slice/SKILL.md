@@ -15,9 +15,10 @@ sound base for continued work in the sliced issue.
 
 This skill is never a shorthand, direct user route, ordinary issue workflow,
 slice implementation workflow, qualification replacement or pull-request
-review. If the invocation does not come from the parent gate or lacks a valid
-bounded handoff, return `blocked-insufficient-surface` without widening the
-request or reconstructing the parent issue.
+review. If the invocation does not come from the parent gate, return
+`blocked-insufficient-surface` without widening the request or reconstructing
+the parent issue. Handle a precise recoverable defect in a parent-supplied
+bounded handoff through the pre-result refresh contract below.
 
 ## Independence and read-only boundary
 
@@ -70,10 +71,13 @@ findings or unrelated slice context by default. Do not fetch or reconstruct
 those excluded inputs. A bounded excerpt is usable only when the handoff
 identifies why that exact excerpt is necessary for the assigned responsibility.
 
-If a required field is absent, candidate identity is inconsistent, the supplied
-diff is incomplete, prohibited broad context is necessary to proceed or the
-handoff cannot support an adequate bounded review, return
-`blocked-insufficient-surface` and identify the missing or unreliable evidence.
+If a required field is absent, candidate identity is inconsistent or the
+supplied diff is incomplete, use `review-input-refresh-required` only when the
+exact deficiency is deterministic and a bounded parent correction or recapture
+can supply reliable input without changing scope. If prohibited broad context
+is necessary, the candidate state is unreliable, a refresh would expand scope
+or require a material decision, or the handoff otherwise cannot support an
+adequate bounded review, return `blocked-insufficient-surface`.
 
 ## Establish the exact candidate
 
@@ -89,8 +93,50 @@ Before substantive review, verify read-only that:
   explicitly marked with a non-passing freshness status.
 
 Do not silently review a different local head, current working tree, rebased
-candidate or partial diff. A mismatch returns `blocked-insufficient-surface` so
-the parent can recapture the candidate and refresh the gate.
+candidate or partial diff. Return `review-input-refresh-required` for a precise
+stale or mismatched captured identity that the parent can safely recapture from
+reliable bounded state. Return `blocked-insufficient-surface` when the mismatch
+shows that candidate or repository state is unreliable or cannot be repaired
+without broader exploration, expanded scope or a material decision.
+
+## Recoverable review-input refresh
+
+`review-input-refresh-required` is a pre-result lifecycle response, not one of
+the four final review states and not a finding classification. Use it only for:
+
+- one or more precisely named missing required handoff fields;
+- stale or mismatched captured qualification-base, candidate-head,
+  changed-file or complete-diff evidence; or
+- another deterministic review-input defect with one bounded parent-owned
+  correction or recapture inside the unchanged review scope.
+
+Return this shape and stop the current attempt without substantive review:
+
+```text
+review-input-refresh-required
+parent issue: <number — title>
+slice: <ID — title>
+supplied candidate: <qualification-base-sha>..<candidate-head-sha>
+input deficiency: <exact missing, stale or mismatched input>
+bounded parent refresh: <minimum field correction or candidate recapture>
+inspected input evidence: <read-only evidence establishing the deficiency>
+```
+
+Do not locate missing context independently, substitute another candidate,
+expand the review surface, mutate state or retry yourself. The parent decides
+whether the deficiency is safely recoverable. Before retry it must verify that
+the slice worker is inactive, candidate and repository state remain reliable,
+and the refresh does not alter responsibility, ownership, approved decisions,
+invariants, exclusions or the permanent-test ceiling. The parent then
+invalidates the incomplete gate attempt, corrects or recaptures the bounded
+input, and restarts qualification and review concurrently against the same
+refreshed candidate identity.
+
+If those conditions cannot be met, adequate review requires broad or unbounded
+exploration, candidate state is unreliable, scope would expand, or a material
+decision is required, return the terminal `blocked-insufficient-surface` final
+state instead. A repeated deterministic deficiency without concrete progress
+is also terminal rather than an invitation to keep retrying.
 
 ## Review surface
 
@@ -200,7 +246,8 @@ For every finding return:
 
 ## Exact result contract
 
-Return exactly one state:
+After the bounded handoff and candidate input have been verified, return exactly
+one final state:
 
 - `clean` — no material finding;
 - `must-fix` — one or more findings are recommended
@@ -250,14 +297,22 @@ remaining uncertainty:
 
 State consistency is mandatory: `clean` has no findings; `must-fix` has at
 least one must-fix recommendation; `deferred-only` has at least one finding and
-all are deferred; `blocked-insufficient-surface` explains the missing,
-unreliable or unbounded evidence in remaining uncertainty.
+all are deferred; `blocked-insufficient-surface` explains in remaining
+uncertainty why a bounded parent refresh cannot make the review adequate without
+broad or unbounded exploration, unreliable candidate state, scope expansion or
+a material decision. A recoverable deterministic input deficiency uses the
+separate pre-result refresh response and never this final state.
 
 ## Corrections and deferred findings
 
 Never send findings directly to the implementation worker and never fix them.
 The parent waits for qualification and review, verifies both, owns final
 classification and produces one consolidated correction handoff when needed.
+It translates all parent-classified must-fix items into the unchanged worker's
+existing `pre-integration correction` contract as one precise consolidated
+qualification finding. Review origin may remain parent-owned traceability
+metadata, but this reviewer result does not define a new worker correction kind
+or require the worker to understand reviewer-specific vocabulary.
 
 When the parent refreshes review after correction, evaluate the complete new
 base/head/diff candidate, not only the previous finding. A resumed reviewer may
