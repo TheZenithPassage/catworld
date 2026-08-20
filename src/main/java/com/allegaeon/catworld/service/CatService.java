@@ -2,6 +2,8 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.lookup.CatLookupOptionDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.CatMapper;
@@ -14,6 +16,7 @@ import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.VetRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
+import com.allegaeon.catworld.service.lookup.LookupPageSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -66,6 +69,22 @@ public class CatService implements ICatService{
     @Override
     public CatResponseDTO getCat(UUID id) {
         return toResponseDTO(getCatEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPageResponseDTO<CatLookupOptionDTO> searchLookupOptions(String query, int page) {
+        var options = catRepository.searchLookupOptions(
+                query,
+                LookupPageSupport.pageRequest(query, page));
+        return LookupPageSupport.toResponse(options.map(this::toLookupOption));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CatLookupOptionDTO getLookupOption(UUID id) {
+        Cat cat = getCatEntity(id);
+        return new CatLookupOptionDTO(cat.getId(), cat.getName(), cat.getOwner().getFullName());
     }
 
     @Override
@@ -135,6 +154,10 @@ public class CatService implements ICatService{
                 && !stayCatRepository.existsByCat_Id(cat.getId());
 
         return catMapper.toResponseDTO(cat, canDelete);
+    }
+
+    private CatLookupOptionDTO toLookupOption(CatRepository.CatLookupProjection option) {
+        return new CatLookupOptionDTO(option.getId(), option.getName(), option.getOwnerName());
     }
 
 }

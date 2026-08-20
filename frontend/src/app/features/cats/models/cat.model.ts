@@ -44,3 +44,19 @@ export interface CreateCatRequest {
 }
 
 export type UpdateCatRequest = CreateCatRequest;
+
+export interface CatLookupOption {
+  readonly id: string;
+  readonly name: string;
+  readonly ownerName: string;
+}
+
+export interface CatLookupPage {
+  readonly items: readonly CatLookupOption[];
+  readonly page: number;
+  readonly hasNext: boolean;
+}
+
+export function catLookupOptionLabel(option: CatLookupOption): string {
+  return `${option.name} (${option.ownerName})`;
+}

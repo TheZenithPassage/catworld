@@ -30,4 +30,24 @@ describe('CatApiService', () => {
     expect(request.request.method).toBe('DELETE');
     request.flush(null);
   });
+
+  it('searches cat lookup options with the shared paging contract', () => {
+    service.searchLookupOptions('Mílo', 2).subscribe((response) => {
+      expect(response).toEqual({ items: [], page: 2, hasNext: false });
+    });
+
+    const request = httpTestingController.expectOne(
+      `${API_BASE_URL}/cats/search?q=M%C3%ADlo&page=2`,
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({ items: [], page: 2, hasNext: false });
+  });
+
+  it('resolves a cat lookup option by authoritative id', () => {
+    service.getLookupOption('cat-1').subscribe();
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/cats/cat-1/lookup-option`);
+    expect(request.request.method).toBe('GET');
+    request.flush({ id: 'cat-1', name: 'Milo', ownerName: 'Ada' });
+  });
 });

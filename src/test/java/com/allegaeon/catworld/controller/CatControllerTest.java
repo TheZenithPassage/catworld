@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.lookup.CatLookupOptionDTO;
+import com.allegaeon.catworld.dto.lookup.LookupPageResponseDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -38,6 +40,53 @@ public class CatControllerTest {
 
     @Nested
     class GetCatTests {
+
+        @Test
+        void shouldReturnCatLookupPage() throws Exception {
+            UUID catId = UUID.randomUUID();
+            when(catService.searchLookupOptions("Mílo", 1)).thenReturn(
+                    new LookupPageResponseDTO<>(
+                            List.of(new CatLookupOptionDTO(catId, "Milo", "Ada Lovelace")),
+                            1,
+                            true));
+
+            mockMvc.perform(get("/api/cats/search").param("q", "Mílo").param("page", "1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.items[0].id").value(catId.toString()))
+                    .andExpect(jsonPath("$.items[0].name").value("Milo"))
+                    .andExpect(jsonPath("$.items[0].ownerName").value("Ada Lovelace"))
+                    .andExpect(jsonPath("$.page").value(1))
+                    .andExpect(jsonPath("$.hasNext").value(true));
+
+            verify(catService).searchLookupOptions("Mílo", 1);
+        }
+
+        @Test
+        void shouldResolveCatLookupOptionById() throws Exception {
+            UUID catId = UUID.randomUUID();
+            when(catService.getLookupOption(catId)).thenReturn(
+                    new CatLookupOptionDTO(catId, "Milo", "Ada Lovelace"));
+
+            mockMvc.perform(get("/api/cats/{id}/lookup-option", catId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(catId.toString()))
+                    .andExpect(jsonPath("$.name").value("Milo"))
+                    .andExpect(jsonPath("$.ownerName").value("Ada Lovelace"));
+
+            verify(catService).getLookupOption(catId);
+        }
+
+        @Test
+        void shouldReturnNotFound_whenLookupOptionDoesNotExist() throws Exception {
+            UUID catId = UUID.randomUUID();
+            when(catService.getLookupOption(catId))
+                    .thenThrow(new ResourceNotFoundException("Cat", catId));
+
+            mockMvc.perform(get("/api/cats/{id}/lookup-option", catId))
+                    .andExpect(status().isNotFound());
+
+            verify(catService).getLookupOption(catId);
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllCats() throws Exception {

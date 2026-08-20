@@ -3,7 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { Cat, CreateCatRequest, UpdateCatRequest } from '../models/cat.model';
+import {
+  Cat,
+  CatLookupOption,
+  CatLookupPage,
+  CreateCatRequest,
+  UpdateCatRequest,
+} from '../models/cat.model';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +24,16 @@ export class CatApiService {
 
   getCatById(catId: string): Observable<Cat> {
     return this.http.get<Cat>(`${this.baseUrl}/${catId}`);
+  }
+
+  searchLookupOptions(query: string, page: number): Observable<CatLookupPage> {
+    return this.http.get<CatLookupPage>(`${this.baseUrl}/search`, {
+      params: { q: query, page },
+    });
+  }
+
+  getLookupOption(catId: string): Observable<CatLookupOption> {
+    return this.http.get<CatLookupOption>(`${this.baseUrl}/${catId}/lookup-option`);
   }
 
   createCat(request: CreateCatRequest): Observable<Cat> {
