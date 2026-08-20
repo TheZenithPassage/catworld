@@ -647,10 +647,14 @@ rebased, repaired, retried or globally corrected candidate:
    materially affect correctness, contracts or downstream work.
 6. When qualification and parent classification are clean, mark the exact
    candidate integration-eligible. `deferred-only` findings do not block or
-   trigger correction. The parent may persist them under
-   `local-notes/review-findings/issue-<number>.md`; the reviewer never writes
-   notes. Note persistence is operator-local, and failure to write it must be
-   reported but must not block integration.
+   trigger correction. Before persisting them under
+   `local-notes/review-findings/issue-<number>.md`, verify read-only that the
+   exact target is already ignored or locally excluded. If it is not, skip the
+   write and record a non-blocking persistence failure; do not add an ignore rule
+   or include the note in the issue diff. The reviewer never writes notes. After
+   any attempted write, verify that repository status remains unchanged. Note
+   persistence is operator-local, and a skipped or failed write must be reported
+   but must not block integration or final delivery.
 7. `blocked-insufficient-surface` always blocks the reviewed candidate and its
    dependents, but the parent owns the recovery decision after both gates finish.
    Verify every finding and the complete structured blocked evidence. A bounded
