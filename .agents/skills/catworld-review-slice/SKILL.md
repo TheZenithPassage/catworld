@@ -17,12 +17,18 @@ This skill is never a shorthand, direct user route, ordinary issue workflow,
 slice implementation workflow, qualification replacement or pull-request
 review. If the invocation does not come from the parent gate, return
 `blocked-insufficient-surface` without widening the request or reconstructing
-the parent issue. Handle a precise recoverable defect in a parent-supplied
-bounded handoff through the pre-result refresh contract below.
+the parent issue.
 
 ## Independence and read-only boundary
 
 The reviewer is strictly read-only.
+
+Every fresh reviewer uses the project-scoped `catworld_slice_reviewer` role in
+`.codex/agents/catworld-slice-reviewer.toml`. Its runtime configuration must set
+`sandbox_mode = "read-only"` and must not set model or reasoning effort. The
+parent spawns that role with `fork_turns="none"` and no model, reasoning-effort
+or token-budget override so effective model reasoning continues to follow the
+parent task without inheriting its conversation/history.
 
 - Never create, edit, patch, format, move or delete a file.
 - Never modify local review notes, including
@@ -71,13 +77,12 @@ findings or unrelated slice context by default. Do not fetch or reconstruct
 those excluded inputs. A bounded excerpt is usable only when the handoff
 identifies why that exact excerpt is necessary for the assigned responsibility.
 
-If a required field is absent, candidate identity is inconsistent or the
-supplied diff is incomplete, use `review-input-refresh-required` only when the
-exact deficiency is deterministic and a bounded parent correction or recapture
-can supply reliable input without changing scope. If prohibited broad context
-is necessary, the candidate state is unreliable, a refresh would expand scope
-or require a material decision, or the handoff otherwise cannot support an
-adequate bounded review, return `blocked-insufficient-surface`.
+If a required field is absent, candidate identity is inconsistent, the supplied
+diff is incomplete, prohibited broad context is necessary or the handoff cannot
+support an adequate bounded review, return `blocked-insufficient-surface`.
+There is no separate lifecycle or result response. Supply the structured blocked
+evidence defined below so the parent can decide whether one bounded refresh is
+safe.
 
 ## Establish the exact candidate
 
@@ -93,50 +98,32 @@ Before substantive review, verify read-only that:
   explicitly marked with a non-passing freshness status.
 
 Do not silently review a different local head, current working tree, rebased
-candidate or partial diff. Return `review-input-refresh-required` for a precise
-stale or mismatched captured identity that the parent can safely recapture from
-reliable bounded state. Return `blocked-insufficient-surface` when the mismatch
-shows that candidate or repository state is unreliable or cannot be repaired
-without broader exploration, expanded scope or a material decision.
+candidate or partial diff. Return `blocked-insufficient-surface` with the exact
+mismatch and supporting read-only evidence. The parent, not the reviewer,
+decides whether the captured candidate can be refreshed safely.
 
-## Recoverable review-input refresh
+## Blocked evidence and parent-owned recovery
 
-`review-input-refresh-required` is a pre-result lifecycle response, not one of
-the four final review states and not a finding classification. Use it only for:
+Every inability to complete an adequate review returns
+`blocked-insufficient-surface`. When the cause is a precise deterministic input
+or captured-candidate deficiency, inspect only enough read-only evidence to
+report:
 
-- one or more precisely named missing required handoff fields;
-- stale or mismatched captured qualification-base, candidate-head,
-  changed-file or complete-diff evidence; or
-- another deterministic review-input defect with one bounded parent-owned
-  correction or recapture inside the unchanged review scope.
-
-Return this shape and stop the current attempt without substantive review:
-
-```text
-review-input-refresh-required
-parent issue: <number — title>
-slice: <ID — title>
-supplied candidate: <qualification-base-sha>..<candidate-head-sha>
-input deficiency: <exact missing, stale or mismatched input>
-bounded parent refresh: <minimum field correction or candidate recapture>
-inspected input evidence: <read-only evidence establishing the deficiency>
-```
+- the exact missing, stale or mismatched input;
+- the evidence establishing that deficiency;
+- the minimum parent-owned field correction or candidate recapture that could
+  make a retry possible;
+- whether candidate and repository state appear reliable; and
+- whether responsibilities, source ownership, approved decisions/invariants,
+  exclusions and the permanent-test ceiling can remain unchanged.
 
 Do not locate missing context independently, substitute another candidate,
-expand the review surface, mutate state or retry yourself. The parent decides
-whether the deficiency is safely recoverable. Before retry it must verify that
-the slice worker is inactive, candidate and repository state remain reliable,
-and the refresh does not alter responsibility, ownership, approved decisions,
-invariants, exclusions or the permanent-test ceiling. The parent then
-invalidates the incomplete gate attempt, corrects or recaptures the bounded
-input, and restarts qualification and review concurrently against the same
-refreshed candidate identity.
-
-If those conditions cannot be met, adequate review requires broad or unbounded
-exploration, candidate state is unreliable, scope would expand, or a material
-decision is required, return the terminal `blocked-insufficient-surface` final
-state instead. A repeated deterministic deficiency without concrete progress
-is also terminal rather than an invitation to keep retrying.
+expand the review surface, mutate state or retry yourself. The parent verifies
+the evidence and may refresh/retry only when the candidate state is reliable,
+scope and ownership remain unchanged, no approved decision/invariant or
+permanent-test ceiling changes, and the retry makes concrete progress. Broad or
+unbounded surface requirements, unreliable state, scope expansion or a material
+decision are terminal.
 
 ## Review surface
 
@@ -265,6 +252,16 @@ parent issue: <number — title>
 slice: <ID — title>
 candidate: <qualification-base-sha>..<candidate-head-sha>
 
+blocked evidence:
+- deficiency: <precise input/candidate deficiency or terminal surface reason>
+  evidence: <supporting read-only evidence>
+  minimum bounded parent refresh: <field correction/candidate recapture or none>
+  candidate state: <reliable|unreliable|unknown>
+  scope and ownership: <unchanged|changed|unknown>
+  decisions and invariants: <unchanged|changed|material-decision-required|unknown>
+  permanent-test ceiling: <unchanged|changed|unknown>
+# required for blocked-insufficient-surface; otherwise: none
+
 findings:
 - classification: <must-fix-before-integration|deferred>
   location: <tightest location>
@@ -297,11 +294,12 @@ remaining uncertainty:
 
 State consistency is mandatory: `clean` has no findings; `must-fix` has at
 least one must-fix recommendation; `deferred-only` has at least one finding and
-all are deferred; `blocked-insufficient-surface` explains in remaining
-uncertainty why a bounded parent refresh cannot make the review adequate without
-broad or unbounded exploration, unreliable candidate state, scope expansion or
-a material decision. A recoverable deterministic input deficiency uses the
-separate pre-result refresh response and never this final state.
+all are deferred. `blocked-insufficient-surface` includes complete structured
+blocked evidence and remaining uncertainty. Its evidence may identify a precise
+deterministic deficiency and bounded refresh candidate for parent decision, or
+establish that broad/unbounded exploration, unreliable state, scope expansion
+or a material decision makes the stop terminal. No fifth state, pre-result
+lifecycle response or alternate output contract is valid.
 
 ## Corrections and deferred findings
 

@@ -97,12 +97,16 @@ default, does not parse a parent reasoning override from the prompt, and must
 not inspect, validate, change, replace or synchronize the parent's effort.
 Worker effort is never derived from parent effort.
 
-Independent slice reviewers use that unchanged parent task effort. On every
-fresh catworld-review-slice spawn, set `fork_turns="none"` and omit model,
+Independent slice reviewers use the project-scoped `catworld_slice_reviewer`
+role defined in `.codex/agents/catworld-slice-reviewer.toml`. Require that role
+to set `sandbox_mode = "read-only"` and omit model and reasoning-effort settings.
+On every fresh spawn, select that role, set `fork_turns="none"` and omit model,
 reasoning-effort and token-budget overrides so runtime inheritance preserves the
 parent task configuration without its conversation/history. Never apply
 workerReasoningEffort or any slice-worker reasoning policy to a reviewer. A
-resumed reviewer keeps its existing thread/configuration.
+resumed reviewer keeps its existing thread/configuration. Stop before review if
+the dedicated role is missing, not read-only, or fixes model or reasoning
+configuration.
 
 Before the first catworld-implement-slice spawn, select and record one immutable
 workerReasoningEffort for the run:
@@ -606,12 +610,13 @@ rebased, repaired, retried or globally corrected candidate:
    candidate head SHA, changed-file list and complete diff as one immutable
    review-candidate identity. Record it before either gate begins.
 2. Build the bounded review handoff from section 6. For the initial review,
-   spawn one fresh built-in default reviewer with `fork_turns="none"`, no
-   inherited conversation/history and no model, reasoning-effort or token-budget
-   override. For a refreshed review, resume the existing reviewer when its
-   thread/configuration remains available and safe; otherwise use the same fresh
-   spawn controls. Give it only the current bounded handoff plus the
-   repository/runtime instruction to load AGENTS.md,
+   spawn one fresh project-scoped `catworld_slice_reviewer` role with
+   `fork_turns="none"`, no inherited conversation/history and no model,
+   reasoning-effort or token-budget override. For a refreshed review, resume the
+   existing reviewer when its thread/configuration remains available and safe;
+   otherwise spawn the same dedicated role with the same fresh controls. Give it
+   only the current bounded handoff plus the repository/runtime instruction to
+   load AGENTS.md,
    .specify/memory/constitution.md and
    .agents/skills/catworld-review-slice/SKILL.md. Require it to remain strictly
    read-only and never delegate or spawn another agent.
@@ -622,13 +627,16 @@ rebased, repaired, retried or globally corrected candidate:
    reviewing and integrating independent slices.
 4. Wait for both completed results before classifying, correcting or integrating
    the candidate. Require the review to be tied to the recorded base/head/diff
-   and to return exactly one final state: `clean`, `must-fix`, `deferred-only`
-   or `blocked-insufficient-surface`. Require every finding to include the
-   tightest location, finding, evidence, impact and either minimum correction
-   or deferral reason, plus the inspected surface, every justified expansion,
-   observational validation and remaining uncertainty. A bounded
-   `review-input-refresh-required` response under step 7 is a pre-result
-   lifecycle event, not a completed review result or finding classification.
+   and to return exactly one state: `clean`, `must-fix`, `deferred-only` or
+   `blocked-insufficient-surface`; no auxiliary lifecycle or result response is
+   valid. Require every finding to include the tightest location, finding,
+   evidence, impact and either minimum correction or deferral reason, plus the
+   inspected surface, every justified expansion, observational validation and
+   remaining uncertainty. A `blocked-insufficient-surface` result must also
+   identify the precise deficiency or terminal surface reason, supporting
+   read-only evidence, any minimum bounded parent refresh, candidate-state
+   reliability, and whether scope/ownership, approved decisions/invariants and
+   the permanent-test ceiling would remain unchanged.
 5. Treat the review classifications as recommendations. The parent verifies
    their evidence and owns final classification. A finding is must-fix before
    integration when leaving it unresolved can cause incorrect behavior,
@@ -643,35 +651,34 @@ rebased, repaired, retried or globally corrected candidate:
    `local-notes/review-findings/issue-<number>.md`; the reviewer never writes
    notes. Note persistence is operator-local, and failure to write it must be
    reported but must not block integration.
-7. A reviewer may return `review-input-refresh-required` before substantive
-   review only when it identifies a precise missing bounded handoff field,
-   stale or mismatched captured candidate evidence, or another deterministic
-   review-input deficiency that the parent can safely correct or recapture
-   without changing scope. The response must name the exact deficiency and the
-   minimum bounded parent refresh. It is not one of the four final review
-   states, does not classify findings and does not make the candidate eligible
-   for integration.
+7. `blocked-insufficient-surface` always blocks the reviewed candidate and its
+   dependents, but the parent owns the recovery decision after both gates finish.
+   Verify every finding and the complete structured blocked evidence. A bounded
+   refresh/retry is allowed only when the result identifies a precise
+   deterministic missing handoff field, stale or mismatched captured candidate
+   evidence, or equivalent review-input deficiency that the parent can safely
+   correct or recapture. Before retrying, verify that all current gate activity
+   and the slice worker are inactive, the worker cannot resume mutation, and the
+   candidate branch/worktree, Git objects and repository state remain reliable
+   with no unexplained change. Also verify that the original responsibility,
+   source ownership, approved decisions and invariants, exclusions and
+   permanent-test ceiling remain unchanged.
 
-   Before retrying, wait until the current gate activity is inactive, verify
-   that the slice worker is inactive and cannot resume mutation, and confirm
-   that the candidate branch/worktree, Git objects and repository state remain
-   reliable with no unexplained change. Correct only the bounded handoff input,
-   or recapture the exact qualification base, candidate head, changed files and
-   complete diff from that reliable state. Invalidate the incomplete gate
-   attempt, then restart parent qualification and independent review
-   concurrently against the same refreshed candidate identity. The reviewer
-   must not fill the missing input itself or widen its surface to compensate.
-   Retry only while the deficiency is deterministic, the refresh makes concrete
-   progress and the original responsibility, ownership, decisions, invariants,
-   exclusions and permanent-test ceiling remain unchanged.
-8. `blocked-insufficient-surface` is terminal for the candidate. Use it when an
-   adequate review genuinely requires broad or unbounded exploration, the
-   candidate or repository state is unreliable, a bounded refresh would expand
-   scope, a material decision is required, or the input cannot otherwise be
-   made reliable within the original handoff. A failed reviewer, unusable final
-   result or repeated refresh deficiency without concrete progress is also a
-   stop. Do not self-authorize a broad audit, integrate the candidate or return
-   only the qualification result.
+   Correct only the bounded handoff input, or recapture the exact qualification
+   base, candidate head, changed files and complete diff from that reliable
+   state. Invalidate the blocked gate attempt, then restart parent qualification
+   and independent review concurrently against the same refreshed candidate
+   identity. The reviewer must not fill the missing input itself or widen its
+   surface to compensate. Retry only when the refresh makes concrete progress;
+   a repeated deficiency without progress is terminal.
+8. Treat `blocked-insufficient-surface` as terminal when adequate review
+   genuinely requires broad or unbounded exploration, candidate or repository
+   state is unreliable, a refresh would expand scope or ownership, a material
+   decision is required, approved decisions/invariants or the permanent-test
+   ceiling would change, or the input cannot otherwise be made reliable within
+   the original handoff. A failed reviewer or unusable result is also a stop.
+   Do not self-authorize a broad audit, integrate the candidate or return only
+   the qualification result.
 
 ### Progress-bounded qualification and review correction
 
@@ -1107,11 +1114,12 @@ Stop normal final delivery on:
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
-- a review-required candidate whose reviewer fails, returns an unusable final
-  result, reports `blocked-insufficient-surface`, cannot complete safely within
-  its bounded review surface, or reports a recoverable input deficiency that
-  cannot be refreshed safely with an inactive worker and reliable bounded
-  candidate state;
+- a review-required candidate whose reviewer fails, returns an unusable result,
+  cannot complete safely within its bounded review surface, or reports
+  `blocked-insufficient-surface` whose evidence does not permit a safe,
+  progress-making bounded refresh with an inactive worker, reliable candidate
+  state and unchanged scope, ownership, decisions, invariants and permanent-test
+  ceiling;
 - a review-required candidate with an unresolved parent-classified must-fix
   finding or stale review evidence after correction, rebase, repair, retry or
   global correction;
