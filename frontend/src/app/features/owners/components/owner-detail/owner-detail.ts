@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -52,6 +52,7 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
 export class OwnerDetail {
   private readonly api = inject(OwnerApiService);
   private readonly i18n = inject(I18nService);
+  private loadGeneration = 0;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
@@ -62,20 +63,25 @@ export class OwnerDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.loadGeneration++);
     effect(() => {
       this.entityId();
       this.load();
     });
   }
   load(): void {
+    const generation = ++this.loadGeneration;
+    const entityId = this.entityId();
     this.loading.set(true);
     this.error.set(false);
-    this.api.getOwnerById(this.entityId()).subscribe({
+    this.api.getOwnerById(entityId).subscribe({
       next: (o) => {
+        if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.owner.set(o);
         this.loading.set(false);
       },
       error: () => {
+        if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.error.set(true);
         this.loading.set(false);
       },

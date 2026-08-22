@@ -1,13 +1,14 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { EntityDetailDialog } from './entity-detail-dialog';
+import { EntityDetailDialogService } from './entity-detail-dialog.service';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -109,6 +110,9 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
+    expect(fixture.componentInstance.title()).toBe(
+      fixture.componentInstance.text().owners.detail.title,
+    );
 
     fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
     fixture.detectChanges();
@@ -117,6 +121,61 @@ describe('EntityDetailDialog', () => {
     );
     expect(fixture.componentInstance.title()).toBe(
       fixture.componentInstance.text().stays.edit.title,
+    );
+  });
+
+  it('ignores stale same-type successes and errors after a reference change', async () => {
+    const first = new Subject<Owner>();
+    const second = new Subject<Owner>();
+    const third = new Subject<Owner>();
+    const fourth = new Subject<Owner>();
+    api.getOwnerById
+      .mockImplementationOnce(() => first)
+      .mockImplementationOnce(() => second)
+      .mockImplementationOnce(() => third)
+      .mockImplementationOnce(() => fourth);
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-2' });
+    fixture.detectChanges();
+    second.next(secondOwner);
+    fixture.detectChanges();
+    first.next(owner);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
+    expect(fixture.nativeElement.textContent).not.toContain('Ada Lovelace');
+
+    const thirdOwner = { ...owner, id: 'owner-3', fullName: 'Third Owner' };
+    const fourthOwner = { ...owner, id: 'owner-4', fullName: 'Current Owner' };
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: thirdOwner.id });
+    fixture.detectChanges();
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: fourthOwner.id });
+    fixture.detectChanges();
+    fourth.next(fourthOwner);
+    fixture.detectChanges();
+    third.error(new Error('late failure'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Current Owner');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it('lets the reactive dialog title provide the accessible name', () => {
+    const dialog = { open: vi.fn() };
+    TestBed.configureTestingModule({
+      providers: [EntityDetailDialogService, { provide: MatDialog, useValue: dialog }],
+    });
+    TestBed.inject(EntityDetailDialogService).open({ entityType: 'owner', entityId: 'owner-1' });
+    expect(dialog.open).toHaveBeenCalledWith(
+      EntityDetailDialog,
+      expect.not.objectContaining({ ariaLabel: expect.anything() }),
     );
   });
 });
