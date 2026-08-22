@@ -43,6 +43,7 @@ export class CatEditor {
   readonly routed = input(false);
   readonly saved = output<Cat>();
   readonly cancelled = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
   readonly owners = signal<Owner[]>([]);
   readonly vets = signal<Vet[]>([]);
@@ -147,17 +148,21 @@ export class CatEditor {
       ownerId: this.ownerId(),
       vetId: this.optional(this.vetId()),
     };
-    this.submitting.set(true);
+    this.setSubmitting(true);
     this.api.updateCat(this.entityId(), request).subscribe({
       next: (c) => {
-        this.submitting.set(false);
+        this.setSubmitting(false);
         this.saved.emit(c);
       },
       error: (e) => {
         this.error.set(this.apiMessage(e, this.text().cats.edit.errors.updateFailed));
-        this.submitting.set(false);
+        this.setSubmitting(false);
       },
     });
+  }
+  private setSubmitting(value: boolean): void {
+    this.submitting.set(value);
+    this.submittingChanged.emit(value);
   }
   private setValues(c: Cat): void {
     this.name.set(c.name);

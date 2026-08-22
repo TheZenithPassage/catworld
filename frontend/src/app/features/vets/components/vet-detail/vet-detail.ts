@@ -27,6 +27,7 @@ import { VetEditor } from '../vet-editor/vet-editor';
           [entity]="vet"
           (saved)="saved($event)"
           (cancelled)="cancelRequested.emit()"
+          (submittingChanged)="submittingChanged.emit($event)"
         />
       } @else {
         <dl>
@@ -73,6 +74,7 @@ export class VetDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly text = this.i18n.text;

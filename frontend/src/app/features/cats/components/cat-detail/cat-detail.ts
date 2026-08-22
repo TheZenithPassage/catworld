@@ -24,6 +24,7 @@ export class CatDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
   readonly text = this.i18n.text;

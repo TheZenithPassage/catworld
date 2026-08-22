@@ -57,6 +57,7 @@
           (editRequested)="enterEdit()"
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
           (openStays)="openStays(reference())"
@@ -69,6 +70,7 @@
           (editRequested)="enterEdit()"
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
           (navigate)="showReference($event)"
           (openStays)="openStays(reference())"
         />
@@ -80,6 +82,7 @@
           (editRequested)="enterEdit()"
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
         />

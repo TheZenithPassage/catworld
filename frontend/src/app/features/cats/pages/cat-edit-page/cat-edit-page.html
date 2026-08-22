@@ -244,7 +244,12 @@
 
         <div class="form-actions">
           @if (!routed()) {
-            <button mat-stroked-button type="button" (click)="cancelled.emit()">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="submitting()"
+              (click)="cancelled.emit()"
+            >
               {{ text().cats.detail.cancel }}
             </button>
           }

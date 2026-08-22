@@ -36,6 +36,7 @@ export class VetEditor {
   readonly routed = input(false);
   readonly saved = output<Vet>();
   readonly cancelled = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
   readonly name = signal('');
   readonly address = signal('');
@@ -86,17 +87,21 @@ export class VetEditor {
       address: this.optional(this.address()),
       phoneNumber: this.optional(this.phoneNumber()),
     };
-    this.submitting.set(true);
+    this.setSubmitting(true);
     this.api.updateVet(this.entityId(), request).subscribe({
       next: (v) => {
-        this.submitting.set(false);
+        this.setSubmitting(false);
         this.saved.emit(v);
       },
       error: (e) => {
         this.error.set(this.apiMessage(e, this.text().vets.edit.errors.updateFailed));
-        this.submitting.set(false);
+        this.setSubmitting(false);
       },
     });
+  }
+  private setSubmitting(value: boolean): void {
+    this.submitting.set(value);
+    this.submittingChanged.emit(value);
   }
   private setValues(v: Vet): void {
     this.name.set(v.name);

@@ -7,7 +7,11 @@ import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
+import { CatEditor } from '../../features/cats/components/cat-editor/cat-editor';
+import { Cat } from '../../features/cats/models/cat.model';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
+import { VetEditor } from '../../features/vets/components/vet-editor/vet-editor';
+import { Vet } from '../../features/vets/models/vet.model';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { MatPaginatorIntl } from '@angular/material/paginator';
@@ -35,6 +39,31 @@ describe('EntityDetailDialog', () => {
   };
   const updated = { ...owner, fullName: 'Ada Byron' };
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
+  const cat: Cat = {
+    id: 'cat-1',
+    name: 'Milo',
+    birthDate: '2020-01-01',
+    sex: 'MALE',
+    breed: null,
+    coat: null,
+    color: null,
+    foodBrand: null,
+    litterBrand: null,
+    personality: null,
+    lastInternalDewormerName: null,
+    lastInternalDewormingDate: null,
+    lastExternalDewormerName: null,
+    lastExternalDewormingDate: null,
+    lastTripleFelineDate: null,
+    lastRabiesDate: null,
+    ownerId: 'owner-1',
+    ownerName: 'Ada Lovelace',
+    vetId: null,
+    vetName: null,
+  };
+  const updatedCat = { ...cat, name: 'Milo Updated' };
+  const vet: Vet = { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null };
+  const updatedVet = { ...vet, name: 'Dr. Vet Updated' };
   const detail = (value: Owner): OwnerDetailResponse => ({
     owner: value,
     cats: { totalElements: 0, items: [] },
@@ -48,6 +77,7 @@ describe('EntityDetailDialog', () => {
         ),
       ),
     ),
+    getOwners: vi.fn(() => of([owner])),
     getOwnerCats: vi.fn(),
     getOwnerStays: vi.fn(),
     updateOwner: vi.fn(() => of(updated)),
@@ -55,34 +85,24 @@ describe('EntityDetailDialog', () => {
   const catApi = {
     getCatDetail: vi.fn((id: string): any =>
       of({
-        cat: {
-          id,
-          name: 'Milo',
-          birthDate: '2020-01-01',
-          sex: 'MALE',
-          breed: null,
-          coat: null,
-          color: null,
-          foodBrand: null,
-          litterBrand: null,
-          personality: null,
-          lastInternalDewormerName: null,
-          lastInternalDewormingDate: null,
-          lastExternalDewormerName: null,
-          lastExternalDewormingDate: null,
-          lastTripleFelineDate: null,
-          lastRabiesDate: null,
-          ownerId: 'owner-1',
-          ownerName: 'Ada Lovelace',
-          vetId: null,
-          vetName: null,
-        },
+        cat: { ...cat, id },
         stays: { totalElements: 0, items: [] },
       }),
     ),
     getCatStays: vi.fn(),
+    updateCat: vi.fn(() => of(updatedCat)),
   };
-  const vetApi = { getVetCats: vi.fn(), getVetDetail: vi.fn() };
+  const vetApi = {
+    getVets: vi.fn(() => of([vet])),
+    getVetCats: vi.fn(),
+    getVetDetail: vi.fn((id: string) =>
+      of({
+        vet: { ...vet, id },
+        cats: { totalElements: 0, items: [] },
+      }),
+    ),
+    updateVet: vi.fn(() => of(updatedVet)),
+  };
   const stayApi = {
     getStayDetail: vi.fn((_id?: string): any =>
       of({
@@ -123,7 +143,7 @@ describe('EntityDetailDialog', () => {
     outstandingCollectionEligible: false,
     payments: [],
   };
-  const dialogRef = { disableClose: false };
+  const dialogRef = { disableClose: false, close: vi.fn() };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -293,6 +313,161 @@ describe('EntityDetailDialog', () => {
       expect(emitted).not.toHaveBeenCalled();
       detailComponent.saveCompleted.emit();
       expect(emitted).toHaveBeenCalledWith({ entityType, entityId });
+    },
+  );
+
+  it.each([
+    ['owner', 'owner-1'],
+    ['cat', 'cat-1'],
+    ['vet', 'vet-1'],
+  ] as const)(
+    'locks rendered dialog exits throughout rejected and successful %s updates',
+    async (entityType, entityId) => {
+      api.getOwnerDetail.mockImplementation((id: string) =>
+        of(
+          detail(
+            id === 'owner-2'
+              ? secondOwner
+              : api.updateOwner.mock.calls.length > 1
+                ? updated
+                : owner,
+          ),
+        ),
+      );
+      api.getOwners.mockReturnValue(of([owner]));
+      catApi.getCatDetail.mockImplementation((id: string): any =>
+        of({
+          cat: {
+            ...(catApi.updateCat.mock.calls.length > 1 ? updatedCat : cat),
+            id,
+          },
+          stays: { totalElements: 0, items: [] },
+        }),
+      );
+      vetApi.getVets.mockReturnValue(of([vet]));
+      vetApi.getVetDetail.mockImplementation((id: string) =>
+        of({
+          vet: {
+            ...(vetApi.updateVet.mock.calls.length > 1 ? updatedVet : vet),
+            id,
+          },
+          cats: { totalElements: 0, items: [] },
+        }),
+      );
+      const rejected = new Subject<Owner | Cat | Vet>();
+      const succeeded = new Subject<Owner | Cat | Vet>();
+      if (entityType === 'owner') {
+        api.updateOwner.mockReturnValueOnce(rejected as Subject<Owner>);
+        api.updateOwner.mockReturnValueOnce(succeeded as Subject<Owner>);
+      } else if (entityType === 'cat') {
+        catApi.updateCat.mockReturnValueOnce(rejected as Subject<Cat>);
+        catApi.updateCat.mockReturnValueOnce(succeeded as Subject<Cat>);
+      } else {
+        vetApi.updateVet.mockReturnValueOnce(rejected as Subject<Vet>);
+        vetApi.updateVet.mockReturnValueOnce(succeeded as Subject<Vet>);
+      }
+      await TestBed.configureTestingModule({
+        imports: [EntityDetailDialog],
+        providers: [
+          provideNoopAnimations(),
+          { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+          { provide: OwnerApiService, useValue: api },
+          { provide: CatApiService, useValue: catApi },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+          { provide: MatDialogRef, useValue: dialogRef },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(EntityDetailDialog);
+      const emitted = vi.fn();
+      fixture.componentInstance.entityUpdated.subscribe(emitted);
+      fixture.detectChanges();
+      fixture.componentInstance.showReference({ entityType, entityId });
+      fixture.detectChanges();
+
+      const detailEditLabel =
+        entityType === 'owner'
+          ? fixture.componentInstance.text().owners.detail.edit
+          : entityType === 'cat'
+            ? fixture.componentInstance.text().cats.detail.edit
+            : fixture.componentInstance.text().vets.detail.edit;
+      buttonContaining(fixture, detailEditLabel).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const editorDebug = fixture.debugElement.query(By.css(`app-${entityType}-editor`));
+      const editor = editorDebug.componentInstance as OwnerEditor | CatEditor | VetEditor;
+      const draft = `Rejected ${entityType} draft`;
+      if (entityType === 'owner') (editor as OwnerEditor).fullName.set(draft);
+      else if (entityType === 'cat') (editor as CatEditor).name.set(draft);
+      else (editor as VetEditor).name.set(draft);
+      fixture.detectChanges();
+
+      const submit = () =>
+        fixture.nativeElement.querySelector(
+          `app-${entityType}-editor button[type="submit"]`,
+        ) as HTMLButtonElement;
+      const cancel = () =>
+        fixture.nativeElement.querySelector(
+          `app-${entityType}-editor button[mat-stroked-button]`,
+        ) as HTMLButtonElement;
+      const back = () =>
+        fixture.nativeElement.querySelector('[data-dialog-focus]') as HTMLButtonElement;
+      const close = () => fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement;
+
+      submit().click();
+      fixture.detectChanges();
+      expect(cancel().disabled).toBe(true);
+      expect(back().disabled).toBe(true);
+      expect(close().disabled).toBe(true);
+      expect(dialogRef.disableClose).toBe(true);
+
+      cancel().click();
+      back().click();
+      close().click();
+      fixture.detectChanges();
+      expect(dialogRef.close).not.toHaveBeenCalled();
+      expect(fixture.componentInstance.reference()).toEqual({ entityType, entityId });
+      expect(fixture.componentInstance.editing()).toBe(true);
+      expect(fixture.debugElement.query(By.css(`app-${entityType}-editor`))).not.toBeNull();
+
+      rejected.error(new Error('rejected update'));
+      fixture.detectChanges();
+      expect(cancel().disabled).toBe(false);
+      expect(back().disabled).toBe(false);
+      expect(close().disabled).toBe(false);
+      expect(dialogRef.disableClose).toBe(false);
+      expect(emitted).not.toHaveBeenCalled();
+      expect(
+        entityType === 'owner'
+          ? (editor as OwnerEditor).fullName()
+          : entityType === 'cat'
+            ? (editor as CatEditor).name()
+            : (editor as VetEditor).name(),
+      ).toBe(draft);
+
+      submit().click();
+      fixture.detectChanges();
+      expect(dialogRef.disableClose).toBe(true);
+      succeeded.next(
+        entityType === 'owner' ? updated : entityType === 'cat' ? updatedCat : updatedVet,
+      );
+      succeeded.complete();
+      fixture.detectChanges();
+
+      expect(dialogRef.disableClose).toBe(false);
+      expect(fixture.componentInstance.editing()).toBe(false);
+      expect(fixture.debugElement.query(By.css(`app-${entityType}-editor`))).toBeNull();
+      expect(emitted).toHaveBeenCalledTimes(1);
+      expect(emitted).toHaveBeenCalledWith({ entityType, entityId });
+      expect(fixture.nativeElement.textContent).toContain(
+        entityType === 'owner'
+          ? updated.fullName
+          : entityType === 'cat'
+            ? updatedCat.name
+            : updatedVet.name,
+      );
     },
   );
 

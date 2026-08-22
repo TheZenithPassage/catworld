@@ -36,6 +36,7 @@ export class OwnerEditor {
   readonly routed = input(false);
   readonly saved = output<Owner>();
   readonly cancelled = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
   readonly fullName = signal('');
   readonly address = signal('');
@@ -100,17 +101,21 @@ export class OwnerEditor {
       instagram: this.optional(this.instagram()),
       facebook: this.optional(this.facebook()),
     };
-    this.submitting.set(true);
+    this.setSubmitting(true);
     this.api.updateOwner(this.entityId(), request).subscribe({
       next: (o) => {
-        this.submitting.set(false);
+        this.setSubmitting(false);
         this.saved.emit(o);
       },
       error: (e) => {
         this.error.set(this.apiMessage(e, this.text().owners.edit.errors.updateFailed));
-        this.submitting.set(false);
+        this.setSubmitting(false);
       },
     });
+  }
+  private setSubmitting(value: boolean): void {
+    this.submitting.set(value);
+    this.submittingChanged.emit(value);
   }
   private setValues(o: Owner): void {
     this.fullName.set(o.fullName);

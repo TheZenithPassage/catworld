@@ -15,6 +15,7 @@
       [entity]="cat"
       (saved)="saved($event)"
       (cancelled)="cancelRequested.emit()"
+      (submittingChanged)="submittingChanged.emit($event)"
     />
   } @else {
     <dl>

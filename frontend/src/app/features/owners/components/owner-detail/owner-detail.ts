@@ -28,6 +28,7 @@ import { StayRelationshipLabel } from '../../../stays/components/stay-relationsh
           [entity]="owner"
           (saved)="saved($event)"
           (cancelled)="cancelRequested.emit()"
+          (submittingChanged)="submittingChanged.emit($event)"
         />
       } @else {
         <dl>
@@ -102,6 +103,7 @@ export class OwnerDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly submittingChanged = output<boolean>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly openStays = output<void>();
