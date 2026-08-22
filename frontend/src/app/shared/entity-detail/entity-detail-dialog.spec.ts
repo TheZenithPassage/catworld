@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of, Subject } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
@@ -52,7 +52,7 @@ describe('EntityDetailDialog', () => {
     updateOwner: vi.fn(() => of(updated)),
   };
   const catApi = {
-    getCatDetail: vi.fn((id: string) =>
+    getCatDetail: vi.fn((id: string): any =>
       of({
         cat: {
           id,
@@ -83,7 +83,7 @@ describe('EntityDetailDialog', () => {
   };
   const vetApi = { getVetCats: vi.fn(), getVetDetail: vi.fn() };
   const stayApi = {
-    getStayDetail: vi.fn(() =>
+    getStayDetail: vi.fn((_id?: string): any =>
       of({
         stayId: 'stay-1',
         status: 'RESERVED',
@@ -440,7 +440,106 @@ describe('EntityDetailDialog', () => {
     expect(intl.getRangeLabel(1, 5, 6)).toBe('6–6 of 6');
   });
 
-  it('uses the shared paged history for Owner and Cat Stay lists and Stay Cat lists', async () => {
+  it('navigates rendered direct Owner/Cat/Stay previews with localized labels and Back history', async () => {
+    const relationshipStay = {
+      stayId: 'stay-1',
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      status: 'RESERVED' as const,
+    };
+    api.getOwnerDetail.mockReturnValue(
+      of({
+        ...detail(owner),
+        cats: { totalElements: 1, items: [catItem('cat-1')] },
+        stays: { totalElements: 1, items: [relationshipStay] },
+      }),
+    );
+    catApi.getCatDetail.mockReturnValue(
+      of({
+        cat: {
+          id: 'cat-1',
+          name: 'Milo',
+          birthDate: '2020-01-01',
+          sex: 'MALE',
+          breed: null,
+          coat: null,
+          color: null,
+          foodBrand: null,
+          litterBrand: null,
+          personality: null,
+          lastInternalDewormerName: null,
+          lastInternalDewormingDate: null,
+          lastExternalDewormerName: null,
+          lastExternalDewormingDate: null,
+          lastTripleFelineDate: null,
+          lastRabiesDate: null,
+          ownerId: 'owner-1',
+          ownerName: 'Ada Lovelace',
+          vetId: null,
+          vetName: null,
+        },
+        stays: { totalElements: 1, items: [relationshipStay] },
+      }),
+    );
+    stayApi.getStayDetail.mockReturnValue(
+      of({
+        stayId: 'stay-1',
+        status: 'RESERVED',
+        startAt: '2030-01-01T10:00:00',
+        endAt: '2030-01-03T10:00:00',
+        numberOfNights: 2,
+        notes: null,
+        owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+        cats: { totalElements: 1, items: [catItem('cat-1')] },
+      }),
+    );
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+
+    const localizedStayLabel = buttonContaining(fixture, 'Reserved');
+    expect(localizedStayLabel.textContent).toContain('1 Jan 2030, 10:00');
+    localizedStayLabel.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference()).toEqual({
+      entityType: 'stay',
+      entityId: 'stay-1',
+    });
+    expect(stayApi.getStayDetail).toHaveBeenCalledWith('stay-1');
+
+    buttonContaining(fixture, 'Ada Lovelace').click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference().entityType).toBe('owner');
+    buttonContaining(fixture, fixture.componentInstance.text().entityDetail.back).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference().entityType).toBe('stay');
+
+    buttonContaining(fixture, 'Milo — Ada Lovelace').click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference()).toEqual({ entityType: 'cat', entityId: 'cat-1' });
+    expect(catApi.getCatDetail).toHaveBeenCalledWith('cat-1');
+    const catStay = buttonContaining(fixture, 'Reserved');
+    catStay.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference().entityType).toBe('stay');
+    buttonContaining(fixture, fixture.componentInstance.text().entityDetail.back).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference().entityType).toBe('cat');
+    expect(fixture.nativeElement.textContent).toContain('Milo');
+  });
+
+  it('drives rendered associated Stay/Cat lists through paginator, child and restored Back state', async () => {
     const stayPage = {
       items: [
         {
@@ -455,8 +554,56 @@ describe('EntityDetailDialog', () => {
       totalElements: 6,
       totalPages: 2,
     };
-    api.getOwnerStays.mockReturnValue(of(stayPage));
+    api.getOwnerDetail.mockReturnValue(
+      of({
+        ...detail(owner),
+        cats: { totalElements: 1, items: [catItem('cat-1')] },
+        stays: { totalElements: 6, items: [] },
+      }),
+    );
+    api.getOwnerStays.mockImplementation((_id: string, page: number) =>
+      of({ ...stayPage, page, items: [{ ...stayPage.items[0], stayId: `stay-${page + 1}` }] }),
+    );
+    catApi.getCatDetail.mockReturnValue(
+      of({
+        cat: {
+          id: 'cat-1',
+          name: 'Milo',
+          birthDate: '2020-01-01',
+          sex: 'MALE',
+          breed: null,
+          coat: null,
+          color: null,
+          foodBrand: null,
+          litterBrand: null,
+          personality: null,
+          lastInternalDewormerName: null,
+          lastInternalDewormingDate: null,
+          lastExternalDewormerName: null,
+          lastExternalDewormingDate: null,
+          lastTripleFelineDate: null,
+          lastRabiesDate: null,
+          ownerId: 'owner-1',
+          ownerName: 'Ada Lovelace',
+          vetId: null,
+          vetName: null,
+        },
+        stays: { totalElements: 6, items: [] },
+      }),
+    );
     catApi.getCatStays.mockReturnValue(of(stayPage));
+    stayApi.getStayDetail.mockImplementation((id?: string) =>
+      of({
+        stayId: id!,
+        status: 'RESERVED',
+        startAt: '2030-01-01T10:00:00',
+        endAt: '2030-01-03T10:00:00',
+        numberOfNights: 2,
+        notes: null,
+        owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+        cats: { totalElements: 6, items: [] },
+      }),
+    );
     stayApi.getStayCats.mockReturnValue(
       of({ items: [catItem('cat-1')], page: 0, pageSize: 5, totalElements: 6, totalPages: 2 }),
     );
@@ -475,31 +622,42 @@ describe('EntityDetailDialog', () => {
     const fixture = TestBed.createComponent(EntityDetailDialog);
     fixture.detectChanges();
 
-    fixture.componentInstance.openStays({ entityType: 'owner', entityId: 'owner-1' });
+    buttonContaining(fixture, '6').click();
     fixture.detectChanges();
     expect(api.getOwnerStays).toHaveBeenCalledWith('owner-1', 0);
     expect(fixture.nativeElement.textContent).toContain('Reserved');
-    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    (
+      fixture.nativeElement.querySelector('.mat-mdc-paginator-navigation-next') as HTMLButtonElement
+    ).click();
     fixture.detectChanges();
-    fixture.componentInstance.back();
+    expect(api.getOwnerStays).toHaveBeenCalledWith('owner-1', 1);
+    buttonContaining(fixture, 'Reserved').click();
     fixture.detectChanges();
-    expect(fixture.componentInstance.relationshipPage()?.page).toBe(0);
+    expect(fixture.componentInstance.reference().entityId).toBe('stay-2');
+    buttonContaining(fixture, fixture.componentInstance.text().entityDetail.back).click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.relationshipPage()?.page).toBe(1);
+    expect(api.getOwnerStays).toHaveBeenLastCalledWith('owner-1', 1);
 
-    fixture.componentInstance.back();
-    fixture.componentInstance.showReference({ entityType: 'cat', entityId: 'cat-1' });
-    fixture.componentInstance.openStays({ entityType: 'cat', entityId: 'cat-1' });
+    buttonContaining(fixture, fixture.componentInstance.text().entityDetail.back).click();
+    fixture.detectChanges();
+    buttonContaining(fixture, 'Milo — Ada Lovelace').click();
+    fixture.detectChanges();
+    buttonContaining(fixture, '6').click();
     fixture.detectChanges();
     expect(catApi.getCatStays).toHaveBeenCalledWith('cat-1', 0);
-
-    fixture.componentInstance.back();
-    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
-    fixture.componentInstance.openCats({ entityType: 'stay', entityId: 'stay-1' });
+    buttonContaining(fixture, 'Reserved').click();
+    fixture.detectChanges();
+    buttonContaining(fixture, '6').click();
     fixture.detectChanges();
     expect(stayApi.getStayCats).toHaveBeenCalledWith('stay-1', 0);
-    fixture.componentInstance.showReference({ entityType: 'cat', entityId: 'cat-1' });
-    fixture.componentInstance.back();
+    buttonContaining(fixture, 'Milo — Ada Lovelace').click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference().entityType).toBe('cat');
+    buttonContaining(fixture, fixture.componentInstance.text().entityDetail.back).click();
     fixture.detectChanges();
     expect(fixture.componentInstance.relationshipPage()?.page).toBe(0);
+    expect(stayApi.getStayCats).toHaveBeenLastCalledWith('stay-1', 0);
   });
 
   it('lets the reactive dialog title provide the accessible name', () => {
@@ -598,7 +756,117 @@ describe('EntityDetailDialog', () => {
     expect(fixture.componentInstance.operationalError()).toBe(false);
   });
 
-  it('locks every dialog dismissal path only while an authoritative Stay update is in flight', async () => {
+  it('drives rendered Stay cancel, rejected draft retention and authoritative locked save', async () => {
+    const relationshipStay = {
+      stayId: 'stay-1',
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      status: 'RESERVED' as const,
+    };
+    const authoritative = { ...operationalStay, notes: 'authoritative update' };
+    const pending = new Subject<Stay>();
+    api.getOwnerDetail.mockReturnValue(
+      of({ ...detail(owner), stays: { totalElements: 1, items: [relationshipStay] } }),
+    );
+    stayApi.getStayDetail.mockImplementation(() =>
+      of({
+        stayId: 'stay-1',
+        status: 'RESERVED',
+        startAt: '2030-01-01T10:00:00',
+        endAt: '2030-01-03T10:00:00',
+        numberOfNights: 2,
+        notes: stayApi.updateStay.mock.calls.length > 1 ? authoritative.notes : null,
+        owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+        cats: { totalElements: 0, items: [] },
+      }),
+    );
+    stayApi.updateStay
+      .mockReturnValueOnce(throwError(() => new Error('rejected update')))
+      .mockReturnValueOnce(pending);
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: AuthSessionService, useValue: { hasRole: () => true } },
+        { provide: NightlyReferenceRateApiService, useValue: { getCurrentRates: () => of([]) } },
+        { provide: MatDialog, useValue: { open: vi.fn() } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    const emitted = vi.fn();
+    fixture.componentInstance.stayUpdated.subscribe(emitted);
+
+    expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
+    buttonContaining(fixture, 'Reserved').click();
+    fixture.detectChanges();
+    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.edit).click();
+    fixture.detectChanges();
+    let editor = fixture.debugElement.query(By.directive(StayEditor))
+      .componentInstance as StayEditor;
+    editor.notes.set('discard me');
+    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.cancelEdit).click();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
+
+    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.edit).click();
+    fixture.detectChanges();
+    editor = fixture.debugElement.query(By.directive(StayEditor)).componentInstance as StayEditor;
+    expect(editor.notes()).toBe('');
+    editor.notes.set('retained rejected draft');
+    buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
+    expect(editor.notes()).toBe('retained rejected draft');
+
+    buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
+    fixture.detectChanges();
+    expect(dialogRef.disableClose).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('[data-dialog-focus]') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('.cancel-edit') as HTMLButtonElement).disabled,
+    ).toBe(true);
+
+    pending.next(authoritative);
+    pending.complete();
+    fixture.detectChanges();
+    expect(dialogRef.disableClose).toBe(false);
+    expect(emitted).toHaveBeenCalledWith(authoritative);
+    expect(fixture.componentInstance.editing()).toBe(false);
+    expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('authoritative update');
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['RESERVED', true],
+    ['CHECKED_IN', true],
+    ['CHECKED_OUT', false],
+    ['CANCELLED', false],
+  ] as const)('renders backend status %s with edit visibility %s', async (status, editable) => {
+    stayApi.getStayDetail.mockReturnValue(
+      of({
+        stayId: 'stay-1',
+        status,
+        startAt: '2030-01-01T10:00:00',
+        endAt: '2030-01-03T10:00:00',
+        numberOfNights: 2,
+        notes: null,
+        owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+        cats: { totalElements: 0, items: [] },
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -613,23 +881,35 @@ describe('EntityDetailDialog', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
     fixture.detectChanges();
-    fixture.componentInstance.submissionChanged(true);
-    fixture.detectChanges();
-    expect(dialogRef.disableClose).toBe(true);
-    expect(
-      (fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement).disabled,
-    ).toBe(true);
-    fixture.componentInstance.submissionChanged(false);
-    fixture.detectChanges();
-    expect(dialogRef.disableClose).toBe(false);
-    const emitted = vi.fn();
-    fixture.componentInstance.stayUpdated.subscribe(emitted);
-    const authoritative = { ...operationalStay, notes: 'authoritative update' };
-    fixture.componentInstance.staySaved(authoritative);
-    expect(emitted).toHaveBeenCalledWith(authoritative);
+    const edit = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === fixture.componentInstance.text().stays.detail.edit,
+    );
+    expect(edit !== undefined).toBe(editable);
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.status[
+        status === 'RESERVED'
+          ? 'reserved'
+          : status === 'CHECKED_IN'
+            ? 'checked-in'
+            : status === 'CHECKED_OUT'
+              ? 'checked-out'
+              : 'cancelled'
+      ],
+    );
   });
 
   function catItem(id: string) {
     return { id, name: 'Milo', ownerId: 'owner-1', ownerName: 'Ada Lovelace' };
+  }
+
+  function buttonContaining(
+    fixture: { nativeElement: HTMLElement },
+    text: string,
+  ): HTMLButtonElement {
+    const button = [...fixture.nativeElement.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes(text),
+    );
+    expect(button).toBeDefined();
+    return button!;
   }
 });
