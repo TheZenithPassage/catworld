@@ -2,12 +2,15 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
+import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.OwnerRepository;
+import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +37,10 @@ public class OwnerService implements IOwnerService {
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayRepository stayRepository;
+    private final CatRepository catRepository;
+
+    private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
+    private static final Sort STAY_ORDER = Sort.by(Sort.Order.desc("startAt"), Sort.Order.asc("id"));
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {
@@ -69,6 +79,37 @@ public class OwnerService implements IOwnerService {
     @Override
     public OwnerResponseDTO getOwner(UUID id) {
         return toResponseDTO(getEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OwnerDetailResponse getOwnerDetail(UUID id) {
+        Owner owner = getEntity(id);
+        Page<Cat> cats = catRepository.findByOwner_Id(id, PageRequest.of(0, 4, CAT_ORDER));
+        Page<com.allegaeon.catworld.model.Stay> stays = stayRepository.findByOwner_Id(id, PageRequest.of(0, 4, STAY_ORDER));
+        return new OwnerDetailResponse(toResponseDTO(owner),
+                RelationshipResponses.preview(cats, RelationshipResponses::cat),
+                RelationshipResponses.preview(stays, RelationshipResponses::stay));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RelationshipPage<CatRelationshipItem> getOwnerCats(UUID id, int page) {
+        getEntity(id);
+        RelationshipResponses.requireValidPage(page);
+        return RelationshipResponses.page(
+                catRepository.findByOwner_Id(id, PageRequest.of(page, RelationshipResponses.PAGE_SIZE, CAT_ORDER)),
+                RelationshipResponses::cat);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RelationshipPage<StayRelationshipItem> getOwnerStays(UUID id, int page) {
+        getEntity(id);
+        RelationshipResponses.requireValidPage(page);
+        return RelationshipResponses.page(
+                stayRepository.findByOwner_Id(id, PageRequest.of(page, RelationshipResponses.PAGE_SIZE, STAY_ORDER)),
+                RelationshipResponses::stay);
     }
 
     @Override

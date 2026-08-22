@@ -7,7 +7,8 @@
     [actionLabel]="text().cats.detail.retry"
     (actionTriggered)="load()"
   />
-} @else if (cat(); as cat) {
+} @else if (detail(); as detail) {
+  @let cat = detail.cat;
   @if (editing()) {
     <app-cat-editor
       [entityId]="entityId()"
@@ -24,9 +25,29 @@
       <dt>{{ text().cats.form.sex }}</dt>
       <dd>{{ cat.sex === 'MALE' ? text().cats.form.male : text().cats.form.female }}</dd>
       <dt>{{ text().cats.form.owner }}</dt>
-      <dd>{{ cat.ownerName }}</dd>
+      <dd>
+        <button
+          mat-button
+          type="button"
+          (click)="navigate.emit({ entityType: 'owner', entityId: cat.ownerId })"
+        >
+          {{ cat.ownerName }}
+        </button>
+      </dd>
       <dt>{{ text().cats.form.vet }}</dt>
-      <dd>{{ value(cat.vetName) }}</dd>
+      <dd>
+        @if (cat.vetId) {
+          <button
+            mat-button
+            type="button"
+            (click)="navigate.emit({ entityType: 'vet', entityId: cat.vetId })"
+          >
+            {{ cat.vetName }}
+          </button>
+        } @else {
+          {{ value(cat.vetName) }}
+        }
+      </dd>
       <dt>{{ text().cats.form.breed }}</dt>
       <dd>{{ value(cat.breed) }}</dd>
       <dt>{{ text().cats.form.coat }}</dt>

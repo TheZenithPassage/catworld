@@ -9,6 +9,7 @@ import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { EntityDetailDialog } from './entity-detail-dialog';
 import { EntityDetailDialogService } from './entity-detail-dialog.service';
+import { OwnerDetailResponse } from './relationship.models';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -23,8 +24,20 @@ describe('EntityDetailDialog', () => {
   };
   const updated = { ...owner, fullName: 'Ada Byron' };
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
+  const detail = (value: Owner): OwnerDetailResponse => ({
+    owner: value,
+    cats: { totalElements: 0, items: [] },
+    stays: { totalElements: 0, items: [] },
+  });
   const api = {
-    getOwnerById: vi.fn((id: string) => of(id === 'owner-2' ? secondOwner : owner)),
+    getOwnerDetail: vi.fn((id: string) =>
+      of(
+        detail(
+          id === 'owner-2' ? secondOwner : api.updateOwner.mock.calls.length ? updated : owner,
+        ),
+      ),
+    ),
+    getOwnerCats: vi.fn(),
     updateOwner: vi.fn(() => of(updated)),
   };
 
@@ -125,11 +138,11 @@ describe('EntityDetailDialog', () => {
   });
 
   it('ignores stale same-type successes and errors after a reference change', async () => {
-    const first = new Subject<Owner>();
-    const second = new Subject<Owner>();
-    const third = new Subject<Owner>();
-    const fourth = new Subject<Owner>();
-    api.getOwnerById
+    const first = new Subject<OwnerDetailResponse>();
+    const second = new Subject<OwnerDetailResponse>();
+    const third = new Subject<OwnerDetailResponse>();
+    const fourth = new Subject<OwnerDetailResponse>();
+    api.getOwnerDetail
       .mockImplementationOnce(() => first)
       .mockImplementationOnce(() => second)
       .mockImplementationOnce(() => third)
@@ -146,9 +159,9 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-2' });
     fixture.detectChanges();
-    second.next(secondOwner);
+    second.next(detail(secondOwner));
     fixture.detectChanges();
-    first.next(owner);
+    first.next(detail(owner));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
     expect(fixture.nativeElement.textContent).not.toContain('Ada Lovelace');
@@ -159,7 +172,7 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     fixture.componentInstance.showReference({ entityType: 'owner', entityId: fourthOwner.id });
     fixture.detectChanges();
-    fourth.next(fourthOwner);
+    fourth.next(detail(fourthOwner));
     fixture.detectChanges();
     third.error(new Error('late failure'));
     fixture.detectChanges();

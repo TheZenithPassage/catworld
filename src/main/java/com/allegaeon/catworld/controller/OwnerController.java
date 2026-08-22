@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.service.IOwnerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,23 @@ public class OwnerController {
     @GetMapping("/{id}")
     public ResponseEntity<OwnerResponseDTO> getOwner(@PathVariable UUID id) {
         return ResponseEntity.ok(ownerService.getOwner(id));
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<OwnerDetailResponse> getOwnerDetail(@PathVariable UUID id) {
+        return ResponseEntity.ok(ownerService.getOwnerDetail(id));
+    }
+
+    @GetMapping("/{id}/cats")
+    public ResponseEntity<RelationshipPage<CatRelationshipItem>> getOwnerCats(
+            @PathVariable UUID id, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(ownerService.getOwnerCats(id, page));
+    }
+
+    @GetMapping("/{id}/stays")
+    public ResponseEntity<RelationshipPage<StayRelationshipItem>> getOwnerStays(
+            @PathVariable UUID id, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(ownerService.getOwnerStays(id, page));
     }
 
     @PostMapping

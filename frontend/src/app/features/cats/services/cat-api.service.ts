@@ -4,6 +4,10 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import { Cat, CreateCatRequest, UpdateCatRequest } from '../models/cat.model';
+import {
+  CatDetailResponse,
+  StayRelationshipPage,
+} from '../../../shared/entity-detail/relationship.models';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +22,16 @@ export class CatApiService {
 
   getCatById(catId: string): Observable<Cat> {
     return this.http.get<Cat>(`${this.baseUrl}/${catId}`);
+  }
+
+  getCatDetail(catId: string): Observable<CatDetailResponse> {
+    return this.http.get<CatDetailResponse>(`${this.baseUrl}/${catId}/detail`);
+  }
+
+  getCatStays(catId: string, page = 0): Observable<StayRelationshipPage> {
+    return this.http.get<StayRelationshipPage>(`${this.baseUrl}/${catId}/stays`, {
+      params: { page },
+    });
   }
 
   createCat(request: CreateCatRequest): Observable<Cat> {

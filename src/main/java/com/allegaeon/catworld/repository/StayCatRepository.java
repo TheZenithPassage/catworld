@@ -4,6 +4,9 @@ import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayCatId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.allegaeon.catworld.model.Stay;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +16,9 @@ import java.util.UUID;
 
 @Repository
 public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
+
+    @Query("select sc.stay from StayCat sc where sc.cat.id = :catId")
+    Page<Stay> findStaysByCatId(@Param("catId") UUID catId, Pageable pageable);
 
     boolean existsByCat_Id(UUID catId);
 

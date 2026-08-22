@@ -1,35 +1,80 @@
 <h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
 <mat-dialog-content>
-  @switch (reference().entityType) {
-    @case ('owner') {
-      <app-owner-detail
-        [entityId]="reference().entityId"
-        [editing]="editing()"
-        (editRequested)="enterEdit()"
-        (cancelRequested)="leaveEdit()"
-        (saveCompleted)="leaveEdit()"
+  @if (history().length > 1) {
+    <button data-dialog-focus mat-button type="button" (click)="back()">
+      {{ text().entityDetail.back }}
+    </button>
+  }
+  @if (entry().kind === 'list') {
+    @if (relationshipLoading()) {
+      <app-ui-state kind="loading" [message]="text().entityDetail.loading" />
+    } @else if (relationshipError()) {
+      <app-ui-state
+        kind="error"
+        [message]="text().entityDetail.loadFailed"
+        [actionLabel]="text().entityDetail.retry"
+        (actionTriggered)="retryRelationship()"
+      />
+    } @else if (relationshipPage(); as page) {
+      @if (page.items.length === 0) {
+        <app-ui-state kind="empty" [message]="text().entityDetail.empty" />
+      } @else {
+        <h3 tabindex="-1" data-dialog-focus>{{ text().entityDetail.cats }}</h3>
+        @for (cat of page.items; track cat.id) {
+          <button
+            mat-button
+            type="button"
+            (click)="showReference({ entityType: 'cat', entityId: cat.id })"
+          >
+            {{ cat.name }} — {{ cat.ownerName }}
+          </button>
+        }
+      }
+      <mat-paginator
+        [length]="page.totalElements"
+        [pageIndex]="page.page"
+        [pageSize]="5"
+        [hidePageSize]="true"
+        (page)="pageChanged($event)"
       />
     }
-    @case ('cat') {
-      <app-cat-detail
-        [entityId]="reference().entityId"
-        [editing]="editing()"
-        (editRequested)="enterEdit()"
-        (cancelRequested)="leaveEdit()"
-        (saveCompleted)="leaveEdit()"
-      />
-    }
-    @case ('vet') {
-      <app-vet-detail
-        [entityId]="reference().entityId"
-        [editing]="editing()"
-        (editRequested)="enterEdit()"
-        (cancelRequested)="leaveEdit()"
-        (saveCompleted)="leaveEdit()"
-      />
-    }
-    @case ('stay') {
-      <app-ui-state kind="error" [message]="text().owners.detail.unsupportedStay" />
+  } @else {
+    @switch (reference().entityType) {
+      @case ('owner') {
+        <app-owner-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="leaveEdit()"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+        />
+      }
+      @case ('cat') {
+        <app-cat-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="leaveEdit()"
+          (navigate)="showReference($event)"
+        />
+      }
+      @case ('vet') {
+        <app-vet-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="leaveEdit()"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+        />
+      }
+      @case ('stay') {
+        <app-ui-state kind="error" [message]="text().owners.detail.unsupportedStay" />
+      }
     }
   }
 </mat-dialog-content>

@@ -4,6 +4,8 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { Cat } from '../../models/cat.model';
+import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
+import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
 @Component({
@@ -21,9 +23,10 @@ export class CatDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly navigate = output<EntityReference>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
-  readonly cat = signal<Cat | null>(null);
+  readonly detail = signal<CatDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   constructor() {
@@ -38,10 +41,10 @@ export class CatDetail {
     const entityId = this.entityId();
     this.loading.set(true);
     this.error.set(false);
-    this.api.getCatById(entityId).subscribe({
-      next: (c) => {
+    this.api.getCatDetail(entityId).subscribe({
+      next: (detail) => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
-        this.cat.set(c);
+        this.detail.set(detail);
         this.loading.set(false);
       },
       error: () => {
@@ -52,8 +55,8 @@ export class CatDetail {
     });
   }
   saved(c: Cat): void {
-    this.cat.set(c);
     this.saveCompleted.emit();
+    this.load();
   }
   value(v: string | null): string {
     return v || this.text().cats.emptyValue;

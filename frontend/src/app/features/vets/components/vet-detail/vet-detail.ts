@@ -3,6 +3,8 @@ import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Vet } from '../../models/vet.model';
+import { VetDetailResponse } from '../../../../shared/entity-detail/relationship.models';
+import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { VetApiService } from '../../services/vet-api.service';
 import { VetEditor } from '../vet-editor/vet-editor';
 @Component({
@@ -17,7 +19,8 @@ import { VetEditor } from '../vet-editor/vet-editor';
         [actionLabel]="text().vets.detail.retry"
         (actionTriggered)="load()"
       />
-    } @else if (vet(); as vet) {
+    } @else if (detail(); as detail) {
+      @let vet = detail.vet;
       @if (editing()) {
         <app-vet-editor
           [entityId]="entityId()"
@@ -34,6 +37,26 @@ import { VetEditor } from '../vet-editor/vet-editor';
           <dt>{{ text().vets.form.address }}</dt>
           <dd>{{ value(vet.address) }}</dd>
         </dl>
+        @if (detail.cats.totalElements > 0) {
+          <section>
+            <h3>{{ text().entityDetail.cats }}</h3>
+            @if (detail.cats.totalElements <= 3) {
+              @for (cat of detail.cats.items; track cat.id) {
+                <button
+                  mat-button
+                  type="button"
+                  (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
+                >
+                  {{ cat.name }} — {{ cat.ownerName }}
+                </button>
+              }
+            } @else {
+              <button mat-button type="button" (click)="openCats.emit()">
+                {{ text().entityDetail.associatedRecords(detail.cats.totalElements) }}
+              </button>
+            }
+          </section>
+        }
         <button mat-flat-button type="button" (click)="editRequested.emit()">
           {{ text().vets.detail.edit }}
         </button>
@@ -50,8 +73,10 @@ export class VetDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly navigate = output<EntityReference>();
+  readonly openCats = output<void>();
   readonly text = this.i18n.text;
-  readonly vet = signal<Vet | null>(null);
+  readonly detail = signal<VetDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   constructor() {
@@ -66,10 +91,10 @@ export class VetDetail {
     const entityId = this.entityId();
     this.loading.set(true);
     this.error.set(false);
-    this.api.getVetById(entityId).subscribe({
-      next: (v) => {
+    this.api.getVetDetail(entityId).subscribe({
+      next: (detail) => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
-        this.vet.set(v);
+        this.detail.set(detail);
         this.loading.set(false);
       },
       error: () => {
@@ -80,8 +105,8 @@ export class VetDetail {
     });
   }
   saved(v: Vet): void {
-    this.vet.set(v);
     this.saveCompleted.emit();
+    this.load();
   }
   value(v: string | null): string {
     return v || this.text().vets.emptyValue;

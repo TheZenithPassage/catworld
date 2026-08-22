@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import { CreateOwnerRequest, Owner, UpdateOwnerRequest } from '../models/owner.model';
+import {
+  CatRelationshipPage,
+  OwnerDetailResponse,
+  StayRelationshipPage,
+} from '../../../shared/entity-detail/relationship.models';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +23,22 @@ export class OwnerApiService {
 
   getOwnerById(ownerId: string): Observable<Owner> {
     return this.http.get<Owner>(`${this.baseUrl}/${ownerId}`);
+  }
+
+  getOwnerDetail(ownerId: string): Observable<OwnerDetailResponse> {
+    return this.http.get<OwnerDetailResponse>(`${this.baseUrl}/${ownerId}/detail`);
+  }
+
+  getOwnerCats(ownerId: string, page = 0): Observable<CatRelationshipPage> {
+    return this.http.get<CatRelationshipPage>(`${this.baseUrl}/${ownerId}/cats`, {
+      params: { page },
+    });
+  }
+
+  getOwnerStays(ownerId: string, page = 0): Observable<StayRelationshipPage> {
+    return this.http.get<StayRelationshipPage>(`${this.baseUrl}/${ownerId}/stays`, {
+      params: { page },
+    });
   }
 
   createOwner(request: CreateOwnerRequest): Observable<Owner> {

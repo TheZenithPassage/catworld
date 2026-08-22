@@ -3,6 +3,8 @@ import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Owner } from '../../models/owner.model';
+import { OwnerDetailResponse } from '../../../../shared/entity-detail/relationship.models';
+import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerEditor } from '../owner-editor/owner-editor';
 @Component({
@@ -17,7 +19,8 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
         [actionLabel]="text().owners.detail.retry"
         (actionTriggered)="load()"
       />
-    } @else if (owner(); as owner) {
+    } @else if (detail(); as detail) {
+      @let owner = detail.owner;
       @if (editing()) {
         <app-owner-editor
           [entityId]="entityId()"
@@ -42,6 +45,26 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
           <dt>{{ text().owners.form.facebook }}</dt>
           <dd>{{ value(owner.facebook) }}</dd>
         </dl>
+        @if (detail.cats.totalElements > 0) {
+          <section>
+            <h3>{{ text().entityDetail.cats }}</h3>
+            @if (detail.cats.totalElements <= 3) {
+              @for (cat of detail.cats.items; track cat.id) {
+                <button
+                  mat-button
+                  type="button"
+                  (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
+                >
+                  {{ cat.name }} — {{ cat.ownerName }}
+                </button>
+              }
+            } @else {
+              <button mat-button type="button" (click)="openCats.emit()">
+                {{ text().entityDetail.associatedRecords(detail.cats.totalElements) }}
+              </button>
+            }
+          </section>
+        }
         <button mat-flat-button type="button" (click)="editRequested.emit()">
           {{ text().owners.detail.edit }}
         </button>
@@ -58,8 +81,10 @@ export class OwnerDetail {
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
+  readonly navigate = output<EntityReference>();
+  readonly openCats = output<void>();
   readonly text = this.i18n.text;
-  readonly owner = signal<Owner | null>(null);
+  readonly detail = signal<OwnerDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   constructor() {
@@ -74,10 +99,10 @@ export class OwnerDetail {
     const entityId = this.entityId();
     this.loading.set(true);
     this.error.set(false);
-    this.api.getOwnerById(entityId).subscribe({
-      next: (o) => {
+    this.api.getOwnerDetail(entityId).subscribe({
+      next: (detail) => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
-        this.owner.set(o);
+        this.detail.set(detail);
         this.loading.set(false);
       },
       error: () => {
@@ -88,8 +113,8 @@ export class OwnerDetail {
     });
   }
   saved(o: Owner): void {
-    this.owner.set(o);
     this.saveCompleted.emit();
+    this.load();
   }
   value(v: string | null): string {
     return v || this.text().owners.emptyValue;

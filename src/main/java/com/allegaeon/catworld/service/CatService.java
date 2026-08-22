@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.CatMapper;
@@ -19,6 +20,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Set;
@@ -28,6 +32,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Service
 public class CatService implements ICatService{
+
+    private static final Sort STAY_ORDER = Sort.by(Sort.Order.desc("startAt"), Sort.Order.asc("id"));
 
     private final CatRepository catRepository;
     private final CatMapper catMapper;
@@ -66,6 +72,27 @@ public class CatService implements ICatService{
     @Override
     public CatResponseDTO getCat(UUID id) {
         return toResponseDTO(getCatEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CatDetailResponse getCatDetail(UUID id) {
+        Cat cat = getCatEntity(id);
+        Page<com.allegaeon.catworld.model.Stay> stays = stayCatRepository.findStaysByCatId(
+                id, PageRequest.of(0, 4, STAY_ORDER));
+        return new CatDetailResponse(toResponseDTO(cat),
+                RelationshipResponses.preview(stays, RelationshipResponses::stay));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page) {
+        getCatEntity(id);
+        RelationshipResponses.requireValidPage(page);
+        return RelationshipResponses.page(
+                stayCatRepository.findStaysByCatId(id,
+                        PageRequest.of(page, RelationshipResponses.PAGE_SIZE, STAY_ORDER)),
+                RelationshipResponses::stay);
     }
 
     @Override
