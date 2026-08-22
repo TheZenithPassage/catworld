@@ -1,0 +1,58 @@
+@if (loading()) {
+  <app-ui-state kind="loading" [message]="text().entityDetail.loading" />
+} @else if (error()) {
+  <app-ui-state
+    kind="error"
+    [message]="text().entityDetail.loadFailed"
+    [actionLabel]="text().entityDetail.retry"
+    (actionTriggered)="load()"
+  />
+} @else if (detail(); as stay) {
+  @if (!editing()) {
+    <dl>
+      <dt>{{ text().stays.edit.startDateTime }}</dt>
+      <dd>{{ stay.startAt }}</dd>
+      <dt>{{ text().stays.edit.endDateTime }}</dt>
+      <dd>{{ stay.endAt }}</dd>
+      <dt>{{ text().stays.nights.plural }}</dt>
+      <dd>{{ stay.numberOfNights }}</dd>
+      <dt>Status</dt>
+      <dd>{{ stay.status }}</dd>
+      <dt>{{ text().stays.edit.notes }}</dt>
+      <dd>{{ stay.notes || '—' }}</dd>
+      <dt>Owner</dt>
+      <dd>
+        <button
+          mat-button
+          type="button"
+          (click)="navigate.emit({ entityType: 'owner', entityId: stay.owner.id })"
+        >
+          {{ stay.owner.fullName }}
+        </button>
+      </dd>
+    </dl>
+    @if (stay.cats.totalElements > 0) {
+      <h3>{{ text().entityDetail.cats }}</h3>
+      @if (stay.cats.totalElements <= 3) {
+        @for (cat of stay.cats.items; track cat.id) {
+          <button
+            mat-button
+            type="button"
+            (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
+          >
+            {{ cat.name }} — {{ cat.ownerName }}
+          </button>
+        }
+      } @else {
+        <button mat-button type="button" (click)="openCats.emit()">
+          {{ text().entityDetail.associatedRecords(stay.cats.totalElements) }}
+        </button>
+      }
+    }
+    @if (canEdit(stay)) {
+      <button mat-flat-button type="button" (click)="editRequested.emit()">
+        {{ text().stays.edit.submit }}
+      </button>
+    }
+  }
+}

@@ -73,6 +73,26 @@
       <dt>{{ text().cats.form.lastRabiesDate }}</dt>
       <dd>{{ date(cat.lastRabiesDate) }}</dd>
     </dl>
+    @if (detail.stays.totalElements > 0) {
+      <section>
+        <h3>{{ text().entityDetail.stays }}</h3>
+        @if (detail.stays.totalElements <= 3) {
+          @for (stay of detail.stays.items; track stay.stayId) {
+            <button
+              mat-button
+              type="button"
+              (click)="navigate.emit({ entityType: 'stay', entityId: stay.stayId })"
+            >
+              {{ stay.startAt }} — {{ stay.endAt }} · {{ stay.status }}
+            </button>
+          }
+        } @else {
+          <button mat-button type="button" (click)="openStays.emit()">
+            {{ text().entityDetail.associatedRecords(detail.stays.totalElements) }}
+          </button>
+        }
+      </section>
+    }
     <button mat-flat-button type="button" (click)="editRequested.emit()">
       {{ text().cats.detail.edit }}
     </button>

@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, OnChanges, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -52,7 +52,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
   templateUrl: './stay-edit-page.html',
   styleUrl: './stay-edit-page.scss',
 })
-export class StayEditPage {
+export class StayEditPage implements OnChanges {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly stayApiService = inject(StayApiService);
@@ -62,6 +62,10 @@ export class StayEditPage {
   private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18nService.text;
+  readonly entityId = input<string | null>(this.route.snapshot.paramMap.get('id'));
+  readonly embedded = input(false);
+  readonly saved = output<Stay>();
+  readonly cancelled = output<void>();
 
   readonly ownerName = signal('');
   readonly catNames = signal('');
@@ -172,14 +176,21 @@ export class StayEditPage {
     return '';
   });
 
-  private readonly stayId = this.route.snapshot.paramMap.get('id');
+  private get stayId(): string | null {
+    return this.entityId();
+  }
   private previewRequestSequence = 0;
+  private loadedStayId: string | null = null;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private agreedAmountBeforeCurrentRate: string | null = null;
 
   constructor() {
     this.loadCurrentNightlyRates();
     this.loadStay();
+  }
+
+  ngOnChanges(): void {
+    if (this.stayId !== this.loadedStayId) this.loadStay();
   }
 
   private loadCurrentNightlyRates(): void {
@@ -197,6 +208,8 @@ export class StayEditPage {
       this.showError(this.text().stays.edit.errors.stayIdMissing);
       return;
     }
+
+    this.loadedStayId = this.stayId;
 
     this.loading.set(true);
 
@@ -294,9 +307,14 @@ export class StayEditPage {
     this.submitting.set(true);
 
     this.stayApiService.updateStay(this.stayId, request).subscribe({
-      next: () => {
+      next: (updated) => {
         this.submitting.set(false);
-        this.router.navigate(['/stays']);
+        if (this.embedded()) {
+          this.stay.set(updated);
+          this.saved.emit(updated);
+        } else {
+          void this.router.navigate(['/stays']);
+        }
       },
       error: (error: unknown) => {
         if (isStalePricingConfirmationError(error)) {

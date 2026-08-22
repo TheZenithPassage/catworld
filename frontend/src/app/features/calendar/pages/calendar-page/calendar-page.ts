@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatRadioModule } from '@angular/material/radio';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, DatesSetArg } from '@fullcalendar/core';
@@ -12,6 +12,7 @@ import enGbLocale from '@fullcalendar/core/locales/en-gb';
 
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
 import { compareStayCalendarEvents, toStayCalendarEvents } from './stay-calendar-events';
@@ -61,7 +62,7 @@ interface CalendarLocalPreferences {
 })
 export class CalendarPage {
   private readonly stayApiService = inject(StayApiService);
-  private readonly router = inject(Router);
+  private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly i18nService = inject(I18nService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
@@ -135,8 +136,13 @@ export class CalendarPage {
     eventClick: ({ event }) => {
       const stayId = event.extendedProps['stayId'] ?? event.id;
 
-      void this.router.navigate(['/stays'], {
-        queryParams: { selectedStayId: stayId },
+      this.entityDetailDialog.open({ entityType: 'stay', entityId: stayId }).subscribe(() => {
+        this.stayApiService.getStayById(stayId).subscribe({
+          next: (updated) =>
+            this.stays.update((items) =>
+              items.map((item) => (item.stayId === stayId ? updated : item)),
+            ),
+        });
       });
     },
     eventDidMount: ({ el, event }) => {

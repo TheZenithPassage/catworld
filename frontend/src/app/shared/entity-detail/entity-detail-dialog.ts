@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
@@ -9,6 +9,8 @@ import {
 import { CatDetail } from '../../features/cats/components/cat-detail/cat-detail';
 import { OwnerDetail } from '../../features/owners/components/owner-detail/owner-detail';
 import { VetDetail } from '../../features/vets/components/vet-detail/vet-detail';
+import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { StayEditPage } from '../../features/stays/pages/stay-edit-page/stay-edit-page';
 import { EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
@@ -16,9 +18,13 @@ import { MatPaginator, MatPaginatorIntl, PageEvent } from '@angular/material/pag
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { CatRelationshipPage } from './relationship.models';
+import { StayRelationshipPage } from './relationship.models';
+import { CatApiService } from '../../features/cats/services/cat-api.service';
+import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { dialogPaginatorIntl } from './dialog-paginator-intl';
+import { Observable } from 'rxjs';
 
-type RelationshipKind = 'owner-cats' | 'vet-cats';
+type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
   | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number };
@@ -32,6 +38,8 @@ type HistoryEntry =
     OwnerDetail,
     CatDetail,
     VetDetail,
+    StayDetail,
+    StayEditPage,
     UiStateComponent,
     MatPaginator,
   ],
@@ -42,16 +50,19 @@ type HistoryEntry =
 export class EntityDetailDialog {
   private readonly ownerApi = inject(OwnerApiService);
   private readonly vetApi = inject(VetApiService);
+  private readonly catApi = inject(CatApiService);
+  private readonly stayApi = inject(StayApiService);
   private readonly element = inject(ElementRef<HTMLElement>);
   private requestGeneration = 0;
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
   readonly entry = signal<HistoryEntry>(this.history()[0]);
-  readonly relationshipPage = signal<CatRelationshipPage | null>(null);
+  readonly relationshipPage = signal<CatRelationshipPage | StayRelationshipPage | null>(null);
   readonly relationshipLoading = signal(false);
   readonly relationshipError = signal(false);
   readonly editing = signal(false);
   readonly text = inject(I18nService).text;
+  readonly stayUpdated = output<string>();
   title(): string {
     const text = this.text();
     return this.reference().entityType === 'owner'
@@ -82,7 +93,21 @@ export class EntityDetailDialog {
   }
   openCats(parent: EntityReference): void {
     const relationship: RelationshipKind =
-      parent.entityType === 'owner' ? 'owner-cats' : 'vet-cats';
+      parent.entityType === 'owner'
+        ? 'owner-cats'
+        : parent.entityType === 'stay'
+          ? 'stay-cats'
+          : 'vet-cats';
+    const entry: HistoryEntry = { kind: 'list', relationship, parent, page: 0 };
+    this.history.update((items) => [...items, entry]);
+    this.entry.set(entry);
+    this.reference.set(parent);
+    this.loadRelationship(entry);
+    this.focusContent();
+  }
+  openStays(parent: EntityReference): void {
+    const relationship: RelationshipKind =
+      parent.entityType === 'owner' ? 'owner-stays' : 'cat-stays';
     const entry: HistoryEntry = { kind: 'list', relationship, parent, page: 0 };
     this.history.update((items) => [...items, entry]);
     this.entry.set(entry);
@@ -116,6 +141,12 @@ export class EntityDetailDialog {
     const current = this.entry();
     if (current.kind === 'list') this.loadRelationship(current);
   }
+  relationshipTitle(): string {
+    const entry = this.entry();
+    return entry.kind === 'list' && entry.relationship.includes('stays')
+      ? this.text().entityDetail.stays
+      : this.text().entityDetail.cats;
+  }
   private loadRelationship(entry: Extract<HistoryEntry, { kind: 'list' }>): void {
     const generation = ++this.requestGeneration;
     this.relationshipLoading.set(true);
@@ -123,8 +154,14 @@ export class EntityDetailDialog {
     const request =
       entry.relationship === 'owner-cats'
         ? this.ownerApi.getOwnerCats(entry.parent.entityId, entry.page)
-        : this.vetApi.getVetCats(entry.parent.entityId, entry.page);
-    request.subscribe({
+        : entry.relationship === 'vet-cats'
+          ? this.vetApi.getVetCats(entry.parent.entityId, entry.page)
+          : entry.relationship === 'owner-stays'
+            ? this.ownerApi.getOwnerStays(entry.parent.entityId, entry.page)
+            : entry.relationship === 'cat-stays'
+              ? this.catApi.getCatStays(entry.parent.entityId, entry.page)
+              : this.stayApi.getStayCats(entry.parent.entityId, entry.page);
+    (request as Observable<CatRelationshipPage | StayRelationshipPage>).subscribe({
       next: (page) => {
         if (generation !== this.requestGeneration || this.entry() !== entry) return;
         if (entry.page > 0 && entry.page >= page.totalPages) {
@@ -156,5 +193,9 @@ export class EntityDetailDialog {
   }
   leaveEdit(): void {
     this.editing.set(false);
+  }
+  staySaved(stayId: string): void {
+    this.leaveEdit();
+    this.stayUpdated.emit(stayId);
   }
 }

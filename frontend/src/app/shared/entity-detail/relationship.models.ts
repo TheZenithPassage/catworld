@@ -52,5 +52,16 @@ export interface VetDetailResponse {
   cats: RelationshipPreview<CatRelationshipItem>;
 }
 
+export interface StayDetailResponse {
+  stayId: string;
+  status: 'RESERVED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
+  startAt: string;
+  endAt: string;
+  numberOfNights: number;
+  notes: string | null;
+  owner: OwnerRelationshipItem;
+  cats: RelationshipPreview<CatRelationshipItem>;
+}
+
 export type CatRelationshipPage = RelationshipPage<CatRelationshipItem>;
 export type StayRelationshipPage = RelationshipPage<StayRelationshipItem>;

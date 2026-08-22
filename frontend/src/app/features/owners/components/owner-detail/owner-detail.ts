@@ -65,6 +65,26 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
             }
           </section>
         }
+        @if (detail.stays.totalElements > 0) {
+          <section>
+            <h3>{{ text().entityDetail.stays }}</h3>
+            @if (detail.stays.totalElements <= 3) {
+              @for (stay of detail.stays.items; track stay.stayId) {
+                <button
+                  mat-button
+                  type="button"
+                  (click)="navigate.emit({ entityType: 'stay', entityId: stay.stayId })"
+                >
+                  {{ stay.startAt }} — {{ stay.endAt }} · {{ stay.status }}
+                </button>
+              }
+            } @else {
+              <button mat-button type="button" (click)="openStays.emit()">
+                {{ text().entityDetail.associatedRecords(detail.stays.totalElements) }}
+              </button>
+            }
+          </section>
+        }
         <button mat-flat-button type="button" (click)="editRequested.emit()">
           {{ text().owners.detail.edit }}
         </button>
@@ -83,6 +103,7 @@ export class OwnerDetail {
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
+  readonly openStays = output<void>();
   readonly text = this.i18n.text;
   readonly detail = signal<OwnerDetailResponse | null>(null);
   readonly loading = signal(true);

@@ -78,7 +78,7 @@ export const CALENDAR_TRANSLATIONS = {
     empty: 'No hay estancias registradas.',
     emptyFiltered: 'Ninguna estancia coincide con los filtros seleccionados.',
     errorLoading: 'Error al cargar el calendario',
-    openStayInList: 'Abrir estancia para ver los detalles',
+    openStayInList: 'Abrir los detalles de la estancia',
     compactMarkerLabels: {
       start: 'Entrada',
       end: 'Salida',
@@ -119,7 +119,7 @@ export const CALENDAR_TRANSLATIONS = {
     empty: 'No stays registered.',
     emptyFiltered: 'No stays match the selected filters.',
     errorLoading: 'Error loading calendar',
-    openStayInList: 'Open stay to see details',
+    openStayInList: 'Open stay details',
     compactMarkerLabels: {
       start: 'Check-in',
       end: 'Check-out',

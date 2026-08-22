@@ -9,6 +9,7 @@ import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
+import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { MatPaginatorIntl } from '@angular/material/paginator';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { EntityDetailDialog } from './entity-detail-dialog';
@@ -74,6 +75,23 @@ describe('EntityDetailDialog', () => {
     ),
   };
   const vetApi = { getVetCats: vi.fn(), getVetDetail: vi.fn() };
+  const stayApi = {
+    getStayDetail: vi.fn(() =>
+      of({
+        stayId: 'stay-1',
+        status: 'RESERVED',
+        startAt: '2030-01-01T10:00:00',
+        endAt: '2030-01-03T10:00:00',
+        numberOfNights: 2,
+        notes: null,
+        owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+        cats: { totalElements: 0, items: [] },
+      }),
+    ),
+    getStayCats: vi.fn(),
+    previewDateChangePricing: vi.fn(),
+    updateStay: vi.fn(),
+  };
 
   beforeEach(() => vi.clearAllMocks());
   afterEach(() => TestBed.resetTestingModule());
@@ -87,6 +105,7 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -122,6 +141,7 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -167,9 +187,7 @@ describe('EntityDetailDialog', () => {
 
     fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(
-      fixture.componentInstance.text().owners.detail.unsupportedStay,
-    );
+    expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
     expect(fixture.componentInstance.title()).toBe(
       fixture.componentInstance.text().stays.edit.title,
     );
@@ -193,6 +211,7 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -241,6 +260,7 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -333,6 +353,7 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -369,7 +390,12 @@ describe('EntityDetailDialog', () => {
   });
 
   it('lets the reactive dialog title provide the accessible name', () => {
-    const dialog = { open: vi.fn() };
+    const dialog = {
+      open: vi.fn(() => ({
+        componentInstance: { stayUpdated: { subscribe: vi.fn() } },
+        afterClosed: () => of(undefined),
+      })),
+    };
     TestBed.configureTestingModule({
       providers: [EntityDetailDialogService, { provide: MatDialog, useValue: dialog }],
     });

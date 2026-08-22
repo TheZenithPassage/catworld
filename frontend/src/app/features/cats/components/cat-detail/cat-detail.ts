@@ -24,6 +24,7 @@ export class CatDetail {
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
+  readonly openStays = output<void>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly detail = signal<CatDetailResponse | null>(null);

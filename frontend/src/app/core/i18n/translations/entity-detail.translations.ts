@@ -3,6 +3,7 @@ import { AppLanguage } from '../app-language';
 export interface EntityDetailTranslations {
   back: string;
   cats: string;
+  stays: string;
   loading: string;
   empty: string;
   loadFailed: string;
@@ -22,6 +23,7 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
   es: {
     back: 'Atrás',
     cats: 'Gatos',
+    stays: 'Estancias',
     loading: 'Cargando registros relacionados…',
     empty: 'No hay registros relacionados.',
     loadFailed: 'No se pudieron cargar los registros relacionados.',
@@ -42,6 +44,7 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
   en: {
     back: 'Back',
     cats: 'Cats',
+    stays: 'Stays',
     loading: 'Loading related records…',
     empty: 'There are no related records.',
     loadFailed: 'Related records could not be loaded.',

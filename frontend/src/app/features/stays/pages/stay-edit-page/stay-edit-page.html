@@ -1,14 +1,16 @@
 <section class="stay-edit-page">
-  <header class="page-header">
-    <div>
-      <h2>{{ text().stays.edit.title }}</h2>
-      <p>{{ text().stays.edit.description }}</p>
-    </div>
+  @if (!embedded()) {
+    <header class="page-header">
+      <div>
+        <h2>{{ text().stays.edit.title }}</h2>
+        <p>{{ text().stays.edit.description }}</p>
+      </div>
 
-    <a mat-stroked-button routerLink="/stays" class="form-back-link">
-      {{ text().stays.edit.backToStays }}
-    </a>
-  </header>
+      <a mat-stroked-button routerLink="/stays" class="form-back-link">
+        {{ text().stays.edit.backToStays }}
+      </a>
+    </header>
+  }
 
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().stays.edit.loading"></app-ui-state>
@@ -28,7 +30,7 @@
       </div>
 
       @if (stay(); as currentStay) {
-        @if (currentStay.agreedAmount !== null) {
+        @if (!embedded() && currentStay.agreedAmount !== null) {
           <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
         }
       }
@@ -187,6 +189,11 @@
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
             </button>
+            @if (embedded()) {
+              <button mat-button type="button" [disabled]="submitting()" (click)="cancelled.emit()">
+                {{ text().entityDetail.back }}
+              </button>
+            }
           </div>
         </form>
       } @else {
