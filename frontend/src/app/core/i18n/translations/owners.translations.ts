@@ -10,6 +10,8 @@ export interface OwnersTranslations {
     edit: string;
     cancel: string;
     close: string;
+    openDetails: string;
+    unsupportedStay: string;
   };
   form: {
     fullName: string;
@@ -85,6 +87,8 @@ export const OWNERS_TRANSLATIONS = {
       edit: 'Editar',
       cancel: 'Cancelar',
       close: 'Cerrar',
+      openDetails: 'Ver detalles',
+      unsupportedStay: 'Los detalles de la estancia aún no están disponibles.',
     },
     form: {
       fullName: 'Nombre completo',
@@ -158,6 +162,8 @@ export const OWNERS_TRANSLATIONS = {
       edit: 'Edit',
       cancel: 'Cancel',
       close: 'Close',
+      openDetails: 'View details',
+      unsupportedStay: 'Stay details are not available yet.',
     },
     form: {
       fullName: 'Full name',

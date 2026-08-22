@@ -224,9 +224,10 @@ describe('OwnerEditor', () => {
     component.submit();
     fixture.detectChanges();
 
-    expect(component.error()).toBe('Owner could not be updated');
+    expect(component.error()).toBe(component.text().owners.edit.errors.updateFailed);
+    expect(component.fullName()).toBe('Ada Lovelace');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Owner could not be updated',
+      component.text().owners.edit.errors.updateFailed,
     );
   });
 });

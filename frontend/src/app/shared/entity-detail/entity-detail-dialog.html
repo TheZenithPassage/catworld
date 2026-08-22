@@ -1,14 +1,35 @@
 <h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
 <mat-dialog-content>
-  @switch (reference.entityType) {
+  @switch (reference().entityType) {
     @case ('owner') {
-      <app-owner-detail [entityId]="reference.entityId" />
+      <app-owner-detail
+        [entityId]="reference().entityId"
+        [editing]="editing()"
+        (editRequested)="enterEdit()"
+        (cancelRequested)="leaveEdit()"
+        (saveCompleted)="leaveEdit()"
+      />
     }
     @case ('cat') {
-      <app-cat-detail [entityId]="reference.entityId" />
+      <app-cat-detail
+        [entityId]="reference().entityId"
+        [editing]="editing()"
+        (editRequested)="enterEdit()"
+        (cancelRequested)="leaveEdit()"
+        (saveCompleted)="leaveEdit()"
+      />
     }
     @case ('vet') {
-      <app-vet-detail [entityId]="reference.entityId" />
+      <app-vet-detail
+        [entityId]="reference().entityId"
+        [editing]="editing()"
+        (editRequested)="enterEdit()"
+        (cancelRequested)="leaveEdit()"
+        (saveCompleted)="leaveEdit()"
+      />
+    }
+    @case ('stay') {
+      <app-ui-state kind="error" [message]="text().owners.detail.unsupportedStay" />
     }
   }
 </mat-dialog-content>

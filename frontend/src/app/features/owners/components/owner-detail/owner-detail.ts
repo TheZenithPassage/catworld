@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -23,7 +23,7 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
           [entityId]="entityId()"
           [entity]="owner"
           (saved)="saved($event)"
-          (cancelled)="editing.set(false)"
+          (cancelled)="cancelRequested.emit()"
         />
       } @else {
         <dl>
@@ -42,7 +42,7 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
           <dt>{{ text().owners.form.facebook }}</dt>
           <dd>{{ value(owner.facebook) }}</dd>
         </dl>
-        <button mat-flat-button type="button" (click)="editing.set(true)">
+        <button mat-flat-button type="button" (click)="editRequested.emit()">
           {{ text().owners.detail.edit }}
         </button>
       }
@@ -53,13 +53,19 @@ export class OwnerDetail {
   private readonly api = inject(OwnerApiService);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
+  readonly editing = input.required<boolean>();
+  readonly editRequested = output<void>();
+  readonly cancelRequested = output<void>();
+  readonly saveCompleted = output<void>();
   readonly text = this.i18n.text;
   readonly owner = signal<Owner | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
-  readonly editing = signal(false);
   constructor() {
-    queueMicrotask(() => this.load());
+    effect(() => {
+      this.entityId();
+      this.load();
+    });
   }
   load(): void {
     this.loading.set(true);
@@ -77,7 +83,7 @@ export class OwnerDetail {
   }
   saved(o: Owner): void {
     this.owner.set(o);
-    this.editing.set(false);
+    this.saveCompleted.emit();
   }
   value(v: string | null): string {
     return v || this.text().owners.emptyValue;

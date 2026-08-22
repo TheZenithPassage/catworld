@@ -10,6 +10,7 @@ export interface VetsTranslations {
     edit: string;
     cancel: string;
     close: string;
+    openDetails: string;
   };
   form: {
     name: string;
@@ -74,6 +75,7 @@ export const VETS_TRANSLATIONS = {
       edit: 'Editar',
       cancel: 'Cancelar',
       close: 'Cerrar',
+      openDetails: 'Ver detalles',
     },
     form: {
       name: 'Nombre',
@@ -136,6 +138,7 @@ export const VETS_TRANSLATIONS = {
       edit: 'Edit',
       cancel: 'Cancel',
       close: 'Close',
+      openDetails: 'View details',
     },
     form: {
       name: 'Name',

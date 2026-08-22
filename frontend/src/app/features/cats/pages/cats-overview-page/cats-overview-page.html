@@ -130,7 +130,7 @@
             mat-row
             *matRowDef="let cat; columns: displayedColumns"
             tabindex="0"
-            [attr.aria-label]="text().cats.detail.edit + ': ' + cat.name"
+            [attr.aria-label]="text().cats.detail.openDetails + ': ' + cat.name"
             (click)="openCat(cat)"
             (keydown)="activateCat($event, cat)"
           ></tr>

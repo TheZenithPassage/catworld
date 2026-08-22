@@ -92,7 +92,7 @@
             [id]="'owner-' + owner.id"
             [class.selected-row]="isSelectedOwner(owner)"
             tabindex="0"
-            [attr.aria-label]="text().owners.detail.edit + ': ' + owner.fullName"
+            [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
             (click)="openOwner(owner)"
             (keydown)="activateOwner($event, owner)"
           ></tr>

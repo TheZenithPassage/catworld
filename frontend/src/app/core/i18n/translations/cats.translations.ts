@@ -10,6 +10,7 @@ export interface CatsTranslations {
     edit: string;
     cancel: string;
     close: string;
+    openDetails: string;
   };
   form: {
     name: string;
@@ -119,6 +120,7 @@ export const CATS_TRANSLATIONS = {
       edit: 'Editar',
       cancel: 'Cancelar',
       close: 'Cerrar',
+      openDetails: 'Ver detalles',
     },
     form: {
       name: 'Nombre',
@@ -226,6 +228,7 @@ export const CATS_TRANSLATIONS = {
       edit: 'Edit',
       cancel: 'Cancel',
       close: 'Close',
+      openDetails: 'View details',
     },
     form: {
       name: 'Name',

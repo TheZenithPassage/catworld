@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -16,14 +16,20 @@ export class CatDetail {
   private readonly api = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
+  readonly editing = input.required<boolean>();
+  readonly editRequested = output<void>();
+  readonly cancelRequested = output<void>();
+  readonly saveCompleted = output<void>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly cat = signal<Cat | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
-  readonly editing = signal(false);
   constructor() {
-    queueMicrotask(() => this.load());
+    effect(() => {
+      this.entityId();
+      this.load();
+    });
   }
   load(): void {
     this.loading.set(true);
@@ -41,7 +47,7 @@ export class CatDetail {
   }
   saved(c: Cat): void {
     this.cat.set(c);
-    this.editing.set(false);
+    this.saveCompleted.emit();
   }
   value(v: string | null): string {
     return v || this.text().cats.emptyValue;

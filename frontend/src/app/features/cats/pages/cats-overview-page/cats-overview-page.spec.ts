@@ -116,6 +116,9 @@ describe('CatsOverviewPage', () => {
     (compiled.querySelector('.owner-search-link') as HTMLElement).click();
     expect(details.open).not.toHaveBeenCalled();
     const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    expect(row.getAttribute('aria-label')).toBe(
+      `${component.text().cats.detail.openDetails}: Milo`,
+    );
     row.click();
     row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));

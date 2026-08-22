@@ -77,6 +77,9 @@ describe('VetsOverviewPage', () => {
     expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
     const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    expect(row.getAttribute('aria-label')).toBe(
+      `${component.text().vets.detail.openDetails}: Dr. Whiskers`,
+    );
     row.click();
     row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));

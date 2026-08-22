@@ -13,7 +13,7 @@
       [entityId]="entityId()"
       [entity]="cat"
       (saved)="saved($event)"
-      (cancelled)="editing.set(false)"
+      (cancelled)="cancelRequested.emit()"
     />
   } @else {
     <dl>
@@ -52,7 +52,7 @@
       <dt>{{ text().cats.form.lastRabiesDate }}</dt>
       <dd>{{ date(cat.lastRabiesDate) }}</dd>
     </dl>
-    <button mat-flat-button type="button" (click)="editing.set(true)">
+    <button mat-flat-button type="button" (click)="editRequested.emit()">
       {{ text().cats.detail.edit }}
     </button>
   }

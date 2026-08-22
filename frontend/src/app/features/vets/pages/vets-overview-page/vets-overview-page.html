@@ -69,7 +69,7 @@
             mat-row
             *matRowDef="let vet; columns: displayedColumns"
             tabindex="0"
-            [attr.aria-label]="text().vets.detail.edit + ': ' + vet.name"
+            [attr.aria-label]="text().vets.detail.openDetails + ': ' + vet.name"
             (click)="openVet(vet)"
             (keydown)="activateVet($event, vet)"
           ></tr>

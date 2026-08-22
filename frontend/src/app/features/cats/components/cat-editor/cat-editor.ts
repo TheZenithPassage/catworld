@@ -185,18 +185,29 @@ export class CatEditor {
   private apiMessage(e: unknown, f: string): string {
     if (!(e instanceof HttpErrorResponse)) return f;
     const b: unknown = e.error;
-    if (typeof b === 'string') return b.trim() || f;
-    if (
-      typeof b === 'object' &&
-      b &&
-      !Array.isArray(b) &&
-      Object.values(b).every((v) => typeof v === 'string')
-    )
-      return (
-        Object.entries(b)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join('. ') || f
+    if (this.isValidationMap(b)) {
+      const errors = this.text().cats.edit.errors;
+      const messages = Object.keys(b).flatMap((field) =>
+        field === 'name'
+          ? [errors.nameRequired]
+          : field === 'birthDate'
+            ? [errors.birthDateRequired]
+            : field === 'sex'
+              ? [errors.sexRequired]
+              : field === 'ownerId'
+                ? [errors.ownerRequired]
+                : [],
       );
+      return [...new Set(messages)].join('. ') || f;
+    }
     return f;
+  }
+  private isValidationMap(value: unknown): value is Record<string, string> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.values(value).every((message) => typeof message === 'string')
+    );
   }
 }

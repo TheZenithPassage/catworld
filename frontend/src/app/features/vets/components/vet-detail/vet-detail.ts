@@ -1,4 +1,4 @@
-import { Component, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -23,7 +23,7 @@ import { VetEditor } from '../vet-editor/vet-editor';
           [entityId]="entityId()"
           [entity]="vet"
           (saved)="saved($event)"
-          (cancelled)="editing.set(false)"
+          (cancelled)="cancelRequested.emit()"
         />
       } @else {
         <dl>
@@ -34,7 +34,7 @@ import { VetEditor } from '../vet-editor/vet-editor';
           <dt>{{ text().vets.form.address }}</dt>
           <dd>{{ value(vet.address) }}</dd>
         </dl>
-        <button mat-flat-button type="button" (click)="editing.set(true)">
+        <button mat-flat-button type="button" (click)="editRequested.emit()">
           {{ text().vets.detail.edit }}
         </button>
       }
@@ -45,13 +45,19 @@ export class VetDetail {
   private readonly api = inject(VetApiService);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
+  readonly editing = input.required<boolean>();
+  readonly editRequested = output<void>();
+  readonly cancelRequested = output<void>();
+  readonly saveCompleted = output<void>();
   readonly text = this.i18n.text;
   readonly vet = signal<Vet | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
-  readonly editing = signal(false);
   constructor() {
-    queueMicrotask(() => this.load());
+    effect(() => {
+      this.entityId();
+      this.load();
+    });
   }
   load(): void {
     this.loading.set(true);
@@ -69,7 +75,7 @@ export class VetDetail {
   }
   saved(v: Vet): void {
     this.vet.set(v);
-    this.editing.set(false);
+    this.saveCompleted.emit();
   }
   value(v: string | null): string {
     return v || this.text().vets.emptyValue;

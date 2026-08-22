@@ -128,18 +128,24 @@ export class OwnerEditor {
   private apiMessage(e: unknown, fallback: string): string {
     if (!(e instanceof HttpErrorResponse)) return fallback;
     const b: unknown = e.error;
-    if (typeof b === 'string') return b.trim() || fallback;
-    if (
-      typeof b === 'object' &&
-      b &&
-      !Array.isArray(b) &&
-      Object.values(b).every((v) => typeof v === 'string')
-    )
-      return (
-        Object.entries(b)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join('. ') || fallback
+    if (this.isValidationMap(b)) {
+      const messages = Object.keys(b).flatMap((field) =>
+        field === 'fullName'
+          ? [this.text().owners.edit.errors.fullNameRequired]
+          : field === 'primaryPhone'
+            ? [this.text().owners.edit.errors.primaryPhoneRequired]
+            : [],
       );
+      return [...new Set(messages)].join('. ') || fallback;
+    }
     return fallback;
+  }
+  private isValidationMap(value: unknown): value is Record<string, string> {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value) &&
+      Object.values(value).every((message) => typeof message === 'string')
+    );
   }
 }

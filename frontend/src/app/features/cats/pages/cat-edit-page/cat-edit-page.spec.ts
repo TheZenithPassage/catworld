@@ -269,7 +269,7 @@ describe('CatEditor', () => {
       throwError(
         () =>
           new HttpErrorResponse({
-            error: 'Cat could not be updated',
+            error: { ownerId: 'raw backend validation text' },
             status: 400,
           }),
       ),
@@ -283,9 +283,10 @@ describe('CatEditor', () => {
     component.submit();
     fixture.detectChanges();
 
-    expect(component.error()).toBe('Cat could not be updated');
+    expect(component.error()).toBe(component.text().cats.edit.errors.ownerRequired);
+    expect(component.name()).toBe('Milo');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Cat could not be updated',
+      component.text().cats.edit.errors.ownerRequired,
     );
   });
 });

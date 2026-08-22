@@ -21,8 +21,13 @@ describe('EntityDetailDialog', () => {
     facebook: null,
   };
   const updated = { ...owner, fullName: 'Ada Byron' };
-  const api = { getOwnerById: vi.fn(() => of(owner)), updateOwner: vi.fn(() => of(updated)) };
+  const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
+  const api = {
+    getOwnerById: vi.fn((id: string) => of(id === 'owner-2' ? secondOwner : owner)),
+    updateOwner: vi.fn(() => of(updated)),
+  };
 
+  beforeEach(() => vi.clearAllMocks());
   afterEach(() => TestBed.resetTestingModule());
 
   it('keeps edit and authoritative save inside the open route-free detail shell', async () => {
@@ -55,5 +60,63 @@ describe('EntityDetailDialog', () => {
     expect(api.updateOwner).toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Ada Byron');
     expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
+    expect(fixture.componentInstance.editing()).toBe(false);
+  });
+
+  it('owns cancel and reference-change discard transitions and handles Stay explicitly', async () => {
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    (
+      fixture.nativeElement.querySelector(
+        'app-owner-detail button[mat-flat-button]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    let editor = fixture.debugElement.query(By.directive(OwnerEditor))
+      .componentInstance as OwnerEditor;
+    editor.fullName.set('Unsaved draft');
+    fixture.detectChanges();
+    (
+      fixture.nativeElement.querySelector(
+        'app-owner-editor button[mat-stroked-button]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    expect(api.updateOwner).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
+
+    (
+      fixture.nativeElement.querySelector(
+        'app-owner-detail button[mat-flat-button]',
+      ) as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    editor = fixture.debugElement.query(By.directive(OwnerEditor)).componentInstance as OwnerEditor;
+    expect(editor.fullName()).toBe('Ada Lovelace');
+
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-2' });
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
+
+    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().owners.detail.unsupportedStay,
+    );
+    expect(fixture.componentInstance.title()).toBe(
+      fixture.componentInstance.text().stays.edit.title,
+    );
   });
 });

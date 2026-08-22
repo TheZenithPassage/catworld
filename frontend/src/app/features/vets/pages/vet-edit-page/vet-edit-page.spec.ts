@@ -182,7 +182,7 @@ describe('VetEditor', () => {
       throwError(
         () =>
           new HttpErrorResponse({
-            error: 'Vet could not be updated',
+            error: { name: 'raw backend validation text' },
             status: 400,
           }),
       ),
@@ -193,9 +193,10 @@ describe('VetEditor', () => {
     component.submit();
     fixture.detectChanges();
 
-    expect(component.error()).toBe('Vet could not be updated');
+    expect(component.error()).toBe(component.text().vets.edit.errors.nameRequired);
+    expect(component.name()).toBe('Dr. Whiskers');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Vet could not be updated',
+      component.text().vets.edit.errors.nameRequired,
     );
   });
 });
