@@ -1,0 +1,22 @@
+dl {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) 2fr;
+  gap: 0.65rem 1rem;
+  margin: 0 0 1.5rem;
+}
+dt {
+  font-weight: 600;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 36rem) {
+  dl {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+  dd {
+    margin-bottom: 0.65rem;
+  }
+}

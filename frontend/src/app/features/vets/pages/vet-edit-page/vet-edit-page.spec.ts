@@ -9,11 +9,11 @@ import { vi } from 'vitest';
 
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
-import { VetEditPage } from './vet-edit-page';
+import { VetEditor } from '../../components/vet-editor/vet-editor';
 
-describe('VetEditPage', () => {
-  let component: VetEditPage;
-  let fixture: ComponentFixture<VetEditPage>;
+describe('VetEditor', () => {
+  let component: VetEditor;
+  let fixture: ComponentFixture<VetEditor>;
   let routeParams: Record<string, string>;
 
   const vet: Vet = {
@@ -40,7 +40,7 @@ describe('VetEditPage', () => {
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
-      imports: [VetEditPage],
+      imports: [VetEditor],
       providers: [
         provideNoopAnimations(),
         {
@@ -70,8 +70,11 @@ describe('VetEditPage', () => {
   });
 
   function createComponent(): void {
-    fixture = TestBed.createComponent(VetEditPage);
+    fixture = TestBed.createComponent(VetEditor);
+    fixture.componentRef.setInput('entityId', routeParams['id'] ?? '');
+    fixture.componentRef.setInput('routed', true);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   }
 
   async function submitRenderedForm(): Promise<void> {
@@ -131,9 +134,11 @@ describe('VetEditPage', () => {
     expect(component.error()).toBeNull();
   });
 
-  it('updates a vet with the current payload shape and returns to vets', () => {
+  it('updates a vet with the current payload shape and emits the authoritative result', () => {
     createComponent();
     vetApiService.updateVet.mockReturnValue(of(vet));
+    const saved = vi.fn();
+    component.saved.subscribe(saved);
 
     component.name.set('  Dr. Whiskers  ');
     component.address.set('');
@@ -146,7 +151,8 @@ describe('VetEditPage', () => {
       address: null,
       phoneNumber: '555-4444',
     });
-    expect(router.navigate).toHaveBeenCalledWith(['/vets']);
+    expect(saved).toHaveBeenCalledWith(vet);
+    expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
   });
 

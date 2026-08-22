@@ -1,14 +1,16 @@
 <section class="vet-edit-page">
-  <header class="page-header">
-    <div>
-      <h2>{{ text().vets.edit.title }}</h2>
-      <p>{{ text().vets.edit.description }}</p>
-    </div>
+  @if (routed()) {
+    <header class="page-header">
+      <div>
+        <h2>{{ text().vets.edit.title }}</h2>
+        <p>{{ text().vets.edit.description }}</p>
+      </div>
 
-    <a mat-stroked-button routerLink="/vets" class="form-back-link">
-      {{ text().vets.edit.backToVets }}
-    </a>
-  </header>
+      <a mat-stroked-button routerLink="/vets" class="form-back-link">
+        {{ text().vets.edit.backToVets }}
+      </a>
+    </header>
+  }
 
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().vets.edit.loading"></app-ui-state>
@@ -58,6 +60,11 @@
         </mat-form-field>
 
         <div class="form-actions">
+          @if (!routed()) {
+            <button mat-stroked-button type="button" (click)="cancelled.emit()">
+              {{ text().vets.detail.cancel }}
+            </button>
+          }
           <button mat-flat-button type="submit" [disabled]="submitting()">
             {{ submitting() ? text().vets.edit.submitting : text().vets.edit.submit }}
           </button>

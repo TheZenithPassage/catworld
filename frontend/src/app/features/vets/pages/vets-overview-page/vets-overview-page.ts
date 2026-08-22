@@ -11,6 +11,7 @@ import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 @Component({
   selector: 'app-vets-overview-page',
@@ -29,6 +30,7 @@ import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 export class VetsOverviewPage {
   private readonly vetApiService = inject(VetApiService);
   private readonly i18nService = inject(I18nService);
+  private readonly details = inject(EntityDetailDialogService);
 
   readonly text = this.i18nService.text;
 
@@ -36,7 +38,7 @@ export class VetsOverviewPage {
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly searchText = signal('');
-  readonly displayedColumns = ['name', 'phoneNumber', 'address', 'actions'];
+  readonly displayedColumns = ['name', 'phoneNumber', 'address'];
 
   readonly filteredVets = computed(() =>
     this.vets().filter((vet) => matchesSearchText([vet.name], this.searchText())),
@@ -72,5 +74,14 @@ export class VetsOverviewPage {
 
   formatOptionalValue(value: string | null): string {
     return value || this.text().vets.emptyValue;
+  }
+  openVet(vet: Vet): void {
+    this.details.open({ entityType: 'vet', entityId: vet.id });
+  }
+  activateVet(event: KeyboardEvent, vet: Vet): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.openVet(vet);
+    }
   }
 }

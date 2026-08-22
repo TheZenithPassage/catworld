@@ -11,6 +11,7 @@ import { Cat, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 @Component({
   selector: 'app-cats-overview-page',
@@ -29,6 +30,7 @@ import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 export class CatsOverviewPage {
   private readonly catApiService = inject(CatApiService);
   private readonly i18nService = inject(I18nService);
+  private readonly details = inject(EntityDetailDialogService);
 
   readonly text = this.i18nService.text;
   readonly dateLocale = this.i18nService.dateLocale;
@@ -46,7 +48,6 @@ export class CatsOverviewPage {
     'care',
     'health',
     'vet',
-    'actions',
   ];
 
   readonly filteredCats = computed(() =>
@@ -103,5 +104,14 @@ export class CatsOverviewPage {
     const values = [cat.breed, cat.coat, cat.color].filter(Boolean);
 
     return values.length > 0 ? values.join(' / ') : this.text().cats.emptyValue;
+  }
+  openCat(cat: Cat): void {
+    this.details.open({ entityType: 'cat', entityId: cat.id });
+  }
+  activateCat(event: KeyboardEvent, cat: Cat): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.openCat(cat);
+    }
   }
 }

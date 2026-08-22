@@ -1,14 +1,16 @@
 <section class="owner-edit-page">
-  <header class="page-header">
-    <div>
-      <h2>{{ text().owners.edit.title }}</h2>
-      <p>{{ text().owners.edit.description }}</p>
-    </div>
+  @if (routed()) {
+    <header class="page-header">
+      <div>
+        <h2>{{ text().owners.edit.title }}</h2>
+        <p>{{ text().owners.edit.description }}</p>
+      </div>
 
-    <a mat-stroked-button routerLink="/owners" class="form-back-link">
-      {{ text().owners.edit.backToOwners }}
-    </a>
-  </header>
+      <a mat-stroked-button routerLink="/owners" class="form-back-link">
+        {{ text().owners.edit.backToOwners }}
+      </a>
+    </header>
+  }
 
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().owners.edit.loading"></app-ui-state>
@@ -107,6 +109,11 @@
         </mat-form-field>
 
         <div class="form-actions">
+          @if (!routed()) {
+            <button mat-stroked-button type="button" (click)="cancelled.emit()">
+              {{ text().owners.detail.cancel }}
+            </button>
+          }
           <button mat-flat-button type="submit" [disabled]="submitting()">
             {{ submitting() ? text().owners.edit.submitting : text().owners.edit.submit }}
           </button>

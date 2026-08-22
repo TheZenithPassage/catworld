@@ -1,14 +1,16 @@
 <section class="cat-edit-page">
-  <header class="page-header">
-    <div>
-      <h2>{{ text().cats.edit.title }}</h2>
-      <p>{{ text().cats.edit.description }}</p>
-    </div>
+  @if (routed()) {
+    <header class="page-header">
+      <div>
+        <h2>{{ text().cats.edit.title }}</h2>
+        <p>{{ text().cats.edit.description }}</p>
+      </div>
 
-    <a mat-stroked-button routerLink="/cats" class="form-back-link">
-      {{ text().cats.edit.backToCats }}
-    </a>
-  </header>
+      <a mat-stroked-button routerLink="/cats" class="form-back-link">
+        {{ text().cats.edit.backToCats }}
+      </a>
+    </header>
+  }
 
   @if (loadingData()) {
     <app-ui-state kind="loading" [message]="text().cats.edit.loading"></app-ui-state>
@@ -241,6 +243,11 @@
         </mat-form-field>
 
         <div class="form-actions">
+          @if (!routed()) {
+            <button mat-stroked-button type="button" (click)="cancelled.emit()">
+              {{ text().cats.detail.cancel }}
+            </button>
+          }
           <button mat-flat-button type="submit" [disabled]="submitting()">
             {{ submitting() ? text().cats.edit.submitting : text().cats.edit.submit }}
           </button>

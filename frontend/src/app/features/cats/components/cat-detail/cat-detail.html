@@ -1,0 +1,59 @@
+@if (loading()) {
+  <app-ui-state kind="loading" [message]="text().cats.detail.loading" />
+} @else if (error()) {
+  <app-ui-state
+    kind="error"
+    [message]="text().cats.detail.loadFailed"
+    [actionLabel]="text().cats.detail.retry"
+    (actionTriggered)="load()"
+  />
+} @else if (cat(); as cat) {
+  @if (editing()) {
+    <app-cat-editor
+      [entityId]="entityId()"
+      [entity]="cat"
+      (saved)="saved($event)"
+      (cancelled)="editing.set(false)"
+    />
+  } @else {
+    <dl>
+      <dt>{{ text().cats.form.name }}</dt>
+      <dd>{{ cat.name }}</dd>
+      <dt>{{ text().cats.form.birthDate }}</dt>
+      <dd>{{ date(cat.birthDate) }}</dd>
+      <dt>{{ text().cats.form.sex }}</dt>
+      <dd>{{ cat.sex === 'MALE' ? text().cats.form.male : text().cats.form.female }}</dd>
+      <dt>{{ text().cats.form.owner }}</dt>
+      <dd>{{ cat.ownerName }}</dd>
+      <dt>{{ text().cats.form.vet }}</dt>
+      <dd>{{ value(cat.vetName) }}</dd>
+      <dt>{{ text().cats.form.breed }}</dt>
+      <dd>{{ value(cat.breed) }}</dd>
+      <dt>{{ text().cats.form.coat }}</dt>
+      <dd>{{ value(cat.coat) }}</dd>
+      <dt>{{ text().cats.form.color }}</dt>
+      <dd>{{ value(cat.color) }}</dd>
+      <dt>{{ text().cats.form.foodBrand }}</dt>
+      <dd>{{ value(cat.foodBrand) }}</dd>
+      <dt>{{ text().cats.form.litterBrand }}</dt>
+      <dd>{{ value(cat.litterBrand) }}</dd>
+      <dt>{{ text().cats.form.personality }}</dt>
+      <dd>{{ value(cat.personality) }}</dd>
+      <dt>{{ text().cats.form.lastInternalDewormerName }}</dt>
+      <dd>{{ value(cat.lastInternalDewormerName) }}</dd>
+      <dt>{{ text().cats.form.lastInternalDewormingDate }}</dt>
+      <dd>{{ date(cat.lastInternalDewormingDate) }}</dd>
+      <dt>{{ text().cats.form.lastExternalDewormerName }}</dt>
+      <dd>{{ value(cat.lastExternalDewormerName) }}</dd>
+      <dt>{{ text().cats.form.lastExternalDewormingDate }}</dt>
+      <dd>{{ date(cat.lastExternalDewormingDate) }}</dd>
+      <dt>{{ text().cats.form.lastTripleFelineDate }}</dt>
+      <dd>{{ date(cat.lastTripleFelineDate) }}</dd>
+      <dt>{{ text().cats.form.lastRabiesDate }}</dt>
+      <dd>{{ date(cat.lastRabiesDate) }}</dd>
+    </dl>
+    <button mat-flat-button type="button" (click)="editing.set(true)">
+      {{ text().cats.detail.edit }}
+    </button>
+  }
+}

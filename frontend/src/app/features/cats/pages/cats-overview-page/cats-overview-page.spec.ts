@@ -8,6 +8,7 @@ import { vi } from 'vitest';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatsOverviewPage } from './cats-overview-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 describe('CatsOverviewPage', () => {
   const cats: Cat[] = [
@@ -60,6 +61,7 @@ describe('CatsOverviewPage', () => {
   const catApiService = {
     getCats: vi.fn(),
   };
+  const details = { open: vi.fn() };
 
   let component: CatsOverviewPage;
   let fixture: ComponentFixture<CatsOverviewPage>;
@@ -77,6 +79,7 @@ describe('CatsOverviewPage', () => {
           { path: 'cats/:id/edit', component: CatsOverviewPage },
         ]),
         { provide: CatApiService, useValue: catApiService },
+        { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();
   });
@@ -91,7 +94,7 @@ describe('CatsOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders cat rows through a Material table with existing columns and actions', () => {
+  it('renders keyboard-focusable cat rows without an edit action', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -108,9 +111,16 @@ describe('CatsOverviewPage', () => {
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().cats.overview.create,
     );
-    expect(compiled.querySelector('a[mat-stroked-button]')?.textContent).toContain(
-      component.text().cats.overview.edit,
-    );
+    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
+    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
+    (compiled.querySelector('.owner-search-link') as HTMLElement).click();
+    expect(details.open).not.toHaveBeenCalled();
+    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    row.click();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(details.open).toHaveBeenCalledTimes(3);
+    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'cat', entityId: 'cat-1' });
   });
 
   it('preserves owner query-param navigation from the owner cell', () => {

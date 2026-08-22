@@ -85,21 +85,16 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.actions }}</th>
-            <td mat-cell *matCellDef="let owner">
-              <a mat-stroked-button [routerLink]="['/owners', owner.id, 'edit']">
-                {{ text().owners.overview.edit }}
-              </a>
-            </td>
-          </ng-container>
-
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr
             mat-row
             *matRowDef="let owner; columns: displayedColumns"
             [id]="'owner-' + owner.id"
             [class.selected-row]="isSelectedOwner(owner)"
+            tabindex="0"
+            [attr.aria-label]="text().owners.detail.edit + ': ' + owner.fullName"
+            (click)="openOwner(owner)"
+            (keydown)="activateOwner($event, owner)"
           ></tr>
         </table>
       </div>

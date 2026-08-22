@@ -1,0 +1,23 @@
+<h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
+<mat-dialog-content>
+  @switch (reference.entityType) {
+    @case ('owner') {
+      <app-owner-detail [entityId]="reference.entityId" />
+    }
+    @case ('cat') {
+      <app-cat-detail [entityId]="reference.entityId" />
+    }
+    @case ('vet') {
+      <app-vet-detail [entityId]="reference.entityId" />
+    }
+  }
+</mat-dialog-content>
+<button
+  class="close-button"
+  mat-stroked-button
+  type="button"
+  mat-dialog-close
+  [attr.aria-label]="closeLabel()"
+>
+  ×
+</button>

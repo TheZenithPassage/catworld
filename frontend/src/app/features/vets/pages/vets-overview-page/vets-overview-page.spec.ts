@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { VetsOverviewPage } from './vets-overview-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 describe('VetsOverviewPage', () => {
   const vets: Vet[] = [
@@ -27,6 +28,7 @@ describe('VetsOverviewPage', () => {
   const vetApiService = {
     getVets: vi.fn(),
   };
+  const details = { open: vi.fn() };
 
   let component: VetsOverviewPage;
   let fixture: ComponentFixture<VetsOverviewPage>;
@@ -41,6 +43,7 @@ describe('VetsOverviewPage', () => {
         provideNoopAnimations(),
         provideRouter([{ path: 'vets/:id/edit', component: VetsOverviewPage }]),
         { provide: VetApiService, useValue: vetApiService },
+        { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();
   });
@@ -55,7 +58,7 @@ describe('VetsOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders vet rows through a Material table with existing actions', () => {
+  it('renders keyboard-focusable vet rows without an Actions column', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -65,15 +68,20 @@ describe('VetsOverviewPage', () => {
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
     expect(headerText).toContain(component.text().vets.overview.table.name);
-    expect(headerText).toContain(component.text().vets.overview.table.actions);
+    expect(headerText).not.toContain(component.text().vets.overview.table.actions);
     expect(compiled.textContent).toContain('Dr. Whiskers');
     expect(compiled.textContent).toContain('555-4444');
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().vets.overview.create,
     );
-    expect(compiled.querySelector('a[mat-stroked-button]')?.textContent).toContain(
-      component.text().vets.overview.edit,
-    );
+    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
+    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
+    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    row.click();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(details.open).toHaveBeenCalledTimes(3);
+    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'vet', entityId: 'vet-1' });
   });
 
   it('filters vets by name and shows the filtered-empty state', () => {
