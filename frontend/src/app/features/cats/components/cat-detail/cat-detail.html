@@ -83,7 +83,7 @@
               type="button"
               (click)="navigate.emit({ entityType: 'stay', entityId: stay.stayId })"
             >
-              {{ stay.startAt }} — {{ stay.endAt }} · {{ stay.status }}
+              <app-stay-relationship-label [item]="stay" />
             </button>
           }
         } @else {

@@ -189,8 +189,8 @@ public class StayService implements IStayService {
     @Override
     @Transactional(readOnly = true)
     public RelationshipPage<CatRelationshipItem> getStayCats(UUID stayId, int page) {
-        RelationshipResponses.requireValidPage(page);
         getStayEntity(stayId);
+        RelationshipResponses.requireValidPage(page);
         return RelationshipResponses.page(
                 stayCatRepository.findCatsByStayId(stayId,
                         PageRequest.of(page, RelationshipResponses.PAGE_SIZE)),

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
@@ -92,8 +92,12 @@ describe('EntityDetailDialog', () => {
     previewDateChangePricing: vi.fn(),
     updateStay: vi.fn(),
   };
+  const dialogRef = { disableClose: false };
 
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dialogRef.disableClose = false;
+  });
   afterEach(() => TestBed.resetTestingModule());
 
   it('keeps edit and authoritative save inside the open route-free detail shell', async () => {
@@ -106,6 +110,7 @@ describe('EntityDetailDialog', () => {
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
         { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -142,6 +147,7 @@ describe('EntityDetailDialog', () => {
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
         { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -189,7 +195,7 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
     expect(fixture.componentInstance.title()).toBe(
-      fixture.componentInstance.text().stays.edit.title,
+      fixture.componentInstance.text().stays.detail.title,
     );
   });
 
@@ -212,6 +218,7 @@ describe('EntityDetailDialog', () => {
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
         { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -261,6 +268,7 @@ describe('EntityDetailDialog', () => {
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
         { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -354,6 +362,7 @@ describe('EntityDetailDialog', () => {
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
         { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
@@ -404,6 +413,32 @@ describe('EntityDetailDialog', () => {
       EntityDetailDialog,
       expect.not.objectContaining({ ariaLabel: expect.anything() }),
     );
+  });
+
+  it('locks every dialog dismissal path only while an authoritative Stay update is in flight', async () => {
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    fixture.componentInstance.submissionChanged(true);
+    fixture.detectChanges();
+    expect(dialogRef.disableClose).toBe(true);
+    expect(
+      (fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    fixture.componentInstance.submissionChanged(false);
+    fixture.detectChanges();
+    expect(dialogRef.disableClose).toBe(false);
   });
 
   function catItem(id: string) {

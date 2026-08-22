@@ -7,9 +7,10 @@ import { OwnerDetailResponse } from '../../../../shared/entity-detail/relationsh
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerEditor } from '../owner-editor/owner-editor';
+import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 @Component({
   selector: 'app-owner-detail',
-  imports: [MatButton, UiStateComponent, OwnerEditor],
+  imports: [MatButton, UiStateComponent, OwnerEditor, StayRelationshipLabel],
   template: `@if (loading()) {
       <app-ui-state kind="loading" [message]="text().owners.detail.loading" />
     } @else if (error()) {
@@ -75,7 +76,7 @@ import { OwnerEditor } from '../owner-editor/owner-editor';
                   type="button"
                   (click)="navigate.emit({ entityType: 'stay', entityId: stay.stayId })"
                 >
-                  {{ stay.startAt }} — {{ stay.endAt }} · {{ stay.status }}
+                  <app-stay-relationship-label [item]="stay" />
                 </button>
               }
             } @else {

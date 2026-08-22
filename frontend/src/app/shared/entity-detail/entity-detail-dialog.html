@@ -1,7 +1,7 @@
 <h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
 <mat-dialog-content>
   @if (history().length > 1) {
-    <button data-dialog-focus mat-button type="button" (click)="back()">
+    <button data-dialog-focus mat-button type="button" [disabled]="submitting()" (click)="back()">
       {{ text().entityDetail.back }}
     </button>
   }
@@ -27,7 +27,7 @@
               type="button"
               (click)="showReference({ entityType: 'stay', entityId: item.stayId })"
             >
-              {{ item.startAt }} — {{ item.endAt }} · {{ item.status }}
+              <app-stay-relationship-label [item]="item" />
             </button>
           } @else {
             <button
@@ -85,24 +85,17 @@
         />
       }
       @case ('stay') {
-        @if (editing()) {
-          <app-stay-edit-page
-            [entityId]="reference().entityId"
-            [embedded]="true"
-            (saved)="staySaved($event.stayId)"
-            (cancelled)="leaveEdit()"
-          />
-        } @else {
-          <app-stay-detail
-            [entityId]="reference().entityId"
-            [editing]="false"
-            (editRequested)="enterEdit()"
-            (cancelRequested)="leaveEdit()"
-            (saveCompleted)="leaveEdit()"
-            (navigate)="showReference($event)"
-            (openCats)="openCats(reference())"
-          />
-        }
+        <app-stay-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="leaveEdit()"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+          (updated)="staySaved($event)"
+          (submittingChanged)="submissionChanged($event)"
+        />
       }
     }
   }
@@ -112,6 +105,7 @@
   mat-stroked-button
   type="button"
   mat-dialog-close
+  [disabled]="submitting()"
   [attr.aria-label]="closeLabel()"
 >
   ×

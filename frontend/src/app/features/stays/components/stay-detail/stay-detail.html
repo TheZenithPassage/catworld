@@ -1,26 +1,37 @@
 @if (loading()) {
-  <app-ui-state kind="loading" [message]="text().entityDetail.loading" />
+  <app-ui-state kind="loading" [message]="text().stays.detail.loading" />
 } @else if (error()) {
   <app-ui-state
     kind="error"
-    [message]="text().entityDetail.loadFailed"
-    [actionLabel]="text().entityDetail.retry"
+    [message]="text().stays.detail.loadFailed"
+    [actionLabel]="text().stays.detail.retry"
     (actionTriggered)="load()"
   />
 } @else if (detail(); as stay) {
-  @if (!editing()) {
+  @if (editing()) {
+    @if (operationalStay(); as operational) {
+      <app-stay-editor
+        [entity]="operational"
+        (saved)="saved($event)"
+        (cancelled)="cancelRequested.emit()"
+        (submittingChanged)="submittingChanged.emit($event)"
+      />
+    } @else {
+      <app-ui-state kind="loading" [message]="text().stays.edit.loading" />
+    }
+  } @else {
     <dl>
-      <dt>{{ text().stays.edit.startDateTime }}</dt>
-      <dd>{{ stay.startAt }}</dd>
-      <dt>{{ text().stays.edit.endDateTime }}</dt>
-      <dd>{{ stay.endAt }}</dd>
-      <dt>{{ text().stays.nights.plural }}</dt>
+      <dt>{{ text().stays.detail.start }}</dt>
+      <dd>{{ date(stay.startAt) }}</dd>
+      <dt>{{ text().stays.detail.end }}</dt>
+      <dd>{{ date(stay.endAt) }}</dd>
+      <dt>{{ text().stays.detail.nights }}</dt>
       <dd>{{ stay.numberOfNights }}</dd>
-      <dt>Status</dt>
-      <dd>{{ stay.status }}</dd>
-      <dt>{{ text().stays.edit.notes }}</dt>
-      <dd>{{ stay.notes || '—' }}</dd>
-      <dt>Owner</dt>
+      <dt>{{ text().stays.detail.status }}</dt>
+      <dd>{{ status(stay.status) }}</dd>
+      <dt>{{ text().stays.detail.notes }}</dt>
+      <dd>{{ stay.notes || text().stays.emptyValue }}</dd>
+      <dt>{{ text().stays.detail.owner }}</dt>
       <dd>
         <button
           mat-button
@@ -32,7 +43,7 @@
       </dd>
     </dl>
     @if (stay.cats.totalElements > 0) {
-      <h3>{{ text().entityDetail.cats }}</h3>
+      <h3>{{ text().stays.detail.cats }}</h3>
       @if (stay.cats.totalElements <= 3) {
         @for (cat of stay.cats.items; track cat.id) {
           <button
@@ -51,7 +62,7 @@
     }
     @if (canEdit(stay)) {
       <button mat-flat-button type="button" (click)="editRequested.emit()">
-        {{ text().stays.edit.submit }}
+        {{ text().stays.detail.edit }}
       </button>
     }
   }

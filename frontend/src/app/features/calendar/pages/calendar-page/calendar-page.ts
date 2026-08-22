@@ -136,14 +136,13 @@ export class CalendarPage {
     eventClick: ({ event }) => {
       const stayId = event.extendedProps['stayId'] ?? event.id;
 
-      this.entityDetailDialog.open({ entityType: 'stay', entityId: stayId }).subscribe(() => {
-        this.stayApiService.getStayById(stayId).subscribe({
-          next: (updated) =>
-            this.stays.update((items) =>
-              items.map((item) => (item.stayId === stayId ? updated : item)),
-            ),
-        });
-      });
+      this.entityDetailDialog
+        .open({ entityType: 'stay', entityId: stayId })
+        .subscribe((updated) =>
+          this.stays.update((items) =>
+            items.map((item) => (item.stayId === updated.stayId ? updated : item)),
+          ),
+        );
     },
     eventDidMount: ({ el, event }) => {
       const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];

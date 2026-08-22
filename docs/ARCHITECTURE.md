@@ -788,9 +788,7 @@ and loading state, success refresh or removal, and any entity-specific conflict
 context. Stay cancellation remains a separate operation and keeps its distinct
 “Cancel stay” terminology.
 
-### Material Forms
-
-### Route-free entity details
+### Route-free Entity Details
 
 Owner, cat, vet and stay references open in one host-owned Material dialog. The
 dialog owns read-only/edit transitions and a stack of detail or relationship-list
@@ -812,6 +810,15 @@ stay in its existing cache after a successful dialog update. The routed stay
 page remains the payments and operational-actions adapter; Stay payments,
 creation, overview actions and their URLs are separate from lightweight dialog
 details. These reads and dialog integrations required no schema migration.
+
+The reusable Stay editor owns the complete date, notes, pricing preview,
+reconfirmation, stale-confirmation, vaccine-conflict and role-sensitive update
+workflow through route-free inputs and outputs. The Stay detail presenter loads
+the operational Stay only when editing begins and refreshes its lightweight
+detail after an authoritative save. The routed Stay edit page remains a thin
+route/loading/navigation adapter and separately composes Stay payments.
+
+### Material Forms
 
 The login, account management, owner create/edit, vet create/edit, cat
 create/edit and stay create/edit forms use Angular Material form fields,

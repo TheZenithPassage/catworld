@@ -8,9 +8,10 @@ import { CatDetailResponse } from '../../../../shared/entity-detail/relationship
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
+import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 @Component({
   selector: 'app-cat-detail',
-  imports: [MatButton, UiStateComponent, CatEditor],
+  imports: [MatButton, UiStateComponent, CatEditor, StayRelationshipLabel],
   templateUrl: './cat-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
 })

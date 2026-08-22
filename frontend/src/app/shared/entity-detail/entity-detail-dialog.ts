@@ -5,12 +5,13 @@ import {
   MatDialogClose,
   MatDialogContent,
   MatDialogTitle,
+  MatDialogRef,
 } from '@angular/material/dialog';
 import { CatDetail } from '../../features/cats/components/cat-detail/cat-detail';
 import { OwnerDetail } from '../../features/owners/components/owner-detail/owner-detail';
 import { VetDetail } from '../../features/vets/components/vet-detail/vet-detail';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
-import { StayEditPage } from '../../features/stays/pages/stay-edit-page/stay-edit-page';
+import { Stay } from '../../features/stays/models/stay.model';
 import { EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
@@ -23,6 +24,7 @@ import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
+import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 
 type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
@@ -39,9 +41,9 @@ type HistoryEntry =
     CatDetail,
     VetDetail,
     StayDetail,
-    StayEditPage,
     UiStateComponent,
     MatPaginator,
+    StayRelationshipLabel,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: dialogPaginatorIntl }],
   templateUrl: './entity-detail-dialog.html',
@@ -52,6 +54,7 @@ export class EntityDetailDialog {
   private readonly vetApi = inject(VetApiService);
   private readonly catApi = inject(CatApiService);
   private readonly stayApi = inject(StayApiService);
+  private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
   private readonly element = inject(ElementRef<HTMLElement>);
   private requestGeneration = 0;
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
@@ -62,7 +65,8 @@ export class EntityDetailDialog {
   readonly relationshipError = signal(false);
   readonly editing = signal(false);
   readonly text = inject(I18nService).text;
-  readonly stayUpdated = output<string>();
+  readonly stayUpdated = output<Stay>();
+  readonly submitting = signal(false);
   title(): string {
     const text = this.text();
     return this.reference().entityType === 'owner'
@@ -71,7 +75,7 @@ export class EntityDetailDialog {
         ? text.cats.detail.title
         : this.reference().entityType === 'vet'
           ? text.vets.detail.title
-          : text.stays.edit.title;
+          : text.stays.detail.title;
   }
   closeLabel(): string {
     const text = this.text();
@@ -81,7 +85,7 @@ export class EntityDetailDialog {
         ? text.cats.detail.close
         : this.reference().entityType === 'vet'
           ? text.vets.detail.close
-          : text.owners.detail.close;
+          : text.stays.detail.close;
   }
   showReference(reference: EntityReference): void {
     this.editing.set(false);
@@ -194,8 +198,12 @@ export class EntityDetailDialog {
   leaveEdit(): void {
     this.editing.set(false);
   }
-  staySaved(stayId: string): void {
+  staySaved(stay: Stay): void {
     this.leaveEdit();
-    this.stayUpdated.emit(stayId);
+    this.stayUpdated.emit(stay);
+  }
+  submissionChanged(submitting: boolean): void {
+    this.submitting.set(submitting);
+    this.dialogRef.disableClose = submitting;
   }
 }

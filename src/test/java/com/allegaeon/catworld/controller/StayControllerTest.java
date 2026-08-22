@@ -19,6 +19,8 @@ import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.service.IStayService;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.model.StayStatus;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +64,35 @@ public class StayControllerTest {
 
     @Nested
     class GetStayTests {
+
+        @Test
+        void serializesLightweightDetailAndUsesDefaultCatPage() throws Exception {
+            UUID id = UUID.randomUUID();
+            StayDetailResponse detail = new StayDetailResponse(id, StayStatus.RESERVED,
+                    LocalDateTime.of(2030, 1, 1, 10, 0), LocalDateTime.of(2030, 1, 3, 10, 0),
+                    2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada"),
+                    new RelationshipPreview<>(0, List.of()));
+            when(stayService.getStayDetail(id)).thenReturn(detail);
+            when(stayService.getStayCats(id, 0)).thenReturn(
+                    new RelationshipPage<>(List.of(), 0, 5, 0, 0));
+            mockMvc.perform(get("/api/stays/{id}/detail", id))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESERVED"))
+                    .andExpect(jsonPath("$.numberOfNights").value(2))
+                    .andExpect(jsonPath("$.owner.fullName").value("Ada"))
+                    .andExpect(jsonPath("$.retainedNightlyRate").doesNotExist());
+            mockMvc.perform(get("/api/stays/{id}/cats", id))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5));
+            verify(stayService).getStayCats(id, 0);
+        }
+
+        @Test
+        void mapsNegativeCatPageAndMissingParentErrors() throws Exception {
+            UUID id = UUID.randomUUID();
+            when(stayService.getStayCats(id, -1)).thenThrow(new BadRequestException("bad"));
+            mockMvc.perform(get("/api/stays/{id}/cats?page=-1", id)).andExpect(status().isBadRequest());
+            when(stayService.getStayCats(id, 2)).thenThrow(new ResourceNotFoundException("Stay", id));
+            mockMvc.perform(get("/api/stays/{id}/cats?page=2", id)).andExpect(status().isNotFound());
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllStays() throws Exception {

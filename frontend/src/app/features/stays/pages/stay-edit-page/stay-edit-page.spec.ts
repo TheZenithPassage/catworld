@@ -5,6 +5,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
+import { By } from '@angular/platform-browser';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -12,9 +13,10 @@ import { NightlyReferenceRateApiService } from '../../../nightly-rates/services/
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
+import { StayEditor } from '../../components/stay-editor/stay-editor';
 
 describe('StayEditPage', () => {
-  let component: StayEditPage;
+  let component: StayEditor;
   let fixture: ComponentFixture<StayEditPage>;
   let routeParams: Record<string, string>;
   let dialogClosed: Subject<boolean | undefined>;
@@ -155,7 +157,8 @@ describe('StayEditPage', () => {
 
   function createComponent(): void {
     fixture = TestBed.createComponent(StayEditPage);
-    component = fixture.componentInstance;
+    fixture.detectChanges();
+    component = fixture.debugElement.query(By.directive(StayEditor)).componentInstance;
   }
 
   it('does not offer suggested amount adoption in existing-stay repricing', () => {

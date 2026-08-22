@@ -89,4 +89,28 @@ class RelationshipLookupPersistenceTest {
         assertEquals(List.of(StayStatus.RESERVED, StayStatus.CHECKED_IN, StayStatus.CANCELLED, StayStatus.CHECKED_OUT),
                 saved.stream().limit(5).map(Stay::getStatus).distinct().toList());
     }
+
+    @Test
+    void stayCatPagesApplyNameAndIdOrderingBeforeFixedFiveSelection() {
+        UserAccount creator = userAccounts.save(UserAccount.builder().username("stay-cat-page")
+                .passwordHash("hash").role(UserRole.ADMIN).enabled(true).build());
+        Owner owner = owners.save(Owner.builder().fullName("Owner").primaryPhone("1").createdBy(creator).build());
+        Stay stay = stays.save(Stay.builder().startAt(LocalDateTime.now().plusDays(1))
+                .endAt(LocalDateTime.now().plusDays(2)).owner(owner).createdBy(creator).build());
+        List<Cat> saved = new ArrayList<>();
+        for (String name : List.of("Zulu", "Alpha", "Echo", "Bravo", "Alpha", "Delta")) {
+            Cat cat = cats.save(Cat.builder().name(name).birthDate(LocalDate.of(2020, 1, 1))
+                    .sex(Sex.FEMALE).owner(owner).createdBy(creator).build());
+            stayCats.save(StayCat.builder().stay(stay).cat(cat).build());
+            saved.add(cat);
+        }
+        List<Cat> expected = saved.stream().sorted(Comparator.comparing(Cat::getName)
+                .thenComparing(value -> value.getId().toString())).toList();
+        var first = stayCats.findCatsByStayId(stay.getId(), PageRequest.of(0, 5));
+        var second = stayCats.findCatsByStayId(stay.getId(), PageRequest.of(1, 5));
+        assertEquals(expected.subList(0, 5).stream().map(Cat::getId).toList(), first.map(Cat::getId).getContent());
+        assertEquals(List.of(expected.get(5).getId()), second.map(Cat::getId).getContent());
+        assertEquals(6, first.getTotalElements());
+        assertEquals(2, first.getTotalPages());
+    }
 }

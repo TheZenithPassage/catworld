@@ -1,14 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter, RouterLink } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { provideRouter, Router, RouterLink } from '@angular/router';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Stay } from '../../../stays/models/stay.model';
 import { StayApiService } from '../../../stays/services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { CalendarPage } from './calendar-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -42,6 +43,8 @@ describe('CalendarPage', () => {
     read: vi.fn(),
     store: vi.fn(),
   };
+  const dialogUpdates = new Subject<Stay>();
+  const entityDetailDialog = { open: vi.fn(() => dialogUpdates.asObservable()) };
 
   let component: CalendarPage;
   let fixture: ComponentFixture<CalendarPage>;
@@ -66,6 +69,7 @@ describe('CalendarPage', () => {
           { path: 'stays/new', component: CalendarPage },
         ]),
         { provide: StayApiService, useValue: stayApiService },
+        { provide: EntityDetailDialogService, useValue: entityDetailDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -164,6 +168,7 @@ describe('CalendarPage', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: StayApiService, useValue: stayApiService },
+        { provide: EntityDetailDialogService, useValue: entityDetailDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -177,5 +182,23 @@ describe('CalendarPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.errorLoading);
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.actions.retry);
+  });
+
+  it('opens Stay details without navigation and replaces the cache from the authoritative update', async () => {
+    createComponent();
+    const router = TestBed.inject(Router);
+    const before = router.url;
+    component.calendarOptions().eventClick!({
+      event: { id: 'fallback', extendedProps: { stayId: 'stay-1' } },
+    } as never);
+    expect(entityDetailDialog.open).toHaveBeenCalledWith({
+      entityType: 'stay',
+      entityId: 'stay-1',
+    });
+    expect(router.url).toBe(before);
+    const updated = { ...stay, notes: 'authoritative', startAt: '2099-02-01T10:00:00' };
+    dialogUpdates.next(updated);
+    expect(component.stays()).toEqual([updated]);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
   });
 });
