@@ -19,7 +19,8 @@ export class StayEditPage {
   private readonly router = inject(Router);
   private readonly api = inject(StayApiService);
   readonly text = inject(I18nService).text;
-  readonly stay = signal<Stay | null>(null);
+  readonly editorEntity = signal<Stay | null>(null);
+  readonly paymentStay = signal<Stay | null>(null);
   readonly loading = signal(true);
   readonly loadFailed = signal(false);
   private readonly stayId = this.route.snapshot.paramMap.get('id');
@@ -38,7 +39,8 @@ export class StayEditPage {
     this.loadFailed.set(false);
     this.api.getStayById(this.stayId).subscribe({
       next: (stay) => {
-        this.stay.set(stay);
+        this.editorEntity.set(stay);
+        this.paymentStay.set(stay);
         this.loading.set(false);
       },
       error: () => {
@@ -52,6 +54,6 @@ export class StayEditPage {
     void this.router.navigate(['/stays']);
   }
   onStayChanged(stay: Stay): void {
-    this.stay.set(stay);
+    this.paymentStay.set(stay);
   }
 }

@@ -66,6 +66,7 @@ export class StayEditor {
 
   readonly text = this.i18nService.text;
   readonly entity = input.required<Stay>();
+  readonly showCancel = input(false);
   readonly saved = output<Stay>();
   readonly cancelled = output<void>();
   readonly submittingChanged = output<boolean>();
@@ -390,7 +391,6 @@ export class StayEditor {
     ) {
       this.pricingConfirmed.set(true);
       this.stalePricing.set(false);
-      this.scrollToSubmit();
     }
   }
 
@@ -488,12 +488,6 @@ export class StayEditor {
     return JSON.stringify([this.stayId, this.startAt(), this.endAt()]);
   }
 
-  private scrollToSubmit(): void {
-    document
-      .getElementById('update-stay-submit')
-      ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-  }
-
   private clearVaccineOverrideRecovery(): void {
     this.vaccineOverrideRecoveryBasis = null;
   }
@@ -504,7 +498,6 @@ export class StayEditor {
 
   private showError(message: string): void {
     this.error.set(message);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   private setSubmitting(value: boolean): void {

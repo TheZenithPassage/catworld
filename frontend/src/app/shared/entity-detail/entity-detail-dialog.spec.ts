@@ -15,6 +15,11 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { EntityDetailDialog } from './entity-detail-dialog';
 import { EntityDetailDialogService } from './entity-detail-dialog.service';
 import { OwnerDetailResponse } from './relationship.models';
+import { Stay } from '../../features/stays/models/stay.model';
+import { AuthSessionService } from '../../core/auth/auth-session.service';
+import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
+import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
+import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -43,6 +48,7 @@ describe('EntityDetailDialog', () => {
       ),
     ),
     getOwnerCats: vi.fn(),
+    getOwnerStays: vi.fn(),
     updateOwner: vi.fn(() => of(updated)),
   };
   const catApi = {
@@ -73,6 +79,7 @@ describe('EntityDetailDialog', () => {
         stays: { totalElements: 0, items: [] },
       }),
     ),
+    getCatStays: vi.fn(),
   };
   const vetApi = { getVetCats: vi.fn(), getVetDetail: vi.fn() };
   const stayApi = {
@@ -89,14 +96,49 @@ describe('EntityDetailDialog', () => {
       }),
     ),
     getStayCats: vi.fn(),
+    getStayById: vi.fn(),
     previewDateChangePricing: vi.fn(),
     updateStay: vi.fn(),
+  };
+  const operationalStay: Stay = {
+    stayId: 'stay-1',
+    startAt: '2030-01-01T10:00:00',
+    endAt: '2030-01-03T10:00:00',
+    numberOfNights: 2,
+    cancelledAt: null,
+    createdAt: '2029-01-01T10:00:00',
+    updatedAt: '2029-01-01T10:00:00',
+    notes: null,
+    catIds: [],
+    ownerId: 'owner-1',
+    ownerName: 'Ada Lovelace',
+    cats: [],
+    retainedNightlyRate: null,
+    suggestedAmount: null,
+    agreedAmount: null,
+    totalPaid: '0',
+    remainingAmount: null,
+    paymentCondition: 'NO_PAYMENT',
+    outstandingCollectionEligible: false,
+    payments: [],
   };
   const dialogRef = { disableClose: false };
 
   beforeEach(() => {
     vi.clearAllMocks();
     dialogRef.disableClose = false;
+    stayApi.getStayById.mockReturnValue(of(operationalStay));
+    stayApi.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 2,
+        currentAgreedAmount: null,
+        numberOfNights: 2,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: null,
+      }),
+    );
   });
   afterEach(() => TestBed.resetTestingModule());
 
@@ -398,6 +440,68 @@ describe('EntityDetailDialog', () => {
     expect(intl.getRangeLabel(1, 5, 6)).toBe('6–6 of 6');
   });
 
+  it('uses the shared paged history for Owner and Cat Stay lists and Stay Cat lists', async () => {
+    const stayPage = {
+      items: [
+        {
+          stayId: 'stay-1',
+          startAt: '2030-01-01T10:00:00',
+          endAt: '2030-01-03T10:00:00',
+          status: 'RESERVED',
+        },
+      ],
+      page: 0,
+      pageSize: 5,
+      totalElements: 6,
+      totalPages: 2,
+    };
+    api.getOwnerStays.mockReturnValue(of(stayPage));
+    catApi.getCatStays.mockReturnValue(of(stayPage));
+    stayApi.getStayCats.mockReturnValue(
+      of({ items: [catItem('cat-1')], page: 0, pageSize: 5, totalElements: 6, totalPages: 2 }),
+    );
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+
+    fixture.componentInstance.openStays({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.detectChanges();
+    expect(api.getOwnerStays).toHaveBeenCalledWith('owner-1', 0);
+    expect(fixture.nativeElement.textContent).toContain('Reserved');
+    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    fixture.componentInstance.back();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.relationshipPage()?.page).toBe(0);
+
+    fixture.componentInstance.back();
+    fixture.componentInstance.showReference({ entityType: 'cat', entityId: 'cat-1' });
+    fixture.componentInstance.openStays({ entityType: 'cat', entityId: 'cat-1' });
+    fixture.detectChanges();
+    expect(catApi.getCatStays).toHaveBeenCalledWith('cat-1', 0);
+
+    fixture.componentInstance.back();
+    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.componentInstance.openCats({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    expect(stayApi.getStayCats).toHaveBeenCalledWith('stay-1', 0);
+    fixture.componentInstance.showReference({ entityType: 'cat', entityId: 'cat-1' });
+    fixture.componentInstance.back();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.relationshipPage()?.page).toBe(0);
+  });
+
   it('lets the reactive dialog title provide the accessible name', () => {
     const dialog = {
       open: vi.fn(() => ({
@@ -413,6 +517,85 @@ describe('EntityDetailDialog', () => {
       EntityDetailDialog,
       expect.not.objectContaining({ ariaLabel: expect.anything() }),
     );
+  });
+
+  it('keeps the operational edit load failure separate and retries the operational GET', async () => {
+    const failed = new Subject<Stay>();
+    const retried = new Subject<Stay>();
+    stayApi.getStayById.mockImplementationOnce(() => failed).mockImplementationOnce(() => retried);
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        { provide: AuthSessionService, useValue: { hasRole: () => true } },
+        { provide: NightlyReferenceRateApiService, useValue: { getCurrentRates: () => of([]) } },
+        { provide: MatDialog, useValue: { open: vi.fn() } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+
+    failed.error(new Error('operational load failed'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.detail.operationalLoadFailed,
+    );
+    expect(fixture.componentInstance.error()).toBe(false);
+
+    fixture.componentInstance.loadOperational();
+    retried.next(operationalStay);
+    fixture.detectChanges();
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.operationalLoading()).toBe(false);
+    expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.cancel-edit')).not.toBeNull();
+  });
+
+  it('never exposes late operational success or error under a newer Stay reference', async () => {
+    const first = new Subject<Stay>();
+    const second = new Subject<Stay>();
+    const third = new Subject<Stay>();
+    const fourth = new Subject<Stay>();
+    stayApi.getStayById
+      .mockImplementationOnce(() => first)
+      .mockImplementationOnce(() => second)
+      .mockImplementationOnce(() => third)
+      .mockImplementationOnce(() => fourth);
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        { provide: AuthSessionService, useValue: { hasRole: () => true } },
+        { provide: NightlyReferenceRateApiService, useValue: { getCurrentRates: () => of([]) } },
+        { provide: MatDialog, useValue: { open: vi.fn() } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', true);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('entityId', 'stay-2');
+    fixture.detectChanges();
+    second.next({ ...operationalStay, stayId: 'stay-2' });
+    first.next(operationalStay);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.operationalStay()?.stayId).toBe('stay-2');
+
+    fixture.componentRef.setInput('entityId', 'stay-3');
+    fixture.detectChanges();
+    fixture.componentRef.setInput('entityId', 'stay-4');
+    fixture.detectChanges();
+    fourth.next({ ...operationalStay, stayId: 'stay-4' });
+    third.error(new Error('late error'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.operationalStay()?.stayId).toBe('stay-4');
+    expect(fixture.componentInstance.operationalError()).toBe(false);
   });
 
   it('locks every dialog dismissal path only while an authoritative Stay update is in flight', async () => {
@@ -439,6 +622,11 @@ describe('EntityDetailDialog', () => {
     fixture.componentInstance.submissionChanged(false);
     fixture.detectChanges();
     expect(dialogRef.disableClose).toBe(false);
+    const emitted = vi.fn();
+    fixture.componentInstance.stayUpdated.subscribe(emitted);
+    const authoritative = { ...operationalStay, notes: 'authoritative update' };
+    fixture.componentInstance.staySaved(authoritative);
+    expect(emitted).toHaveBeenCalledWith(authoritative);
   });
 
   function catItem(id: string) {

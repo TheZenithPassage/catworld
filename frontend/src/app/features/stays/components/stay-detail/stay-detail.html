@@ -12,9 +12,17 @@
     @if (operationalStay(); as operational) {
       <app-stay-editor
         [entity]="operational"
+        [showCancel]="true"
         (saved)="saved($event)"
         (cancelled)="cancelRequested.emit()"
         (submittingChanged)="submittingChanged.emit($event)"
+      />
+    } @else if (operationalError()) {
+      <app-ui-state
+        kind="error"
+        [message]="text().stays.detail.operationalLoadFailed"
+        [actionLabel]="text().stays.detail.retry"
+        (actionTriggered)="loadOperational()"
       />
     } @else {
       <app-ui-state kind="loading" [message]="text().stays.edit.loading" />

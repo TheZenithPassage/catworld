@@ -170,9 +170,17 @@
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
             </button>
-            <button mat-button type="button" [disabled]="submitting()" (click)="cancelled.emit()">
-              {{ text().entityDetail.back }}
-            </button>
+            @if (showCancel()) {
+              <button
+                class="cancel-edit"
+                mat-button
+                type="button"
+                [disabled]="submitting()"
+                (click)="cancelled.emit()"
+              >
+                {{ text().stays.detail.cancelEdit }}
+              </button>
+            }
           </div>
         </form>
       } @else {

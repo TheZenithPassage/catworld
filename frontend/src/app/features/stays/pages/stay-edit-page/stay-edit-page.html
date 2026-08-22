@@ -17,9 +17,11 @@
       [actionLabel]="text().entityDetail.retry"
       (actionTriggered)="load()"
     />
-  } @else if (stay(); as currentStay) {
-    @if (currentStay.agreedAmount !== null) {
-      <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
+  } @else if (editorEntity(); as currentStay) {
+    @if (paymentStay(); as currentPaymentStay) {
+      @if (currentPaymentStay.agreedAmount !== null) {
+        <app-stay-payments [stay]="currentPaymentStay" (stayChange)="onStayChanged($event)" />
+      }
     }
     <app-stay-editor [entity]="currentStay" (saved)="saved()" />
   }

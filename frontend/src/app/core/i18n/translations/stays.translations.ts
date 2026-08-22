@@ -212,7 +212,9 @@ export interface StaysTranslations {
     edit: string;
     loading: string;
     loadFailed: string;
+    operationalLoadFailed: string;
     retry: string;
+    cancelEdit: string;
     start: string;
     end: string;
     nights: string;
@@ -437,7 +439,9 @@ export const STAYS_TRANSLATIONS = {
       edit: 'Editar',
       loading: 'Cargando detalle de la estancia...',
       loadFailed: 'No se pudo cargar la estancia.',
+      operationalLoadFailed: 'No se pudieron cargar los datos para editar la estancia.',
       retry: 'Reintentar',
+      cancelEdit: 'Cancelar edición',
       start: 'Inicio',
       end: 'Fin',
       nights: 'Noches',
@@ -660,7 +664,9 @@ export const STAYS_TRANSLATIONS = {
       edit: 'Edit',
       loading: 'Loading stay details...',
       loadFailed: 'Stay details could not be loaded.',
+      operationalLoadFailed: 'The stay could not be loaded for editing.',
       retry: 'Retry',
+      cancelEdit: 'Cancel editing',
       start: 'Start',
       end: 'End',
       nights: 'Nights',
