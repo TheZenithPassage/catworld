@@ -231,12 +231,19 @@ concepts are shared, or one order is preferred. State every meaningful producer/
 consumer contract. If proposed slices require extensive duplicated parity rules,
 reconsider whether they are genuinely separate units.
 
-For sliced output, use these exact top-level headings:
+For sliced output, use this exact Markdown structure:
 
-- `Implementation slices`
-- `Hard dependencies between slices`
+```md
+## Implementation slices
 
-Declare every slice consistently as `S<number> — <title>`.
+### S<number> — <title>
+
+## Hard dependencies between slices
+```
+
+`Implementation slices` and `Hard dependencies between slices` are exact
+level-two headings. Every slice declaration is an exact level-three heading in
+the form `### S<number> — <title>`.
 
 ## Final issue content
 
