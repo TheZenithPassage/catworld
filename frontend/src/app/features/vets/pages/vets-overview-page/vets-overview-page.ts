@@ -76,7 +76,7 @@ export class VetsOverviewPage {
     return value || this.text().vets.emptyValue;
   }
   openVet(vet: Vet): void {
-    this.details.open({ entityType: 'vet', entityId: vet.id });
+    this.details.open({ entityType: 'vet', entityId: vet.id }).subscribe(() => this.loadVets());
   }
   activateVet(event: KeyboardEvent, vet: Vet): void {
     if (event.key === 'Enter' || event.key === ' ') {

@@ -20,6 +20,7 @@ import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import type { EntityDetailUpdate } from './entity-reference';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -156,6 +157,8 @@ describe('EntityDetailDialog', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -177,6 +180,7 @@ describe('EntityDetailDialog', () => {
     expect(fixture.nativeElement.textContent).toContain('Ada Byron');
     expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
     expect(fixture.componentInstance.editing()).toBe(false);
+    expect(emitted).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'owner-1' });
   });
 
   it('owns cancel and reference-change discard transitions and handles Stay explicitly', async () => {
@@ -193,6 +197,8 @@ describe('EntityDetailDialog', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -214,6 +220,7 @@ describe('EntityDetailDialog', () => {
     ).click();
     fixture.detectChanges();
     expect(api.updateOwner).not.toHaveBeenCalled();
+    expect(emitted).not.toHaveBeenCalled();
     expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
 
     (
@@ -224,6 +231,12 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     editor = fixture.debugElement.query(By.directive(OwnerEditor)).componentInstance as OwnerEditor;
     expect(editor.fullName()).toBe('Ada Lovelace');
+    api.updateOwner.mockReturnValueOnce(throwError(() => new Error('rejected update')));
+    editor.fullName.set('Rejected draft');
+    editor.submit();
+    fixture.detectChanges();
+    expect(emitted).not.toHaveBeenCalled();
+    expect(editor.fullName()).toBe('Rejected draft');
 
     fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-2' });
     fixture.detectChanges();
@@ -240,6 +253,48 @@ describe('EntityDetailDialog', () => {
       fixture.componentInstance.text().stays.detail.title,
     );
   });
+
+  it.each([
+    ['owner', 'owner-1'],
+    ['cat', 'cat-1'],
+    ['vet', 'vet-1'],
+  ] as const)(
+    'emits the rendered %s reference only from saveCompleted',
+    async (entityType, entityId) => {
+      vetApi.getVetDetail.mockReturnValue(
+        of({
+          vet: { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null },
+          cats: { totalElements: 0, items: [] },
+        }),
+      );
+      await TestBed.configureTestingModule({
+        imports: [EntityDetailDialog],
+        providers: [
+          provideNoopAnimations(),
+          { provide: MAT_DIALOG_DATA, useValue: { entityType, entityId } },
+          { provide: OwnerApiService, useValue: api },
+          { provide: CatApiService, useValue: catApi },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+          { provide: MatDialogRef, useValue: dialogRef },
+        ],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(EntityDetailDialog);
+      const emitted = vi.fn();
+      fixture.componentInstance.entityUpdated.subscribe(emitted);
+      fixture.detectChanges();
+
+      const detailComponent = fixture.debugElement.query(By.css(`app-${entityType}-detail`))
+        .componentInstance as {
+        saveCompleted: { emit(): void };
+        cancelRequested: { emit(): void };
+      };
+      detailComponent.cancelRequested.emit();
+      expect(emitted).not.toHaveBeenCalled();
+      detailComponent.saveCompleted.emit();
+      expect(emitted).toHaveBeenCalledWith({ entityType, entityId });
+    },
+  );
 
   it('ignores stale same-type successes and errors after a reference change', async () => {
     const first = new Subject<OwnerDetailResponse>();
@@ -661,20 +716,32 @@ describe('EntityDetailDialog', () => {
   });
 
   it('lets the reactive dialog title provide the accessible name', () => {
+    const entityUpdated = new Subject<{ entityType: 'owner'; entityId: string } | Stay>();
+    const closed = new Subject<void>();
     const dialog = {
       open: vi.fn(() => ({
-        componentInstance: { stayUpdated: { subscribe: vi.fn() } },
-        afterClosed: () => of(undefined),
+        componentInstance: { entityUpdated },
+        afterClosed: () => closed.asObservable(),
       })),
     };
     TestBed.configureTestingModule({
       providers: [EntityDetailDialogService, { provide: MatDialog, useValue: dialog }],
     });
-    TestBed.inject(EntityDetailDialogService).open({ entityType: 'owner', entityId: 'owner-1' });
+    const received: EntityDetailUpdate[] = [];
+    const completed = vi.fn();
+    TestBed.inject(EntityDetailDialogService)
+      .open({ entityType: 'owner', entityId: 'owner-1' })
+      .subscribe({ next: (update) => received.push(update), complete: completed });
     expect(dialog.open).toHaveBeenCalledWith(
       EntityDetailDialog,
       expect.not.objectContaining({ ariaLabel: expect.anything() }),
     );
+    entityUpdated.next({ entityType: 'owner', entityId: 'owner-1' });
+    entityUpdated.next(operationalStay);
+    expect(received).toEqual([{ entityType: 'owner', entityId: 'owner-1' }, operationalStay]);
+    expect(completed).not.toHaveBeenCalled();
+    closed.next();
+    expect(completed).toHaveBeenCalledOnce();
   });
 
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {
@@ -801,7 +868,7 @@ describe('EntityDetailDialog', () => {
     const fixture = TestBed.createComponent(EntityDetailDialog);
     fixture.detectChanges();
     const emitted = vi.fn();
-    fixture.componentInstance.stayUpdated.subscribe(emitted);
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
 
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
     buttonContaining(fixture, 'Reserved').click();

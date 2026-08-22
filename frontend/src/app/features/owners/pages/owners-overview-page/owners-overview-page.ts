@@ -114,7 +114,9 @@ export class OwnersOverviewPage {
   }
 
   openOwner(owner: Owner): void {
-    this.details.open({ entityType: 'owner', entityId: owner.id });
+    this.details
+      .open({ entityType: 'owner', entityId: owner.id })
+      .subscribe(() => this.loadOwners());
   }
   activateOwner(event: KeyboardEvent, owner: Owner): void {
     if (event.key === 'Enter' || event.key === ' ') {

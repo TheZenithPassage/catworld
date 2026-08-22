@@ -106,7 +106,7 @@ export class CatsOverviewPage {
     return values.length > 0 ? values.join(' / ') : this.text().cats.emptyValue;
   }
   openCat(cat: Cat): void {
-    this.details.open({ entityType: 'cat', entityId: cat.id });
+    this.details.open({ entityType: 'cat', entityId: cat.id }).subscribe(() => this.loadCats());
   }
   activateCat(event: KeyboardEvent, cat: Cat): void {
     if (event.key === 'Enter' || event.key === ' ') {

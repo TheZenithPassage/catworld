@@ -12,7 +12,7 @@ import { OwnerDetail } from '../../features/owners/components/owner-detail/owner
 import { VetDetail } from '../../features/vets/components/vet-detail/vet-detail';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
 import { Stay } from '../../features/stays/models/stay.model';
-import { EntityReference } from './entity-reference';
+import { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
 import { MatPaginator, MatPaginatorIntl, PageEvent } from '@angular/material/paginator';
@@ -65,7 +65,7 @@ export class EntityDetailDialog {
   readonly relationshipError = signal(false);
   readonly editing = signal(false);
   readonly text = inject(I18nService).text;
-  readonly stayUpdated = output<Stay>();
+  readonly entityUpdated = output<EntityDetailUpdate>();
   readonly submitting = signal(false);
   title(): string {
     const text = this.text();
@@ -198,9 +198,18 @@ export class EntityDetailDialog {
   leaveEdit(): void {
     this.editing.set(false);
   }
+  referenceSaved(): void {
+    const reference = this.reference();
+    if (reference.entityType === 'stay') return;
+    this.leaveEdit();
+    this.entityUpdated.emit({
+      entityType: reference.entityType,
+      entityId: reference.entityId,
+    });
+  }
   staySaved(stay: Stay): void {
     this.leaveEdit();
-    this.stayUpdated.emit(stay);
+    this.entityUpdated.emit(stay);
   }
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);

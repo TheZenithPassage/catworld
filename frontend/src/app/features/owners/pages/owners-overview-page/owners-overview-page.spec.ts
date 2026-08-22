@@ -1,13 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnersOverviewPage } from './owners-overview-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('OwnersOverviewPage', () => {
   const owners: Owner[] = [
@@ -36,7 +37,7 @@ describe('OwnersOverviewPage', () => {
   const ownerApiService = {
     getOwners: vi.fn(),
   };
-  const details = { open: vi.fn() };
+  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
 
   let component: OwnersOverviewPage;
   let fixture: ComponentFixture<OwnersOverviewPage>;
@@ -136,6 +137,18 @@ describe('OwnersOverviewPage', () => {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  });
+
+  it('reloads owners only after the dialog reports a successful update', () => {
+    const updates = new Subject<{ entityType: 'owner'; entityId: string }>();
+    details.open.mockReturnValueOnce(updates.asObservable());
+    createComponent();
+
+    component.openOwner(owners[0]);
+    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(1);
+
+    updates.next({ entityType: 'owner', entityId: 'owner-1' });
+    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(2);
   });
 
   it('renders empty, filtered-empty, and error states outside the Material table', () => {

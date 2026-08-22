@@ -138,11 +138,15 @@ export class CalendarPage {
 
       this.entityDetailDialog
         .open({ entityType: 'stay', entityId: stayId })
-        .subscribe((updated) =>
+        .subscribe((updated) => {
+          if ('entityType' in updated) {
+            this.loadStays();
+            return;
+          }
           this.stays.update((items) =>
             items.map((item) => (item.stayId === updated.stayId ? updated : item)),
-          ),
-        );
+          );
+        });
     },
     eventDidMount: ({ el, event }) => {
       const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];

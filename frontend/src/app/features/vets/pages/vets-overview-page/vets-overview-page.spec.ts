@@ -1,13 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Vet } from '../../models/vet.model';
 import { VetApiService } from '../../services/vet-api.service';
 import { VetsOverviewPage } from './vets-overview-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('VetsOverviewPage', () => {
   const vets: Vet[] = [
@@ -28,7 +29,7 @@ describe('VetsOverviewPage', () => {
   const vetApiService = {
     getVets: vi.fn(),
   };
-  const details = { open: vi.fn() };
+  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
 
   let component: VetsOverviewPage;
   let fixture: ComponentFixture<VetsOverviewPage>;
@@ -103,6 +104,18 @@ describe('VetsOverviewPage', () => {
       component.text().vets.overview.emptyFiltered,
     );
     expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
+  });
+
+  it('reloads vets only after the dialog reports a successful update', () => {
+    const updates = new Subject<{ entityType: 'vet'; entityId: string }>();
+    details.open.mockReturnValueOnce(updates.asObservable());
+    createComponent();
+
+    component.openVet(vets[0]);
+    expect(vetApiService.getVets).toHaveBeenCalledTimes(1);
+
+    updates.next({ entityType: 'vet', entityId: 'vet-1' });
+    expect(vetApiService.getVets).toHaveBeenCalledTimes(2);
   });
 
   it('renders empty and error states outside the Material table', async () => {
