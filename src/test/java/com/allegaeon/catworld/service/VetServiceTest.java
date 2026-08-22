@@ -2,6 +2,8 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -9,6 +11,7 @@ import com.allegaeon.catworld.mapper.VetMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.VetRepository;
+import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,8 +23,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -56,11 +63,54 @@ class VetServiceTest {
     @Mock
     private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
+    @Mock
+    private CatRepository catRepository;
+
     @InjectMocks
     private VetService service;
 
     @Captor
     private ArgumentCaptor<Vet> vetCaptor;
+
+    @Test
+    void vetDetailComposesOneCompleteCatPreview() {
+        UUID id = UUID.randomUUID();
+        Vet vet = vet(id, creator());
+        var owner = com.allegaeon.catworld.model.Owner.builder().id(UUID.randomUUID())
+                .fullName("Owner Name").build();
+        var cat = com.allegaeon.catworld.model.Cat.builder().id(UUID.randomUUID()).name("Milo")
+                .birthDate(LocalDate.of(2020, 1, 1)).sex(com.allegaeon.catworld.model.Sex.MALE)
+                .owner(owner).vet(vet).build();
+        VetResponseDTO response = VetResponseDTO.builder().id(id).name("Vet").build();
+        when(vetRepository.findById(id)).thenReturn(Optional.of(vet));
+        when(vetMapper.toResponseDTO(vet, false)).thenReturn(response);
+        when(catRepository.findByVet_Id(eq(id), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cat)));
+
+        VetDetailResponse result = service.getVetDetail(id);
+
+        assertSame(response, result.vet());
+        assertEquals(1, result.cats().totalElements());
+        assertEquals(new CatRelationshipItem(cat.getId(), "Milo", owner.getId(), "Owner Name"),
+                result.cats().items().get(0));
+    }
+
+    @Test
+    void vetPageUsesFiveItemEnvelopeAndValidatesAfterLookup() {
+        UUID missing = UUID.randomUUID();
+        when(vetRepository.findById(missing)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.getVetCats(missing, -1));
+        verifyNoInteractions(catRepository);
+
+        UUID id = UUID.randomUUID();
+        when(vetRepository.findById(id)).thenReturn(Optional.of(vet(id, creator())));
+        assertThrows(BadRequestException.class, () -> service.getVetCats(id, -1));
+        when(catRepository.findByVet_Id(eq(id), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), org.springframework.data.domain.PageRequest.of(1, 5), 6));
+        RelationshipPage<CatRelationshipItem> result = service.getVetCats(id, 1);
+        assertEquals(5, result.pageSize());
+        assertEquals(6, result.totalElements());
+        assertEquals(2, result.totalPages());
+    }
 
     @Test
     void createVetAssignsAuthenticatedCreatorAndCalculatesCanDelete() {

@@ -17,7 +17,7 @@ import java.util.UUID;
 @Repository
 public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
 
-    @Query("select sc.stay from StayCat sc where sc.cat.id = :catId")
+    @Query("select sc.stay from StayCat sc where sc.cat.id = :catId order by sc.stay.startAt desc, sc.stay.id asc")
     Page<Stay> findStaysByCatId(@Param("catId") UUID catId, Pageable pageable);
 
     boolean existsByCat_Id(UUID catId);

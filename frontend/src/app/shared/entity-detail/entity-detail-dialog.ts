@@ -86,6 +86,7 @@ export class EntityDetailDialog {
     const entry: HistoryEntry = { kind: 'list', relationship, parent, page: 0 };
     this.history.update((items) => [...items, entry]);
     this.entry.set(entry);
+    this.reference.set(parent);
     this.loadRelationship(entry);
     this.focusContent();
   }
@@ -95,8 +96,12 @@ export class EntityDetailDialog {
     this.history.update((items) => items.slice(0, -1));
     const entry = this.history()[this.history().length - 1];
     this.entry.set(entry);
-    if (entry.kind === 'detail') this.reference.set(entry.reference);
-    else this.loadRelationship(entry);
+    if (entry.kind === 'detail') {
+      this.reference.set(entry.reference);
+    } else {
+      this.reference.set(entry.parent);
+      this.loadRelationship(entry);
+    }
     this.focusContent();
   }
   pageChanged(event: PageEvent): void {
