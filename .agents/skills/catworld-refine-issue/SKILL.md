@@ -61,7 +61,7 @@ of the repository commit snapshot and may change independently.
 Do not silently incorporate later edits to the remote target issue. If a later
 read reveals that it changed during refinement, report the divergence and keep
 using the captured issue snapshot unless the user explicitly chooses to restart
-or rebase the refinement input onto the newer issue state.
+refinement using the newer issue state.
 
 Then fix the repository baseline:
 
@@ -161,11 +161,12 @@ model required under `Final issue content` below.
 
 The candidate draft or set is the single canonical source of truth for every
 currently valid resolved conclusion intended to constrain implementation. Do not
-maintain a parallel decision ledger containing the same conclusions. The
-candidate is internal refinement state and need not be shown after every round
-unless doing so helps the interaction. Do not persist it in files, branches,
-worktrees, Spec Kit artifacts, GitHub comments, or progressively updated GitHub
-issues.
+maintain a parallel decision ledger containing the same conclusions. Keep the
+candidate internal during refinement. Do not emit candidate checkpoints or the
+complete candidate automatically. Show the current candidate only when the user
+explicitly requests it or when this workflow requires the complete final proposed
+GitHub state. Do not persist it in files, branches, worktrees, Spec Kit artifacts,
+GitHub comments, or progressively updated GitHub issues.
 
 ## Classify every conclusion
 
