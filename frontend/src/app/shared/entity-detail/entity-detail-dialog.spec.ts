@@ -25,6 +25,7 @@ import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import type { EntityDetailUpdate } from './entity-reference';
 import { Router } from '@angular/router';
 
@@ -122,6 +123,7 @@ describe('EntityDetailDialog', () => {
     getStayById: vi.fn(),
     previewDateChangePricing: vi.fn(),
     updateStay: vi.fn(),
+    cancelStay: vi.fn(),
   };
   const operationalStay: Stay = {
     stayId: 'stay-1',
@@ -1237,6 +1239,76 @@ describe('EntityDetailDialog', () => {
               : 'cancelled'
       ],
     );
+  });
+
+  it('opens cancellation for an eligible stay and reloads authoritative cancelled detail', async () => {
+    const afterClosed = new Subject<boolean>();
+    const materialDialog = {
+      open: vi.fn(() => ({ afterClosed: () => afterClosed.asObservable() })),
+    };
+    stayApi.getStayDetail
+      .mockReturnValueOnce(
+        of({
+          stayId: 'stay-1',
+          status: 'RESERVED',
+          startAt: '2030-01-01T10:00:00',
+          endAt: '2030-01-03T10:00:00',
+          numberOfNights: 2,
+          notes: null,
+          owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+          cats: { totalElements: 0, items: [] },
+        }),
+      )
+      .mockReturnValueOnce(
+        of({
+          stayId: 'stay-1',
+          status: 'CANCELLED',
+          startAt: '2030-01-01T10:00:00',
+          endAt: '2030-01-03T10:00:00',
+          numberOfNights: 2,
+          notes: null,
+          owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+          cats: { totalElements: 0, items: [] },
+        }),
+      );
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: MatDialog, useValue: materialDialog },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+
+    buttonContaining(fixture, fixture.componentInstance.text().stays.cancellation.action).click();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      StayCancellationDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({ stayId: 'stay-1', ownerName: 'Ada Lovelace' }),
+      }),
+    );
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(1);
+
+    afterClosed.next(true);
+    fixture.detectChanges();
+
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(2);
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.status.cancelled,
+    );
+    expect(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].some(
+        (button) =>
+          button.textContent?.trim() === fixture.componentInstance.text().stays.cancellation.action,
+      ),
+    ).toBe(false);
   });
 
   function catItem(id: string) {

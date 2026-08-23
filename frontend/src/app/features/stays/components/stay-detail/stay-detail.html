@@ -78,5 +78,10 @@
         {{ text().stays.detail.pricing }}
       </button>
     }
+    @if (canCancel(stay)) {
+      <button mat-stroked-button type="button" (click)="cancelStay(stay)">
+        {{ text().stays.cancellation.action }}
+      </button>
+    }
   }
 }

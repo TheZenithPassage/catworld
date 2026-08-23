@@ -8,6 +8,12 @@ import { StayApiService } from '../../services/stay-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
+import { MatDialog } from '@angular/material/dialog';
+import { filter } from 'rxjs';
+import {
+  StayCancellationDialog,
+  StayCancellationDialogData,
+} from '../stay-cancellation-dialog/stay-cancellation-dialog';
 
 @Component({
   selector: 'app-stay-detail',
@@ -19,6 +25,7 @@ export class StayDetail {
   private readonly api = inject(StayApiService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -92,6 +99,26 @@ export class StayDetail {
   }
   canEdit(detail: StayDetailResponse): boolean {
     return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  canCancel(detail: StayDetailResponse): boolean {
+    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  cancelStay(detail: StayDetailResponse): void {
+    const data: StayCancellationDialogData = {
+      stayId: detail.stayId,
+      ownerName: detail.owner.fullName,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+    };
+    this.dialog
+      .open<StayCancellationDialog, StayCancellationDialogData, boolean>(StayCancellationDialog, {
+        data,
+        width: '34rem',
+        maxWidth: 'calc(100vw - 2rem)',
+      })
+      .afterClosed()
+      .pipe(filter((cancelled): cancelled is true => cancelled === true))
+      .subscribe(() => this.load());
   }
   date(value: string): string {
     return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());

@@ -1,0 +1,30 @@
+<h2 mat-dialog-title>{{ text().stays.cancellation.title }}</h2>
+
+<mat-dialog-content>
+  <p>{{ text().stays.cancellation.description }}</p>
+  <dl>
+    <dt>{{ text().stays.cancellation.owner }}</dt>
+    <dd>{{ data.ownerName }}</dd>
+    <dt>{{ text().stays.cancellation.period }}</dt>
+    <dd>{{ date(data.startAt) }} — {{ date(data.endAt) }}</dd>
+  </dl>
+  <p>{{ text().stays.cancellation.consequence }}</p>
+  @if (failed()) {
+    <p class="error" role="alert">{{ text().stays.cancellation.failed }}</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [disabled]="submitting()" (click)="dismiss()">
+    {{ text().stays.cancellation.dismiss }}
+  </button>
+  <button mat-flat-button type="button" [disabled]="submitting()" (click)="confirm()">
+    {{
+      submitting()
+        ? text().stays.cancellation.cancelling
+        : failed()
+          ? text().stays.cancellation.retry
+          : text().stays.cancellation.confirm
+    }}
+  </button>
+</mat-dialog-actions>

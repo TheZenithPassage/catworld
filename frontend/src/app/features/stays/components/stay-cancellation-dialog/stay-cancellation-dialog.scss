@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  max-width: 34rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 1rem;
+}
+
+dt {
+  font-weight: 600;
+}
+
+dd {
+  margin: 0;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+mat-dialog-actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 420px) {
+  dl {
+    grid-template-columns: 1fr;
+  }
+
+  mat-dialog-actions button {
+    width: 100%;
+  }
+}

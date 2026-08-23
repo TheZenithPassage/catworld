@@ -137,6 +137,19 @@ export interface StaysTranslations {
       continue: string;
     };
   };
+  cancellation: {
+    action: string;
+    title: string;
+    description: string;
+    owner: string;
+    period: string;
+    consequence: string;
+    dismiss: string;
+    confirm: string;
+    cancelling: string;
+    retry: string;
+    failed: string;
+  };
   overview: {
     title: string;
     description: string;
@@ -374,6 +387,20 @@ export const STAYS_TRANSLATIONS = {
         continue: 'Continuar de todos modos',
       },
     },
+    cancellation: {
+      action: 'Cancelar estancia',
+      title: 'Cancelar estancia',
+      description: 'Confirma la cancelación de esta estancia.',
+      owner: 'Dueño',
+      period: 'Periodo',
+      consequence:
+        'La estancia quedará cancelada. Esta acción es distinta de eliminarla permanentemente.',
+      dismiss: 'Conservar estancia',
+      confirm: 'Cancelar estancia',
+      cancelling: 'Cancelando...',
+      retry: 'Reintentar cancelación',
+      failed: 'No se pudo cancelar la estancia. Puedes volver a intentarlo.',
+    },
     overview: {
       title: 'Estancias',
       description: 'Desde aquí puedes administrar las estancias activas y crear nuevas.',
@@ -608,6 +635,20 @@ export const STAYS_TRANSLATIONS = {
         cancel: 'Cancel',
         continue: 'Continue anyway',
       },
+    },
+    cancellation: {
+      action: 'Cancel stay',
+      title: 'Cancel stay',
+      description: 'Confirm cancellation of this stay.',
+      owner: 'Owner',
+      period: 'Period',
+      consequence:
+        'The stay will be marked as cancelled. This is distinct from permanent deletion.',
+      dismiss: 'Keep stay',
+      confirm: 'Cancel stay',
+      cancelling: 'Cancelling...',
+      retry: 'Retry cancellation',
+      failed: 'The stay could not be cancelled. You can try again.',
     },
     overview: {
       title: 'Stays',

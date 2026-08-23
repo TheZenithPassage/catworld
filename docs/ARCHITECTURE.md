@@ -818,6 +818,11 @@ workflow through route-free inputs and outputs. The Stay detail presenter loads
 the operational Stay only when editing begins and refreshes its lightweight
 detail after an authoritative save. Normal Stay editing has no route and remains
 inside this existing detail/editor flow.
+Eligible reserved and checked-in stays expose cancellation in the route-free
+detail through a distinct Material confirmation dialog. A successful
+cancellation reloads the lightweight backend-authoritative detail, while a
+failed request remains recoverable in the open confirmation dialog; permanent
+deletion remains a separate interaction.
 
 ### Material Forms
 
