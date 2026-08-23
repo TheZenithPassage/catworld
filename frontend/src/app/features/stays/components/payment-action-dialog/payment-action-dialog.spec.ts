@@ -13,7 +13,7 @@ describe('PaymentActionDialog', () => {
   const payment = { paymentId: 'p1', amount: '10' } as PaymentActionDialogData['payment'];
   const api = { registerPayment: vi.fn(), editPayment: vi.fn(), annulPayment: vi.fn() };
   const ref = { close: vi.fn(), disableClose: false };
-  async function create(data: PaymentActionDialogData) {
+  async function createFixture(data: PaymentActionDialogData) {
     await TestBed.configureTestingModule({
       imports: [PaymentActionDialog],
       providers: [
@@ -23,7 +23,10 @@ describe('PaymentActionDialog', () => {
         { provide: StayApiService, useValue: api },
       ],
     }).compileComponents();
-    return TestBed.createComponent(PaymentActionDialog).componentInstance;
+    return TestBed.createComponent(PaymentActionDialog);
+  }
+  async function create(data: PaymentActionDialogData) {
+    return (await createFixture(data)).componentInstance;
   }
   beforeEach(() => {
     vi.resetAllMocks();
@@ -104,6 +107,21 @@ describe('PaymentActionDialog', () => {
       component.amount.set('011');
       component.submit();
       expect(api.editPayment).toHaveBeenCalledWith('s1', 'p1', { amount: '011', reason: 'Reason' });
+    },
+  );
+  it.each(['10', '010'])(
+    'renders the semantic edit no-op error for canonical amount %s',
+    async (amount) => {
+      const fixture = await createFixture({ stay, mode: 'edit', payment });
+      const component = fixture.componentInstance;
+      component.amount.set(amount);
+      component.reason.set('Reason');
+      component.submit();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('mat-error')?.textContent).toContain(
+        component.text().stays.payments.errors.amountUnchanged,
+      );
+      expect(component.amountMatcher.isErrorState(null, null)).toBe(true);
     },
   );
   it.each([

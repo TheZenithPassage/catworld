@@ -10,7 +10,7 @@
           inputmode="numeric"
           required
           pattern="^(?!0+$)\d{1,19}$"
-          [errorStateMatcher]="attemptedMatcher"
+          [errorStateMatcher]="amountMatcher"
           [ngModel]="amount()"
           (ngModelChange)="amount.set($event)"
         />

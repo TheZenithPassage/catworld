@@ -69,6 +69,10 @@ export class PaymentActionDialog {
   readonly attemptedMatcher: ErrorStateMatcher = {
     isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
   };
+  readonly amountMatcher: ErrorStateMatcher = {
+    isErrorState: (control) =>
+      this.attempted() && (Boolean(control?.invalid) || this.amountUnchanged()),
+  };
 
   submit(): void {
     if (this.submitting()) return;
