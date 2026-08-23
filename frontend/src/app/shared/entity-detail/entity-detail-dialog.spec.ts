@@ -920,9 +920,13 @@ describe('EntityDetailDialog', () => {
   });
 
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {
+    const pricingGate = new Subject<Stay>();
     const failed = new Subject<Stay>();
     const retried = new Subject<Stay>();
-    stayApi.getStayById.mockImplementationOnce(() => failed).mockImplementationOnce(() => retried);
+    stayApi.getStayById
+      .mockImplementationOnce(() => pricingGate)
+      .mockImplementationOnce(() => failed)
+      .mockImplementationOnce(() => retried);
     await TestBed.configureTestingModule({
       imports: [StayDetail],
       providers: [
@@ -950,7 +954,7 @@ describe('EntityDetailDialog', () => {
     fixture.componentInstance.loadOperational();
     retried.next(operationalStay);
     fixture.detectChanges();
-    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(3);
     expect(fixture.componentInstance.operationalLoading()).toBe(false);
     expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.cancel-edit')).not.toBeNull();
@@ -961,11 +965,12 @@ describe('EntityDetailDialog', () => {
     const second = new Subject<Stay>();
     const third = new Subject<Stay>();
     const fourth = new Subject<Stay>();
-    stayApi.getStayById
-      .mockImplementationOnce(() => first)
-      .mockImplementationOnce(() => second)
-      .mockImplementationOnce(() => third)
-      .mockImplementationOnce(() => fourth);
+    let request = 0;
+    stayApi.getStayById.mockImplementation(() => {
+      const current = request++;
+      if (current % 2 === 0) return of(operationalStay);
+      return [first, second, third, fourth][Math.floor(current / 2)];
+    });
     await TestBed.configureTestingModule({
       imports: [StayDetail],
       providers: [

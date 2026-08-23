@@ -55,7 +55,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
     UiStateComponent,
   ],
   templateUrl: './stay-editor.html',
-  styleUrl: '../../pages/stay-edit-page/stay-edit-page.scss',
+  styleUrl: '../../pages/stay-create-page/stay-create-page.scss',
 })
 export class StayEditor {
   private readonly stayApiService = inject(StayApiService);

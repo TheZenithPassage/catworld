@@ -73,5 +73,10 @@
         {{ text().stays.detail.edit }}
       </button>
     }
+    @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
+      <button mat-stroked-button type="button" (click)="pricingRequested.emit()">
+        {{ text().stays.detail.pricing }}
+      </button>
+    }
   }
 }

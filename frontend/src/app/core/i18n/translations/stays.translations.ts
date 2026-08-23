@@ -54,6 +54,14 @@ export interface StaysTranslations {
       correctionFailed: string;
     };
   };
+  pricingPage: {
+    title: string;
+    description: string;
+    back: string;
+    loading: string;
+    loadFailed: string;
+    noEconomics: string;
+  };
   payments: {
     title: string;
     description: string;
@@ -134,6 +142,7 @@ export interface StaysTranslations {
     description: string;
     create: string;
     statusFiltersAriaLabel: string;
+    openDetailAriaLabel: string;
     loading: string;
     retry: string;
     empty: string;
@@ -222,6 +231,7 @@ export interface StaysTranslations {
     owner: string;
     cats: string;
     status: string;
+    pricing: string;
   };
 }
 
@@ -279,6 +289,14 @@ export const STAYS_TRANSLATIONS = {
         correctionReasonRequired: 'Indica el motivo de la corrección.',
         correctionFailed: 'No se pudo corregir el importe acordado.',
       },
+    },
+    pricingPage: {
+      title: 'Precios y pagos',
+      description: 'Consulta el acuerdo económico y el historial de pagos de la estancia.',
+      back: 'Volver',
+      loading: 'Cargando precios y pagos...',
+      loadFailed: 'No se pudieron cargar los precios y pagos de la estancia.',
+      noEconomics: 'Esta estancia no tiene un acuerdo económico registrado.',
     },
     payments: {
       title: 'Pagos de la estancia',
@@ -361,6 +379,7 @@ export const STAYS_TRANSLATIONS = {
       description: 'Desde aquí puedes administrar las estancias activas y crear nuevas.',
       create: 'Crear estancia',
       statusFiltersAriaLabel: 'Filtros de estado de estancias',
+      openDetailAriaLabel: 'Abrir detalle de la estancia',
       loading: 'Cargando estancias...',
       retry: 'Reintentar',
       empty: 'No hay estancias registradas.',
@@ -449,6 +468,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Dueño',
       cats: 'Gatos',
       status: 'Estado',
+      pricing: 'Precios y pagos',
     },
   },
   en: {
@@ -504,6 +524,14 @@ export const STAYS_TRANSLATIONS = {
         correctionReasonRequired: 'Provide a reason for the correction.',
         correctionFailed: 'The agreed amount could not be corrected.',
       },
+    },
+    pricingPage: {
+      title: 'Pricing & Payments',
+      description: "Review the stay's economic agreement and payment history.",
+      back: 'Back',
+      loading: 'Loading pricing and payments...',
+      loadFailed: "The stay's pricing and payments could not be loaded.",
+      noEconomics: 'This stay has no recorded economic agreement.',
     },
     payments: {
       title: 'Stay payments',
@@ -586,6 +614,7 @@ export const STAYS_TRANSLATIONS = {
       description: 'Here you can manage active stays and create new ones.',
       create: 'Create stay',
       statusFiltersAriaLabel: 'Stay status filters',
+      openDetailAriaLabel: 'Open stay details',
       loading: 'Loading stays...',
       retry: 'Retry',
       empty: 'No stays registered.',
@@ -674,6 +703,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Owner',
       cats: 'Cats',
       status: 'Status',
+      pricing: 'Pricing & Payments',
     },
   },
 } satisfies Record<AppLanguage, StaysTranslations>;

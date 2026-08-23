@@ -21,6 +21,7 @@ export class StayDetail {
   private readonly i18n = inject(I18nService);
   private detailGeneration = 0;
   private operationalGeneration = 0;
+  private pricingGeneration = 0;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
@@ -29,6 +30,7 @@ export class StayDetail {
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly updated = output<Stay>();
+  readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
   readonly detail = signal<StayDetailResponse | null>(null);
@@ -37,9 +39,11 @@ export class StayDetail {
   readonly operationalStay = signal<Stay | null>(null);
   readonly operationalLoading = signal(false);
   readonly operationalError = signal(false);
+  readonly pricingStay = signal<Stay | null>(null);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;
+      this.pricingGeneration++;
       this.invalidateOperational();
     });
     effect(() => {
@@ -62,12 +66,23 @@ export class StayDetail {
         if (generation !== this.detailGeneration || id !== this.entityId()) return;
         this.detail.set(detail);
         this.loading.set(false);
+        this.loadPricingGate(id);
       },
       error: () => {
         if (generation === this.detailGeneration && id === this.entityId()) {
           this.error.set(true);
           this.loading.set(false);
         }
+      },
+    });
+  }
+  private loadPricingGate(id: string): void {
+    const generation = ++this.pricingGeneration;
+    this.pricingStay.set(null);
+    this.api.getStayById(id).subscribe({
+      next: (stay) => {
+        if (generation === this.pricingGeneration && id === this.entityId())
+          this.pricingStay.set(stay);
       },
     });
   }

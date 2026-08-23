@@ -138,121 +138,16 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.actions }}</th>
-          <td mat-cell *matCellDef="let stay">
-            <div class="actions-content">
-              <div class="row-actions">
-                @if (stay.agreedAmount !== null) {
-                  <a
-                    mat-stroked-button
-                    class="payment-history-link"
-                    [routerLink]="['/stays', stay.stayId, 'edit']"
-                  >
-                    {{ text().stays.overview.paymentHistory }}
-                  </a>
-                }
-              </div>
-              @if (isAdmin() && stay.agreedAmount !== null) {
-                @if (correctingStayId() === stay.stayId) {
-                  <div class="correction-form">
-                    <mat-form-field appearance="outline">
-                      <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
-                      <input
-                        matInput
-                        inputmode="numeric"
-                        [ngModel]="correctionAmount()"
-                        (ngModelChange)="correctionAmount.set($event)"
-                      />
-                    </mat-form-field>
-                    <mat-form-field appearance="outline">
-                      <mat-label>{{ text().stays.pricing.reason }}</mat-label>
-                      <textarea
-                        matInput
-                        rows="2"
-                        [ngModel]="correctionReason()"
-                        (ngModelChange)="correctionReason.set($event)"
-                      ></textarea>
-                    </mat-form-field>
-                    @if (correctionError()) {
-                      <app-ui-state
-                        class="correction-error"
-                        kind="error"
-                        [message]="correctionError() ?? ''"
-                      ></app-ui-state>
-                    }
-                    <div class="row-actions">
-                      <button
-                        mat-flat-button
-                        type="button"
-                        (click)="submitCorrection(stay)"
-                        [disabled]="correctionSubmitting()"
-                      >
-                        {{ text().stays.pricing.correct }}
-                      </button>
-                      <button
-                        mat-button
-                        type="button"
-                        (click)="cancelCorrection()"
-                        [disabled]="correctionSubmitting()"
-                      >
-                        {{ text().stays.pricing.cancelCorrection }}
-                      </button>
-                    </div>
-                  </div>
-                } @else {
-                  <div class="row-actions">
-                    <button
-                      mat-stroked-button
-                      type="button"
-                      (click)="startCorrection(stay)"
-                      [disabled]="correctionSubmitting()"
-                    >
-                      {{ text().stays.pricing.correctAgreement }}
-                    </button>
-                  </div>
-                }
-              }
-              @if (canEditStay(stay)) {
-                <div class="row-actions">
-                  <a
-                    mat-stroked-button
-                    class="stay-edit-link"
-                    [routerLink]="['/stays', stay.stayId, 'edit']"
-                  >
-                    {{ text().stays.overview.edit }}
-                  </a>
-
-                  @if (canCancelStay(stay)) {
-                    <button
-                      mat-stroked-button
-                      type="button"
-                      (click)="cancelStay(stay)"
-                      [disabled]="cancellingStayId() === stay.stayId"
-                    >
-                      {{
-                        cancellingStayId() === stay.stayId
-                          ? text().stays.overview.cancelling
-                          : text().stays.overview.cancel
-                      }}
-                    </button>
-                  }
-                </div>
-              } @else {
-                <span class="action-unavailable">
-                  {{ getUnavailableActionLabel(stay) }}
-                </span>
-              }
-            </div>
-          </td>
-        </ng-container>
-
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr
           mat-row
           *matRowDef="let stay; columns: displayedColumns"
           [id]="'stay-' + stay.stayId"
           [class.selected-row]="isSelectedStay(stay)"
+          tabindex="0"
+          [attr.aria-label]="text().stays.overview.openDetailAriaLabel"
+          (click)="openDetail(stay)"
+          (keydown)="activateRow($event, stay)"
         ></tr>
       </table>
     </div>

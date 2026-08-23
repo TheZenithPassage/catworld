@@ -1,0 +1,49 @@
+<section class="stay-pricing-page">
+  <header class="page-header">
+    <div>
+      <h2>{{ text().stays.pricingPage.title }}</h2>
+      <p>{{ text().stays.pricingPage.description }}</p>
+    </div>
+    <button mat-stroked-button type="button" class="form-back-link" (click)="back()">
+      {{ text().stays.pricingPage.back }}
+    </button>
+  </header>
+  @if (loading()) {
+    <app-ui-state kind="loading" [message]="text().stays.pricingPage.loading" />
+  } @else if (loadFailed()) {
+    <app-ui-state
+      kind="error"
+      [message]="text().stays.pricingPage.loadFailed"
+      [actionLabel]="text().entityDetail.retry"
+      (actionTriggered)="load()"
+    />
+  } @else if (stay(); as currentStay) {
+    <dl class="stay-context">
+      <div>
+        <dt>{{ text().stays.detail.owner }}</dt>
+        <dd>{{ currentStay.ownerName }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().stays.detail.cats }}</dt>
+        <dd>{{ catNames(currentStay) }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().stays.detail.status }}</dt>
+        <dd>{{ status(currentStay) }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().stays.detail.start }}</dt>
+        <dd>{{ formatDate(currentStay.startAt) }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().stays.detail.end }}</dt>
+        <dd>{{ formatDate(currentStay.endAt) }}</dd>
+      </div>
+    </dl>
+    @if (currentStay.agreedAmount !== null) {
+      <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
+    } @else {
+      <app-ui-state kind="empty" [message]="text().stays.pricingPage.noEconomics" />
+    }
+  }
+</section>

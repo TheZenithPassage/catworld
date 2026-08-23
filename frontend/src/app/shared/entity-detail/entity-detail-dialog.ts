@@ -25,6 +25,7 @@ import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
+import { Router } from '@angular/router';
 
 type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
@@ -55,6 +56,7 @@ export class EntityDetailDialog {
   private readonly catApi = inject(CatApiService);
   private readonly stayApi = inject(StayApiService);
   private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
+  private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
   private requestGeneration = 0;
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
@@ -214,5 +216,13 @@ export class EntityDetailDialog {
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);
     this.dialogRef.disableClose = submitting;
+  }
+  openStayPricing(): void {
+    const stayId = this.reference().entityId;
+    const origin = this.router.url;
+    this.dialogRef.close();
+    void this.router.navigate(['/stays', stayId, 'pricing'], {
+      state: { stayPricingOrigin: origin },
+    });
   }
 }

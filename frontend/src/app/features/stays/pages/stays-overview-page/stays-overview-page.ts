@@ -1,16 +1,11 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatTableModule } from '@angular/material/table';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
-import { MatInput } from '@angular/material/input';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
-import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { PaymentCondition, Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -27,26 +22,21 @@ import {
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 import {
-  canCancelStay,
-  canModifyStay,
   getStayStatus,
   isStayVisibleByStatus,
   STAY_STATUS_FILTER_OPTIONS,
   StayStatus,
   StayStatusVisibility,
 } from '../../utils/stay-status.util';
-import { isValidWholeMoney } from '../../utils/stay-money.util';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 @Component({
   selector: 'app-stays-overview-page',
   imports: [
     MatButton,
     MatCheckbox,
-    MatFormField,
-    MatInput,
-    MatLabel,
     MatTableModule,
-    FormsModule,
     RouterLink,
     StaySearchFiltersComponent,
     UiStateComponent,
@@ -59,7 +49,7 @@ export class StaysOverviewPage {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18nService = inject(I18nService);
-  private readonly authSessionService = inject(AuthSessionService);
+  private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
   );
@@ -83,7 +73,6 @@ export class StaysOverviewPage {
     'cats',
     'owner',
     'notes',
-    'actions',
   ];
 
   readonly filteredStays = computed(() =>
@@ -98,13 +87,6 @@ export class StaysOverviewPage {
   readonly stays = signal<Stay[]>([]);
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
-  readonly cancellingStayId = signal<string | null>(null);
-  readonly correctingStayId = signal<string | null>(null);
-  readonly correctionAmount = signal('');
-  readonly correctionReason = signal('');
-  readonly correctionError = createLanguageResetError(this.i18nService.language);
-  readonly correctionSubmitting = signal(false);
-  readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
 
   constructor() {
     effect(() => {
@@ -171,114 +153,27 @@ export class StaysOverviewPage {
     return stay.cats.map((cat) => cat.name).join(', ');
   }
 
-  canCancelStay(stay: Stay): boolean {
-    return canCancelStay(stay);
+  openDetail(stay: Stay): void {
+    this.entityDetailDialog
+      .open({ entityType: 'stay', entityId: stay.stayId })
+      .subscribe((update) => this.applyDetailUpdate(update));
   }
 
-  canEditStay(stay: Stay): boolean {
-    return canModifyStay(stay);
+  activateRow(event: KeyboardEvent, stay: Stay): void {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    this.openDetail(stay);
   }
 
-  cancelStay(stay: Stay): void {
-    const confirmed = window.confirm(
-      `${this.text().stays.overview.cancelConfirmPrefix}${this.getCatNames(stay)}${this.text().stays.overview.cancelConfirmSuffix}`,
+  private applyDetailUpdate(update: EntityDetailUpdate): void {
+    if (!('stayId' in update)) return;
+    this.stays.update((stays) =>
+      stays.map((stay) => (stay.stayId === update.stayId ? update : stay)),
     );
-
-    if (!confirmed) {
-      return;
-    }
-
-    this.error.set(null);
-    this.cancellingStayId.set(stay.stayId);
-
-    this.stayApiService.cancelStay(stay.stayId).subscribe({
-      next: () => {
-        this.cancellingStayId.set(null);
-        this.loadStays();
-      },
-      error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, this.text().stays.overview.errorCancelling));
-        this.cancellingStayId.set(null);
-      },
-    });
-  }
-
-  startCorrection(stay: Stay): void {
-    if (this.correctionSubmitting()) {
-      return;
-    }
-
-    this.correctingStayId.set(stay.stayId);
-    this.correctionAmount.set(stay.agreedAmount ?? '');
-    this.correctionReason.set('');
-    this.correctionError.set(null);
-  }
-
-  cancelCorrection(): void {
-    if (this.correctionSubmitting()) {
-      return;
-    }
-
-    this.correctingStayId.set(null);
-    this.correctionAmount.set('');
-    this.correctionReason.set('');
-    this.correctionError.set(null);
-  }
-
-  submitCorrection(stay: Stay): void {
-    if (!this.isAdmin() || !isValidWholeMoney(this.correctionAmount())) {
-      this.correctionError.set(this.text().stays.pricing.errors.invalidAmount);
-      return;
-    }
-
-    const amountChanged =
-      this.correctionAmount().replace(/^0+(?=\d)/, '') !==
-      (stay.agreedAmount ?? '').replace(/^0+(?=\d)/, '');
-    if (amountChanged && !this.correctionReason().trim()) {
-      this.correctionError.set(this.text().stays.pricing.errors.correctionReasonRequired);
-      return;
-    }
-
-    this.correctionSubmitting.set(true);
-    this.correctionError.set(null);
-    this.stayApiService
-      .correctAgreedAmount(stay.stayId, {
-        agreedAmount: this.correctionAmount(),
-        reason: this.correctionReason().trim() || null,
-      })
-      .subscribe({
-        next: (updatedStay) => {
-          this.stays.update((stays) =>
-            stays.map((item) => (item.stayId === updatedStay.stayId ? updatedStay : item)),
-          );
-          this.correctionSubmitting.set(false);
-          this.cancelCorrection();
-        },
-        error: (error: unknown) => {
-          this.correctionError.set(
-            this.getApiErrorMessage(error, this.text().stays.pricing.errors.correctionFailed),
-          );
-          this.correctionSubmitting.set(false);
-        },
-      });
   }
 
   isSelectedStay(stay: Stay): boolean {
     return this.selectedStayId() === stay.stayId;
-  }
-
-  getUnavailableActionLabel(stay: Stay): string {
-    const status = getStayStatus(stay);
-
-    if (status === 'cancelled') {
-      return this.text().stays.overview.alreadyCancelled;
-    }
-
-    if (status === 'checked-out') {
-      return this.text().stays.overview.alreadyCheckedOut;
-    }
-
-    return this.text().stays.emptyValue;
   }
 
   isStatusVisible(status: StayStatus): boolean {
@@ -320,41 +215,6 @@ export class StaysOverviewPage {
 
   setOutstandingOnly(checked: boolean): void {
     this.paymentFilters.update((filters) => ({ ...filters, outstandingOnly: checked }));
-  }
-
-  private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallbackMessage;
-    }
-
-    const responseBody: unknown = error.error;
-
-    if (!responseBody) {
-      return fallbackMessage;
-    }
-
-    if (typeof responseBody === 'string') {
-      return responseBody.trim() || fallbackMessage;
-    }
-
-    if (this.isValidationErrorMap(responseBody)) {
-      const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`,
-      );
-
-      return messages.length > 0 ? messages.join('. ') : fallbackMessage;
-    }
-
-    return fallbackMessage;
-  }
-
-  private isValidationErrorMap(value: unknown): value is Record<string, string> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value) &&
-      Object.values(value).every((message) => typeof message === 'string')
-    );
   }
 
   private scrollSelectedStayIntoView(): void {
