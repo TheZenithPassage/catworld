@@ -40,6 +40,9 @@ export interface StaysTranslations {
     totalPaid: string;
     remaining: string;
     correctAgreement: string;
+    correctionTitle: string;
+    correctionReason: string;
+    correctionSubmitting: string;
     correct: string;
     cancelCorrection: string;
     errors: {
@@ -89,9 +92,12 @@ export interface StaysTranslations {
     readOnlyStay: string;
     dismissError: string;
     retryRemoval: string;
+    submitting: string;
+    dialogTitles: { register: string; edit: string; annul: string };
     errors: {
       amountRequired: string;
       invalidAmount: string;
+      amountUnchanged: string;
       dateRequired: string;
       reasonRequired: string;
       validation: string;
@@ -289,6 +295,9 @@ export const STAYS_TRANSLATIONS = {
       totalPaid: 'Total pagado',
       remaining: 'Pendiente',
       correctAgreement: 'Corregir importe',
+      correctionTitle: 'Corregir importe acordado',
+      correctionReason: 'Motivo de la corrección',
+      correctionSubmitting: 'Guardando corrección...',
       correct: 'Guardar corrección',
       cancelCorrection: 'Cancelar',
       errors: {
@@ -338,9 +347,16 @@ export const STAYS_TRANSLATIONS = {
       readOnlyStay: 'Las fechas y notas de esta estancia son de solo lectura.',
       dismissError: 'Cerrar error',
       retryRemoval: 'Reintentar eliminación',
+      submitting: 'Guardando...',
+      dialogTitles: {
+        register: 'Registrar pago',
+        edit: 'Editar importe del pago',
+        annul: 'Anular pago',
+      },
       errors: {
         amountRequired: 'Indica el importe recibido.',
         invalidAmount: 'Introduce un importe entero positivo de hasta 19 dígitos.',
+        amountUnchanged: 'Introduce un importe distinto al actual.',
         dateRequired: 'Indica la fecha real del pago.',
         reasonRequired: 'Indica un motivo.',
         validation: 'El pago no cumple la validación del servidor.',
@@ -538,6 +554,9 @@ export const STAYS_TRANSLATIONS = {
       totalPaid: 'Total paid',
       remaining: 'Remaining',
       correctAgreement: 'Correct agreement',
+      correctionTitle: 'Correct agreed amount',
+      correctionReason: 'Correction reason',
+      correctionSubmitting: 'Saving correction...',
       correct: 'Save correction',
       cancelCorrection: 'Cancel',
       errors: {
@@ -587,9 +606,16 @@ export const STAYS_TRANSLATIONS = {
       readOnlyStay: "This stay's dates and notes are read-only.",
       dismissError: 'Dismiss error',
       retryRemoval: 'Retry removal',
+      submitting: 'Saving...',
+      dialogTitles: {
+        register: 'Register payment',
+        edit: 'Edit payment amount',
+        annul: 'Annul payment',
+      },
       errors: {
         amountRequired: 'Enter the amount received.',
         invalidAmount: 'Enter a positive whole amount with at most 19 digits.',
+        amountUnchanged: 'Enter an amount different from the current amount.',
         dateRequired: 'Enter the actual payment date.',
         reasonRequired: 'Provide a reason.',
         validation: 'The payment did not pass server validation.',

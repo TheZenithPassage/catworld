@@ -1,0 +1,21 @@
+:host {
+  display: block;
+}
+.dialog-fields {
+  display: grid;
+  gap: 0.5rem;
+  min-width: min(28rem, calc(100vw - 4rem));
+}
+mat-form-field {
+  width: 100%;
+}
+@media (max-width: 420px) {
+  .dialog-fields {
+    min-width: 0;
+    padding-inline: 1rem;
+  }
+  mat-dialog-actions {
+    padding-inline: 1rem;
+    flex-wrap: wrap;
+  }
+}

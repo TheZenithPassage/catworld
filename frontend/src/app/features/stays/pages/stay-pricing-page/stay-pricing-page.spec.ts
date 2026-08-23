@@ -9,6 +9,7 @@ import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayPricingPage } from './stay-pricing-page';
 import { StayPayments } from '../../components/stay-payments/stay-payments';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 
 @Component({ selector: 'app-stay-payments', template: '', standalone: true })
 class StayPaymentsStub {
@@ -63,6 +64,7 @@ describe('StayPricingPage', () => {
           useValue: { snapshot: { paramMap: convertToParamMap({ id: 'stay-1' }) } },
         },
         { provide: Router, useValue: router },
+        { provide: AuthSessionService, useValue: { hasRole: () => false } },
       ],
     })
       .overrideComponent(StayPricingPage, {

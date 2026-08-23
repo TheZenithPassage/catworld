@@ -41,6 +41,17 @@
       </div>
     </dl>
     @if (currentStay.agreedAmount !== null) {
+      @if (isAdmin()) {
+        <button
+          mat-stroked-button
+          type="button"
+          data-pricing-action="correct-agreement"
+          [disabled]="correctionOpen()"
+          (click)="correctAgreement()"
+        >
+          {{ text().stays.pricing.correctAgreement }}
+        </button>
+      }
       <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
     } @else {
       <app-ui-state kind="empty" [message]="text().stays.pricingPage.noEconomics" />

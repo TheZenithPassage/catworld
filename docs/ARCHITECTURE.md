@@ -858,8 +858,11 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders backend-supplied retained rate,
 suggestion, agreement, paid total and remaining amount. Post-creation agreement
-and payment actions belong to the dedicated Pricing & Payments page rather than
-the overview.
+correction and payment actions belong to the dedicated Pricing & Payments page
+rather than the overview. Registration, amount editing and annulment use focused
+responsive Material dialogs; permanent payment removal remains on the shared
+protected-deletion confirmation path. Successful mutations replace page state
+from the complete authoritative Stay returned by the backend.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned

@@ -1,0 +1,87 @@
+<h2 mat-dialog-title>{{ text().stays.payments.dialogTitles[data.mode] }}</h2>
+<form (ngSubmit)="submit()">
+  <mat-dialog-content class="dialog-fields">
+    @if (data.mode !== 'annul') {
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().stays.payments.amount }}</mat-label>
+        <input
+          matInput
+          name="paymentAmount"
+          inputmode="numeric"
+          required
+          pattern="^(?!0+$)\d{1,19}$"
+          [errorStateMatcher]="attemptedMatcher"
+          [ngModel]="amount()"
+          (ngModelChange)="amount.set($event)"
+        />
+        @if (attempted() && !amount()) {
+          <mat-error>{{ text().stays.payments.errors.amountRequired }}</mat-error>
+        } @else if (attempted() && !amountValid()) {
+          <mat-error>{{ text().stays.payments.errors.invalidAmount }}</mat-error>
+        } @else if (
+          attempted() &&
+          data.mode === 'edit' &&
+          data.payment &&
+          amountValid() &&
+          amount() === data.payment.amount
+        ) {
+          <mat-error>{{ text().stays.payments.errors.amountUnchanged }}</mat-error>
+        }
+      </mat-form-field>
+    }
+    @if (data.mode === 'register') {
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ text().stays.payments.paymentDate }}</mat-label
+        ><input
+          matInput
+          type="date"
+          name="paymentDate"
+          required
+          [errorStateMatcher]="attemptedMatcher"
+          [ngModel]="paymentDate()"
+          (ngModelChange)="paymentDate.set($event)"
+        />
+        @if (attempted() && !paymentDate()) {
+          <mat-error>{{ text().stays.payments.errors.dateRequired }}</mat-error>
+        }
+      </mat-form-field>
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ text().stays.payments.note }}</mat-label
+        ><textarea
+          matInput
+          name="paymentNote"
+          rows="3"
+          [ngModel]="note()"
+          (ngModelChange)="note.set($event)"
+        ></textarea>
+      </mat-form-field>
+    } @else {
+      <mat-form-field appearance="outline"
+        ><mat-label>{{ text().stays.payments.reason }}</mat-label
+        ><textarea
+          matInput
+          name="paymentReason"
+          rows="3"
+          required
+          pattern="[\s\S]*\S[\s\S]*"
+          [errorStateMatcher]="attemptedMatcher"
+          [ngModel]="reason()"
+          (ngModelChange)="reason.set($event)"
+        ></textarea>
+        @if (attempted() && !reason().trim()) {
+          <mat-error>{{ text().stays.payments.errors.reasonRequired }}</mat-error>
+        }
+      </mat-form-field>
+    }
+    @if (error(); as message) {
+      <app-ui-state kind="error" [message]="message" />
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end"
+    ><button mat-button type="button" [disabled]="submitting()" [mat-dialog-close]="undefined">
+      {{ text().stays.payments.cancel }}</button
+    ><button mat-flat-button type="submit" [disabled]="submitting()">
+      {{ submitting() ? text().stays.payments.submitting : text().stays.payments.save }}
+    </button></mat-dialog-actions
+  >
+</form>

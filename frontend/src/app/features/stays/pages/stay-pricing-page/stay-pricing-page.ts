@@ -1,9 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { StayPayments } from '../../components/stay-payments/stay-payments';
+import { AgreedAmountCorrectionDialog } from '../../components/agreed-amount-correction-dialog/agreed-amount-correction-dialog';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { getStayStatus } from '../../utils/stay-status.util';
@@ -18,6 +21,8 @@ export class StayPricingPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly api = inject(StayApiService);
+  private readonly dialog = inject(MatDialog);
+  private readonly authSession = inject(AuthSessionService);
   private readonly i18n = inject(I18nService);
   private readonly stayId = this.route.snapshot.paramMap.get('id');
   private readonly origin = this.captureOrigin();
@@ -26,6 +31,8 @@ export class StayPricingPage {
   readonly stay = signal<Stay | null>(null);
   readonly loading = signal(true);
   readonly loadFailed = signal(false);
+  readonly correctionOpen = signal(false);
+  readonly isAdmin = computed(() => this.authSession.hasRole('ADMIN'));
 
   constructor() {
     this.load();
@@ -53,6 +60,24 @@ export class StayPricingPage {
 
   onStayChanged(stay: Stay): void {
     this.stay.set(stay);
+  }
+  correctAgreement(): void {
+    const stay = this.stay();
+    if (!stay || stay.agreedAmount === null || !this.isAdmin() || this.correctionOpen()) return;
+    this.correctionOpen.set(true);
+    this.dialog
+      .open(AgreedAmountCorrectionDialog, {
+        data: stay,
+        width: '36rem',
+        maxWidth: 'calc(100vw - 2rem)',
+        autoFocus: 'first-tabbable',
+        restoreFocus: true,
+      })
+      .afterClosed()
+      .subscribe((updated: Stay | undefined) => {
+        this.correctionOpen.set(false);
+        if (updated) this.onStayChanged(updated);
+      });
   }
   back(): void {
     void (this.origin ? this.router.navigateByUrl(this.origin) : this.router.navigate(['/stays']));
