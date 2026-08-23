@@ -59,6 +59,13 @@ export class PaymentActionDialog {
   readonly attempted = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly amountValid = computed(() => /^(?!0+$)\d{1,19}$/.test(this.amount()));
+  readonly amountUnchanged = computed(
+    () =>
+      this.data.mode === 'edit' &&
+      Boolean(this.data.payment) &&
+      this.amountValid() &&
+      sameWholeMoney(this.amount(), this.data.payment!.amount),
+  );
   readonly attemptedMatcher: ErrorStateMatcher = {
     isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
   };
@@ -69,6 +76,7 @@ export class PaymentActionDialog {
     this.error.set(null);
     if (!this.valid()) return;
     this.submitting.set(true);
+    this.dialogRef.disableClose = true;
     const payment = this.data.payment;
     const request =
       this.data.mode === 'register'
@@ -95,6 +103,7 @@ export class PaymentActionDialog {
       next: (stay) => this.dialogRef.close(stay),
       error: (error) => {
         this.submitting.set(false);
+        this.dialogRef.disableClose = false;
         this.error.set(this.errorMessage(error));
       },
     });
@@ -104,7 +113,7 @@ export class PaymentActionDialog {
     if (this.data.mode !== 'annul' && !this.amountValid()) return false;
     if (this.data.mode === 'register') return Boolean(this.paymentDate());
     if (!this.data.payment || !this.reason().trim()) return false;
-    return this.data.mode === 'annul' || !sameWholeMoney(this.amount(), this.data.payment.amount);
+    return this.data.mode === 'annul' || !this.amountUnchanged();
   }
   private errorMessage(error: unknown): string {
     const copy = this.text().stays.payments.errors;
@@ -113,14 +122,20 @@ export class PaymentActionDialog {
     if (error.status === 404) return copy.missing;
     if (error.status === 400) return copy.validation;
     if (error.status === 409) {
-      const value =
-        typeof error.error === 'string'
-          ? error.error.toLowerCase()
-          : JSON.stringify(error.error).toLowerCase();
+      const value = this.backendMessage(error.error).toLowerCase();
       if (value.includes('exceed')) return copy.overpayment;
       if (value.includes('below') || value.includes('active payment')) return copy.activeFloor;
       return copy.conflict;
     }
     return copy.generic;
+  }
+  private backendMessage(body: unknown): string {
+    if (typeof body === 'string') return body;
+    if (body && typeof body === 'object') {
+      return Object.values(body as Record<string, unknown>)
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ');
+    }
+    return '';
   }
 }

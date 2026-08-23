@@ -19,11 +19,7 @@
         } @else if (attempted() && !amountValid()) {
           <mat-error>{{ text().stays.payments.errors.invalidAmount }}</mat-error>
         } @else if (
-          attempted() &&
-          data.mode === 'edit' &&
-          data.payment &&
-          amountValid() &&
-          amount() === data.payment.amount
+          attempted() && data.mode === 'edit' && data.payment && amountValid() && amountUnchanged()
         ) {
           <mat-error>{{ text().stays.payments.errors.amountUnchanged }}</mat-error>
         }

@@ -46,13 +46,18 @@
           mat-stroked-button
           type="button"
           data-pricing-action="correct-agreement"
-          [disabled]="correctionOpen()"
+          [disabled]="correctionOpen() || paymentMutationLocked()"
           (click)="correctAgreement()"
         >
           {{ text().stays.pricing.correctAgreement }}
         </button>
       }
-      <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
+      <app-stay-payments
+        [stay]="currentStay"
+        [externalMutationLocked]="correctionOpen()"
+        (mutationLockChange)="paymentMutationLocked.set($event)"
+        (stayChange)="onStayChanged($event)"
+      />
     } @else {
       <app-ui-state kind="empty" [message]="text().stays.pricingPage.noEconomics" />
     }

@@ -1,9 +1,10 @@
 import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { MatDialog } from '@angular/material/dialog';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, DefaultUrlSerializer, Router } from '@angular/router';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -14,7 +15,9 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 @Component({ selector: 'app-stay-payments', template: '', standalone: true })
 class StayPaymentsStub {
   readonly stay = input.required<Stay>();
+  readonly externalMutationLocked = input(false);
   readonly stayChange = output<Stay>();
+  readonly mutationLockChange = output<boolean>();
 }
 
 describe('StayPricingPage', () => {
@@ -41,6 +44,9 @@ describe('StayPricingPage', () => {
     payments: [],
   };
   const api = { getStayById: vi.fn(() => of(stay)) };
+  let role: 'ADMIN' | 'STAFF';
+  let dialogResult: Subject<Stay | undefined>;
+  const dialog = { open: vi.fn() };
   const serializer = new DefaultUrlSerializer();
   const router = {
     getCurrentNavigation: vi.fn(),
@@ -52,6 +58,9 @@ describe('StayPricingPage', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    role = 'STAFF';
+    dialogResult = new Subject();
+    dialog.open.mockReturnValue({ afterClosed: () => dialogResult.asObservable() });
     api.getStayById.mockReturnValue(of(stay));
     router.getCurrentNavigation.mockReturnValue(null);
     await TestBed.configureTestingModule({
@@ -64,7 +73,8 @@ describe('StayPricingPage', () => {
           useValue: { snapshot: { paramMap: convertToParamMap({ id: 'stay-1' }) } },
         },
         { provide: Router, useValue: router },
-        { provide: AuthSessionService, useValue: { hasRole: () => false } },
+        { provide: AuthSessionService, useValue: { hasRole: (value: string) => value === role } },
+        { provide: MatDialog, useValue: dialog },
       ],
     })
       .overrideComponent(StayPricingPage, {
@@ -72,6 +82,41 @@ describe('StayPricingPage', () => {
         add: { imports: [StayPaymentsStub] },
       })
       .compileComponents();
+  });
+
+  it('shows correction only to ADMIN with a known agreement and replaces authoritative results', () => {
+    role = 'ADMIN';
+    api.getStayById.mockReturnValue(of({ ...stay, agreedAmount: '20' }));
+    const fixture = TestBed.createComponent(StayPricingPage);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector(
+      '[data-pricing-action="correct-agreement"]',
+    ) as HTMLButtonElement | null;
+    expect(button).not.toBeNull();
+    button!.click();
+    expect(fixture.componentInstance.correctionOpen()).toBe(true);
+    const updated = { ...stay, agreedAmount: '21' };
+    dialogResult.next(updated);
+    expect(fixture.componentInstance.stay()).toBe(updated);
+    expect(fixture.componentInstance.correctionOpen()).toBe(false);
+  });
+
+  it('serializes correction against payment/removal flows and dismissal changes nothing', () => {
+    role = 'ADMIN';
+    api.getStayById.mockReturnValue(of({ ...stay, agreedAmount: '20' }));
+    const fixture = TestBed.createComponent(StayPricingPage);
+    fixture.detectChanges();
+    const payments = fixture.debugElement.query(By.directive(StayPaymentsStub)).componentInstance;
+    payments.mutationLockChange.emit(true);
+    fixture.detectChanges();
+    fixture.componentInstance.correctAgreement();
+    expect(dialog.open).not.toHaveBeenCalled();
+    payments.mutationLockChange.emit(false);
+    fixture.componentInstance.correctAgreement();
+    fixture.detectChanges();
+    expect(payments.externalMutationLocked()).toBe(true);
+    dialogResult.next(undefined);
+    expect(fixture.componentInstance.stay()?.agreedAmount).toBe('20');
   });
 
   it('shows context without notes and an explicit empty economic state for a null agreement', () => {

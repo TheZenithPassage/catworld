@@ -65,6 +65,7 @@ export class AgreedAmountCorrectionDialog {
     this.error.set(null);
     if (!this.amountValid() || (this.changed() && !this.reason().trim())) return;
     this.submitting.set(true);
+    this.ref.disableClose = true;
     this.api
       .correctAgreedAmount(this.stay.stayId, {
         agreedAmount: this.amount(),
@@ -74,6 +75,7 @@ export class AgreedAmountCorrectionDialog {
         next: (stay) => this.ref.close(stay),
         error: (error) => {
           this.submitting.set(false);
+          this.ref.disableClose = false;
           this.error.set(this.errorMessage(error));
         },
       });
@@ -84,11 +86,20 @@ export class AgreedAmountCorrectionDialog {
     if (error.status === 403) return this.text().stays.payments.errors.permission;
     if (error.status === 404) return this.text().stays.payments.errors.missing;
     if (error.status === 409) {
-      const message = JSON.stringify(error.error).toLowerCase();
+      const message = this.backendMessage(error.error).toLowerCase();
       return message.includes('below') || message.includes('active payment')
         ? this.text().stays.payments.errors.activeFloor
         : this.text().stays.payments.errors.conflict;
     }
     return copy.correctionFailed;
+  }
+  private backendMessage(body: unknown): string {
+    if (typeof body === 'string') return body;
+    if (body && typeof body === 'object') {
+      return Object.values(body as Record<string, unknown>)
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ');
+    }
+    return '';
   }
 }

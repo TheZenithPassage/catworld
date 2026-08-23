@@ -33,7 +33,9 @@ export class StayPayments {
   private readonly businessTime = inject(BusinessTimeService);
 
   readonly stay = input.required<Stay>();
+  readonly externalMutationLocked = input(false);
   readonly stayChange = output<Stay>();
+  readonly mutationLockChange = output<boolean>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
 
@@ -54,7 +56,11 @@ export class StayPayments {
     return status === 'reserved' || status === 'checked-in';
   });
   readonly mutationLocked = computed(
-    () => this.submitting() || this.removalDialogOpen() || this.actionDialogOpen(),
+    () =>
+      this.externalMutationLocked() ||
+      this.submitting() ||
+      this.removalDialogOpen() ||
+      this.actionDialogOpen(),
   );
 
   startRegister(trigger?: EventTarget | null): void {
@@ -82,6 +88,7 @@ export class StayPayments {
     this.removalPayment.set(payment);
     this.captureReturnFocus(trigger, 'remove', payment.paymentId);
     this.removalDialogOpen.set(true);
+    this.mutationLockChange.emit(true);
 
     const copy = this.text().stays.payments;
     this.dialog
@@ -109,6 +116,7 @@ export class StayPayments {
         this.removalDialogOpen.set(false);
         if (!isPermanentDeletionConfirmed(result) || result === true || !result.reason) {
           this.clearRemovalAttempt(true);
+          this.mutationLockChange.emit(false);
           return;
         }
         this.removalReason.set(result.reason);
@@ -155,11 +163,13 @@ export class StayPayments {
     this.submitting.set(false);
     this.stayChange.emit(stay);
     this.restoreRemovalFocus();
+    this.mutationLockChange.emit(false);
   }
 
   private failRemoval(error: unknown): void {
     this.submitting.set(false);
     this.error.set(this.errorMessage(error));
+    this.mutationLockChange.emit(false);
   }
 
   private captureReturnFocus(
@@ -179,20 +189,41 @@ export class StayPayments {
 
   private openActionDialog(mode: 'register' | 'edit' | 'annul', payment?: StayPayment): void {
     this.clearRemovalAttempt(false);
+    this.error.set(null);
     this.actionDialogOpen.set(true);
+    this.mutationLockChange.emit(true);
+    const selector = payment
+      ? `[data-payment-id="${payment.paymentId}"][data-payment-action="${mode}"]`
+      : '[data-payment-action="register"]';
     this.dialog
       .open(PaymentActionDialog, {
         data: { stay: this.stay(), mode, payment },
         width: '36rem',
         maxWidth: 'calc(100vw - 2rem)',
         autoFocus: 'first-tabbable',
-        restoreFocus: true,
+        restoreFocus: false,
       })
       .afterClosed()
       .subscribe((stay: Stay | undefined) => {
         this.actionDialogOpen.set(false);
         if (stay) this.stayChange.emit(stay);
+        this.mutationLockChange.emit(false);
+        this.restoreActionFocus(selector, payment?.paymentId);
       });
+  }
+
+  private restoreActionFocus(selector: string, paymentId?: string): void {
+    setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(selector);
+      const row = paymentId
+        ? document.querySelector<HTMLElement>(`[data-payment-row-id="${paymentId}"]`)
+        : null;
+      (
+        target ??
+        row ??
+        document.querySelector<HTMLElement>('[data-payment-action="register"]')
+      )?.focus();
+    });
   }
 
   private restoreRemovalFocus(

@@ -32,6 +32,7 @@ export class StayPricingPage {
   readonly loading = signal(true);
   readonly loadFailed = signal(false);
   readonly correctionOpen = signal(false);
+  readonly paymentMutationLocked = signal(false);
   readonly isAdmin = computed(() => this.authSession.hasRole('ADMIN'));
 
   constructor() {
@@ -63,7 +64,14 @@ export class StayPricingPage {
   }
   correctAgreement(): void {
     const stay = this.stay();
-    if (!stay || stay.agreedAmount === null || !this.isAdmin() || this.correctionOpen()) return;
+    if (
+      !stay ||
+      stay.agreedAmount === null ||
+      !this.isAdmin() ||
+      this.correctionOpen() ||
+      this.paymentMutationLocked()
+    )
+      return;
     this.correctionOpen.set(true);
     this.dialog
       .open(AgreedAmountCorrectionDialog, {
