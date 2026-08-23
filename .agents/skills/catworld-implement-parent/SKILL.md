@@ -380,6 +380,19 @@ For every slice, record:
 A worker must not broaden this policy. Final qualification and delivery reapply
 it to the complete diff.
 
+Select qualification evidence proportionately at the narrowest authoritative
+execution boundary whose semantics can materially affect correctness. When the
+ordinary validation environment substitutes, emulates or cannot faithfully
+establish those relevant semantics, require focused evidence against the real
+or production-compatible boundary before the slice can qualify. This applies,
+when material, to concerns such as database-specific SQL/projection/conversion
+or collation, Flyway/schema behavior, locking/concurrency, runtime serialization
+and browser/DOM interaction semantics. Do not require specialized evidence when
+ordinary validation is semantically equivalent and already proves the behavior.
+This rule creates no separate evidence-planning layer and authorizes neither a
+generic environment matrix nor broad integration testing; keep the existing
+parent-owned validation policy and permanent-test rules.
+
 ## 5. Build the execution map before launch
 
 Use slice descriptions plus canonical spec, plan and tasks to build one
@@ -596,6 +609,8 @@ For each delivery, independently confirm:
 - every added or modified test in that qualification-base diff respects the
   supplied authorization and value ceiling;
 - required and affected validation passed after the latest slice change;
+- any semantics not faithfully established by ordinary validation have fresh,
+  focused evidence from the narrowest real or production-compatible boundary;
 - evidence statuses are explicit and no stale, partial, skipped, interrupted,
   timed-out or not-revalidated result is represented as passed; and
 - no unresolved blocker or material decision remains.
@@ -749,90 +764,113 @@ independently apply the same recorded workerReasoningEffort. This fallback
 continues the same delivery and does not reset or widen it.
 
 Apply this policy whenever section 8 qualification is used for an initial slice,
-a stale/rebased slice, a dependency-repair delivery, a dependent retry or a
-global-correction delivery. When that slice was selected for independent review,
-the joined gate and review freshness requirements apply to every changed
-candidate. This does not change the one dependency-repair-per-prerequisite limit
-or the one global corrective pass.
+a stale/rebased slice, a dependency-repair delivery, a changed dependent
+candidate after prerequisite repair or a global-correction delivery. When that
+slice was selected for independent review, the joined gate and review freshness
+requirements apply to every changed candidate. This does not change the
+progress-bounded dependency-repair policy or the one global corrective pass.
 
-### One dependency repair per prerequisite
+### Progress-bounded dependency repair
 
-When a dependent worker reports that an already integrated prerequisite omitted
-behavior, preserve the blocked dependent and allow unrelated ready/running work
-to continue under the existing scheduler. Before repair, independently verify
-from the original execution map, edge contract and prerequisite handoff that:
+When reliable downstream evidence shows that an already integrated prerequisite
+omitted behavior, preserve blocked dependents and allow unrelated ready/running
+work to continue under the existing scheduler. Repair is eligible only when the
+parent independently verifies from the original execution map, edge contract
+and prerequisite handoff that the missing behavior already belonged to that
+producer. A repair must not invent a producer obligation, change approved
+product behavior or issue scope, move semantic responsibility from a consumer,
+or resolve a new material decision. Stop when ownership is ambiguous or the
+requirement was not in the original producer contract.
 
-- the missing behavior was already an approved responsibility of that
-  prerequisite;
-- repair adds no scope or material decision; and
-- the finding is not owned by the dependent.
+Consolidate multiple already-known omissions of the same producer into one
+repair finding when discovered together. A later distinct omission may receive
+another repair only when it still belongs to that original approved producer
+responsibility. Use no arbitrary repair-count ceiling. Every repair round must
+make concrete progress; stop on a repeated finding without progress,
+oscillation, unreliable branch/worktree state, scope growth, ownership
+ambiguity or a material decision. Preserve the ordered repair findings and
+results in the ledger. Dependency repair remains separate from and neither
+consumes nor resets the section 10 global corrective pass.
 
-Stop on ambiguous ownership, new scope or a material decision. Otherwise allow
-at most one dependency repair for that prerequisite in the run. This allowance
-is separate from the delivery's progress-bounded qualification corrections and
-from the one global corrective pass; record a dedicated repair count.
-
-Use exactly:
+For each producer, assign repairRound as its next one-based repair ordinal and
+use exactly:
 
 - branch:
-  `<issue-branch>-slice-<slice-id-lowercase>-dependency-repair-1`; and
+  `<issue-branch>-slice-<slice-id-lowercase>-dependency-repair-<repairRound>`;
+  and
 - absolute sibling worktree:
-  `<primary-directory-name>-<issue-number>-slice-<slice-id-lowercase>-dependency-repair-1`.
+  `<primary-directory-name>-<issue-number>-slice-<slice-id-lowercase>-dependency-repair-<repairRound>`.
 
-Capture the exact current issue HEAD as repairLaunchSha and initial
-repairQualificationBaseSha. Resolve and verify the worktree is outside the
-primary worktree, and stop if the exact branch exists, is checked out in any
-worktree or the exact path exists. Create the unpublished branch/worktree from
-repairLaunchSha and launch a fresh catworld-implement-slice worker without prior
-conversation, setting `fork_turns="none"` and independently applying the
-recorded workerReasoningEffort. Give it a complete valid correction handoff
-containing the
-complete original prerequisite handoff, precise downstream-discovered edge
-contract violation, exact repair boundary, integrated prerequisite context at
-repairLaunchSha, original decisions/invariants, source ownership, exclusions,
-test ceiling, validation/freshness policy, and exact repair branch, worktree,
-starting commit and current head. Include every other slice-required field, but
-not the complete issue, spec, plan or tasks.
+Every repair starts from the exact current accumulated issue HEAD, recorded as
+repairLaunchSha and initial repairQualificationBaseSha. Resolve and verify the
+worktree is outside the primary worktree, and stop if the exact branch exists,
+is checked out in any worktree or the exact path exists. Create the unpublished
+branch/worktree from repairLaunchSha and launch a fresh
+catworld-implement-slice worker with `fork_turns="none"` and the recorded
+workerReasoningEffort.
 
-For compatibility with catworld-implement-slice's fixed correction vocabulary,
-classify the downstream-discovered violation as a global finding and its worker
-delivery kind as `global correction`; this label does not consume or open the
-parent's section 10 global corrective pass. Preserve the original handoff's
-semantic contract and immutable launch only for traceability, but explicitly
-replace its authoritative expected branch, absolute worktree, exact starting
-commit, current local head and integrated-prerequisite context with the repair
-branch, repair worktree and repairLaunchSha values. The replacement fields
-govern the worker's local-state checks; do not present both identity sets as
-simultaneously authoritative.
+Give it a complete valid correction handoff containing the complete original
+prerequisite handoff, the consolidated verified omissions, exact repair
+boundary, integrated context at repairLaunchSha, original decisions/invariants,
+producer source ownership, exclusions, test ceiling, validation/freshness
+policy, and exact repair branch, worktree, starting commit and current head. Do
+not pass the complete issue, spec, plan or tasks. Classify the finding and
+delivery as `global correction` for the slice skill's fixed vocabulary; this
+label does not consume or open the actual global corrective pass. Retain the
+original immutable launch only for traceability and replace its authoritative
+identity/head/context fields with the repair values.
 
-Qualify the repair with section 8 and integrate it through the section 9
-single-flight unpublished rebase/validation/requalification/ff-only rules. If
-the same prerequisite contract remains broken after this repair, stop instead
-of opening another repair.
+Before launch, classify any fallout from the corrected producer contract:
 
-After successful integration, retry every dependent blocked specifically by the
-repaired contract. Require its retained branch/worktree to remain clean and
-unpublished. Capture the new exact issue HEAD as retryBaseSha and rebase that
-branch onto it using the deterministic unpublished-rebase safety rules from
-section 9, without retaining the exclusive integration lane while the retried
-worker runs. Update qualificationBaseSha to retryBaseSha and the handoff's
-integrated-prerequisite context. Preserve already valid in-scope unpublished
-dependent work only when the rebase and attribution are deterministic;
-otherwise stop.
-Launch a fresh worker without the previous conversation, setting
-`fork_turns="none"` and independently applying the recorded
-workerReasoningEffort, using the complete original bounded dependent handoff
-plus the repaired prerequisite context,
-precise prior blocker, allowed continuation boundary, exact current local head,
-branch and worktree. Requalify the complete dependent delivery normally.
+- **Mechanical compatibility fallout** has exactly one contract-preserving
+  result and makes no meaningful behavioral choice, such as propagating an
+  already-approved field through a fixture/mock/type or applying a uniquely
+  determined import, signature, mapping or trivial wiring change. The parent
+  may explicitly authorize the precise already-integrated consumer files/lines
+  or equivalent bounded surface in the repair handoff. The worker must not
+  self-classify or expand this surface, and this exception does not transfer
+  semantic ownership to the producer.
+- **Semantic fallout** changes or selects behavior, control flow, conditions,
+  data interpretation, observable UX, a business rule/invariant,
+  authorization/security or persistence semantics, or offers multiple
+  materially reasonable adaptations. Any ambiguity is semantic and remains
+  owned by the affected consumer slice.
 
-Classify this retry as a `rebase correction`: the rebase finding is that the
-dependent's prior prerequisite blocker is resolved in retryBaseSha and the
-bounded correction must continue only its original assigned work against that
-context. Retain the original immutable launch commit only for traceability. The
-unchanged retained dependent branch/worktree and its exact post-rebase local
-HEAD are the authoritative correction identity/current-head fields; the worker
-must not treat the original starting commit as the expected current HEAD.
+Qualify each repair with section 8 and integrate it through the unchanged
+section 9 single-flight unpublished rebase/validation/requalification/ff-only
+rules. A later repair may address only a distinct original-contract omission;
+the same unresolved finding without progress stops rather than opening another
+round.
+
+After repair integration, evaluate each retained unpublished dependent
+individually; do not relaunch it merely because its prerequisite changed:
+
+1. Preserve its existing clean unpublished branch/worktree.
+2. Capture the repaired current issue HEAD as retryBaseSha, rebase the retained
+   branch onto it with section 9's deterministic unpublished-rebase rules, and
+   update qualificationBaseSha and integrated-prerequisite context without
+   holding the integration lane while a worker runs.
+3. Inspect the rebased candidate and classify any fallout with the rules above.
+
+When no dependent code mutation is required, launch no worker; refresh stale or
+affected evidence and run normal full qualification directly. For deterministic
+mechanical adaptation, prefer resuming the existing dependent worker with only
+that parent-authorized bounded compatibility finding. For semantic adaptation,
+resume that consumer worker with the repaired prerequisite context and exact
+consumer-owned semantic finding. Use a fresh `rebase correction` worker only
+when safe resumption is unavailable; keep the retained branch/worktree, set
+`fork_turns="none"`, apply workerReasoningEffort, and provide the complete
+bounded correction handoff and exact post-rebase HEAD. Preserve valid
+unpublished work only when attribution and rebase are deterministic; otherwise
+stop. Every dependent candidate whose code changes requires fresh affected
+validation, full requalification and, when review-required, fresh or refreshed
+independent review through the joined gate before integration.
+
+The producer repair worker may modify an already integrated consumer only for
+the exact parent-authorized mechanical surface above. Any semantic fallout in
+an already integrated consumer remains consumer-owned and must use an existing
+bounded consumer correction path; when none is safely available at that stage,
+stop rather than hiding it in the producer repair.
 
 ## 9. Rebase and fast-forward integrate gated slices
 
@@ -1193,8 +1231,8 @@ applicable; never fabricate one.
   issue and its ignored artifacts were never published.
 - Every implementable responsibility was assigned exactly once before launch.
 - Every concrete prerequisite-to-dependent contract was assigned to its
-  producer and qualified before integration, or repaired at most once through
-  the bounded dependency-repair path.
+  producer and qualified before integration, or repaired through the
+  progress-bounded dependency-repair path.
 - Every ready slice ran through a bounded internal worker in an isolated local
   branch/worktree according to the explicit DAG and runtime capacity.
 - Every integrated delivery qualified and reached the issue branch through

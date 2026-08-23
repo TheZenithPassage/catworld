@@ -42,6 +42,14 @@ architecture, authorization, persistence, shared-contract, UX,
 correctness-sensitive, operational or scope decision is a blocker, not an
 invitation to choose.
 
+For a dependency repair classified as `global correction`, the handoff may also
+name an exact parent-authorized mechanical compatibility surface in an already
+integrated consumer. Require the handoff to state why the result is uniquely
+determined by the corrected producer contract and preserves the consumer's
+approved semantics. This is a bounded source-surface exception, not semantic
+ownership transfer. The worker must not infer, expand or self-classify it;
+ambiguous or behavioral fallout is a blocker.
+
 ## Authority and isolation boundaries
 
 Before implementation, read within the assigned worktree:
@@ -56,9 +64,11 @@ Treat current source as the implemented starting state. The parent handoff
 overrides neither repository governance nor the constitution. If they conflict,
 stop and report the exact conflict.
 
-You own only the assigned slice and worktree. Other workers may be changing
-other worktrees, so do not revert, overwrite or infer their work. Adapt only to
-prerequisite behavior already present in the supplied starting HEAD.
+You own only the assigned slice and worktree, plus an exact mechanical consumer
+surface when the dependency-repair exception above explicitly authorizes it.
+Other workers may be changing other worktrees, so do not revert, overwrite or
+infer their work. Adapt only to prerequisite behavior already present in the
+supplied starting HEAD.
 
 Do not:
 
@@ -136,6 +146,9 @@ For a pre-integration correction, address only the parent's exact finding and
 revalidate the complete slice. For a global correction, implement only the
 listed gap attributed to this existing slice. Normal follow-up commits are
 allowed; never amend earlier commits merely to produce one commit per slice.
+For a dependency repair, change an already integrated consumer only within the
+exact parent-authorized mechanical compatibility surface; stop if the result
+would select or change consumer semantics.
 
 ## 4. Validate fresh behavior
 
@@ -170,7 +183,9 @@ Confirm:
 - every assigned responsibility is present;
 - every changed line/file is necessary for this slice;
 - prohibited and parent-owned surfaces are untouched;
-- specs/, .specify/, sibling slices and orchestration state are absent;
+- specs/, .specify/, unauthorized sibling-slice surfaces and orchestration state
+  are absent; any consumer-slice change is exactly the parent-authorized
+  mechanical compatibility surface;
 - no unauthorized permanent coverage was added or broadened;
 - validation is fresh after the latest relevant change; and
 - no material decision or blocker remains.
