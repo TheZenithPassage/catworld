@@ -115,21 +115,39 @@ the final integrated pull request or current code over intermediate commits.
 Stop when more history would not change the current-state model, constraint,
 stale-assumption assessment, or pending decision.
 
-## Maintain the refinement model
+## Maintain evidence and the candidate contract
 
 Before asking questions, build an internal working model containing:
 
 - baseline ref and SHA;
 - current affected behavior and implementation surfaces;
-- reusable anchors, authoritative contracts, invariants, patterns, and conventions;
+- repository evidence for reusable anchors, authoritative contracts, invariants,
+  patterns, and conventions;
 - target-issue assumptions classified where useful as valid, implemented,
   partially implemented, stale, contradicted, or uncertain;
-- repository-determined implementation constraints;
-- possible product-capability boundaries and implementation units;
+- possible product-capability boundaries and implementation units that are not
+  yet approved;
 - unresolved material decisions; and
-- remaining evidence gaps or uncertainty.
+- remaining evidence gaps, uncertainty, and local implementation freedom.
 
-This model guides refinement; do not copy it wholesale into the final issue.
+The working model owns evidence and unresolved state. It must not become a
+competing canonical representation of already-resolved implementation-facing
+decisions.
+
+Once reconnaissance provides enough evidence to begin forming the issue
+contract, create an internal candidate final issue draft. If refinement identifies
+multiple product capabilities, maintain a candidate issue set instead. Initialize
+the draft or set with every sufficiently resolved repository-determined
+conclusion that belongs in the final contract, using the same semantic content
+model required under `Final issue content` below.
+
+The candidate draft or set is the single canonical source of truth for every
+currently valid resolved conclusion intended to constrain implementation. Do not
+maintain a parallel decision ledger containing the same conclusions. The
+candidate is internal refinement state and need not be shown after every round
+unless doing so helps the interaction. Do not persist it in files, branches,
+worktrees, Spec Kit artifacts, GitHub comments, or progressively updated GitHub
+issues.
 
 ## Classify every conclusion
 
@@ -145,8 +163,8 @@ without a conflicting authoritative pattern.
 Before closing it, establish what mechanism or contract exists, why it applies,
 why reuse or preservation is correct, and whether a material conflict exists.
 Do not manufacture certainty. Promote material conclusions into authoritative
-final-issue constraints whenever omission would return a resolved decision to
-implementation.
+candidate-draft constraints immediately whenever omission would return a resolved
+decision to implementation.
 
 ### Human decision required
 
@@ -176,17 +194,41 @@ user-facing groups:
 - `Human decisions required`: each unresolved material decision with relevant
   current-state context, alternatives, and consequences.
 
-Do not produce a long reconnaissance report unless requested. Apply the user's
-answers to the model, inspect targeted additional evidence when an answer creates
-a new material question, and repeat decision rounds until no human decision
-remains. Do not ask the user to decide what adequate repository inspection should
-have settled.
+Do not produce a long reconnaissance report unless requested. After each round,
+apply every resolved decision to its authoritative location in the candidate
+draft or set before continuing. Remove or replace superseded wording immediately,
+discard deliberation and rejected alternatives, and update every affected
+acceptance criterion, validation obligation, slice responsibility, dependency,
+or exclusion. Then inspect targeted additional evidence when an answer creates a
+new material question, and repeat decision rounds until no human decision
+remains. Do not wait for final reconciliation to translate approved decisions
+into issue text, and do not ask the user to decide what adequate repository
+inspection should have settled.
+
+If the user explicitly replaces an earlier decision, update the candidate so
+only the current conclusion remains and reconcile all dependent sections. If a
+later statement appears to conflict with a consolidated decision but replacement
+intent is unclear, preserve the candidate and surface the conflict as a human
+decision instead of silently overwriting it.
+
+Do not let digressions or adjacent discussion modify the candidate unless they
+explicitly change approved scope, resolve a pending decision, establish a newly
+approved constraint or exclusion, or reveal fixed-baseline evidence that
+materially changes the current contract. Related conversation alone is not
+implicit scope expansion.
 
 ## Convert decisions into issue contracts
 
-The conversation retains deliberation; final issues retain decisions. Exclude
-discarded alternatives, conversational reasoning, investigation narrative, and
-speculative local implementation detail.
+The conversation retains deliberation; the progressive candidate draft retains
+the current contract; GitHub receives only the final explicitly approved state.
+Whenever a material conclusion resolves, incorporate it immediately into its
+authoritative candidate location: product behavior in Product contract, reusable
+mechanisms in Implementation constraints and existing anchors, approved issue
+boundaries in the candidate set structure, slice ownership and dependencies in
+their exact sliced sections, exclusions in Out of scope, and material acceptance
+implications in Done when or Validation. Exclude discarded alternatives,
+conversational reasoning, investigation narrative, and speculative local
+implementation detail.
 
 State authoritatively what behavior must exist, what existing contract remains
 authoritative, what mechanism must be reused or extended, what parallel mechanism
@@ -208,7 +250,7 @@ implementation dependencies:
 - When the input contains multiple capabilities or the correct boundary is
   materially ambiguous, resolve that boundary with the user.
 
-Prepare one or more final issue definitions according to the approved result.
+Update one or more candidate issue definitions according to the approved result.
 
 ### Model implementation units inside each issue
 
@@ -301,29 +343,37 @@ approved capability, without listing obviously unrelated repository areas.
 
 ## Reconcile the final draft
 
-Perform one inexpensive comparison of the final draft with the collected working
-model; do not restart reconnaissance. Verify that:
+Perform one inexpensive comparison of the candidate draft or set with unresolved
+decision state, repository evidence and anchors, and the fixed baseline; do not
+restart reconnaissance or reconstruct approved decisions from raw conversation
+history. Verify that:
 
-- each material conclusion is authoritative in the issue or intentionally local
-  implementation freedom;
 - no human decision remains unresolved;
-- all repository-determined constraints are explicit and have acceptance or
-  validation capable of detecting noncompliance;
+- every resolved material conclusion is authoritative in the candidate or
+  intentionally remains local implementation freedom;
+- no superseded conclusion remains;
+- every material implementation constraint has acceptance or validation capable
+  of detecting noncompliance;
 - the complete approved product contract is present without invented behavior;
-- issue boundaries match approved product capabilities;
-- modeled units cover each issue completely and sliced ownership, shared
-  constraints, dependencies, and producer/consumer contracts are unambiguous;
-- the text records decisions rather than deliberation; and
-- the result remains consistent with the fixed baseline.
+- issue boundaries and implementation units are complete;
+- sliced ownership, shared decisions, dependencies, exclusions, and producer/
+  consumer contracts remain coherent and unambiguous;
+- the text records current decisions rather than deliberation; and
+- the candidate remains consistent with the fixed baseline.
 
-If reconciliation finds one contradiction or missing evidence item, perform only
-the targeted inspection needed to resolve it.
+If later targeted repository evidence proves a candidate statement stale,
+contradicted, or materially incomplete, update it immediately so only the
+corrected form remains. Preserve the fixed baseline and surface any resulting
+discretionary choice as a human decision. If reconciliation finds one remaining
+contradiction or evidence gap, perform only the targeted inspection needed to
+resolve it.
 
 ## GitHub mutation authority
 
 Until a later user prompt explicitly authorizes a concrete mutation, do not
 update, create, close, or reopen issues; change titles, bodies, labels, milestones,
 or assignees; post comments; or perform any other repository-facing mutation.
+Progressive candidate maintenance never authorizes progressive GitHub updates.
 
 Before requesting authority, present the complete proposed GitHub state for
 review, including every proposed issue title and body and each recommended
@@ -337,6 +387,7 @@ refinement discussion may follow the conversation language.
 ## Completion
 
 Report the fixed baseline ref and SHA, the proposed issue count, whether the
-result is ordinary or sliced per issue, the complete proposed GitHub issue state,
-and confirmation that no GitHub mutation occurred unless a later prompt
-authorized and completed an exact mutation.
+result is ordinary or sliced per issue, the complete proposed GitHub issue state
+from the final progressively maintained candidate draft or set, and confirmation
+that no GitHub mutation occurred unless a later prompt authorized and completed
+an exact mutation.
