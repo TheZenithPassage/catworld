@@ -14,14 +14,21 @@ the user. It replaces the former child-issue and child-pull-request parent
 workflow.
 
 The parent owns whole-issue planning, execution coverage, permanent-test
-authorization, scheduling, qualification, local integration, final validation
-and delivery. Each slice worker owns only the bounded local implementation in
-its handoff.
+authorization, scheduling, qualification, independent slice-review selection
+and gating, local integration, final validation and delivery. Each slice worker
+owns only the bounded local implementation in its handoff. The independent
+slice reviewer evaluates whether a selected concrete candidate is a sound base
+for continued sliced implementation; it never replaces parent-owned
+qualification or final finding classification.
 
 Never route a user directly to
 .agents/skills/catworld-implement-slice/SKILL.md. Keep
 .agents/skills/catworld-implement-issue/SKILL.md and every Spec Kit skill,
 template and script unchanged.
+
+Never route a user directly to
+.agents/skills/catworld-review-slice/SKILL.md. It is an internal-only reviewer
+invoked exclusively through the bounded gate in this workflow.
 
 ## Required context and authority
 
@@ -68,6 +75,8 @@ It must not:
 - commit or push directly to the captured base or main;
 - merge the final pull request, enable auto-merge or approve it;
 - launch catworld_pr_reviewer or perform automatic pull-request remediation;
+- use catworld-review-slice outside the selected unpublished slice-candidate
+  gate defined below;
 - amend commits, squash automatically, use `--force`, rebase published history
   or otherwise rewrite published history; the exact empty-expectation
   `--force-with-lease` first-publication operation in section 12 is the sole
@@ -87,6 +96,20 @@ the current Codex task through the UI/runtime. This workflow defines no parent
 default, does not parse a parent reasoning override from the prompt, and must
 not inspect, validate, change, replace or synchronize the parent's effort.
 Worker effort is never derived from parent effort.
+
+Independent slice reviewers use the project-scoped `catworld_slice_reviewer`
+role defined in `.codex/agents/catworld-slice-reviewer.toml`. The current runtime
+does not technically enforce a read-only sandbox from that project-scoped role,
+so require behavioral read-only isolation through the role and reviewer-skill
+instructions. Require the role to omit model and reasoning-effort settings. On
+every fresh spawn, select that role, set `fork_turns="none"` and omit model,
+reasoning-effort and token-budget overrides so runtime inheritance preserves the
+parent task configuration without its conversation/history. Never apply
+workerReasoningEffort or any slice-worker reasoning policy to a reviewer. A
+resumed reviewer keeps its existing thread/configuration. Stop before review if
+the dedicated role is missing, fixes model or reasoning configuration, or no
+longer instructs the reviewer to remain behaviorally read-only and never
+delegate.
 
 Before the first catworld-implement-slice spawn, select and record one immutable
 workerReasoningEffort for the run:
@@ -392,6 +415,25 @@ the owner's current selectable cats without loading the global Cat collection,
 the edge contract requires the current cat identifiers and names; names alone do
 not satisfy it. Never move a producer-owned edge obligation into the dependent.
 
+Before any slice worker launches, record for every declared slice whether it
+requires independent review and every concrete criterion that made it qualify.
+Require review when the slice:
+
+- produces behavior or a contract consumed by dependent slices;
+- modifies a shared contract or abstraction;
+- affects business rules or protected invariants;
+- affects persistence or native SQL;
+- affects authentication, authorization or security; or
+- introduces or materially changes a component reused by multiple slices.
+
+One matching criterion is sufficient. Do not require review merely because a
+slice appears large or complex, and do not use size, estimated effort, task
+count or general difficulty as a proxy for one of the criteria. Treat the
+selection as immutable for the initial handoff. Later discovery that the
+approved slice responsibility itself meets a missed criterion is a parent
+execution-map correction before integration, not permission to broaden the
+slice or invent another review heuristic.
+
 Stop before launching any worker when:
 
 - important implementable work is unassigned;
@@ -414,7 +456,13 @@ Initialize each slice as declared and track at least:
 - delivery and correction count;
 - reported and final integrated commit SHAs;
 - changed files, validation and test-policy result;
-- qualification/rebase/conflict state; and
+- qualification/rebase/conflict state;
+- whether independent review is required and every recorded selection reason;
+- current review candidate qualification-base SHA, head SHA, exact changed
+  files and diff identity;
+- reviewer identity/configuration state, review state and returned result;
+- parent-classified must-fix and deferred findings, review-refresh state and
+  any deferred-note persistence result; and
 - blocker or final integrated state.
 
 ## 6. Create bounded slice handoffs
@@ -448,6 +496,34 @@ Tell the worker it owns only its named worktree/files, is not alone in the
 repository, must not revert or overwrite other slices, and must adapt only to
 already integrated prerequisite behavior present in its starting HEAD.
 
+### Create the independent review handoff
+
+For a review-required slice, construct the review handoff only after a concrete
+candidate has finished worker mutation and its identity can be captured. Give
+the reviewer only:
+
+- parent issue number/title and slice ID/title;
+- the concise review objective and every recorded reason review is required;
+- the slice's assigned responsibilities and source ownership;
+- only the approved decisions and invariants relevant to those responsibilities;
+- incoming prerequisite expectations and producer-owned outgoing contracts;
+- the exact qualificationBaseSha and candidate head SHA;
+- the exact changed-file list and complete qualificationBaseSha-to-candidate
+  diff;
+- available validation evidence with explicit status and freshness;
+- the relevant permanent-test authorization and ceiling; and
+- an initial review surface plus explicitly prohibited surface.
+
+The initial review surface must name the slice-owned code, relevant contracts,
+integration boundaries, useful comparison anchors and prohibited unrelated
+surfaces. Do not pass the complete parent issue, spec.md, plan.md, tasks.md,
+parent conversation, unrelated slice context or unintegrated sibling
+implementation by default. Do not pass qualification findings into the initial
+review or review findings into initial qualification. Repository/runtime
+instructions needed to load AGENTS.md, .specify/memory/constitution.md and
+.agents/skills/catworld-review-slice/SKILL.md are allowed; they do not expand
+the review surface.
+
 ## 7. Schedule dependency-ready slices dynamically
 
 A slice is ready only when all declared prerequisites are already integrated.
@@ -466,6 +542,12 @@ At every scheduling point:
    independent queued/running slices to continue and preserve their useful
    qualified results, but do not perform normal final delivery while any
    required slice is not integrated.
+
+A completed review-required worker does not create a global barrier. While its
+qualification, independent review or joined correction gate is pending, keep
+filling available capacity and allow independent slices to run, qualify, review
+and integrate. The candidate itself must not integrate, and its descendants do
+not become ready, until that candidate passes both gates and is integrated.
 
 ### Local branch and worktree creation
 
@@ -536,28 +618,132 @@ For each delivery, independently confirm:
 This is bounded implementation qualification, not pull-request review. Do not
 launch catworld_pr_reviewer.
 
-### Progress-bounded qualification correction
+### Joined qualification and independent-review gate
 
-When qualification finds a clear, bounded and deterministic violation of the
-handoff, return that finding to the responsible slice worker in the same
-retained branch/worktree. Qualification may repeat this correction process
-without an arbitrary numeric round limit only while every round demonstrates
-concrete progress and remains within the original bounded handoff.
+For a slice that does not require independent review, preserve the existing
+qualification and correction path below. For every review-required initial,
+rebased, repaired, retried or globally corrected candidate:
+
+1. After worker mutation is finished, capture the exact qualificationBaseSha,
+   candidate head SHA, changed-file list and complete diff as one immutable
+   review-candidate identity. Record it before either gate begins.
+2. Build the bounded review handoff from section 6. For the initial review,
+   spawn one fresh project-scoped `catworld_slice_reviewer` role with
+   `fork_turns="none"`, no inherited conversation/history and no model,
+   reasoning-effort or token-budget override. For a refreshed review, resume the
+   existing reviewer when its thread/configuration remains available and safe;
+   otherwise spawn the same dedicated role with the same fresh controls. Give it
+   only the current bounded handoff plus the repository/runtime instruction to
+   load AGENTS.md,
+   .specify/memory/constitution.md and
+   .agents/skills/catworld-review-slice/SKILL.md. Require it to remain strictly
+   read-only and never delegate or spawn another agent.
+3. Immediately perform parent qualification against the same candidate while
+   the reviewer runs. Initial qualification and initial review must not receive
+   each other's findings. The parent must not mutate the candidate worktree
+   while either gate is active, but may continue scheduling, qualifying,
+   reviewing and integrating independent slices.
+4. Wait for both completed results before classifying, correcting or integrating
+   the candidate. Require the review to be tied to the recorded base/head/diff
+   and to return exactly one state: `clean`, `must-fix`, `deferred-only` or
+   `blocked-insufficient-surface`; no auxiliary lifecycle or result response is
+   valid. Require every finding to include the tightest location, finding,
+   evidence, impact and either minimum correction or deferral reason, plus the
+   inspected surface, every justified expansion, observational validation and
+   remaining uncertainty. A `blocked-insufficient-surface` result must also
+   identify the precise deficiency or terminal surface reason, supporting
+   read-only evidence, any minimum bounded parent refresh, candidate-state
+   reliability, and whether scope/ownership, approved decisions/invariants and
+   the permanent-test ceiling would remain unchanged.
+5. Treat the review classifications as recommendations. The parent verifies
+   their evidence and owns final classification. A finding is must-fix before
+   integration when leaving it unresolved can cause incorrect behavior,
+   violate a contract or invariant, make downstream slices build on an
+   incorrect foundation, propagate the defect or materially increase rework
+   inside the current issue. A finding is deferred only when the candidate
+   remains safe for continued implementation and later correction will not
+   materially affect correctness, contracts or downstream work.
+6. When qualification and parent classification are clean, mark the exact
+   candidate integration-eligible. `deferred-only` findings do not block or
+   trigger correction. Before persisting them under
+   `local-notes/review-findings/issue-<number>.md`, verify read-only that the
+   exact target is already ignored or locally excluded. If it is not, skip the
+   write and record a non-blocking persistence failure; do not add an ignore rule
+   or include the note in the issue diff. The reviewer never writes notes. After
+   any attempted write, verify that repository status remains unchanged. Note
+   persistence is operator-local, and a skipped or failed write must be reported
+   but must not block integration or final delivery.
+7. `blocked-insufficient-surface` always blocks the reviewed candidate and its
+   dependents, but the parent owns the recovery decision after both gates finish.
+   Verify every finding and the complete structured blocked evidence. A bounded
+   refresh/retry is allowed only when the result identifies a precise
+   deterministic missing handoff field, stale or mismatched captured candidate
+   evidence, or equivalent review-input deficiency that the parent can safely
+   correct or recapture. Before retrying, verify that all current gate activity
+   and the slice worker are inactive, the worker cannot resume mutation, and the
+   candidate branch/worktree, Git objects and repository state remain reliable
+   with no unexplained change. Also verify that the original responsibility,
+   source ownership, approved decisions and invariants, exclusions and
+   permanent-test ceiling remain unchanged.
+
+   Correct only the bounded handoff input, or recapture the exact qualification
+   base, candidate head, changed files and complete diff from that reliable
+   state. Invalidate the blocked gate attempt, then restart parent qualification
+   and independent review concurrently against the same refreshed candidate
+   identity. The reviewer must not fill the missing input itself or widen its
+   surface to compensate. Retry only when the refresh makes concrete progress;
+   a repeated deficiency without progress is terminal.
+8. Treat `blocked-insufficient-surface` as terminal when adequate review
+   genuinely requires broad or unbounded exploration, candidate or repository
+   state is unreliable, a refresh would expand scope or ownership, a material
+   decision is required, approved decisions/invariants or the permanent-test
+   ceiling would change, or the input cannot otherwise be made reliable within
+   the original handoff. A failed reviewer or unusable result is also a stop.
+   Do not self-authorize a broad audit, integrate the candidate or return only
+   the qualification result.
+
+### Progress-bounded qualification and review correction
+
+When a non-reviewed candidate's qualification finds a clear, bounded and
+deterministic violation of the handoff, return that finding through the existing
+path. For a review-required candidate, wait for qualification and review to
+finish, then verify and finally classify every finding from both results.
+Consolidate every parent-classified pre-integration must-fix item into one
+`pre-integration correction` handoff using the unchanged
+catworld-implement-slice vocabulary: the original slice handoff, exact current
+local HEAD, allowed correction boundary and one precise consolidated
+qualification finding. The consolidated qualification finding may enumerate
+several violations, but it remains one worker-facing qualification finding and
+does not create a reviewer correction kind or require the worker to interpret a
+review state, reviewer classification or reviewer-specific finding schema. The
+parent may retain review origin as non-normative traceability metadata. Exclude
+every deferred finding from the correction handoff. Never send a partial
+qualification or review finding while the other initial gate remains active.
+The correction process may repeat without an arbitrary numeric round limit only
+while every round demonstrates concrete progress and remains within the
+original bounded handoff.
 
 Prefer a follow-up turn to the same slice worker when its thread can still be
 resumed safely. Give each round the original bounded handoff and allowed
 correction boundary, the exact current local HEAD, and only the newly verified
-qualification finding. A follow-up to an existing worker is not a fresh spawn;
+consolidated qualification finding in the existing pre-integration correction
+shape. A follow-up to an existing worker is not a fresh spawn;
 do not apply `fork_turns="none"` to it. Keep the same branch/worktree. Every
 round must add normal follow-up commits; never amend, squash, publish or rewrite
 earlier commits. Record the ordered finding, resulting commits and verified
 progress so a fresh fallback worker cannot reset correction history.
 
 After every correction, reapply the original permanent-test authorization and
-source ownership, rerun all stale or affected validation, and requalify the
-complete delivery against its authoritative qualificationBaseSha. Never broaden
-scope, dependencies, approved decisions, source ownership or the permanent-test
-ceiling.
+source ownership and rerun all stale or affected validation. Capture the new
+candidate head, changed files and complete diff. Requalify the complete delivery
+against its authoritative qualificationBaseSha and, when review is required,
+refresh independent review concurrently through the joined gate against that
+same corrected candidate before integration. Resume the existing reviewer when
+its thread/configuration remains available and safe; otherwise spawn a fresh
+reviewer with the exact history-free, bounded and no-override controls above. A
+refreshed review evaluates the complete corrected candidate, not only previous
+findings. Never broaden scope, dependencies, approved decisions, source
+ownership or the permanent-test ceiling.
 
 Stop correction instead of continuing when:
 
@@ -578,8 +764,11 @@ independently apply the same recorded workerReasoningEffort. This fallback
 continues the same delivery and does not reset or widen it.
 
 Apply this policy whenever section 8 qualification is used for an initial slice,
-a stale/rebased slice, a dependency-repair delivery or a global-correction
-delivery. It does not change the one global corrective pass.
+a stale/rebased slice, a dependency-repair delivery, a changed dependent
+candidate after prerequisite repair or a global-correction delivery. When that
+slice was selected for independent review, the joined gate and review freshness
+requirements apply to every changed candidate. This does not change the
+progress-bounded dependency-repair policy or the one global corrective pass.
 
 ### Progress-bounded dependency repair
 
@@ -674,7 +863,8 @@ when safe resumption is unavailable; keep the retained branch/worktree, set
 bounded correction handoff and exact post-rebase HEAD. Preserve valid
 unpublished work only when attribution and rebase are deterministic; otherwise
 stop. Every dependent candidate whose code changes requires fresh affected
-validation and full requalification before integration.
+validation, full requalification and, when review-required, fresh or refreshed
+independent review through the joined gate before integration.
 
 The producer repair worker may modify an already integrated consumer only for
 the exact parent-authorized mechanical surface above. Any semantic fallout in
@@ -682,14 +872,14 @@ an already integrated consumer remains consumer-owned and must use an existing
 bounded consumer correction path; when none is safely available at that stage,
 stop rather than hiding it in the producer repair.
 
-## 9. Rebase and fast-forward integrate qualified slices
+## 9. Rebase and fast-forward integrate gated slices
 
-Initial worker execution and qualification against an existing qualification
-base may remain concurrent. Once any completed slice, correction or repair is
-selected as the next integration candidate, enter one exclusive local
-integration lane from the clean primary worktree while it remains on the issue
-branch. Candidate selection does not change ready-queue order, scheduling
-priority or launch behavior.
+Initial worker execution, qualification and applicable independent review
+against an existing qualification base may remain concurrent. Once any
+completed slice, correction or repair is selected as the next integration
+candidate, enter one exclusive local integration lane from the clean primary
+worktree while it remains on the issue branch. Candidate selection does not
+change ready-queue order, scheduling priority or launch behavior.
 
 While the lane is active, other workers may continue implementing and completed
 deliveries may be inspected or queued, but no sibling integration, correction or
@@ -699,18 +889,24 @@ repair may advance the issue branch. In the lane:
 2. If the candidate is stale, rebase its unpublished branch onto exactly
    laneBaseSha and resolve only deterministic conflicts.
 3. Rerun required and affected validation after any rebase/conflict result.
-4. Set qualificationBaseSha to laneBaseSha when rebased and requalify the
-   complete candidate delivery against that base.
-5. Verify the issue HEAD still equals laneBaseSha.
-6. Integrate with `git merge --ff-only <candidate-branch>`.
-7. Release the lane only after the fast-forward completes or the candidate
+4. Set qualificationBaseSha to laneBaseSha when rebased. Requalify the complete
+   candidate delivery and, when the slice requires review, run or refresh
+   independent review through the section 8 joined gate against the same exact
+   base/head/diff.
+5. Require the candidate to be integration-eligible with no parent-classified
+   must-fix finding and fresh applicable review evidence.
+6. Verify the issue HEAD still equals laneBaseSha.
+7. Integrate with `git merge --ff-only <candidate-branch>`.
+8. Release the lane only after the fast-forward completes or the candidate
    stops without advancing the issue branch.
 
 ### Candidate still based on current issue HEAD
 
 When the candidate's current qualificationBaseSha equals laneBaseSha, reconfirm
-qualification and run git merge --ff-only <candidate-branch>. Stop if
-fast-forward unexpectedly fails.
+qualification. When review is required, also require the completed review to
+match the exact current base, head, changed files and diff, and require the
+joined gate to have marked that candidate integration-eligible. Then run
+git merge --ff-only <candidate-branch>. Stop if fast-forward unexpectedly fails.
 
 ### Issue branch advanced since candidate qualification
 
@@ -737,16 +933,22 @@ When qualificationBaseSha differs from laneBaseSha:
    slice-required or affected validation after the rebase/conflict result and
    reapply the permanent-test gate only to qualificationBaseSha..slice-branch.
 7. Requalify the complete rebased delivery from
-   qualificationBaseSha..slice-branch and recapture its rewritten local commit
+   qualificationBaseSha..slice-branch and, when the slice requires review, run
+   a fresh or refreshed independent review concurrently against that same exact
+   rebased candidate through section 8. Recapture its rewritten local commit
    SHAs. Already integrated sibling changes are outside this diff and must not
    be attributed to the slice.
-8. Verify current issue-branch HEAD still equals qualificationBaseSha, then from
+8. Wait for the joined gate, resolve any bounded correction through section 8,
+   and require the resulting exact candidate to be integration-eligible.
+9. Verify current issue-branch HEAD still equals qualificationBaseSha, then from
    the primary worktree run git merge --ff-only <slice-branch>.
 
-Do not leave the lane between rebase, validation, requalification, HEAD
-verification and fast-forward integration. This prevents sibling integrations
-from making freshly collected evidence stale and normally bounds a stale
-candidate to one final orchestrator-caused rebase.
+Do not leave the lane between rebase, validation, requalification, applicable
+review refresh, joined-gate classification, HEAD verification and fast-forward
+integration. Independent workers and review/qualification work may continue,
+but no other integration may advance the issue branch. This prevents sibling
+integrations from making freshly collected evidence stale and normally bounds a
+stale candidate to one final orchestrator-caused rebase.
 
 Do not use squash, cherry-pick as the normal path, slice merge commits or parent
 merge commits for slice integration. Rebase is allowed only because every slice
@@ -761,6 +963,10 @@ fill capacity. Do not remove its branch or worktree.
 Begin only after every required slice is integrated and no slice worker can
 resume mutation. If a required slice is blocked, failed or unqualified, preserve
 independent results and stop normal final delivery.
+
+Treat a review-required slice that lacks a completed fresh joined gate for its
+integrated candidate as unqualified. Deferred-only findings remain report-only
+and do not make an otherwise eligible integrated slice incomplete.
 
 Compare the complete accumulated issueDiffBaseSha..HEAD code and changed paths
 with:
@@ -848,8 +1054,13 @@ Against the complete current issue branch:
 6. Inspect changed paths in issueDiffBaseSha..HEAD against the issue, canonical
    source map and slice ledger. Stop when an unexpected surface cannot be
    justified without scope expansion.
-7. Confirm the primary issue branch is active and clean and every worker is
-   inactive.
+7. Confirm every review-required integrated candidate has a recorded selection
+   reason, exact reviewed base/head/diff identity, usable reviewer result,
+   parent classification and no unresolved must-fix finding. Confirm every
+   deferred finding and any non-blocking note-persistence failure is retained
+   for final reporting.
+8. Confirm the primary issue branch is active and clean and every worker and
+   reviewer is inactive.
 
 Failed or incomplete required final validation is a stop for normal final
 delivery.
@@ -930,10 +1141,10 @@ Do not merge the pull request or modify the issue.
 
 Record:
 
-- independent review rounds: 0;
-- reviewed remote head SHAs: none;
-- final review result: not run — external review requested; and
-- automatic remediation commits: none.
+- independent pull-request review rounds: 0;
+- reviewed remote pull-request head SHAs: none;
+- final pull-request review result: not run — external review requested; and
+- automatic pull-request remediation commits: none.
 
 ## 13. Terminal stops and recovery
 
@@ -948,6 +1159,15 @@ Stop normal final delivery on:
 - a canonical artifact conflict or pending material decision;
 - incomplete or ambiguous execution coverage;
 - a worker or delivery that remains blocked, failed or unqualified;
+- a review-required candidate whose reviewer fails, returns an unusable result,
+  cannot complete safely within its bounded review surface, or reports
+  `blocked-insufficient-surface` whose evidence does not permit a safe,
+  progress-making bounded refresh with an inactive worker, reliable candidate
+  state and unchanged scope, ownership, decisions, invariants and permanent-test
+  ceiling;
+- a review-required candidate with an unresolved parent-classified must-fix
+  finding or stale review evidence after correction, rebase, repair, retry or
+  global correction;
 - a nondeterministic rebase, integration or parent-synchronization conflict;
 - remaining global gaps after the one corrective pass;
 - failed, incomplete or stale required validation;
@@ -980,17 +1200,20 @@ Report:
   result;
 - parsed slices and normalized dependency edges;
 - execution-map coverage result and permanent-test authorization per slice;
+- independent-review selection decision and reason per slice;
 - ready-queue/capacity events and launch/integration order;
 - every slice's state, branch, retained worktree path, starting head, reported
   commits, final integrated commits, qualification/correction/rebase/conflict
-  result, dependency-repair identity/count/result, changed files, validation
-  and blocker;
+  result, dependency-repair identity/count/result, changed files, validation,
+  review candidate identities, reviewer/result/classification/refresh state,
+  deferred findings/note result and blocker;
 - global completeness and corrective-pass result;
 - final validation commands with explicit statuses and freshness;
 - final test-diff and scope-drift reviews;
 - git status --short and concise accumulated diff summary;
 - final PR URL and ready status, or the exact delivery blocker;
-- independent review fields fixed to zero/none/external review requested;
+- independent pull-request review fields fixed to
+  zero/none/external review requested, distinct from the per-slice review gate;
 - unresolved blocking findings and report-only risks; and
 - confirmation that the issue branch remains checked out and local slice
   branches/worktrees were retained.
@@ -1014,6 +1237,12 @@ applicable; never fabricate one.
   branch/worktree according to the explicit DAG and runtime capacity.
 - Every integrated delivery qualified and reached the issue branch through
   unpublished rebase when needed and git merge --ff-only.
+- Every slice's independent-review requirement and reasons were recorded before
+  worker launch; size or complexity alone never selected review.
+- Every review-required candidate ran qualification and bounded independent
+  review concurrently against one exact identity, waited for both gates before
+  correction or integration, cleared all must-fix findings through refreshed
+  gates and allowed deferred-only findings to remain non-blocking.
 - One bounded global completeness process found no remaining work.
 - Final evidence is fresh after the latest relevant change.
 - Only the final issue branch and one ready pull request were published, with
