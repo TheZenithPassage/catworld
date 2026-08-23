@@ -9,11 +9,11 @@ import { vi } from 'vitest';
 
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
-import { OwnerEditPage } from './owner-edit-page';
+import { OwnerEditor } from '../../components/owner-editor/owner-editor';
 
-describe('OwnerEditPage', () => {
-  let component: OwnerEditPage;
-  let fixture: ComponentFixture<OwnerEditPage>;
+describe('OwnerEditor', () => {
+  let component: OwnerEditor;
+  let fixture: ComponentFixture<OwnerEditor>;
   let routeParams: Record<string, string>;
 
   const owner: Owner = {
@@ -44,7 +44,7 @@ describe('OwnerEditPage', () => {
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
-      imports: [OwnerEditPage],
+      imports: [OwnerEditor],
       providers: [
         provideNoopAnimations(),
         {
@@ -74,8 +74,11 @@ describe('OwnerEditPage', () => {
   });
 
   function createComponent(): void {
-    fixture = TestBed.createComponent(OwnerEditPage);
+    fixture = TestBed.createComponent(OwnerEditor);
+    fixture.componentRef.setInput('entityId', routeParams['id'] ?? '');
+    fixture.componentRef.setInput('routed', true);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   }
 
   async function submitRenderedForm(): Promise<void> {
@@ -153,9 +156,11 @@ describe('OwnerEditPage', () => {
     expect(component.error()).toBeNull();
   });
 
-  it('updates an owner with the current payload shape and returns to owners', () => {
+  it('updates an owner with the current payload shape and emits the authoritative result', () => {
     createComponent();
     ownerApiService.updateOwner.mockReturnValue(of(owner));
+    const saved = vi.fn();
+    component.saved.subscribe(saved);
 
     component.fullName.set('  Ada Lovelace  ');
     component.primaryPhone.set(' 555-1111 ');
@@ -176,7 +181,8 @@ describe('OwnerEditPage', () => {
       instagram: 'catworld',
       facebook: null,
     });
-    expect(router.navigate).toHaveBeenCalledWith(['/owners']);
+    expect(saved).toHaveBeenCalledWith(owner);
+    expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
   });
 
@@ -218,9 +224,10 @@ describe('OwnerEditPage', () => {
     component.submit();
     fixture.detectChanges();
 
-    expect(component.error()).toBe('Owner could not be updated');
+    expect(component.error()).toBe(component.text().owners.edit.errors.updateFailed);
+    expect(component.fullName()).toBe('Ada Lovelace');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Owner could not be updated',
+      component.text().owners.edit.errors.updateFailed,
     );
   });
 });

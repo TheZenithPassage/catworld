@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.service.IVetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,17 @@ public class VetController {
     @GetMapping("/{id}")
     public ResponseEntity<VetResponseDTO> getVet(@PathVariable UUID id) {
         return ResponseEntity.ok(vetService.getVet(id));
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<VetDetailResponse> getVetDetail(@PathVariable UUID id) {
+        return ResponseEntity.ok(vetService.getVetDetail(id));
+    }
+
+    @GetMapping("/{id}/cats")
+    public ResponseEntity<RelationshipPage<CatRelationshipItem>> getVetCats(
+            @PathVariable UUID id, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(vetService.getVetCats(id, page));
     }
 
     @PostMapping

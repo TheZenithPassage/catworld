@@ -788,6 +788,36 @@ and loading state, success refresh or removal, and any entity-specific conflict
 context. Stay cancellation remains a separate operation and keeps its distinct
 “Cancel stay” terminology.
 
+### Route-free Entity Details
+
+Owner, cat, vet and stay references open in one host-owned Material dialog. The
+dialog owns read-only/edit transitions and a stack of detail or relationship-list
+entries, so Back restores the actual parent and fixed-five page without changing
+the browser URL, query parameters or storage. Owner-to-cat, owner-to-stay,
+cat-to-stay, vet-to-cat and stay-to-cat navigation all reuse that history,
+late-response guard, page clamping, focus restoration and paginator behavior.
+
+The backend exposes typed lightweight detail responses and typed relationship
+preview/page envelopes. A preview loads at most four ordered candidates and
+includes items only when the total is one through three; larger relationships
+are loaded on demand in server-fixed pages of five. Cats use `name ASC, id ASC`
+and stays use `startAt DESC, id ASC`. Stay detail derives status and night count
+at read time and intentionally excludes economics, payments and deletion hints.
+Its owner and participating cats remain read-only relationship targets.
+
+Calendar stay activation opens the route-free dialog and refreshes the edited
+stay in its existing cache after a successful dialog update. The routed stay
+page remains the payments and operational-actions adapter; Stay payments,
+creation, overview actions and their URLs are separate from lightweight dialog
+details. These reads and dialog integrations required no schema migration.
+
+The reusable Stay editor owns the complete date, notes, pricing preview,
+reconfirmation, stale-confirmation, vaccine-conflict and role-sensitive update
+workflow through route-free inputs and outputs. The Stay detail presenter loads
+the operational Stay only when editing begins and refreshes its lightweight
+detail after an authoritative save. The routed Stay edit page remains a thin
+route/loading/navigation adapter and separately composes Stay payments.
+
 ### Material Forms
 
 The login, account management, owner create/edit, vet create/edit, cat

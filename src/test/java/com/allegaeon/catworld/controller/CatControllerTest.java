@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -19,6 +21,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -38,6 +41,35 @@ public class CatControllerTest {
 
     @Nested
     class GetCatTests {
+
+        @Test
+        void detailAndStayPageExposeTypedLightweightStatusAndDefaultPage() throws Exception {
+            UUID catId = UUID.randomUUID();
+            UUID stayId = UUID.randomUUID();
+            var stay = new StayRelationshipItem(stayId, LocalDateTime.parse("2026-08-20T10:00:00"),
+                    LocalDateTime.parse("2026-08-21T10:00:00"), com.allegaeon.catworld.model.StayStatus.CANCELLED);
+            when(catService.getCatDetail(catId)).thenReturn(new CatDetailResponse(
+                    CatResponseDTO.builder().id(catId).ownerName("Owner").build(),
+                    new RelationshipPreview<>(1, List.of(stay))));
+            when(catService.getCatStays(catId, 0)).thenReturn(new RelationshipPage<>(List.of(stay), 0, 5, 1, 1));
+
+            mockMvc.perform(get("/api/cats/{id}/detail", catId)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.stays.items[0].stayId").value(stayId.toString()))
+                    .andExpect(jsonPath("$.stays.items[0].status").value("CANCELLED"));
+            mockMvc.perform(get("/api/cats/{id}/stays", catId)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.pageSize").value(5));
+            verify(catService).getCatStays(catId, 0);
+        }
+
+        @Test
+        void stayPageMapsMissingAndNegativeErrors() throws Exception {
+            UUID catId = UUID.randomUUID();
+            when(catService.getCatStays(catId, 0)).thenThrow(new ResourceNotFoundException("Cat", catId));
+            when(catService.getCatStays(catId, -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            mockMvc.perform(get("/api/cats/{id}/stays", catId)).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/cats/{id}/stays", catId).param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllCats() throws Exception {

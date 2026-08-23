@@ -31,6 +31,21 @@ describe('StayApiService', () => {
     request.flush(null);
   });
 
+  it('reads exact lightweight Stay detail and fixed-page Cat endpoints', () => {
+    service.getStayDetail('stay-1').subscribe();
+    const detail = httpTestingController.expectOne(`${API_BASE_URL}/stays/stay-1/detail`);
+    expect(detail.request.method).toBe('GET');
+    detail.flush({});
+
+    service.getStayCats('stay-1', 3).subscribe();
+    const cats = httpTestingController.expectOne(
+      (request) =>
+        request.url === `${API_BASE_URL}/stays/stay-1/cats` && request.params.get('page') === '3',
+    );
+    expect(cats.request.method).toBe('GET');
+    cats.flush({ items: [], page: 3, pageSize: 5, totalElements: 0, totalPages: 0 });
+  });
+
   it('posts exact creation pricing input to the preview endpoint', () => {
     const payload = { startAt: '2099-01-01T10:00', endAt: '2099-01-02T10:00', catIds: ['cat-1'] };
     service.previewCreationPricing(payload).subscribe();

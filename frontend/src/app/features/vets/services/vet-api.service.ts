@@ -4,6 +4,10 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import { CreateVetRequest, UpdateVetRequest, Vet } from '../models/vet.model';
+import {
+  CatRelationshipPage,
+  VetDetailResponse,
+} from '../../../shared/entity-detail/relationship.models';
 
 @Injectable({
   providedIn: 'root',
@@ -18,6 +22,16 @@ export class VetApiService {
 
   getVetById(vetId: string): Observable<Vet> {
     return this.http.get<Vet>(`${this.baseUrl}/${vetId}`);
+  }
+
+  getVetDetail(vetId: string): Observable<VetDetailResponse> {
+    return this.http.get<VetDetailResponse>(`${this.baseUrl}/${vetId}/detail`);
+  }
+
+  getVetCats(vetId: string, page = 0): Observable<CatRelationshipPage> {
+    return this.http.get<CatRelationshipPage>(`${this.baseUrl}/${vetId}/cats`, {
+      params: { page },
+    });
   }
 
   createVet(request: CreateVetRequest): Observable<Vet> {

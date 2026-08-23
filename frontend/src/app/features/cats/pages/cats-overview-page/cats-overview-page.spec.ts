@@ -2,12 +2,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, RouterLink } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatsOverviewPage } from './cats-overview-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('CatsOverviewPage', () => {
   const cats: Cat[] = [
@@ -60,6 +62,7 @@ describe('CatsOverviewPage', () => {
   const catApiService = {
     getCats: vi.fn(),
   };
+  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
 
   let component: CatsOverviewPage;
   let fixture: ComponentFixture<CatsOverviewPage>;
@@ -77,6 +80,7 @@ describe('CatsOverviewPage', () => {
           { path: 'cats/:id/edit', component: CatsOverviewPage },
         ]),
         { provide: CatApiService, useValue: catApiService },
+        { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();
   });
@@ -91,7 +95,7 @@ describe('CatsOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders cat rows through a Material table with existing columns and actions', () => {
+  it('renders keyboard-focusable cat rows without an edit action', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -108,9 +112,19 @@ describe('CatsOverviewPage', () => {
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().cats.overview.create,
     );
-    expect(compiled.querySelector('a[mat-stroked-button]')?.textContent).toContain(
-      component.text().cats.overview.edit,
+    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
+    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
+    (compiled.querySelector('.owner-search-link') as HTMLElement).click();
+    expect(details.open).not.toHaveBeenCalled();
+    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    expect(row.getAttribute('aria-label')).toBe(
+      `${component.text().cats.detail.openDetails}: Milo`,
     );
+    row.click();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(details.open).toHaveBeenCalledTimes(3);
+    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'cat', entityId: 'cat-1' });
   });
 
   it('preserves owner query-param navigation from the owner cell', () => {
@@ -124,6 +138,18 @@ describe('CatsOverviewPage', () => {
       search: 'Ada Lovelace',
       selectedOwnerId: 'owner-1',
     });
+  });
+
+  it('reloads cats only after the dialog reports a successful update', () => {
+    const updates = new Subject<{ entityType: 'cat'; entityId: string }>();
+    details.open.mockReturnValueOnce(updates.asObservable());
+    createComponent();
+
+    component.openCat(cats[0]);
+    expect(catApiService.getCats).toHaveBeenCalledTimes(1);
+
+    updates.next({ entityType: 'cat', entityId: 'cat-1' });
+    expect(catApiService.getCats).toHaveBeenCalledTimes(2);
   });
 
   it('filters cats by cat or owner name and shows the filtered-empty state', () => {

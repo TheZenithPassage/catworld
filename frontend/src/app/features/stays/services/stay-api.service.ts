@@ -4,6 +4,10 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import {
+  CatRelationshipPage,
+  StayDetailResponse,
+} from '../../../shared/entity-detail/relationship.models';
+import {
   CreateStayRequest,
   CreationPricingPreview,
   CreationPricingPreviewRequest,
@@ -30,6 +34,14 @@ export class StayApiService {
 
   getStayById(id: string): Observable<Stay> {
     return this.http.get<Stay>(`${this.baseUrl}/${id}`);
+  }
+
+  getStayDetail(id: string): Observable<StayDetailResponse> {
+    return this.http.get<StayDetailResponse>(`${this.baseUrl}/${id}/detail`);
+  }
+
+  getStayCats(id: string, page = 0): Observable<CatRelationshipPage> {
+    return this.http.get<CatRelationshipPage>(`${this.baseUrl}/${id}/cats`, { params: { page } });
   }
 
   createStay(request: CreateStayRequest): Observable<Stay> {

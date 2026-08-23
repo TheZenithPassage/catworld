@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.service.ICatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,17 @@ public class CatController {
     @GetMapping("/{id}")
     public ResponseEntity<CatResponseDTO> getCat(@PathVariable UUID id) {
         return ResponseEntity.ok(catService.getCat(id));
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<CatDetailResponse> getCatDetail(@PathVariable UUID id) {
+        return ResponseEntity.ok(catService.getCatDetail(id));
+    }
+
+    @GetMapping("/{id}/stays")
+    public ResponseEntity<RelationshipPage<StayRelationshipItem>> getCatStays(
+            @PathVariable UUID id, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(catService.getCatStays(id, page));
     }
 
     @PostMapping

@@ -11,6 +11,7 @@ import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 
 @Component({
   selector: 'app-owners-overview-page',
@@ -31,6 +32,7 @@ export class OwnersOverviewPage {
   private readonly i18nService = inject(I18nService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly details = inject(EntityDetailDialogService);
 
   readonly text = this.i18nService.text;
 
@@ -39,14 +41,7 @@ export class OwnersOverviewPage {
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly selectedOwnerId = signal<string | null>(null);
   readonly searchText = signal('');
-  readonly displayedColumns = [
-    'name',
-    'primaryPhone',
-    'secondaryPhone',
-    'address',
-    'social',
-    'actions',
-  ];
+  readonly displayedColumns = ['name', 'primaryPhone', 'secondaryPhone', 'address', 'social'];
 
   readonly filteredOwners = computed(() =>
     this.owners().filter((owner) => matchesSearchText([owner.fullName], this.searchText())),
@@ -116,6 +111,18 @@ export class OwnersOverviewPage {
 
   isSelectedOwner(owner: Owner): boolean {
     return this.selectedOwnerId() === owner.id;
+  }
+
+  openOwner(owner: Owner): void {
+    this.details
+      .open({ entityType: 'owner', entityId: owner.id })
+      .subscribe(() => this.loadOwners());
+  }
+  activateOwner(event: KeyboardEvent, owner: Owner): void {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.openOwner(owner);
+    }
   }
 
   private scrollSelectedOwnerIntoView(): void {

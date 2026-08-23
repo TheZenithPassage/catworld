@@ -2,6 +2,8 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -26,9 +28,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -77,6 +83,51 @@ class CatServiceTest {
 
     @Captor
     private ArgumentCaptor<Cat> catCaptor;
+
+    @Test
+    void catDetailUsesEmptyPreviewForZeroAndTypedStatusForHistory() {
+        UUID id = UUID.randomUUID();
+        Cat cat = cat(id, creator());
+        CatResponseDTO response = CatResponseDTO.builder().id(id).ownerId(UUID.randomUUID())
+                .ownerName("Owner").vetId(UUID.randomUUID()).vetName("Vet").build();
+        when(catRepository.findById(id)).thenReturn(Optional.of(cat));
+        when(catMapper.toResponseDTO(cat, false)).thenReturn(response);
+        when(stayCatRepository.findStaysByCatId(eq(id), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        CatDetailResponse empty = service.getCatDetail(id);
+
+        assertSame(response, empty.cat());
+        assertEquals(0, empty.stays().totalElements());
+        assertEquals(List.of(), empty.stays().items());
+
+        var stay = com.allegaeon.catworld.model.Stay.builder().id(UUID.randomUUID())
+                .startAt(LocalDateTime.now().minusDays(2)).endAt(LocalDateTime.now().minusDays(1))
+                .cancelledAt(LocalDateTime.now().minusDays(1)).build();
+        when(stayCatRepository.findStaysByCatId(eq(id), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(stay)));
+        assertEquals(com.allegaeon.catworld.model.StayStatus.CANCELLED,
+                service.getCatDetail(id).stays().items().get(0).status());
+    }
+
+    @Test
+    void catPageValidatesAfterParentLookupAndReturnsAuthoritativeOutOfRangeEnvelope() {
+        UUID missing = UUID.randomUUID();
+        when(catRepository.findById(missing)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.getCatStays(missing, -1));
+        verifyNoInteractions(stayCatRepository);
+
+        UUID id = UUID.randomUUID();
+        when(catRepository.findById(id)).thenReturn(Optional.of(cat(id, creator())));
+        assertThrows(BadRequestException.class, () -> service.getCatStays(id, -1));
+        when(stayCatRepository.findStaysByCatId(eq(id), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), org.springframework.data.domain.PageRequest.of(3, 5), 11));
+        RelationshipPage<StayRelationshipItem> result = service.getCatStays(id, 3);
+        assertEquals(5, result.pageSize());
+        assertEquals(11, result.totalElements());
+        assertEquals(3, result.totalPages());
+        assertEquals(List.of(), result.items());
+    }
 
     @Test
     void createCatAssignsAuthenticatedCreator() {

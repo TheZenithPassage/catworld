@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -36,6 +38,41 @@ public class OwnerControllerTest {
 
     @Nested
     class GetOwnerTests {
+
+        @Test
+        void detailAndNestedReadsSerializeTypedContractsAndDelegatePages() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+            UUID catId = UUID.randomUUID();
+            var item = new CatRelationshipItem(catId, "Milo", ownerId, "Owner");
+            when(ownerService.getOwnerDetail(ownerId)).thenReturn(new OwnerDetailResponse(
+                    OwnerResponseDTO.builder().id(ownerId).fullName("Owner").build(),
+                    new RelationshipPreview<>(1, List.of(item)), new RelationshipPreview<>(0, List.of())));
+            when(ownerService.getOwnerCats(ownerId, 0)).thenReturn(
+                    new RelationshipPage<>(List.of(item), 0, 5, 1, 1));
+            when(ownerService.getOwnerStays(ownerId, 2)).thenReturn(
+                    new RelationshipPage<>(List.of(), 2, 5, 7, 2));
+
+            mockMvc.perform(get("/api/owners/{id}/detail", ownerId))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.owner.id").value(ownerId.toString()))
+                    .andExpect(jsonPath("$.cats.items[0].ownerName").value("Owner"));
+            mockMvc.perform(get("/api/owners/{id}/cats", ownerId))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5));
+            mockMvc.perform(get("/api/owners/{id}/stays", ownerId).param("page", "2"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(7));
+
+            verify(ownerService).getOwnerCats(ownerId, 0);
+            verify(ownerService).getOwnerStays(ownerId, 2);
+        }
+
+        @Test
+        void nestedReadsMapMissingAndNegativePageThroughExistingHandler() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+            when(ownerService.getOwnerCats(ownerId, 0)).thenThrow(new ResourceNotFoundException("Owner", ownerId));
+            when(ownerService.getOwnerStays(ownerId, -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            mockMvc.perform(get("/api/owners/{id}/cats", ownerId)).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/owners/{id}/stays", ownerId).param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllOwners() throws Exception {

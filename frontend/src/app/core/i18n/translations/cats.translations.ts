@@ -2,6 +2,16 @@ import { AppLanguage } from '../app-language';
 
 export interface CatsTranslations {
   emptyValue: string;
+  detail: {
+    title: string;
+    loading: string;
+    loadFailed: string;
+    retry: string;
+    edit: string;
+    cancel: string;
+    close: string;
+    openDetails: string;
+  };
   form: {
     name: string;
     birthDate: string;
@@ -102,6 +112,16 @@ export interface CatsTranslations {
 export const CATS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    detail: {
+      title: 'Detalles del gato',
+      loading: 'Cargando gato...',
+      loadFailed: 'Error al cargar el gato',
+      retry: 'Reintentar',
+      edit: 'Editar',
+      cancel: 'Cancelar',
+      close: 'Cerrar',
+      openDetails: 'Ver detalles',
+    },
     form: {
       name: 'Nombre',
       birthDate: 'Fecha de nacimiento',
@@ -200,6 +220,16 @@ export const CATS_TRANSLATIONS = {
   },
   en: {
     emptyValue: '-',
+    detail: {
+      title: 'Cat details',
+      loading: 'Loading cat...',
+      loadFailed: 'Error loading cat',
+      retry: 'Retry',
+      edit: 'Edit',
+      cancel: 'Cancel',
+      close: 'Close',
+      openDetails: 'View details',
+    },
     form: {
       name: 'Name',
       birthDate: 'Birth date',

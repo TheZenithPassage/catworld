@@ -21,6 +21,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
+import com.allegaeon.catworld.dto.relationship.RelationshipPage;
+import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
 
 @RequiredArgsConstructor
 @RestController
@@ -37,6 +40,17 @@ public class StayController {
     @GetMapping("/{id}")
     public ResponseEntity<StayResponseDTO> getStay(@PathVariable UUID id) {
         return ResponseEntity.ok(stayService.getStay(id));
+    }
+
+    @GetMapping("/{id}/detail")
+    public ResponseEntity<StayDetailResponse> getStayDetail(@PathVariable UUID id) {
+        return ResponseEntity.ok(stayService.getStayDetail(id));
+    }
+
+    @GetMapping("/{id}/cats")
+    public ResponseEntity<RelationshipPage<CatRelationshipItem>> getStayCats(
+            @PathVariable UUID id, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(stayService.getStayCats(id, page));
     }
 
     @PostMapping

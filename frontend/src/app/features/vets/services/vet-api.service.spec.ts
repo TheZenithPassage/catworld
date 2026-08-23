@@ -30,4 +30,18 @@ describe('VetApiService', () => {
     expect(request.request.method).toBe('DELETE');
     request.flush(null);
   });
+
+  it('loads typed vet detail and its fixed nested cat page', () => {
+    service.getVetDetail('vet-1').subscribe();
+    service.getVetCats('vet-1', 3).subscribe();
+
+    for (const url of [
+      `${API_BASE_URL}/vets/vet-1/detail`,
+      `${API_BASE_URL}/vets/vet-1/cats?page=3`,
+    ]) {
+      const request = httpTestingController.expectOne(url);
+      expect(request.request.method).toBe('GET');
+      request.flush({});
+    }
+  });
 });

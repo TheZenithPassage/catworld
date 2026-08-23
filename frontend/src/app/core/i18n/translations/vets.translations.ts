@@ -2,6 +2,16 @@ import { AppLanguage } from '../app-language';
 
 export interface VetsTranslations {
   emptyValue: string;
+  detail: {
+    title: string;
+    loading: string;
+    loadFailed: string;
+    retry: string;
+    edit: string;
+    cancel: string;
+    close: string;
+    openDetails: string;
+  };
   form: {
     name: string;
     address: string;
@@ -57,6 +67,16 @@ export interface VetsTranslations {
 export const VETS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    detail: {
+      title: 'Detalles del veterinario',
+      loading: 'Cargando veterinario...',
+      loadFailed: 'Error al cargar el veterinario',
+      retry: 'Reintentar',
+      edit: 'Editar',
+      cancel: 'Cancelar',
+      close: 'Cerrar',
+      openDetails: 'Ver detalles',
+    },
     form: {
       name: 'Nombre',
       address: 'Dirección',
@@ -110,6 +130,16 @@ export const VETS_TRANSLATIONS = {
   },
   en: {
     emptyValue: '-',
+    detail: {
+      title: 'Vet details',
+      loading: 'Loading vet...',
+      loadFailed: 'Error loading vet',
+      retry: 'Retry',
+      edit: 'Edit',
+      cancel: 'Cancel',
+      close: 'Close',
+      openDetails: 'View details',
+    },
     form: {
       name: 'Name',
       address: 'Address',
