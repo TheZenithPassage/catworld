@@ -430,7 +430,7 @@ Current rules:
   a missing date or a stay ending on or after expiry is a vaccine conflict.
 - Stay creation and updates that extend `endAt` beyond the currently persisted
   value aggregate every conflicting cat-vaccine pair into a structured `409
-Conflict`. Updates that keep or shorten the persisted end time skip the
+  Conflict`. Updates that keep or shorten the persisted end time skip the
   vaccine-conflict policy while all other stay rules remain active. `STAFF`
   remains blocked on a conflicting creation or extension even when an override
   is supplied. `ADMIN` receives the same conflict by default and may continue
@@ -852,10 +852,9 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders backend-supplied retained rate,
-suggestion, agreement, paid total and remaining amount, and exposes focused
-agreement correction only to `ADMIN` for stays with a known agreement;
-successful correction replaces the row with the complete authoritative
-response.
+suggestion, agreement, paid total and remaining amount. Post-creation agreement
+and payment actions belong to the dedicated Pricing & Payments page rather than
+the overview.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
@@ -877,9 +876,9 @@ is null, but shows an explicit empty economic state and no summary, history or
 economic actions. Pricing Back returns to a captured internal Angular URL,
 including its query string, and otherwise falls back to `/stays`; it does not
 reconstruct a detail dialog or use browser storage. Historical stays expose no
-Pricing & Payments entry in detail. Ordinary stay editing remains limited by the existing dynamic
-status rule and remains available for otherwise-allowed non-pricing changes to
-those historical stays. `ADMIN` receives payment mutation affordances in every
+Pricing & Payments entry in detail. Ordinary stay editing remains limited by
+the existing dynamic status rule and remains available for otherwise-allowed
+non-pricing changes to those historical stays. `ADMIN` receives payment mutation affordances in every
 status for known agreements; `STAFF` receives register, edit and annul
 affordances only for reserved and checked-in stays and never receives permanent
 removal.

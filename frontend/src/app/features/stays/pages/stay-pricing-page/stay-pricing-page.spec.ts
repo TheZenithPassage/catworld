@@ -1,11 +1,20 @@
+import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { By } from '@angular/platform-browser';
+import { ActivatedRoute, convertToParamMap, DefaultUrlSerializer, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayPricingPage } from './stay-pricing-page';
+import { StayPayments } from '../../components/stay-payments/stay-payments';
+
+@Component({ selector: 'app-stay-payments', template: '', standalone: true })
+class StayPaymentsStub {
+  readonly stay = input.required<Stay>();
+  readonly stayChange = output<Stay>();
+}
 
 describe('StayPricingPage', () => {
   const stay: Stay = {
@@ -31,7 +40,14 @@ describe('StayPricingPage', () => {
     payments: [],
   };
   const api = { getStayById: vi.fn(() => of(stay)) };
-  const router = { getCurrentNavigation: vi.fn(), navigateByUrl: vi.fn(), navigate: vi.fn() };
+  const serializer = new DefaultUrlSerializer();
+  const router = {
+    getCurrentNavigation: vi.fn(),
+    navigateByUrl: vi.fn(),
+    navigate: vi.fn(),
+    parseUrl: (url: string) => serializer.parse(url),
+    serializeUrl: (tree: ReturnType<DefaultUrlSerializer['parse']>) => serializer.serialize(tree),
+  };
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -48,7 +64,12 @@ describe('StayPricingPage', () => {
         },
         { provide: Router, useValue: router },
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(StayPricingPage, {
+        remove: { imports: [StayPayments] },
+        add: { imports: [StayPaymentsStub] },
+      })
+      .compileComponents();
   });
 
   it('shows context without notes and an explicit empty economic state for a null agreement', () => {
@@ -62,15 +83,42 @@ describe('StayPricingPage', () => {
   });
 
   it('replaces the authoritative displayed stay and uses a reliable captured origin for Back', () => {
+    api.getStayById.mockReturnValue(of({ ...stay, agreedAmount: '9999999999999999999' }));
     router.getCurrentNavigation.mockReturnValue({
       extras: { state: { stayPricingOrigin: '/stays?selectedStayId=stay-1' } },
     });
     const fixture = TestBed.createComponent(StayPricingPage);
     const component = fixture.componentInstance;
-    const updated = { ...stay, ownerName: 'Grace' };
-    component.onStayChanged(updated);
+    fixture.detectChanges();
+    const updated = {
+      ...stay,
+      agreedAmount: '9999999999999999999',
+      totalPaid: '1',
+      remainingAmount: '9999999999999999998',
+      ownerName: 'Grace',
+    };
+    fixture.debugElement
+      .query(By.directive(StayPaymentsStub))
+      .componentInstance.stayChange.emit(updated);
     component.back();
     expect(component.stay()).toBe(updated);
     expect(router.navigateByUrl).toHaveBeenCalledWith('/stays?selectedStayId=stay-1');
+    expect(fixture.nativeElement.querySelector('app-stay-payments')).not.toBeNull();
+  });
+
+  it.each([
+    ['absent', null],
+    ['network path', '//example.test/stays'],
+    ['external URL', 'https://example.test/stays'],
+    ['malformed URL', '/%'],
+    ['normalized URL', '/stays?'],
+  ])('falls back to /stays for %s navigation state', (_label, origin) => {
+    router.getCurrentNavigation.mockReturnValue(
+      origin === null ? null : { extras: { state: { stayPricingOrigin: origin } } },
+    );
+    const fixture = TestBed.createComponent(StayPricingPage);
+    fixture.componentInstance.back();
+    expect(router.navigate).toHaveBeenCalledWith(['/stays']);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 });

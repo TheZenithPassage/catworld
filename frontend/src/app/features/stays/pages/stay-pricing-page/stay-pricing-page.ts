@@ -73,8 +73,12 @@ export class StayPricingPage {
     const state: unknown = this.router.getCurrentNavigation()?.extras.state;
     if (!state || typeof state !== 'object' || !('stayPricingOrigin' in state)) return null;
     const origin = (state as { stayPricingOrigin?: unknown }).stayPricingOrigin;
-    return typeof origin === 'string' && origin.startsWith('/') && !origin.startsWith('//')
-      ? origin
-      : null;
+    if (typeof origin !== 'string' || !origin.startsWith('/') || origin.startsWith('//'))
+      return null;
+    try {
+      return this.router.serializeUrl(this.router.parseUrl(origin)) === origin ? origin : null;
+    } catch {
+      return null;
+    }
   }
 }

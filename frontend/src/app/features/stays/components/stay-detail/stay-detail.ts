@@ -84,6 +84,10 @@ export class StayDetail {
         if (generation === this.pricingGeneration && id === this.entityId())
           this.pricingStay.set(stay);
       },
+      error: () => {
+        if (generation === this.pricingGeneration && id === this.entityId())
+          this.pricingStay.set(null);
+      },
     });
   }
   canEdit(detail: StayDetailResponse): boolean {

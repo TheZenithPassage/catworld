@@ -166,7 +166,10 @@ export class StaysOverviewPage {
   }
 
   private applyDetailUpdate(update: EntityDetailUpdate): void {
-    if (!('stayId' in update)) return;
+    if (!('stayId' in update)) {
+      this.loadStays();
+      return;
+    }
     this.stays.update((stays) =>
       stays.map((stay) => (stay.stayId === update.stayId ? update : stay)),
     );
