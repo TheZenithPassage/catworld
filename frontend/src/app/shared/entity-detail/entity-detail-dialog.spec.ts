@@ -1241,7 +1241,7 @@ describe('EntityDetailDialog', () => {
     );
   });
 
-  it('opens cancellation for an eligible stay and reloads authoritative cancelled detail', async () => {
+  it('keeps pricing alongside eligible cancellation and after authoritative cancellation', async () => {
     const afterClosed = new Subject<boolean>();
     const materialDialog = {
       open: vi.fn(() => ({ afterClosed: () => afterClosed.asObservable() })),
@@ -1271,6 +1271,7 @@ describe('EntityDetailDialog', () => {
           cats: { totalElements: 0, items: [] },
         }),
       );
+    stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount: '100' }));
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -1287,6 +1288,9 @@ describe('EntityDetailDialog', () => {
     const fixture = TestBed.createComponent(EntityDetailDialog);
     fixture.detectChanges();
 
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.detail.pricing,
+    );
     buttonContaining(fixture, fixture.componentInstance.text().stays.cancellation.action).click();
     expect(materialDialog.open).toHaveBeenCalledWith(
       StayCancellationDialog,
@@ -1302,6 +1306,9 @@ describe('EntityDetailDialog', () => {
     expect(stayApi.getStayDetail).toHaveBeenCalledTimes(2);
     expect(fixture.nativeElement.textContent).toContain(
       fixture.componentInstance.text().stays.status.cancelled,
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.detail.pricing,
     );
     expect(
       [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].some(
