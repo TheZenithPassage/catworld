@@ -13,11 +13,11 @@ import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
-import { CatEditPage } from './cat-edit-page';
+import { CatEditor } from '../../components/cat-editor/cat-editor';
 
-describe('CatEditPage', () => {
-  let component: CatEditPage;
-  let fixture: ComponentFixture<CatEditPage>;
+describe('CatEditor', () => {
+  let component: CatEditor;
+  let fixture: ComponentFixture<CatEditor>;
   let routeParams: Record<string, string>;
 
   const owners: Owner[] = [
@@ -92,7 +92,7 @@ describe('CatEditPage', () => {
     window.scrollTo = vi.fn();
 
     await TestBed.configureTestingModule({
-      imports: [CatEditPage],
+      imports: [CatEditor],
       providers: [
         provideNoopAnimations(),
         {
@@ -130,8 +130,11 @@ describe('CatEditPage', () => {
   });
 
   function createComponent(): void {
-    fixture = TestBed.createComponent(CatEditPage);
+    fixture = TestBed.createComponent(CatEditor);
+    fixture.componentRef.setInput('entityId', routeParams['id'] ?? '');
+    fixture.componentRef.setInput('routed', true);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   }
 
   async function submitRenderedForm(): Promise<void> {
@@ -190,9 +193,11 @@ describe('CatEditPage', () => {
     expect(component.error()).toBeNull();
   });
 
-  it('updates a cat with the current payload shape and returns to cats', () => {
+  it('updates a cat with the current payload shape and emits the authoritative result', () => {
     createComponent();
     catApiService.updateCat.mockReturnValue(of(cat));
+    const saved = vi.fn();
+    component.saved.subscribe(saved);
 
     component.name.set('  Milo  ');
     component.birthDate.set('2020-01-02');
@@ -233,7 +238,8 @@ describe('CatEditPage', () => {
       ownerId: 'owner-1',
       vetId: null,
     });
-    expect(router.navigate).toHaveBeenCalledWith(['/cats']);
+    expect(saved).toHaveBeenCalledWith(cat);
+    expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
   });
 
@@ -263,7 +269,7 @@ describe('CatEditPage', () => {
       throwError(
         () =>
           new HttpErrorResponse({
-            error: 'Cat could not be updated',
+            error: { ownerId: 'raw backend validation text' },
             status: 400,
           }),
       ),
@@ -277,9 +283,10 @@ describe('CatEditPage', () => {
     component.submit();
     fixture.detectChanges();
 
-    expect(component.error()).toBe('Cat could not be updated');
+    expect(component.error()).toBe(component.text().cats.edit.errors.ownerRequired);
+    expect(component.name()).toBe('Milo');
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
-      'Cat could not be updated',
+      component.text().cats.edit.errors.ownerRequired,
     );
   });
 });

@@ -5,6 +5,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
+import { By } from '@angular/platform-browser';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -12,9 +13,11 @@ import { NightlyReferenceRateApiService } from '../../../nightly-rates/services/
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayEditPage } from './stay-edit-page';
+import { StayEditor } from '../../components/stay-editor/stay-editor';
+import { StayPayments } from '../../components/stay-payments/stay-payments';
 
 describe('StayEditPage', () => {
-  let component: StayEditPage;
+  let component: StayEditor;
   let fixture: ComponentFixture<StayEditPage>;
   let routeParams: Record<string, string>;
   let dialogClosed: Subject<boolean | undefined>;
@@ -155,7 +158,8 @@ describe('StayEditPage', () => {
 
   function createComponent(): void {
     fixture = TestBed.createComponent(StayEditPage);
-    component = fixture.componentInstance;
+    fixture.detectChanges();
+    component = fixture.debugElement.query(By.directive(StayEditor)).componentInstance;
   }
 
   it('does not offer suggested amount adoption in existing-stay repricing', () => {
@@ -982,5 +986,61 @@ describe('StayEditPage', () => {
     TestBed.flushEffects();
 
     expect(component.previewError()).toBeNull();
+  });
+
+  it('keeps the routed cancel in the page header and avoids page-global editor scrolling', () => {
+    const lookup = vi.spyOn(document, 'getElementById');
+    const scroll = vi.spyOn(window, 'scrollTo');
+    createComponent();
+    lookup.mockClear();
+    scroll.mockClear();
+
+    component.startAt.set('2099-01-09T10:00');
+    component.endAt.set('2099-01-02T10:00');
+    component.submit();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-stay-editor .cancel-edit')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.form-back-link')).not.toBeNull();
+    expect(lookup).not.toHaveBeenCalled();
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it('preserves a dirty editor draft when payments refresh the routed Stay display', () => {
+    createComponent();
+    component.startAt.set('2099-02-01T09:00');
+    component.endAt.set('2099-02-12T09:00');
+    component.notes.set('dirty payment-safe draft');
+    component.pricingConfirmed.set(true);
+    const paymentRefresh = {
+      ...stay,
+      totalPaid: '50',
+      remainingAmount: '50',
+      payments: [
+        {
+          paymentId: 'payment-1',
+          amount: '50',
+          paymentDate: '2099-01-01',
+          note: null,
+          state: 'ACTIVE',
+          registeredByUsername: 'admin',
+          registeredAt: '2099-01-01T10:00:00',
+          annulledByUsername: null,
+          annulledAt: null,
+        },
+      ],
+    } as Stay;
+
+    const payments = fixture.debugElement.query(By.directive(StayPayments))
+      .componentInstance as StayPayments;
+    payments.stayChange.emit(paymentRefresh);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.paymentStay()).toEqual(paymentRefresh);
+    expect(fixture.componentInstance.editorEntity()).toBe(stay);
+    expect(component.startAt()).toBe('2099-02-01T09:00');
+    expect(component.endAt()).toBe('2099-02-12T09:00');
+    expect(component.notes()).toBe('dirty payment-safe draft');
+    expect(component.pricingConfirmed()).toBe(true);
   });
 });

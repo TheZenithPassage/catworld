@@ -1,0 +1,115 @@
+<h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
+<mat-dialog-content>
+  @if (history().length > 1) {
+    <button data-dialog-focus mat-button type="button" [disabled]="submitting()" (click)="back()">
+      {{ text().entityDetail.back }}
+    </button>
+  }
+  @if (entry().kind === 'list') {
+    @if (relationshipLoading()) {
+      <app-ui-state kind="loading" [message]="text().entityDetail.loading" />
+    } @else if (relationshipError()) {
+      <app-ui-state
+        kind="error"
+        [message]="text().entityDetail.loadFailed"
+        [actionLabel]="text().entityDetail.retry"
+        (actionTriggered)="retryRelationship()"
+      />
+    } @else if (relationshipPage(); as page) {
+      @if (page.items.length === 0) {
+        <app-ui-state kind="empty" [message]="text().entityDetail.empty" />
+      } @else {
+        <h3 tabindex="-1" data-dialog-focus>{{ relationshipTitle() }}</h3>
+        @for (item of page.items; track $index) {
+          @if ('stayId' in item) {
+            <button
+              mat-button
+              type="button"
+              (click)="showReference({ entityType: 'stay', entityId: item.stayId })"
+            >
+              <app-stay-relationship-label [item]="item" />
+            </button>
+          } @else {
+            <button
+              mat-button
+              type="button"
+              (click)="showReference({ entityType: 'cat', entityId: item.id })"
+            >
+              {{ item.name }} — {{ item.ownerName }}
+            </button>
+          }
+        }
+      }
+      <mat-paginator
+        [length]="page.totalElements"
+        [pageIndex]="page.page"
+        [pageSize]="5"
+        [hidePageSize]="true"
+        (page)="pageChanged($event)"
+      />
+    }
+  } @else {
+    @switch (reference().entityType) {
+      @case ('owner') {
+        <app-owner-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+          (openStays)="openStays(reference())"
+        />
+      }
+      @case ('cat') {
+        <app-cat-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
+          (navigate)="showReference($event)"
+          (openStays)="openStays(reference())"
+        />
+      }
+      @case ('vet') {
+        <app-vet-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="referenceSaved()"
+          (submittingChanged)="submissionChanged($event)"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+        />
+      }
+      @case ('stay') {
+        <app-stay-detail
+          [entityId]="reference().entityId"
+          [editing]="editing()"
+          (editRequested)="enterEdit()"
+          (cancelRequested)="leaveEdit()"
+          (saveCompleted)="leaveEdit()"
+          (navigate)="showReference($event)"
+          (openCats)="openCats(reference())"
+          (updated)="staySaved($event)"
+          (submittingChanged)="submissionChanged($event)"
+        />
+      }
+    }
+  }
+</mat-dialog-content>
+<button
+  class="close-button"
+  mat-stroked-button
+  type="button"
+  mat-dialog-close
+  [disabled]="submitting()"
+  [attr.aria-label]="closeLabel()"
+>
+  ×
+</button>

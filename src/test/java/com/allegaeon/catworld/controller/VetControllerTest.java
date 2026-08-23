@@ -2,6 +2,8 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -36,6 +38,33 @@ public class VetControllerTest {
 
     @Nested
     class GetVetTests {
+
+        @Test
+        void detailAndExplicitCatPageSerializeAndDelegate() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            UUID ownerId = UUID.randomUUID();
+            var item = new CatRelationshipItem(UUID.randomUUID(), "Milo", ownerId, "Owner");
+            when(vetService.getVetDetail(vetId)).thenReturn(new VetDetailResponse(
+                    VetResponseDTO.builder().id(vetId).name("Vet").build(),
+                    new RelationshipPreview<>(1, List.of(item))));
+            when(vetService.getVetCats(vetId, 3)).thenReturn(new RelationshipPage<>(List.of(), 3, 5, 16, 4));
+
+            mockMvc.perform(get("/api/vets/{id}/detail", vetId)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.cats.items[0].name").value("Milo"));
+            mockMvc.perform(get("/api/vets/{id}/cats", vetId).param("page", "3"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalPages").value(4));
+            verify(vetService).getVetCats(vetId, 3);
+        }
+
+        @Test
+        void catPageMapsMissingAndNegativeErrors() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            when(vetService.getVetCats(vetId, 0)).thenThrow(new ResourceNotFoundException("Vet", vetId));
+            when(vetService.getVetCats(vetId, -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            mockMvc.perform(get("/api/vets/{id}/cats", vetId)).andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/vets/{id}/cats", vetId).param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
 
         @Test
         void shouldReturnOk_whenGettingAllVets() throws Exception {

@@ -2,6 +2,17 @@ import { AppLanguage } from '../app-language';
 
 export interface OwnersTranslations {
   emptyValue: string;
+  detail: {
+    title: string;
+    loading: string;
+    loadFailed: string;
+    retry: string;
+    edit: string;
+    cancel: string;
+    close: string;
+    openDetails: string;
+    unsupportedStay: string;
+  };
   form: {
     fullName: string;
     primaryPhone: string;
@@ -68,6 +79,17 @@ export interface OwnersTranslations {
 export const OWNERS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    detail: {
+      title: 'Detalles del dueño',
+      loading: 'Cargando dueño...',
+      loadFailed: 'Error al cargar el dueño',
+      retry: 'Reintentar',
+      edit: 'Editar',
+      cancel: 'Cancelar',
+      close: 'Cerrar',
+      openDetails: 'Ver detalles',
+      unsupportedStay: 'Los detalles de la estancia aún no están disponibles.',
+    },
     form: {
       fullName: 'Nombre completo',
       primaryPhone: 'Teléfono',
@@ -132,6 +154,17 @@ export const OWNERS_TRANSLATIONS = {
   },
   en: {
     emptyValue: '-',
+    detail: {
+      title: 'Owner details',
+      loading: 'Loading owner...',
+      loadFailed: 'Error loading owner',
+      retry: 'Retry',
+      edit: 'Edit',
+      cancel: 'Cancel',
+      close: 'Close',
+      openDetails: 'View details',
+      unsupportedStay: 'Stay details are not available yet.',
+    },
     form: {
       fullName: 'Full name',
       primaryPhone: 'Primary phone',

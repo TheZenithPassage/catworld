@@ -206,6 +206,23 @@ export interface StaysTranslations {
       updateFailed: string;
     };
   };
+  detail: {
+    title: string;
+    close: string;
+    edit: string;
+    loading: string;
+    loadFailed: string;
+    operationalLoadFailed: string;
+    retry: string;
+    cancelEdit: string;
+    start: string;
+    end: string;
+    nights: string;
+    notes: string;
+    owner: string;
+    cats: string;
+    status: string;
+  };
 }
 
 export const STAYS_TRANSLATIONS = {
@@ -416,6 +433,23 @@ export const STAYS_TRANSLATIONS = {
         updateFailed: 'Error al actualizar la estancia',
       },
     },
+    detail: {
+      title: 'Detalle de la estancia',
+      close: 'Cerrar detalle de la estancia',
+      edit: 'Editar',
+      loading: 'Cargando detalle de la estancia...',
+      loadFailed: 'No se pudo cargar la estancia.',
+      operationalLoadFailed: 'No se pudieron cargar los datos para editar la estancia.',
+      retry: 'Reintentar',
+      cancelEdit: 'Cancelar edición',
+      start: 'Inicio',
+      end: 'Fin',
+      nights: 'Noches',
+      notes: 'Notas',
+      owner: 'Dueño',
+      cats: 'Gatos',
+      status: 'Estado',
+    },
   },
   en: {
     emptyValue: '-',
@@ -623,6 +657,23 @@ export const STAYS_TRANSLATIONS = {
         endAfterStart: 'End date must be after start date',
         updateFailed: 'Error updating stay',
       },
+    },
+    detail: {
+      title: 'Stay details',
+      close: 'Close stay details',
+      edit: 'Edit',
+      loading: 'Loading stay details...',
+      loadFailed: 'Stay details could not be loaded.',
+      operationalLoadFailed: 'The stay could not be loaded for editing.',
+      retry: 'Retry',
+      cancelEdit: 'Cancel editing',
+      start: 'Start',
+      end: 'End',
+      nights: 'Nights',
+      notes: 'Notes',
+      owner: 'Owner',
+      cats: 'Cats',
+      status: 'Status',
     },
   },
 } satisfies Record<AppLanguage, StaysTranslations>;

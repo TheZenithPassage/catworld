@@ -1,12 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner } from '../../models/owner.model';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnersOverviewPage } from './owners-overview-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('OwnersOverviewPage', () => {
   const owners: Owner[] = [
@@ -35,6 +37,7 @@ describe('OwnersOverviewPage', () => {
   const ownerApiService = {
     getOwners: vi.fn(),
   };
+  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
 
   let component: OwnersOverviewPage;
   let fixture: ComponentFixture<OwnersOverviewPage>;
@@ -52,6 +55,7 @@ describe('OwnersOverviewPage', () => {
         provideNoopAnimations(),
         provideRouter([]),
         { provide: OwnerApiService, useValue: ownerApiService },
+        { provide: EntityDetailDialogService, useValue: details },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -79,7 +83,7 @@ describe('OwnersOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders owner rows through a Material table with existing actions and selected row', () => {
+  it('renders keyboard-focusable owner rows without an Actions column and preserves selection', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -89,16 +93,24 @@ describe('OwnersOverviewPage', () => {
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
     expect(headerText).toContain(component.text().owners.overview.table.name);
-    expect(headerText).toContain(component.text().owners.overview.table.actions);
+    expect(headerText).not.toContain(component.text().owners.overview.table.actions);
     expect(compiled.textContent).toContain('Ada Lovelace');
     expect(compiled.textContent).toContain('555-2222 (Work)');
     expect(compiled.querySelector('#owner-owner-1.selected-row')).not.toBeNull();
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().owners.overview.create,
     );
-    expect(compiled.querySelector('a[mat-stroked-button]')?.textContent).toContain(
-      component.text().owners.overview.edit,
+    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
+    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
+    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
+    expect(row.getAttribute('aria-label')).toBe(
+      `${component.text().owners.detail.openDetails}: Ada Lovelace`,
     );
+    row.click();
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+    expect(details.open).toHaveBeenCalledTimes(3);
+    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'owner', entityId: 'owner-1' });
   });
 
   it('filters owners and clears search while preserving query-param cleanup', () => {
@@ -125,6 +137,18 @@ describe('OwnersOverviewPage', () => {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  });
+
+  it('reloads owners only after the dialog reports a successful update', () => {
+    const updates = new Subject<{ entityType: 'owner'; entityId: string }>();
+    details.open.mockReturnValueOnce(updates.asObservable());
+    createComponent();
+
+    component.openOwner(owners[0]);
+    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(1);
+
+    updates.next({ entityType: 'owner', entityId: 'owner-1' });
+    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(2);
   });
 
   it('renders empty, filtered-empty, and error states outside the Material table', () => {

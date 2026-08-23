@@ -4,194 +4,25 @@
       <h2>{{ text().stays.edit.title }}</h2>
       <p>{{ text().stays.edit.description }}</p>
     </div>
-
-    <a mat-stroked-button routerLink="/stays" class="form-back-link">
-      {{ text().stays.edit.backToStays }}
-    </a>
+    <a mat-stroked-button routerLink="/stays" class="form-back-link">{{
+      text().stays.edit.backToStays
+    }}</a>
   </header>
-
   @if (loading()) {
-    <app-ui-state kind="loading" [message]="text().stays.edit.loading"></app-ui-state>
-  } @else {
-    @if (error(); as errorMessage) {
-      <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
-    }
-
-    @if (stayLoaded()) {
-      <div class="stay-summary">
-        <p>
-          <strong>{{ text().stays.edit.owner }}:</strong> {{ ownerName() }}
-        </p>
-        <p>
-          <strong>{{ text().stays.edit.cats }}:</strong> {{ catNames() }}
-        </p>
-      </div>
-
-      @if (stay(); as currentStay) {
-        @if (currentStay.agreedAmount !== null) {
-          <app-stay-payments [stay]="currentStay" (stayChange)="onStayChanged($event)" />
-        }
-      }
-
-      @if (canEditStay()) {
-        <form class="stay-form" (ngSubmit)="submit()">
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.edit.startDateTime }}</mat-label>
-            <input
-              matInput
-              type="datetime-local"
-              name="startAt"
-              required
-              [ngModel]="startAt()"
-              (ngModelChange)="onStartAtChange($event)"
-            />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
-            <input
-              matInput
-              type="datetime-local"
-              name="endAt"
-              required
-              [ngModel]="endAt()"
-              (ngModelChange)="onEndAtChange($event)"
-            />
-          </mat-form-field>
-
-          <p class="night-count" role="status" aria-atomic="true">
-            {{ nightCountLabel() }}
-          </p>
-
-          <section class="pricing-panel" aria-live="polite">
-            <div class="pricing-panel-heading">
-              <h3>{{ text().stays.pricing.title }}</h3>
-              @if (previewLoading() && pricingPreview()) {
-                <mat-spinner
-                  [diameter]="18"
-                  [attr.aria-label]="text().stays.pricing.loading"
-                ></mat-spinner>
-              }
-            </div>
-            @if (previewLoading() && !pricingPreview()) {
-              <app-ui-state kind="loading" [message]="text().stays.pricing.loading"></app-ui-state>
-            } @else if (previewError()) {
-              <app-ui-state kind="error" [message]="previewError() ?? ''"></app-ui-state>
-            } @else if (pricingPreview(); as preview) {
-              <dl class="pricing-summary">
-                <div>
-                  <dt>{{ text().stays.pricing.currentAgreement }}</dt>
-                  <dd>{{ preview.currentAgreedAmount ?? text().stays.pricing.unavailable }}</dd>
-                </div>
-                <div>
-                  <dt>{{ text().stays.pricing.nights }}</dt>
-                  <dd>{{ preview.numberOfNights }}</dd>
-                </div>
-                <div>
-                  <dt>{{ text().stays.pricing.retainedRate }}</dt>
-                  <dd>{{ workingRetainedNightlyRate() ?? text().stays.pricing.unavailable }}</dd>
-                </div>
-                <div>
-                  <dt>{{ text().stays.pricing.suggestion }}</dt>
-                  <dd>{{ workingSuggestedAmount() ?? text().stays.pricing.unavailable }}</dd>
-                </div>
-              </dl>
-              @if (!preview.pricingDecisionRequired) {
-                <p>{{ text().stays.pricing.noReconfirmation }}</p>
-              } @else if (!isAdmin()) {
-                <p class="pricing-warning" role="alert">{{ text().stays.pricing.adminRequired }}</p>
-              } @else {
-                @if (stalePricing()) {
-                  <p class="pricing-warning" role="alert">{{ text().stays.pricing.stale }}</p>
-                }
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
-                  <input
-                    matInput
-                    name="agreedAmount"
-                    inputmode="numeric"
-                    [ngModel]="agreedAmount()"
-                    (ngModelChange)="onAgreedAmountChange($event)"
-                    [disabled]="previewLoading()"
-                  />
-                  @if (agreedAmount() && !amountValid()) {
-                    <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
-                  }
-                </mat-form-field>
-                @if (retainedRateActionLabel(); as actionLabel) {
-                  <div class="pricing-helper-actions">
-                    <button
-                      mat-stroked-button
-                      type="button"
-                      (click)="toggleRetainedRate()"
-                      [disabled]="previewLoading()"
-                    >
-                      {{ actionLabel }}
-                    </button>
-                  </div>
-                }
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>{{ text().stays.pricing.reason }}</mat-label>
-                  <textarea
-                    matInput
-                    name="pricingReason"
-                    rows="2"
-                    [placeholder]="pricingReasonPlaceholder()"
-                    [ngModel]="pricingReason()"
-                    (ngModelChange)="pricingReason.set($event); onPricingDecisionChange()"
-                    [disabled]="previewLoading()"
-                  ></textarea>
-                  @if (reasonRequired() && !pricingReason().trim()) {
-                    <mat-error>{{ text().stays.pricing.errors.reasonRequired }}</mat-error>
-                  }
-                </mat-form-field>
-                <button
-                  mat-stroked-button
-                  type="button"
-                  (click)="confirmPricing()"
-                  [disabled]="previewLoading() || !decisionValid() || pricingConfirmed()"
-                >
-                  {{
-                    pricingConfirmed()
-                      ? text().stays.pricing.confirmed
-                      : reasonRequired() && !pricingReason().trim()
-                        ? text().stays.pricing.confirmAfterReason
-                        : text().stays.pricing.confirm
-                  }}
-                </button>
-              }
-            }
-          </section>
-
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.edit.notes }}</mat-label>
-            <textarea
-              matInput
-              name="notes"
-              rows="4"
-              [ngModel]="notes()"
-              (ngModelChange)="notes.set($event)"
-            ></textarea>
-          </mat-form-field>
-
-          <div class="form-actions">
-            <button
-              id="update-stay-submit"
-              mat-flat-button
-              type="submit"
-              [disabled]="
-                submitting() ||
-                previewLoading() ||
-                (pricingPreview()?.pricingDecisionRequired === true && !pricingConfirmed())
-              "
-            >
-              {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
-            </button>
-          </div>
-        </form>
-      } @else {
-        <p class="read-only-stay">{{ text().stays.payments.readOnlyStay }}</p>
+    <app-ui-state kind="loading" [message]="text().stays.edit.loading" />
+  } @else if (loadFailed()) {
+    <app-ui-state
+      kind="error"
+      [message]="text().stays.edit.errors.loadFailed"
+      [actionLabel]="text().entityDetail.retry"
+      (actionTriggered)="load()"
+    />
+  } @else if (editorEntity(); as currentStay) {
+    @if (paymentStay(); as currentPaymentStay) {
+      @if (currentPaymentStay.agreedAmount !== null) {
+        <app-stay-payments [stay]="currentPaymentStay" (stayChange)="onStayChanged($event)" />
       }
     }
+    <app-stay-editor [entity]="currentStay" (saved)="saved()" />
   }
 </section>

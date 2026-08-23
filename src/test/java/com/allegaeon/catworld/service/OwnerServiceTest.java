@@ -2,6 +2,8 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -9,6 +11,7 @@ import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.OwnerRepository;
+import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import org.junit.jupiter.api.Test;
@@ -21,8 +24,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -32,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -52,6 +60,9 @@ class OwnerServiceTest {
     private StayRepository stayRepository;
 
     @Mock
+    private CatRepository catRepository;
+
+    @Mock
     private OwnerMapper ownerMapper;
 
     @Mock
@@ -65,6 +76,58 @@ class OwnerServiceTest {
 
     @Captor
     private ArgumentCaptor<Owner> ownerCaptor;
+
+    @Test
+    void ownerDetailComposesCompleteThreeItemPreviewAndHidesFourItemStayPreview() {
+        UUID id = UUID.randomUUID();
+        Owner owner = owner(id, creator("creator"));
+        OwnerResponseDTO response = OwnerResponseDTO.builder().id(id).fullName("Owner").build();
+        List<com.allegaeon.catworld.model.Cat> cats = List.of(
+                relationshipCat("A", owner), relationshipCat("B", owner), relationshipCat("C", owner));
+        List<com.allegaeon.catworld.model.Stay> stays = List.of(stay(owner, 4), stay(owner, 3), stay(owner, 2), stay(owner, 1));
+        when(ownerRepository.findById(id)).thenReturn(Optional.of(owner));
+        when(ownerMapper.toResponseDTO(owner, false)).thenReturn(response);
+        when(catRepository.findByOwner_Id(eq(id), any(Pageable.class))).thenReturn(new PageImpl<>(cats));
+        when(stayRepository.findByOwner_Id(eq(id), any(Pageable.class))).thenReturn(new PageImpl<>(stays));
+
+        OwnerDetailResponse result = service.getOwnerDetail(id);
+
+        assertSame(response, result.owner());
+        assertEquals(3, result.cats().totalElements());
+        assertEquals(List.of("A", "B", "C"), result.cats().items().stream().map(CatRelationshipItem::name).toList());
+        assertEquals(4, result.stays().totalElements());
+        assertEquals(List.of(), result.stays().items());
+    }
+
+    @Test
+    void ownerRelationshipPageHasFixedEnvelopeAndOutOfRangeRetainsTotals() {
+        UUID id = UUID.randomUUID();
+        Owner owner = owner(id, creator("creator"));
+        when(ownerRepository.findById(id)).thenReturn(Optional.of(owner));
+        when(catRepository.findByOwner_Id(eq(id), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), org.springframework.data.domain.PageRequest.of(2, 5), 7));
+
+        RelationshipPage<CatRelationshipItem> result = service.getOwnerCats(id, 2);
+
+        assertEquals(2, result.page());
+        assertEquals(5, result.pageSize());
+        assertEquals(7, result.totalElements());
+        assertEquals(2, result.totalPages());
+        assertEquals(List.of(), result.items());
+    }
+
+    @Test
+    void ownerLookupPrecedesNegativePageValidationAndRelationshipLookup() {
+        UUID missing = UUID.randomUUID();
+        when(ownerRepository.findById(missing)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.getOwnerCats(missing, -1));
+        verifyNoInteractions(catRepository);
+
+        UUID existing = UUID.randomUUID();
+        when(ownerRepository.findById(existing)).thenReturn(Optional.of(owner(existing, creator("creator"))));
+        assertThrows(BadRequestException.class, () -> service.getOwnerStays(existing, -1));
+        verify(stayRepository, never()).findByOwner_Id(eq(existing), any(Pageable.class));
+    }
 
     @Test
     void createOwnerAssignsAuthenticatedCreatorAndCalculatesCanDelete() {
@@ -449,6 +512,18 @@ class OwnerServiceTest {
                 .id(UUID.randomUUID())
                 .username(username)
                 .build();
+    }
+
+    private com.allegaeon.catworld.model.Cat relationshipCat(String name, Owner owner) {
+        return com.allegaeon.catworld.model.Cat.builder().id(UUID.randomUUID()).name(name)
+                .birthDate(LocalDate.of(2020, 1, 1)).sex(com.allegaeon.catworld.model.Sex.FEMALE)
+                .owner(owner).build();
+    }
+
+    private com.allegaeon.catworld.model.Stay stay(Owner owner, int days) {
+        LocalDateTime start = LocalDateTime.now().plusDays(days);
+        return com.allegaeon.catworld.model.Stay.builder().id(UUID.randomUUID()).owner(owner)
+                .startAt(start).endAt(start.plusDays(1)).build();
     }
 
     private Owner owner(UUID id, UserAccount creator) {

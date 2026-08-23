@@ -2,6 +2,9 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
+import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.VetMapper;
@@ -14,6 +17,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Set;
@@ -24,10 +30,13 @@ import java.util.stream.Collectors;
 @Service
 public class VetService implements IVetService {
 
+    private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
+
     private final VetRepository vetRepository;
     private final VetMapper vetMapper;
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
+    private final CatRepository catRepository;
 
     @Override
     public List<VetResponseDTO> getAllVets() {
@@ -58,6 +67,25 @@ public class VetService implements IVetService {
     @Override
     public VetResponseDTO getVet(UUID id) {
         return toResponseDTO(getEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public VetDetailResponse getVetDetail(UUID id) {
+        Vet vet = getEntity(id);
+        Page<Cat> cats = catRepository.findByVet_Id(id, PageRequest.of(0, 4, CAT_ORDER));
+        return new VetDetailResponse(toResponseDTO(vet),
+                RelationshipResponses.preview(cats, RelationshipResponses::cat));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RelationshipPage<CatRelationshipItem> getVetCats(UUID id, int page) {
+        getEntity(id);
+        RelationshipResponses.requireValidPage(page);
+        return RelationshipResponses.page(
+                catRepository.findByVet_Id(id, PageRequest.of(page, RelationshipResponses.PAGE_SIZE, CAT_ORDER)),
+                RelationshipResponses::cat);
     }
 
     @Override

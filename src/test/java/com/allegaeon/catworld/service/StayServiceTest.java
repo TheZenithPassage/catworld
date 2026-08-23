@@ -45,6 +45,8 @@ import com.allegaeon.catworld.repository.StayPaymentRepository;
 import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.repository.StayCatRepository;
+import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -61,6 +63,8 @@ import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -83,6 +87,9 @@ public class StayServiceTest {
 
     @Mock
     private CatRepository catRepository;
+
+    @Mock
+    private StayCatRepository stayCatRepository;
 
     @Mock
     private NightlyReferenceRateRepository nightlyReferenceRateRepository;
@@ -3317,6 +3324,66 @@ public class StayServiceTest {
                 .username(role.name().toLowerCase(Locale.ROOT))
                 .role(role)
                 .build();
+    }
+
+    @Nested
+    class StayDetailRelationshipTests {
+        @Test
+        void derivesLightweightDetailAndIncludesOnlyCompleteSmallPreview() {
+            UUID stayId = UUID.randomUUID();
+            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").build();
+            Stay stay = Stay.builder().id(stayId).owner(owner)
+                    .startAt(LocalDateTime.of(2030, 1, 1, 10, 0))
+                    .endAt(LocalDateTime.of(2030, 1, 4, 9, 0))
+                    .cancelledAt(LocalDateTime.now()).notes("Quiet").build();
+            Cat a = Cat.builder().id(UUID.randomUUID()).name("A").owner(owner).build();
+            Cat b = Cat.builder().id(UUID.randomUUID()).name("B").owner(owner).build();
+            when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
+            when(stayCatRepository.findCatsByStayId(stayId, PageRequest.of(0, 4)))
+                    .thenReturn(new PageImpl<>(List.of(a, b), PageRequest.of(0, 4), 2));
+
+            StayDetailResponse result = service.getStayDetail(stayId);
+
+            assertEquals(3, result.numberOfNights());
+            assertEquals(com.allegaeon.catworld.model.StayStatus.CANCELLED, result.status());
+            assertEquals(2, result.cats().items().size());
+            assertEquals("Ada", result.owner().fullName());
+        }
+
+        @Test
+        void hidesFourPlusPreviewAndChecksMissingParentBeforeNegativePage() {
+            UUID stayId = UUID.randomUUID();
+            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").build();
+            Stay stay = Stay.builder().id(stayId).owner(owner)
+                    .startAt(LocalDateTime.now().plusDays(1)).endAt(LocalDateTime.now().plusDays(2)).build();
+            List<Cat> cats = List.of("A", "B", "C", "D").stream()
+                    .map(name -> Cat.builder().id(UUID.randomUUID()).name(name).owner(owner).build()).toList();
+            when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
+            when(stayCatRepository.findCatsByStayId(stayId, PageRequest.of(0, 4)))
+                    .thenReturn(new PageImpl<>(cats, PageRequest.of(0, 4), 4));
+            assertTrue(service.getStayDetail(stayId).cats().items().isEmpty());
+            UUID missing = UUID.randomUUID();
+            when(stayRepository.findById(missing)).thenReturn(Optional.empty());
+            assertThrows(ResourceNotFoundException.class, () -> service.getStayCats(missing, -1));
+            verify(stayCatRepository, never()).findCatsByStayId(eq(missing), any());
+        }
+
+        @Test
+        void returnsFixedFiveOutOfRangePageAndRejectsNegativeAfterParentResolution() {
+            UUID stayId = UUID.randomUUID();
+            Stay stay = Stay.builder().id(stayId).build();
+            when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
+            PageRequest request = PageRequest.of(2, 5);
+            when(stayCatRepository.findCatsByStayId(stayId, request))
+                    .thenReturn(new PageImpl<>(List.of(), request, 6));
+            var result = service.getStayCats(stayId, 2);
+            assertEquals(2, result.page());
+            assertEquals(5, result.pageSize());
+            assertEquals(6, result.totalElements());
+            assertTrue(result.items().isEmpty());
+            assertThrows(BadRequestException.class, () -> service.getStayCats(stayId, -1));
+            verify(stayCatRepository, never()).findCatsByStayId(stayId, PageRequest.of(0, 5));
+        }
     }
 
     private Stay stayWithCreator(LocalDateTime startAt, LocalDateTime endAt, LocalDateTime cancelledAt) {

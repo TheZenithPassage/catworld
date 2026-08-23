@@ -47,6 +47,12 @@ import com.allegaeon.catworld.repository.StayPaymentRepository;
 import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
+import com.allegaeon.catworld.repository.StayCatRepository;
+import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
+import com.allegaeon.catworld.dto.relationship.OwnerRelationshipItem;
+import com.allegaeon.catworld.dto.relationship.RelationshipPage;
+import com.allegaeon.catworld.dto.relationship.RelationshipPreview;
+import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import lombok.RequiredArgsConstructor;
@@ -54,12 +60,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
@@ -78,6 +87,7 @@ public class StayService implements IStayService {
     private final StayRepository stayRepository;
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
+    private final StayCatRepository stayCatRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
@@ -157,6 +167,34 @@ public class StayService implements IStayService {
     @Override
     public StayResponseDTO getStay(UUID stayId) {
         return toResponseDTO(getStayEntity(stayId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StayDetailResponse getStayDetail(UUID stayId) {
+        Stay stay = getStayEntity(stayId);
+        Page<Cat> cats = stayCatRepository.findCatsByStayId(
+                stayId, PageRequest.of(0, 4));
+        Owner owner = stay.getOwner();
+        RelationshipPreview<CatRelationshipItem> preview =
+                RelationshipResponses.preview(cats, RelationshipResponses::cat);
+        return new StayDetailResponse(stay.getId(), stay.getStatus(),
+                stay.getStartAt(), stay.getEndAt(),
+                ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
+                        stay.getEndAt().toLocalDate()),
+                stay.getNotes(),
+                new OwnerRelationshipItem(owner.getId(), owner.getFullName()), preview);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RelationshipPage<CatRelationshipItem> getStayCats(UUID stayId, int page) {
+        getStayEntity(stayId);
+        RelationshipResponses.requireValidPage(page);
+        return RelationshipResponses.page(
+                stayCatRepository.findCatsByStayId(stayId,
+                        PageRequest.of(page, RelationshipResponses.PAGE_SIZE)),
+                RelationshipResponses::cat);
     }
 
     @Override

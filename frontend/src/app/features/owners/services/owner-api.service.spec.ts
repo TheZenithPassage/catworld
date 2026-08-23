@@ -30,4 +30,20 @@ describe('OwnerApiService', () => {
     expect(request.request.method).toBe('DELETE');
     request.flush(null);
   });
+
+  it('loads typed owner detail and fixed nested relationship pages', () => {
+    service.getOwnerDetail('owner-1').subscribe();
+    service.getOwnerCats('owner-1', 2).subscribe();
+    service.getOwnerStays('owner-1', 1).subscribe();
+
+    for (const url of [
+      `${API_BASE_URL}/owners/owner-1/detail`,
+      `${API_BASE_URL}/owners/owner-1/cats?page=2`,
+      `${API_BASE_URL}/owners/owner-1/stays?page=1`,
+    ]) {
+      const request = httpTestingController.expectOne(url);
+      expect(request.request.method).toBe('GET');
+      request.flush({});
+    }
+  });
 });
