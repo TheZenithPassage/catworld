@@ -43,9 +43,27 @@ Repository and GitHub inspection is read-only until the user later authorizes
 specific GitHub mutations. The target issue is the entry point, not a promise
 that the refined scope will remain one issue.
 
+Treat every material prescription in the target issue as refinement input, not
+authority. This includes proposed technical mechanisms, API shapes, issue
+boundaries, implementation slices, hard dependencies, validation strategies, and
+repository assumptions. Reconcile them against fixed-baseline evidence and human
+intent before promoting them into the candidate contract. Never preserve a
+prescription solely because the target issue is detailed or appears
+implementation-ready.
+
 ## Fix the remote baseline
 
-At the start of each refinement:
+At the start of each refinement, first snapshot the target issue as refinement
+input. Capture its issue number, title, body, and materially relevant metadata and
+use that captured state throughout the refinement. GitHub issue state is not part
+of the repository commit snapshot and may change independently.
+
+Do not silently incorporate later edits to the remote target issue. If a later
+read reveals that it changed during refinement, report the divergence and keep
+using the captured issue snapshot unless the user explicitly chooses to restart
+or rebase the refinement input onto the newer issue state.
+
+Then fix the repository baseline:
 
 1. Use the repository ref explicitly supplied by the user; otherwise use `main`.
 2. Resolve that remote ref to one exact commit SHA.
@@ -60,7 +78,7 @@ point and whether to rerun refinement.
 
 Always inspect at the fixed baseline:
 
-- the target GitHub issue;
+- the captured target-issue snapshot;
 - `AGENTS.md`;
 - `.specify/memory/constitution.md`;
 - `docs/ARCHITECTURE.md`; and
