@@ -153,6 +153,15 @@ export class StaysOverviewPage {
     return stay.cats.map((cat) => cat.name).join(', ');
   }
 
+  getOpenDetailAriaLabel(stay: Stay): string {
+    return this.text().stays.overview.openDetailAriaLabel(
+      this.getCatNames(stay),
+      stay.ownerName,
+      this.formatDate(stay.startAt),
+      this.formatDate(stay.endAt),
+    );
+  }
+
   openDetail(stay: Stay): void {
     this.entityDetailDialog
       .open({ entityType: 'stay', entityId: stay.stayId })

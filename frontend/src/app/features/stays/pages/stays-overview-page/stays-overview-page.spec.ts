@@ -181,10 +181,14 @@ describe('StaysOverviewPage', () => {
       component.text().stays.overview.create,
     );
     const row = compiled.querySelector('#stay-stay-1') as HTMLElement;
+    const otherRow = compiled.querySelector('#stay-stay-2') as HTMLElement;
     expect(row.tabIndex).toBe(0);
-    expect(row.getAttribute('aria-label')).toBe(
-      component.text().stays.overview.openDetailAriaLabel,
-    );
+    expect(row.getAttribute('aria-label')).toBe(component.getOpenDetailAriaLabel(reservedStay));
+    expect(row.getAttribute('aria-label')).toContain('Milo');
+    expect(row.getAttribute('aria-label')).toContain('Ada Lovelace');
+    expect(row.getAttribute('aria-label')).not.toContain(reservedStay.stayId);
+    expect(otherRow.getAttribute('aria-label')).toContain('Luna');
+    expect(otherRow.getAttribute('aria-label')).not.toBe(row.getAttribute('aria-label'));
     row.click();
     expect(detailDialog.open).toHaveBeenLastCalledWith({ entityType: 'stay', entityId: 'stay-1' });
     for (const key of ['Enter', ' ']) {
@@ -195,10 +199,10 @@ describe('StaysOverviewPage', () => {
     expect(detailDialog.open).toHaveBeenCalledTimes(3);
   });
 
-  it('reloads after generic nested updates and replaces a returned full Stay in place', () => {
+  it('reloads after a referenced Stay update and replaces a returned full Stay in place', () => {
     createComponent();
     component.openDetail(reservedStay);
-    detailUpdates.next({ entityType: 'owner', entityId: reservedStay.ownerId });
+    detailUpdates.next({ entityType: 'stay', entityId: reservedStay.stayId });
     expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
 
     const replacement = {

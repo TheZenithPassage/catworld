@@ -161,7 +161,7 @@ export interface StaysTranslations {
     description: string;
     create: string;
     statusFiltersAriaLabel: string;
-    openDetailAriaLabel: string;
+    openDetailAriaLabel: (cats: string, owner: string, start: string, end: string) => string;
     loading: string;
     retry: string;
     empty: string;
@@ -422,7 +422,8 @@ export const STAYS_TRANSLATIONS = {
       description: 'Desde aquí puedes administrar las estancias activas y crear nuevas.',
       create: 'Crear estancia',
       statusFiltersAriaLabel: 'Filtros de estado de estancias',
-      openDetailAriaLabel: 'Abrir detalle de la estancia',
+      openDetailAriaLabel: (cats, owner, start, end) =>
+        `Abrir detalle de la estancia de ${cats}, de ${owner}, del ${start} al ${end}`,
       loading: 'Cargando estancias...',
       retry: 'Reintentar',
       empty: 'No hay estancias registradas.',
@@ -681,7 +682,8 @@ export const STAYS_TRANSLATIONS = {
       description: 'Here you can manage active stays and create new ones.',
       create: 'Create stay',
       statusFiltersAriaLabel: 'Stay status filters',
-      openDetailAriaLabel: 'Open stay details',
+      openDetailAriaLabel: (cats, owner, start, end) =>
+        `Open stay details for ${cats}, owned by ${owner}, from ${start} to ${end}`,
       loading: 'Loading stays...',
       retry: 'Retry',
       empty: 'No stays registered.',

@@ -145,7 +145,7 @@
           [id]="'stay-' + stay.stayId"
           [class.selected-row]="isSelectedStay(stay)"
           tabindex="0"
-          [attr.aria-label]="text().stays.overview.openDetailAriaLabel"
+          [attr.aria-label]="getOpenDetailAriaLabel(stay)"
           (click)="openDetail(stay)"
           (keydown)="activateRow($event, stay)"
         ></tr>
