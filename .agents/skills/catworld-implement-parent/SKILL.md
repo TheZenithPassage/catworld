@@ -139,6 +139,101 @@ spawn. If the runtime cannot apply the selected effort to a required worker,
 stop before spawning it and report the limitation; never silently inherit or
 fall back to the parent's effort.
 
+## Selective workflow context refresh
+
+At workflow startup, read this complete skill as required above. Selective
+refresh never replaces that initial full read and applies only afterward.
+
+After startup, do not routinely reread the complete skill merely to refresh
+context. Before a material action, identify the exact numbered section or
+sections that govern it and refresh only those complete relevant sections,
+without loading unrelated earlier or future sections.
+
+Omit a relevant reread only with absolute certainty that every applicable
+instruction remains available in active context with its exact textual meaning
+intact, word for word, with no omitted, substituted, reordered, weakened,
+summarized, paraphrased or reconstructed wording that could affect behavior. A
+remembered summary, semantic approximation or confidence that the rule is
+understood is insufficient. If there is any uncertainty whatsoever about even
+one relevant word, qualifier, ordering constraint, prohibition, timing rule or
+condition, reread the complete governing section before acting. The current
+authoritative text in this file always wins.
+
+After context compaction, or whenever that exact-text freshness cannot be
+established, do not infer workflow authority from memory. Reread the complete
+section or sections required for the current or immediately pending operation;
+reread the entire skill only when the entire workflow is genuinely relevant.
+When an action crosses section boundaries, refresh every section that
+materially governs the transition and no unrelated sections.
+
+### Section routing index
+
+This index routes refreshes only; the numbered sections remain the sole source
+of truth for behavior.
+
+| Current activity | Refresh |
+| --- | --- |
+| Slice-model validation and dependency parsing | §1 |
+| Primary issue branch, setup and pre-planning recovery | §2 |
+| Canonical Spec Kit planning cycle | §3 |
+| Permanent-test and validation policy | §4 |
+| Execution map, ownership and review selection | §5 |
+| Slice and reviewer handoffs | §6 |
+| Scheduling, readiness, initial worktrees and worker launch | §7 |
+| Qualification, joined review gate, candidate correction and dependency repair | §8 |
+| Rebase, integration lane and fast-forward integration | §9 |
+| Accumulated completeness and global corrective pass | §10 |
+| Final validation and final diff gates | §11 |
+| Base synchronization, publication and pull-request delivery | §12 |
+| Terminal stops and recovery | §13 |
+| Final reporting | §14 |
+
+Typical cross-section transitions require only their materially governing
+sections: pre-integration candidate correction primarily requires §8;
+integration or a stale candidate requires applicable §8 and §9 rules; a defect
+found after integration or during final validation may require §10 or §11 plus
+the qualification rules referenced by its correction path; final publication
+and pull-request creation require §12, not earlier implementation sections.
+
+When exact-text freshness is not certain, selective refresh is mandatory before
+material transitions such as:
+
+- launching or resuming a slice worker, or creating or changing a slice
+  candidate;
+- starting or interpreting qualification or independent review;
+- dispatching a correction or acting on a qualification or review finding;
+- rebasing or integrating a slice;
+- handling a dependency repair or an implementation finding discovered after
+  a slice was integrated;
+- running or acting on global completeness, or dispatching a global
+  correction;
+- acting on a defect discovered during final validation or browser/manual
+  smoke;
+- synchronizing with the captured base, publishing the final branch or
+  creating the final pull request; and
+- handling a terminal stop or recovery path.
+
+Whenever a newly discovered finding could cause implementation or source code
+to change, first identify the workflow path that owns the correction and ensure
+its applicable correction rules are exact-text fresh before any source mutation
+or worker dispatch. Apparent triviality or obviousness is never a reason to
+skip this refresh; existing ownership and correction rules remain unchanged.
+
+Before mutating, or authorizing a worker to mutate, a candidate that has entered
+qualification or independent review, ensure the applicable candidate and gate
+rules in §8 are exact-text fresh. This adds no candidate rule; it ensures the
+authoritative timing, immutability, joined-gate, candidate-identity and
+correction-ordering constraints govern the mutation.
+
+When waiting only for an active worker, qualification, reviewer or other
+asynchronous workflow result and no higher-priority orchestration work exists,
+prefer refreshing the section governing the pending result and its likely
+immediate transition. For example, refresh applicable §8 rules while awaiting
+qualification or review and applicable integration rules when a candidate is
+likely to integrate next. Do not refresh §12 delivery rules merely because
+slice execution has idle time. This is context maintenance, not permission for
+unrelated exploratory work.
+
 ## 1. Validate the issue slice model
 
 Perform this validation before branch creation, Spec Kit or worker launch.
