@@ -84,7 +84,7 @@ describe('StayPricingPage', () => {
       .compileComponents();
   });
 
-  it('shows correction only to ADMIN with a known agreement and replaces authoritative results', () => {
+  it('shows correction only to ADMIN, replaces authoritative results, and restores focus', async () => {
     role = 'ADMIN';
     api.getStayById.mockReturnValue(of({ ...stay, agreedAmount: '20' }));
     const fixture = TestBed.createComponent(StayPricingPage);
@@ -97,8 +97,11 @@ describe('StayPricingPage', () => {
     expect(fixture.componentInstance.correctionOpen()).toBe(true);
     const updated = { ...stay, agreedAmount: '21' };
     dialogResult.next(updated);
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
     expect(fixture.componentInstance.stay()).toBe(updated);
     expect(fixture.componentInstance.correctionOpen()).toBe(false);
+    expect(document.activeElement).toBe(button);
   });
 
   it('serializes correction against payment/removal flows and dismissal changes nothing', () => {

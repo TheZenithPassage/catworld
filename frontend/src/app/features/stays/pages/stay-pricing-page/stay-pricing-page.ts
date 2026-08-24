@@ -62,7 +62,7 @@ export class StayPricingPage {
   onStayChanged(stay: Stay): void {
     this.stay.set(stay);
   }
-  correctAgreement(): void {
+  correctAgreement(trigger?: EventTarget | null): void {
     const stay = this.stay();
     if (
       !stay ||
@@ -79,12 +79,18 @@ export class StayPricingPage {
         width: '36rem',
         maxWidth: 'calc(100vw - 2rem)',
         autoFocus: 'first-tabbable',
-        restoreFocus: true,
+        restoreFocus: false,
       })
       .afterClosed()
       .subscribe((updated: Stay | undefined) => {
         this.correctionOpen.set(false);
         if (updated) this.onStayChanged(updated);
+        setTimeout(() => {
+          const currentTrigger = document.querySelector<HTMLElement>(
+            '[data-pricing-action="correct-agreement"]',
+          );
+          (currentTrigger ?? (trigger instanceof HTMLElement ? trigger : null))?.focus();
+        });
       });
   }
   back(): void {

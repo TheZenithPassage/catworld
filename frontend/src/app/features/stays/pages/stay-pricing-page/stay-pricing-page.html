@@ -47,7 +47,7 @@
           type="button"
           data-pricing-action="correct-agreement"
           [disabled]="correctionOpen() || paymentMutationLocked()"
-          (click)="correctAgreement()"
+          (click)="correctAgreement($event.currentTarget)"
         >
           {{ text().stays.pricing.correctAgreement }}
         </button>
