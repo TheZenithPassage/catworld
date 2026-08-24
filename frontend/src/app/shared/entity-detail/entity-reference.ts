@@ -7,8 +7,4 @@ export interface EntityReference {
   entityId: string;
 }
 
-export interface NonStayEntityReference extends EntityReference {
-  entityType: Exclude<EntityType, 'stay'>;
-}
-
-export type EntityDetailUpdate = NonStayEntityReference | Stay;
+export type EntityDetailUpdate = EntityReference | Stay;

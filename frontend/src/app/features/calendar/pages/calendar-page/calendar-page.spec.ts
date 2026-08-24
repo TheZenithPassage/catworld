@@ -10,6 +10,7 @@ import { StayApiService } from '../../../stays/services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -43,7 +44,7 @@ describe('CalendarPage', () => {
     read: vi.fn(),
     store: vi.fn(),
   };
-  const dialogUpdates = new Subject<Stay>();
+  const dialogUpdates = new Subject<EntityDetailUpdate>();
   const entityDetailDialog = { open: vi.fn(() => dialogUpdates.asObservable()) };
 
   let component: CalendarPage;
@@ -200,5 +201,8 @@ describe('CalendarPage', () => {
     dialogUpdates.next(updated);
     expect(component.stays()).toEqual([updated]);
     expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+
+    dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,6 +1,9 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
+import {
+  EntityDetailUpdate,
+  EntityReference,
+} from '../../../../shared/entity-detail/entity-reference';
 import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -36,7 +39,7 @@ export class StayDetail {
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
-  readonly updated = output<Stay>();
+  readonly updated = output<EntityDetailUpdate>();
   readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
@@ -118,7 +121,10 @@ export class StayDetail {
       })
       .afterClosed()
       .pipe(filter((cancelled): cancelled is true => cancelled === true))
-      .subscribe(() => this.load());
+      .subscribe(() => {
+        this.load();
+        this.updated.emit({ entityType: 'stay', entityId: detail.stayId });
+      });
   }
   date(value: string): string {
     return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());

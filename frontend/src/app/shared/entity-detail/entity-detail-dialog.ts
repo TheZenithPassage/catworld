@@ -11,7 +11,6 @@ import { CatDetail } from '../../features/cats/components/cat-detail/cat-detail'
 import { OwnerDetail } from '../../features/owners/components/owner-detail/owner-detail';
 import { VetDetail } from '../../features/vets/components/vet-detail/vet-detail';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
-import { Stay } from '../../features/stays/models/stay.model';
 import { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
@@ -209,9 +208,9 @@ export class EntityDetailDialog {
       entityId: reference.entityId,
     });
   }
-  staySaved(stay: Stay): void {
+  stayUpdated(update: EntityDetailUpdate): void {
     this.leaveEdit();
-    this.entityUpdated.emit(stay);
+    this.entityUpdated.emit(update);
   }
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);

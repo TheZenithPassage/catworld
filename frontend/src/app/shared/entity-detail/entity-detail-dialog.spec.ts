@@ -1286,6 +1286,8 @@ describe('EntityDetailDialog', () => {
       ],
     }).compileComponents();
     const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain(
@@ -1304,6 +1306,7 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
 
     expect(stayApi.getStayDetail).toHaveBeenCalledTimes(2);
+    expect(emitted).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'stay-1' });
     expect(fixture.nativeElement.textContent).toContain(
       fixture.componentInstance.text().stays.status.cancelled,
     );
