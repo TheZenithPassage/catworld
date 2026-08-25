@@ -11,6 +11,12 @@ export interface CatsTranslations {
     cancel: string;
     close: string;
     openDetails: string;
+    photo: string;
+    viewPhoto: string;
+    photoLoading: string;
+    photoMissing: string;
+    photoLoadFailed: string;
+    photoAlt: (catName: string) => string;
   };
   form: {
     name: string;
@@ -143,6 +149,12 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancelar',
       close: 'Cerrar',
       openDetails: 'Ver detalles',
+      photo: 'Foto',
+      viewPhoto: 'Ver foto',
+      photoLoading: 'Cargando foto...',
+      photoMissing: 'Este gato no tiene foto.',
+      photoLoadFailed: 'Error al cargar la foto.',
+      photoAlt: (catName) => `Foto de ${catName}`,
     },
     form: {
       name: 'Nombre',
@@ -276,6 +288,12 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancel',
       close: 'Close',
       openDetails: 'View details',
+      photo: 'Photo',
+      viewPhoto: 'View photo',
+      photoLoading: 'Loading photo...',
+      photoMissing: 'This cat has no photo.',
+      photoLoadFailed: 'Error loading photo.',
+      photoAlt: (catName) => `Photo of ${catName}`,
     },
     form: {
       name: 'Name',

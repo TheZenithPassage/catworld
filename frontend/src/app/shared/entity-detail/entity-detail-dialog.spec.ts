@@ -89,11 +89,12 @@ describe('EntityDetailDialog', () => {
   const catApi = {
     getCatDetail: vi.fn((id: string): any =>
       of({
-        cat: { ...cat, id },
+        cat: { ...cat, id, hasPhoto: false },
         stays: { totalElements: 0, items: [] },
       }),
     ),
     getCatStays: vi.fn(),
+    getCatPhoto: vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' }))),
     updateCat: vi.fn(() => of(updatedCat)),
   };
   const vetApi = {
@@ -1390,6 +1391,97 @@ describe('EntityDetailDialog', () => {
     expect(button).toBeDefined();
     return button!;
   }
+});
+
+describe('EntityDetailDialog cat photo destination', () => {
+  it('owns private loading, success, missing, error, back, and URL cleanup states', async () => {
+    const photo = new Subject<Blob>();
+    const catApi = {
+      getCatDetail: vi.fn(() =>
+        of({
+          cat: {
+            id: 'cat-1',
+            name: 'Milo',
+            birthDate: '2020-01-01',
+            sex: 'MALE',
+            breed: null,
+            coat: null,
+            color: null,
+            foodBrand: null,
+            litterBrand: null,
+            personality: null,
+            lastInternalDewormerName: null,
+            lastInternalDewormingDate: null,
+            lastExternalDewormerName: null,
+            lastExternalDewormingDate: null,
+            lastTripleFelineDate: null,
+            lastRabiesDate: null,
+            ownerId: 'owner-1',
+            ownerName: 'Ada',
+            vetId: null,
+            vetName: null,
+            hasPhoto: true,
+          },
+          stays: { totalElements: 0, items: [] },
+        }),
+      ),
+      getCatPhoto: vi.fn(() => photo.asObservable()),
+    };
+    const createUrl = vi.fn(() => 'blob:cat-photo');
+    const revokeUrl = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL: createUrl, revokeObjectURL: revokeUrl });
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'cat', entityId: 'cat-1' } },
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: {} },
+        { provide: VetApiService, useValue: {} },
+        { provide: StayApiService, useValue: {} },
+        { provide: MatDialogRef, useValue: { disableClose: false, close: vi.fn() } },
+        { provide: Router, useValue: { url: '/', navigate: vi.fn() } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const viewPhoto = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (button) =>
+        button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
+    )!;
+    viewPhoto.click();
+    fixture.detectChanges();
+    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.photoState()).toBe('loading');
+
+    photo.next(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    fixture.detectChanges();
+    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(
+      'blob:cat-photo',
+    );
+    fixture.componentInstance.back();
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:cat-photo');
+    expect(fixture.componentInstance.entry().kind).toBe('detail');
+
+    catApi.getCatPhoto.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo' });
+    expect(fixture.componentInstance.photoState()).toBe('missing');
+    fixture.componentInstance.back();
+    catApi.getCatPhoto.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
+    );
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo' });
+    expect(fixture.componentInstance.photoState()).toBe('error');
+    fixture.destroy();
+    expect(revokeUrl).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
 });
 describe('Route-free StayEditor migrated coverage', () => {
   let component: StayEditor;

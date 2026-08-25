@@ -35,6 +35,7 @@ export class CatDetail {
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
+  readonly openPhoto = output<{ catId: string; catName: string }>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly detail = signal<CatDetailResponse | null>(null);

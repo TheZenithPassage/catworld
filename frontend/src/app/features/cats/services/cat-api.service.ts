@@ -28,6 +28,10 @@ export class CatApiService {
     return this.http.get<CatDetailResponse>(`${this.baseUrl}/${catId}/detail`);
   }
 
+  getCatPhoto(catId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob' });
+  }
+
   getCatStays(catId: string, page = 0): Observable<StayRelationshipPage> {
     return this.http.get<StayRelationshipPage>(`${this.baseUrl}/${catId}/stays`, {
       params: { page },

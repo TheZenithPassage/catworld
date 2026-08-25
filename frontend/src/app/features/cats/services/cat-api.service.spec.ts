@@ -86,4 +86,14 @@ describe('CatApiService', () => {
       request.flush({});
     }
   });
+
+  it('reads a cat photo as a blob', () => {
+    const blob = new Blob(['jpeg'], { type: 'image/jpeg' });
+    service.getCatPhoto('cat-1').subscribe((result) => expect(result).toBe(blob));
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/cats/cat-1/photo`);
+    expect(request.request.method).toBe('GET');
+    expect(request.request.responseType).toBe('blob');
+    request.flush(blob);
+  });
 });

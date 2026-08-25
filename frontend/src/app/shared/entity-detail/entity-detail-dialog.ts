@@ -32,13 +32,17 @@ import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
 
 type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
-  | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number };
+  | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number }
+  | { kind: 'cat-photo'; catId: string; catName: string };
+type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
   imports: [
@@ -71,6 +75,7 @@ export class EntityDetailDialog {
   private requestGeneration = 0;
   private geometryGeneration = 0;
   private contentResolved = false;
+  private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
@@ -84,11 +89,17 @@ export class EntityDetailDialog {
   readonly submitting = signal(false);
   readonly detailRefreshing = signal(false);
   readonly preservedContentHeight = signal<number | null>(null);
+  readonly photoState = signal<PhotoState>('loading');
+  readonly photoUrl = signal<string | null>(null);
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.geometryGeneration++);
+    inject(DestroyRef).onDestroy(() => {
+      this.geometryGeneration++;
+      this.leavePhoto();
+    });
   }
   title(): string {
     if (this.entry().kind === 'list') return this.relationshipTitle();
+    if (this.entry().kind === 'cat-photo') return this.text().cats.detail.photo;
     const text = this.text();
     return this.reference().entityType === 'owner'
       ? text.owners.detail.title
@@ -108,7 +119,12 @@ export class EntityDetailDialog {
           ? text.vets.detail.close
           : text.stays.detail.close;
   }
+  photoAlt(): string {
+    const entry = this.entry();
+    return entry.kind === 'cat-photo' ? this.text().cats.detail.photoAlt(entry.catName) : '';
+  }
   showReference(reference: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.editing.set(false);
     this.detailRefreshing.set(false);
@@ -119,6 +135,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openCats(parent: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
@@ -136,6 +153,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openStays(parent: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
@@ -151,6 +169,7 @@ export class EntityDetailDialog {
   back(): void {
     if (this.history().length <= 1) return;
     this.captureContentGeometry();
+    this.leavePhoto();
     this.editing.set(false);
     this.detailRefreshing.set(false);
     this.history.update((items) => items.slice(0, -1));
@@ -158,11 +177,47 @@ export class EntityDetailDialog {
     this.entry.set(entry);
     if (entry.kind === 'detail') {
       this.reference.set(entry.reference);
-    } else {
+    } else if (entry.kind === 'list') {
       this.reference.set(entry.parent);
       this.loadRelationship(entry);
     }
     this.focusContent();
+  }
+  openCatPhoto(photo: { catId: string; catName: string }): void {
+    this.captureContentGeometry();
+    this.leavePhoto();
+    const entry: HistoryEntry = { kind: 'cat-photo', ...photo };
+    this.history.update((items) => [...items, entry]);
+    this.entry.set(entry);
+    this.photoState.set('loading');
+    const generation = ++this.requestGeneration;
+    this.photoSubscription = this.catApi.getCatPhoto(photo.catId).subscribe({
+      next: (blob) => {
+        if (generation !== this.requestGeneration || this.entry() !== entry) return;
+        const url = URL.createObjectURL(blob);
+        if (generation !== this.requestGeneration || this.entry() !== entry) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        this.photoUrl.set(url);
+        this.photoState.set('success');
+        this.destinationSettled();
+      },
+      error: (error: HttpErrorResponse) => {
+        if (generation !== this.requestGeneration || this.entry() !== entry) return;
+        this.photoState.set(error.status === 404 ? 'missing' : 'error');
+        this.destinationSettled();
+      },
+    });
+    this.focusContent();
+  }
+  private leavePhoto(): void {
+    this.requestGeneration++;
+    this.photoSubscription?.unsubscribe();
+    this.photoSubscription = null;
+    const url = this.photoUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.photoUrl.set(null);
   }
   pageChanged(event: PageEvent): void {
     const current = this.entry();

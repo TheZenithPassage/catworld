@@ -45,7 +45,26 @@
   [class.content-region--geometry-locked]="preservedContentHeight() !== null"
   [style.min-height.px]="preservedContentHeight()"
 >
-  @if (entry().kind === 'list') {
+  @if (entry().kind === 'cat-photo') {
+    <section class="cat-photo-viewer">
+      @switch (photoState()) {
+        @case ('loading') {
+          <p role="status">{{ text().cats.detail.photoLoading }}</p>
+        }
+        @case ('missing') {
+          <p>{{ text().cats.detail.photoMissing }}</p>
+        }
+        @case ('error') {
+          <p>{{ text().cats.detail.photoLoadFailed }}</p>
+        }
+        @case ('success') {
+          @if (photoUrl(); as url) {
+            <img [src]="url" [alt]="photoAlt()" />
+          }
+        }
+      }
+    </section>
+  } @else if (entry().kind === 'list') {
     @if (relationshipError()) {
       <app-ui-state
         kind="error"
@@ -134,6 +153,7 @@
           (contentSettled)="destinationSettled()"
           (navigate)="showReference($event)"
           (openStays)="openStays(reference())"
+          (openPhoto)="openCatPhoto($event)"
         />
       }
       @case ('vet') {
