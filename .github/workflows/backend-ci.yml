@@ -33,6 +33,9 @@ jobs:
       - name: Build production image with pinned native runtime
         run: docker build --build-arg VIPS_VERSION=8.18.5 -t catworld-backend-ci .
 
+      - name: Run real native normalization contract
+        run: docker build --target native-test --build-arg VIPS_VERSION=8.18.5 .
+
       - name: Smoke real native photo formats
         run: |
           docker run --rm --entrypoint sh catworld-backend-ci -c '

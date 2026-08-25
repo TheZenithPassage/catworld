@@ -114,7 +114,7 @@ public class CatService implements ICatService{
 
     @Override
     public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto) {
-        if (photo != null && !photo.isEmpty() && removePhoto) {
+        if (photo != null && removePhoto) {
             throw new com.allegaeon.catworld.exception.CatPhotoException(
                     com.allegaeon.catworld.exception.CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT);
         }

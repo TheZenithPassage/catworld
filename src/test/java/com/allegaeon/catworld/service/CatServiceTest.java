@@ -7,6 +7,8 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.CatPhotoException;
+import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.mapper.CatMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
@@ -31,6 +33,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -451,6 +454,32 @@ class CatServiceTest {
         verify(stayCatRepository, times(2)).existsByCat_Id(catId);
         verify(catRepository, never()).delete(any(Cat.class));
         verify(catRepository, never()).flush();
+    }
+
+    @Test
+    void presentEmptyPhotoIsNormalizedForCreateAndUpdate() {
+        CatRequestDTO request = CatRequestDTO.builder().name("Milo").build();
+        MockMultipartFile empty = new MockMultipartFile("photo", "empty.png", "image/png", new byte[0]);
+        CatPhotoException failure = new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_UNSUPPORTED_FORMAT);
+        when(photoNormalizer.normalize(empty)).thenThrow(failure);
+
+        assertSame(failure, assertThrows(CatPhotoException.class, () -> service.createCat(request, empty)));
+        assertSame(failure, assertThrows(CatPhotoException.class,
+                () -> service.updateCat(UUID.randomUUID(), request, empty, false)));
+        verify(photoNormalizer, times(2)).normalize(empty);
+        verifyNoInteractions(mutationTransactionService);
+    }
+
+    @Test
+    void presentEmptyPhotoConflictsWithRemoveBeforeNormalizationOrMutation() {
+        CatRequestDTO request = CatRequestDTO.builder().name("Milo").build();
+        MockMultipartFile empty = new MockMultipartFile("photo", "empty.png", "image/png", new byte[0]);
+
+        CatPhotoException failure = assertThrows(CatPhotoException.class,
+                () -> service.updateCat(UUID.randomUUID(), request, empty, true));
+
+        assertEquals(CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT, failure.getCode());
+        verifyNoInteractions(photoNormalizer, mutationTransactionService);
     }
 
     private UserAccount creator() {

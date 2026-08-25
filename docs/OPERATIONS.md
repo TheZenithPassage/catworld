@@ -7,7 +7,8 @@ backup must therefore use `mysqldump --hex-blob`; a restore drill must retrieve
 a representative photo and compare its SHA-256 digest with the pre-backup
 digest. Production runs Java 25 with
 `--enable-native-access=ALL-UNNAMED` and libvips 8.18.5 built with HEIF support
-and an HEVC decoder.
+and an HEVC decoder. The production native build also requires Little CMS for
+profile-aware conversion of embedded ICC color profiles to sRGB.
 
 ## Current Production Deployment
 

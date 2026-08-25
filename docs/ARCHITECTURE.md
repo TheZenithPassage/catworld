@@ -16,7 +16,10 @@ service transaction atomically mutates Cat and CatPhoto. The authenticated
 `Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
 and returns the same 404 shape for absent cats and absent photos. The native
 runtime is libvips 8.18.5 with HEIF/HEVC support, invoked through vips-ffm 1.9.8
-under Java 25 native access; native objects remain inside `Vips.run`.
+under Java 25 native access. Embedded ICC profiles are transformed through
+Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
+to 8-bit and premultiplied while resizing before being flattened onto white.
+Native objects remain inside `Vips.run`.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
