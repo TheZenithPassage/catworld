@@ -24,7 +24,7 @@ CatWorld currently covers:
 
 ## Stack
 
-- Java 17
+- Java 25
 - Spring Boot
 - Spring Web
 - Spring Data JPA
@@ -1075,7 +1075,7 @@ Both workflows:
 
 The backend workflow:
 
-- sets up Java 17
+- sets up Java 25
 - uses Maven dependency caching
 - runs `./mvnw verify`
 
