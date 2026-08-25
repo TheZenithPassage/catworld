@@ -63,6 +63,8 @@ describe('CatPhotoInput', () => {
     const trigger = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
     const click = vi.spyOn(input, 'click');
 
+    expect(input.hidden).toBe(true);
+    expect(input.matches(':focus')).toBe(false);
     expect(trigger.tagName).toBe('BUTTON');
     expect(trigger.type).toBe('button');
     expect(trigger.textContent).toContain(component.text().cats.photo.select);

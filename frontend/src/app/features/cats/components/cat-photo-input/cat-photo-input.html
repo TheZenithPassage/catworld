@@ -4,6 +4,7 @@
     #fileInput
     class="native-photo-input"
     type="file"
+    hidden
     [disabled]="disabled()"
     [accept]="'.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'"
     (change)="select($event)"
