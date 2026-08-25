@@ -36,7 +36,7 @@ CatWorld is a full-stack administration system for cat-boarding operations. It c
 
 ## Stack
 
-**Backend:** Java 17, Spring Boot, Spring Security, Spring Data JPA, MySQL and Flyway.
+**Backend:** Java 25, Spring Boot, Spring Security, Spring Data JPA, MySQL and Flyway.
 
 **Frontend:** Angular, TypeScript, SCSS and FullCalendar.
 
