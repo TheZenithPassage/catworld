@@ -1,4 +1,5 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -24,7 +25,9 @@ import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import type { EntityDetailUpdate } from './entity-reference';
+import { Router } from '@angular/router';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -120,6 +123,7 @@ describe('EntityDetailDialog', () => {
     getStayById: vi.fn(),
     previewDateChangePricing: vi.fn(),
     updateStay: vi.fn(),
+    cancelStay: vi.fn(),
   };
   const operationalStay: Stay = {
     stayId: 'stay-1',
@@ -555,7 +559,9 @@ describe('EntityDetailDialog', () => {
     ) as HTMLButtonElement;
     associated.click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.relationship-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain(
       fixture.componentInstance.text().entityDetail.loading,
     );
     initialPage.next({
@@ -572,6 +578,9 @@ describe('EntityDetailDialog', () => {
       length: 11,
       previousPageIndex: 0,
     });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.relationship-list button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).not.toBeNull();
     requestedPage.next({
       items: [catItem('cat-6')],
       page: 2,
@@ -580,7 +589,7 @@ describe('EntityDetailDialog', () => {
       totalPages: 3,
     });
     fixture.detectChanges();
-    (fixture.nativeElement.querySelector('h3 + button') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('.relationship-list button') as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(fixture.componentInstance.reference().entityType).toBe('cat');
     await fixture.whenStable();
@@ -594,7 +603,7 @@ describe('EntityDetailDialog', () => {
       entityId: 'owner-1',
     });
     expect(fixture.componentInstance.title()).toBe(
-      fixture.componentInstance.text().owners.detail.title,
+      fixture.componentInstance.text().entityDetail.cats,
     );
     restoredInvalidPage.next({ items: [], page: 2, pageSize: 5, totalElements: 6, totalPages: 2 });
     fixture.detectChanges();
@@ -920,9 +929,13 @@ describe('EntityDetailDialog', () => {
   });
 
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {
+    const pricingGate = new Subject<Stay>();
     const failed = new Subject<Stay>();
     const retried = new Subject<Stay>();
-    stayApi.getStayById.mockImplementationOnce(() => failed).mockImplementationOnce(() => retried);
+    stayApi.getStayById
+      .mockImplementationOnce(() => pricingGate)
+      .mockImplementationOnce(() => failed)
+      .mockImplementationOnce(() => retried);
     await TestBed.configureTestingModule({
       imports: [StayDetail],
       providers: [
@@ -950,7 +963,7 @@ describe('EntityDetailDialog', () => {
     fixture.componentInstance.loadOperational();
     retried.next(operationalStay);
     fixture.detectChanges();
-    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(3);
     expect(fixture.componentInstance.operationalLoading()).toBe(false);
     expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.cancel-edit')).not.toBeNull();
@@ -961,11 +974,12 @@ describe('EntityDetailDialog', () => {
     const second = new Subject<Stay>();
     const third = new Subject<Stay>();
     const fourth = new Subject<Stay>();
-    stayApi.getStayById
-      .mockImplementationOnce(() => first)
-      .mockImplementationOnce(() => second)
-      .mockImplementationOnce(() => third)
-      .mockImplementationOnce(() => fourth);
+    let request = 0;
+    stayApi.getStayById.mockImplementation(() => {
+      const current = request++;
+      if (current % 2 === 0) return of(operationalStay);
+      return [first, second, third, fourth][Math.floor(current / 2)];
+    });
     await TestBed.configureTestingModule({
       imports: [StayDetail],
       providers: [
@@ -996,6 +1010,105 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.operationalStay()?.stayId).toBe('stay-4');
     expect(fixture.componentInstance.operationalError()).toBe(false);
+  });
+
+  it.each([
+    ['known', '100', true],
+    ['null', null, false],
+  ] as const)(
+    'shows pricing only after the full Stay proves a %s agreement',
+    async (_label, agreedAmount, visible) => {
+      stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+      stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount }));
+      await TestBed.configureTestingModule({
+        imports: [StayDetail],
+        providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+      }).compileComponents();
+      const fixture = TestBed.createComponent(StayDetail);
+      fixture.componentRef.setInput('entityId', 'stay-1');
+      fixture.componentRef.setInput('editing', false);
+      fixture.detectChanges();
+      const pricing = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+        (button) =>
+          button.textContent?.includes(fixture.componentInstance.text().stays.detail.pricing),
+      );
+      expect(pricing !== undefined).toBe(visible);
+    },
+  );
+
+  it('keeps lightweight detail usable and pricing hidden when the supplementary gate fails', async () => {
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById.mockReturnValue(throwError(() => new Error('gate failed')));
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
+    expect(fixture.componentInstance.error()).toBe(false);
+    expect(fixture.componentInstance.pricingStay()).toBeNull();
+  });
+
+  it('ignores late pricing-gate responses and errors after the Stay reference changes', async () => {
+    const first = new Subject<Stay>();
+    const second = new Subject<Stay>();
+    stayApi.getStayDetail.mockImplementation((id?: string) => of(stayDetailResponse(id ?? '')));
+    stayApi.getStayById.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('entityId', 'stay-2');
+    fixture.detectChanges();
+    first.next({ ...operationalStay, agreedAmount: '100' });
+    expect(fixture.componentInstance.pricingStay()).toBeNull();
+    second.next({ ...operationalStay, stayId: 'stay-2', agreedAmount: '100' });
+    expect(fixture.componentInstance.pricingStay()?.stayId).toBe('stay-2');
+    first.error(new Error('late gate failure'));
+    expect(fixture.componentInstance.pricingStay()?.stayId).toBe('stay-2');
+  });
+
+  it('closes the Material detail and navigates to pricing with the exact Router origin state', async () => {
+    const router = {
+      url: '/stays?selectedStayId=stay-1&owner=Ada%20Lovelace',
+      navigate: vi.fn().mockResolvedValue(true),
+    };
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById.mockReturnValue(
+      of({
+        ...operationalStay,
+        agreedAmount: '100',
+        catIds: ['cat-1'],
+        cats: [{ catId: 'cat-1', name: 'Milo' }],
+      }),
+    );
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: Router, useValue: router },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.pricing).click();
+    expect(dialogRef.close).toHaveBeenCalledOnce();
+    expect(router.navigate).toHaveBeenCalledWith(['/stays', 'stay-1', 'pricing'], {
+      state: { stayPricingOrigin: router.url },
+    });
   });
 
   it('drives rendered Stay cancel, rejected draft retention and authoritative locked save', async () => {
@@ -1140,8 +1253,130 @@ describe('EntityDetailDialog', () => {
     );
   });
 
+  it('keeps pricing alongside eligible cancellation and after authoritative cancellation', async () => {
+    const afterClosed = new Subject<boolean>();
+    const completeStay = {
+      ...operationalStay,
+      agreedAmount: '100',
+      catIds: ['cat-1', 'cat-2', 'cat-3', 'cat-4'],
+      cats: [
+        { catId: 'cat-1', name: 'Milo' },
+        { catId: 'cat-2', name: 'Nina' },
+        { catId: 'cat-3', name: 'Luna' },
+        { catId: 'cat-4', name: 'Leo' },
+      ],
+    };
+    const delayedCompleteStay = new Subject<Stay>();
+    const materialDialog = {
+      open: vi.fn(() => ({ afterClosed: () => afterClosed.asObservable() })),
+    };
+    stayApi.getStayDetail
+      .mockReturnValueOnce(
+        of({
+          stayId: 'stay-1',
+          status: 'RESERVED',
+          startAt: '2030-01-01T10:00:00',
+          endAt: '2030-01-03T10:00:00',
+          numberOfNights: 2,
+          notes: null,
+          owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+          cats: { totalElements: 4, items: [] },
+        }),
+      )
+      .mockReturnValueOnce(
+        of({
+          stayId: 'stay-1',
+          status: 'CANCELLED',
+          startAt: '2030-01-01T10:00:00',
+          endAt: '2030-01-03T10:00:00',
+          numberOfNights: 2,
+          notes: null,
+          owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+          cats: { totalElements: 0, items: [] },
+        }),
+      );
+    stayApi.getStayById
+      .mockReturnValueOnce(delayedCompleteStay.asObservable())
+      .mockReturnValueOnce(delayedCompleteStay.asObservable())
+      .mockReturnValue(of(completeStay));
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: MatDialog, useValue: materialDialog },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
+    fixture.detectChanges();
+
+    const cancelButton = buttonContaining(
+      fixture,
+      fixture.componentInstance.text().stays.cancellation.action,
+    );
+    cancelButton.click();
+    fixture.detectChanges();
+
+    expect(materialDialog.open).not.toHaveBeenCalled();
+    expect(cancelButton.disabled).toBe(true);
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+
+    delayedCompleteStay.next(completeStay);
+    fixture.detectChanges();
+
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      StayCancellationDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          stayId: 'stay-1',
+          catNames: ['Milo', 'Nina', 'Luna', 'Leo'],
+          ownerName: 'Ada Lovelace',
+        }),
+      }),
+    );
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(1);
+
+    afterClosed.next(true);
+    fixture.detectChanges();
+
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(2);
+    expect(emitted).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'stay-1' });
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.status.cancelled,
+    );
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().stays.detail.pricing,
+    );
+    expect(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].some(
+        (button) =>
+          button.textContent?.trim() === fixture.componentInstance.text().stays.cancellation.action,
+      ),
+    ).toBe(false);
+  });
+
   function catItem(id: string) {
     return { id, name: 'Milo', ownerId: 'owner-1', ownerName: 'Ada Lovelace' };
+  }
+
+  function stayDetailResponse(stayId: string) {
+    return {
+      stayId,
+      status: 'RESERVED' as const,
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      numberOfNights: 2,
+      notes: null,
+      owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
+      cats: { totalElements: 0, items: [] },
+    };
   }
 
   function buttonContaining(
@@ -1154,4 +1389,893 @@ describe('EntityDetailDialog', () => {
     expect(button).toBeDefined();
     return button!;
   }
+});
+describe('Route-free StayEditor migrated coverage', () => {
+  let component: StayEditor;
+  let fixture: ComponentFixture<StayEditor>;
+  let dialogClosed: Subject<boolean | undefined>;
+
+  const stay: Stay = {
+    stayId: 'stay-1',
+    startAt: '2099-01-02T10:00:00',
+    endAt: '2099-01-09T10:00:00',
+    numberOfNights: 7,
+    cancelledAt: null,
+    createdAt: '2026-07-02T10:00:00',
+    updatedAt: '2026-07-02T10:00:00',
+    notes: 'needs quiet room',
+    catIds: ['cat-1', 'cat-2'],
+    ownerId: 'owner-1',
+    ownerName: 'Ada Lovelace',
+    cats: [
+      { catId: 'cat-1', name: 'Milo' },
+      { catId: 'cat-2', name: 'Luna' },
+    ],
+    retainedNightlyRate: '50',
+    suggestedAmount: '100',
+    agreedAmount: '100',
+    totalPaid: '0',
+    remainingAmount: '100',
+    paymentCondition: 'NO_PAYMENT',
+    outstandingCollectionEligible: true,
+    payments: [],
+  };
+
+  const closedStay: Stay = {
+    ...stay,
+    startAt: '2020-01-02T10:00:00',
+    endAt: '2020-01-09T10:00:00',
+  };
+
+  const stayApiService = {
+    getStayById: vi.fn(),
+    updateStay: vi.fn(),
+    previewDateChangePricing: vi.fn(),
+  };
+
+  const nightlyReferenceRateApiService = {
+    getCurrentRates: vi.fn(),
+  };
+
+  const authSessionService = {
+    hasRole: vi.fn(),
+  };
+
+  const matDialog = {
+    open: vi.fn(),
+  };
+
+  const vaccineConflict = {
+    code: 'VACCINE_VALIDITY_CONFLICT',
+    violations: [
+      {
+        catId: 'cat-1',
+        catName: 'Milo',
+        vaccineType: 'RABIES',
+        reason: 'EXPIRED',
+        vaccinatedOn: '2025-07-01',
+        expiresOn: '2026-07-01',
+      },
+    ],
+  };
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    authSessionService.hasRole.mockReturnValue(true);
+    dialogClosed = new Subject<boolean | undefined>();
+    matDialog.open.mockReturnValue({
+      afterClosed: () => dialogClosed.asObservable(),
+    });
+    stayApiService.getStayById.mockReturnValue(of(stay));
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '100',
+        confirmation: null,
+      }),
+    );
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(of([]));
+    window.scrollTo = vi.fn();
+
+    await TestBed.configureTestingModule({
+      imports: [StayEditor],
+      providers: [
+        provideNoopAnimations(),
+        {
+          provide: StayApiService,
+          useValue: stayApiService,
+        },
+        {
+          provide: NightlyReferenceRateApiService,
+          useValue: nightlyReferenceRateApiService,
+        },
+        {
+          provide: AuthSessionService,
+          useValue: authSessionService,
+        },
+        {
+          provide: MatDialog,
+          useValue: matDialog,
+        },
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  function createComponent(entity: Stay = stay): void {
+    fixture = TestBed.createComponent(StayEditor);
+    fixture.componentRef.setInput('entity', entity);
+    fixture.componentRef.setInput('showCancel', true);
+    fixture.detectChanges();
+    component = fixture.componentInstance;
+  }
+
+  it('does not offer suggested amount adoption in existing-stay repricing', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+    createComponent();
+    fixture.detectChanges();
+
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (candidate) =>
+        candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+    );
+
+    expect(button).toBeUndefined();
+  });
+
+  it('does not offer suggested amount adoption when repricing has no suggestion', () => {
+    const nullRateStay = { ...stay, retainedNightlyRate: null, suggestedAmount: null };
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+    createComponent(nullRateStay);
+    fixture.detectChanges();
+
+    const actions = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')];
+    expect(
+      actions.some(
+        (candidate) =>
+          candidate.textContent?.trim() === component.text().stays.pricing.useSuggestedAmount,
+      ),
+    ).toBe(false);
+  });
+
+  it('toggles between original and current retained rates and invalidates confirmation', () => {
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+    createComponent();
+    component.pricingConfirmed.set(true);
+
+    component.toggleRetainedRate();
+    expect(component.workingRetainedNightlyRate()).toBe('60');
+    expect(component.workingSuggestedAmount()).toBe('480');
+    expect(component.agreedAmount()).toBe('480');
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.retainedRateActionLabel()).toBe(
+      component.text().stays.pricing.useOriginalRate,
+    );
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.useOriginalRate,
+    );
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-helper-actions button'),
+    ).toHaveLength(1);
+    const localizedOriginalAction = component.text().stays.pricing.useOriginalRate;
+    TestBed.inject(I18nService).toggleLanguage();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+    expect(component.text().stays.pricing.useOriginalRate).not.toBe(localizedOriginalAction);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.useOriginalRate,
+    );
+
+    component.toggleRetainedRate();
+    expect(component.workingRetainedNightlyRate()).toBe('50');
+    expect(component.agreedAmount()).toBe('400');
+  });
+
+  it('returns a null original rate and restores its pre-switch agreement', () => {
+    const nullRateStay = {
+      ...stay,
+      retainedNightlyRate: null,
+      suggestedAmount: null,
+      agreedAmount: '123',
+    };
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '123',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+    createComponent(nullRateStay);
+
+    component.toggleRetainedRate();
+    expect(component.agreedAmount()).toBe('480');
+    expect(component.retainedRateActionLabel()).toBe(
+      component.text().stays.pricing.returnWithoutRate,
+    );
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.returnWithoutRate,
+    );
+
+    component.toggleRetainedRate();
+    expect(component.workingRetainedNightlyRate()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.agreedAmount()).toBe('123');
+  });
+
+  it('resets the agreement to the selected-rate suggestion when the night count changes', () => {
+    createComponent();
+    component.workingRetainedNightlyRate.set('60');
+    component.agreedAmount.set('777');
+    component.pricingConfirmed.set(true);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+
+    component.onEndAtChange('2099-01-10T10:00');
+
+    expect(component.workingRetainedNightlyRate()).toBe('60');
+    expect(component.workingSuggestedAmount()).toBe('480');
+    expect(component.agreedAmount()).toBe('480');
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it('restores the persisted agreement when nights change with no retained rate', () => {
+    const nullRateStay = {
+      ...stay,
+      retainedNightlyRate: null,
+      suggestedAmount: null,
+      agreedAmount: '123',
+    };
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    createComponent(nullRateStay);
+    component.agreedAmount.set('777');
+    component.pricingConfirmed.set(true);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '123',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+
+    component.onEndAtChange('2099-01-10T10:00');
+
+    expect(component.workingRetainedNightlyRate()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.agreedAmount()).toBe('123');
+    expect(component.pricingConfirmed()).toBe(false);
+
+    component.toggleRetainedRate();
+    expect(component.agreedAmount()).toBe('480');
+    component.toggleRetainedRate();
+    expect(component.agreedAmount()).toBe('123');
+  });
+
+  it('preserves a manual agreement when a date edit keeps the same night count', () => {
+    createComponent();
+    component.agreedAmount.set('777');
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '350',
+        confirmation: null,
+      }),
+    );
+
+    component.onStartAtChange('2099-01-02T11:00');
+    fixture.detectChanges();
+
+    expect(component.workingRetainedNightlyRate()).toBe('50');
+    expect(component.workingSuggestedAmount()).toBe('350');
+    expect(component.agreedAmount()).toBe('777');
+    expect(
+      (fixture.nativeElement as HTMLElement)
+        .querySelector('.pricing-summary > div:nth-child(4) dd')
+        ?.textContent?.trim(),
+    ).toBe('350');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.noReconfirmation,
+    );
+  });
+
+  it('restores persisted pricing state after returning to the original night count', () => {
+    const nullRateStay = {
+      ...stay,
+      retainedNightlyRate: null,
+      suggestedAmount: null,
+      agreedAmount: '123',
+    };
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    createComponent(nullRateStay);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 8,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '123',
+          numberOfNights: 8,
+          retainedNightlyRate: null,
+          suggestedAmount: null,
+        },
+      }),
+    );
+    component.onEndAtChange('2099-01-10T10:00');
+    component.toggleRetainedRate();
+    expect(component.workingRetainedNightlyRate()).toBe('60');
+    expect(component.workingSuggestedAmount()).toBe('480');
+
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: false,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '123',
+        numberOfNights: 7,
+        retainedNightlyRate: null,
+        suggestedAmount: null,
+        confirmation: null,
+      }),
+    );
+    component.onEndAtChange('2099-01-09T10:00');
+
+    expect(component.pricingPreview()?.pricingDecisionRequired).toBe(false);
+    expect(component.workingRetainedNightlyRate()).toBeNull();
+    expect(component.workingSuggestedAmount()).toBeNull();
+    expect(component.retainedRateActionLabel()).toBeNull();
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it.each([null, 'malformed', '0', '50'])(
+    'hides the retained-rate action on the visible surface for current rate %s',
+    (nightlyRate) => {
+      nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+        of(nightlyRate === null ? [] : [{ minimumCatCount: 2, nightlyRate }]),
+      );
+      stayApiService.previewDateChangePricing.mockReturnValue(
+        of({
+          pricingDecisionRequired: true,
+          currentNumberOfNights: 7,
+          currentAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+          confirmation: {
+            previousNumberOfNights: 7,
+            previousAgreedAmount: '100',
+            numberOfNights: 8,
+            retainedNightlyRate: '50',
+            suggestedAmount: '400',
+          },
+        }),
+      );
+      createComponent();
+      fixture.detectChanges();
+
+      expect(component.retainedRateActionLabel()).toBeNull();
+      const visibleActions = [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+      ].map((button) => button.textContent?.trim());
+      expect(visibleActions).not.toContain(component.text().stays.pricing.useCurrentRate);
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-helper-actions button'),
+      ).toHaveLength(0);
+    },
+  );
+
+  it('renders route-free Stay inputs and actions from its authoritative entity input', async () => {
+    createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(3);
+    expect((compiled.querySelector('input[name="startAt"]') as HTMLInputElement).value).toBe(
+      '2099-01-02T10:00',
+    );
+    expect(compiled.querySelector('.stay-summary')?.textContent).toContain('Milo, Luna');
+    expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
+    expect(compiled.querySelector('button.cancel-edit')).not.toBeNull();
+  });
+
+  it('does not update when the end date is not after the start date', () => {
+    createComponent();
+
+    component.startAt.set('2099-01-09T10:00');
+    component.endAt.set('2099-01-02T10:00');
+
+    component.submit();
+    fixture.detectChanges();
+
+    expect(stayApiService.updateStay).not.toHaveBeenCalled();
+    expect(component.error()).toBe(component.text().stays.edit.errors.endAfterStart);
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().stays.edit.errors.endAfterStart,
+    );
+  });
+
+  it('completes an accepted non-extending update without opening the vaccine dialog', () => {
+    createComponent();
+    stayApiService.updateStay.mockReturnValue(of(stay));
+
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    component.notes.set('  ');
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledWith('stay-1', {
+      startAt: '2099-01-02T10:00',
+      endAt: '2099-01-09T10:00',
+      notes: null,
+      overrideVaccineConflicts: false,
+    });
+    expect(matDialog.open).not.toHaveBeenCalled();
+    expect(component.submitting()).toBe(false);
+  });
+
+  it('shows update errors through shared Material error state', () => {
+    createComponent();
+    stayApiService.updateStay.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            error: { startAt: 'overlaps another stay' },
+            status: 400,
+          }),
+      ),
+    );
+
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+
+    component.submit();
+    fixture.detectChanges();
+
+    expect(component.error()).toBe('startAt: overlaps another stay');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'startAt: overlaps another stay',
+    );
+  });
+
+  it('preserves values when an administrator cancels and keeps a later update normal', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+    component.notes.set('  updated notes  ');
+
+    component.submit();
+
+    expect(matDialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: {
+          violations: vaccineConflict.violations,
+          canOverride: true,
+        },
+      }),
+    );
+
+    dialogClosed.next(false);
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+    expect(component.startAt()).toBe('2099-02-02T10:00');
+    expect(component.endAt()).toBe('2099-02-09T10:00');
+    expect(component.notes()).toBe('  updated notes  ');
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(2, 'stay-1', {
+      startAt: '2099-02-02T10:00',
+      endAt: '2099-02-09T10:00',
+      notes: 'updated notes',
+      overrideVaccineConflicts: false,
+    });
+  });
+
+  it('retries once with the captured update when an administrator continues', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+    component.notes.set('updated notes');
+
+    component.submit();
+    dialogClosed.next(true);
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(2, 'stay-1', {
+      startAt: '2099-02-02T10:00',
+      endAt: '2099-02-09T10:00',
+      notes: 'updated notes',
+      overrideVaccineConflicts: true,
+    });
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry an update for staff even if the dialog produces a continue result', () => {
+    authSessionService.hasRole.mockReturnValue(false);
+    createComponent();
+    stayApiService.updateStay.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            error: vaccineConflict,
+            status: 409,
+          }),
+      ),
+    );
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+
+    component.submit();
+
+    expect(matDialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: {
+          violations: vaccineConflict.violations,
+          canOverride: false,
+        },
+      }),
+    );
+
+    dialogClosed.next(true);
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the generic error path when the administrator update retry fails', () => {
+    createComponent();
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: vaccineConflict,
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: 'Stay still conflicts',
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+
+    component.startAt.set('2099-02-02T10:00');
+    component.endAt.set('2099-02-09T10:00');
+
+    component.submit();
+    dialogClosed.next(true);
+
+    expect(matDialog.open).toHaveBeenCalledTimes(1);
+    expect(component.error()).toBe('Stay still conflicts');
+    expect(component.submitting()).toBe(false);
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
+  });
+
+  it('preserves an approved override only through stale recovery for unchanged edit dates', () => {
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+    createComponent();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: true }),
+    );
+  });
+
+  it('clears stale-recovery override approval when edit dates change', () => {
+    stayApiService.updateStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ error: vaccineConflict, status: 409 })),
+      )
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+              status: 409,
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(stay));
+    createComponent();
+
+    component.submit();
+    dialogClosed.next(true);
+    component.onEndAtChange('2099-01-10T10:00');
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenNthCalledWith(
+      3,
+      'stay-1',
+      expect.objectContaining({ overrideVaccineConflicts: false }),
+    );
+  });
+
+  it('submits an admin repricing decision only when the backend requires it', () => {
+    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
+      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
+    );
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      of({
+        pricingDecisionRequired: true,
+        currentNumberOfNights: 7,
+        currentAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+        confirmation: {
+          previousNumberOfNights: 7,
+          previousAgreedAmount: '100',
+          numberOfNights: 8,
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
+        },
+      }),
+    );
+    stayApiService.updateStay.mockReturnValue(of(stay));
+    createComponent();
+    component.toggleRetainedRate();
+    component.agreedAmount.set('9999999999999999999');
+    component.pricingReason.set('Administrative agreement');
+    component.confirmPricing();
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledWith(
+      'stay-1',
+      expect.objectContaining({
+        pricingDecision: {
+          agreedAmount: '9999999999999999999',
+          reason: 'Administrative agreement',
+        },
+        confirmation: expect.objectContaining({
+          previousNumberOfNights: 7,
+          numberOfNights: 8,
+          retainedNightlyRate: '60',
+          suggestedAmount: '480',
+        }),
+      }),
+    );
+  });
+
+  it('preserves the entered pricing decision when stale recovery loads a fresh preview', () => {
+    const initialPreview = {
+      pricingDecisionRequired: true,
+      currentNumberOfNights: 7,
+      currentAgreedAmount: '100',
+      numberOfNights: 8,
+      retainedNightlyRate: '50',
+      suggestedAmount: '400',
+      confirmation: {
+        previousNumberOfNights: 7,
+        previousAgreedAmount: '100',
+        numberOfNights: 8,
+        retainedNightlyRate: '50',
+        suggestedAmount: '400',
+      },
+    };
+    const freshPreview = {
+      ...initialPreview,
+      suggestedAmount: '450',
+      confirmation: { ...initialPreview.confirmation, suggestedAmount: '450' },
+    };
+    stayApiService.previewDateChangePricing
+      .mockReturnValueOnce(of(initialPreview))
+      .mockReturnValueOnce(of(freshPreview));
+    stayApiService.updateStay.mockReturnValue(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: { code: 'STALE_PRICING_CONFIRMATION' },
+          }),
+      ),
+    );
+    createComponent();
+    component.agreedAmount.set('375');
+    component.pricingReason.set('Client retained this amount');
+    component.confirmPricing();
+
+    component.submit();
+
+    expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+    expect(stayApiService.previewDateChangePricing).toHaveBeenCalledTimes(2);
+    expect(component.pricingPreview()).toEqual(freshPreview);
+    expect(component.agreedAmount()).toBe('375');
+    expect(component.pricingReason()).toBe('Client retained this amount');
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.stalePricing()).toBe(true);
+  });
+
+  it('presents the administrator-required state for a rejected staff pricing preview', () => {
+    authSessionService.hasRole.mockReturnValue(false);
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 403 })),
+    );
+
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.adminRequired);
+    expect(component.pricingPreview()).toBeNull();
+  });
+
+  it('clears an active pricing-preview error when the language changes', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
+    );
+    createComponent();
+
+    expect(component.previewError()).toBe(component.text().stays.pricing.errors.previewFailed);
+
+    TestBed.inject(I18nService).toggleLanguage();
+    TestBed.flushEffects();
+
+    expect(component.previewError()).toBeNull();
+  });
 });

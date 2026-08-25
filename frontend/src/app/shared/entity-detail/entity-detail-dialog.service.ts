@@ -12,7 +12,7 @@ export class EntityDetailDialogService {
       data: reference,
       width: 'min(52rem, calc(100vw - 2rem))',
       maxWidth: 'calc(100vw - 2rem)',
-      maxHeight: 'calc(100vh - 2rem)',
+      maxHeight: 'calc(100dvh - 2rem)',
       autoFocus: 'dialog',
     });
     ref.componentInstance.entityUpdated.subscribe((update) => updates.next(update));

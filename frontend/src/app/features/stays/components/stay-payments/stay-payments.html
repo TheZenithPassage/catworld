@@ -56,100 +56,6 @@
     }
   }
 
-  <ng-template #paymentForm>
-    <form
-      class="payment-form"
-      [class.payment-form-inline]="action() === 'edit' || action() === 'annul'"
-      (ngSubmit)="submitAction()"
-    >
-      @if (action(); as currentAction) {
-        @if (currentAction === 'edit' || currentAction === 'annul') {
-          <h4 class="payment-form-title">
-            {{
-              currentAction === 'edit' ? text().stays.payments.edit : text().stays.payments.annul
-            }}
-          </h4>
-        }
-        @if (currentAction === 'register' || currentAction === 'edit') {
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.payments.amount }}</mat-label>
-            <input
-              matInput
-              name="paymentAmount"
-              inputmode="numeric"
-              required
-              pattern="^(?!0+$)\d{1,19}$"
-              [errorStateMatcher]="attemptedErrorStateMatcher"
-              [ngModel]="amount()"
-              (ngModelChange)="amount.set($event)"
-            />
-            @if (attempted() && !amount()) {
-              <mat-error>{{ text().stays.payments.errors.amountRequired }}</mat-error>
-            } @else if (attempted() && !amountValid()) {
-              <mat-error>{{ text().stays.payments.errors.invalidAmount }}</mat-error>
-            }
-          </mat-form-field>
-        }
-        @if (currentAction === 'register') {
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.payments.paymentDate }}</mat-label>
-            <input
-              matInput
-              type="date"
-              name="paymentDate"
-              required
-              [errorStateMatcher]="attemptedErrorStateMatcher"
-              [ngModel]="paymentDate()"
-              (ngModelChange)="paymentDate.set($event)"
-            />
-            @if (attempted() && !paymentDate()) {
-              <mat-error>{{ text().stays.payments.errors.dateRequired }}</mat-error>
-            }
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.payments.note }}</mat-label>
-            <textarea
-              matInput
-              name="paymentNote"
-              rows="2"
-              [ngModel]="note()"
-              (ngModelChange)="note.set($event)"
-            ></textarea>
-          </mat-form-field>
-        } @else {
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.payments.reason }}</mat-label>
-            <textarea
-              matInput
-              name="paymentReason"
-              rows="2"
-              required
-              pattern="[\s\S]*\S[\s\S]*"
-              [errorStateMatcher]="attemptedErrorStateMatcher"
-              [ngModel]="reason()"
-              (ngModelChange)="reason.set($event)"
-            ></textarea>
-            @if (attempted() && !reason().trim()) {
-              <mat-error>{{ text().stays.payments.errors.reasonRequired }}</mat-error>
-            }
-          </mat-form-field>
-        }
-      }
-      <div class="payment-form-actions">
-        <button mat-button type="button" [disabled]="mutationLocked()" (click)="cancelAction()">
-          {{ text().stays.payments.cancel }}
-        </button>
-        <button mat-flat-button type="submit" [disabled]="submitting()">
-          {{ text().stays.payments.save }}
-        </button>
-      </div>
-    </form>
-  </ng-template>
-
-  @if (action() === 'register') {
-    <ng-container [ngTemplateOutlet]="paymentForm"></ng-container>
-  }
-
   @if (stay().payments.length === 0) {
     <p class="empty-history">{{ text().stays.payments.empty }}</p>
   } @else {
@@ -207,12 +113,6 @@
                 type="button"
                 data-payment-action="edit"
                 [attr.data-payment-id]="payment.paymentId"
-                [attr.aria-pressed]="
-                  selectedPayment()?.paymentId === payment.paymentId && action() === 'edit'
-                "
-                [class.payment-action-active]="
-                  selectedPayment()?.paymentId === payment.paymentId && action() === 'edit'
-                "
                 [disabled]="mutationLocked()"
                 (click)="startEdit(payment, $event.currentTarget)"
               >
@@ -223,12 +123,6 @@
                 type="button"
                 data-payment-action="annul"
                 [attr.data-payment-id]="payment.paymentId"
-                [attr.aria-pressed]="
-                  selectedPayment()?.paymentId === payment.paymentId && action() === 'annul'
-                "
-                [class.payment-action-active]="
-                  selectedPayment()?.paymentId === payment.paymentId && action() === 'annul'
-                "
                 [disabled]="mutationLocked()"
                 (click)="startAnnul(payment, $event.currentTarget)"
               >
@@ -248,12 +142,6 @@
               </button>
             }
           </div>
-          @if (
-            selectedPayment()?.paymentId === payment.paymentId &&
-            (action() === 'edit' || action() === 'annul')
-          ) {
-            <ng-container [ngTemplateOutlet]="paymentForm"></ng-container>
-          }
         </li>
       }
     </ol>

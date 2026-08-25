@@ -1,52 +1,109 @@
-<h2 mat-dialog-title class="visually-hidden">{{ title() }}</h2>
-<mat-dialog-content>
-  @if (history().length > 1) {
-    <button data-dialog-focus mat-button type="button" [disabled]="submitting()" (click)="back()">
-      {{ text().entityDetail.back }}
+<header class="dialog-header">
+  <h2 mat-dialog-title tabindex="-1" [attr.data-dialog-focus]="history().length > 1 ? null : ''">
+    {{ title() }}
+    @if (detailRefreshing()) {
+      <mat-progress-spinner
+        class="title-loading-spinner"
+        mode="indeterminate"
+        diameter="20"
+        role="status"
+        [attr.aria-label]="text().entityDetail.loading"
+      ></mat-progress-spinner>
+    }
+  </h2>
+  <div class="dialog-header-actions">
+    @if (history().length > 1) {
+      <button
+        class="back-button"
+        data-dialog-focus
+        mat-button
+        type="button"
+        [disabled]="submitting()"
+        (click)="back()"
+      >
+        {{ text().entityDetail.back }}
+      </button>
+    }
+    <button
+      class="close-button"
+      mat-icon-button
+      type="button"
+      mat-dialog-close
+      [disabled]="submitting()"
+      [attr.aria-label]="closeLabel()"
+    >
+      <span aria-hidden="true" class="close-icon">
+        <svg viewBox="0 0 24 24" focusable="false">
+          <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </span>
     </button>
-  }
+  </div>
+</header>
+<mat-dialog-content
+  #contentRegion
+  [class.content-region--geometry-locked]="preservedContentHeight() !== null"
+  [style.min-height.px]="preservedContentHeight()"
+>
   @if (entry().kind === 'list') {
-    @if (relationshipLoading()) {
-      <app-ui-state kind="loading" [message]="text().entityDetail.loading" />
-    } @else if (relationshipError()) {
+    @if (relationshipError()) {
       <app-ui-state
         kind="error"
         [message]="text().entityDetail.loadFailed"
         [actionLabel]="text().entityDetail.retry"
         (actionTriggered)="retryRelationship()"
       />
-    } @else if (relationshipPage(); as page) {
-      @if (page.items.length === 0) {
-        <app-ui-state kind="empty" [message]="text().entityDetail.empty" />
-      } @else {
-        <h3 tabindex="-1" data-dialog-focus>{{ relationshipTitle() }}</h3>
-        @for (item of page.items; track $index) {
-          @if ('stayId' in item) {
-            <button
-              mat-button
-              type="button"
-              (click)="showReference({ entityType: 'stay', entityId: item.stayId })"
-            >
-              <app-stay-relationship-label [item]="item" />
-            </button>
-          } @else {
-            <button
-              mat-button
-              type="button"
-              (click)="showReference({ entityType: 'cat', entityId: item.id })"
-            >
-              {{ item.name }} — {{ item.ownerName }}
-            </button>
+    } @else {
+      <section
+        class="relationship-list"
+        [class.relationship-list--loading]="relationshipLoading()"
+        [class.relationship-list--initial]="!relationshipPage()"
+        [attr.aria-busy]="relationshipLoading()"
+      >
+        @if (relationshipPage(); as page) {
+          @if (page.items.length === 0 && !relationshipLoading()) {
+            <app-ui-state kind="empty" [message]="text().entityDetail.empty" />
+          }
+          @for (item of page.items; track $index) {
+            @if ('stayId' in item) {
+              <button
+                mat-button
+                type="button"
+                (click)="showReference({ entityType: 'stay', entityId: item.stayId })"
+              >
+                <app-stay-relationship-label [item]="item" />
+              </button>
+            } @else {
+              <button
+                mat-button
+                type="button"
+                (click)="showReference({ entityType: 'cat', entityId: item.id })"
+              >
+                {{ item.name }} — {{ item.ownerName }}
+              </button>
+            }
           }
         }
+        @if (relationshipLoading()) {
+          <div
+            class="relationship-list-loading"
+            role="status"
+            [attr.aria-label]="text().entityDetail.loading"
+          >
+            <mat-progress-spinner mode="indeterminate" diameter="34"></mat-progress-spinner>
+          </div>
+        }
+      </section>
+      @if (relationshipPage(); as page) {
+        <mat-paginator
+          [length]="page.totalElements"
+          [pageIndex]="page.page"
+          [pageSize]="5"
+          [hidePageSize]="true"
+          [disabled]="relationshipLoading()"
+          (page)="pageChanged($event)"
+        />
       }
-      <mat-paginator
-        [length]="page.totalElements"
-        [pageIndex]="page.page"
-        [pageSize]="5"
-        [hidePageSize]="true"
-        (page)="pageChanged($event)"
-      />
     }
   } @else {
     @switch (reference().entityType) {
@@ -58,6 +115,8 @@
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
+          (refreshingChanged)="refreshChanged($event)"
+          (contentSettled)="destinationSettled()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
           (openStays)="openStays(reference())"
@@ -71,6 +130,8 @@
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
+          (refreshingChanged)="refreshChanged($event)"
+          (contentSettled)="destinationSettled()"
           (navigate)="showReference($event)"
           (openStays)="openStays(reference())"
         />
@@ -83,6 +144,8 @@
           (cancelRequested)="leaveEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
+          (refreshingChanged)="refreshChanged($event)"
+          (contentSettled)="destinationSettled()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
         />
@@ -96,20 +159,13 @@
           (saveCompleted)="leaveEdit()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
-          (updated)="staySaved($event)"
+          (updated)="stayUpdated($event)"
           (submittingChanged)="submissionChanged($event)"
+          (refreshingChanged)="refreshChanged($event)"
+          (contentSettled)="destinationSettled()"
+          (pricingRequested)="openStayPricing()"
         />
       }
     }
   }
 </mat-dialog-content>
-<button
-  class="close-button"
-  mat-stroked-button
-  type="button"
-  mat-dialog-close
-  [disabled]="submitting()"
-  [attr.aria-label]="closeLabel()"
->
-  ×
-</button>

@@ -10,6 +10,7 @@ import { StayApiService } from '../../../stays/services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -43,7 +44,7 @@ describe('CalendarPage', () => {
     read: vi.fn(),
     store: vi.fn(),
   };
-  const dialogUpdates = new Subject<Stay>();
+  const dialogUpdates = new Subject<EntityDetailUpdate>();
   const entityDetailDialog = { open: vi.fn(() => dialogUpdates.asObservable()) };
 
   let component: CalendarPage;
@@ -129,13 +130,18 @@ describe('CalendarPage', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const displayOptions = compiled.querySelectorAll('mat-radio-button.calendar-display-option');
+    const displayOptions = compiled.querySelectorAll('.calendar-display-option mat-radio-button');
     const entryExitInput = displayOptions[2].querySelector('input') as HTMLInputElement;
 
     expect(displayOptions).toHaveLength(3);
     expect(compiled.textContent).toContain(
       component.text().calendar.displayModes.options['daily-labels'].label,
     );
+
+    (displayOptions[1].closest('.calendar-display-option') as HTMLElement).click();
+    fixture.detectChanges();
+
+    expect(component.unfilteredDisplayMode()).toBe('compact-daily-labels');
 
     entryExitInput.click();
     fixture.detectChanges();
@@ -145,13 +151,21 @@ describe('CalendarPage', () => {
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
     fixture.detectChanges();
 
-    const filteredDailyLabelsInput = compiled.querySelector(
-      'mat-checkbox.calendar-display-option input',
+    const filteredDailyLabelsOption = compiled.querySelector(
+      '.calendar-display-option--single',
+    ) as HTMLElement;
+    filteredDailyLabelsOption.click();
+    fixture.detectChanges();
+
+    expect(component.filteredDailyLabelsEnabled()).toBe(true);
+
+    const filteredDailyLabelsInput = filteredDailyLabelsOption.querySelector(
+      'input',
     ) as HTMLInputElement;
     filteredDailyLabelsInput.click();
     fixture.detectChanges();
 
-    expect(component.filteredDailyLabelsEnabled()).toBe(true);
+    expect(component.filteredDailyLabelsEnabled()).toBe(false);
   });
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {
@@ -200,5 +214,8 @@ describe('CalendarPage', () => {
     dialogUpdates.next(updated);
     expect(component.stays()).toEqual([updated]);
     expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+
+    dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
   });
 });

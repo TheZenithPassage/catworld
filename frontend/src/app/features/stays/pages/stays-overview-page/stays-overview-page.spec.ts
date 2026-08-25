@@ -10,6 +10,8 @@ import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaysOverviewPage } from './stays-overview-page';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
 describe('StaysOverviewPage', () => {
   const reservedStay: Stay = {
@@ -102,6 +104,8 @@ describe('StaysOverviewPage', () => {
     read: vi.fn(),
     store: vi.fn(),
   };
+  let detailUpdates: Subject<EntityDetailUpdate>;
+  const detailDialog = { open: vi.fn() };
 
   let component: StaysOverviewPage;
   let fixture: ComponentFixture<StaysOverviewPage>;
@@ -109,6 +113,8 @@ describe('StaysOverviewPage', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    detailUpdates = new Subject<EntityDetailUpdate>();
+    detailDialog.open.mockReturnValue(detailUpdates.asObservable());
     queryParams = { selectedStayId: 'stay-1' };
     stayApiService.getStays.mockReturnValue(
       of([reservedStay, cancelledStay, partialCheckedOutStay, fullStay, legacyStay]),
@@ -125,8 +131,9 @@ describe('StaysOverviewPage', () => {
       imports: [StaysOverviewPage],
       providers: [
         provideNoopAnimations(),
-        provideRouter([{ path: 'stays/:id/edit', component: StaysOverviewPage }]),
+        provideRouter([]),
         { provide: StayApiService, useValue: stayApiService },
+        { provide: EntityDetailDialogService, useValue: detailDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -153,7 +160,7 @@ describe('StaysOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders stay rows through a Material table with selected row and existing actions', () => {
+  it('renders accessible Material rows without Actions and opens details by pointer, Enter and Space', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -163,7 +170,7 @@ describe('StaysOverviewPage', () => {
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
     expect(headerText).toContain(component.text().stays.overview.table.state);
-    expect(headerText).toContain(component.text().stays.overview.table.actions);
+    expect(headerText).not.toContain(component.text().stays.overview.table.actions);
     expect(compiled.textContent).toContain('Ada Lovelace');
     expect(compiled.textContent).toContain('Needs quiet room');
     expect(compiled.querySelector('#stay-stay-1.selected-row')).not.toBeNull();
@@ -173,36 +180,39 @@ describe('StaysOverviewPage', () => {
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().stays.overview.create,
     );
-    expect(compiled.querySelector('a.stay-edit-link')?.textContent).toContain(
-      component.text().stays.overview.edit,
-    );
-    expect(compiled.textContent).toContain(component.text().stays.overview.alreadyCancelled);
+    const row = compiled.querySelector('#stay-stay-1') as HTMLElement;
+    const otherRow = compiled.querySelector('#stay-stay-2') as HTMLElement;
+    expect(row.tabIndex).toBe(0);
+    expect(row.getAttribute('aria-label')).toBe(component.getOpenDetailAriaLabel(reservedStay));
+    expect(row.getAttribute('aria-label')).toContain('Milo');
+    expect(row.getAttribute('aria-label')).toContain('Ada Lovelace');
+    expect(row.getAttribute('aria-label')).not.toContain(reservedStay.stayId);
+    expect(otherRow.getAttribute('aria-label')).toContain('Luna');
+    expect(otherRow.getAttribute('aria-label')).not.toBe(row.getAttribute('aria-label'));
+    row.click();
+    expect(detailDialog.open).toHaveBeenLastCalledWith({ entityType: 'stay', entityId: 'stay-1' });
+    for (const key of ['Enter', ' ']) {
+      const event = new KeyboardEvent('keydown', { key, cancelable: true });
+      row.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
+    expect(detailDialog.open).toHaveBeenCalledTimes(3);
   });
 
-  it('links every known-agreement stay status to operational payment history for admin and staff', () => {
-    for (const role of ['ADMIN', 'STAFF'] as const) {
-      TestBed.inject(AuthSessionService).login(
-        { username: role.toLowerCase(), role },
-        { username: role.toLowerCase(), password: 'secret' },
-      );
-      createComponent();
+  it('reloads after a referenced Stay update and replaces a returned full Stay in place', () => {
+    createComponent();
+    component.openDetail(reservedStay);
+    detailUpdates.next({ entityType: 'stay', entityId: reservedStay.stayId });
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
 
-      const links = fixture.nativeElement.querySelectorAll('a.payment-history-link');
-      expect(links).toHaveLength(4);
-      expect(
-        fixture.nativeElement
-          .querySelector('#stay-stay-2 a.payment-history-link')
-          ?.getAttribute('href'),
-      ).toBe('/stays/stay-2/edit');
-      expect(
-        fixture.nativeElement
-          .querySelector('#stay-stay-3 a.payment-history-link')
-          ?.getAttribute('href'),
-      ).toBe('/stays/stay-3/edit');
-      expect(fixture.nativeElement.querySelector('#stay-stay-5 a.payment-history-link')).toBeNull();
-
-      fixture.destroy();
-    }
+    const replacement = {
+      ...reservedStay,
+      ownerName: 'Updated owner',
+      agreedAmount: '9999999999999999999',
+    };
+    detailUpdates.next(replacement);
+    expect(component.stays().find((stay) => stay.stayId === 'stay-1')).toBe(replacement);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
   });
 
   it('renders exact authoritative economics and localized payment conditions', () => {
@@ -308,40 +318,6 @@ describe('StaysOverviewPage', () => {
     expect(component.filteredStays().map((stay) => stay.stayId)).not.toContain('stay-2');
   });
 
-  it('preserves cancellation confirmation, API call, reload, and error behavior', () => {
-    createComponent();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
-    const cancelButton = [
-      ...fixture.nativeElement.querySelectorAll('button[mat-stroked-button]'),
-    ].find((button) =>
-      button.textContent?.includes(component.text().stays.overview.cancel),
-    ) as HTMLButtonElement;
-
-    cancelButton.click();
-    fixture.detectChanges();
-
-    expect(confirmSpy).toHaveBeenCalledOnce();
-    expect(stayApiService.cancelStay).toHaveBeenCalledWith('stay-1');
-    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
-
-    stayApiService.cancelStay.mockReturnValueOnce(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 400,
-            error: { stay: 'cannot cancel' },
-          }),
-      ),
-    );
-
-    cancelButton.click();
-    fixture.detectChanges();
-
-    expect(component.error()).toBe('stay: cannot cancel');
-    expect(fixture.nativeElement.textContent).toContain('stay: cannot cancel');
-  });
-
   it('filters stays by status visibility and shows empty states outside the Material table', async () => {
     createComponent();
 
@@ -384,113 +360,5 @@ describe('StaysOverviewPage', () => {
 
     expect(fixture.nativeElement.textContent).toContain(component.text().stays.overview.empty);
     expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
-  });
-  it('shows admin correction across statuses and replaces economics from the backend response', () => {
-    TestBed.inject(AuthSessionService).login(
-      { username: 'admin', role: 'ADMIN' },
-      { username: 'admin', password: 'secret' },
-    );
-    const updatedStay = {
-      ...cancelledStay,
-      agreedAmount: '9999999999999999999',
-      remainingAmount: '9999999999999999999',
-    };
-    stayApiService.correctAgreedAmount.mockReturnValue(of(updatedStay));
-    fixture = TestBed.createComponent(StaysOverviewPage);
-    component = fixture.componentInstance;
-    component.startCorrection(cancelledStay);
-    component.correctionAmount.set('9999999999999999999');
-    component.correctionReason.set('Signed correction');
-
-    component.submitCorrection(cancelledStay);
-
-    expect(stayApiService.correctAgreedAmount).toHaveBeenCalledWith('stay-2', {
-      agreedAmount: '9999999999999999999',
-      reason: 'Signed correction',
-    });
-    expect(component.stays().find((stay) => stay.stayId === 'stay-2')?.agreedAmount).toBe(
-      '9999999999999999999',
-    );
-  });
-
-  it('keeps the table and active correction values visible after a rejected correction', () => {
-    TestBed.inject(AuthSessionService).login(
-      { username: 'admin', role: 'ADMIN' },
-      { username: 'admin', password: 'secret' },
-    );
-    stayApiService.correctAgreedAmount.mockReturnValueOnce(
-      throwError(
-        () =>
-          new HttpErrorResponse({
-            status: 400,
-            error: { agreedAmount: 'must not be below active payments' },
-          }),
-      ),
-    );
-    createComponent();
-    component.startCorrection(reservedStay);
-    component.correctionAmount.set('25');
-    component.correctionReason.set('Correct signed amount');
-
-    component.submitCorrection(reservedStay);
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const activeRow = compiled.querySelector('#stay-stay-1');
-    const correctionError = activeRow?.querySelector('app-ui-state.correction-error');
-
-    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
-    expect(compiled.textContent).toContain('Grace Hopper');
-    expect(component.correctingStayId()).toBe('stay-1');
-    expect(component.correctionAmount()).toBe('25');
-    expect(component.correctionReason()).toBe('Correct signed amount');
-    expect(component.error()).toBeNull();
-    expect(correctionError?.textContent).toContain('must not be below active payments');
-
-    stayApiService.correctAgreedAmount.mockReturnValueOnce(
-      of({ ...reservedStay, agreedAmount: '125', remainingAmount: '125' }),
-    );
-    component.correctionAmount.set('125');
-    component.submitCorrection(reservedStay);
-
-    expect(stayApiService.correctAgreedAmount).toHaveBeenLastCalledWith('stay-1', {
-      agreedAmount: '125',
-      reason: 'Correct signed amount',
-    });
-    expect(component.correctingStayId()).toBeNull();
-    expect(component.stays().find((stay) => stay.stayId === 'stay-1')?.agreedAmount).toBe('125');
-  });
-
-  it('prevents starting another correction while one is being submitted', () => {
-    TestBed.inject(AuthSessionService).login(
-      { username: 'admin', role: 'ADMIN' },
-      { username: 'admin', password: 'secret' },
-    );
-    const pendingCorrection = new Subject<Stay>();
-    stayApiService.correctAgreedAmount.mockReturnValue(pendingCorrection);
-    createComponent();
-    component.startCorrection(reservedStay);
-    component.correctionAmount.set('100');
-    component.submitCorrection(reservedStay);
-    fixture.detectChanges();
-
-    const correctionButtons = [...fixture.nativeElement.querySelectorAll('button')].filter(
-      (button: HTMLButtonElement) =>
-        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
-    ) as HTMLButtonElement[];
-
-    expect(correctionButtons.length).toBeGreaterThan(0);
-    expect(correctionButtons.every((button) => button.disabled)).toBe(true);
-
-    correctionButtons[0].click();
-    pendingCorrection.next({ ...reservedStay, agreedAmount: '100' });
-    pendingCorrection.complete();
-    fixture.detectChanges();
-
-    const availableCorrectionButtons = [...fixture.nativeElement.querySelectorAll('button')].filter(
-      (button: HTMLButtonElement) =>
-        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
-    ) as HTMLButtonElement[];
-    expect(availableCorrectionButtons.every((button) => !button.disabled)).toBe(true);
   });
 });

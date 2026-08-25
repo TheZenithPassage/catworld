@@ -40,6 +40,9 @@ export interface StaysTranslations {
     totalPaid: string;
     remaining: string;
     correctAgreement: string;
+    correctionTitle: string;
+    correctionReason: string;
+    correctionSubmitting: string;
     correct: string;
     cancelCorrection: string;
     errors: {
@@ -53,6 +56,14 @@ export interface StaysTranslations {
       correctionReasonRequired: string;
       correctionFailed: string;
     };
+  };
+  pricingPage: {
+    title: string;
+    description: string;
+    back: string;
+    loading: string;
+    loadFailed: string;
+    noEconomics: string;
   };
   payments: {
     title: string;
@@ -81,9 +92,12 @@ export interface StaysTranslations {
     readOnlyStay: string;
     dismissError: string;
     retryRemoval: string;
+    submitting: string;
+    dialogTitles: { register: string; edit: string; annul: string };
     errors: {
       amountRequired: string;
       invalidAmount: string;
+      amountUnchanged: string;
       dateRequired: string;
       reasonRequired: string;
       validation: string;
@@ -129,11 +143,26 @@ export interface StaysTranslations {
       continue: string;
     };
   };
+  cancellation: {
+    action: string;
+    title: string;
+    description: string;
+    cats: string;
+    period: string;
+    consequence: string;
+    dismiss: string;
+    confirm: string;
+    cancelling: string;
+    retry: string;
+    failed: string;
+    contextLoadFailed: string;
+  };
   overview: {
     title: string;
     description: string;
     create: string;
     statusFiltersAriaLabel: string;
+    openDetailAriaLabel: (cats: string, owner: string, start: string, end: string) => string;
     loading: string;
     retry: string;
     empty: string;
@@ -222,6 +251,7 @@ export interface StaysTranslations {
     owner: string;
     cats: string;
     status: string;
+    pricing: string;
   };
 }
 
@@ -266,6 +296,9 @@ export const STAYS_TRANSLATIONS = {
       totalPaid: 'Total pagado',
       remaining: 'Pendiente',
       correctAgreement: 'Corregir importe',
+      correctionTitle: 'Corregir importe acordado',
+      correctionReason: 'Motivo de la corrección',
+      correctionSubmitting: 'Guardando corrección...',
       correct: 'Guardar corrección',
       cancelCorrection: 'Cancelar',
       errors: {
@@ -279,6 +312,14 @@ export const STAYS_TRANSLATIONS = {
         correctionReasonRequired: 'Indica el motivo de la corrección.',
         correctionFailed: 'No se pudo corregir el importe acordado.',
       },
+    },
+    pricingPage: {
+      title: 'Precios y pagos',
+      description: 'Consulta el acuerdo económico y el historial de pagos de la estancia.',
+      back: 'Volver',
+      loading: 'Cargando precios y pagos...',
+      loadFailed: 'No se pudieron cargar los precios y pagos de la estancia.',
+      noEconomics: 'Esta estancia no tiene un acuerdo económico registrado.',
     },
     payments: {
       title: 'Pagos de la estancia',
@@ -307,9 +348,16 @@ export const STAYS_TRANSLATIONS = {
       readOnlyStay: 'Las fechas y notas de esta estancia son de solo lectura.',
       dismissError: 'Cerrar error',
       retryRemoval: 'Reintentar eliminación',
+      submitting: 'Guardando...',
+      dialogTitles: {
+        register: 'Registrar pago',
+        edit: 'Editar importe del pago',
+        annul: 'Anular pago',
+      },
       errors: {
         amountRequired: 'Indica el importe recibido.',
         invalidAmount: 'Introduce un importe entero positivo de hasta 19 dígitos.',
+        amountUnchanged: 'Introduce un importe distinto al actual.',
         dateRequired: 'Indica la fecha real del pago.',
         reasonRequired: 'Indica un motivo.',
         validation: 'El pago no cumple la validación del servidor.',
@@ -356,11 +404,29 @@ export const STAYS_TRANSLATIONS = {
         continue: 'Continuar de todos modos',
       },
     },
+    cancellation: {
+      action: 'Cancelar estancia',
+      title: 'Cancelar estancia',
+      description: 'Confirma la cancelación de esta estancia.',
+      cats: 'Gatos',
+      period: 'Periodo',
+      consequence:
+        'La estancia quedará cancelada. Esta acción es distinta de eliminarla permanentemente.',
+      dismiss: 'Conservar estancia',
+      confirm: 'Cancelar estancia',
+      cancelling: 'Cancelando...',
+      retry: 'Reintentar cancelación',
+      failed: 'No se pudo cancelar la estancia. Puedes volver a intentarlo.',
+      contextLoadFailed:
+        'No se pudieron cargar los gatos de la estancia. Intenta cancelar de nuevo.',
+    },
     overview: {
       title: 'Estancias',
       description: 'Desde aquí puedes administrar las estancias activas y crear nuevas.',
       create: 'Crear estancia',
       statusFiltersAriaLabel: 'Filtros de estado de estancias',
+      openDetailAriaLabel: (cats, owner, start, end) =>
+        `Abrir detalle de la estancia de ${cats}, de ${owner}, del ${start} al ${end}`,
       loading: 'Cargando estancias...',
       retry: 'Reintentar',
       empty: 'No hay estancias registradas.',
@@ -449,6 +515,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Dueño',
       cats: 'Gatos',
       status: 'Estado',
+      pricing: 'Precios y pagos',
     },
   },
   en: {
@@ -491,6 +558,9 @@ export const STAYS_TRANSLATIONS = {
       totalPaid: 'Total paid',
       remaining: 'Remaining',
       correctAgreement: 'Correct agreement',
+      correctionTitle: 'Correct agreed amount',
+      correctionReason: 'Correction reason',
+      correctionSubmitting: 'Saving correction...',
       correct: 'Save correction',
       cancelCorrection: 'Cancel',
       errors: {
@@ -504,6 +574,14 @@ export const STAYS_TRANSLATIONS = {
         correctionReasonRequired: 'Provide a reason for the correction.',
         correctionFailed: 'The agreed amount could not be corrected.',
       },
+    },
+    pricingPage: {
+      title: 'Pricing & Payments',
+      description: "Review the stay's economic agreement and payment history.",
+      back: 'Back',
+      loading: 'Loading pricing and payments...',
+      loadFailed: "The stay's pricing and payments could not be loaded.",
+      noEconomics: 'This stay has no recorded economic agreement.',
     },
     payments: {
       title: 'Stay payments',
@@ -532,9 +610,16 @@ export const STAYS_TRANSLATIONS = {
       readOnlyStay: "This stay's dates and notes are read-only.",
       dismissError: 'Dismiss error',
       retryRemoval: 'Retry removal',
+      submitting: 'Saving...',
+      dialogTitles: {
+        register: 'Register payment',
+        edit: 'Edit payment amount',
+        annul: 'Annul payment',
+      },
       errors: {
         amountRequired: 'Enter the amount received.',
         invalidAmount: 'Enter a positive whole amount with at most 19 digits.',
+        amountUnchanged: 'Enter an amount different from the current amount.',
         dateRequired: 'Enter the actual payment date.',
         reasonRequired: 'Provide a reason.',
         validation: 'The payment did not pass server validation.',
@@ -581,11 +666,28 @@ export const STAYS_TRANSLATIONS = {
         continue: 'Continue anyway',
       },
     },
+    cancellation: {
+      action: 'Cancel stay',
+      title: 'Cancel stay',
+      description: 'Confirm cancellation of this stay.',
+      cats: 'Cats',
+      period: 'Period',
+      consequence:
+        'The stay will be marked as cancelled. This is distinct from permanent deletion.',
+      dismiss: 'Keep stay',
+      confirm: 'Cancel stay',
+      cancelling: 'Cancelling...',
+      retry: 'Retry cancellation',
+      failed: 'The stay could not be cancelled. You can try again.',
+      contextLoadFailed: "The stay's cats could not be loaded. Try cancelling again.",
+    },
     overview: {
       title: 'Stays',
       description: 'Here you can manage active stays and create new ones.',
       create: 'Create stay',
       statusFiltersAriaLabel: 'Stay status filters',
+      openDetailAriaLabel: (cats, owner, start, end) =>
+        `Open stay details for ${cats}, owned by ${owner}, from ${start} to ${end}`,
       loading: 'Loading stays...',
       retry: 'Retry',
       empty: 'No stays registered.',
@@ -674,6 +776,7 @@ export const STAYS_TRANSLATIONS = {
       owner: 'Owner',
       cats: 'Cats',
       status: 'Status',
+      pricing: 'Pricing & Payments',
     },
   },
 } satisfies Record<AppLanguage, StaysTranslations>;

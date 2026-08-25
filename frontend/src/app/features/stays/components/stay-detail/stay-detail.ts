@@ -1,6 +1,9 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
-import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
+import {
+  EntityDetailUpdate,
+  EntityReference,
+} from '../../../../shared/entity-detail/entity-reference';
 import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -8,10 +11,21 @@ import { StayApiService } from '../../services/stay-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
+import { MatDialog } from '@angular/material/dialog';
+import { filter } from 'rxjs';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import {
+  StayCancellationDialog,
+  StayCancellationDialogData,
+} from '../stay-cancellation-dialog/stay-cancellation-dialog';
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [MatButton, UiStateComponent, StayEditor],
+  imports: [MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  host: {
+    '[attr.aria-busy]': 'loading() || operationalLoading()',
+    '[attr.inert]': 'loading() && detail() ? "" : null',
+  },
   templateUrl: './stay-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
 })
@@ -19,8 +33,12 @@ export class StayDetail {
   private readonly api = inject(StayApiService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
   private detailGeneration = 0;
   private operationalGeneration = 0;
+  private pricingGeneration = 0;
+  private cancellationContextGeneration = 0;
+  private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
@@ -28,8 +46,11 @@ export class StayDetail {
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
-  readonly updated = output<Stay>();
+  readonly updated = output<EntityDetailUpdate>();
+  readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly refreshingChanged = output<boolean>();
+  readonly contentSettled = output<void>();
   readonly text = this.i18n.text;
   readonly detail = signal<StayDetailResponse | null>(null);
   readonly loading = signal(true);
@@ -37,14 +58,21 @@ export class StayDetail {
   readonly operationalStay = signal<Stay | null>(null);
   readonly operationalLoading = signal(false);
   readonly operationalError = signal(false);
+  readonly pricingStay = signal<Stay | null>(null);
+  readonly cancellationContextLoading = signal(false);
+  readonly cancellationContextError = signal(false);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;
+      this.pricingGeneration++;
+      this.invalidateCancellationContext();
       this.invalidateOperational();
     });
     effect(() => {
       const id = this.entityId();
       this.invalidateOperational();
+      this.invalidateCancellationContext();
+      if (this.loadedEntityId !== id) this.detail.set(null);
       this.load(id);
     });
     effect(() => {
@@ -55,24 +83,107 @@ export class StayDetail {
   }
   load(id = this.entityId()): void {
     const generation = ++this.detailGeneration;
+    const refreshing = this.loadedEntityId === id && this.detail() !== null;
     this.loading.set(true);
+    this.refreshingChanged.emit(refreshing);
     this.error.set(false);
     this.api.getStayDetail(id).subscribe({
       next: (detail) => {
         if (generation !== this.detailGeneration || id !== this.entityId()) return;
         this.detail.set(detail);
+        this.loadedEntityId = id;
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
+        this.loadPricingGate(id);
       },
       error: () => {
         if (generation === this.detailGeneration && id === this.entityId()) {
           this.error.set(true);
           this.loading.set(false);
+          this.refreshingChanged.emit(false);
+          this.contentSettled.emit();
         }
+      },
+    });
+  }
+  private loadPricingGate(id: string): void {
+    const generation = ++this.pricingGeneration;
+    this.pricingStay.set(null);
+    this.api.getStayById(id).subscribe({
+      next: (stay) => {
+        if (generation === this.pricingGeneration && id === this.entityId())
+          this.pricingStay.set(stay);
+      },
+      error: () => {
+        if (generation === this.pricingGeneration && id === this.entityId())
+          this.pricingStay.set(null);
       },
     });
   }
   canEdit(detail: StayDetailResponse): boolean {
     return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  canCancel(detail: StayDetailResponse): boolean {
+    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  cancelStay(detail: StayDetailResponse): void {
+    if (this.cancellationContextLoading()) return;
+    const completeStay = this.pricingStay();
+    if (completeStay?.stayId === detail.stayId) {
+      this.cancellationContextError.set(false);
+      this.openCancellationDialog(detail, completeStay);
+      return;
+    }
+
+    const generation = ++this.cancellationContextGeneration;
+    const stayId = detail.stayId;
+    this.cancellationContextLoading.set(true);
+    this.cancellationContextError.set(false);
+    this.api.getStayById(stayId).subscribe({
+      next: (stay) => {
+        if (
+          generation !== this.cancellationContextGeneration ||
+          stayId !== this.entityId() ||
+          stay.stayId !== stayId
+        )
+          return;
+        this.pricingStay.set(stay);
+        this.cancellationContextLoading.set(false);
+        this.openCancellationDialog(detail, stay);
+      },
+      error: () => {
+        if (generation !== this.cancellationContextGeneration || stayId !== this.entityId()) return;
+        this.cancellationContextLoading.set(false);
+        this.cancellationContextError.set(true);
+      },
+    });
+  }
+  private openCancellationDialog(detail: StayDetailResponse, stay: Stay): void {
+    const data: StayCancellationDialogData = {
+      stayId: detail.stayId,
+      catNames: stay.cats.map((cat) => cat.name),
+      ownerName: detail.owner.fullName,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+    };
+    this.dialog
+      .open<StayCancellationDialog, StayCancellationDialogData, boolean>(StayCancellationDialog, {
+        data,
+        width: '34rem',
+        maxWidth: 'calc(100vw - 2rem)',
+      })
+      .afterClosed()
+      .pipe(filter((cancelled): cancelled is true => cancelled === true))
+      .subscribe(() => {
+        this.load();
+        this.updated.emit({ entityType: 'stay', entityId: detail.stayId });
+      });
+  }
+  private invalidateCancellationContext(): void {
+    this.cancellationContextGeneration++;
+    this.cancellationContextLoading.set(false);
+    this.cancellationContextError.set(false);
   }
   date(value: string): string {
     return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());

@@ -8,11 +8,22 @@ import { EntityReference } from '../../../../shared/entity-detail/entity-referen
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerEditor } from '../owner-editor/owner-editor';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 @Component({
   selector: 'app-owner-detail',
-  imports: [MatButton, UiStateComponent, OwnerEditor, StayRelationshipLabel],
-  template: `@if (loading()) {
-      <app-ui-state kind="loading" [message]="text().owners.detail.loading" />
+  imports: [MatButton, MatProgressSpinner, UiStateComponent, OwnerEditor, StayRelationshipLabel],
+  host: {
+    '[attr.aria-busy]': 'loading()',
+    '[attr.inert]': 'loading() && detail() ? "" : null',
+  },
+  template: `@if (loading() && !detail()) {
+      <div
+        class="detail-loading-region"
+        role="status"
+        [attr.aria-label]="text().owners.detail.loading"
+      >
+        <mat-progress-spinner mode="indeterminate" diameter="40" />
+      </div>
     } @else if (error()) {
       <app-ui-state
         kind="error"
@@ -31,24 +42,38 @@ import { StayRelationshipLabel } from '../../../stays/components/stay-relationsh
           (submittingChanged)="submittingChanged.emit($event)"
         />
       } @else {
-        <dl>
-          <dt>{{ text().owners.form.fullName }}</dt>
-          <dd>{{ owner.fullName }}</dd>
-          <dt>{{ text().owners.form.primaryPhone }}</dt>
-          <dd>{{ owner.primaryPhone }}</dd>
-          <dt>{{ text().owners.form.address }}</dt>
-          <dd>{{ value(owner.address) }}</dd>
-          <dt>{{ text().owners.form.secondaryPhone }}</dt>
-          <dd>{{ value(owner.secondaryPhone) }}</dd>
-          <dt>{{ text().owners.form.secondaryPhoneName }}</dt>
-          <dd>{{ value(owner.secondaryPhoneName) }}</dd>
-          <dt>{{ text().owners.form.instagram }}</dt>
-          <dd>{{ value(owner.instagram) }}</dd>
-          <dt>{{ text().owners.form.facebook }}</dt>
-          <dd>{{ value(owner.facebook) }}</dd>
+        <dl class="detail-fields">
+          <div class="detail-field">
+            <dt>{{ text().owners.form.fullName }}</dt>
+            <dd>{{ owner.fullName }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.primaryPhone }}</dt>
+            <dd>{{ owner.primaryPhone }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.address }}</dt>
+            <dd>{{ value(owner.address) }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.secondaryPhone }}</dt>
+            <dd>{{ value(owner.secondaryPhone) }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.secondaryPhoneName }}</dt>
+            <dd>{{ value(owner.secondaryPhoneName) }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.instagram }}</dt>
+            <dd>{{ value(owner.instagram) }}</dd>
+          </div>
+          <div class="detail-field">
+            <dt>{{ text().owners.form.facebook }}</dt>
+            <dd>{{ value(owner.facebook) }}</dd>
+          </div>
         </dl>
         @if (detail.cats.totalElements > 0) {
-          <section>
+          <section class="relationship-group">
             <h3>{{ text().entityDetail.cats }}</h3>
             @if (detail.cats.totalElements <= 3) {
               @for (cat of detail.cats.items; track cat.id) {
@@ -68,7 +93,7 @@ import { StayRelationshipLabel } from '../../../stays/components/stay-relationsh
           </section>
         }
         @if (detail.stays.totalElements > 0) {
-          <section>
+          <section class="relationship-group">
             <h3>{{ text().entityDetail.stays }}</h3>
             @if (detail.stays.totalElements <= 3) {
               @for (stay of detail.stays.items; track stay.stayId) {
@@ -87,9 +112,11 @@ import { StayRelationshipLabel } from '../../../stays/components/stay-relationsh
             }
           </section>
         }
-        <button mat-flat-button type="button" (click)="editRequested.emit()">
-          {{ text().owners.detail.edit }}
-        </button>
+        <div class="detail-actions">
+          <button mat-flat-button type="button" (click)="editRequested.emit()">
+            {{ text().owners.detail.edit }}
+          </button>
+        </div>
       }
     }`,
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
@@ -98,12 +125,15 @@ export class OwnerDetail {
   private readonly api = inject(OwnerApiService);
   private readonly i18n = inject(I18nService);
   private loadGeneration = 0;
+  private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly refreshingChanged = output<boolean>();
+  readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly openStays = output<void>();
@@ -114,25 +144,32 @@ export class OwnerDetail {
   constructor() {
     inject(DestroyRef).onDestroy(() => this.loadGeneration++);
     effect(() => {
-      this.entityId();
-      this.load();
+      const entityId = this.entityId();
+      if (this.loadedEntityId !== entityId) this.detail.set(null);
+      this.load(entityId);
     });
   }
-  load(): void {
+  load(entityId = this.entityId()): void {
     const generation = ++this.loadGeneration;
-    const entityId = this.entityId();
+    const refreshing = this.loadedEntityId === entityId && this.detail() !== null;
     this.loading.set(true);
+    this.refreshingChanged.emit(refreshing);
     this.error.set(false);
     this.api.getOwnerDetail(entityId).subscribe({
       next: (detail) => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.detail.set(detail);
+        this.loadedEntityId = entityId;
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
       },
       error: () => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.error.set(true);
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
       },
     });
   }

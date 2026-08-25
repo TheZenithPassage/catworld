@@ -805,18 +805,24 @@ and stays use `startAt DESC, id ASC`. Stay detail derives status and night count
 at read time and intentionally excludes economics, payments and deletion hints.
 Its owner and participating cats remain read-only relationship targets.
 
-Calendar stay activation opens the route-free dialog and refreshes the edited
-stay in its existing cache after a successful dialog update. The routed stay
-page remains the payments and operational-actions adapter; Stay payments,
-creation, overview actions and their URLs are separate from lightweight dialog
-details. These reads and dialog integrations required no schema migration.
+Calendar and overview stay activation open the route-free dialog and refresh
+or replace the edited stay in their existing collections after a successful
+dialog update. Overview rows are pointer and keyboard activatable and contain
+no separate Actions column. Stay detail obtains the full operational Stay only
+to prove whether a recorded agreement exists before exposing Pricing & Payments;
+the lightweight detail response remains economics-free.
 
 The reusable Stay editor owns the complete date, notes, pricing preview,
 reconfirmation, stale-confirmation, vaccine-conflict and role-sensitive update
 workflow through route-free inputs and outputs. The Stay detail presenter loads
 the operational Stay only when editing begins and refreshes its lightweight
-detail after an authoritative save. The routed Stay edit page remains a thin
-route/loading/navigation adapter and separately composes Stay payments.
+detail after an authoritative save. Normal Stay editing has no route and remains
+inside this existing detail/editor flow.
+Eligible reserved and checked-in stays expose cancellation in the route-free
+detail through a distinct Material confirmation dialog. A successful
+cancellation reloads the lightweight backend-authoritative detail, while a
+failed request remains recoverable in the open confirmation dialog; permanent
+deletion remains a separate interaction.
 
 ### Material Forms
 
@@ -851,10 +857,12 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders backend-supplied retained rate,
-suggestion, agreement, paid total and remaining amount, and exposes focused
-agreement correction only to `ADMIN` for stays with a known agreement;
-successful correction replaces the row with the complete authoritative
-response.
+suggestion, agreement, paid total and remaining amount. Post-creation agreement
+correction and payment actions belong to the dedicated Pricing & Payments page
+rather than the overview. Registration, amount editing and annulment use focused
+responsive Material dialogs; permanent payment removal remains on the shared
+protected-deletion confirmation path. Successful mutations replace page state
+from the complete authoritative Stay returned by the backend.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
@@ -862,17 +870,23 @@ controls remain a separate integration boundary. Material inputs, supported
 native selects, checkboxes and buttons do not depend on legacy global
 native-control selectors.
 
-For stays with a known agreement, the individual stay route exposes
+For stays with a known agreement, authenticated `/stays/:id/pricing` is the only
+post-creation routed economic surface and exposes
 backend-authoritative economics and operational active and annulled payment
 history, including exact string amounts, payment dates, notes and registration
 attribution. Annulled operational entries also expose the user and instant
 recorded by the existing immutable annulment, so both `ADMIN` and `STAFF` can
 understand ordinary payment history without access to sensitive economic
-activity. Historical stays whose agreement is null expose neither payment
-economics nor payment-management entry points or actions in the overview and
-individual route. Ordinary stay editing remains limited by the existing dynamic
-status rule and remains available for otherwise-allowed non-pricing changes to
-those historical stays. `ADMIN` receives payment mutation affordances in every
+activity. The page shows only owner, cats, dynamic status and dates as Stay
+context, never Stay notes, and replaces its displayed full Stay from successful
+payment output. Direct access remains valid for historical stays whose agreement
+is null, but shows an explicit empty economic state and no summary, history or
+economic actions. Pricing Back returns to a captured internal Angular URL,
+including its query string, and otherwise falls back to `/stays`; it does not
+reconstruct a detail dialog or use browser storage. Historical stays expose no
+Pricing & Payments entry in detail. Ordinary stay editing remains limited by
+the existing dynamic status rule and remains available for otherwise-allowed
+non-pricing changes to those historical stays. `ADMIN` receives payment mutation affordances in every
 status for known agreements; `STAFF` receives register, edit and annul
 affordances only for reserved and checked-in stays and never receives permanent
 removal.
