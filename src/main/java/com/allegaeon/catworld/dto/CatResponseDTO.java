@@ -33,5 +33,6 @@ public class CatResponseDTO {
     private UUID vetId;
     private String vetName;
     private boolean canDelete;
+    private boolean hasPhoto;
 
 }

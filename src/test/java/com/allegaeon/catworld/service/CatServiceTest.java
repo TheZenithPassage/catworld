@@ -13,6 +13,7 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.CatPhotoRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.VetRepository;
@@ -77,6 +78,15 @@ class CatServiceTest {
 
     @Mock
     private StayCatRepository stayCatRepository;
+
+    @Mock
+    private CatPhotoRepository catPhotoRepository;
+
+    @Mock
+    private LibVipsCatPhotoNormalizer photoNormalizer;
+
+    @Mock
+    private CatMutationTransactionService mutationTransactionService;
 
     @InjectMocks
     private CatService service;
@@ -157,17 +167,14 @@ class CatServiceTest {
                 .canDelete(false)
                 .build();
 
-        when(ownerRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
-        when(catMapper.toEntity(request, owner, null)).thenReturn(mappedCat);
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
-        when(catRepository.save(any(Cat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        mappedCat.setCreatedBy(creator);
+        when(mutationTransactionService.create(request, null)).thenReturn(mappedCat);
         when(catMapper.toResponseDTO(mappedCat, false)).thenReturn(expectedResponse);
 
         CatResponseDTO result = service.createCat(request);
 
         assertSame(expectedResponse, result);
-        verify(catRepository).save(catCaptor.capture());
-        assertSame(creator, catCaptor.getValue().getCreatedBy());
+        verify(mutationTransactionService).create(request, null);
         verify(deletionAuthorizationPolicy).canDelete(creator, null);
         verifyNoInteractions(stayCatRepository);
     }

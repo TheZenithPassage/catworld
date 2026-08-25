@@ -6,6 +6,8 @@ import com.allegaeon.catworld.dto.relationship.*;
 
 import java.util.List;
 import java.util.UUID;
+import com.allegaeon.catworld.dto.CatPhotoContent;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface ICatService {
 
@@ -13,8 +15,11 @@ public interface ICatService {
     CatResponseDTO getCat(UUID id);
     CatDetailResponse getCatDetail(UUID id);
     RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page);
+    CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo);
+    CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto);
     CatResponseDTO createCat(CatRequestDTO catRequestDTO);
     CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO);
+    CatPhotoContent getPhoto(UUID id);
     void deleteCat(UUID id);
 
 }

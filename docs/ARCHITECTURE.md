@@ -2,6 +2,22 @@
 
 CatWorld is a full-stack administration system for cat-boarding operations.
 
+Cat profile photos use one optional `cat_photos` row owned by a Cat through a
+shared UUID primary/foreign key with database cascade deletion. The row stores
+only a normalized JPEG and its width, height, byte size and SHA-256 digest;
+photo bytes are not a Cat association and are never serialized in ordinary Cat
+JSON. Every normal Cat response includes required `hasPhoto` metadata, with
+collections populated by one bounded presence query.
+
+Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
+`removePhoto=false`). Native normalization finishes before a separate proxied
+service transaction atomically mutates Cat and CatPhoto. The authenticated
+`GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
+`Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
+and returns the same 404 shape for absent cats and absent photos. The native
+runtime is libvips 8.18.5 with HEIF/HEVC support, invoked through vips-ffm 1.9.8
+under Java 25 native access; native objects remain inside `Vips.run`.
+
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.

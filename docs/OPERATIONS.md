@@ -2,6 +2,13 @@
 
 Operations procedures for the current CatWorld deployment.
 
+Cat profile photos are normalized JPEG binary data stored in MySQL. Every
+backup must therefore use `mysqldump --hex-blob`; a restore drill must retrieve
+a representative photo and compare its SHA-256 digest with the pre-backup
+digest. Production runs Java 25 with
+`--enable-native-access=ALL-UNNAMED` and libvips 8.18.5 built with HEIF support
+and an HEVC decoder.
+
 ## Current Production Deployment
 
 The current production deployment runs from the host machine with `compose.prod.yml`.
@@ -80,7 +87,7 @@ $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 Create the dump inside the database container:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE" > /tmp/catworld-backup.sql'
+docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --hex-blob --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE" > /tmp/catworld-backup.sql'
 ```
 
 Copy it to the local backup directory:

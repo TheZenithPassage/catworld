@@ -10,6 +10,7 @@ package "CatWorld (Spring Boot Monolith)" {
   [Services] as s
   [Domain (Entities + Rules)] as d
   [Repositories (JPA)] as r
+  [libvips 8.18.5 via vips-ffm] as vips
 }
 
 database "MySQL (Docker)" as db
@@ -21,6 +22,7 @@ c --> s
 s --> m
 s --> d
 s --> r
+s --> vips : normalize before transaction
 r --> db
 
 note right of s

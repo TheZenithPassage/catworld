@@ -27,3 +27,22 @@ jobs:
 
       - name: Run Maven verification
         run: ./mvnw verify
+        env:
+          MAVEN_OPTS: --enable-native-access=ALL-UNNAMED
+
+      - name: Build production image with pinned native runtime
+        run: docker build --build-arg VIPS_VERSION=8.18.5 -t catworld-backend-ci .
+
+      - name: Smoke real native photo formats
+        run: |
+          docker run --rm --entrypoint sh catworld-backend-ci -c '
+            test "$(vips --version)" = "vips-8.18.5" &&
+            vips black /tmp/source.v 32 24 --bands 4 &&
+            vips copy /tmp/source.v /tmp/photo.jpg &&
+            vips copy /tmp/source.v /tmp/photo.png &&
+            vips copy /tmp/source.v /tmp/photo.webp &&
+            vips copy /tmp/source.v /tmp/photo.heic[compression=hevc] &&
+            cp /tmp/photo.heic /tmp/photo.heif &&
+            for input in /tmp/photo.jpg /tmp/photo.png /tmp/photo.webp /tmp/photo.heic /tmp/photo.heif; do
+              vips thumbnail "$input" /tmp/output.jpg 16;
+            done'
