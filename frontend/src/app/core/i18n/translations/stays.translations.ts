@@ -155,6 +155,7 @@ export interface StaysTranslations {
     cancelling: string;
     retry: string;
     failed: string;
+    contextLoadFailed: string;
   };
   overview: {
     title: string;
@@ -416,6 +417,8 @@ export const STAYS_TRANSLATIONS = {
       cancelling: 'Cancelando...',
       retry: 'Reintentar cancelación',
       failed: 'No se pudo cancelar la estancia. Puedes volver a intentarlo.',
+      contextLoadFailed:
+        'No se pudieron cargar los gatos de la estancia. Intenta cancelar de nuevo.',
     },
     overview: {
       title: 'Estancias',
@@ -676,6 +679,7 @@ export const STAYS_TRANSLATIONS = {
       cancelling: 'Cancelling...',
       retry: 'Retry cancellation',
       failed: 'The stay could not be cancelled. You can try again.',
+      contextLoadFailed: "The stay's cats could not be loaded. Try cancelling again.",
     },
     overview: {
       title: 'Stays',

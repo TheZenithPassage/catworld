@@ -70,6 +70,11 @@
         </dd>
       </div>
     </dl>
+    @if (cancellationContextError()) {
+      <p class="detail-error" role="alert">
+        {{ text().stays.cancellation.contextLoadFailed }}
+      </p>
+    }
     @if (stay.cats.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().stays.detail.cats }}</h3>
@@ -92,7 +97,13 @@
     }
     <div class="detail-actions">
       @if (canCancel(stay)) {
-        <button class="cancel-action" mat-stroked-button type="button" (click)="cancelStay(stay)">
+        <button
+          class="cancel-action"
+          mat-stroked-button
+          type="button"
+          [disabled]="cancellationContextLoading()"
+          (click)="cancelStay(stay)"
+        >
           {{ text().stays.cancellation.action }}
         </button>
       }

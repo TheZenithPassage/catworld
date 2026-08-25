@@ -158,6 +158,14 @@ describe('CalendarPage', () => {
     fixture.detectChanges();
 
     expect(component.filteredDailyLabelsEnabled()).toBe(true);
+
+    const filteredDailyLabelsInput = filteredDailyLabelsOption.querySelector(
+      'input',
+    ) as HTMLInputElement;
+    filteredDailyLabelsInput.click();
+    fixture.detectChanges();
+
+    expect(component.filteredDailyLabelsEnabled()).toBe(false);
   });
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {

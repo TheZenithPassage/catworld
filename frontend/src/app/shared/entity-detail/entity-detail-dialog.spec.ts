@@ -1255,6 +1255,18 @@ describe('EntityDetailDialog', () => {
 
   it('keeps pricing alongside eligible cancellation and after authoritative cancellation', async () => {
     const afterClosed = new Subject<boolean>();
+    const completeStay = {
+      ...operationalStay,
+      agreedAmount: '100',
+      catIds: ['cat-1', 'cat-2', 'cat-3', 'cat-4'],
+      cats: [
+        { catId: 'cat-1', name: 'Milo' },
+        { catId: 'cat-2', name: 'Nina' },
+        { catId: 'cat-3', name: 'Luna' },
+        { catId: 'cat-4', name: 'Leo' },
+      ],
+    };
+    const delayedCompleteStay = new Subject<Stay>();
     const materialDialog = {
       open: vi.fn(() => ({ afterClosed: () => afterClosed.asObservable() })),
     };
@@ -1268,7 +1280,7 @@ describe('EntityDetailDialog', () => {
           numberOfNights: 2,
           notes: null,
           owner: { id: 'owner-1', fullName: 'Ada Lovelace' },
-          cats: { totalElements: 0, items: [] },
+          cats: { totalElements: 4, items: [] },
         }),
       )
       .mockReturnValueOnce(
@@ -1283,14 +1295,10 @@ describe('EntityDetailDialog', () => {
           cats: { totalElements: 0, items: [] },
         }),
       );
-    stayApi.getStayById.mockReturnValue(
-      of({
-        ...operationalStay,
-        agreedAmount: '100',
-        catIds: ['cat-1'],
-        cats: [{ catId: 'cat-1', name: 'Milo' }],
-      }),
-    );
+    stayApi.getStayById
+      .mockReturnValueOnce(delayedCompleteStay.asObservable())
+      .mockReturnValueOnce(delayedCompleteStay.asObservable())
+      .mockReturnValue(of(completeStay));
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -1309,16 +1317,26 @@ describe('EntityDetailDialog', () => {
     fixture.componentInstance.entityUpdated.subscribe(emitted);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      fixture.componentInstance.text().stays.detail.pricing,
+    const cancelButton = buttonContaining(
+      fixture,
+      fixture.componentInstance.text().stays.cancellation.action,
     );
-    buttonContaining(fixture, fixture.componentInstance.text().stays.cancellation.action).click();
+    cancelButton.click();
+    fixture.detectChanges();
+
+    expect(materialDialog.open).not.toHaveBeenCalled();
+    expect(cancelButton.disabled).toBe(true);
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+
+    delayedCompleteStay.next(completeStay);
+    fixture.detectChanges();
+
     expect(materialDialog.open).toHaveBeenCalledWith(
       StayCancellationDialog,
       expect.objectContaining({
         data: expect.objectContaining({
           stayId: 'stay-1',
-          catNames: ['Milo'],
+          catNames: ['Milo', 'Nina', 'Luna', 'Leo'],
           ownerName: 'Ada Lovelace',
         }),
       }),

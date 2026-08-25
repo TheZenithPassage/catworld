@@ -237,8 +237,18 @@ export class CalendarPage {
     this.unfilteredDisplayMode.set(displayMode);
   }
 
+  activateUnfilteredDisplayOption(event: MouseEvent, displayMode: CalendarDisplayMode): void {
+    if (event.target !== event.currentTarget) return;
+    this.setUnfilteredDisplayMode(displayMode);
+  }
+
   setFilteredDailyLabelsEnabled(checked: boolean): void {
     this.filteredDailyLabelsEnabled.set(checked);
+  }
+
+  activateFilteredDisplayOption(event: MouseEvent): void {
+    if (event.target !== event.currentTarget) return;
+    this.setFilteredDailyLabelsEnabled(!this.filteredDailyLabelsEnabled());
   }
 
   private readStoredCalendarPreferences(): CalendarLocalPreferences {

@@ -37,6 +37,7 @@ export class StayDetail {
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
+  private cancellationContextGeneration = 0;
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
@@ -58,15 +59,19 @@ export class StayDetail {
   readonly operationalLoading = signal(false);
   readonly operationalError = signal(false);
   readonly pricingStay = signal<Stay | null>(null);
+  readonly cancellationContextLoading = signal(false);
+  readonly cancellationContextError = signal(false);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;
       this.pricingGeneration++;
+      this.invalidateCancellationContext();
       this.invalidateOperational();
     });
     effect(() => {
       const id = this.entityId();
       this.invalidateOperational();
+      this.invalidateCancellationContext();
       if (this.loadedEntityId !== id) this.detail.set(null);
       this.load(id);
     });
@@ -123,10 +128,41 @@ export class StayDetail {
     return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
   }
   cancelStay(detail: StayDetailResponse): void {
+    if (this.cancellationContextLoading()) return;
+    const completeStay = this.pricingStay();
+    if (completeStay?.stayId === detail.stayId) {
+      this.cancellationContextError.set(false);
+      this.openCancellationDialog(detail, completeStay);
+      return;
+    }
+
+    const generation = ++this.cancellationContextGeneration;
+    const stayId = detail.stayId;
+    this.cancellationContextLoading.set(true);
+    this.cancellationContextError.set(false);
+    this.api.getStayById(stayId).subscribe({
+      next: (stay) => {
+        if (
+          generation !== this.cancellationContextGeneration ||
+          stayId !== this.entityId() ||
+          stay.stayId !== stayId
+        )
+          return;
+        this.pricingStay.set(stay);
+        this.cancellationContextLoading.set(false);
+        this.openCancellationDialog(detail, stay);
+      },
+      error: () => {
+        if (generation !== this.cancellationContextGeneration || stayId !== this.entityId()) return;
+        this.cancellationContextLoading.set(false);
+        this.cancellationContextError.set(true);
+      },
+    });
+  }
+  private openCancellationDialog(detail: StayDetailResponse, stay: Stay): void {
     const data: StayCancellationDialogData = {
       stayId: detail.stayId,
-      catNames:
-        this.pricingStay()?.cats.map((cat) => cat.name) ?? detail.cats.items.map((cat) => cat.name),
+      catNames: stay.cats.map((cat) => cat.name),
       ownerName: detail.owner.fullName,
       startAt: detail.startAt,
       endAt: detail.endAt,
@@ -143,6 +179,11 @@ export class StayDetail {
         this.load();
         this.updated.emit({ entityType: 'stay', entityId: detail.stayId });
       });
+  }
+  private invalidateCancellationContext(): void {
+    this.cancellationContextGeneration++;
+    this.cancellationContextLoading.set(false);
+    this.cancellationContextError.set(false);
   }
   date(value: string): string {
     return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());
