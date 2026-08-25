@@ -61,7 +61,12 @@ public class LibVipsCatPhotoNormalizer {
             image = image.autorot();
 
             if (image.getFields().contains("icc-profile-data")) {
-                image = image.iccTransform("srgb", VipsOption.Boolean("embedded", true));
+                verifyIccCapability(arena);
+                try {
+                    image = image.iccTransform("srgb", VipsOption.Boolean("embedded", true));
+                } catch (VipsError exception) {
+                    throw new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_UNDECODABLE);
+                }
             } else {
                 image = image.colourspace(VipsInterpretation.INTERPRETATION_sRGB);
             }
@@ -88,6 +93,17 @@ public class LibVipsCatPhotoNormalizer {
             result.set(new NormalizedCatPhoto(encoded, width, height, sha256(encoded)));
         });
         return result.get();
+    }
+
+    private static void verifyIccCapability(java.lang.foreign.Arena arena) {
+        try {
+            VImage probe = VImage.black(arena, 1, 1, VipsOption.Int("bands", 3))
+                    .colourspace(VipsInterpretation.INTERPRETATION_sRGB)
+                    .iccExport(VipsOption.String("output_profile", "srgb"));
+            probe.iccTransform("srgb", VipsOption.Boolean("embedded", true)).avg();
+        } catch (VipsError exception) {
+            throw new IllegalStateException("Native ICC color management is unavailable", exception);
+        }
     }
 
     private static boolean isSupported(byte[] bytes) {

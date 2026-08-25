@@ -140,6 +140,7 @@ public class CatControllerTest {
                     .sex(Sex.MALE)
                     .ownerId(UUID.randomUUID())
                     .canDelete(true)
+                    .hasPhoto(true)
                     .build());
 
             mockMvc.perform(get("/api/cats/{id}", catId))
@@ -147,6 +148,7 @@ public class CatControllerTest {
                     .andExpect(jsonPath("$.id").value(catId.toString()))
                     .andExpect(jsonPath("$.name").value("Milo"))
                     .andExpect(jsonPath("$.canDelete").value(true))
+                    .andExpect(jsonPath("$.hasPhoto").value(true))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())

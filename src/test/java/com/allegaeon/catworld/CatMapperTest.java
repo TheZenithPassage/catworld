@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CatMapperTest {
 
@@ -46,6 +47,14 @@ class CatMapperTest {
         assertEquals(vetId, response.getVetId());
         assertEquals("Central Vet", response.getVetName());
         assertEquals(canDelete, response.isCanDelete());
+        assertFalse(response.isHasPhoto());
+    }
+
+    @Test
+    void mapsExplicitPhotoPresence() {
+        Cat cat = Cat.builder().id(UUID.randomUUID()).name("Milo")
+                .owner(Owner.builder().id(UUID.randomUUID()).fullName("Owner").build()).build();
+        assertTrue(catMapper.toResponseDTO(cat, false, true).isHasPhoto());
     }
 
     @Test

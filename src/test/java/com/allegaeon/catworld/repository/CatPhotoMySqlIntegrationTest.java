@@ -53,6 +53,10 @@ class CatPhotoMySqlIntegrationTest {
         CatRequestDTO request = CatRequestDTO.builder().name("Milo").birthDate(LocalDate.of(2020, 1, 1))
                 .sex(Sex.MALE).ownerId(owner.getId()).build();
         NormalizedCatPhoto first = photo(new byte[] {1, 2, 3}, "a".repeat(64));
+        assertThrows(RuntimeException.class, () -> mutations.create(request,
+                new NormalizedCatPhoto(new byte[] {9}, 0, 1, "z".repeat(64))));
+        assertEquals(0, cats.count());
+        assertEquals(0, photos.count());
         Cat cat = mutations.create(request, first);
         assertArrayEquals(first.bytes(), photos.findById(cat.getId()).orElseThrow().getContent());
         assertEquals(Set.of(cat.getId()), photos.findPresentCatIds(List.of(cat.getId())));

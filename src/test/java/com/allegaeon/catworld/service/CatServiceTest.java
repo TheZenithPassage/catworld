@@ -218,7 +218,9 @@ class CatServiceTest {
                 CREATED_AT)).thenReturn(false);
         when(stayCatRepository.findCatIdsWithStayHistory(eligibleIds))
                 .thenReturn(Set.of(historyBlocked.getId()));
-        when(catMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(catPhotoRepository.findPresentCatIds(List.of(deletable.getId(), historyBlocked.getId(), unauthorized.getId())))
+                .thenReturn(Set.of(deletable.getId()));
+        when(catMapper.toResponseDTO(deletable, true, true)).thenReturn(deletableResponse);
         when(catMapper.toResponseDTO(historyBlocked, false)).thenReturn(historyBlockedResponse);
         when(catMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
 
@@ -229,6 +231,9 @@ class CatServiceTest {
         verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(eligibleIds);
         verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(any());
         verify(stayCatRepository, never()).existsByCat_Id(any(UUID.class));
+        verify(catPhotoRepository).findPresentCatIds(List.of(deletable.getId(), historyBlocked.getId(), unauthorized.getId()));
+        verify(catPhotoRepository, never()).findById(any(UUID.class));
+        verify(catPhotoRepository, never()).existsById(any(UUID.class));
         verify(deletionAuthorizationPolicy, never()).canDelete(any(UserAccount.class), any(Instant.class));
     }
 
@@ -379,7 +384,8 @@ class CatServiceTest {
         when(catRepository.findById(catId)).thenReturn(Optional.of(cat));
         when(deletionAuthorizationPolicy.canDelete(creator, CREATED_AT)).thenReturn(true);
         when(stayCatRepository.existsByCat_Id(catId)).thenReturn(false);
-        when(catMapper.toResponseDTO(cat, true)).thenReturn(expected);
+        when(catPhotoRepository.existsById(catId)).thenReturn(true);
+        when(catMapper.toResponseDTO(cat, true, true)).thenReturn(expected);
 
         CatResponseDTO result = service.getCat(catId);
 
@@ -387,7 +393,7 @@ class CatServiceTest {
         var ordered = inOrder(deletionAuthorizationPolicy, stayCatRepository, catMapper);
         ordered.verify(deletionAuthorizationPolicy).canDelete(creator, CREATED_AT);
         ordered.verify(stayCatRepository).existsByCat_Id(catId);
-        ordered.verify(catMapper).toResponseDTO(cat, true);
+        ordered.verify(catMapper).toResponseDTO(cat, true, true);
     }
 
     @Test
