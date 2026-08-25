@@ -1,22 +1,128 @@
-dl {
+:host {
   display: grid;
-  grid-template-columns: minmax(9rem, 1fr) 2fr;
-  gap: 0.65rem 1rem;
-  margin: 0 0 1.5rem;
+  gap: 1rem;
+  min-width: 0;
 }
+
+.detail-loading-region {
+  display: grid;
+  min-height: 12rem;
+  place-items: center;
+}
+
+.detail-loading-region mat-progress-spinner {
+  --mdc-circular-progress-active-indicator-color: var(--color-primary);
+}
+
+.detail-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.detail-field {
+  min-width: 0;
+}
+
 dt {
+  margin-bottom: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
   font-weight: 600;
 }
+
 dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 650;
+}
+
+dd button {
+  justify-content: flex-start;
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 2.25rem;
+  margin: -0.4rem -0.75rem;
+  padding-block: 0.4rem;
+  text-align: left;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
+
+.relationship-group {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.relationship-group h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.relationship-group button {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid transparent;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.relationship-group button:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-primary-soft);
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+}
+
+.detail-actions .cancel-action {
+  margin-right: auto;
+}
+
 @media (max-width: 36rem) {
-  dl {
+  .detail-fields {
     grid-template-columns: 1fr;
-    gap: 0.2rem;
+    padding: 0.85rem;
   }
-  dd {
-    margin-bottom: 0.65rem;
+
+  .relationship-group {
+    padding: 0.85rem;
+  }
+
+  .detail-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detail-actions .cancel-action {
+    margin-right: 0;
+  }
+
+  .detail-actions button {
+    width: 100%;
   }
 }

@@ -12,6 +12,7 @@ import { StayCancellationDialog, StayCancellationDialogData } from './stay-cance
 describe('StayCancellationDialog', () => {
   const data: StayCancellationDialogData = {
     stayId: 'stay-1',
+    catNames: ['Milo', 'Nina'],
     ownerName: 'Ada Lovelace',
     startAt: '2030-01-01T10:00:00',
     endAt: '2030-01-03T10:00:00',
@@ -49,7 +50,7 @@ describe('StayCancellationDialog', () => {
 
     expect(api.cancelStay).not.toHaveBeenCalled();
     expect(dialogRef.close).toHaveBeenCalledWith(false);
-    expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
+    expect(fixture.nativeElement.textContent).toContain('Milo, Nina (Ada Lovelace)');
     expect(fixture.nativeElement.textContent).toContain('distinct from permanent deletion');
   });
 

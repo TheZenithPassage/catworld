@@ -9,9 +9,14 @@ import { EntityReference } from '../../../../shared/entity-detail/entity-referen
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 @Component({
   selector: 'app-cat-detail',
-  imports: [MatButton, UiStateComponent, CatEditor, StayRelationshipLabel],
+  imports: [MatButton, MatProgressSpinner, UiStateComponent, CatEditor, StayRelationshipLabel],
+  host: {
+    '[attr.aria-busy]': 'loading()',
+    '[attr.inert]': 'loading() && detail() ? "" : null',
+  },
   templateUrl: './cat-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
 })
@@ -19,12 +24,15 @@ export class CatDetail {
   private readonly api = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   private loadGeneration = 0;
+  private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly refreshingChanged = output<boolean>();
+  readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
   readonly text = this.i18n.text;
@@ -35,25 +43,32 @@ export class CatDetail {
   constructor() {
     inject(DestroyRef).onDestroy(() => this.loadGeneration++);
     effect(() => {
-      this.entityId();
-      this.load();
+      const entityId = this.entityId();
+      if (this.loadedEntityId !== entityId) this.detail.set(null);
+      this.load(entityId);
     });
   }
-  load(): void {
+  load(entityId = this.entityId()): void {
     const generation = ++this.loadGeneration;
-    const entityId = this.entityId();
+    const refreshing = this.loadedEntityId === entityId && this.detail() !== null;
     this.loading.set(true);
+    this.refreshingChanged.emit(refreshing);
     this.error.set(false);
     this.api.getCatDetail(entityId).subscribe({
       next: (detail) => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.detail.set(detail);
+        this.loadedEntityId = entityId;
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
       },
       error: () => {
         if (generation !== this.loadGeneration || entityId !== this.entityId()) return;
         this.error.set(true);
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
       },
     });
   }

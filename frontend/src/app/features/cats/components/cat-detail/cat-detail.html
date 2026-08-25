@@ -1,5 +1,7 @@
-@if (loading()) {
-  <app-ui-state kind="loading" [message]="text().cats.detail.loading" />
+@if (loading() && !detail()) {
+  <div class="detail-loading-region" role="status" [attr.aria-label]="text().cats.detail.loading">
+    <mat-progress-spinner mode="indeterminate" diameter="40" />
+  </div>
 } @else if (error()) {
   <app-ui-state
     kind="error"
@@ -18,64 +20,98 @@
       (submittingChanged)="submittingChanged.emit($event)"
     />
   } @else {
-    <dl>
-      <dt>{{ text().cats.form.name }}</dt>
-      <dd>{{ cat.name }}</dd>
-      <dt>{{ text().cats.form.birthDate }}</dt>
-      <dd>{{ date(cat.birthDate) }}</dd>
-      <dt>{{ text().cats.form.sex }}</dt>
-      <dd>{{ cat.sex === 'MALE' ? text().cats.form.male : text().cats.form.female }}</dd>
-      <dt>{{ text().cats.form.owner }}</dt>
-      <dd>
-        <button
-          mat-button
-          type="button"
-          (click)="navigate.emit({ entityType: 'owner', entityId: cat.ownerId })"
-        >
-          {{ cat.ownerName }}
-        </button>
-      </dd>
-      <dt>{{ text().cats.form.vet }}</dt>
-      <dd>
-        @if (cat.vetId) {
+    <dl class="detail-fields">
+      <div class="detail-field">
+        <dt>{{ text().cats.form.name }}</dt>
+        <dd>{{ cat.name }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.birthDate }}</dt>
+        <dd>{{ date(cat.birthDate) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.sex }}</dt>
+        <dd>{{ cat.sex === 'MALE' ? text().cats.form.male : text().cats.form.female }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.owner }}</dt>
+        <dd>
           <button
             mat-button
             type="button"
-            (click)="navigate.emit({ entityType: 'vet', entityId: cat.vetId })"
+            (click)="navigate.emit({ entityType: 'owner', entityId: cat.ownerId })"
           >
-            {{ cat.vetName }}
+            {{ cat.ownerName }}
           </button>
-        } @else {
-          {{ value(cat.vetName) }}
-        }
-      </dd>
-      <dt>{{ text().cats.form.breed }}</dt>
-      <dd>{{ value(cat.breed) }}</dd>
-      <dt>{{ text().cats.form.coat }}</dt>
-      <dd>{{ value(cat.coat) }}</dd>
-      <dt>{{ text().cats.form.color }}</dt>
-      <dd>{{ value(cat.color) }}</dd>
-      <dt>{{ text().cats.form.foodBrand }}</dt>
-      <dd>{{ value(cat.foodBrand) }}</dd>
-      <dt>{{ text().cats.form.litterBrand }}</dt>
-      <dd>{{ value(cat.litterBrand) }}</dd>
-      <dt>{{ text().cats.form.personality }}</dt>
-      <dd>{{ value(cat.personality) }}</dd>
-      <dt>{{ text().cats.form.lastInternalDewormerName }}</dt>
-      <dd>{{ value(cat.lastInternalDewormerName) }}</dd>
-      <dt>{{ text().cats.form.lastInternalDewormingDate }}</dt>
-      <dd>{{ date(cat.lastInternalDewormingDate) }}</dd>
-      <dt>{{ text().cats.form.lastExternalDewormerName }}</dt>
-      <dd>{{ value(cat.lastExternalDewormerName) }}</dd>
-      <dt>{{ text().cats.form.lastExternalDewormingDate }}</dt>
-      <dd>{{ date(cat.lastExternalDewormingDate) }}</dd>
-      <dt>{{ text().cats.form.lastTripleFelineDate }}</dt>
-      <dd>{{ date(cat.lastTripleFelineDate) }}</dd>
-      <dt>{{ text().cats.form.lastRabiesDate }}</dt>
-      <dd>{{ date(cat.lastRabiesDate) }}</dd>
+        </dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.vet }}</dt>
+        <dd>
+          @if (cat.vetId) {
+            <button
+              mat-button
+              type="button"
+              (click)="navigate.emit({ entityType: 'vet', entityId: cat.vetId })"
+            >
+              {{ cat.vetName }}
+            </button>
+          } @else {
+            {{ value(cat.vetName) }}
+          }
+        </dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.breed }}</dt>
+        <dd>{{ value(cat.breed) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.coat }}</dt>
+        <dd>{{ value(cat.coat) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.color }}</dt>
+        <dd>{{ value(cat.color) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.foodBrand }}</dt>
+        <dd>{{ value(cat.foodBrand) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.litterBrand }}</dt>
+        <dd>{{ value(cat.litterBrand) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.personality }}</dt>
+        <dd>{{ value(cat.personality) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastInternalDewormerName }}</dt>
+        <dd>{{ value(cat.lastInternalDewormerName) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastInternalDewormingDate }}</dt>
+        <dd>{{ date(cat.lastInternalDewormingDate) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastExternalDewormerName }}</dt>
+        <dd>{{ value(cat.lastExternalDewormerName) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastExternalDewormingDate }}</dt>
+        <dd>{{ date(cat.lastExternalDewormingDate) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastTripleFelineDate }}</dt>
+        <dd>{{ date(cat.lastTripleFelineDate) }}</dd>
+      </div>
+      <div class="detail-field">
+        <dt>{{ text().cats.form.lastRabiesDate }}</dt>
+        <dd>{{ date(cat.lastRabiesDate) }}</dd>
+      </div>
     </dl>
     @if (detail.stays.totalElements > 0) {
-      <section>
+      <section class="relationship-group">
         <h3>{{ text().entityDetail.stays }}</h3>
         @if (detail.stays.totalElements <= 3) {
           @for (stay of detail.stays.items; track stay.stayId) {
@@ -94,8 +130,10 @@
         }
       </section>
     }
-    <button mat-flat-button type="button" (click)="editRequested.emit()">
-      {{ text().cats.detail.edit }}
-    </button>
+    <div class="detail-actions">
+      <button mat-flat-button type="button" (click)="editRequested.emit()">
+        {{ text().cats.detail.edit }}
+      </button>
+    </div>
   }
 }

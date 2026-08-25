@@ -147,7 +147,7 @@ export interface StaysTranslations {
     action: string;
     title: string;
     description: string;
-    owner: string;
+    cats: string;
     period: string;
     consequence: string;
     dismiss: string;
@@ -407,7 +407,7 @@ export const STAYS_TRANSLATIONS = {
       action: 'Cancelar estancia',
       title: 'Cancelar estancia',
       description: 'Confirma la cancelación de esta estancia.',
-      owner: 'Dueño',
+      cats: 'Gatos',
       period: 'Periodo',
       consequence:
         'La estancia quedará cancelada. Esta acción es distinta de eliminarla permanentemente.',
@@ -667,7 +667,7 @@ export const STAYS_TRANSLATIONS = {
       action: 'Cancel stay',
       title: 'Cancel stay',
       description: 'Confirm cancellation of this stay.',
-      owner: 'Owner',
+      cats: 'Cats',
       period: 'Period',
       consequence:
         'The stay will be marked as cancelled. This is distinct from permanent deletion.',

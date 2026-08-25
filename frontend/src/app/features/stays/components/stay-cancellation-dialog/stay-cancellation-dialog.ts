@@ -15,6 +15,7 @@ import { StayApiService } from '../../services/stay-api.service';
 
 export interface StayCancellationDialogData {
   stayId: string;
+  catNames: string[];
   ownerName: string;
   startAt: string;
   endAt: string;
@@ -38,6 +39,10 @@ export class StayCancellationDialog {
 
   date(value: string): string {
     return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());
+  }
+
+  stayContext(): string {
+    return `${this.data.catNames.join(', ')} (${this.data.ownerName})`;
   }
 
   dismiss(): void {

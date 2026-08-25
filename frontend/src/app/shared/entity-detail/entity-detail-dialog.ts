@@ -1,5 +1,13 @@
-import { Component, ElementRef, inject, output, signal } from '@angular/core';
-import { MatButton } from '@angular/material/button';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
   MatDialogClose,
@@ -15,6 +23,7 @@ import { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
 import { MatPaginator, MatPaginatorIntl, PageEvent } from '@angular/material/paginator';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { CatRelationshipPage } from './relationship.models';
@@ -34,6 +43,7 @@ type HistoryEntry =
   selector: 'app-entity-detail-dialog',
   imports: [
     MatButton,
+    MatIconButton,
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
@@ -43,6 +53,7 @@ type HistoryEntry =
     StayDetail,
     UiStateComponent,
     MatPaginator,
+    MatProgressSpinner,
     StayRelationshipLabel,
   ],
   providers: [{ provide: MatPaginatorIntl, useFactory: dialogPaginatorIntl }],
@@ -58,6 +69,9 @@ export class EntityDetailDialog {
   private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
   private requestGeneration = 0;
+  private geometryGeneration = 0;
+  private contentResolved = false;
+  private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
   readonly entry = signal<HistoryEntry>(this.history()[0]);
@@ -68,7 +82,13 @@ export class EntityDetailDialog {
   readonly text = inject(I18nService).text;
   readonly entityUpdated = output<EntityDetailUpdate>();
   readonly submitting = signal(false);
+  readonly detailRefreshing = signal(false);
+  readonly preservedContentHeight = signal<number | null>(null);
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.geometryGeneration++);
+  }
   title(): string {
+    if (this.entry().kind === 'list') return this.relationshipTitle();
     const text = this.text();
     return this.reference().entityType === 'owner'
       ? text.owners.detail.title
@@ -89,7 +109,9 @@ export class EntityDetailDialog {
           : text.stays.detail.close;
   }
   showReference(reference: EntityReference): void {
+    this.captureContentGeometry();
     this.editing.set(false);
+    this.detailRefreshing.set(false);
     this.reference.set(reference);
     const entry: HistoryEntry = { kind: 'detail', reference };
     this.history.update((items) => [...items, entry]);
@@ -97,6 +119,8 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openCats(parent: EntityReference): void {
+    this.captureContentGeometry();
+    this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
       parent.entityType === 'owner'
         ? 'owner-cats'
@@ -107,22 +131,28 @@ export class EntityDetailDialog {
     this.history.update((items) => [...items, entry]);
     this.entry.set(entry);
     this.reference.set(parent);
+    this.relationshipPage.set(null);
     this.loadRelationship(entry);
     this.focusContent();
   }
   openStays(parent: EntityReference): void {
+    this.captureContentGeometry();
+    this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
       parent.entityType === 'owner' ? 'owner-stays' : 'cat-stays';
     const entry: HistoryEntry = { kind: 'list', relationship, parent, page: 0 };
     this.history.update((items) => [...items, entry]);
     this.entry.set(entry);
     this.reference.set(parent);
+    this.relationshipPage.set(null);
     this.loadRelationship(entry);
     this.focusContent();
   }
   back(): void {
     if (this.history().length <= 1) return;
+    this.captureContentGeometry();
     this.editing.set(false);
+    this.detailRefreshing.set(false);
     this.history.update((items) => items.slice(0, -1));
     const entry = this.history()[this.history().length - 1];
     this.entry.set(entry);
@@ -144,7 +174,10 @@ export class EntityDetailDialog {
   }
   retryRelationship(): void {
     const current = this.entry();
-    if (current.kind === 'list') this.loadRelationship(current);
+    if (current.kind === 'list') {
+      this.captureContentGeometry();
+      this.loadRelationship(current);
+    }
   }
   relationshipTitle(): string {
     const entry = this.entry();
@@ -178,11 +211,13 @@ export class EntityDetailDialog {
         }
         this.relationshipPage.set(page);
         this.relationshipLoading.set(false);
+        this.destinationSettled();
       },
       error: () => {
         if (generation !== this.requestGeneration || this.entry() !== entry) return;
         this.relationshipError.set(true);
         this.relationshipLoading.set(false);
+        this.destinationSettled();
       },
     });
   }
@@ -215,6 +250,30 @@ export class EntityDetailDialog {
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);
     this.dialogRef.disableClose = submitting;
+  }
+  refreshChanged(refreshing: boolean): void {
+    this.detailRefreshing.set(refreshing);
+  }
+  destinationSettled(): void {
+    const generation = ++this.geometryGeneration;
+    const view = this.element.nativeElement.ownerDocument.defaultView;
+    if (!view) {
+      this.preservedContentHeight.set(null);
+      this.contentResolved = true;
+      return;
+    }
+    view.requestAnimationFrame(() => {
+      if (generation !== this.geometryGeneration) return;
+      this.preservedContentHeight.set(null);
+      this.contentResolved = true;
+    });
+  }
+  private captureContentGeometry(): void {
+    if (!this.contentResolved) return;
+    const height = this.contentRegion()?.nativeElement.getBoundingClientRect().height ?? 0;
+    if (height > 0) this.preservedContentHeight.set(height);
+    this.contentResolved = false;
+    this.geometryGeneration++;
   }
   openStayPricing(): void {
     const stayId = this.reference().entityId;

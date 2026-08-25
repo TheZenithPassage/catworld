@@ -13,6 +13,7 @@ import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { MatDialog } from '@angular/material/dialog';
 import { filter } from 'rxjs';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import {
   StayCancellationDialog,
   StayCancellationDialogData,
@@ -20,7 +21,11 @@ import {
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [MatButton, UiStateComponent, StayEditor],
+  imports: [MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  host: {
+    '[attr.aria-busy]': 'loading() || operationalLoading()',
+    '[attr.inert]': 'loading() && detail() ? "" : null',
+  },
   templateUrl: './stay-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
 })
@@ -32,6 +37,7 @@ export class StayDetail {
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
+  private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
   readonly editRequested = output<void>();
@@ -42,6 +48,8 @@ export class StayDetail {
   readonly updated = output<EntityDetailUpdate>();
   readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly refreshingChanged = output<boolean>();
+  readonly contentSettled = output<void>();
   readonly text = this.i18n.text;
   readonly detail = signal<StayDetailResponse | null>(null);
   readonly loading = signal(true);
@@ -59,6 +67,7 @@ export class StayDetail {
     effect(() => {
       const id = this.entityId();
       this.invalidateOperational();
+      if (this.loadedEntityId !== id) this.detail.set(null);
       this.load(id);
     });
     effect(() => {
@@ -69,19 +78,26 @@ export class StayDetail {
   }
   load(id = this.entityId()): void {
     const generation = ++this.detailGeneration;
+    const refreshing = this.loadedEntityId === id && this.detail() !== null;
     this.loading.set(true);
+    this.refreshingChanged.emit(refreshing);
     this.error.set(false);
     this.api.getStayDetail(id).subscribe({
       next: (detail) => {
         if (generation !== this.detailGeneration || id !== this.entityId()) return;
         this.detail.set(detail);
+        this.loadedEntityId = id;
         this.loading.set(false);
+        this.refreshingChanged.emit(false);
+        this.contentSettled.emit();
         this.loadPricingGate(id);
       },
       error: () => {
         if (generation === this.detailGeneration && id === this.entityId()) {
           this.error.set(true);
           this.loading.set(false);
+          this.refreshingChanged.emit(false);
+          this.contentSettled.emit();
         }
       },
     });
@@ -109,6 +125,8 @@ export class StayDetail {
   cancelStay(detail: StayDetailResponse): void {
     const data: StayCancellationDialogData = {
       stayId: detail.stayId,
+      catNames:
+        this.pricingStay()?.cats.map((cat) => cat.name) ?? detail.cats.items.map((cat) => cat.name),
       ownerName: detail.owner.fullName,
       startAt: detail.startAt,
       endAt: detail.endAt,

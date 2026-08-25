@@ -2,11 +2,15 @@
 
 <mat-dialog-content>
   <p>{{ text().stays.cancellation.description }}</p>
-  <dl>
-    <dt>{{ text().stays.cancellation.owner }}</dt>
-    <dd>{{ data.ownerName }}</dd>
-    <dt>{{ text().stays.cancellation.period }}</dt>
-    <dd>{{ date(data.startAt) }} — {{ date(data.endAt) }}</dd>
+  <dl class="cancellation-summary">
+    <div class="summary-field">
+      <dt>{{ text().stays.cancellation.cats }}</dt>
+      <dd>{{ stayContext() }}</dd>
+    </div>
+    <div class="summary-field">
+      <dt>{{ text().stays.cancellation.period }}</dt>
+      <dd>{{ date(data.startAt) }} — {{ date(data.endAt) }}</dd>
+    </div>
   </dl>
   <p>{{ text().stays.cancellation.consequence }}</p>
   @if (failed()) {

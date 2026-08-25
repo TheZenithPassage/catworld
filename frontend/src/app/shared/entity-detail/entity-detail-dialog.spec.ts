@@ -559,7 +559,9 @@ describe('EntityDetailDialog', () => {
     ) as HTMLButtonElement;
     associated.click();
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.relationship-list')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain(
       fixture.componentInstance.text().entityDetail.loading,
     );
     initialPage.next({
@@ -576,6 +578,9 @@ describe('EntityDetailDialog', () => {
       length: 11,
       previousPageIndex: 0,
     });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.relationship-list button')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).not.toBeNull();
     requestedPage.next({
       items: [catItem('cat-6')],
       page: 2,
@@ -584,7 +589,7 @@ describe('EntityDetailDialog', () => {
       totalPages: 3,
     });
     fixture.detectChanges();
-    (fixture.nativeElement.querySelector('h3 + button') as HTMLButtonElement).click();
+    (fixture.nativeElement.querySelector('.relationship-list button') as HTMLButtonElement).click();
     fixture.detectChanges();
     expect(fixture.componentInstance.reference().entityType).toBe('cat');
     await fixture.whenStable();
@@ -598,7 +603,7 @@ describe('EntityDetailDialog', () => {
       entityId: 'owner-1',
     });
     expect(fixture.componentInstance.title()).toBe(
-      fixture.componentInstance.text().owners.detail.title,
+      fixture.componentInstance.text().entityDetail.cats,
     );
     restoredInvalidPage.next({ items: [], page: 2, pageSize: 5, totalElements: 6, totalPages: 2 });
     fixture.detectChanges();
@@ -1076,7 +1081,14 @@ describe('EntityDetailDialog', () => {
       navigate: vi.fn().mockResolvedValue(true),
     };
     stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
-    stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount: '100' }));
+    stayApi.getStayById.mockReturnValue(
+      of({
+        ...operationalStay,
+        agreedAmount: '100',
+        catIds: ['cat-1'],
+        cats: [{ catId: 'cat-1', name: 'Milo' }],
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -1271,7 +1283,14 @@ describe('EntityDetailDialog', () => {
           cats: { totalElements: 0, items: [] },
         }),
       );
-    stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount: '100' }));
+    stayApi.getStayById.mockReturnValue(
+      of({
+        ...operationalStay,
+        agreedAmount: '100',
+        catIds: ['cat-1'],
+        cats: [{ catId: 'cat-1', name: 'Milo' }],
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -1297,7 +1316,11 @@ describe('EntityDetailDialog', () => {
     expect(materialDialog.open).toHaveBeenCalledWith(
       StayCancellationDialog,
       expect.objectContaining({
-        data: expect.objectContaining({ stayId: 'stay-1', ownerName: 'Ada Lovelace' }),
+        data: expect.objectContaining({
+          stayId: 'stay-1',
+          catNames: ['Milo'],
+          ownerName: 'Ada Lovelace',
+        }),
       }),
     );
     expect(stayApi.getStayDetail).toHaveBeenCalledTimes(1);

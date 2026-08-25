@@ -1,31 +1,207 @@
 :host {
-  display: block;
-  position: relative;
-}
-.close-button {
-  position: absolute;
-  right: 0.75rem;
-  top: 0.75rem;
-  min-width: 2.5rem;
-  font-size: 1.4rem;
-}
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
+  display: flex;
+  max-height: calc(100dvh - 2rem);
+  min-width: 0;
+  flex-direction: column;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
+
+.dialog-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.dialog-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.title-loading-spinner,
+.relationship-list-loading mat-progress-spinner {
+  --mdc-circular-progress-active-indicator-color: var(--color-primary);
+}
+
+.title-loading-spinner {
+  flex: 0 0 auto;
+}
+
+.back-button {
+  color: var(--color-primary-hover);
+  font-weight: 750;
+}
+
+.close-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--color-text-muted);
+  line-height: 0;
+  place-items: center;
+}
+
+.close-icon {
+  display: inline-grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+}
+
+.close-icon svg {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
 mat-dialog-content {
-  padding-top: 2.75rem;
-  min-width: min(40rem, calc(100vw - 4rem));
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 1.5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
+
+.content-region--geometry-locked {
+  ::ng-deep .detail-loading-region {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+  }
+
+  .relationship-list--initial {
+    position: absolute;
+    inset: 1.5rem;
+    min-height: 0;
+  }
+}
+
+.relationship-list {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 4.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.relationship-list--loading > :not(.relationship-list-loading) {
+  opacity: 0.35;
+}
+
+.relationship-list--initial {
+  min-height: 12rem;
+}
+
+.relationship-list-loading {
+  position: absolute;
+  display: grid;
+  background: rgb(255 253 248 / 0.7);
+  inset: 0;
+  place-items: center;
+}
+
+.relationship-list button {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.relationship-list button + button {
+  border-top: 1px solid var(--color-border);
+}
+
+mat-paginator {
+  min-width: 0;
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
 @media (max-width: 36rem) {
+  .dialog-header {
+    padding: 0.75rem 0.75rem 0.65rem 1rem;
+  }
+
+  h2[mat-dialog-title] {
+    font-size: 1.25rem;
+    line-height: 1.25;
+  }
+
+  .dialog-header-actions {
+    gap: 0.2rem;
+  }
+
   mat-dialog-content {
-    min-width: 0;
+    padding: 1rem;
+  }
+
+  .content-region--geometry-locked .relationship-list--initial {
+    inset: 1rem;
+  }
+
+  mat-paginator {
+    ::ng-deep .mat-mdc-paginator-container {
+      justify-content: center;
+      padding-inline: 0;
+    }
+
+    ::ng-deep .mat-mdc-paginator-range-label {
+      margin-inline: 0 0.25rem;
+    }
+  }
+}
+
+mat-dialog-content ::ng-deep .form-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  gap: 0.75rem;
+  width: 100%;
+}
+
+mat-dialog-content ::ng-deep .form-actions button,
+mat-dialog-content ::ng-deep .form-actions a {
+  width: 100%;
+}
+
+@media (max-width: 47.5rem) {
+  mat-dialog-content ::ng-deep app-owner-editor .form-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 43.75rem) {
+  mat-dialog-content ::ng-deep app-cat-editor .form-actions,
+  mat-dialog-content ::ng-deep app-vet-editor .form-actions,
+  mat-dialog-content ::ng-deep app-stay-editor .form-actions {
+    grid-template-columns: 1fr;
   }
 }
