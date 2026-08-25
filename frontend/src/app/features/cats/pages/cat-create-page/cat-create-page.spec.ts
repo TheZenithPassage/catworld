@@ -63,6 +63,7 @@ describe('CatCreatePage', () => {
     ownerName: 'Ada Lovelace',
     vetId: 'vet-1',
     vetName: 'Dr. Vet',
+    hasPhoto: false,
   };
 
   const catApiService = {
@@ -209,25 +210,28 @@ describe('CatCreatePage', () => {
 
     component.submit();
 
-    expect(catApiService.createCat).toHaveBeenCalledWith({
-      name: 'Milo',
-      birthDate: '2020-01-02',
-      sex: 'MALE',
-      breed: null,
-      coat: 'short',
-      color: null,
-      foodBrand: 'chicken',
-      litterBrand: null,
-      personality: 'friendly',
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: '2025-01-01',
-      lastExternalDewormerName: 'topical',
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: '2025-02-03',
-      lastRabiesDate: null,
-      ownerId: 'owner-1',
-      vetId: 'vet-1',
-    });
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      {
+        name: 'Milo',
+        birthDate: '2020-01-02',
+        sex: 'MALE',
+        breed: null,
+        coat: 'short',
+        color: null,
+        foodBrand: 'chicken',
+        litterBrand: null,
+        personality: 'friendly',
+        lastInternalDewormerName: null,
+        lastInternalDewormingDate: '2025-01-01',
+        lastExternalDewormerName: 'topical',
+        lastExternalDewormingDate: null,
+        lastTripleFelineDate: '2025-02-03',
+        lastRabiesDate: null,
+        ownerId: 'owner-1',
+        vetId: 'vet-1',
+      },
+      null,
+    );
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
     expect(component.submitting()).toBe(false);
   });

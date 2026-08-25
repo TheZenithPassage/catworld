@@ -63,6 +63,7 @@ describe('EntityDetailDialog', () => {
     ownerName: 'Ada Lovelace',
     vetId: null,
     vetName: null,
+    hasPhoto: false,
   };
   const updatedCat = { ...cat, name: 'Milo Updated' };
   const vet: Vet = { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null };

@@ -34,6 +34,7 @@ describe('CatsOverviewPage', () => {
       ownerName: 'Ada Lovelace',
       vetId: 'vet-1',
       vetName: 'Dr. Vet',
+      hasPhoto: false,
     },
     {
       id: 'cat-2',
@@ -56,6 +57,7 @@ describe('CatsOverviewPage', () => {
       ownerName: 'Grace Hopper',
       vetId: null,
       vetName: null,
+      hasPhoto: false,
     },
   ];
 

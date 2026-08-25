@@ -38,6 +38,7 @@
 }
 
 .cat-form > app-ui-state,
+.cat-form > app-cat-photo-input,
 .cat-form > .form-actions,
 .cat-form > mat-form-field:has(textarea) {
   grid-column: 1 / -1;
@@ -54,6 +55,7 @@
   }
 
   .cat-form > app-ui-state,
+  .cat-form > app-cat-photo-input,
   .cat-form > .form-actions,
   .cat-form > mat-form-field:has(textarea) {
     grid-column: auto;

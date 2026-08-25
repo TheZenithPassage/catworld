@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -17,6 +17,8 @@ import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { CreateCatRequest, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
+import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 
 @Component({
   selector: 'app-cat-create-page',
@@ -30,11 +32,13 @@ import { CatApiService } from '../../services/cat-api.service';
     RouterLink,
     TrimRequiredDirective,
     UiStateComponent,
+    CatPhotoInput,
   ],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss',
 })
 export class CatCreatePage {
+  @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
   private readonly catApiService = inject(CatApiService);
   private readonly ownerApiService = inject(OwnerApiService);
   private readonly vetApiService = inject(VetApiService);
@@ -146,16 +150,25 @@ export class CatCreatePage {
 
     this.submitting.set(true);
 
-    this.catApiService.createCat(request).subscribe({
+    this.catApiService.createCat(request, this.photoInput?.mutation().photo ?? null).subscribe({
       next: (cat) => {
+        this.photoInput?.reset();
         this.submitting.set(false);
         this.navigateAfterSuccess(cat.id, cat.ownerId);
       },
       error: (error: unknown) => {
-        this.error.set(this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed));
+        this.error.set(
+          catPhotoErrorMessage(error, this.text().cats.photo.errors) ??
+            this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed),
+        );
         this.submitting.set(false);
       },
     });
+  }
+
+  cancel(): void {
+    this.photoInput?.reset();
+    this.router.navigate(['/cats']);
   }
 
   private clearValidationErrors(): void {
@@ -259,10 +272,6 @@ export class CatCreatePage {
 
     if (!responseBody) {
       return fallbackMessage;
-    }
-
-    if (typeof responseBody === 'string') {
-      return responseBody.trim() || fallbackMessage;
     }
 
     if (this.isValidationErrorMap(responseBody)) {
