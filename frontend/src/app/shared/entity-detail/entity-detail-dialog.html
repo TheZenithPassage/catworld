@@ -42,6 +42,7 @@
 </header>
 <mat-dialog-content
   #contentRegion
+  [class.cat-photo-content]="entry().kind === 'cat-photo'"
   [class.content-region--geometry-locked]="preservedContentHeight() !== null"
   [style.min-height.px]="preservedContentHeight()"
 >
@@ -57,11 +58,16 @@
         @case ('error') {
           <p>{{ text().cats.detail.photoLoadFailed }}</p>
         }
-        @case ('success') {
-          @if (photoUrl(); as url) {
-            <img [src]="url" [alt]="photoAlt()" />
-          }
-        }
+        @case ('success') {}
+      }
+      @if (photoUrl(); as url) {
+        <img
+          [class.cat-photo--loading]="photoState() === 'loading'"
+          [src]="url"
+          [alt]="photoAlt()"
+          (load)="photoLoaded(url)"
+          (error)="photoFailed(url)"
+        />
       }
     </section>
   } @else if (entry().kind === 'list') {

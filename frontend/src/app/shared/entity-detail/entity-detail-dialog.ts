@@ -92,6 +92,7 @@ export class EntityDetailDialog {
   readonly photoState = signal<PhotoState>('loading');
   readonly photoUrl = signal<string | null>(null);
   constructor() {
+    this.dialogRef.beforeClosed().subscribe(() => this.leavePhoto());
     inject(DestroyRef).onDestroy(() => {
       this.geometryGeneration++;
       this.leavePhoto();
@@ -200,8 +201,6 @@ export class EntityDetailDialog {
           return;
         }
         this.photoUrl.set(url);
-        this.photoState.set('success');
-        this.destinationSettled();
       },
       error: (error: HttpErrorResponse) => {
         if (generation !== this.requestGeneration || this.entry() !== entry) return;
@@ -210,6 +209,18 @@ export class EntityDetailDialog {
       },
     });
     this.focusContent();
+  }
+  photoLoaded(url: string): void {
+    if (this.entry().kind !== 'cat-photo' || this.photoUrl() !== url) return;
+    this.photoState.set('success');
+    this.destinationSettled();
+  }
+  photoFailed(url: string): void {
+    if (this.entry().kind !== 'cat-photo' || this.photoUrl() !== url) return;
+    URL.revokeObjectURL(url);
+    this.photoUrl.set(null);
+    this.photoState.set('error');
+    this.destinationSettled();
   }
   private leavePhoto(): void {
     this.requestGeneration++;
