@@ -114,6 +114,7 @@ export class CatEditor {
     this.birthDateError.set(null);
     this.sexError.set(null);
     this.ownerIdError.set(null);
+    if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
       return;

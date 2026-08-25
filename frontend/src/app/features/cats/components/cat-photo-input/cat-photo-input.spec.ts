@@ -41,6 +41,62 @@ describe('CatPhotoInput', () => {
     Object.defineProperty(oversized, 'size', { value: 32 * 1024 * 1024 + 1 });
     component.select(change(oversized));
     expect(component.mutation().photo?.name).toBe('cat.heic');
+    expect(component.valid()).toBe(false);
+  });
+
+  it('uses tolerant MIME or extension acceptance and infers generic-MIME previews', () => {
+    const genericJpeg = new File(['jpeg'], 'cat.jpg', { type: 'application/octet-stream' });
+    component.select(change(genericJpeg));
+    expect(component.mutation().photo).toBe(genericJpeg);
+    expect(component.previewUrl()).toBe('blob:preview');
+
+    const oddExtensionPng = new File(['png'], 'cat.odd', { type: 'image/png' });
+    component.select(change(oddExtensionPng));
+    expect(component.mutation().photo).toBe(oddExtensionPng);
+    expect(component.valid()).toBe(true);
+    expect(component.previewUrl()).toBe('blob:preview');
+  });
+
+  it('renders supported native button triggers with focus and disabled behavior', () => {
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+    const trigger = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    const click = vi.spyOn(input, 'click');
+
+    expect(trigger.tagName).toBe('BUTTON');
+    expect(trigger.type).toBe('button');
+    expect(trigger.textContent).toContain(component.text().cats.photo.select);
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+    trigger.click();
+    expect(click).toHaveBeenCalledOnce();
+
+    fixture.componentRef.setInput('disabled', true);
+    fixture.detectChanges();
+    expect(trigger.disabled).toBe(true);
+    trigger.click();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a selected file but revokes a failed preview exactly once', () => {
+    const jpeg = new File(['jpeg'], 'cat.jpg', { type: 'image/jpeg' });
+    component.select(change(jpeg));
+    fixture.detectChanges();
+    const preview = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+    preview.dispatchEvent(new Event('load'));
+    expect(revokeUrl).not.toHaveBeenCalled();
+    preview.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+
+    expect(component.mutation().photo).toBe(jpeg);
+    expect(component.valid()).toBe(true);
+    expect(component.previewUrl()).toBeNull();
+    expect(revokeUrl).toHaveBeenCalledTimes(1);
+    component.previewFailed('blob:preview');
+    expect(revokeUrl).toHaveBeenCalledTimes(1);
+    expect(fixture.nativeElement.textContent).toContain(
+      component.text().cats.photo.previewUnavailable,
+    );
   });
 
   it('models saved removal, replacement, cleanup, and reset without leaking object URLs', () => {
@@ -60,6 +116,11 @@ describe('CatPhotoInput', () => {
     component.reset();
     expect(revokeUrl).toHaveBeenCalledWith('blob:second');
     expect(component.mutation()).toEqual({ photo: null, removePhoto: false });
+
+    createUrl.mockReturnValueOnce('blob:destroy');
+    component.select(change(first));
+    fixture.destroy();
+    expect(revokeUrl).toHaveBeenCalledWith('blob:destroy');
   });
 });
 

@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner } from '../../../owners/models/owner.model';
@@ -14,6 +14,7 @@ import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../../components/cat-editor/cat-editor';
+import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 
 describe('CatEditor', () => {
   let component: CatEditor;
@@ -249,6 +250,46 @@ describe('CatEditor', () => {
     expect(component.submitting()).toBe(false);
   });
 
+  it('submits unchanged, removal, replacement, and restored saved-photo intents', () => {
+    catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
+
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+    photoInput.markSavedPhotoForRemoval();
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, true]);
+    photoInput.undoRemoval();
+    photoInput.select(fileChange(photo));
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([photo, false]);
+    photoInput.removeSelection();
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+  });
+
+  it('blocks update for an unresolved rejected selection while retaining fields and prior photo', () => {
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
+    photoInput.select(fileChange(photo));
+    photoInput.select(fileChange(new File(['bad'], 'replacement.gif', { type: 'image/gif' })));
+    component.name.set('Retained name');
+
+    component.submit();
+
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
+    expect(component.name()).toBe('Retained name');
+    expect(photoInput.mutation().photo).toBe(photo);
+    expect(photoInput.previewUrl()).not.toBeNull();
+  });
+
   it('shows load errors through shared Material error state', () => {
     catApiService.getCatById.mockReturnValue(
       throwError(
@@ -296,3 +337,7 @@ describe('CatEditor', () => {
     );
   });
 });
+
+function fileChange(file: File): Event {
+  return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}

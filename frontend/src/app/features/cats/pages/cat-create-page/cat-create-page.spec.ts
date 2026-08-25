@@ -14,6 +14,7 @@ import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatCreatePage } from './cat-create-page';
+import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 
 describe('CatCreatePage', () => {
   let component: CatCreatePage;
@@ -269,6 +270,88 @@ describe('CatCreatePage', () => {
     });
   });
 
+  it('submits a selected photo and blocks an unresolved rejected selection', () => {
+    createComponent();
+    fixture.detectChanges();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    photoInput.select(fileChange(photo));
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    component.submit();
+    expect(catApiService.createCat).toHaveBeenCalledWith(expect.any(Object), photo);
+
+    catApiService.createCat.mockClear();
+    photoInput.select(fileChange(photo));
+    photoInput.select(fileChange(new File(['bad'], 'cat.gif', { type: 'image/gif' })));
+    component.name.set('Still Milo');
+    component.submit();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.name()).toBe('Still Milo');
+    expect(photoInput.mutation().photo).toBe(photo);
+  });
+
+  it('maps every backend photo code, retains provisional state, and never retries', () => {
+    createComponent();
+    fixture.detectChanges();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    photoInput.select(fileChange(photo));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    const cases = [
+      ['CAT_PHOTO_FILE_TOO_LARGE', component.text().cats.photo.errors.fileTooLarge],
+      ['CAT_PHOTO_UNSUPPORTED_FORMAT', component.text().cats.photo.errors.unsupportedFormat],
+      ['CAT_PHOTO_DIMENSIONS_TOO_LARGE', component.text().cats.photo.errors.dimensionsTooLarge],
+      ['CAT_PHOTO_UNDECODABLE', component.text().cats.photo.errors.undecodable],
+      ['CAT_PHOTO_INTENT_CONFLICT', component.text().cats.photo.errors.intentConflict],
+    ] as const;
+
+    for (const [code, message] of cases) {
+      const callsBefore = catApiService.createCat.mock.calls.length;
+      catApiService.createCat.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ error: { code }, status: 400 })),
+      );
+      component.submit();
+      expect(component.error()).toBe(message);
+      expect(catApiService.createCat).toHaveBeenCalledTimes(callsBefore + 1);
+      expect(component.name()).toBe('Milo');
+      expect(photoInput.mutation().photo).toBe(photo);
+      expect(photoInput.previewUrl()).not.toBeNull();
+    }
+  });
+
+  it('cancels back to the originating stay with owner context and clears photo state', () => {
+    queryParams = { returnTo: '/stays/new', ownerId: 'owner-1' };
+    createComponent();
+    fixture.detectChanges();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    photoInput.select(fileChange(new File(['photo'], 'cat.jpg', { type: 'image/jpeg' })));
+
+    component.cancel();
+
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(photoInput.mutation().photo).toBeNull();
+    expect(router.navigate).toHaveBeenCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1' },
+    });
+
+    router.navigate.mockClear();
+    queryParams = {};
+    createComponent();
+    component.cancel();
+    expect(router.navigate).toHaveBeenCalledWith(['/cats']);
+  });
+
   it('shows backend validation errors through shared Material error state', () => {
     createComponent();
     catApiService.createCat.mockReturnValue(
@@ -295,3 +378,7 @@ describe('CatCreatePage', () => {
     );
   });
 });
+
+function fileChange(file: File): Event {
+  return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}

@@ -15,17 +15,12 @@ export function catPhotoErrorMessage(error: unknown, errors: PhotoErrors): strin
   if (!(error instanceof HttpErrorResponse)) return null;
   const body: unknown = error.error;
   if (!isErrorBody(body)) return null;
-  const key = errorKeys[body.error.code as keyof typeof errorKeys];
+  const key = errorKeys[body.code as keyof typeof errorKeys];
   return key ? errors[key] : null;
 }
 
-function isErrorBody(value: unknown): value is { error: { code: string } } {
-  if (typeof value !== 'object' || value === null || !('error' in value)) return false;
-  const nested = value.error;
+function isErrorBody(value: unknown): value is { code: string } {
   return (
-    typeof nested === 'object' &&
-    nested !== null &&
-    'code' in nested &&
-    typeof nested.code === 'string'
+    typeof value === 'object' && value !== null && 'code' in value && typeof value.code === 'string'
   );
 }

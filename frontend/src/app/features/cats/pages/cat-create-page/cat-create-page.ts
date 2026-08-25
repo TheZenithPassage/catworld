@@ -107,6 +107,7 @@ export class CatCreatePage {
   submit(): void {
     this.error.set(null);
     this.clearValidationErrors();
+    if (this.photoInput && !this.photoInput.valid()) return;
 
     if (!this.name().trim()) {
       this.nameError.set(this.text().cats.create.errors.nameRequired);
@@ -168,6 +169,14 @@ export class CatCreatePage {
 
   cancel(): void {
     this.photoInput?.reset();
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    if (returnTo === '/stays/new') {
+      const ownerId = this.ownerId() || this.route.snapshot.queryParamMap.get('ownerId');
+      this.router.navigate(['/stays/new'], {
+        queryParams: ownerId ? { ownerId } : undefined,
+      });
+      return;
+    }
     this.router.navigate(['/cats']);
   }
 
@@ -272,6 +281,10 @@ export class CatCreatePage {
 
     if (!responseBody) {
       return fallbackMessage;
+    }
+
+    if (typeof responseBody === 'string') {
+      return responseBody.trim() || fallbackMessage;
     }
 
     if (this.isValidationErrorMap(responseBody)) {
