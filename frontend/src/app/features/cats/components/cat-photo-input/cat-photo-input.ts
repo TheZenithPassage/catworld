@@ -31,7 +31,10 @@ export class CatPhotoInput implements OnDestroy {
   readonly removePhoto = signal(false);
   readonly previewUrl = signal<string | null>(null);
   readonly selectionError = signal<string | null>(null);
-  readonly valid = computed(() => this.selectionError() === null);
+  readonly valid = computed(() => {
+    const file = this.selectedFile();
+    return file === null || this.validate(file) === null;
+  });
 
   select(event: Event): void {
     const input = event.target as HTMLInputElement;

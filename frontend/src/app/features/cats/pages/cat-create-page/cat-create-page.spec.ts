@@ -270,30 +270,32 @@ describe('CatCreatePage', () => {
     });
   });
 
-  it('submits a selected photo and blocks an unresolved rejected selection', () => {
+  it('creates without a photo after rejecting an invalid candidate and preserves fields', () => {
     createComponent();
     fixture.detectChanges();
     const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
       .componentInstance as CatPhotoInput;
-    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
-    photoInput.select(fileChange(photo));
     catApiService.createCat.mockReturnValue(of(createdCat));
-    component.name.set('Milo');
+    component.name.set('Still Milo');
     component.birthDate.set('2020-01-02');
     component.sex.set('MALE');
     component.ownerId.set('owner-1');
-
-    component.submit();
-    expect(catApiService.createCat).toHaveBeenCalledWith(expect.any(Object), photo);
-
-    catApiService.createCat.mockClear();
-    photoInput.select(fileChange(photo));
     photoInput.select(fileChange(new File(['bad'], 'cat.gif', { type: 'image/gif' })));
-    component.name.set('Still Milo');
-    component.submit();
-    expect(catApiService.createCat).not.toHaveBeenCalled();
+
     expect(component.name()).toBe('Still Milo');
-    expect(photoInput.mutation().photo).toBe(photo);
+    expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(photoInput.selectionError()).toBe(
+      component.text().cats.photo.errors.localUnsupportedFormat,
+    );
+    expect(photoInput.valid()).toBe(true);
+
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Still Milo' }),
+      null,
+    );
+    expect(component.name()).toBe('Still Milo');
   });
 
   it('maps every backend photo code, retains provisional state, and never retries', () => {

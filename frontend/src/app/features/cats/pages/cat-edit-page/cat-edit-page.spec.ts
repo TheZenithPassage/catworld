@@ -272,7 +272,32 @@ describe('CatEditor', () => {
     expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
   });
 
-  it('blocks update for an unresolved rejected selection while retaining fields and prior photo', () => {
+  it('preserves a saved photo after rejecting an oversized replacement and retains fields', () => {
+    catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const oversized = new File(['bad'], 'replacement.png', { type: 'image/png' });
+    Object.defineProperty(oversized, 'size', { value: 32 * 1024 * 1024 + 1 });
+    photoInput.select(fileChange(oversized));
+    component.name.set('Retained name');
+
+    component.submit();
+
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      'cat-1',
+      expect.objectContaining({ name: 'Retained name' }),
+      null,
+      false,
+    );
+    expect(component.name()).toBe('Retained name');
+    expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(photoInput.selectionError()).toBe(component.text().cats.photo.errors.localFileTooLarge);
+    expect(photoInput.valid()).toBe(true);
+  });
+
+  it('keeps an accepted replacement after rejecting another candidate and allows its removal', () => {
     catApiService.updateCat.mockReturnValue(NEVER);
     createComponent();
     const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
@@ -284,10 +309,20 @@ describe('CatEditor', () => {
 
     component.submit();
 
-    expect(catApiService.updateCat).not.toHaveBeenCalled();
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      'cat-1',
+      expect.objectContaining({ name: 'Retained name' }),
+      photo,
+      false,
+    );
     expect(component.name()).toBe('Retained name');
     expect(photoInput.mutation().photo).toBe(photo);
     expect(photoInput.previewUrl()).not.toBeNull();
+    expect(photoInput.valid()).toBe(true);
+
+    photoInput.removeSelection();
+    expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(photoInput.selectionError()).toBeNull();
   });
 
   it('shows load errors through shared Material error state', () => {

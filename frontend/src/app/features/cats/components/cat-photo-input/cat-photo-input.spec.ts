@@ -21,7 +21,7 @@ describe('CatPhotoInput', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('keeps prior valid state when type or size selection is rejected and accepts HEIC without preview', () => {
+  it('keeps an accepted replacement valid when later candidate selections are rejected', () => {
     const jpeg = new File(['ok'], 'cat.jpg', { type: 'image/jpeg' });
     component.select(change(jpeg));
     expect(component.mutation()).toEqual({ photo: jpeg, removePhoto: false });
@@ -30,6 +30,7 @@ describe('CatPhotoInput', () => {
     component.select(change(new File(['bad'], 'cat.gif', { type: 'image/gif' })));
     expect(component.mutation().photo).toBe(jpeg);
     expect(component.selectionError()).not.toBeNull();
+    expect(component.valid()).toBe(true);
 
     component.select(change(new File(['tiny'], 'cat.heic', { type: 'image/heic' })));
     expect(revokeUrl).toHaveBeenCalledWith('blob:preview');
@@ -41,7 +42,32 @@ describe('CatPhotoInput', () => {
     Object.defineProperty(oversized, 'size', { value: 32 * 1024 * 1024 + 1 });
     component.select(change(oversized));
     expect(component.mutation().photo?.name).toBe('cat.heic');
-    expect(component.valid()).toBe(false);
+    expect(component.selectionError()).toBe(component.text().cats.photo.errors.localFileTooLarge);
+    expect(component.valid()).toBe(true);
+
+    component.removeSelection();
+    expect(component.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(component.valid()).toBe(true);
+  });
+
+  it('keeps no-photo and saved-photo intents valid when a candidate is rejected', () => {
+    component.select(change(new File(['bad'], 'cat.gif', { type: 'image/gif' })));
+
+    expect(component.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(component.selectionError()).toBe(
+      component.text().cats.photo.errors.localUnsupportedFormat,
+    );
+    expect(component.valid()).toBe(true);
+
+    component.reset();
+    fixture.componentRef.setInput('savedHasPhoto', true);
+    const oversized = new File(['x'], 'large.png', { type: 'image/png' });
+    Object.defineProperty(oversized, 'size', { value: 32 * 1024 * 1024 + 1 });
+    component.select(change(oversized));
+
+    expect(component.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(component.selectionError()).toBe(component.text().cats.photo.errors.localFileTooLarge);
+    expect(component.valid()).toBe(true);
   });
 
   it('uses tolerant MIME or extension acceptance and infers generic-MIME previews', () => {
