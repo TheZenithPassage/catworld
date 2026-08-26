@@ -1,6 +1,7 @@
 .cat-photo-input {
   display: grid;
   gap: 0.75rem;
+  justify-items: center;
   width: 100%;
   min-width: 0;
   padding: 1rem;
@@ -8,10 +9,14 @@
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-sizing: border-box;
+  text-align: center;
 }
 .cat-photo-input h3,
 .cat-photo-input p {
   margin: 0;
+}
+.cat-photo-input h3 {
+  margin-bottom: 0.5rem;
 }
 .native-photo-input {
   position: absolute;
@@ -31,14 +36,26 @@
   border-radius: var(--radius-md);
 }
 .photo-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-  align-items: center;
+  width: 100%;
+}
+.photo-actions button {
+  width: 100%;
+}
+.photo-actions button:only-child {
+  grid-column: 1 / -1;
 }
 .photo-status {
   color: var(--color-text-muted);
 }
 .photo-error {
   color: var(--mat-sys-error);
+}
+
+@media (max-width: 43.75rem) {
+  .photo-actions {
+    grid-template-columns: 1fr;
+  }
 }

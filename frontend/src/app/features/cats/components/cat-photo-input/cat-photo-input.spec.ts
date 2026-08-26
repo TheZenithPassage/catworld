@@ -106,6 +106,38 @@ describe('CatPhotoInput', () => {
     expect(click).toHaveBeenCalledOnce();
   });
 
+  it('keeps the replacement action first across saved-photo states', () => {
+    fixture.componentRef.setInput('savedHasPhoto', true);
+    fixture.detectChanges();
+    const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
+    const click = vi.spyOn(input, 'click');
+
+    expect(actionLabels()).toEqual([
+      component.text().cats.photo.replace,
+      component.text().cats.photo.removeSaved,
+    ]);
+    actionButtons()[0].click();
+    expect(click).toHaveBeenCalledOnce();
+
+    component.markSavedPhotoForRemoval();
+    fixture.detectChanges();
+    expect(actionLabels()).toEqual([
+      component.text().cats.photo.replace,
+      component.text().cats.photo.undoRemoval,
+    ]);
+    actionButtons()[0].click();
+    expect(click).toHaveBeenCalledTimes(2);
+
+    const replacement = new File(['replacement'], 'replacement.jpg', { type: 'image/jpeg' });
+    component.select(change(replacement));
+    fixture.detectChanges();
+    expect(component.mutation()).toEqual({ photo: replacement, removePhoto: false });
+    expect(actionLabels()).toEqual([
+      component.text().cats.photo.replace,
+      component.text().cats.photo.removeSelection,
+    ]);
+  });
+
   it('keeps a selected file but revokes a failed preview exactly once', () => {
     const jpeg = new File(['jpeg'], 'cat.jpg', { type: 'image/jpeg' });
     component.select(change(jpeg));
@@ -131,12 +163,11 @@ describe('CatPhotoInput', () => {
     fixture.componentRef.setInput('savedHasPhoto', true);
     component.markSavedPhotoForRemoval();
     expect(component.mutation()).toEqual({ photo: null, removePhoto: true });
-    component.undoRemoval();
-    expect(component.mutation()).toEqual({ photo: null, removePhoto: false });
 
     const first = new File(['one'], 'one.png', { type: 'image/png' });
     const second = new File(['two'], 'two.webp', { type: 'image/webp' });
     component.select(change(first));
+    expect(component.mutation()).toEqual({ photo: first, removePhoto: false });
     createUrl.mockReturnValueOnce('blob:second');
     component.select(change(second));
     expect(revokeUrl).toHaveBeenCalledWith('blob:preview');
@@ -150,6 +181,14 @@ describe('CatPhotoInput', () => {
     fixture.destroy();
     expect(revokeUrl).toHaveBeenCalledWith('blob:destroy');
   });
+
+  function actionButtons(): HTMLButtonElement[] {
+    return [...fixture.nativeElement.querySelectorAll('.photo-actions button')];
+  }
+
+  function actionLabels(): string[] {
+    return actionButtons().map((button) => button.textContent?.trim() ?? '');
+  }
 });
 
 function change(file: File): Event {

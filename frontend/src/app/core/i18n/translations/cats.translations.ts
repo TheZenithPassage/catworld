@@ -53,7 +53,6 @@ export interface CatsTranslations {
     removeSelection: string;
     pendingRemoval: string;
     undoRemoval: string;
-    selectReplacement: string;
     previewUnavailable: string;
     previewAlt: string;
     errors: {
@@ -191,7 +190,6 @@ export const CATS_TRANSLATIONS = {
       removeSelection: 'Quitar selección',
       pendingRemoval: 'La foto guardada se eliminará al guardar.',
       undoRemoval: 'Deshacer eliminación',
-      selectReplacement: 'Seleccionar reemplazo',
       previewUnavailable: 'La vista previa no está disponible; el archivo se enviará al guardar.',
       previewAlt: 'Vista previa completa de la foto de perfil seleccionada',
       errors: {
@@ -330,7 +328,6 @@ export const CATS_TRANSLATIONS = {
       removeSelection: 'Remove selection',
       pendingRemoval: 'The saved photo will be removed when you save.',
       undoRemoval: 'Undo removal',
-      selectReplacement: 'Select replacement',
       previewUnavailable: 'Preview is unavailable; the file will still be uploaded when you save.',
       previewAlt: 'Complete preview of the selected cat profile photo',
       errors: {

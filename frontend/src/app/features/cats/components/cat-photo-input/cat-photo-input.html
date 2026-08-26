@@ -25,18 +25,18 @@
       <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
         {{ text().cats.photo.replace }}
       </button>
-      <button mat-button type="button" [disabled]="disabled()" (click)="removeSelection()">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="removeSelection()">
         {{ text().cats.photo.removeSelection }}
       </button>
     </div>
   } @else if (savedHasPhoto() && removePhoto()) {
     <p class="photo-status">{{ text().cats.photo.pendingRemoval }}</p>
     <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.replace }}
+      </button>
       <button mat-stroked-button type="button" [disabled]="disabled()" (click)="undoRemoval()">
         {{ text().cats.photo.undoRemoval }}
-      </button>
-      <button mat-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
-        {{ text().cats.photo.selectReplacement }}
       </button>
     </div>
   } @else if (savedHasPhoto()) {
@@ -45,14 +45,21 @@
       <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
         {{ text().cats.photo.replace }}
       </button>
-      <button mat-button type="button" [disabled]="disabled()" (click)="markSavedPhotoForRemoval()">
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="disabled()"
+        (click)="markSavedPhotoForRemoval()"
+      >
         {{ text().cats.photo.removeSaved }}
       </button>
     </div>
   } @else {
-    <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
-      {{ text().cats.photo.select }}
-    </button>
+    <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.select }}
+      </button>
+    </div>
   }
 
   @if (selectionError(); as message) {
