@@ -448,8 +448,8 @@ Current rules:
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
 - Stay creation and updates that extend `endAt` beyond the currently persisted
-  value aggregate every conflicting cat-vaccine pair into a structured
-  `409 Conflict`. Updates that keep or shorten the persisted end time skip the
+  value aggregate every conflicting cat-vaccine pair into a structured `409
+  Conflict`. Updates that keep or shorten the persisted end time skip the
   vaccine-conflict policy while all other stay rules remain active. `STAFF`
   remains blocked on a conflicting creation or extension even when an override
   is supplied. `ADMIN` receives the same conflict by default and may continue
@@ -955,11 +955,15 @@ label behavior.
 
 Entity lookup changes no database schema, UML diagram, authentication policy,
 deployment topology or operational procedure.
-Focused native-MySQL validation owns the case/accent matching, deterministic
-ordering, relationship projection and fixed-page persistence contract. Focused
-Angular tests own request encoding and envelope shapes plus selector
-concurrency, initialization, validity, paging and localized presentation; full
-frontend tests and production build provide integration regression evidence.
+`EntityLookupMySqlIntegrationTest` proves MySQL 8 case- and accent-insensitive
+matching plus literal `!`, `%` and `_` LIKE behavior. Focused controller,
+service and H2 persistence tests establish deterministic ordering, distinct
+Owner count and results, complete Owner-current-Cat projection and hydration,
+fixed-page and envelope semantics, and validation; full Maven verification
+provides backend regression evidence. Focused Angular tests own request
+encoding and envelope shapes plus selector concurrency, initialization,
+validity, paging and localized presentation; full frontend tests and production
+build provide integration regression evidence.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned
