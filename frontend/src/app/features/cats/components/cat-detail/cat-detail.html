@@ -32,7 +32,9 @@
             <button
               mat-button
               type="button"
-              (click)="openPhoto.emit({ catId: cat.id, catName: cat.name })"
+              (click)="
+                openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })
+              "
             >
               {{ text().cats.detail.viewPhoto }}
             </button>

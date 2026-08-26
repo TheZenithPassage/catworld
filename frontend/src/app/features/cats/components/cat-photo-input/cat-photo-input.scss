@@ -1,6 +1,13 @@
 .cat-photo-input {
   display: grid;
   gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-sizing: border-box;
 }
 .cat-photo-input h3,
 .cat-photo-input p {
@@ -16,6 +23,8 @@
 }
 .photo-preview {
   display: block;
+  width: auto;
+  height: auto;
   max-width: min(100%, 28rem);
   max-height: 24rem;
   object-fit: contain;

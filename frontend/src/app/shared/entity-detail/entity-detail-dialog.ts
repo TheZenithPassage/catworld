@@ -37,11 +37,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
 
+const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
+
 type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
   | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number }
-  | { kind: 'cat-photo'; catId: string; catName: string };
+  | { kind: 'cat-photo'; catId: string; catName: string; ownerName: string };
 type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
@@ -91,6 +93,8 @@ export class EntityDetailDialog {
   readonly preservedContentHeight = signal<number | null>(null);
   readonly photoState = signal<PhotoState>('loading');
   readonly photoUrl = signal<string | null>(null);
+  readonly photoWidth = signal<number | null>(null);
+  readonly photoHeight = signal<number | null>(null);
   constructor() {
     this.dialogRef.beforeClosed().subscribe(() => this.leavePhoto());
     inject(DestroyRef).onDestroy(() => {
@@ -100,7 +104,10 @@ export class EntityDetailDialog {
   }
   title(): string {
     if (this.entry().kind === 'list') return this.relationshipTitle();
-    if (this.entry().kind === 'cat-photo') return this.text().cats.detail.photo;
+    if (this.entry().kind === 'cat-photo') {
+      const entry = this.entry() as Extract<HistoryEntry, { kind: 'cat-photo' }>;
+      return `${this.text().cats.detail.photo} — ${entry.catName} (${entry.ownerName})`;
+    }
     const text = this.text();
     return this.reference().entityType === 'owner'
       ? text.owners.detail.title
@@ -184,7 +191,7 @@ export class EntityDetailDialog {
     }
     this.focusContent();
   }
-  openCatPhoto(photo: { catId: string; catName: string }): void {
+  openCatPhoto(photo: { catId: string; catName: string; ownerName: string }): void {
     this.captureContentGeometry();
     this.leavePhoto();
     const entry: HistoryEntry = { kind: 'cat-photo', ...photo };
@@ -210,8 +217,10 @@ export class EntityDetailDialog {
     });
     this.focusContent();
   }
-  photoLoaded(url: string): void {
+  photoLoaded(url: string, event: Event): void {
     if (this.entry().kind !== 'cat-photo' || this.photoUrl() !== url) return;
+    const image = event.currentTarget as HTMLImageElement;
+    this.applyPhotoGeometry(image.naturalWidth, image.naturalHeight);
     this.photoState.set('success');
     this.destinationSettled();
   }
@@ -223,12 +232,60 @@ export class EntityDetailDialog {
     this.destinationSettled();
   }
   private leavePhoto(): void {
+    const wasPhoto = this.entry().kind === 'cat-photo';
     this.requestGeneration++;
     this.photoSubscription?.unsubscribe();
     this.photoSubscription = null;
     const url = this.photoUrl();
     if (url) URL.revokeObjectURL(url);
     this.photoUrl.set(null);
+    this.photoWidth.set(null);
+    this.photoHeight.set(null);
+    if (wasPhoto) this.dialogRef.updateSize(ENTITY_DETAIL_DIALOG_WIDTH, '');
+  }
+
+  private applyPhotoGeometry(naturalWidth: number, naturalHeight: number): void {
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+    const view = this.element.nativeElement.ownerDocument.defaultView;
+    if (!view) return;
+    const generation = this.requestGeneration;
+    const apply = (remainingMeasurements: number): void => {
+      if (generation !== this.requestGeneration || this.entry().kind !== 'cat-photo') return;
+      this.updatePhotoGeometry(naturalWidth, naturalHeight, view);
+      if (remainingMeasurements > 0) {
+        view.requestAnimationFrame(() => apply(remainingMeasurements - 1));
+      }
+    };
+    apply(2);
+  }
+
+  private updatePhotoGeometry(naturalWidth: number, naturalHeight: number, view: Window): void {
+    const outerMargin = 32;
+    const content = this.contentRegion()?.nativeElement;
+    const header = this.element.nativeElement.querySelector('.dialog-header');
+    const contentStyle = content ? view.getComputedStyle(content) : null;
+    const horizontalPadding = contentStyle
+      ? parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight)
+      : 48;
+    const verticalPadding = contentStyle
+      ? parseFloat(contentStyle.paddingTop) + parseFloat(contentStyle.paddingBottom)
+      : 48;
+    const headerHeight = header?.getBoundingClientRect().height ?? 72;
+    const availableWidth = Math.max(1, view.innerWidth - outerMargin - horizontalPadding);
+    const availableHeight = Math.max(
+      1,
+      view.innerHeight - outerMargin - headerHeight - verticalPadding,
+    );
+    const scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+    const imageWidth = Math.floor(naturalWidth * scale);
+    const imageHeight = Math.floor(naturalHeight * scale);
+    const minimumWidth = Math.min(320, view.innerWidth - outerMargin);
+    this.photoWidth.set(imageWidth);
+    this.photoHeight.set(imageHeight);
+    this.dialogRef.updateSize(
+      `${Math.max(minimumWidth, imageWidth + horizontalPadding)}px`,
+      `${imageHeight + verticalPadding + headerHeight}px`,
+    );
   }
   pageChanged(event: PageEvent): void {
     const current = this.entry();
