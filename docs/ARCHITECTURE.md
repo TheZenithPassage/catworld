@@ -702,6 +702,14 @@ zone. Stay `LocalDateTime` values retain their wall-clock fields, and payment
 The standard nginx container generates that file at startup from the
 `BUSINESS_TIME_ZONE` environment variable, which accepts an IANA timezone such
 as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
+The generated runtime config also contains a build ID derived from the SHA-256
+digest of the deployed Angular `index.html`. Angular retains that identity in
+memory and re-fetches the uncached runtime config when a page is shown or a
+backgrounded tab becomes visible. A confirmed build-ID mismatch requests one
+page reload; missing config, missing build identity, and failed checks leave the
+running application unchanged. Nginx serves both `index.html` and
+`runtime-config.json` with `Cache-Control: no-store` while fingerprinted Angular
+assets retain their normal caching behavior.
 
 The authenticated Angular administration interface uses Angular Material and
 Angular CDK as its default UI foundation for interactive components,
