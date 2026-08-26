@@ -3,6 +3,8 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.exception.ConflictException;
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 public class VetService implements IVetService {
 
     private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
+    private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
+    private static final int LOOKUP_PAGE_SIZE = 5;
 
     private final VetRepository vetRepository;
     private final VetMapper vetMapper;
@@ -67,6 +71,15 @@ public class VetService implements IVetService {
     @Override
     public VetResponseDTO getVet(UUID id) {
         return toResponseDTO(getEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPage<VetLookupItem> searchVets(String query, int page) {
+        String trimmed = requireLookupInput(query, page);
+        Page<Vet> vets = vetRepository.search(trimmed, PageRequest.of(page, LOOKUP_PAGE_SIZE, LOOKUP_ORDER));
+        return new LookupPage<>(vets.stream().map(vet -> new VetLookupItem(vet.getId(), vet.getName())).toList(),
+                page, LOOKUP_PAGE_SIZE, vets.getTotalElements());
     }
 
     @Override
@@ -131,6 +144,13 @@ public class VetService implements IVetService {
                 && !vetRepository.existsByIdAndCatsIsNotEmpty(vet.getId());
 
         return vetMapper.toResponseDTO(vet, canDelete);
+    }
+
+    private String requireLookupInput(String query, int page) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        String trimmed = query == null ? "" : query.trim();
+        if (trimmed.isEmpty()) throw new BadRequestException("Search query must not be empty");
+        return trimmed;
     }
 
 }

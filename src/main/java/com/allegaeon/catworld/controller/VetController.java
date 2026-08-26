@@ -3,6 +3,7 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.service.IVetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,12 @@ public class VetController {
     @GetMapping("/{id}")
     public ResponseEntity<VetResponseDTO> getVet(@PathVariable UUID id) {
         return ResponseEntity.ok(vetService.getVet(id));
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<LookupPage<VetLookupItem>> searchVets(
+            @RequestParam String q, @RequestParam(defaultValue = "0") int page) {
+        return ResponseEntity.ok(vetService.searchVets(q, page));
     }
 
     @GetMapping("/{id}/detail")

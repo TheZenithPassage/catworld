@@ -3,6 +3,8 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.OwnerMapper;
@@ -27,6 +29,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.ArrayList;
 
 @RequiredArgsConstructor
 @Service
@@ -41,6 +45,8 @@ public class OwnerService implements IOwnerService {
 
     private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
     private static final Sort STAY_ORDER = Sort.by(Sort.Order.desc("startAt"), Sort.Order.asc("id"));
+    private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("fullName"), Sort.Order.asc("id"));
+    private static final int LOOKUP_PAGE_SIZE = 5;
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {
@@ -79,6 +85,22 @@ public class OwnerService implements IOwnerService {
     @Override
     public OwnerResponseDTO getOwner(UUID id) {
         return toResponseDTO(getEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPage<OwnerLookupItem> searchOwners(String query, int page) {
+        String trimmed = requireLookupInput(query, page);
+        Page<Owner> owners = ownerRepository.search(trimmed,
+                PageRequest.of(page, LOOKUP_PAGE_SIZE, LOOKUP_ORDER));
+        return new LookupPage<>(hydrateLookupOwners(owners.getContent()), page,
+                LOOKUP_PAGE_SIZE, owners.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OwnerLookupItem getOwnerLookup(UUID id) {
+        return hydrateLookupOwners(List.of(getEntity(id))).getFirst();
     }
 
     @Override
@@ -159,6 +181,23 @@ public class OwnerService implements IOwnerService {
                 && !stayRepository.existsByOwner_Id(owner.getId());
 
         return ownerMapper.toResponseDTO(owner, canDelete);
+    }
+
+    private List<OwnerLookupItem> hydrateLookupOwners(List<Owner> owners) {
+        if (owners.isEmpty()) return List.of();
+        Map<UUID, List<CurrentCatLookupItem>> catsByOwner = new java.util.HashMap<>();
+        catRepository.findLookupCatsByOwnerIds(owners.stream().map(Owner::getId).toList())
+                .forEach(cat -> catsByOwner.computeIfAbsent(cat.getOwner().getId(), ignored -> new ArrayList<>())
+                        .add(new CurrentCatLookupItem(cat.getId(), cat.getName())));
+        return owners.stream().map(owner -> new OwnerLookupItem(owner.getId(), owner.getFullName(),
+                List.copyOf(catsByOwner.getOrDefault(owner.getId(), List.of())))).toList();
+    }
+
+    private String requireLookupInput(String query, int page) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        String trimmed = query == null ? "" : query.trim();
+        if (trimmed.isEmpty()) throw new BadRequestException("Search query must not be empty");
+        return trimmed;
     }
 
 }
