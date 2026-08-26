@@ -139,6 +139,36 @@ class LibVipsCatPhotoNormalizerTest {
                         () -> normalizer.normalize(file(exactPixels, "exact-pixels.png"))).getCode());
     }
 
+    @Test
+    @EnabledIfEnvironmentVariable(named = "CATWORLD_NATIVE_VIPS", matches = "true")
+    void bakesSourceOrientationOnceBeforeStrippingMetadata() throws Exception {
+        Path directory = Files.createTempDirectory("cat-photo-orientation-");
+        Path landscape = directory.resolve("landscape.jpg");
+        Files.write(landscape, jpeg(48, 24));
+
+        NormalizedCatPhoto unchangedLandscape = normalizer.normalize(
+                file(Files.readAllBytes(landscape), "landscape.jpg"));
+        assertDimensions(unchangedLandscape, 48, 24);
+
+        Path portrait = directory.resolve("portrait.jpg");
+        Files.write(portrait, jpeg(24, 48));
+        assertDimensions(normalizer.normalize(file(Files.readAllBytes(portrait), "portrait.jpg")), 24, 48);
+
+        Path taggedLandscape = directory.resolve("tagged-landscape.jpg");
+        Files.write(taggedLandscape, withExifOrientation(Files.readAllBytes(landscape), 6));
+        NormalizedCatPhoto orientedJpeg = normalizer.normalize(
+                file(Files.readAllBytes(taggedLandscape), "tagged-landscape.jpg"));
+        assertDimensions(orientedJpeg, 24, 48);
+        assertOrientationStripped(directory, "oriented-jpeg.jpg", orientedJpeg);
+
+        Path taggedHeic = directory.resolve("tagged-landscape.heic");
+        run("vips", "copy", taggedLandscape.toString(), taggedHeic + "[compression=hevc]");
+        NormalizedCatPhoto orientedHeic = normalizer.normalize(
+                file(Files.readAllBytes(taggedHeic), "tagged-landscape.heic"));
+        assertDimensions(orientedHeic, 24, 48);
+        assertOrientationStripped(directory, "oriented-heic.jpg", orientedHeic);
+    }
+
     private static MockMultipartFile file(byte[] bytes, String name) {
         return new MockMultipartFile("photo", name, "application/octet-stream", bytes);
     }
@@ -153,11 +183,46 @@ class LibVipsCatPhotoNormalizerTest {
         return bytes.toByteArray();
     }
 
+    private static byte[] jpeg(int width, int height) throws Exception {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        assertTrue(ImageIO.write(image, "jpg", encoded));
+        return encoded.toByteArray();
+    }
+
+    private static byte[] withExifOrientation(byte[] jpeg, int orientation) {
+        ByteArrayOutputStream tagged = new ByteArrayOutputStream();
+        tagged.writeBytes(new byte[] {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xe1, 0, 34});
+        tagged.writeBytes(new byte[] {'E', 'x', 'i', 'f', 0, 0});
+        tagged.writeBytes(new byte[] {'I', 'I', 42, 0, 8, 0, 0, 0, 1, 0});
+        tagged.writeBytes(new byte[] {18, 1, 3, 0, 1, 0, 0, 0, (byte) orientation, 0, 0, 0});
+        tagged.writeBytes(new byte[] {0, 0, 0, 0});
+        tagged.writeBytes(java.util.Arrays.copyOfRange(jpeg, 2, jpeg.length));
+        return tagged.toByteArray();
+    }
+
     private static String run(String... command) throws Exception {
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
         String output = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         assertEquals(0, process.waitFor(), () -> String.join(" ", command) + "\n" + output);
         return output;
+    }
+
+    private static void assertDimensions(NormalizedCatPhoto photo, int width, int height) throws Exception {
+        assertEquals(width, photo.width());
+        assertEquals(height, photo.height());
+        BufferedImage decoded = ImageIO.read(new ByteArrayInputStream(photo.bytes()));
+        assertEquals(width, decoded.getWidth());
+        assertEquals(height, decoded.getHeight());
+    }
+
+    private static void assertOrientationStripped(Path directory, String filename, NormalizedCatPhoto photo)
+            throws Exception {
+        Path output = directory.resolve(filename);
+        Files.write(output, photo.bytes());
+        String metadata = run("vipsheader", "-a", output.toString());
+        assertFalse(metadata.contains("orientation:"), metadata);
+        assertFalse(metadata.contains("exif-ifd0-Orientation"), metadata);
     }
 
     private static byte[] corruptProfilePcs(byte[] jpeg) {
