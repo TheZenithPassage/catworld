@@ -197,7 +197,11 @@ public class OwnerService implements IOwnerService {
         if (page < 0) throw new BadRequestException("Page must not be negative");
         String trimmed = query == null ? "" : query.trim();
         if (trimmed.isEmpty()) throw new BadRequestException("Search query must not be empty");
-        return trimmed;
+        return escapeLookupQuery(trimmed);
+    }
+
+    private String escapeLookupQuery(String query) {
+        return query.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
 }

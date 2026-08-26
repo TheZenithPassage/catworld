@@ -15,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface VetRepository extends JpaRepository<Vet, UUID> {
 
-    @Query("select v from Vet v where lower(v.name) like lower(concat('%', :query, '%'))")
+    @Query("select v from Vet v where lower(v.name) like lower(concat('%', :query, '%')) escape '!'")
     Page<Vet> search(@Param("query") String query, Pageable pageable);
 
     boolean existsByCreatedBy_Id(UUID createdById);

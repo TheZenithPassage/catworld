@@ -13,8 +13,8 @@ import java.util.UUID;
 @Repository
 public interface CatRepository extends JpaRepository<Cat, UUID> {
 
-    @Query(value = "select c from Cat c join fetch c.owner where lower(c.name) like lower(concat('%', :query, '%'))",
-            countQuery = "select count(c) from Cat c where lower(c.name) like lower(concat('%', :query, '%'))")
+    @Query(value = "select c from Cat c join fetch c.owner where lower(c.name) like lower(concat('%', :query, '%')) escape '!'",
+            countQuery = "select count(c) from Cat c where lower(c.name) like lower(concat('%', :query, '%')) escape '!'")
     Page<Cat> search(@Param("query") String query, Pageable pageable);
 
     @Query("select c from Cat c where c.owner.id in :ownerIds order by c.name asc, c.id asc")

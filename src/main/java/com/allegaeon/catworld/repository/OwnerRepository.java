@@ -17,12 +17,12 @@ public interface OwnerRepository extends JpaRepository<Owner, UUID> {
 
     @Query(value = """
             select distinct o from Owner o left join o.cats c
-            where lower(o.fullName) like lower(concat('%', :query, '%'))
-               or lower(c.name) like lower(concat('%', :query, '%'))
+            where lower(o.fullName) like lower(concat('%', :query, '%')) escape '!'
+               or lower(c.name) like lower(concat('%', :query, '%')) escape '!'
             """, countQuery = """
             select count(distinct o.id) from Owner o left join o.cats c
-            where lower(o.fullName) like lower(concat('%', :query, '%'))
-               or lower(c.name) like lower(concat('%', :query, '%'))
+            where lower(o.fullName) like lower(concat('%', :query, '%')) escape '!'
+               or lower(c.name) like lower(concat('%', :query, '%')) escape '!'
             """)
     Page<Owner> search(@Param("query") String query, Pageable pageable);
 

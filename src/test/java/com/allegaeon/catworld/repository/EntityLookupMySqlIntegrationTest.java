@@ -38,6 +38,11 @@ class EntityLookupMySqlIntegrationTest {
         cats.saveAndFlush(Cat.builder().name("Míša").birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.FEMALE)
                 .owner(owner).createdBy(actor).build());
         vets.saveAndFlush(Vet.builder().name("Clínica Ñandú").createdBy(actor).build());
+        Owner literalOwner = owners.saveAndFlush(Owner.builder().fullName("Literal %_!")
+                .primaryPhone("2").createdBy(actor).build());
+        Cat literalCat = cats.saveAndFlush(Cat.builder().name("Literal_%!")
+                .birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.MALE).owner(literalOwner).createdBy(actor).build());
+        Vet literalVet = vets.saveAndFlush(Vet.builder().name("Literal_%!").createdBy(actor).build());
 
         assertEquals(owner.getId(), owners.search("JOSE", PageRequest.of(0, 5,
                 Sort.by("fullName", "id"))).getContent().getFirst().getId());
@@ -45,5 +50,11 @@ class EntityLookupMySqlIntegrationTest {
                 Sort.by("name", "id"))).getContent().getFirst().getName());
         assertEquals("Clínica Ñandú", vets.search("clinica nandu", PageRequest.of(0, 5,
                 Sort.by("name", "id"))).getContent().getFirst().getName());
+        assertEquals(literalOwner.getId(), owners.search("!%!_!!", PageRequest.of(0, 5,
+                Sort.by("fullName", "id"))).getContent().getFirst().getId());
+        assertEquals(literalCat.getId(), cats.search("!_!%!!", PageRequest.of(0, 5,
+                Sort.by("name", "id"))).getContent().getFirst().getId());
+        assertEquals(literalVet.getId(), vets.search("!_!%!!", PageRequest.of(0, 5,
+                Sort.by("name", "id"))).getContent().getFirst().getId());
     }
 }

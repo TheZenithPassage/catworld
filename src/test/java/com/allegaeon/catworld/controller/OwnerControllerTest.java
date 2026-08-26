@@ -3,6 +3,7 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -38,6 +39,31 @@ public class OwnerControllerTest {
 
     @Nested
     class GetOwnerTests {
+
+        @Test
+        void lookupRoutesSerializeSemanticEnvelopeAndMapValidationAndMissingOwner() throws Exception {
+            UUID ownerId = UUID.randomUUID();
+            UUID catId = UUID.randomUUID();
+            var owner = new OwnerLookupItem(ownerId, "Owner", List.of(new CurrentCatLookupItem(catId, "Milo")));
+            when(ownerService.searchOwners("o", 0)).thenReturn(new LookupPage<>(List.of(owner), 0, 5, 6));
+            when(ownerService.getOwnerLookup(ownerId)).thenReturn(owner);
+
+            mockMvc.perform(get("/api/owners/search").param("q", "o"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].currentCats[0].name").value("Milo"))
+                    .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.pageSize").value(5))
+                    .andExpect(jsonPath("$.totalElements").value(6))
+                    .andExpect(jsonPath("$.totalPages").doesNotExist()).andExpect(jsonPath("$.hasNext").doesNotExist());
+            mockMvc.perform(get("/api/owners/{id}/lookup", ownerId))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.fullName").value("Owner"));
+
+            when(ownerService.searchOwners("   ", 0)).thenThrow(new BadRequestException("Search query must not be empty"));
+            when(ownerService.searchOwners("o", -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            when(ownerService.getOwnerLookup(ownerId)).thenThrow(new ResourceNotFoundException("Owner", ownerId));
+            mockMvc.perform(get("/api/owners/search").param("q", "   ")).andExpect(status().isBadRequest());
+            mockMvc.perform(get("/api/owners/search").param("q", "o").param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(get("/api/owners/{id}/lookup", ownerId)).andExpect(status().isNotFound());
+        }
 
         @Test
         void detailAndNestedReadsSerializeTypedContractsAndDelegatePages() throws Exception {

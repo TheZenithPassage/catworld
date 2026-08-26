@@ -51,4 +51,24 @@ class EntityLookupPersistenceTest {
         assertEquals(2, owners.search("needle", PageRequest.of(4, 5,
                 Sort.by("fullName", "id"))).getTotalElements());
     }
+
+    @Test
+    void lookupPredicatesTreatLikeMetacharactersAsLiteralCharacters() {
+        UserAccount actor = users.save(UserAccount.builder().username("lookup-literals")
+                .passwordHash("hash").role(UserRole.ADMIN).enabled(true).build());
+        Owner literal = owners.save(Owner.builder().fullName("Percent % Under_score !")
+                .primaryPhone("1").createdBy(actor).build());
+        owners.save(Owner.builder().fullName("Ordinary owner").primaryPhone("2").createdBy(actor).build());
+        Cat cat = cats.save(Cat.builder().name("Cat_100%!").birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.FEMALE)
+                .owner(literal).createdBy(actor).build());
+        Vet vet = vets.save(Vet.builder().name("Vet_100%!").createdBy(actor).build());
+        var ownerOrder = PageRequest.of(0, 5, Sort.by("fullName", "id"));
+        var nameOrder = PageRequest.of(0, 5, Sort.by("name", "id"));
+
+        assertEquals(List.of(literal.getId()), owners.search("!%", ownerOrder).map(Owner::getId).getContent());
+        assertEquals(List.of(literal.getId()), owners.search("!_", ownerOrder).map(Owner::getId).getContent());
+        assertEquals(List.of(literal.getId()), owners.search("!!", ownerOrder).map(Owner::getId).getContent());
+        assertEquals(List.of(cat.getId()), cats.search("!_100!%!!", nameOrder).map(Cat::getId).getContent());
+        assertEquals(List.of(vet.getId()), vets.search("!_100!%!!", nameOrder).map(Vet::getId).getContent());
+    }
 }
