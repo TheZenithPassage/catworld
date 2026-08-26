@@ -118,6 +118,7 @@ export class StayCreatePage implements AfterViewInit {
   });
 
   private previewRequestSequence = 0;
+  private ownerResetGeneration = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
 
@@ -151,6 +152,7 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private resetOwnerDependentState(): void {
+    this.ownerResetGeneration++;
     this.clearVaccineOverrideRecovery();
     this.selectedCatIds.set([]);
     this.previewRequestSequence++;
@@ -271,10 +273,15 @@ export class StayCreatePage implements AfterViewInit {
       confirmation: preview.confirmation,
     };
 
-    this.saveStay(request, !overrideVaccineConflicts, basis);
+    this.saveStay(request, !overrideVaccineConflicts, basis, this.ownerResetGeneration);
   }
 
-  private saveStay(request: CreateStayRequest, showVaccineConflict: boolean, basis: string): void {
+  private saveStay(
+    request: CreateStayRequest,
+    showVaccineConflict: boolean,
+    basis: string,
+    ownerGeneration: number,
+  ): void {
     this.submitting.set(true);
 
     this.stayApiService.createStay(request).subscribe({
@@ -283,9 +290,11 @@ export class StayCreatePage implements AfterViewInit {
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
+        this.submitting.set(false);
+        if (ownerGeneration !== this.ownerResetGeneration) return;
+
         if (isStalePricingConfirmationError(error)) {
           this.vaccineOverrideRecoveryBasis = request.overrideVaccineConflicts ? basis : null;
-          this.submitting.set(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
           this.error.set(this.text().stays.pricing.errors.stale);
@@ -293,8 +302,7 @@ export class StayCreatePage implements AfterViewInit {
           return;
         }
         if (showVaccineConflict && isVaccineConflictError(error)) {
-          this.submitting.set(false);
-          this.openVaccineConflictDialog(error.error, request, basis);
+          this.openVaccineConflictDialog(error.error, request, basis, ownerGeneration);
           return;
         }
 
@@ -302,7 +310,6 @@ export class StayCreatePage implements AfterViewInit {
           this.clearVaccineOverrideRecovery();
         }
         this.error.set(this.getCreateStayErrorMessage(error));
-        this.submitting.set(false);
       },
     });
   }
@@ -311,6 +318,7 @@ export class StayCreatePage implements AfterViewInit {
     conflict: VaccineConflictResponse,
     request: CreateStayRequest,
     basis: string,
+    ownerGeneration: number,
   ): void {
     const canOverride = this.authSessionService.hasRole('ADMIN');
     const data: VaccineConflictDialogData = {
@@ -330,12 +338,18 @@ export class StayCreatePage implements AfterViewInit {
           confirmed !== true ||
           !canOverride ||
           !this.authSessionService.hasRole('ADMIN') ||
+          ownerGeneration !== this.ownerResetGeneration ||
           basis !== this.currentPreviewBasis()
         ) {
           return;
         }
 
-        this.saveStay({ ...request, overrideVaccineConflicts: true }, false, basis);
+        this.saveStay(
+          { ...request, overrideVaccineConflicts: true },
+          false,
+          basis,
+          ownerGeneration,
+        );
       });
   }
 

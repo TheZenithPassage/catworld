@@ -394,6 +394,74 @@ describe('StayCreatePage', () => {
     expect(component.pricingReason()).toBe('Keep reason');
   });
 
+  it('ignores late stale-pricing recovery after Owner invalidation', () => {
+    const createResponse = new Subject<Stay>();
+    stayApiService.createStay.mockReturnValue(createResponse);
+    createComponent();
+    selectOwner();
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+    component.submit();
+
+    fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.clear();
+    createResponse.error(
+      new HttpErrorResponse({ status: 409, error: { code: 'STALE_PRICING_CONFIRMATION' } }),
+    );
+
+    expect(component.submitting()).toBe(false);
+    expect(component.stalePricing()).toBe(false);
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.pricingPreview()).toBeNull();
+    expect(component.error()).toBeNull();
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+  });
+
+  it('does not open a vaccine dialog for a late conflict after Owner invalidation', () => {
+    const createResponse = new Subject<Stay>();
+    stayApiService.createStay.mockReturnValue(createResponse);
+    createComponent();
+    selectOwner();
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+    component.submit();
+
+    fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.clear();
+    createResponse.error(new HttpErrorResponse({ status: 409, error: vaccineConflict }));
+
+    expect(component.submitting()).toBe(false);
+    expect(matDialog.open).not.toHaveBeenCalled();
+    expect(component.error()).toBeNull();
+  });
+
+  it('does not continue an old vaccine dialog after clearing and recreating the same basis', () => {
+    stayApiService.createStay
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status: 409, error: vaccineConflict })),
+      )
+      .mockReturnValueOnce(of(createdStay));
+    createComponent();
+    selectOwner();
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+    component.submit();
+
+    const selector = fixture.debugElement.query(By.directive(RemoteEntitySelector))
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+    selector.clear();
+    selector.select(owners[0]);
+    component.selectedCatIds.set(['cat-1']);
+    prepareConfirmedPricing();
+    dialogClosed.next(true);
+
+    expect(stayApiService.createStay).toHaveBeenCalledTimes(1);
+  });
+
   it('does not create a stay when no cat is selected', () => {
     createComponent();
     selectOwner();
