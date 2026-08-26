@@ -70,45 +70,20 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.owner }}</mat-label>
-          <select
-            matNativeControl
-            name="ownerId"
-            required
-            [ngModel]="ownerId()"
-            (ngModelChange)="ownerId.set($event)"
-          >
-            <option value="">{{ text().cats.form.selectOwner }}</option>
+        <app-remote-entity-selector
+          #ownerSelector
+          [adapter]="ownerLookup"
+          [label]="text().cats.form.owner"
+          [required]="true"
+          (stateChange)="ownerChanged($event)"
+        />
 
-            @for (owner of owners(); track owner.id) {
-              <option [value]="owner.id">
-                {{ owner.fullName }}
-              </option>
-            }
-          </select>
-          @if (ownerIdError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.vet }}</mat-label>
-          <select
-            matNativeControl
-            name="vetId"
-            [ngModel]="vetId()"
-            (ngModelChange)="vetId.set($event)"
-          >
-            <option value="">{{ text().cats.form.noVet }}</option>
-
-            @for (vet of vets(); track vet.id) {
-              <option [value]="vet.id">
-                {{ vet.name }}
-              </option>
-            }
-          </select>
-        </mat-form-field>
+        <app-remote-entity-selector
+          #vetSelector
+          [adapter]="vetLookup"
+          [label]="text().cats.form.vet"
+          (stateChange)="vetChanged($event)"
+        />
 
         <mat-form-field appearance="outline">
           <mat-label>{{ text().cats.form.breed }}</mat-label>

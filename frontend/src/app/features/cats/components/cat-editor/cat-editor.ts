@@ -5,15 +5,19 @@ import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { of } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
+import {
+  OwnerLookupAdapter,
+  VetLookupAdapter,
+} from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Owner } from '../../../owners/models/owner.model';
-import { OwnerApiService } from '../../../owners/services/owner-api.service';
-import { Vet } from '../../../vets/models/vet.model';
-import { VetApiService } from '../../../vets/services/vet-api.service';
+import { OwnerLookup } from '../../../owners/models/owner.model';
+import { VetLookup } from '../../../vets/models/vet.model';
 import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
@@ -29,6 +33,7 @@ import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
     MatFormField,
     MatInput,
     MatLabel,
+    RemoteEntitySelector,
     TrimRequiredDirective,
     UiStateComponent,
     CatPhotoInput,
@@ -38,9 +43,10 @@ import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
 })
 export class CatEditor {
   @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
+  private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
+  private vetSelector?: RemoteEntitySelector<VetLookup>;
+  private initialCat: Cat | null = null;
   private readonly api = inject(CatApiService);
-  private readonly ownerApi = inject(OwnerApiService);
-  private readonly vetApi = inject(VetApiService);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
   readonly entity = input<Cat | null>(null);
@@ -49,13 +55,14 @@ export class CatEditor {
   readonly cancelled = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
-  readonly owners = signal<Owner[]>([]);
-  readonly vets = signal<Vet[]>([]);
+  readonly ownerLookup = inject(OwnerLookupAdapter);
+  readonly vetLookup = inject(VetLookupAdapter);
   readonly name = signal('');
   readonly birthDate = signal('');
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
   readonly vetId = signal('');
+  readonly vetRawContentPresent = signal(false);
   readonly breed = signal('');
   readonly coat = signal('');
   readonly color = signal('');
@@ -76,12 +83,27 @@ export class CatEditor {
   readonly nameError = createLanguageResetError(this.i18n.language);
   readonly birthDateError = createLanguageResetError(this.i18n.language);
   readonly sexError = createLanguageResetError(this.i18n.language);
-  readonly ownerIdError = createLanguageResetError(this.i18n.language);
   constructor() {
     effect(() => {
       const entity = this.entity();
       this.loadData(entity);
     });
+  }
+  @ViewChild('ownerSelector')
+  set ownerSelectorInstance(selector: RemoteEntitySelector<OwnerLookup> | undefined) {
+    this.ownerSelector = selector;
+    const cat = this.initialCat;
+    if (cat) selector?.trustInitialValue({ id: cat.ownerId, label: cat.ownerName });
+  }
+  @ViewChild('vetSelector')
+  set vetSelectorInstance(selector: RemoteEntitySelector<VetLookup> | undefined) {
+    this.vetSelector = selector;
+    const cat = this.initialCat;
+    if (cat) {
+      selector?.trustInitialValue(
+        cat.vetId && cat.vetName ? { id: cat.vetId, label: cat.vetName } : null,
+      );
+    }
   }
   loadData(entity: Cat | null = this.entity()): void {
     this.error.set(null);
@@ -91,14 +113,8 @@ export class CatEditor {
       return;
     }
     this.loadingData.set(true);
-    forkJoin({
-      cat: entity ? [entity] : this.api.getCatById(this.entityId()),
-      owners: this.ownerApi.getOwners(),
-      vets: this.vetApi.getVets(),
-    }).subscribe({
-      next: ({ cat, owners, vets }) => {
-        this.owners.set(owners);
-        this.vets.set(vets);
+    (entity ? of(entity) : this.api.getCatById(this.entityId())).subscribe({
+      next: (cat) => {
         this.setValues(cat);
         this.loadingData.set(false);
       },
@@ -113,7 +129,6 @@ export class CatEditor {
     this.nameError.set(null);
     this.birthDateError.set(null);
     this.sexError.set(null);
-    this.ownerIdError.set(null);
     if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
@@ -131,10 +146,9 @@ export class CatEditor {
       this.sexError.set(this.text().cats.edit.errors.sexRequired);
       return;
     }
-    if (!this.ownerId()) {
-      this.ownerIdError.set(this.text().cats.edit.errors.ownerRequired);
-      return;
-    }
+    this.ownerSelector?.markSubmitted();
+    this.vetSelector?.markSubmitted();
+    if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
     const request: UpdateCatRequest = {
       name: this.name().trim(),
       birthDate: this.birthDate(),
@@ -177,17 +191,26 @@ export class CatEditor {
     this.photoInput?.reset();
     this.cancelled.emit();
   }
+  ownerChanged(state: EntityLookupState<OwnerLookup>): void {
+    this.ownerId.set(state.selectedId ?? '');
+  }
+  vetChanged(state: EntityLookupState<VetLookup>): void {
+    this.vetId.set(state.selectedId ?? '');
+    this.vetRawContentPresent.set(state.rawContentPresent);
+  }
   private setSubmitting(value: boolean): void {
     this.submitting.set(value);
     this.submittingChanged.emit(value);
   }
   private setValues(c: Cat): void {
+    this.initialCat = c;
     this.photoInput?.reset();
     this.name.set(c.name);
     this.birthDate.set(c.birthDate);
     this.sex.set(c.sex);
     this.ownerId.set(c.ownerId);
     this.vetId.set(c.vetId ?? '');
+    this.vetRawContentPresent.set(c.vetId !== null);
     this.breed.set(c.breed ?? '');
     this.coat.set(c.coat ?? '');
     this.color.set(c.color ?? '');
@@ -202,6 +225,10 @@ export class CatEditor {
     this.lastRabiesDate.set(c.lastRabiesDate ?? '');
     this.hasSavedPhoto.set(c.hasPhoto);
     this.catLoaded.set(true);
+    this.ownerSelector?.trustInitialValue({ id: c.ownerId, label: c.ownerName });
+    this.vetSelector?.trustInitialValue(
+      c.vetId && c.vetName ? { id: c.vetId, label: c.vetName } : null,
+    );
   }
   private optional(v: string): string | null {
     return v.trim() || null;

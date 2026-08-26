@@ -25,8 +25,10 @@
   background: var(--color-surface);
 }
 
-.cat-form mat-form-field {
+.cat-form mat-form-field,
+.cat-form app-remote-entity-selector {
   width: 100%;
+  min-width: 0;
 }
 
 .field-with-action {

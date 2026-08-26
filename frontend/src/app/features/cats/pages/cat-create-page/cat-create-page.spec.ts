@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner } from '../../../owners/models/owner.model';
@@ -15,6 +15,9 @@ import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatCreatePage } from './cat-create-page';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
+import { OwnerLookup } from '../../../owners/models/owner.model';
+import { VetLookup } from '../../../vets/models/vet.model';
 
 describe('CatCreatePage', () => {
   let component: CatCreatePage;
@@ -73,10 +76,14 @@ describe('CatCreatePage', () => {
 
   const ownerApiService = {
     getOwners: vi.fn(),
+    searchOwners: vi.fn(),
+    getOwnerLookup: vi.fn(),
   };
 
   const vetApiService = {
     getVets: vi.fn(),
+    searchVets: vi.fn(),
+    getVetById: vi.fn(),
   };
 
   const router = {
@@ -89,6 +96,10 @@ describe('CatCreatePage', () => {
     queryParams = {};
     ownerApiService.getOwners.mockReturnValue(of(owners));
     vetApiService.getVets.mockReturnValue(of(vets));
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      of({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] }),
+    );
+    vetApiService.getVetById.mockReturnValue(of(vets[0]));
 
     await TestBed.configureTestingModule({
       imports: [CatCreatePage],
@@ -168,7 +179,10 @@ describe('CatCreatePage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
+    expect(ownerApiService.getOwners).not.toHaveBeenCalled();
+    expect(vetApiService.getVets).not.toHaveBeenCalled();
     expect(compiled.querySelector('input[name="birthDate"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="personality"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
@@ -189,6 +203,7 @@ describe('CatCreatePage', () => {
 
   it('creates a cat with the current payload shape and returns to cats', () => {
     createComponent();
+    fixture.detectChanges();
     catApiService.createCat.mockReturnValue(of(createdCat));
 
     component.name.set('  Milo  ');
@@ -244,6 +259,7 @@ describe('CatCreatePage', () => {
       vetId: 'vet-1',
     };
     createComponent();
+    fixture.detectChanges();
     catApiService.createCat.mockReturnValue(of(createdCat));
 
     expect(component.ownerId()).toBe('owner-1');
@@ -268,6 +284,50 @@ describe('CatCreatePage', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/stays/new'], {
       queryParams: { ownerId: 'owner-1', catId: 'cat-1' },
     });
+  });
+
+  it('keeps return-query resolution field-local and ignores a late owner response after typing', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    createComponent();
+    fixture.detectChanges();
+    const [ownerSelector, vetSelector] = fixture.debugElement
+      .queryAll(By.directive(RemoteEntitySelector))
+      .map((element) => element.componentInstance) as [
+      RemoteEntitySelector<OwnerLookup>,
+      RemoteEntitySelector<VetLookup>,
+    ];
+
+    ownerSelector.inputChanged({ target: { value: 'Later choice' } } as unknown as Event);
+    ownerResolution.next({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] });
+
+    expect(component.ownerId()).toBe('');
+    expect(ownerSelector.query()).toBe('Later choice');
+    expect(vetSelector.selectedId()).toBe('vet-1');
+  });
+
+  it('blocks unresolved owner and whitespace-only vet input without changing form state', () => {
+    createComponent();
+    fixture.detectChanges();
+    const [ownerSelector, vetSelector] = fixture.debugElement
+      .queryAll(By.directive(RemoteEntitySelector))
+      .map((element) => element.componentInstance) as [
+      RemoteEntitySelector<OwnerLookup>,
+      RemoteEntitySelector<VetLookup>,
+    ];
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    ownerSelector.inputChanged({ target: { value: 'Ada' } } as unknown as Event);
+    vetSelector.inputChanged({ target: { value: '   ' } } as unknown as Event);
+
+    component.submit();
+    fixture.detectChanges();
+
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.name()).toBe('Milo');
+    expect(fixture.nativeElement.querySelectorAll('.validation')).toHaveLength(2);
   });
 
   it('creates without a photo after rejecting an invalid candidate and preserves fields', () => {

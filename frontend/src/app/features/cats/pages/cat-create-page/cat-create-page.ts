@@ -1,20 +1,23 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
+import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
+import {
+  OwnerLookupAdapter,
+  VetLookupAdapter,
+} from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Owner } from '../../../owners/models/owner.model';
-import { OwnerApiService } from '../../../owners/services/owner-api.service';
-import { Vet } from '../../../vets/models/vet.model';
-import { VetApiService } from '../../../vets/services/vet-api.service';
+import { OwnerLookup } from '../../../owners/models/owner.model';
+import { VetLookup } from '../../../vets/models/vet.model';
 import { CreateCatRequest, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
@@ -31,31 +34,35 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
     MatLabel,
     RouterLink,
     TrimRequiredDirective,
+    RemoteEntitySelector,
     UiStateComponent,
     CatPhotoInput,
   ],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss',
 })
-export class CatCreatePage {
+export class CatCreatePage implements AfterViewInit {
   @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
+  @ViewChild('ownerSelector') private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
+  @ViewChild('vetSelector') private vetSelector?: RemoteEntitySelector<VetLookup>;
   private readonly catApiService = inject(CatApiService);
-  private readonly ownerApiService = inject(OwnerApiService);
-  private readonly vetApiService = inject(VetApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
 
   readonly text = this.i18nService.text;
 
-  readonly owners = signal<Owner[]>([]);
-  readonly vets = signal<Vet[]>([]);
+  readonly ownerLookup = inject(OwnerLookupAdapter);
+  readonly vetLookup = inject(VetLookupAdapter);
 
   readonly name = signal('');
   readonly birthDate = signal('');
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
   readonly vetId = signal('');
+  readonly vetRawContentPresent = signal(false);
+  private ownerLookupStateReceived = false;
+  private vetLookupStateReceived = false;
 
   readonly breed = signal('');
   readonly coat = signal('');
@@ -70,38 +77,27 @@ export class CatCreatePage {
   readonly lastTripleFelineDate = signal('');
   readonly lastRabiesDate = signal('');
 
-  readonly loadingData = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly nameError = createLanguageResetError(this.i18nService.language);
   readonly birthDateError = createLanguageResetError(this.i18nService.language);
   readonly sexError = createLanguageResetError(this.i18nService.language);
-  readonly ownerIdError = createLanguageResetError(this.i18nService.language);
-
-  constructor() {
-    this.loadData();
+  ngAfterViewInit(): void {
+    const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
+    const vetId = this.route.snapshot.queryParamMap.get('vetId');
+    if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
+    if (vetId) this.vetSelector?.resolveKnownId(vetId);
   }
 
-  loadData(): void {
-    this.loadingData.set(true);
-    this.error.set(null);
+  ownerChanged(state: EntityLookupState<OwnerLookup>): void {
+    this.ownerLookupStateReceived = true;
+    this.ownerId.set(state.selectedId ?? '');
+  }
 
-    forkJoin({
-      owners: this.ownerApiService.getOwners(),
-      vets: this.vetApiService.getVets(),
-    }).subscribe({
-      next: ({ owners, vets }) => {
-        this.owners.set(owners);
-        this.vets.set(vets);
-        this.setInitialOwnerFromQueryParams();
-        this.setInitialVetFromQueryParams();
-        this.loadingData.set(false);
-      },
-      error: () => {
-        this.error.set(this.text().cats.create.errors.loadFormDataFailed);
-        this.loadingData.set(false);
-      },
-    });
+  vetChanged(state: EntityLookupState<VetLookup>): void {
+    this.vetLookupStateReceived = true;
+    this.vetId.set(state.selectedId ?? '');
+    this.vetRawContentPresent.set(state.rawContentPresent);
   }
 
   submit(): void {
@@ -124,10 +120,9 @@ export class CatCreatePage {
       return;
     }
 
-    if (!this.ownerId()) {
-      this.ownerIdError.set(this.text().cats.create.errors.ownerRequired);
-      return;
-    }
+    this.ownerSelector?.markSubmitted();
+    this.vetSelector?.markSubmitted();
+    if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
 
     const request: CreateCatRequest = {
       name: this.name().trim(),
@@ -171,7 +166,9 @@ export class CatCreatePage {
     this.photoInput?.reset();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {
-      const ownerId = this.ownerId() || this.route.snapshot.queryParamMap.get('ownerId');
+      const ownerId =
+        this.ownerId() ||
+        (!this.ownerLookupStateReceived ? this.route.snapshot.queryParamMap.get('ownerId') : null);
       this.router.navigate(['/stays/new'], {
         queryParams: ownerId ? { ownerId } : undefined,
       });
@@ -184,7 +181,6 @@ export class CatCreatePage {
     this.nameError.set(null);
     this.birthDateError.set(null);
     this.sexError.set(null);
-    this.ownerIdError.set(null);
   }
 
   getCreateVetQueryParams(): Record<string, string> {
@@ -192,7 +188,9 @@ export class CatCreatePage {
       returnTo: '/cats/new',
     };
 
-    const currentOwnerId = this.ownerId() || this.route.snapshot.queryParamMap.get('ownerId');
+    const currentOwnerId =
+      this.ownerId() ||
+      (!this.ownerLookupStateReceived ? this.route.snapshot.queryParamMap.get('ownerId') : null);
     const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (currentOwnerId) {
@@ -211,7 +209,9 @@ export class CatCreatePage {
       returnTo: '/cats/new',
     };
 
-    const currentVetId = this.vetId() || this.route.snapshot.queryParamMap.get('vetId');
+    const currentVetId =
+      this.vetId() ||
+      (!this.vetLookupStateReceived ? this.route.snapshot.queryParamMap.get('vetId') : null);
     const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (currentVetId) {
@@ -242,34 +242,6 @@ export class CatCreatePage {
     }
 
     this.router.navigate(['/cats']);
-  }
-
-  private setInitialOwnerFromQueryParams(): void {
-    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
-
-    if (!queryOwnerId) {
-      return;
-    }
-
-    const ownerExists = this.owners().some((owner) => owner.id === queryOwnerId);
-
-    if (ownerExists) {
-      this.ownerId.set(queryOwnerId);
-    }
-  }
-
-  private setInitialVetFromQueryParams(): void {
-    const queryVetId = this.route.snapshot.queryParamMap.get('vetId');
-
-    if (!queryVetId) {
-      return;
-    }
-
-    const vetExists = this.vets().some((vet) => vet.id === queryVetId);
-
-    if (vetExists) {
-      this.vetId.set(queryVetId);
-    }
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
