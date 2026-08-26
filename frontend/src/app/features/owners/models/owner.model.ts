@@ -20,3 +20,14 @@ export interface CreateOwnerRequest {
 }
 
 export type UpdateOwnerRequest = CreateOwnerRequest;
+
+export interface OwnerLookupCat {
+  id: string;
+  name: string;
+}
+
+export interface OwnerLookup {
+  id: string;
+  fullName: string;
+  currentCats: OwnerLookupCat[];
+}

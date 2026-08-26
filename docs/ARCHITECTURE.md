@@ -448,8 +448,8 @@ Current rules:
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
 - Stay creation and updates that extend `endAt` beyond the currently persisted
-  value aggregate every conflicting cat-vaccine pair into a structured `409
-  Conflict`. Updates that keep or shorten the persisted end time skip the
+  value aggregate every conflicting cat-vaccine pair into a structured
+  `409 Conflict`. Updates that keep or shorten the persisted end time skip the
   vaccine-conflict policy while all other stay rules remain active. `STAFF`
   remains blocked on a conflicting creation or extension even when an override
   is supplied. `ADMIN` receives the same conflict by default and may continue
@@ -890,6 +890,66 @@ rather than the overview. Registration, amount editing and annulment use focused
 responsive Material dialogs; permanent payment removal remains on the shared
 protected-deletion confirmation path. Successful mutations replace page state
 from the complete authoritative Stay returned by the backend.
+
+### Reusable Entity Lookup and Selection
+
+Owner, cat and vet lookup is a focused read contract for scalable interactive
+selection. `GET /api/owners/search`, `GET /api/cats/search` and
+`GET /api/vets/search` accept a trimmed non-empty `q` and a zero-based `page`
+whose default is zero. They return `{ items, page, pageSize, totalElements }`
+with a server-fixed page size of five; the envelope deliberately exposes
+neither `totalPages` nor `hasNext`. Search is case-insensitive partial matching
+over owner full name, cat name or vet name respectively. A cat's current owner
+name is display context, not a cat search term. Stable ordering uses the
+display name followed by identifier. Positive pages beyond the last available
+page are clamped and reloaded by clients from the authoritative count.
+
+Owner lookup items contain `id`, `fullName` and every current cat as an
+`id`/`name` pair. Focused `GET /api/owners/{id}/lookup` returns that same
+complete shape so known Stay owner identifiers can be resolved without a broad
+list. Cat lookup items contain `id`, `name`, `ownerId` and `ownerName`; vet
+lookup items contain `id` and `name`. Current owner/cat relationships are
+discovery and display context only: selection never mutates a relationship,
+and the owning consumer remains responsible for mutations, historical filters
+and business resets. The focused reads use existing owner, cat and vet storage
+and indexed name/relationship paths; they add no persistence model or cache.
+
+Angular provides one API- and domain-agnostic inline remote single-selector
+under `shared/entity-lookup`, plus focused Owner, Cat and Vet adapters. The
+generic selector receives search/resolution and presentation behavior rather
+than calling domain APIs. It debounces only text edits, accepts every non-empty
+trimmed query, and performs paging, Retry and known-ID resolution immediately.
+Text editing immediately invalidates a committed identifier and removes old
+results; typing an exact label never selects it. Only activating a result emits
+a positive full lookup value. Separate state exposes the full selected value,
+immediate null invalidation and raw-content presence so consumers can enforce
+required/optional submission rules and selection-time mutual exclusion without
+discarding an opposite committed filter merely because the user types.
+
+Every request path uses cancellation plus request identity, including initial
+known-ID resolution, so superseded work cannot restore old text, selection,
+errors, results or pages. Consumers may install a trusted lightweight Owner or
+Vet value converted from existing CRUD reads without searching its label;
+asynchronous initialization is guarded from later interaction. Stay flows use
+the complete focused Owner resolution when current cat identifiers and names
+are required. A public complete reset clears text, value, request identity,
+results, counts, status and paging.
+
+Lookup results remain in normal document flow and use public Angular Material
+buttons and paginator APIs rather than autocomplete, overlay or popup
+infrastructure. Loading, no-result and failure states are distinct and
+field-local; Retry remains immediate. The paginator appears for every
+successful non-empty result, including a single page, uses the fixed size five,
+and shares the localized paginator implementation extracted from entity detail.
+Stored failures reset when language changes while derived labels always use the
+active language. Results and selected context wrap vertically at full width
+without horizontal overflow. Cat create/edit, Stay create, and Stay search
+filters are the confirmed consumers; those features own form timing, domain
+mutations and cross-field reset policy rather than recreating lookup/search or
+label behavior.
+
+Entity lookup changes no database schema, UML diagram, authentication policy,
+deployment topology or operational procedure.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned

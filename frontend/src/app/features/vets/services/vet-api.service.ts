@@ -3,7 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateVetRequest, UpdateVetRequest, Vet } from '../models/vet.model';
+import { CreateVetRequest, UpdateVetRequest, Vet, VetLookup } from '../models/vet.model';
+import { EntityLookupPage } from '../../../shared/entity-lookup/entity-lookup.models';
 import {
   CatRelationshipPage,
   VetDetailResponse,
@@ -22,6 +23,12 @@ export class VetApiService {
 
   getVetById(vetId: string): Observable<Vet> {
     return this.http.get<Vet>(`${this.baseUrl}/${vetId}`);
+  }
+
+  searchVets(query: string, page = 0): Observable<EntityLookupPage<VetLookup>> {
+    return this.http.get<EntityLookupPage<VetLookup>>(`${this.baseUrl}/search`, {
+      params: { q: query.trim(), page },
+    });
   }
 
   getVetDetail(vetId: string): Observable<VetDetailResponse> {

@@ -1,0 +1,55 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ label() }}</mat-label>
+  <input matInput [value]="query()" (input)="inputChanged($event)" [required]="required()" />
+  @if (query().length > 0 || value()) {
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      [attr.aria-label]="text().entityLookup.clear"
+      (click)="clear()"
+    >
+      <mat-icon aria-hidden="true">close</mat-icon>
+    </button>
+  }
+</mat-form-field>
+
+@if (value()) {
+  <p class="selected" aria-live="polite">{{ text().entityLookup.selected(selectedLabel()) }}</p>
+}
+@if (submitted() && !valid()) {
+  <p class="validation" role="alert">{{ validationMessage() }}</p>
+}
+@if (loading()) {
+  <p class="state" aria-live="polite">{{ text().entityLookup.loading }}</p>
+} @else if (error()) {
+  <div class="state error" role="alert">
+    <span>{{ error() }}</span>
+    <button mat-button type="button" (click)="retry()">{{ text().entityLookup.retry }}</button>
+  </div>
+} @else if (searched() && items().length === 0) {
+  <p class="state" aria-live="polite">{{ text().entityLookup.noResults }}</p>
+}
+
+@if (!loading() && items().length > 0) {
+  <div class="results">
+    @for (item of items(); track adapter().id(item)) {
+      <button mat-button type="button" class="result" (click)="select(item)">
+        <span class="result-content">
+          <span class="primary">{{ adapter().present(item).primary }}</span>
+          @if (adapter().present(item).secondary; as secondary) {
+            <span class="secondary">{{ secondary }}</span>
+          }
+        </span>
+      </button>
+    }
+  </div>
+  <mat-paginator
+    [length]="total()"
+    [pageIndex]="page()"
+    [pageSize]="5"
+    [hidePageSize]="true"
+    [disabled]="loading()"
+    (page)="pageChanged($event)"
+  />
+}

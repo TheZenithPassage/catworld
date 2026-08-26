@@ -1,0 +1,54 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+mat-form-field,
+.results,
+.result {
+  width: 100%;
+  min-width: 0;
+}
+
+.selected,
+.state,
+.validation {
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.selected,
+.secondary {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.validation,
+.error {
+  color: var(--mat-sys-error);
+}
+
+.results {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.result {
+  height: auto;
+  justify-content: flex-start;
+  padding-block: 0.5rem;
+  text-align: start;
+  white-space: normal;
+}
+
+.result-content {
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.primary,
+.secondary {
+  display: block;
+}

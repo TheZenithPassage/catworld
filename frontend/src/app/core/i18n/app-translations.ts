@@ -27,6 +27,10 @@ import {
   ENTITY_DETAIL_TRANSLATIONS,
   EntityDetailTranslations,
 } from './translations/entity-detail.translations';
+import {
+  ENTITY_LOOKUP_TRANSLATIONS,
+  EntityLookupTranslations,
+} from './translations/entity-lookup.translations';
 
 export interface AppTranslations {
   app: AppShellTranslations;
@@ -42,6 +46,7 @@ export interface AppTranslations {
   nightlyRates: NightlyRatesTranslations;
   sensitiveActivity: SensitiveActivityTranslations;
   entityDetail: EntityDetailTranslations;
+  entityLookup: EntityLookupTranslations;
 }
 
 export const APP_TRANSLATIONS = {
@@ -59,6 +64,7 @@ export const APP_TRANSLATIONS = {
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.es,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.es,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.es,
+    entityLookup: ENTITY_LOOKUP_TRANSLATIONS.es,
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
@@ -74,5 +80,6 @@ export const APP_TRANSLATIONS = {
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.en,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.en,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.en,
+    entityLookup: ENTITY_LOOKUP_TRANSLATIONS.en,
   },
 } satisfies Record<AppLanguage, AppTranslations>;

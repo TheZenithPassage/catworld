@@ -46,4 +46,27 @@ describe('OwnerApiService', () => {
       request.flush({});
     }
   });
+
+  it('searches encoded owner pages and resolves complete lookup values', () => {
+    service
+      .searchOwners('  María & Co  ', 2)
+      .subscribe((page) =>
+        expect(page.items[0].currentCats).toEqual([{ id: 'cat-1', name: 'Milo' }]),
+      );
+    service.getOwnerLookup('owner/1').subscribe();
+
+    const search = httpTestingController.expectOne(
+      `${API_BASE_URL}/owners/search?q=Mar%C3%ADa%20%26%20Co&page=2`,
+    );
+    expect(search.request.method).toBe('GET');
+    search.flush({
+      items: [{ id: 'owner-1', fullName: 'María', currentCats: [{ id: 'cat-1', name: 'Milo' }] }],
+      page: 2,
+      pageSize: 5,
+      totalElements: 11,
+    });
+    const resolve = httpTestingController.expectOne(`${API_BASE_URL}/owners/owner/1/lookup`);
+    expect(resolve.request.method).toBe('GET');
+    resolve.flush({ id: 'owner/1', fullName: 'María', currentCats: [] });
+  });
 });
