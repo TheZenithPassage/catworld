@@ -2,6 +2,25 @@
 
 CatWorld is a full-stack administration system for cat-boarding operations.
 
+Cat profile photos use one optional `cat_photos` row owned by a Cat through a
+shared UUID primary/foreign key with database cascade deletion. The row stores
+only a normalized JPEG and its width, height, byte size and SHA-256 digest;
+photo bytes are not a Cat association and are never serialized in ordinary Cat
+JSON. Every normal Cat response includes required `hasPhoto` metadata, with
+collections populated by one bounded presence query.
+
+Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
+`removePhoto=false`). Native normalization finishes before a separate proxied
+service transaction atomically mutates Cat and CatPhoto. The authenticated
+`GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
+`Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
+and returns the same 404 shape for absent cats and absent photos. The native
+runtime is libvips 8.18.5 with HEIF/HEVC support, invoked through vips-ffm 1.9.8
+under Java 25 native access. Embedded ICC profiles are transformed through
+Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
+to 8-bit and premultiplied while resizing before being flattened onto white.
+Native objects remain inside `Vips.run`.
+
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
@@ -683,6 +702,14 @@ zone. Stay `LocalDateTime` values retain their wall-clock fields, and payment
 The standard nginx container generates that file at startup from the
 `BUSINESS_TIME_ZONE` environment variable, which accepts an IANA timezone such
 as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
+The generated runtime config also contains a build ID derived from the SHA-256
+digest of the deployed Angular `index.html`. Angular retains that identity in
+memory and re-fetches the uncached runtime config when a page is shown or a
+backgrounded tab becomes visible. A confirmed build-ID mismatch requests one
+page reload; missing config, missing build identity, and failed checks leave the
+running application unchanged. Nginx serves both `index.html` and
+`runtime-config.json` with `Cache-Control: no-store` while fingerprinted Angular
+assets retain their normal caching behavior.
 
 The authenticated Angular administration interface uses Angular Material and
 Angular CDK as its default UI foundation for interactive components,

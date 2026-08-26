@@ -67,6 +67,7 @@ describe('StayCreatePage', () => {
       ownerName: 'Ada Lovelace',
       vetId: null,
       vetName: null,
+      hasPhoto: false,
     },
     {
       id: 'cat-2',
@@ -89,6 +90,7 @@ describe('StayCreatePage', () => {
       ownerName: 'Ada Lovelace',
       vetId: null,
       vetName: null,
+      hasPhoto: false,
     },
     {
       id: 'cat-3',
@@ -111,6 +113,7 @@ describe('StayCreatePage', () => {
       ownerName: 'Grace Hopper',
       vetId: null,
       vetName: null,
+      hasPhoto: false,
     },
   ];
 

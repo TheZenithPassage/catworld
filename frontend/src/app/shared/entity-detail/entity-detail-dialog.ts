@@ -32,13 +32,19 @@ import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
+import { Subscription } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
+
+const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
 
 type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' | 'stay-cats';
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
-  | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number };
+  | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number }
+  | { kind: 'cat-photo'; catId: string; catName: string; ownerName: string };
+type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
   imports: [
@@ -71,6 +77,7 @@ export class EntityDetailDialog {
   private requestGeneration = 0;
   private geometryGeneration = 0;
   private contentResolved = false;
+  private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
@@ -84,11 +91,23 @@ export class EntityDetailDialog {
   readonly submitting = signal(false);
   readonly detailRefreshing = signal(false);
   readonly preservedContentHeight = signal<number | null>(null);
+  readonly photoState = signal<PhotoState>('loading');
+  readonly photoUrl = signal<string | null>(null);
+  readonly photoWidth = signal<number | null>(null);
+  readonly photoHeight = signal<number | null>(null);
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.geometryGeneration++);
+    this.dialogRef.beforeClosed().subscribe(() => this.leavePhoto());
+    inject(DestroyRef).onDestroy(() => {
+      this.geometryGeneration++;
+      this.leavePhoto();
+    });
   }
   title(): string {
     if (this.entry().kind === 'list') return this.relationshipTitle();
+    if (this.entry().kind === 'cat-photo') {
+      const entry = this.entry() as Extract<HistoryEntry, { kind: 'cat-photo' }>;
+      return `${this.text().cats.detail.photo} — ${entry.catName} (${entry.ownerName})`;
+    }
     const text = this.text();
     return this.reference().entityType === 'owner'
       ? text.owners.detail.title
@@ -108,7 +127,12 @@ export class EntityDetailDialog {
           ? text.vets.detail.close
           : text.stays.detail.close;
   }
+  photoAlt(): string {
+    const entry = this.entry();
+    return entry.kind === 'cat-photo' ? this.text().cats.detail.photoAlt(entry.catName) : '';
+  }
   showReference(reference: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.editing.set(false);
     this.detailRefreshing.set(false);
@@ -119,6 +143,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openCats(parent: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
@@ -136,6 +161,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openStays(parent: EntityReference): void {
+    this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
     const relationship: RelationshipKind =
@@ -151,6 +177,7 @@ export class EntityDetailDialog {
   back(): void {
     if (this.history().length <= 1) return;
     this.captureContentGeometry();
+    this.leavePhoto();
     this.editing.set(false);
     this.detailRefreshing.set(false);
     this.history.update((items) => items.slice(0, -1));
@@ -158,11 +185,107 @@ export class EntityDetailDialog {
     this.entry.set(entry);
     if (entry.kind === 'detail') {
       this.reference.set(entry.reference);
-    } else {
+    } else if (entry.kind === 'list') {
       this.reference.set(entry.parent);
       this.loadRelationship(entry);
     }
     this.focusContent();
+  }
+  openCatPhoto(photo: { catId: string; catName: string; ownerName: string }): void {
+    this.captureContentGeometry();
+    this.leavePhoto();
+    const entry: HistoryEntry = { kind: 'cat-photo', ...photo };
+    this.history.update((items) => [...items, entry]);
+    this.entry.set(entry);
+    this.photoState.set('loading');
+    const generation = ++this.requestGeneration;
+    this.photoSubscription = this.catApi.getCatPhoto(photo.catId).subscribe({
+      next: (blob) => {
+        if (generation !== this.requestGeneration || this.entry() !== entry) return;
+        const url = URL.createObjectURL(blob);
+        if (generation !== this.requestGeneration || this.entry() !== entry) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        this.photoUrl.set(url);
+      },
+      error: (error: HttpErrorResponse) => {
+        if (generation !== this.requestGeneration || this.entry() !== entry) return;
+        this.photoState.set(error.status === 404 ? 'missing' : 'error');
+        this.destinationSettled();
+      },
+    });
+    this.focusContent();
+  }
+  photoLoaded(url: string, event: Event): void {
+    if (this.entry().kind !== 'cat-photo' || this.photoUrl() !== url) return;
+    const image = event.currentTarget as HTMLImageElement;
+    this.applyPhotoGeometry(image.naturalWidth, image.naturalHeight);
+    this.photoState.set('success');
+    this.destinationSettled();
+  }
+  photoFailed(url: string): void {
+    if (this.entry().kind !== 'cat-photo' || this.photoUrl() !== url) return;
+    URL.revokeObjectURL(url);
+    this.photoUrl.set(null);
+    this.photoState.set('error');
+    this.destinationSettled();
+  }
+  private leavePhoto(): void {
+    const wasPhoto = this.entry().kind === 'cat-photo';
+    this.requestGeneration++;
+    this.photoSubscription?.unsubscribe();
+    this.photoSubscription = null;
+    const url = this.photoUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.photoUrl.set(null);
+    this.photoWidth.set(null);
+    this.photoHeight.set(null);
+    if (wasPhoto) this.dialogRef.updateSize(ENTITY_DETAIL_DIALOG_WIDTH, '');
+  }
+
+  private applyPhotoGeometry(naturalWidth: number, naturalHeight: number): void {
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+    const view = this.element.nativeElement.ownerDocument.defaultView;
+    if (!view) return;
+    const generation = this.requestGeneration;
+    const apply = (remainingMeasurements: number): void => {
+      if (generation !== this.requestGeneration || this.entry().kind !== 'cat-photo') return;
+      this.updatePhotoGeometry(naturalWidth, naturalHeight, view);
+      if (remainingMeasurements > 0) {
+        view.requestAnimationFrame(() => apply(remainingMeasurements - 1));
+      }
+    };
+    apply(2);
+  }
+
+  private updatePhotoGeometry(naturalWidth: number, naturalHeight: number, view: Window): void {
+    const outerMargin = 32;
+    const content = this.contentRegion()?.nativeElement;
+    const header = this.element.nativeElement.querySelector('.dialog-header');
+    const contentStyle = content ? view.getComputedStyle(content) : null;
+    const horizontalPadding = contentStyle
+      ? parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight)
+      : 48;
+    const verticalPadding = contentStyle
+      ? parseFloat(contentStyle.paddingTop) + parseFloat(contentStyle.paddingBottom)
+      : 48;
+    const headerHeight = header?.getBoundingClientRect().height ?? 72;
+    const availableWidth = Math.max(1, view.innerWidth - outerMargin - horizontalPadding);
+    const availableHeight = Math.max(
+      1,
+      view.innerHeight - outerMargin - headerHeight - verticalPadding,
+    );
+    const scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+    const imageWidth = Math.floor(naturalWidth * scale);
+    const imageHeight = Math.floor(naturalHeight * scale);
+    const minimumWidth = Math.min(320, view.innerWidth - outerMargin);
+    this.photoWidth.set(imageWidth);
+    this.photoHeight.set(imageHeight);
+    this.dialogRef.updateSize(
+      `${Math.max(minimumWidth, imageWidth + horizontalPadding)}px`,
+      `${imageHeight + verticalPadding + headerHeight}px`,
+    );
   }
   pageChanged(event: PageEvent): void {
     const current = this.entry();

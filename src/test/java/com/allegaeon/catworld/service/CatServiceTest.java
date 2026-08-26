@@ -7,12 +7,15 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.exception.CatPhotoException;
+import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.mapper.CatMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.CatPhotoRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.VetRepository;
@@ -30,6 +33,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -77,6 +81,15 @@ class CatServiceTest {
 
     @Mock
     private StayCatRepository stayCatRepository;
+
+    @Mock
+    private CatPhotoRepository catPhotoRepository;
+
+    @Mock
+    private LibVipsCatPhotoNormalizer photoNormalizer;
+
+    @Mock
+    private CatMutationTransactionService mutationTransactionService;
 
     @InjectMocks
     private CatService service;
@@ -157,17 +170,14 @@ class CatServiceTest {
                 .canDelete(false)
                 .build();
 
-        when(ownerRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
-        when(catMapper.toEntity(request, owner, null)).thenReturn(mappedCat);
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(creator);
-        when(catRepository.save(any(Cat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        mappedCat.setCreatedBy(creator);
+        when(mutationTransactionService.create(request, null)).thenReturn(mappedCat);
         when(catMapper.toResponseDTO(mappedCat, false)).thenReturn(expectedResponse);
 
         CatResponseDTO result = service.createCat(request);
 
         assertSame(expectedResponse, result);
-        verify(catRepository).save(catCaptor.capture());
-        assertSame(creator, catCaptor.getValue().getCreatedBy());
+        verify(mutationTransactionService).create(request, null);
         verify(deletionAuthorizationPolicy).canDelete(creator, null);
         verifyNoInteractions(stayCatRepository);
     }
@@ -208,7 +218,9 @@ class CatServiceTest {
                 CREATED_AT)).thenReturn(false);
         when(stayCatRepository.findCatIdsWithStayHistory(eligibleIds))
                 .thenReturn(Set.of(historyBlocked.getId()));
-        when(catMapper.toResponseDTO(deletable, true)).thenReturn(deletableResponse);
+        when(catPhotoRepository.findPresentCatIds(List.of(deletable.getId(), historyBlocked.getId(), unauthorized.getId())))
+                .thenReturn(Set.of(deletable.getId()));
+        when(catMapper.toResponseDTO(deletable, true, true)).thenReturn(deletableResponse);
         when(catMapper.toResponseDTO(historyBlocked, false)).thenReturn(historyBlockedResponse);
         when(catMapper.toResponseDTO(unauthorized, false)).thenReturn(unauthorizedResponse);
 
@@ -219,6 +231,9 @@ class CatServiceTest {
         verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(eligibleIds);
         verify(stayCatRepository, times(1)).findCatIdsWithStayHistory(any());
         verify(stayCatRepository, never()).existsByCat_Id(any(UUID.class));
+        verify(catPhotoRepository).findPresentCatIds(List.of(deletable.getId(), historyBlocked.getId(), unauthorized.getId()));
+        verify(catPhotoRepository, never()).findById(any(UUID.class));
+        verify(catPhotoRepository, never()).existsById(any(UUID.class));
         verify(deletionAuthorizationPolicy, never()).canDelete(any(UserAccount.class), any(Instant.class));
     }
 
@@ -369,7 +384,8 @@ class CatServiceTest {
         when(catRepository.findById(catId)).thenReturn(Optional.of(cat));
         when(deletionAuthorizationPolicy.canDelete(creator, CREATED_AT)).thenReturn(true);
         when(stayCatRepository.existsByCat_Id(catId)).thenReturn(false);
-        when(catMapper.toResponseDTO(cat, true)).thenReturn(expected);
+        when(catPhotoRepository.existsById(catId)).thenReturn(true);
+        when(catMapper.toResponseDTO(cat, true, true)).thenReturn(expected);
 
         CatResponseDTO result = service.getCat(catId);
 
@@ -377,7 +393,7 @@ class CatServiceTest {
         var ordered = inOrder(deletionAuthorizationPolicy, stayCatRepository, catMapper);
         ordered.verify(deletionAuthorizationPolicy).canDelete(creator, CREATED_AT);
         ordered.verify(stayCatRepository).existsByCat_Id(catId);
-        ordered.verify(catMapper).toResponseDTO(cat, true);
+        ordered.verify(catMapper).toResponseDTO(cat, true, true);
     }
 
     @Test
@@ -444,6 +460,32 @@ class CatServiceTest {
         verify(stayCatRepository, times(2)).existsByCat_Id(catId);
         verify(catRepository, never()).delete(any(Cat.class));
         verify(catRepository, never()).flush();
+    }
+
+    @Test
+    void presentEmptyPhotoIsNormalizedForCreateAndUpdate() {
+        CatRequestDTO request = CatRequestDTO.builder().name("Milo").build();
+        MockMultipartFile empty = new MockMultipartFile("photo", "empty.png", "image/png", new byte[0]);
+        CatPhotoException failure = new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_UNSUPPORTED_FORMAT);
+        when(photoNormalizer.normalize(empty)).thenThrow(failure);
+
+        assertSame(failure, assertThrows(CatPhotoException.class, () -> service.createCat(request, empty)));
+        assertSame(failure, assertThrows(CatPhotoException.class,
+                () -> service.updateCat(UUID.randomUUID(), request, empty, false)));
+        verify(photoNormalizer, times(2)).normalize(empty);
+        verifyNoInteractions(mutationTransactionService);
+    }
+
+    @Test
+    void presentEmptyPhotoConflictsWithRemoveBeforeNormalizationOrMutation() {
+        CatRequestDTO request = CatRequestDTO.builder().name("Milo").build();
+        MockMultipartFile empty = new MockMultipartFile("photo", "empty.png", "image/png", new byte[0]);
+
+        CatPhotoException failure = assertThrows(CatPhotoException.class,
+                () -> service.updateCat(UUID.randomUUID(), request, empty, true));
+
+        assertEquals(CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT, failure.getCode());
+        verifyNoInteractions(photoNormalizer, mutationTransactionService);
     }
 
     private UserAccount creator() {

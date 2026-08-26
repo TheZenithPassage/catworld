@@ -21,6 +21,7 @@ export interface Cat {
   ownerName: string;
   vetId: string | null;
   vetName: string | null;
+  hasPhoto: boolean;
 }
 
 export interface CreateCatRequest {
@@ -44,3 +45,8 @@ export interface CreateCatRequest {
 }
 
 export type UpdateCatRequest = CreateCatRequest;
+
+export interface CatPhotoMutation {
+  photo: File | null;
+  removePhoto: boolean;
+}

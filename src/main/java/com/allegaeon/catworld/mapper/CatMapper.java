@@ -11,10 +11,14 @@ import org.springframework.stereotype.Component;
 public class CatMapper {
 
     public CatResponseDTO toResponseDTO(Cat cat) {
-        return toResponseDTO(cat, false);
+        return toResponseDTO(cat, false, false);
     }
 
     public CatResponseDTO toResponseDTO(Cat cat, boolean canDelete) {
+        return toResponseDTO(cat, canDelete, false);
+    }
+
+    public CatResponseDTO toResponseDTO(Cat cat, boolean canDelete, boolean hasPhoto) {
         return CatResponseDTO.builder()
                 .id(cat.getId())
                 .name(cat.getName())
@@ -37,6 +41,7 @@ public class CatMapper {
                 .vetId(cat.getVet() != null ? cat.getVet().getId() : null)
                 .vetName(cat.getVet() != null ? cat.getVet().getName() : null)
                 .canDelete(canDelete)
+                .hasPhoto(hasPhoto)
                 .build();
 
     }

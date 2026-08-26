@@ -53,6 +53,15 @@ package "catworld.domain" {
     +UserAccount createdBy  <<NotNull>>
   }
 
+  class CatPhoto {
+    +UUID catId <<Id,FK>>
+    +byte[] content <<MEDIUMBLOB,NotNull>>
+    +int width
+    +int height
+    +int byteSize
+    +String sha256
+  }
+
   enum StayStatus <<computed>> {
     RESERVED
     CHECKED_IN
@@ -207,6 +216,7 @@ package "catworld.domain" {
   }
 
   Owner "1" o-- "0..*" Cat : owns >
+  Cat "1" *-- "0..1" CatPhoto : database-owned photo >
   Vet   "0..1" o-- "0..*" Cat : treats >
   Owner "1" o-- "0..*" Stay : books >
   Stay  "1" *-- "1..*" StayCat : includes >

@@ -26,6 +26,24 @@
         <dd>{{ cat.name }}</dd>
       </div>
       <div class="detail-field">
+        <dt>{{ text().cats.detail.photo }}</dt>
+        <dd>
+          @if (cat.hasPhoto) {
+            <button
+              mat-button
+              type="button"
+              (click)="
+                openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })
+              "
+            >
+              {{ text().cats.detail.viewPhoto }}
+            </button>
+          } @else {
+            {{ text().cats.emptyValue }}
+          }
+        </dd>
+      </div>
+      <div class="detail-field">
         <dt>{{ text().cats.form.birthDate }}</dt>
         <dd>{{ date(cat.birthDate) }}</dd>
       </div>

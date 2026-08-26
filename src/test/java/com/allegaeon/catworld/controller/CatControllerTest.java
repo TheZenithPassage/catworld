@@ -2,6 +2,9 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.CatPhotoContent;
+import com.allegaeon.catworld.exception.CatPhotoException;
+import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
@@ -14,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -38,6 +43,48 @@ public class CatControllerTest {
 
     @MockitoBean
     private ICatService catService;
+
+    @Nested
+    class PhotoContractTests {
+        @Test
+        void photoUsesPrivateDigestCachingAndWeakConditionalMatching() throws Exception {
+            UUID id = UUID.randomUUID();
+            byte[] jpeg = {(byte) 0xff, (byte) 0xd8, (byte) 0xff, (byte) 0xd9};
+            when(catService.getPhoto(id)).thenReturn(new CatPhotoContent(jpeg, "\"abc123\""));
+
+            mockMvc.perform(get("/api/cats/{id}/photo", id))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("ETag", "\"abc123\""))
+                    .andExpect(header().string("Cache-Control", "private, no-cache"))
+                    .andExpect(content().contentType(MediaType.IMAGE_JPEG))
+                    .andExpect(content().bytes(jpeg));
+            mockMvc.perform(get("/api/cats/{id}/photo", id)
+                            .header("If-None-Match", "\"other\", W/\"abc123\""))
+                    .andExpect(status().isNotModified())
+                    .andExpect(content().bytes(new byte[0]));
+        }
+
+        @Test
+        void mutationPhotoErrorsUseStableCodeAndJsonMutationsAreRejected() throws Exception {
+            UUID id = UUID.randomUUID();
+            when(catService.updateCat(eq(id), any(), any(), eq(true)))
+                    .thenThrow(new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT));
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(validRequest()));
+            var photo = new MockMultipartFile("photo", "cat.png", "image/png", new byte[] {1});
+            mockMvc.perform(multipart(HttpMethod.PUT, "/api/cats/{id}?removePhoto=true", id)
+                            .file(catPart).file(photo))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CAT_PHOTO_INTENT_CONFLICT"));
+            mockMvc.perform(post("/api/cats").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isUnsupportedMediaType());
+        }
+
+        private CatRequestDTO validRequest() {
+            return CatRequestDTO.builder().name("Milo").birthDate(LocalDate.of(2020, 1, 1))
+                    .sex(Sex.MALE).ownerId(UUID.randomUUID()).build();
+        }
+    }
 
     @Nested
     class GetCatTests {
@@ -93,6 +140,7 @@ public class CatControllerTest {
                     .sex(Sex.MALE)
                     .ownerId(UUID.randomUUID())
                     .canDelete(true)
+                    .hasPhoto(true)
                     .build());
 
             mockMvc.perform(get("/api/cats/{id}", catId))
@@ -100,6 +148,7 @@ public class CatControllerTest {
                     .andExpect(jsonPath("$.id").value(catId.toString()))
                     .andExpect(jsonPath("$.name").value("Milo"))
                     .andExpect(jsonPath("$.canDelete").value(true))
+                    .andExpect(jsonPath("$.hasPhoto").value(true))
                     .andExpect(jsonPath("$.creator").doesNotExist())
                     .andExpect(jsonPath("$.creatorId").doesNotExist())
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
@@ -136,7 +185,7 @@ public class CatControllerTest {
                     .ownerId(ownerId)
                     .build();
 
-            when(catService.createCat(any(CatRequestDTO.class))).thenReturn(CatResponseDTO.builder()
+            when(catService.createCat(any(CatRequestDTO.class), isNull())).thenReturn(CatResponseDTO.builder()
                     .id(catId)
                     .name("Milo")
                     .birthDate(LocalDate.of(2020, 1, 1))
@@ -144,9 +193,9 @@ public class CatControllerTest {
                     .ownerId(ownerId)
                     .build());
 
-            mockMvc.perform(post("/api/cats")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(request));
+            mockMvc.perform(multipart("/api/cats").file(catPart))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(catId.toString()))
                     .andExpect(jsonPath("$.name").value("Milo"))
@@ -155,7 +204,7 @@ public class CatControllerTest {
                     .andExpect(jsonPath("$.createdBy").doesNotExist())
                     .andExpect(jsonPath("$.createdById").doesNotExist());
 
-            verify(catService).createCat(any(CatRequestDTO.class));
+            verify(catService).createCat(any(CatRequestDTO.class), isNull());
         }
 
         @Test
@@ -167,12 +216,12 @@ public class CatControllerTest {
                     .ownerId(null)
                     .build();
 
-            mockMvc.perform(post("/api/cats")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(request));
+            mockMvc.perform(multipart("/api/cats").file(catPart))
                     .andExpect(status().isBadRequest());
 
-            verify(catService, never()).createCat(any(CatRequestDTO.class));
+            verify(catService, never()).createCat(any(CatRequestDTO.class), any());
         }
     }
 
@@ -191,7 +240,7 @@ public class CatControllerTest {
                     .ownerId(ownerId)
                     .build();
 
-            when(catService.updateCat(eq(catId), any(CatRequestDTO.class))).thenReturn(CatResponseDTO.builder()
+            when(catService.updateCat(eq(catId), any(CatRequestDTO.class), isNull(), eq(false))).thenReturn(CatResponseDTO.builder()
                     .id(catId)
                     .name("Updated Milo")
                     .birthDate(LocalDate.of(2020, 1, 1))
@@ -199,14 +248,14 @@ public class CatControllerTest {
                     .ownerId(ownerId)
                     .build());
 
-            mockMvc.perform(put("/api/cats/{id}", catId)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(request));
+            mockMvc.perform(multipart(HttpMethod.PUT, "/api/cats/{id}", catId).file(catPart))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.id").value(catId.toString()))
                     .andExpect(jsonPath("$.name").value("Updated Milo"));
 
-            verify(catService).updateCat(eq(catId), any(CatRequestDTO.class));
+            verify(catService).updateCat(eq(catId), any(CatRequestDTO.class), isNull(), eq(false));
         }
 
         @Test
@@ -220,12 +269,12 @@ public class CatControllerTest {
                     .ownerId(null)
                     .build();
 
-            mockMvc.perform(put("/api/cats/{id}", catId)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(request)))
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(request));
+            mockMvc.perform(multipart(HttpMethod.PUT, "/api/cats/{id}", catId).file(catPart))
                     .andExpect(status().isBadRequest());
 
-            verify(catService, never()).updateCat(eq(catId), any(CatRequestDTO.class));
+            verify(catService, never()).updateCat(eq(catId), any(CatRequestDTO.class), any(), anyBoolean());
         }
     }
 

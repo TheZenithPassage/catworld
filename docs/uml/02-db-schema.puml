@@ -59,6 +59,16 @@ package "MySQL schema" {
     updated_at <<NN>>
   }
 
+  class cat_photos <<table>> {
+    +binary(16) cat_id <<PK,FK,NN>>
+    --
+    content MEDIUMBLOB <<NN>>
+    width int unsigned <<NN>>
+    height int unsigned <<NN>>
+    byte_size int unsigned <<NN>>
+    sha256 char(64) <<NN>>
+  }
+
   class stays <<table>> {
     +uuid id <<PK>>
     --
@@ -225,6 +235,7 @@ package "MySQL schema" {
   owners "1" -- "0..*" stays : FK owner_id
   stays  "1" -- "1..*" stay_cat : FK stay_id
   cats   "1" -- "0..*" stay_cat : FK cat_id
+  cats   "1" -- "0..1" cat_photos : FK cat_id ON DELETE CASCADE
   user_accounts "1" -- "0..*" owners : FK created_by_id
   user_accounts "1" -- "0..*" cats : FK created_by_id
   user_accounts "1" -- "0..*" vets : FK created_by_id

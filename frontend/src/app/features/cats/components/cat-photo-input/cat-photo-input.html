@@ -1,0 +1,68 @@
+<section class="cat-photo-input" aria-live="polite">
+  <h3>{{ text().cats.photo.label }}</h3>
+  <input
+    #fileInput
+    class="native-photo-input"
+    type="file"
+    hidden
+    [disabled]="disabled()"
+    [accept]="'.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'"
+    (change)="select($event)"
+  />
+
+  @if (selectedFile(); as file) {
+    @if (previewUrl(); as url) {
+      <img
+        class="photo-preview"
+        [src]="url"
+        [alt]="text().cats.photo.previewAlt"
+        (error)="previewFailed(url)"
+      />
+    } @else {
+      <p class="photo-status">{{ file.name }} — {{ text().cats.photo.previewUnavailable }}</p>
+    }
+    <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.replace }}
+      </button>
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="removeSelection()">
+        {{ text().cats.photo.removeSelection }}
+      </button>
+    </div>
+  } @else if (savedHasPhoto() && removePhoto()) {
+    <p class="photo-status">{{ text().cats.photo.pendingRemoval }}</p>
+    <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.replace }}
+      </button>
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="undoRemoval()">
+        {{ text().cats.photo.undoRemoval }}
+      </button>
+    </div>
+  } @else if (savedHasPhoto()) {
+    <p class="photo-status">{{ text().cats.photo.saved }}</p>
+    <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.replace }}
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="disabled()"
+        (click)="markSavedPhotoForRemoval()"
+      >
+        {{ text().cats.photo.removeSaved }}
+      </button>
+    </div>
+  } @else {
+    <div class="photo-actions">
+      <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
+        {{ text().cats.photo.select }}
+      </button>
+    </div>
+  }
+
+  @if (selectionError(); as message) {
+    <p class="photo-error" role="alert">{{ message }}</p>
+  }
+</section>

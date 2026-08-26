@@ -242,14 +242,11 @@
           />
         </mat-form-field>
 
+        <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [disabled]="submitting()" />
+
         <div class="form-actions">
           @if (!routed()) {
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="submitting()"
-              (click)="cancelled.emit()"
-            >
+            <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
               {{ text().cats.detail.cancel }}
             </button>
           }

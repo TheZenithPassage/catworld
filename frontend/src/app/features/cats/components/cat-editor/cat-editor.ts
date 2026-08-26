@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, effect, inject, input, output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -16,6 +16,8 @@ import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
+import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
 
 @Component({
   selector: 'app-cat-editor',
@@ -29,11 +31,13 @@ import { CatApiService } from '../../services/cat-api.service';
     MatLabel,
     TrimRequiredDirective,
     UiStateComponent,
+    CatPhotoInput,
   ],
   templateUrl: '../../pages/cat-edit-page/cat-edit-page.html',
   styleUrl: '../../pages/cat-edit-page/cat-edit-page.scss',
 })
 export class CatEditor {
+  @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
   private readonly api = inject(CatApiService);
   private readonly ownerApi = inject(OwnerApiService);
   private readonly vetApi = inject(VetApiService);
@@ -68,6 +72,7 @@ export class CatEditor {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly catLoaded = signal(false);
+  readonly hasSavedPhoto = signal(false);
   readonly nameError = createLanguageResetError(this.i18n.language);
   readonly birthDateError = createLanguageResetError(this.i18n.language);
   readonly sexError = createLanguageResetError(this.i18n.language);
@@ -109,6 +114,7 @@ export class CatEditor {
     this.birthDateError.set(null);
     this.sexError.set(null);
     this.ownerIdError.set(null);
+    if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
       return;
@@ -149,22 +155,34 @@ export class CatEditor {
       vetId: this.optional(this.vetId()),
     };
     this.setSubmitting(true);
-    this.api.updateCat(this.entityId(), request).subscribe({
-      next: (c) => {
-        this.setSubmitting(false);
-        this.saved.emit(c);
-      },
-      error: (e) => {
-        this.error.set(this.apiMessage(e, this.text().cats.edit.errors.updateFailed));
-        this.setSubmitting(false);
-      },
-    });
+    const photoMutation = this.photoInput?.mutation() ?? { photo: null, removePhoto: false };
+    this.api
+      .updateCat(this.entityId(), request, photoMutation.photo, photoMutation.removePhoto)
+      .subscribe({
+        next: (c) => {
+          this.photoInput?.reset();
+          this.setSubmitting(false);
+          this.saved.emit(c);
+        },
+        error: (e) => {
+          this.error.set(
+            catPhotoErrorMessage(e, this.text().cats.photo.errors) ??
+              this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
+          );
+          this.setSubmitting(false);
+        },
+      });
+  }
+  cancel(): void {
+    this.photoInput?.reset();
+    this.cancelled.emit();
   }
   private setSubmitting(value: boolean): void {
     this.submitting.set(value);
     this.submittingChanged.emit(value);
   }
   private setValues(c: Cat): void {
+    this.photoInput?.reset();
     this.name.set(c.name);
     this.birthDate.set(c.birthDate);
     this.sex.set(c.sex);
@@ -182,6 +200,7 @@ export class CatEditor {
     this.lastExternalDewormingDate.set(c.lastExternalDewormingDate ?? '');
     this.lastTripleFelineDate.set(c.lastTripleFelineDate ?? '');
     this.lastRabiesDate.set(c.lastRabiesDate ?? '');
+    this.hasSavedPhoto.set(c.hasPhoto);
     this.catLoaded.set(true);
   }
   private optional(v: string): string | null {

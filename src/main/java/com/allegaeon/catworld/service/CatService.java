@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
+import com.allegaeon.catworld.dto.CatPhotoContent;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -11,6 +12,7 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.Vet;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.CatPhotoRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.VetRepository;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.web.multipart.MultipartFile;
 
 @RequiredArgsConstructor
 @Service
@@ -39,6 +42,9 @@ public class CatService implements ICatService{
     private final CurrentUserAccountService currentUserAccountService;
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayCatRepository stayCatRepository;
+    private final CatPhotoRepository catPhotoRepository;
+    private final LibVipsCatPhotoNormalizer photoNormalizer;
+    private final CatMutationTransactionService mutationTransactionService;
 
     @Override
     public List<CatResponseDTO> getAllCats() {
@@ -58,11 +64,14 @@ public class CatService implements ICatService{
         Set<UUID> blockedCatIds = authorizedCatIds.isEmpty()
                 ? Set.of()
                 : stayCatRepository.findCatIdsWithStayHistory(authorizedCatIds);
+        Set<UUID> foundPhotoCatIds = catPhotoRepository.findPresentCatIds(
+                cats.stream().map(Cat::getId).toList());
+        Set<UUID> photoCatIds = foundPhotoCatIds == null ? Set.of() : foundPhotoCatIds;
 
         return cats.stream()
-                .map(cat -> catMapper.toResponseDTO(
-                        cat,
-                        authorizedCatIds.contains(cat.getId()) && !blockedCatIds.contains(cat.getId())))
+                .map(cat -> mapResponse(cat,
+                        authorizedCatIds.contains(cat.getId()) && !blockedCatIds.contains(cat.getId()),
+                        photoCatIds.contains(cat.getId())))
                 .toList();
     }
 
@@ -93,32 +102,38 @@ public class CatService implements ICatService{
     }
 
     @Override
+    public CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo) {
+        NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
+        return toResponseDTO(mutationTransactionService.create(catRequestDTO, normalized));
+    }
+
+    @Override
     public CatResponseDTO createCat(CatRequestDTO catRequestDTO) {
+        return createCat(catRequestDTO, null);
+    }
 
-        Owner owner = getOwnerEntity(catRequestDTO.getOwnerId());
-        Vet vet = null;
-        if(catRequestDTO.getVetId() != null) {
-            vet = getVetEntity(catRequestDTO.getVetId());
+    @Override
+    public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto) {
+        if (photo != null && removePhoto) {
+            throw new com.allegaeon.catworld.exception.CatPhotoException(
+                    com.allegaeon.catworld.exception.CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT);
         }
-
-        Cat cat = catMapper.toEntity(catRequestDTO, owner, vet);
-        cat.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
-
-        return toResponseDTO(catRepository.save(cat));
+        NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
+        return toResponseDTO(mutationTransactionService.update(id, catRequestDTO, normalized, removePhoto));
     }
 
     @Override
     public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO) {
+        return updateCat(id, catRequestDTO, null, false);
+    }
 
-        Owner owner = getOwnerEntity(catRequestDTO.getOwnerId());
-        Vet vet = null;
-        if(catRequestDTO.getVetId() != null) {
-            vet = getVetEntity(catRequestDTO.getVetId());
-        }
-
-        return toResponseDTO(
-                catRepository.save(
-                        catMapper.updateEntity(getCatEntity(id), catRequestDTO, owner, vet)));
+    @Override
+    @Transactional(readOnly = true)
+    public CatPhotoContent getPhoto(UUID id) {
+        if (!catRepository.existsById(id)) throw new ResourceNotFoundException("Cat", id);
+        var photo = catPhotoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cat", id));
+        return new CatPhotoContent(photo.getContent().clone(), "\"" + photo.getSha256() + "\"");
     }
 
     @Override
@@ -158,7 +173,11 @@ public class CatService implements ICatService{
         boolean canDelete = deletionAuthorizationPolicy.canDelete(cat.getCreatedBy(), cat.getCreatedAt())
                 && !stayCatRepository.existsByCat_Id(cat.getId());
 
-        return catMapper.toResponseDTO(cat, canDelete);
+        return mapResponse(cat, canDelete, catPhotoRepository.existsById(cat.getId()));
+    }
+
+    private CatResponseDTO mapResponse(Cat cat, boolean canDelete, boolean hasPhoto) {
+        return hasPhoto ? catMapper.toResponseDTO(cat, canDelete, true) : catMapper.toResponseDTO(cat, canDelete);
     }
 
 }

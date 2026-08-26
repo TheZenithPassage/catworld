@@ -28,21 +28,41 @@ export class CatApiService {
     return this.http.get<CatDetailResponse>(`${this.baseUrl}/${catId}/detail`);
   }
 
+  getCatPhoto(catId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob' });
+  }
+
   getCatStays(catId: string, page = 0): Observable<StayRelationshipPage> {
     return this.http.get<StayRelationshipPage>(`${this.baseUrl}/${catId}/stays`, {
       params: { page },
     });
   }
 
-  createCat(request: CreateCatRequest): Observable<Cat> {
-    return this.http.post<Cat>(this.baseUrl, request);
+  createCat(request: CreateCatRequest, photo: File | null = null): Observable<Cat> {
+    const body = this.catFormData(request);
+    if (photo) body.append('photo', photo);
+    return this.http.post<Cat>(this.baseUrl, body);
   }
 
-  updateCat(catId: string, request: UpdateCatRequest): Observable<Cat> {
-    return this.http.put<Cat>(`${this.baseUrl}/${catId}`, request);
+  updateCat(
+    catId: string,
+    request: UpdateCatRequest,
+    photo: File | null = null,
+    removePhoto = false,
+  ): Observable<Cat> {
+    const body = this.catFormData(request);
+    if (photo) body.append('photo', photo);
+    body.append('removePhoto', String(removePhoto));
+    return this.http.put<Cat>(`${this.baseUrl}/${catId}`, body);
   }
 
   deleteCat(catId: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/${catId}`);
+  }
+
+  private catFormData(request: CreateCatRequest | UpdateCatRequest): FormData {
+    const body = new FormData();
+    body.append('cat', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    return body;
   }
 }

@@ -11,6 +11,12 @@ export interface CatsTranslations {
     cancel: string;
     close: string;
     openDetails: string;
+    photo: string;
+    viewPhoto: string;
+    photoLoading: string;
+    photoMissing: string;
+    photoLoadFailed: string;
+    photoAlt: (catName: string) => string;
   };
   form: {
     name: string;
@@ -37,6 +43,27 @@ export interface CatsTranslations {
     lastExternalDewormingDate: string;
     lastTripleFelineDate: string;
     lastRabiesDate: string;
+  };
+  photo: {
+    label: string;
+    select: string;
+    saved: string;
+    replace: string;
+    removeSaved: string;
+    removeSelection: string;
+    pendingRemoval: string;
+    undoRemoval: string;
+    previewUnavailable: string;
+    previewAlt: string;
+    errors: {
+      localFileTooLarge: string;
+      localUnsupportedFormat: string;
+      fileTooLarge: string;
+      unsupportedFormat: string;
+      dimensionsTooLarge: string;
+      undecodable: string;
+      intentConflict: string;
+    };
   };
   create: {
     title: string;
@@ -121,6 +148,12 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancelar',
       close: 'Cerrar',
       openDetails: 'Ver detalles',
+      photo: 'Foto',
+      viewPhoto: 'Ver foto',
+      photoLoading: 'Cargando foto...',
+      photoMissing: 'Este gato no tiene foto.',
+      photoLoadFailed: 'Error al cargar la foto.',
+      photoAlt: (catName) => `Foto de ${catName}`,
     },
     form: {
       name: 'Nombre',
@@ -147,6 +180,30 @@ export const CATS_TRANSLATIONS = {
       lastExternalDewormingDate: 'Fecha de la última desparasitación externa',
       lastTripleFelineDate: 'Fecha de la última triple felina',
       lastRabiesDate: 'Fecha de la última rabia',
+    },
+    photo: {
+      label: 'Foto de perfil',
+      select: 'Seleccionar foto',
+      saved: 'Este gato tiene una foto guardada.',
+      replace: 'Reemplazar foto',
+      removeSaved: 'Eliminar foto',
+      removeSelection: 'Quitar selección',
+      pendingRemoval: 'La foto guardada se eliminará al guardar.',
+      undoRemoval: 'Deshacer eliminación',
+      previewUnavailable: 'La vista previa no está disponible; el archivo se enviará al guardar.',
+      previewAlt: 'Vista previa completa de la foto de perfil seleccionada',
+      errors: {
+        localFileTooLarge: 'Selecciona una foto de 32 MiB o menos.',
+        localUnsupportedFormat: 'Selecciona una foto JPEG, PNG, WebP, HEIC o HEIF.',
+        fileTooLarge: 'La foto supera el límite de 32 MiB. Selecciona un archivo más pequeño.',
+        unsupportedFormat:
+          'El formato no es compatible. Selecciona una foto JPEG, PNG, WebP, HEIC o HEIF.',
+        dimensionsTooLarge:
+          'Las dimensiones de la foto son demasiado grandes. Selecciona una imagen más pequeña.',
+        undecodable: 'No se pudo leer la foto. Selecciona otro archivo de imagen válido.',
+        intentConflict:
+          'No se puede reemplazar y eliminar la foto a la vez. Revisa la selección e inténtalo de nuevo.',
+      },
     },
     create: {
       title: 'Crear gato',
@@ -229,6 +286,12 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancel',
       close: 'Close',
       openDetails: 'View details',
+      photo: 'Photo',
+      viewPhoto: 'View photo',
+      photoLoading: 'Loading photo...',
+      photoMissing: 'This cat has no photo.',
+      photoLoadFailed: 'Error loading photo.',
+      photoAlt: (catName) => `Photo of ${catName}`,
     },
     form: {
       name: 'Name',
@@ -255,6 +318,29 @@ export const CATS_TRANSLATIONS = {
       lastExternalDewormingDate: 'Last external deworming date',
       lastTripleFelineDate: 'Last triple feline date',
       lastRabiesDate: 'Last rabies date',
+    },
+    photo: {
+      label: 'Profile photo',
+      select: 'Select photo',
+      saved: 'This cat has a saved photo.',
+      replace: 'Replace photo',
+      removeSaved: 'Remove photo',
+      removeSelection: 'Remove selection',
+      pendingRemoval: 'The saved photo will be removed when you save.',
+      undoRemoval: 'Undo removal',
+      previewUnavailable: 'Preview is unavailable; the file will still be uploaded when you save.',
+      previewAlt: 'Complete preview of the selected cat profile photo',
+      errors: {
+        localFileTooLarge: 'Select a photo that is 32 MiB or smaller.',
+        localUnsupportedFormat: 'Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
+        fileTooLarge: 'The photo exceeds the 32 MiB limit. Select a smaller file.',
+        unsupportedFormat:
+          'This format is not supported. Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
+        dimensionsTooLarge: 'The photo dimensions are too large. Select a smaller image.',
+        undecodable: 'The photo could not be read. Select another valid image file.',
+        intentConflict:
+          'The photo cannot be replaced and removed at the same time. Review the selection and try again.',
+      },
     },
     create: {
       title: 'Create cat',

@@ -63,6 +63,7 @@ describe('EntityDetailDialog', () => {
     ownerName: 'Ada Lovelace',
     vetId: null,
     vetName: null,
+    hasPhoto: false,
   };
   const updatedCat = { ...cat, name: 'Milo Updated' };
   const vet: Vet = { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null };
@@ -88,11 +89,12 @@ describe('EntityDetailDialog', () => {
   const catApi = {
     getCatDetail: vi.fn((id: string): any =>
       of({
-        cat: { ...cat, id },
+        cat: { ...cat, id, hasPhoto: false },
         stays: { totalElements: 0, items: [] },
       }),
     ),
     getCatStays: vi.fn(),
+    getCatPhoto: vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' }))),
     updateCat: vi.fn(() => of(updatedCat)),
   };
   const vetApi = {
@@ -147,7 +149,13 @@ describe('EntityDetailDialog', () => {
     outstandingCollectionEligible: false,
     payments: [],
   };
-  const dialogRef = { disableClose: false, close: vi.fn() };
+  const beforeClosed = new Subject<void>();
+  const dialogRef = {
+    disableClose: false,
+    close: vi.fn(),
+    updateSize: vi.fn(),
+    beforeClosed: () => beforeClosed.asObservable(),
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -768,6 +776,19 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.reference()).toEqual({ entityType: 'cat', entityId: 'cat-1' });
     expect(catApi.getCatDetail).toHaveBeenCalledWith('cat-1');
+    expect(fixture.nativeElement.textContent).not.toContain(
+      fixture.componentInstance.text().cats.detail.viewPhoto,
+    );
+    const emptyPhotoField = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.detail-field'),
+    ].find(
+      (field) =>
+        field.querySelector('dt')?.textContent?.trim() ===
+        fixture.componentInstance.text().cats.detail.photo,
+    );
+    expect(emptyPhotoField?.querySelector('dd')?.textContent?.trim()).toBe(
+      fixture.componentInstance.text().cats.emptyValue,
+    );
     const catStay = buttonContaining(fixture, 'Reserved');
     catStay.click();
     fixture.detectChanges();
@@ -1389,6 +1410,194 @@ describe('EntityDetailDialog', () => {
     expect(button).toBeDefined();
     return button!;
   }
+});
+
+describe('EntityDetailDialog cat photo destination', () => {
+  it('owns private loading, success, missing, error, back, and URL cleanup states', async () => {
+    const photo = new Subject<Blob>();
+    const beforeClosed = new Subject<void>();
+    const catApi = {
+      getCatDetail: vi.fn(() =>
+        of({
+          cat: {
+            id: 'cat-1',
+            name: 'Milo',
+            birthDate: '2020-01-01',
+            sex: 'MALE',
+            breed: null,
+            coat: null,
+            color: null,
+            foodBrand: null,
+            litterBrand: null,
+            personality: null,
+            lastInternalDewormerName: null,
+            lastInternalDewormingDate: null,
+            lastExternalDewormerName: null,
+            lastExternalDewormingDate: null,
+            lastTripleFelineDate: null,
+            lastRabiesDate: null,
+            ownerId: 'owner-1',
+            ownerName: 'Ada',
+            vetId: null,
+            vetName: null,
+            hasPhoto: true,
+          },
+          stays: { totalElements: 0, items: [] },
+        }),
+      ),
+      getCatPhoto: vi.fn(() => photo.asObservable()),
+    };
+    const createUrl = vi
+      .fn<() => string>()
+      .mockReturnValueOnce('blob:cat-photo')
+      .mockReturnValueOnce('blob:portrait-photo')
+      .mockReturnValueOnce('blob:broken-photo')
+      .mockReturnValueOnce('blob:close-photo');
+    const revokeUrl = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL: createUrl, revokeObjectURL: revokeUrl });
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'cat', entityId: 'cat-1' } },
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: {} },
+        { provide: VetApiService, useValue: {} },
+        { provide: StayApiService, useValue: {} },
+        {
+          provide: MatDialogRef,
+          useValue: {
+            disableClose: false,
+            close: vi.fn(),
+            updateSize: vi.fn(),
+            beforeClosed: () => beforeClosed.asObservable(),
+          },
+        },
+        { provide: Router, useValue: { url: '/', navigate: vi.fn() } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const viewPhoto = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
+      (button) =>
+        button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
+    )!;
+    expect(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].filter(
+        (button) =>
+          button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
+      ),
+    ).toHaveLength(1);
+    viewPhoto.click();
+    fixture.detectChanges();
+    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.photoState()).toBe('loading');
+    expect(fixture.componentInstance.title()).toBe(
+      `${fixture.componentInstance.text().cats.detail.photo} — Milo (Ada)`,
+    );
+
+    photo.next(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    fixture.detectChanges();
+    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(
+      'blob:cat-photo',
+    );
+    expect(fixture.componentInstance.photoState()).toBe('loading');
+    const settle = vi.spyOn(fixture.componentInstance, 'destinationSettled');
+    const firstImage = (fixture.nativeElement as HTMLElement).querySelector('img')!;
+    Object.defineProperties(firstImage, {
+      naturalWidth: { configurable: true, value: 1600 },
+      naturalHeight: { configurable: true, value: 900 },
+    });
+    firstImage.dispatchEvent(new Event('load'));
+    expect(fixture.componentInstance.photoState()).toBe('success');
+    expect(settle).toHaveBeenCalledTimes(1);
+    const photoDialogRef = TestBed.inject(MatDialogRef);
+    expect(photoDialogRef.updateSize).toHaveBeenCalled();
+    expect(fixture.componentInstance.photoWidth()).toBeGreaterThan(
+      fixture.componentInstance.photoHeight()!,
+    );
+    fixture.componentInstance.back();
+    expect(photoDialogRef.updateSize).toHaveBeenLastCalledWith(
+      'min(52rem, calc(100vw - 2rem))',
+      '',
+    );
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:cat-photo');
+    expect(fixture.componentInstance.entry().kind).toBe('detail');
+    firstImage.dispatchEvent(new Event('error'));
+    expect(revokeUrl).toHaveBeenCalledTimes(1);
+
+    catApi.getCatPhoto.mockReturnValueOnce(of(new Blob(['portrait'], { type: 'image/jpeg' })));
+    fixture.componentInstance.openCatPhoto({
+      catId: 'cat-1',
+      catName: 'Milo with a long display name',
+      ownerName: 'Ada with a long display name',
+    });
+    fixture.detectChanges();
+    const portraitImage = (fixture.nativeElement as HTMLElement).querySelector('img')!;
+    Object.defineProperties(portraitImage, {
+      naturalWidth: { configurable: true, value: 600 },
+      naturalHeight: { configurable: true, value: 1200 },
+    });
+    portraitImage.dispatchEvent(new Event('load'));
+    expect(fixture.componentInstance.photoWidth()).toBeLessThan(
+      fixture.componentInstance.photoHeight()!,
+    );
+    fixture.componentInstance.back();
+    expect(revokeUrl).toHaveBeenCalledWith('blob:portrait-photo');
+
+    catApi.getCatPhoto.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo', ownerName: 'Ada' });
+    expect(fixture.componentInstance.photoState()).toBe('missing');
+    fixture.componentInstance.back();
+    catApi.getCatPhoto.mockReturnValueOnce(
+      throwError(() => new HttpErrorResponse({ status: 500 })),
+    );
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo', ownerName: 'Ada' });
+    expect(fixture.componentInstance.photoState()).toBe('error');
+
+    const broken = new Subject<Blob>();
+    catApi.getCatPhoto.mockReturnValueOnce(broken.asObservable());
+    fixture.componentInstance.back();
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo', ownerName: 'Ada' });
+    broken.next(new Blob(['broken'], { type: 'image/jpeg' }));
+    fixture.detectChanges();
+    const brokenImage = (fixture.nativeElement as HTMLElement).querySelector('img')!;
+    brokenImage.dispatchEvent(new Event('error'));
+    expect(fixture.componentInstance.photoState()).toBe('error');
+    expect(revokeUrl).toHaveBeenCalledWith('blob:broken-photo');
+    brokenImage.dispatchEvent(new Event('load'));
+    expect(fixture.componentInstance.photoState()).toBe('error');
+
+    const closePhoto = new Subject<Blob>();
+    catApi.getCatPhoto.mockReturnValueOnce(closePhoto.asObservable());
+    fixture.componentInstance.back();
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo', ownerName: 'Ada' });
+    expect(closePhoto.observers).toHaveLength(1);
+    beforeClosed.next();
+    expect(closePhoto.observers).toHaveLength(0);
+    closePhoto.next(new Blob(['late'], { type: 'image/jpeg' }));
+    expect(createUrl).toHaveBeenCalledTimes(3);
+
+    const loadedBeforeClose = new Subject<Blob>();
+    catApi.getCatPhoto.mockReturnValueOnce(loadedBeforeClose.asObservable());
+    fixture.componentInstance.openCatPhoto({ catId: 'cat-1', catName: 'Milo', ownerName: 'Ada' });
+    loadedBeforeClose.next(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement).querySelector('img')!.dispatchEvent(new Event('load'));
+    expect(fixture.componentInstance.photoState()).toBe('success');
+    beforeClosed.next();
+    expect(revokeUrl).toHaveBeenCalledWith('blob:close-photo');
+    const revokeCount = revokeUrl.mock.calls.length;
+    fixture.destroy();
+    expect(revokeUrl).toHaveBeenCalledTimes(revokeCount);
+    vi.unstubAllGlobals();
+  });
 });
 describe('Route-free StayEditor migrated coverage', () => {
   let component: StayEditor;

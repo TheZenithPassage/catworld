@@ -43,7 +43,7 @@ export interface OwnerDetailResponse {
 }
 
 export interface CatDetailResponse {
-  cat: Cat;
+  cat: Cat & { hasPhoto: boolean };
   stays: RelationshipPreview<StayRelationshipItem>;
 }
 

@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { NEVER, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner } from '../../../owners/models/owner.model';
@@ -14,6 +14,7 @@ import { VetApiService } from '../../../vets/services/vet-api.service';
 import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../../components/cat-editor/cat-editor';
+import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 
 describe('CatEditor', () => {
   let component: CatEditor;
@@ -63,6 +64,7 @@ describe('CatEditor', () => {
     ownerName: 'Ada Lovelace',
     vetId: 'vet-1',
     vetName: 'Dr. Vet',
+    hasPhoto: false,
   };
 
   const catApiService = {
@@ -219,28 +221,108 @@ describe('CatEditor', () => {
 
     component.submit();
 
-    expect(catApiService.updateCat).toHaveBeenCalledWith('cat-1', {
-      name: 'Milo',
-      birthDate: '2020-01-02',
-      sex: 'MALE',
-      breed: null,
-      coat: 'short',
-      color: 'orange',
-      foodBrand: null,
-      litterBrand: 'pine',
-      personality: null,
-      lastInternalDewormerName: 'pill',
-      lastInternalDewormingDate: null,
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: '2025-01-01',
-      lastTripleFelineDate: '2025-02-03',
-      lastRabiesDate: null,
-      ownerId: 'owner-1',
-      vetId: null,
-    });
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      'cat-1',
+      {
+        name: 'Milo',
+        birthDate: '2020-01-02',
+        sex: 'MALE',
+        breed: null,
+        coat: 'short',
+        color: 'orange',
+        foodBrand: null,
+        litterBrand: 'pine',
+        personality: null,
+        lastInternalDewormerName: 'pill',
+        lastInternalDewormingDate: null,
+        lastExternalDewormerName: null,
+        lastExternalDewormingDate: '2025-01-01',
+        lastTripleFelineDate: '2025-02-03',
+        lastRabiesDate: null,
+        ownerId: 'owner-1',
+        vetId: null,
+      },
+      null,
+      false,
+    );
     expect(saved).toHaveBeenCalledWith(cat);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('submits unchanged, removal, replacement, and restored saved-photo intents', () => {
+    catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
+
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+    photoInput.markSavedPhotoForRemoval();
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, true]);
+    photoInput.undoRemoval();
+    photoInput.select(fileChange(photo));
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([photo, false]);
+    photoInput.removeSelection();
+    component.submit();
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+  });
+
+  it('preserves a saved photo after rejecting an oversized replacement and retains fields', () => {
+    catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const oversized = new File(['bad'], 'replacement.png', { type: 'image/png' });
+    Object.defineProperty(oversized, 'size', { value: 32 * 1024 * 1024 + 1 });
+    photoInput.select(fileChange(oversized));
+    component.name.set('Retained name');
+
+    component.submit();
+
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      'cat-1',
+      expect.objectContaining({ name: 'Retained name' }),
+      null,
+      false,
+    );
+    expect(component.name()).toBe('Retained name');
+    expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(photoInput.selectionError()).toBe(component.text().cats.photo.errors.localFileTooLarge);
+    expect(photoInput.valid()).toBe(true);
+  });
+
+  it('keeps an accepted replacement after rejecting another candidate and allows its removal', () => {
+    catApiService.updateCat.mockReturnValue(NEVER);
+    createComponent();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
+    photoInput.select(fileChange(photo));
+    photoInput.select(fileChange(new File(['bad'], 'replacement.gif', { type: 'image/gif' })));
+    component.name.set('Retained name');
+
+    component.submit();
+
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      'cat-1',
+      expect.objectContaining({ name: 'Retained name' }),
+      photo,
+      false,
+    );
+    expect(component.name()).toBe('Retained name');
+    expect(photoInput.mutation().photo).toBe(photo);
+    expect(photoInput.previewUrl()).not.toBeNull();
+    expect(photoInput.valid()).toBe(true);
+
+    photoInput.removeSelection();
+    expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
+    expect(photoInput.selectionError()).toBeNull();
   });
 
   it('shows load errors through shared Material error state', () => {
@@ -290,3 +372,7 @@ describe('CatEditor', () => {
     );
   });
 });
+
+function fileChange(file: File): Event {
+  return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}
