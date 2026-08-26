@@ -15,6 +15,11 @@ export interface EntityLookupPresentation {
   selected: string;
 }
 
+export interface EntityLookupInitialSelection {
+  id: string;
+  label: string;
+}
+
 export interface EntityLookupAdapter<T> {
   search(query: string, page: number): Observable<EntityLookupPage<T>>;
   resolve?(id: string): Observable<T>;
@@ -24,5 +29,6 @@ export interface EntityLookupAdapter<T> {
 
 export interface EntityLookupState<T> {
   value: T | null;
+  selectedId: string | null;
   rawContentPresent: boolean;
 }

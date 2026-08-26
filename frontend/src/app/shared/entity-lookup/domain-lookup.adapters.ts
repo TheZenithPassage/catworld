@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { map } from 'rxjs';
 
 import { Cat, CatLookup } from '../../features/cats/models/cat.model';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
@@ -6,7 +7,11 @@ import { Owner, OwnerLookup } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { Vet, VetLookup } from '../../features/vets/models/vet.model';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
-import { EntityLookupAdapter, EntityLookupPresentation } from './entity-lookup.models';
+import {
+  EntityLookupAdapter,
+  EntityLookupInitialSelection,
+  EntityLookupPresentation,
+} from './entity-lookup.models';
 
 @Injectable({ providedIn: 'root' })
 export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
@@ -27,8 +32,8 @@ export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
       selected: value.fullName,
     };
   }
-  fromCrud(value: Owner): OwnerLookup {
-    return { id: value.id, fullName: value.fullName, currentCats: [] };
+  fromCrud(value: Owner): EntityLookupInitialSelection {
+    return { id: value.id, label: value.fullName };
   }
 }
 
@@ -48,8 +53,8 @@ export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
       selected: `${value.name} — ${value.ownerName}`,
     };
   }
-  fromCrud(value: Cat): CatLookup {
-    return { id: value.id, name: value.name, ownerId: value.ownerId, ownerName: value.ownerName };
+  fromCrud(value: Cat): EntityLookupInitialSelection {
+    return { id: value.id, label: `${value.name} — ${value.ownerName}` };
   }
 }
 
@@ -59,13 +64,16 @@ export class VetLookupAdapter implements EntityLookupAdapter<VetLookup> {
   search(query: string, page: number) {
     return this.api.searchVets(query, page);
   }
+  resolve(id: string) {
+    return this.api.getVetById(id).pipe(map((value) => ({ id: value.id, name: value.name })));
+  }
   id(value: VetLookup): string {
     return value.id;
   }
   present(value: VetLookup): EntityLookupPresentation {
     return { primary: value.name, selected: value.name };
   }
-  fromCrud(value: Vet): VetLookup {
-    return { id: value.id, name: value.name };
+  fromCrud(value: Vet): EntityLookupInitialSelection {
+    return { id: value.id, label: value.name };
   }
 }

@@ -1,7 +1,7 @@
 <mat-form-field appearance="outline">
   <mat-label>{{ label() }}</mat-label>
   <input matInput [value]="query()" (input)="inputChanged($event)" [required]="required()" />
-  @if (query().length > 0 || value()) {
+  @if (query().length > 0 || selectedId()) {
     <button
       mat-icon-button
       matSuffix
@@ -14,7 +14,7 @@
   }
 </mat-form-field>
 
-@if (value()) {
+@if (selectedId()) {
   <p class="selected" aria-live="polite">{{ text().entityLookup.selected(selectedLabel()) }}</p>
 }
 @if (submitted() && !valid()) {
@@ -31,7 +31,7 @@
   <p class="state" aria-live="polite">{{ text().entityLookup.noResults }}</p>
 }
 
-@if (!loading() && items().length > 0) {
+@if (items().length > 0) {
   <div class="results">
     @for (item of items(); track adapter().id(item)) {
       <button mat-button type="button" class="result" (click)="select(item)">
@@ -44,6 +44,8 @@
       </button>
     }
   </div>
+}
+@if (total() > 0) {
   <mat-paginator
     [length]="total()"
     [pageIndex]="page()"

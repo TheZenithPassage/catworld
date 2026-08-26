@@ -20,6 +20,7 @@ import { createLanguageResetError } from '../../core/i18n/language-reset-error';
 import {
   ENTITY_LOOKUP_PAGE_SIZE,
   EntityLookupAdapter,
+  EntityLookupInitialSelection,
   EntityLookupState,
 } from './entity-lookup.models';
 import { lookupPaginatorIntl } from './lookup-paginator-intl';
@@ -47,12 +48,15 @@ export class RemoteEntitySelector<T> {
   readonly label = input.required<string>();
   readonly required = input(false);
   readonly valueChange = output<T | null>();
+  readonly selectedIdChange = output<string | null>();
   readonly stateChange = output<EntityLookupState<T>>();
   readonly validityChange = output<boolean>();
 
   readonly text = inject(I18nService).text;
   readonly query = signal('');
   readonly value = signal<T | null>(null);
+  readonly selectedId = signal<string | null>(null);
+  readonly trustedLabel = signal<string | null>(null);
   readonly items = signal<T[]>([]);
   readonly page = signal(0);
   readonly total = signal(0);
@@ -61,11 +65,11 @@ export class RemoteEntitySelector<T> {
   readonly submitted = signal(false);
   readonly error = createLanguageResetError(inject(I18nService).language);
   readonly valid = computed(
-    () => this.value() !== null || (!this.required() && this.query().length === 0),
+    () => this.selectedId() !== null || (!this.required() && this.query().length === 0),
   );
   readonly selectedLabel = computed(() => {
     const value = this.value();
-    return value === null ? '' : this.adapter().present(value).selected;
+    return value === null ? (this.trustedLabel() ?? '') : this.adapter().present(value).selected;
   });
   readonly validationMessage = computed(() =>
     this.required() && this.query().length === 0
@@ -87,7 +91,10 @@ export class RemoteEntitySelector<T> {
     this.interactionGeneration++;
     this.query.set((event.target as HTMLInputElement).value);
     this.value.set(null);
+    this.selectedId.set(null);
+    this.trustedLabel.set(null);
     this.valueChange.emit(null);
+    this.selectedIdChange.emit(null);
     this.invalidateRequests();
     this.clearResultState();
     this.emitState();
@@ -103,9 +110,14 @@ export class RemoteEntitySelector<T> {
     this.interactionGeneration++;
     this.invalidateRequests();
     this.value.set(value);
-    this.query.set(this.adapter().present(value).selected);
+    const presentation = this.adapter().present(value);
+    this.selectedId.set(this.adapter().id(value));
+    this.trustedLabel.set(null);
+    this.query.set(presentation.selected);
+    this.submitted.set(false);
     this.clearResultState();
     this.valueChange.emit(value);
+    this.selectedIdChange.emit(this.selectedId());
     this.emitState();
   }
 
@@ -114,8 +126,12 @@ export class RemoteEntitySelector<T> {
     this.invalidateRequests();
     this.query.set('');
     this.value.set(null);
+    this.selectedId.set(null);
+    this.trustedLabel.set(null);
+    this.submitted.set(false);
     this.clearResultState();
     this.valueChange.emit(null);
+    this.selectedIdChange.emit(null);
     this.emitState();
   }
 
@@ -124,15 +140,18 @@ export class RemoteEntitySelector<T> {
     this.clear();
   }
 
-  trustInitialValue(value: T | null): void {
-    const interaction = this.interactionGeneration;
+  trustInitialValue(value: EntityLookupInitialSelection | null): void {
+    if (this.interactionGeneration !== 0) return;
     queueMicrotask(() => {
-      if (interaction !== this.interactionGeneration) return;
+      if (this.interactionGeneration !== 0) return;
       this.invalidateRequests();
-      this.value.set(value);
-      this.query.set(value === null ? '' : this.adapter().present(value).selected);
+      this.value.set(null);
+      this.selectedId.set(value?.id ?? null);
+      this.trustedLabel.set(value?.label ?? null);
+      this.query.set(value?.label ?? '');
+      this.submitted.set(false);
       this.clearResultState();
-      this.valueChange.emit(value);
+      this.selectedIdChange.emit(this.selectedId());
       this.emitState();
     });
   }
@@ -151,8 +170,13 @@ export class RemoteEntitySelector<T> {
         if (generation !== this.generation || interaction !== this.interactionGeneration) return;
         this.loading.set(false);
         this.value.set(value);
+        this.selectedId.set(this.adapter().id(value));
+        this.trustedLabel.set(null);
         this.query.set(this.adapter().present(value).selected);
+        this.clearResultState();
+        this.submitted.set(false);
         this.valueChange.emit(value);
+        this.selectedIdChange.emit(this.selectedId());
         this.emitState();
       },
       error: () => {
@@ -174,33 +198,34 @@ export class RemoteEntitySelector<T> {
     if (!requestQuery) return;
     this.invalidateRequests();
     this.items.set([]);
-    this.total.set(0);
     this.searched.set(false);
-    this.load(requestQuery, event.pageIndex);
+    this.load(requestQuery, event.pageIndex, true);
   }
 
   retry(): void {
     this.retryAction?.();
   }
 
-  private load(query: string, page: number): void {
+  private load(query: string, page: number, preservePaginator = false): void {
     this.invalidateRequests();
     const generation = this.generation;
     this.page.set(page);
     this.items.set([]);
-    this.total.set(0);
+    if (!preservePaginator) this.total.set(0);
     this.loading.set(true);
     this.searched.set(false);
     this.error.set(null);
-    this.retryAction = () => this.load(query, page);
+    this.retryAction = () => this.load(query, page, preservePaginator);
     this.request = this.adapter()
       .search(query, page)
       .subscribe({
         next: (result) => {
           if (generation !== this.generation) return;
-          const pageCount = Math.ceil(result.totalElements / ENTITY_LOOKUP_PAGE_SIZE);
+          const authoritativePageSize =
+            result.pageSize > 0 ? result.pageSize : ENTITY_LOOKUP_PAGE_SIZE;
+          const pageCount = Math.ceil(result.totalElements / authoritativePageSize);
           if (page > 0 && page >= pageCount) {
-            this.load(query, Math.max(0, pageCount - 1));
+            this.load(query, Math.max(0, pageCount - 1), true);
             return;
           }
           this.loading.set(false);
@@ -237,7 +262,11 @@ export class RemoteEntitySelector<T> {
   }
 
   private emitState(): void {
-    this.stateChange.emit({ value: this.value(), rawContentPresent: this.query().length > 0 });
+    this.stateChange.emit({
+      value: this.value(),
+      selectedId: this.selectedId(),
+      rawContentPresent: this.query().length > 0,
+    });
     this.emitValidity();
   }
 
