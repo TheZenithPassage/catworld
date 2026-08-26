@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -8,16 +8,13 @@ import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
-
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
+import { OwnerLookupAdapter } from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Cat } from '../../../cats/models/cat.model';
-import { CatApiService } from '../../../cats/services/cat-api.service';
-import { Owner } from '../../../owners/models/owner.model';
-import { OwnerApiService } from '../../../owners/services/owner-api.service';
+import { OwnerLookup } from '../../../owners/models/owner.model';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -44,28 +41,27 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatInput,
     MatLabel,
     MatProgressSpinner,
+    RemoteEntitySelector,
     RouterLink,
     UiStateComponent,
   ],
   templateUrl: './stay-create-page.html',
   styleUrl: './stay-create-page.scss',
 })
-export class StayCreatePage {
-  private readonly ownerApiService = inject(OwnerApiService);
-  private readonly catApiService = inject(CatApiService);
+export class StayCreatePage implements AfterViewInit {
   private readonly stayApiService = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
+  private readonly ownerSelector = viewChild.required(RemoteEntitySelector<OwnerLookup>);
 
   readonly text = this.i18nService.text;
+  readonly ownerLookupAdapter = inject(OwnerLookupAdapter);
+  readonly selectedOwner = signal<OwnerLookup | null>(null);
 
-  readonly owners = signal<Owner[]>([]);
-  readonly cats = signal<Cat[]>([]);
-
-  readonly selectedOwnerId = signal('');
+  readonly selectedOwnerId = computed(() => this.selectedOwner()?.id ?? '');
   readonly selectedCatIds = signal<string[]>([]);
 
   readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
@@ -93,16 +89,10 @@ export class StayCreatePage {
     return `${numberOfNights} ${unit}`;
   });
 
-  readonly loadingData = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
 
-  readonly filteredCats = computed(() =>
-    this.cats().filter((cat) => cat.ownerId === this.selectedOwnerId()),
-  );
-  readonly selectedOwnerName = computed(
-    () => this.owners().find((owner) => owner.id === this.selectedOwnerId())?.fullName ?? '',
-  );
+  readonly availableCats = computed(() => this.selectedOwner()?.currentCats ?? []);
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;
     return (
@@ -129,37 +119,47 @@ export class StayCreatePage {
 
   private previewRequestSequence = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
+  private returnQuerySelectionApplicable = true;
 
-  constructor() {
-    this.loadData();
+  ngAfterViewInit(): void {
+    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+    if (queryOwnerId) this.ownerSelector().resolveKnownId(queryOwnerId);
   }
 
-  loadData(): void {
-    this.loadingData.set(true);
-    this.error.set(null);
-
-    forkJoin({
-      owners: this.ownerApiService.getOwners(),
-      cats: this.catApiService.getCats(),
-    }).subscribe({
-      next: ({ owners, cats }) => {
-        this.owners.set(owners);
-        this.cats.set(cats);
-        this.setInitialSelectionFromQueryParams();
-        this.loadingData.set(false);
-      },
-      error: () => {
-        this.error.set(this.text().stays.create.errors.loadFormDataFailed);
-        this.loadingData.set(false);
-      },
-    });
+  onOwnerLookupInput(): void {
+    this.returnQuerySelectionApplicable = false;
   }
 
-  onOwnerChange(ownerId: string): void {
+  onOwnerChange(owner: OwnerLookup | null): void {
+    if (owner === this.selectedOwner()) return;
+    this.resetOwnerDependentState();
+    this.selectedOwner.set(owner);
+
+    if (owner && this.returnQuerySelectionApplicable) {
+      this.returnQuerySelectionApplicable = false;
+      const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+      const queryCatId = this.route.snapshot.queryParamMap.get('catId');
+      if (
+        owner.id === queryOwnerId &&
+        queryCatId &&
+        owner.currentCats.some((cat) => cat.id === queryCatId)
+      ) {
+        this.selectedCatIds.set([queryCatId]);
+        this.refreshPricingPreview();
+      }
+    }
+  }
+
+  private resetOwnerDependentState(): void {
     this.clearVaccineOverrideRecovery();
-    this.selectedOwnerId.set(ownerId);
     this.selectedCatIds.set([]);
-    this.refreshPricingPreview();
+    this.previewRequestSequence++;
+    this.pricingPreview.set(null);
+    this.previewLoading.set(false);
+    this.previewError.set(null);
+    this.pricingConfirmed.set(false);
+    this.stalePricing.set(false);
+    if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
   }
 
   onCatToggle(catId: string, checked: boolean): void {
@@ -232,6 +232,8 @@ export class StayCreatePage {
 
   submit(): void {
     this.error.set(null);
+
+    if (!this.ownerSelector().markSubmitted() || !this.selectedOwner()) return;
 
     if (this.selectedCatIds().length === 0) {
       this.error.set(this.text().stays.create.errors.selectAtLeastOneCat);
@@ -324,43 +326,17 @@ export class StayCreatePage {
       })
       .afterClosed()
       .subscribe((confirmed) => {
-        if (confirmed !== true || !canOverride || !this.authSessionService.hasRole('ADMIN')) {
+        if (
+          confirmed !== true ||
+          !canOverride ||
+          !this.authSessionService.hasRole('ADMIN') ||
+          basis !== this.currentPreviewBasis()
+        ) {
           return;
         }
 
         this.saveStay({ ...request, overrideVaccineConflicts: true }, false, basis);
       });
-  }
-
-  private setInitialSelectionFromQueryParams(): void {
-    const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
-    const queryCatId = this.route.snapshot.queryParamMap.get('catId');
-
-    if (!queryOwnerId) {
-      return;
-    }
-
-    const ownerExists = this.owners().some((owner) => owner.id === queryOwnerId);
-
-    if (!ownerExists) {
-      return;
-    }
-
-    this.selectedOwnerId.set(queryOwnerId);
-
-    if (!queryCatId) {
-      return;
-    }
-
-    const catExistsForOwner = this.cats().some(
-      (cat) => cat.id === queryCatId && cat.ownerId === queryOwnerId,
-    );
-
-    if (catExistsForOwner) {
-      this.selectedCatIds.set([queryCatId]);
-    }
-
-    this.refreshPricingPreview();
   }
 
   private refreshPricingPreview(): void {

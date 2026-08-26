@@ -1,16 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router, RouterLink } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
-import { Cat } from '../../../cats/models/cat.model';
-import { CatApiService } from '../../../cats/services/cat-api.service';
-import { Owner } from '../../../owners/models/owner.model';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
+import { OwnerLookup } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -22,98 +22,19 @@ describe('StayCreatePage', () => {
   let queryParams: Record<string, string>;
   let dialogClosed: Subject<boolean | undefined>;
 
-  const owners: Owner[] = [
+  const owners: OwnerLookup[] = [
     {
       id: 'owner-1',
       fullName: 'Ada Lovelace',
-      address: null,
-      primaryPhone: '555-1111',
-      secondaryPhone: null,
-      secondaryPhoneName: null,
-      instagram: null,
-      facebook: null,
+      currentCats: [
+        { id: 'cat-1', name: 'Milo' },
+        { id: 'cat-2', name: 'Luna' },
+      ],
     },
     {
       id: 'owner-2',
       fullName: 'Grace Hopper',
-      address: null,
-      primaryPhone: '555-2222',
-      secondaryPhone: null,
-      secondaryPhoneName: null,
-      instagram: null,
-      facebook: null,
-    },
-  ];
-
-  const cats: Cat[] = [
-    {
-      id: 'cat-1',
-      name: 'Milo',
-      birthDate: '2020-01-02',
-      sex: 'MALE',
-      breed: null,
-      coat: null,
-      color: null,
-      foodBrand: null,
-      litterBrand: null,
-      personality: null,
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: null,
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: null,
-      lastRabiesDate: null,
-      ownerId: 'owner-1',
-      ownerName: 'Ada Lovelace',
-      vetId: null,
-      vetName: null,
-      hasPhoto: false,
-    },
-    {
-      id: 'cat-2',
-      name: 'Luna',
-      birthDate: '2021-03-04',
-      sex: 'FEMALE',
-      breed: null,
-      coat: null,
-      color: null,
-      foodBrand: null,
-      litterBrand: null,
-      personality: null,
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: null,
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: null,
-      lastRabiesDate: null,
-      ownerId: 'owner-1',
-      ownerName: 'Ada Lovelace',
-      vetId: null,
-      vetName: null,
-      hasPhoto: false,
-    },
-    {
-      id: 'cat-3',
-      name: 'Pixel',
-      birthDate: '2022-05-06',
-      sex: 'FEMALE',
-      breed: null,
-      coat: null,
-      color: null,
-      foodBrand: null,
-      litterBrand: null,
-      personality: null,
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: null,
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: null,
-      lastRabiesDate: null,
-      ownerId: 'owner-2',
-      ownerName: 'Grace Hopper',
-      vetId: null,
-      vetName: null,
-      hasPhoto: false,
+      currentCats: [{ id: 'cat-3', name: 'Pixel' }],
     },
   ];
 
@@ -144,11 +65,8 @@ describe('StayCreatePage', () => {
   };
 
   const ownerApiService = {
-    getOwners: vi.fn(),
-  };
-
-  const catApiService = {
-    getCats: vi.fn(),
+    searchOwners: vi.fn(),
+    getOwnerLookup: vi.fn(),
   };
 
   const stayApiService = {
@@ -202,8 +120,12 @@ describe('StayCreatePage', () => {
       afterClosed: () => dialogClosed.asObservable(),
     });
     queryParams = {};
-    ownerApiService.getOwners.mockReturnValue(of(owners));
-    catApiService.getCats.mockReturnValue(of(cats));
+    ownerApiService.searchOwners.mockReturnValue(
+      of({ items: owners, page: 0, pageSize: 5, totalElements: owners.length }),
+    );
+    ownerApiService.getOwnerLookup.mockImplementation((id: string) =>
+      of(owners.find((owner) => owner.id === id) ?? owners[0]),
+    );
     stayApiService.previewCreationPricing.mockReturnValue(of(pricingPreview));
 
     await TestBed.configureTestingModule({
@@ -213,10 +135,6 @@ describe('StayCreatePage', () => {
         {
           provide: OwnerApiService,
           useValue: ownerApiService,
-        },
-        {
-          provide: CatApiService,
-          useValue: catApiService,
         },
         {
           provide: StayApiService,
@@ -255,12 +173,17 @@ describe('StayCreatePage', () => {
   function createComponent(): void {
     fixture = TestBed.createComponent(StayCreatePage);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   }
 
   function prepareConfirmedPricing(): void {
     component.pricingPreview.set(pricingPreview);
     component.agreedAmount.set('100');
     component.confirmPricing();
+  }
+
+  function selectOwner(owner = owners[0]): void {
+    fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.select(owner);
   }
 
   it('adopts and confirms an available zero suggestion without creating the stay', () => {
@@ -355,12 +278,20 @@ describe('StayCreatePage', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(1);
     expect(compiled.querySelector('input[name="startAt"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="endAt"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
-    expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
+    const ownerLink = fixture.debugElement.query(By.directive(RouterLink)).injector.get(RouterLink);
+    expect(ownerLink.queryParams).toEqual({ returnTo: '/stays/new' });
+
+    selectOwner();
+    fixture.detectChanges();
+    const catLink = fixture.debugElement
+      .query(By.css('.create-cat-option'))
+      .injector.get(RouterLink);
+    expect(catLink.queryParams).toEqual({ returnTo: '/stays/new', ownerId: 'owner-1' });
   });
 
   it('preserves owner and cat query-param preselection', () => {
@@ -374,13 +305,98 @@ describe('StayCreatePage', () => {
 
     expect(component.selectedOwnerId()).toBe('owner-1');
     expect(component.selectedCatIds()).toEqual(['cat-1']);
-    expect(component.filteredCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
+    expect(component.availableCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
     expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(2);
+  });
+
+  it('renders immediately without loading Owner or Cat catalogs', () => {
+    createComponent();
+
+    expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
+    expect(ownerApiService.searchOwners).not.toHaveBeenCalled();
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+  });
+
+  it('ignores an incompatible returned cat and keeps Owner resolution field-local', () => {
+    queryParams = { ownerId: 'owner-1', catId: 'cat-3' };
+
+    createComponent();
+
+    expect(ownerApiService.getOwnerLookup).toHaveBeenCalledWith('owner-1');
+    expect(component.selectedOwner()).toEqual(owners[0]);
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+  });
+
+  it('guards return-query Owner resolution against later lookup interaction', () => {
+    const resolution = new Subject<OwnerLookup>();
+    ownerApiService.getOwnerLookup.mockReturnValue(resolution);
+    queryParams = { ownerId: 'owner-1', catId: 'cat-1' };
+    createComponent();
+    const selector = fixture.debugElement.query(By.directive(RemoteEntitySelector))
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+
+    component.onOwnerLookupInput();
+    selector.inputChanged({ target: { value: 'Grace' } } as unknown as Event);
+    selector.select(owners[1]);
+    resolution.next(owners[0]);
+
+    expect(component.selectedOwner()).toEqual(owners[1]);
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(component.availableCats()).toEqual(owners[1].currentCats);
+  });
+
+  it('keeps a failed returned Owner lookup field-local and the form usable', () => {
+    ownerApiService.getOwnerLookup.mockReturnValue(throwError(() => new Error('missing')));
+    queryParams = { ownerId: 'missing-owner', catId: 'cat-1' };
+
+    createComponent();
+
+    expect(component.selectedOwner()).toBeNull();
+    expect(component.error()).toBeNull();
+    expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
+    expect(
+      fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.error(),
+    ).toBe(component.text().entityLookup.loadFailed);
+  });
+
+  it('fully resets Owner-dependent state while preserving entered values and rejects a late preview', () => {
+    const previewResponse = new Subject<typeof pricingPreview>();
+    stayApiService.previewCreationPricing.mockReturnValue(previewResponse);
+    createComponent();
+    selectOwner();
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    component.notes.set('Keep note');
+    component.agreedAmount.set('123');
+    component.pricingReason.set('Keep reason');
+    component.selectedCatIds.set(['cat-1']);
+    component.onCatToggle('cat-2', true);
+    component.pricingPreview.set(pricingPreview);
+    component.pricingConfirmed.set(true);
+    component.stalePricing.set(true);
+    component.error.set('Keep mutation failure');
+
+    selectOwner(owners[1]);
+    previewResponse.next(pricingPreview);
+
+    expect(component.selectedOwner()).toEqual(owners[1]);
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(component.pricingPreview()).toBeNull();
+    expect(component.previewLoading()).toBe(false);
+    expect(component.pricingConfirmed()).toBe(false);
+    expect(component.stalePricing()).toBe(false);
+    expect(component.error()).toBe('Keep mutation failure');
+    expect(component.startAt()).toBe('2099-01-02T10:00');
+    expect(component.endAt()).toBe('2099-01-09T10:00');
+    expect(component.notes()).toBe('Keep note');
+    expect(component.agreedAmount()).toBe('123');
+    expect(component.pricingReason()).toBe('Keep reason');
   });
 
   it('does not create a stay when no cat is selected', () => {
     createComponent();
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     fixture.detectChanges();
 
     component.submit();
@@ -397,7 +413,7 @@ describe('StayCreatePage', () => {
     createComponent();
     stayApiService.createStay.mockReturnValue(of(createdStay));
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1', 'cat-2']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -430,7 +446,7 @@ describe('StayCreatePage', () => {
       ),
     );
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -459,7 +475,7 @@ describe('StayCreatePage', () => {
       )
       .mockReturnValueOnce(of(createdStay));
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -512,7 +528,7 @@ describe('StayCreatePage', () => {
       )
       .mockReturnValueOnce(of(createdStay));
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1', 'cat-2']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -547,7 +563,7 @@ describe('StayCreatePage', () => {
       ),
     );
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -593,7 +609,7 @@ describe('StayCreatePage', () => {
       )
       .mockReturnValueOnce(of(createdStay));
 
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -630,7 +646,7 @@ describe('StayCreatePage', () => {
       )
       .mockReturnValueOnce(of(createdStay));
     createComponent();
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
@@ -663,7 +679,7 @@ describe('StayCreatePage', () => {
       )
       .mockReturnValueOnce(of(createdStay));
     createComponent();
-    component.selectedOwnerId.set('owner-1');
+    selectOwner();
     component.selectedCatIds.set(['cat-1']);
     component.startAt.set('2099-01-02T10:00');
     component.endAt.set('2099-01-09T10:00');
