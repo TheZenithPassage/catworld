@@ -20,8 +20,7 @@ implementation target. Never reinterpret the separate `catworld-workflows`
 checkout as that target.
 
 If the runtime is missing, invalid, or stale, stop and instruct the operator to
-run the external projector. When newly projected project-scoped custom agents
-are required, also instruct the operator to start a fresh Codex session after
-projection. Never clone, fetch, pull, reset, update, or otherwise repair the
-`catworld-workflows` checkout automatically, and never fall back to embedded or
-historical workflow instructions.
+run the external projector and then start a fresh Codex session. Never clone,
+fetch, pull, reset, update, or otherwise repair the `catworld-workflows`
+checkout automatically, and never fall back to embedded or historical workflow
+instructions.
