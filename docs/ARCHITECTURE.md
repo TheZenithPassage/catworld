@@ -956,10 +956,11 @@ Loading, no-result and failure states are distinct, localized and field-local.
 One passive suffix status slot shows a spinner while loading, a green approval
 check for an explicit valid selection, or a red exclamation mark after a
 successful zero-result search or a failed required/unresolved submission.
-Localized semantic text remains available to assistive technology without
-adding visible normal-flow validation or no-result rows. Editing clears prior
-submit validation before the new lookup lifecycle, and clear restores the
-neutral state. Infrastructure failure remains separate: Retry remains
+Angular Material owns the corresponding field error state and renders the
+localized reason through `mat-error` in its normally reserved subscript area,
+without custom external error rows or dynamic layout expansion. Editing clears
+prior submit validation before the new lookup lifecycle, and clear restores
+the neutral state. Infrastructure failure remains separate: Retry remains
 immediate, preserves the typed query and stays outside the listbox. Passive
 loaded/total progress remains outside option semantics. A committed selection
 uses the approval check in the same suffix slot and

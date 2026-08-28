@@ -248,9 +248,8 @@ describe('RemoteEntitySelector', () => {
 
     expect(component.markSubmitted()).toBe(false);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.validation')).toBeNull();
     expect(fixture.nativeElement.querySelector('.invalid-indicator')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('mat-error')?.textContent).toContain(
       component.text().entityLookup.required,
     );
     expect(inputFor(fixture).getAttribute('aria-invalid')).toBe('true');
@@ -263,13 +262,14 @@ describe('RemoteEntitySelector', () => {
     expect(requests).toHaveLength(0);
     expect(component.markSubmitted()).toBe(false);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('mat-error')?.textContent).toContain(
       component.text().entityLookup.unresolved,
     );
 
     type(fixture, 'Exact label');
     expect(component.submitted()).toBe(false);
     expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
     vi.advanceTimersByTime(300);
     respond(0, [{ id: '1', label: 'Exact label' }]);
     settleOverlay(fixture);
@@ -347,7 +347,7 @@ describe('RemoteEntitySelector', () => {
     respond(1, [], 0);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.state')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('mat-error')?.textContent).toContain(
       component.text().entityLookup.noResults,
     );
     expect(inputFor(fixture).getAttribute('aria-invalid')).toBe('true');

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  afterRenderEffect,
   computed,
   DestroyRef,
   ElementRef,
@@ -18,9 +19,9 @@ import {
   MatAutocompleteTrigger,
 } from '@angular/material/autocomplete';
 import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatError, MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { MatOption } from '@angular/material/core';
+import { ErrorStateMatcher, MatOption } from '@angular/material/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { Subscription } from 'rxjs';
 
@@ -41,6 +42,7 @@ const PANEL_SCROLL_THRESHOLD_PX = 32;
     MatAutocomplete,
     MatAutocompleteTrigger,
     MatButton,
+    MatError,
     MatFormField,
     MatHint,
     MatIconButton,
@@ -100,6 +102,9 @@ export class RemoteEntitySelector<T> {
   readonly invalidMessage = computed(() =>
     this.noResults() ? this.text().entityLookup.noResults : this.validationMessage(),
   );
+  readonly errorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.invalidFeedback(),
+  };
   readonly progressLabel = computed(() =>
     this.text().entityLookup.progress(Math.min(this.items().length, this.total()), this.total()),
   );
@@ -112,6 +117,7 @@ export class RemoteEntitySelector<T> {
 
   private readonly autocomplete = viewChild.required<MatAutocomplete>('autocomplete');
   private readonly lookupInput = viewChild.required<ElementRef<HTMLInputElement>>('lookupInput');
+  private readonly materialInput = viewChild.required(MatInput);
   private readonly renderer = inject(Renderer2);
   private readonly activeQuery = signal('');
   private readonly nextPage = signal(0);
@@ -126,6 +132,10 @@ export class RemoteEntitySelector<T> {
   private retryAction: (() => void) | null = null;
 
   constructor() {
+    afterRenderEffect(() => {
+      this.invalidFeedback();
+      this.materialInput().updateErrorState();
+    });
     inject(DestroyRef).onDestroy(() => {
       this.invalidateRequests();
       this.clearPanelOpen();

@@ -8,8 +8,9 @@
     [value]="query()"
     [required]="required()"
     [matAutocomplete]="autocomplete"
+    [errorStateMatcher]="errorStateMatcher"
     [attr.title]="selectedId() ? query() : null"
-    [attr.aria-invalid]="invalidFeedback() ? 'true' : null"
+    [attr.aria-invalid]="invalidFeedback()"
     (input)="inputChanged($event)"
   />
 
@@ -30,7 +31,6 @@
             </svg>
           } @else {
             <span class="invalid-indicator" aria-hidden="true">!</span>
-            <span class="visually-hidden">{{ invalidMessage() }}</span>
           }
         </span>
       }
@@ -50,6 +50,11 @@
   @if (items().length > 0) {
     <mat-hint class="progress" aria-live="polite">{{ progressLabel() }}</mat-hint>
   }
+  <mat-error>
+    @if (invalidFeedback()) {
+      {{ invalidMessage() }}
+    }
+  </mat-error>
 
   <mat-autocomplete
     #autocomplete="matAutocomplete"
