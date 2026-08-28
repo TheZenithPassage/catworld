@@ -12,15 +12,22 @@ Before normal workflow execution:
    valid `managedFiles` evidence for the installed runtime.
 3. Require the recorded source checkout to exist and its current HEAD to resolve
    to the recorded `sourceSha`.
-4. Load and follow the installed authoritative `.catworld-workflow/AGENTS.md`
+4. For every `managedFiles` path, require a regular, non-symlink target file
+   whose bytes exactly match its committed Git blob at `sourceSha`. Map
+   `.catworld-workflow/AGENTS.md` to source `AGENTS.md`; map every other target
+   to the same relative source path. Read committed blob bytes, never source
+   working-tree text.
+5. Only after these checks, load and follow the installed authoritative
+   `.catworld-workflow/AGENTS.md`
    for all routing and workflow behavior.
 
 Always treat the outer current CatWorld checkout or worktree as the
 implementation target. Never reinterpret the separate `catworld-workflows`
 checkout as that target.
 
-If the runtime is missing, invalid, or stale, stop and instruct the operator to
-run the external projector and then start a fresh Codex session. Never clone,
-fetch, pull, reset, update, or otherwise repair the `catworld-workflows`
-checkout automatically, and never fall back to embedded or historical workflow
-instructions.
+If any bootstrap check fails, do not load the external authority. Stop, report
+the missing, invalid, or stale managed path when applicable, and instruct the
+operator to run the external projector and then start a fresh Codex session.
+Never clone, fetch, pull, reset, update, or otherwise repair the
+`catworld-workflows` checkout automatically, and never fall back to embedded or
+historical workflow instructions.
