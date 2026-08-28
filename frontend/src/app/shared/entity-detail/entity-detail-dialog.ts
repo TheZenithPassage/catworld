@@ -370,6 +370,15 @@ export class EntityDetailDialog {
     this.leaveEdit();
     this.entityUpdated.emit(update);
   }
+  deletionCompleted(reference: EntityReference): void {
+    this.submissionChanged(false);
+    if (this.history().length === 1) {
+      this.entityUpdated.emit(reference);
+      this.dialogRef.close();
+      return;
+    }
+    this.back();
+  }
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);
     this.dialogRef.disableClose = submitting;

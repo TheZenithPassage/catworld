@@ -13,11 +13,18 @@ import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { MatDialog } from '@angular/material/dialog';
 import { filter } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import {
   StayCancellationDialog,
   StayCancellationDialogData,
 } from '../stay-cancellation-dialog/stay-cancellation-dialog';
+import {
+  PermanentDeletionConfirmationDialog,
+  PermanentDeletionConfirmationDialogData,
+  isPermanentDeletionConfirmed,
+} from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
+import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
 
 @Component({
   selector: 'app-stay-detail',
@@ -38,6 +45,7 @@ export class StayDetail {
   private operationalGeneration = 0;
   private pricingGeneration = 0;
   private cancellationContextGeneration = 0;
+  private deletionGeneration = 0;
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
@@ -49,6 +57,7 @@ export class StayDetail {
   readonly updated = output<EntityDetailUpdate>();
   readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();
   readonly contentSettled = output<void>();
   readonly text = this.i18n.text;
@@ -61,12 +70,15 @@ export class StayDetail {
   readonly pricingStay = signal<Stay | null>(null);
   readonly cancellationContextLoading = signal(false);
   readonly cancellationContextError = signal(false);
+  readonly deleting = signal(false);
+  readonly deletionError = signal<string | null>(null);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
       this.invalidateOperational();
+      this.deletionGeneration++;
     });
     effect(() => {
       const id = this.entityId();
@@ -126,6 +138,54 @@ export class StayDetail {
   }
   canCancel(detail: StayDetailResponse): boolean {
     return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  canDelete(detail: StayDetailResponse): boolean {
+    const stay = this.pricingStay();
+    return stay?.stayId === detail.stayId && stay.canDelete === true;
+  }
+  confirmPermanentDeletion(detail: StayDetailResponse): void {
+    if (this.deleting()) return;
+    const stay = this.pricingStay();
+    if (stay?.stayId !== detail.stayId || stay.canDelete !== true) return;
+    const subject = `${stay.cats.map((cat) => cat.name).join(', ')} — ${stay.ownerName} — ${this.date(stay.startAt)} – ${this.date(stay.endAt)}`;
+    this.dialog
+      .open<PermanentDeletionConfirmationDialog, PermanentDeletionConfirmationDialogData>(
+        PermanentDeletionConfirmationDialog,
+        {
+          data: { subject },
+          width: '34rem',
+          maxWidth: 'calc(100vw - 2rem)',
+        },
+      )
+      .afterClosed()
+      .pipe(filter(isPermanentDeletionConfirmed))
+      .subscribe(() => this.deletePermanently(stay.stayId));
+  }
+  private deletePermanently(stayId: string): void {
+    if (this.deleting()) return;
+    const generation = ++this.deletionGeneration;
+    this.deleting.set(true);
+    this.deletionError.set(null);
+    this.submittingChanged.emit(true);
+    this.api.deleteStay(stayId).subscribe({
+      next: () => this.completeDeletion(generation, stayId),
+      error: (error: unknown) => {
+        if (generation !== this.deletionGeneration || stayId !== this.entityId()) return;
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.completeDeletion(generation, stayId);
+          return;
+        }
+        this.deleting.set(false);
+        this.submittingChanged.emit(false);
+        this.deletionError.set(deletionErrorMessage(error, this.text().deletion));
+      },
+    });
+  }
+  private completeDeletion(generation: number, stayId: string): void {
+    if (generation !== this.deletionGeneration || stayId !== this.entityId()) return;
+    this.deleting.set(false);
+    this.submittingChanged.emit(false);
+    this.deletionCompleted.emit({ entityType: 'stay', entityId: stayId });
   }
   cancelStay(detail: StayDetailResponse): void {
     if (this.cancellationContextLoading()) return;

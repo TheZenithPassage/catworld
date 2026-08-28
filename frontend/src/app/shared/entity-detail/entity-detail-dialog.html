@@ -147,6 +147,7 @@
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
           (openStays)="openStays(reference())"
+          (deletionCompleted)="deletionCompleted($event)"
         />
       }
       @case ('cat') {
@@ -162,6 +163,7 @@
           (navigate)="showReference($event)"
           (openStays)="openStays(reference())"
           (openPhoto)="openCatPhoto($event)"
+          (deletionCompleted)="deletionCompleted($event)"
         />
       }
       @case ('vet') {
@@ -176,6 +178,7 @@
           (contentSettled)="destinationSettled()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
+          (deletionCompleted)="deletionCompleted($event)"
         />
       }
       @case ('stay') {
@@ -192,6 +195,7 @@
           (refreshingChanged)="refreshChanged($event)"
           (contentSettled)="destinationSettled()"
           (pricingRequested)="openStayPricing()"
+          (deletionCompleted)="deletionCompleted($event)"
         />
       }
     }

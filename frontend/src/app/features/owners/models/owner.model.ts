@@ -1,5 +1,6 @@
 export interface Owner {
   id: string;
+  canDelete?: boolean;
   fullName: string;
   address: string | null;
   primaryPhone: string;

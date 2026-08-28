@@ -132,6 +132,7 @@ export class OwnerDetail {
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
