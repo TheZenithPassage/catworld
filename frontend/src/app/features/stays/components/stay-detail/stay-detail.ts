@@ -7,6 +7,7 @@ import {
 import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { StayApiService } from '../../services/stay-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayEditor } from '../stay-editor/stay-editor';
@@ -71,7 +72,7 @@ export class StayDetail {
   readonly cancellationContextLoading = signal(false);
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
-  readonly deletionError = signal<string | null>(null);
+  readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;

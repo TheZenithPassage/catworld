@@ -1,6 +1,7 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { Cat } from '../../models/cat.model';
@@ -54,7 +55,7 @@ export class CatDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
-  readonly deletionError = signal<string | null>(null);
+  readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.loadGeneration++;
