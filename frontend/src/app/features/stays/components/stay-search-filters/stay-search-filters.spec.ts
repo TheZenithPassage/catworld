@@ -106,8 +106,7 @@ describe('StaySearchFiltersComponent', () => {
     expect(emittedFilters).toEqual([]);
 
     catRequests[0].result.next({ items: [cat], page: 0, pageSize: 5, totalElements: 1 });
-    fixture.detectChanges();
-    (fixture.nativeElement.querySelector('.result') as HTMLButtonElement).click();
+    component.catSelector()?.select(cat);
     fixture.detectChanges();
 
     expect(emittedFilters).toContainEqual({ catId: 'cat-current', ownerId: null });
@@ -124,8 +123,6 @@ describe('StaySearchFiltersComponent', () => {
 
     component.catSelector()?.retry();
     catRequests[1].result.next({ items: [cat], page: 0, pageSize: 5, totalElements: 10 });
-    component.catSelector()?.pageChanged({ pageIndex: 1, pageSize: 5, length: 10 });
-    expect(catRequests[2]).toMatchObject({ query: 'mil', page: 1 });
     expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: owner.id });
 
     component.onCatStateChange({ value: cat, selectedId: cat.id, rawContentPresent: true });
@@ -139,23 +136,18 @@ describe('StaySearchFiltersComponent', () => {
     expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: owner.id });
   });
 
-  it('clears each committed field independently and globally resets all selector state', () => {
+  it('keeps per-field clear behavior and omits a redundant global clear action', () => {
+    expect(fixture.nativeElement.querySelector('.filter-actions')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Limpiar');
+
     component.onCatStateChange({ value: cat, selectedId: cat.id, rawContentPresent: true });
     component.catSelector()?.clear();
     expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: null });
 
     component.onOwnerStateChange({ value: owner, selectedId: owner.id, rawContentPresent: true });
-    type(fixture.nativeElement.querySelectorAll('input')[0], 'unresolved');
-    expect(component.hasSearchFilters()).toBe(true);
-
-    component.clearFilters();
-    expect(component.selectedCatId()).toBeNull();
+    component.ownerSelector()?.clear();
     expect(component.selectedOwnerId()).toBeNull();
-    expect(component.catSelector()?.query()).toBe('');
     expect(component.ownerSelector()?.query()).toBe('');
-    expect(component.catSelector()?.items()).toEqual([]);
-    expect(component.ownerSelector()?.error()).toBeNull();
-    expect(component.hasSearchFilters()).toBe(false);
     expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: null });
   });
 });

@@ -1,7 +1,9 @@
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatAutocomplete } from '@angular/material/autocomplete';
+import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { By } from '@angular/platform-browser';
-import { MatPaginator } from '@angular/material/paginator';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Subject } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -41,6 +43,7 @@ describe('RemoteEntitySelector', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     TestBed.resetTestingModule();
   });
@@ -51,125 +54,341 @@ describe('RemoteEntitySelector', () => {
     fixture.componentRef.setInput('label', 'Owner');
     fixture.componentRef.setInput('required', required);
     fixture.detectChanges();
-    return { fixture, component: fixture.componentInstance };
+    return {
+      fixture,
+      component: fixture.componentInstance,
+      loader: TestbedHarnessEnvironment.loader(fixture),
+    };
   }
 
-  function type(component: RemoteEntitySelector<Item>, value: string): void {
-    component.inputChanged({ target: { value } } as unknown as Event);
+  function inputFor(fixture: ComponentFixture<RemoteEntitySelector<Item>>): HTMLInputElement {
+    return fixture.nativeElement.querySelector('input') as HTMLInputElement;
   }
 
-  it('trims and debounces text only, clears stale pages immediately, and ignores superseded responses', () => {
-    const { fixture, component } = setup();
-    type(component, '   ');
+  function type(fixture: ComponentFixture<RemoteEntitySelector<Item>>, value: string): void {
+    const input = inputFor(fixture);
+    input.focus();
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+  }
+
+  function respond(
+    requestIndex: number,
+    items: Item[],
+    totalElements = items.length,
+    page = requests[requestIndex].page,
+  ): void {
+    requests[requestIndex].result.next({ items, page, pageSize: 5, totalElements });
+  }
+
+  function settleOverlay(fixture: ComponentFixture<RemoteEntitySelector<Item>>): void {
+    fixture.detectChanges();
+    vi.advanceTimersByTime(0);
+    fixture.detectChanges();
+  }
+
+  function pressKey(
+    fixture: ComponentFixture<RemoteEntitySelector<Item>>,
+    key: 'ArrowDown' | 'Enter' | 'Escape',
+  ): void {
+    const keyCodes = { ArrowDown: 40, Enter: 13, Escape: 27 } as const;
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'keyCode', { get: () => keyCodes[key] });
+    inputFor(fixture).dispatchEvent(event);
+    fixture.detectChanges();
+  }
+
+  it('uses a Material overlay, skips empty input, debounces page zero and resets stale queries', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { fixture, component, loader } = setup();
+    const harness = await loader.getHarness(MatAutocompleteHarness);
+
+    expect(inputFor(fixture).getAttribute('role')).toBe('combobox');
+    expect(fixture.nativeElement.querySelector('.results')).toBeNull();
+    expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
+
+    type(fixture, '   ');
     vi.advanceTimersByTime(300);
     expect(requests).toHaveLength(0);
+    expect(component.searched()).toBe(false);
 
-    type(component, ' a ');
-    expect(component.items()).toEqual([]);
+    type(fixture, ' a ');
     vi.advanceTimersByTime(299);
     expect(requests).toHaveLength(0);
     vi.advanceTimersByTime(1);
-    expect(requests[0].query).toBe('a');
-    type(component, 'ab');
-    requests[0].result.next({
-      items: [{ id: 'old', label: 'Old' }],
-      page: 0,
-      pageSize: 5,
-      totalElements: 1,
-    });
+    expect(requests[0]).toMatchObject({ query: 'a', page: 0 });
+    expect(component.loading()).toBe(true);
+    fixture.detectChanges();
+    const spinner = fixture.nativeElement.querySelector(
+      'mat-progress-spinner.lookup-spinner',
+    ) as HTMLElement;
+    expect(spinner).not.toBeNull();
+    expect(spinner.getAttribute('aria-label')).toBe(component.text().entityLookup.loading);
+    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent?.trim()).toBe('');
+    expect(fixture.nativeElement.querySelector('.state')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain(component.text().entityLookup.loading);
+
+    type(fixture, 'ab');
+    respond(0, [{ id: 'stale', label: 'Stale result' }]);
     expect(component.items()).toEqual([]);
     vi.advanceTimersByTime(300);
-    requests[1].result.next({
-      items: [{ id: 'new', label: 'New' }],
-      page: 0,
-      pageSize: 5,
-      totalElements: 6,
-    });
-    expect(component.items()[0].id).toBe('new');
-    fixture.detectChanges();
-    component.pageChanged({ pageIndex: 1 } as never);
-    expect(component.items()).toEqual([]);
-    fixture.detectChanges();
-    expect(fixture.debugElement.query(By.directive(MatPaginator)).componentInstance.disabled).toBe(
-      true,
-    );
-    expect(requests[2].page).toBe(1);
+    expect(requests[1]).toMatchObject({ query: 'ab', page: 0 });
+    respond(1, [{ id: 'current', label: 'Current result', detail: 'Current context' }]);
+    settleOverlay(fixture);
+
+    expect(await harness.isOpen()).toBe(true);
+    const options = await harness.getOptions();
+    expect(options).toHaveLength(1);
+    expect(await options[0].getText()).toContain('Current result');
+    expect(await options[0].getText()).toContain('Current context');
+    const progress = fixture.nativeElement.querySelector('.progress') as HTMLElement;
+    expect(progress.textContent).toContain(component.progressLabel());
+    expect(progress.closest('mat-form-field')).not.toBeNull();
+    expect(component.selectedId()).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('requires explicit selection, invalidates on first edit, exposes raw content, and fully clears', () => {
-    const { component } = setup(true);
+  it('requests a later page without debounce and reaches its appended option by keyboard', async () => {
+    const { fixture, component, loader } = setup();
+    type(fixture, 'many');
+    vi.advanceTimersByTime(300);
+    const firstPage = Array.from({ length: 5 }, (_, index) => ({
+      id: `${index + 1}`,
+      label: `Result ${index + 1}`,
+    }));
+    respond(0, firstPage, 6);
+    settleOverlay(fixture);
+    const harness = await loader.getHarness(MatAutocompleteHarness);
+    expect(await harness.getOptions()).toHaveLength(5);
+    const input = inputFor(fixture);
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    for (let index = 0; index < 5; index++) pressKey(fixture, 'ArrowDown');
+
+    expect(requests[1]).toMatchObject({ query: 'many', page: 1 });
+    expect(component.loading()).toBe(true);
+    expect(component.items()).toEqual(firstPage);
+    expect(await harness.getOptions()).toHaveLength(5);
+
+    respond(1, [{ id: '6', label: 'Result 6' }], 6, 1);
+    settleOverlay(fixture);
+    expect(component.items().map((item) => item.id)).toEqual(['1', '2', '3', '4', '5', '6']);
+    expect(await harness.getOptions()).toHaveLength(6);
+
+    // Material resets its active option when the QueryList grows. Traverse the
+    // accumulated public option list from the beginning to reach the new page.
+    for (let index = 0; index < 6; index++) pressKey(fixture, 'ArrowDown');
+    input.scrollLeft = 100;
+    pressKey(fixture, 'Enter');
+
+    expect(component.selectedId()).toBe('6');
+    expect(component.query()).toBe('Result 6');
+    expect(await harness.isOpen()).toBe(false);
+    await Promise.resolve();
+    expect(document.activeElement).not.toBe(input);
+    expect(input.selectionStart).toBe(0);
+    expect(input.scrollLeft).toBe(0);
+  });
+
+  it('loads on public panel scroll and keeps loaded options selectable while the page is pending', async () => {
+    const { fixture, component, loader } = setup();
+    type(fixture, 'scroll');
+    vi.advanceTimersByTime(300);
+    const firstPage = Array.from({ length: 5 }, (_, index) => ({
+      id: `${index + 1}`,
+      label: `Result ${index + 1}`,
+    }));
+    respond(0, firstPage, 10);
+    settleOverlay(fixture);
+    const harness = await loader.getHarness(MatAutocompleteHarness);
+    expect(await harness.isOpen()).toBe(true);
+    component.panelOpened();
+    vi.advanceTimersByTime(0);
+    fixture.detectChanges();
+
+    const autocomplete = fixture.debugElement.query(By.directive(MatAutocomplete))
+      .componentInstance as MatAutocomplete;
+    const panel = autocomplete.panel.nativeElement as HTMLElement;
+    Object.defineProperties(panel, {
+      clientHeight: { configurable: true, value: 200 },
+      scrollHeight: { configurable: true, value: 400 },
+      scrollTop: { configurable: true, value: 190, writable: true },
+    });
+    panel.dispatchEvent(new Event('scroll'));
+
+    expect(requests[1]).toMatchObject({ query: 'scroll', page: 1 });
+    expect(component.items()).toEqual(firstPage);
+    await harness.selectOption({ text: 'Result 1' });
+    expect(component.selectedId()).toBe('1');
+
+    respond(1, [{ id: 'late', label: 'Late result' }], 10, 1);
+    expect(component.items()).toEqual([]);
+  });
+
+  it('requires explicit selection, preserves submit-time required/optional rules, invalidates and clears', () => {
+    const { fixture, component } = setup(true);
     const values: Array<Item | null> = [];
-    const states: boolean[] = [];
+    const states: Array<{ selectedId: string | null; rawContentPresent: boolean }> = [];
     component.valueChange.subscribe((value) => values.push(value));
-    component.stateChange.subscribe((state) => states.push(state.rawContentPresent));
+    component.stateChange.subscribe((state) =>
+      states.push({ selectedId: state.selectedId, rawContentPresent: state.rawContentPresent }),
+    );
+
     expect(component.markSubmitted()).toBe(false);
-    type(component, 'Exact label');
-    expect(component.value()).toBeNull();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.validation')?.textContent).toContain(
+      component.text().entityLookup.required,
+    );
+
+    type(fixture, '   ');
+    vi.advanceTimersByTime(300);
+    expect(requests).toHaveLength(0);
+    expect(component.markSubmitted()).toBe(false);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.validation')?.textContent).toContain(
+      component.text().entityLookup.unresolved,
+    );
+
+    type(fixture, 'Exact label');
+    vi.advanceTimersByTime(300);
+    respond(0, [{ id: '1', label: 'Exact label' }]);
+    settleOverlay(fixture);
+    expect(component.selectedId()).toBeNull();
+    expect(component.markSubmitted()).toBe(false);
+
     component.select({ id: '1', label: 'Exact label' });
+    fixture.detectChanges();
     expect(component.markSubmitted()).toBe(true);
     expect(component.selectedId()).toBe('1');
-    type(component, 'Exact label!');
+    const selectedField = fixture.nativeElement.querySelector('mat-form-field') as HTMLElement;
+    expect(inputFor(fixture).value).toBe('Exact label');
+    expect(inputFor(fixture).title).toBe('Exact label');
+    expect(selectedField.classList).toContain('lookup-success');
+    expect(fixture.nativeElement.querySelector('.selected')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.success-check')).not.toBeNull();
+    expect(
+      fixture.nativeElement.querySelector('.success-check')?.closest('.lookup-status'),
+    ).not.toBe(null);
+    expect(fixture.nativeElement.querySelector('.success-check')?.closest('.lookup-suffix')).toBe(
+      fixture.nativeElement.querySelector('.clear-button')?.closest('.lookup-suffix'),
+    );
+    expect(fixture.nativeElement.querySelector('.lookup-spinner')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.clear-glyph')?.textContent?.trim()).toBe('×');
+    expect(fixture.nativeElement.querySelector('mat-icon')).toBeNull();
+
+    type(fixture, 'Exact label!');
     expect(values.at(-1)).toBeNull();
-    expect(states.at(-1)).toBe(true);
+    expect(states.at(-1)).toEqual({ selectedId: null, rawContentPresent: true });
+    expect(selectedField.classList).not.toContain('lookup-success');
+    expect(fixture.nativeElement.querySelector('.success-check')).toBeNull();
+    expect(inputFor(fixture).getAttribute('title')).toBeNull();
     component.clear();
+    fixture.detectChanges();
     expect(component.query()).toBe('');
-    expect(component.submitted()).toBe(false);
     expect(component.items()).toEqual([]);
-    expect(states.at(-1)).toBe(false);
+    expect(component.total()).toBe(0);
+    expect(component.submitted()).toBe(false);
+    expect(states.at(-1)).toEqual({ selectedId: null, rawContentPresent: false });
+
+    const optional = setup().component;
+    expect(optional.markSubmitted()).toBe(true);
+    optional.inputChanged({ target: { value: '   ' } } as unknown as Event);
+    expect(optional.markSubmitted()).toBe(false);
+    optional.clear();
+    expect(optional.markSubmitted()).toBe(true);
   });
 
-  it('separates loading, empty, failure and retry; clamps pages; resets stored failure on language change', () => {
+  it('keeps loading, no-results and failures distinct and retries outside the listbox immediately', () => {
     const { fixture, component } = setup();
-    type(component, 'owner');
+    type(fixture, 'owner');
     vi.advanceTimersByTime(300);
-    expect(component.loading()).toBe(true);
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('mat-progress-spinner.lookup-spinner'),
+    ).not.toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain(component.text().entityLookup.loading);
+
     requests[0].result.error(new Error('offline'));
-    expect(component.error()).not.toBeNull();
-    component.retry();
+    fixture.detectChanges();
+    const retry = fixture.nativeElement.querySelector('.retry') as HTMLButtonElement;
+    expect(retry).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.error')?.textContent).toContain(
+      component.text().entityLookup.loadFailed,
+    );
+    expect(document.querySelector('[role="listbox"] .retry')).toBeNull();
+
+    retry.click();
     expect(requests).toHaveLength(2);
-    requests[1].result.next({ items: [], page: 0, pageSize: 5, totalElements: 0 });
-    expect(component.searched()).toBe(true);
-    expect(component.loading()).toBe(false);
-    component.pageChanged({ pageIndex: 4 } as never);
-    requests[2].result.next({ items: [], page: 4, pageSize: 3, totalElements: 7 });
-    expect(requests[3].page).toBe(2);
-    requests[3].result.error(new Error('offline'));
+    expect(requests[1]).toMatchObject({ query: 'owner', page: 0 });
+    expect(component.query()).toBe('owner');
+    respond(1, [], 0);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.state')?.textContent).toContain(
+      component.text().entityLookup.noResults,
+    );
+
+    type(fixture, 'language');
+    vi.advanceTimersByTime(300);
+    requests[2].result.error(new Error('offline'));
+    expect(component.error()).not.toBeNull();
     TestBed.inject(I18nService).toggleLanguage();
     fixture.detectChanges();
     expect(component.error()).toBeNull();
   });
 
-  it('keeps lightweight initialization distinct and guards it and resolution from later interaction', async () => {
+  it('keeps trusted and known-id initialization immediate and guarded from later interaction', async () => {
     const { fixture, component } = setup();
     component.trustInitialValue({ id: 'initial', label: 'Initial label only' });
     await Promise.resolve();
+    fixture.detectChanges();
     expect(component.selectedId()).toBe('initial');
     expect(component.value()).toBeNull();
-    expect(component.selectedLabel()).toBe('Initial label only');
-    component.markSubmitted();
-    type(component, 'new');
+    expect(inputFor(fixture).value).toBe('Initial label only');
+    expect(fixture.nativeElement.querySelector('mat-form-field').classList).toContain(
+      'lookup-success',
+    );
+
+    inputFor(fixture).focus();
+    vi.advanceTimersByTime(300);
+    expect(requests).toHaveLength(0);
+
+    type(fixture, 'new');
     component.trustInitialValue({ id: 'late', label: 'Late' });
     await Promise.resolve();
     expect(component.selectedId()).toBeNull();
-    expect(component.value()).toBeNull();
+
     component.resolveKnownId('1');
     expect(resolutions[0].id).toBe('1');
-    type(component, 'newer');
+    type(fixture, 'newer');
     resolutions[0].result.next({ id: '1', label: 'Stale resolution' });
     expect(component.value()).toBeNull();
+
     component.resolveKnownId('2');
+    expect(resolutions[1].id).toBe('2');
     component.markSubmitted();
     resolutions[1].result.next({ id: '2', label: 'Resolved 2' });
     expect(component.value()?.label).toBe('Resolved 2');
     expect(component.selectedId()).toBe('2');
     expect(component.submitted()).toBe(false);
     expect(component.items()).toEqual([]);
-    expect(component.total()).toBe(0);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('[role="combobox"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.selected')?.textContent).toContain('Resolved 2');
-    component.reset();
-    expect(component.submitted()).toBe(false);
+  });
+
+  it('uses Material Escape behavior without selecting the active option', async () => {
+    const { fixture, component, loader } = setup();
+    type(fixture, 'escape');
+    vi.advanceTimersByTime(300);
+    respond(0, [{ id: '1', label: 'Escape result' }]);
+    settleOverlay(fixture);
+    const harness = await loader.getHarness(MatAutocompleteHarness);
+    expect(await harness.isOpen()).toBe(true);
+
+    pressKey(fixture, 'ArrowDown');
+    pressKey(fixture, 'Escape');
+
+    expect(await harness.isOpen()).toBe(false);
     expect(component.selectedId()).toBeNull();
+    expect(component.query()).toBe('escape');
   });
 });

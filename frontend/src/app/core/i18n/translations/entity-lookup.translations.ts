@@ -8,15 +8,7 @@ export interface EntityLookupTranslations {
   retry: string;
   required: string;
   unresolved: string;
-  selected: (label: string) => string;
-  paginator: {
-    itemsPerPage: string;
-    nextPage: string;
-    previousPage: string;
-    firstPage: string;
-    lastPage: string;
-    range: (page: number, pageSize: number, length: number) => string;
-  };
+  progress: (loaded: number, total: number) => string;
 }
 
 export const ENTITY_LOOKUP_TRANSLATIONS = {
@@ -28,18 +20,7 @@ export const ENTITY_LOOKUP_TRANSLATIONS = {
     retry: 'Reintentar',
     required: 'Selecciona un resultado.',
     unresolved: 'Selecciona un resultado o borra el texto.',
-    selected: (label) => `Seleccionado: ${label}`,
-    paginator: {
-      itemsPerPage: 'Elementos por página',
-      nextPage: 'Página siguiente',
-      previousPage: 'Página anterior',
-      firstPage: 'Primera página',
-      lastPage: 'Última página',
-      range: (page, pageSize, length) =>
-        length === 0
-          ? '0 de 0'
-          : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, length)} de ${length}`,
-    },
+    progress: (loaded, total) => `${loaded} de ${total} resultados cargados.`,
   },
   en: {
     clear: 'Clear selection',
@@ -49,17 +30,6 @@ export const ENTITY_LOOKUP_TRANSLATIONS = {
     retry: 'Retry',
     required: 'Select a result.',
     unresolved: 'Select a result or clear the text.',
-    selected: (label) => `Selected: ${label}`,
-    paginator: {
-      itemsPerPage: 'Items per page',
-      nextPage: 'Next page',
-      previousPage: 'Previous page',
-      firstPage: 'First page',
-      lastPage: 'Last page',
-      range: (page, pageSize, length) =>
-        length === 0
-          ? '0 of 0'
-          : `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, length)} of ${length}`,
-    },
+    progress: (loaded, total) => `${loaded} of ${total} results loaded.`,
   },
 } satisfies Record<AppLanguage, EntityLookupTranslations>;

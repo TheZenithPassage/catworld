@@ -902,8 +902,8 @@ neither `totalPages` nor `hasNext`. Search uses MySQL's case- and
 accent-insensitive comparison behavior for partial matching over owner full
 name, cat name or vet name respectively. A cat's current owner name is display
 context, not a cat search term. Stable ordering uses the display name followed
-by identifier. Positive pages beyond the last available page are clamped and
-reloaded by clients from the authoritative count.
+by identifier. Angular uses `totalElements` to decide whether another fixed-five
+page remains and accepts transient empty pages without clamp/reload recovery.
 
 Owner lookup items contain `id`, `fullName` and every current cat as an
 `id`/`name` pair. Focused `GET /api/owners/{id}/lookup` returns that same
@@ -916,11 +916,12 @@ and business resets. The focused reads use existing owner, cat and vet storage
 and relationships; leading-wildcard normalized name matching does not rely on a
 name index. They add no persistence model or cache.
 
-Angular provides one API- and domain-agnostic inline remote single-selector
-under `shared/entity-lookup`, plus focused Owner, Cat and Vet adapters. The
-generic selector receives search/resolution and presentation behavior rather
-than calling domain APIs. It debounces only text edits, accepts every non-empty
-trimmed query, and performs paging, Retry and known-ID resolution immediately.
+Angular provides one API- and domain-agnostic Material autocomplete remote
+single-selector under `shared/entity-lookup`, plus focused Owner, Cat and Vet
+adapters. The generic selector receives search/resolution and presentation
+behavior rather than calling domain APIs. It debounces only text edits, accepts
+every non-empty trimmed query, and performs later-page loading, Retry and
+known-ID resolution immediately.
 Text editing immediately invalidates a committed identifier and removes old
 results; typing an exact label never selects it. Only activating a result emits
 a positive full lookup value. A distinct lightweight trusted selection carries
@@ -938,20 +939,39 @@ Vet value converted from existing CRUD reads without searching its label;
 asynchronous initialization is guarded from later interaction. Stay flows use
 the complete focused Owner resolution when current cat identifiers and names
 are required. A public complete reset clears text, value, request identity,
-results, counts, status and paging.
+accumulated results, counts, status and paging progress.
 
-Lookup results remain in normal document flow and use public Angular Material
-buttons and paginator APIs rather than autocomplete, overlay or popup
-infrastructure. Loading, no-result and failure states are distinct and
-field-local; Retry remains immediate. The paginator appears for every
-successful non-empty result, including a single page, uses the fixed size five,
-and shares the localized paginator implementation extracted from entity detail.
-Stored failures reset when language changes while derived labels always use the
-active language. Results and selected context wrap vertically at full width
-without horizontal overflow. Cat create/edit, Stay create, and Stay search
-filters are the confirmed consumers; those features own form timing, domain
-mutations and cross-field reset policy rather than recreating lookup/search or
-label behavior.
+Lookup entity results are standard `mat-option` values in Material's normal
+autocomplete overlay, so result changes do not enter document flow. Material
+owns combobox/listbox semantics, active-option keyboard navigation, explicit
+activation, Escape dismissal and overlay positioning. After explicit selection,
+the shared selector drops input focus and returns the horizontal view to the
+start of the selected label. Public active-option and panel-scroll APIs request the next backend page; each successful
+later page appends to the existing options, which remain selectable while more
+results load. A new query discards the prior accumulated session and starts at
+page zero. Lookup has no paginator, custom overlay, inline fallback, page-clamp
+recovery or concurrent-mutation reconciliation.
+
+Loading, no-result and failure states are distinct, localized and field-local.
+Loading uses a compact Material spinner in the form-field suffix with localized
+accessible naming and no visible normal-flow loading row. Retry remains
+immediate, preserves the typed query and stays outside the listbox. Passive
+loaded/total progress remains outside option semantics. A committed selection
+replaces the spinner with a passive approval check in the same suffix slot and
+uses a green outline plus lighter green control background rather than adding a
+separate selected-status row. The adapter-selected presentation stays inside
+the input; Owner selections include every available current Cat name in one
+parenthesized list after the Owner name and clip visually to the available
+single-line width. Stored
+failures reset when language changes while derived labels always use the active
+language. Owner results retain every ordered current Cat as secondary context;
+Cat results retain current Owner context; Vet results remain name-only. Option
+context wraps vertically at full width without horizontal overflow. Cat
+create/edit, Stay create, and Stay search filters are the confirmed consumers;
+those features own form timing, domain mutations and cross-field reset policy
+rather than recreating lookup/search or label behavior. Stays overview and
+Calendar retain each selector's clear action and intentionally expose no
+additional composition-level Clear Filters button.
 
 Entity lookup changes no database schema, UML diagram, authentication policy,
 deployment topology or operational procedure.
@@ -962,8 +982,10 @@ Owner count and results, complete Owner-current-Cat projection and hydration,
 fixed-page and envelope semantics, and validation; full Maven verification
 provides backend regression evidence. Focused Angular tests own request
 encoding and envelope shapes plus selector concurrency, initialization,
-validity, paging and localized presentation; full frontend tests and production
-build provide integration regression evidence.
+validity, accumulated paging, public Material overlay/option interaction,
+keyboard/pointer reachability and localized presentation; full frontend tests,
+production build and responsive browser smoke provide integration regression
+evidence.
 
 Calendar app-owned filters, display options, stays overview status filters and
 shared stay search filters are Material-based. FullCalendar vendor-owned

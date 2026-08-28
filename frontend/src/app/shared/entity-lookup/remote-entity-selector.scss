@@ -1,26 +1,109 @@
 :host {
+  --lookup-success-background: #edf8ef;
+
   display: block;
   width: 100%;
   min-width: 0;
 }
 
-mat-form-field,
-.results,
-.result {
+mat-form-field {
   width: 100%;
   min-width: 0;
 }
 
-.selected,
+input {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lookup-suffix {
+  display: inline-flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.lookup-success {
+  --mat-form-field-outlined-outline-color: #2e7d32;
+  --mat-form-field-outlined-hover-outline-color: #1b5e20;
+  --mat-form-field-outlined-focus-outline-color: #2e7d32;
+  --mat-form-field-outlined-label-text-color: #2e7d32;
+  --mat-form-field-outlined-hover-label-text-color: #1b5e20;
+  --mat-form-field-outlined-focus-label-text-color: #1b5e20;
+  --mat-form-field-outlined-input-text-color: #1f5128;
+  --mat-form-field-outlined-caret-color: #2e7d32;
+  --mat-form-field-trailing-icon-color: #2e7d32;
+
+  border-radius: var(--mat-form-field-outlined-container-shape, 4px);
+  background: linear-gradient(var(--lookup-success-background), var(--lookup-success-background))
+    top / 100% var(--mat-form-field-container-height, 56px) no-repeat;
+}
+
+.lookup-success input {
+  background-color: var(--lookup-success-background);
+}
+
+.lookup-status {
+  display: inline-grid;
+  width: 1.5rem;
+  height: 2.5rem;
+  color: #1b5e20;
+  place-items: center;
+}
+
+.lookup-spinner {
+  --mdc-circular-progress-active-indicator-color: var(--color-primary);
+}
+
+.success-check {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.clear-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.lookup-success .clear-button {
+  color: #1b5e20;
+}
+
+.clear-glyph {
+  display: inline-grid;
+  width: 1em;
+  height: 1em;
+  place-items: center;
+  font-family: Arial, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1;
+  transform: translateY(-0.0625rem);
+}
+
 .state,
 .validation {
   margin: 0.25rem 0;
   overflow-wrap: anywhere;
 }
 
-.selected,
-.secondary {
+.secondary,
+.progress {
   color: var(--mat-sys-on-surface-variant);
+}
+
+.progress {
+  overflow-wrap: anywhere;
 }
 
 .validation,
@@ -28,24 +111,26 @@ mat-form-field,
   color: var(--mat-sys-error);
 }
 
-.results {
-  display: grid;
-  gap: 0.25rem;
+.error {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
 }
 
-.result {
+.lookup-option {
   height: auto;
-  justify-content: flex-start;
-  padding-block: 0.5rem;
-  text-align: start;
+  min-height: 3rem;
   white-space: normal;
 }
 
 .result-content {
   display: grid;
-  min-width: 0;
   width: 100%;
+  min-width: 0;
+  padding-block: 0.35rem;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .primary,

@@ -17,19 +17,8 @@
   flex: 1 1 18rem;
 }
 
-.filter-actions {
-  display: flex;
-  flex: 0 0 100%;
-  justify-content: center;
-}
-
-.filter-actions button {
-  width: fit-content;
-}
-
 @media (max-width: 520px) {
-  .search-filter,
-  .filter-actions button {
+  .search-filter {
     width: 100%;
   }
 }

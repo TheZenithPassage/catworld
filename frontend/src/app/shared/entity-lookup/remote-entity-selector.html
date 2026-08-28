@@ -1,57 +1,84 @@
-<mat-form-field appearance="outline">
+<mat-form-field appearance="outline" [class.lookup-success]="selectedId() !== null">
   <mat-label>{{ label() }}</mat-label>
-  <input matInput [value]="query()" (input)="inputChanged($event)" [required]="required()" />
-  @if (query().length > 0 || selectedId()) {
-    <button
-      mat-icon-button
-      matSuffix
-      type="button"
-      [attr.aria-label]="text().entityLookup.clear"
-      (click)="clear()"
-    >
-      <mat-icon aria-hidden="true">close</mat-icon>
-    </button>
+  <input
+    #lookupInput
+    matInput
+    type="text"
+    autocomplete="off"
+    [value]="query()"
+    [required]="required()"
+    [matAutocomplete]="autocomplete"
+    [attr.title]="selectedId() ? query() : null"
+    [attr.aria-invalid]="submitted() && !valid() ? 'true' : null"
+    (input)="inputChanged($event)"
+  />
+
+  @if (loading() || query().length > 0 || selectedId()) {
+    <span matSuffix class="lookup-suffix">
+      @if (loading() || selectedId()) {
+        <span class="lookup-status" aria-live="polite">
+          @if (loading()) {
+            <mat-progress-spinner
+              class="lookup-spinner"
+              mode="indeterminate"
+              [diameter]="18"
+              [attr.aria-label]="text().entityLookup.loading"
+            />
+          } @else {
+            <svg class="success-check" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="m5 12.5 4.2 4.2L19 7" />
+            </svg>
+          }
+        </span>
+      }
+      @if (query().length > 0 || selectedId()) {
+        <button
+          mat-icon-button
+          type="button"
+          class="clear-button"
+          [attr.aria-label]="text().entityLookup.clear"
+          (click)="clear()"
+        >
+          <span class="clear-glyph" aria-hidden="true">×</span>
+        </button>
+      }
+    </span>
   }
-</mat-form-field>
+  @if (items().length > 0) {
+    <mat-hint class="progress" aria-live="polite">{{ progressLabel() }}</mat-hint>
+  }
 
-@if (selectedId()) {
-  <p class="selected" aria-live="polite">{{ text().entityLookup.selected(selectedLabel()) }}</p>
-}
-@if (submitted() && !valid()) {
-  <p class="validation" role="alert">{{ validationMessage() }}</p>
-}
-@if (loading()) {
-  <p class="state" aria-live="polite">{{ text().entityLookup.loading }}</p>
-} @else if (error()) {
-  <div class="state error" role="alert">
-    <span>{{ error() }}</span>
-    <button mat-button type="button" (click)="retry()">{{ text().entityLookup.retry }}</button>
-  </div>
-} @else if (searched() && items().length === 0) {
-  <p class="state" aria-live="polite">{{ text().entityLookup.noResults }}</p>
-}
-
-@if (items().length > 0) {
-  <div class="results">
+  <mat-autocomplete
+    #autocomplete="matAutocomplete"
+    [displayWith]="displayValue"
+    (optionSelected)="optionSelected($event)"
+    (optionActivated)="optionActivated($event)"
+    (opened)="panelOpened()"
+    (closed)="panelClosed()"
+  >
     @for (item of items(); track adapter().id(item)) {
-      <button mat-button type="button" class="result" (click)="select(item)">
+      <mat-option class="lookup-option" [value]="item">
         <span class="result-content">
           <span class="primary">{{ adapter().present(item).primary }}</span>
           @if (adapter().present(item).secondary; as secondary) {
             <span class="secondary">{{ secondary }}</span>
           }
         </span>
-      </button>
+      </mat-option>
     }
-  </div>
+  </mat-autocomplete>
+</mat-form-field>
+
+@if (submitted() && !valid()) {
+  <p class="validation" role="alert">{{ validationMessage() }}</p>
 }
-@if (total() > 0) {
-  <mat-paginator
-    [length]="total()"
-    [pageIndex]="page()"
-    [pageSize]="5"
-    [hidePageSize]="true"
-    [disabled]="loading()"
-    (page)="pageChanged($event)"
-  />
+@if (error()) {
+  <div class="state error" role="alert">
+    <span>{{ error() }}</span>
+    <button mat-button type="button" class="retry" (click)="retry()">
+      {{ text().entityLookup.retry }}
+    </button>
+  </div>
+} @else if (searched() && items().length === 0) {
+  <p class="state" aria-live="polite">{{ text().entityLookup.noResults }}</p>
 }

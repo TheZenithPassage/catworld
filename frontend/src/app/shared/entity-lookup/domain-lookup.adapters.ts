@@ -26,10 +26,11 @@ export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
     return value.id;
   }
   present(value: OwnerLookup): EntityLookupPresentation {
+    const currentCats = value.currentCats.map((cat) => cat.name).join(', ');
     return {
       primary: value.fullName,
-      secondary: value.currentCats.map((cat) => cat.name).join(', ') || undefined,
-      selected: value.fullName,
+      secondary: currentCats || undefined,
+      selected: currentCats ? `${value.fullName} (${currentCats})` : value.fullName,
     };
   }
   fromCrud(value: Owner): EntityLookupInitialSelection {

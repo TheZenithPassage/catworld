@@ -120,7 +120,6 @@ export interface StaysTranslations {
     };
     cat: string;
     searchCat: string;
-    clear: string;
     noCatsMatch: string;
     owner: string;
     searchOwnerOrCats: string;
@@ -380,7 +379,6 @@ export const STAYS_TRANSLATIONS = {
       },
       cat: 'Gato',
       searchCat: 'Buscar gato',
-      clear: 'Limpiar',
       noCatsMatch: 'Ningún gato coincide con esta búsqueda.',
       owner: 'Dueño',
       searchOwnerOrCats: 'Buscar dueño o uno de sus gatos',
@@ -642,7 +640,6 @@ export const STAYS_TRANSLATIONS = {
       },
       cat: 'Cat',
       searchCat: 'Search cat',
-      clear: 'Clear',
       noCatsMatch: 'No cats match this search.',
       owner: 'Owner',
       searchOwnerOrCats: 'Search owner or one of their cats',

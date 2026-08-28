@@ -16,12 +16,4 @@
       (stateChange)="onOwnerStateChange($event)"
     />
   </div>
-
-  @if (hasSearchFilters()) {
-    <div class="filter-actions">
-      <button mat-stroked-button type="button" (click)="clearFilters()">
-        {{ text().stays.filters.clear }}
-      </button>
-    </div>
-  }
 </div>
