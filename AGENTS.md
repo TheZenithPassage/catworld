@@ -9,15 +9,21 @@ Before normal workflow execution:
 1. Require `.catworld-workflow/runtime-manifest.json` and
    `.catworld-workflow/AGENTS.md`.
 2. Parse the manifest and require a valid `sourcePath`, a full `sourceSha`, and
-   valid `managedFiles` evidence for the installed runtime.
+   a `managedFiles` array of unique, safe relative runtime paths.
 3. Require the recorded source checkout to exist and its current HEAD to resolve
    to the recorded `sourceSha`.
-4. For every `managedFiles` path, require a regular, non-symlink target file
+4. Derive the complete canonical target set from tracked regular files at
+   `sourceSha`: map source `AGENTS.md` to `.catworld-workflow/AGENTS.md`, and map
+   canonical `.agents/skills/**`, `.codex/agents/**`, and `.specify/**` to the
+   same target paths, excluding target-local state such as
+   `.specify/feature.json`. Require `managedFiles` to equal this set exactly;
+   missing, extra, duplicate, or unsafe entries are invalid.
+5. For every canonical managed target, require a regular, non-symlink file
    whose bytes exactly match its committed Git blob at `sourceSha`. Map
    `.catworld-workflow/AGENTS.md` to source `AGENTS.md`; map every other target
    to the same relative source path. Read committed blob bytes, never source
    working-tree text.
-5. Only after these checks, load and follow the installed authoritative
+6. Only after these checks, load and follow the installed authoritative
    `.catworld-workflow/AGENTS.md`
    for all routing and workflow behavior.
 
