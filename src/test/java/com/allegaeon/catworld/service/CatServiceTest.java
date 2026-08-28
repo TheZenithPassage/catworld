@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -96,6 +97,23 @@ class CatServiceTest {
 
     @Captor
     private ArgumentCaptor<Cat> catCaptor;
+
+    @Test
+    void catLookupValidatesEscapesAndMapsOnlyCatMatchesWithOwnerContext() {
+        assertThrows(BadRequestException.class, () -> service.searchCats(" ", 0));
+        assertThrows(BadRequestException.class, () -> service.searchCats("m", -1));
+        Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Owner context").build();
+        Cat cat = Cat.builder().id(UUID.randomUUID()).name("Milo").owner(owner).build();
+        when(catRepository.search(eq("m!%!_!!"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cat),
+                org.springframework.data.domain.PageRequest.of(0, 5), 8));
+
+        LookupPage<CatLookupItem> result = service.searchCats(" m%_! ", 0);
+
+        assertEquals(5, result.pageSize());
+        assertEquals(8, result.totalElements());
+        assertEquals(new CatLookupItem(cat.getId(), "Milo", owner.getId(), "Owner context"),
+                result.items().getFirst());
+    }
 
     @Test
     void catDetailUsesEmptyPreviewForZeroAndTypedStatusForHistory() {

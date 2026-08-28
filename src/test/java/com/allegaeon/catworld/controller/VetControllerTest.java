@@ -3,6 +3,7 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -38,6 +39,23 @@ public class VetControllerTest {
 
     @Nested
     class GetVetTests {
+
+        @Test
+        void searchRouteUsesDefaultPageAndSerializesLookupEnvelopeAndValidation() throws Exception {
+            UUID vetId = UUID.randomUUID();
+            when(vetService.searchVets("v", 0)).thenReturn(new LookupPage<>(
+                    List.of(new VetLookupItem(vetId, "Vet")), 0, 5, 1));
+            mockMvc.perform(get("/api/vets/search").param("q", "v"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].name").value("Vet"))
+                    .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.pageSize").value(5))
+                    .andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.totalPages").doesNotExist()).andExpect(jsonPath("$.hasNext").doesNotExist());
+            when(vetService.searchVets("  ", 0)).thenThrow(new BadRequestException("Search query must not be empty"));
+            when(vetService.searchVets("v", -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            mockMvc.perform(get("/api/vets/search").param("q", "  ")).andExpect(status().isBadRequest());
+            mockMvc.perform(get("/api/vets/search").param("q", "v").param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
 
         @Test
         void detailAndExplicitCatPageSerializeAndDelegate() throws Exception {

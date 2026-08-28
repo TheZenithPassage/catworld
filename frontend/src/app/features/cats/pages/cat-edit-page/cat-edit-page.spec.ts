@@ -15,6 +15,7 @@ import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../../components/cat-editor/cat-editor';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 
 describe('CatEditor', () => {
   let component: CatEditor;
@@ -74,10 +75,14 @@ describe('CatEditor', () => {
 
   const ownerApiService = {
     getOwners: vi.fn(),
+    searchOwners: vi.fn(),
+    getOwnerLookup: vi.fn(),
   };
 
   const vetApiService = {
     getVets: vi.fn(),
+    searchVets: vi.fn(),
+    getVetById: vi.fn(),
   };
 
   const router = {
@@ -177,10 +182,37 @@ describe('CatEditor', () => {
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(3);
+    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
+    expect(ownerApiService.getOwners).not.toHaveBeenCalled();
+    expect(vetApiService.getVets).not.toHaveBeenCalled();
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe('Milo');
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
     expect(compiled.querySelector('a[mat-stroked-button]')).not.toBeNull();
+  });
+
+  it('initializes routed-free edit from trusted Cat labels without relationship reads', async () => {
+    fixture = TestBed.createComponent(CatEditor);
+    fixture.componentRef.setInput('entityId', cat.id);
+    fixture.componentRef.setInput('entity', cat);
+    fixture.componentRef.setInput('routed', false);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const selectors = fixture.debugElement
+      .queryAll(By.directive(RemoteEntitySelector))
+      .map((element) => element.componentInstance as RemoteEntitySelector<unknown>);
+
+    expect(catApiService.getCatById).not.toHaveBeenCalled();
+    expect(ownerApiService.getOwners).not.toHaveBeenCalled();
+    expect(vetApiService.getVets).not.toHaveBeenCalled();
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
+    expect(selectors.map((selector) => selector.selectedId())).toEqual(['owner-1', 'vet-1']);
+    expect(fixture.nativeElement.querySelector('.page-header')).toBeNull();
   });
 
   it('does not update when the name is blank', async () => {
@@ -206,6 +238,7 @@ describe('CatEditor', () => {
     component.sex.set('MALE');
     component.ownerId.set('owner-1');
     component.vetId.set('');
+    component.vetRawContentPresent.set(false);
     component.breed.set('');
     component.coat.set('short');
     component.color.set(' orange ');

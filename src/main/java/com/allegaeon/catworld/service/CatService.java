@@ -4,6 +4,8 @@ import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.CatPhotoContent;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.mapper.CatMapper;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Set;
@@ -34,6 +37,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 @Service
 public class CatService implements ICatService{
+
+    private static final int LOOKUP_PAGE_SIZE = 5;
+    private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
 
     private final CatRepository catRepository;
     private final CatMapper catMapper;
@@ -78,6 +84,16 @@ public class CatService implements ICatService{
     @Override
     public CatResponseDTO getCat(UUID id) {
         return toResponseDTO(getCatEntity(id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPage<CatLookupItem> searchCats(String query, int page) {
+        String trimmed = requireLookupInput(query, page);
+        Page<Cat> cats = catRepository.search(trimmed, PageRequest.of(page, LOOKUP_PAGE_SIZE, LOOKUP_ORDER));
+        return new LookupPage<>(cats.stream().map(cat -> new CatLookupItem(cat.getId(), cat.getName(),
+                        cat.getOwner().getId(), cat.getOwner().getFullName())).toList(),
+                page, LOOKUP_PAGE_SIZE, cats.getTotalElements());
     }
 
     @Override
@@ -178,6 +194,17 @@ public class CatService implements ICatService{
 
     private CatResponseDTO mapResponse(Cat cat, boolean canDelete, boolean hasPhoto) {
         return hasPhoto ? catMapper.toResponseDTO(cat, canDelete, true) : catMapper.toResponseDTO(cat, canDelete);
+    }
+
+    private String requireLookupInput(String query, int page) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        String trimmed = query == null ? "" : query.trim();
+        if (trimmed.isEmpty()) throw new BadRequestException("Search query must not be empty");
+        return escapeLookupQuery(trimmed);
+    }
+
+    private String escapeLookupQuery(String query) {
+        return query.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
 }

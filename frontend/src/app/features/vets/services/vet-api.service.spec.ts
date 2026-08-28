@@ -44,4 +44,29 @@ describe('VetApiService', () => {
       request.flush({});
     }
   });
+
+  it('searches encoded vet pages with the focused shape', () => {
+    service.searchVets('  Clínica & Sol  ', 0).subscribe((page) =>
+      expect(page).toEqual({
+        items: [{ id: 'vet-1', name: 'Clínica Sol' }],
+        page: 0,
+        pageSize: 5,
+        totalElements: 1,
+      }),
+    );
+    service.getVetById('vet-1').subscribe((vet) => expect(vet.name).toBe('Clínica Sol'));
+    const request = httpTestingController.expectOne(
+      `${API_BASE_URL}/vets/search?q=Cl%C3%ADnica%20%26%20Sol&page=0`,
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      items: [{ id: 'vet-1', name: 'Clínica Sol' }],
+      page: 0,
+      pageSize: 5,
+      totalElements: 1,
+    });
+    const resolve = httpTestingController.expectOne(`${API_BASE_URL}/vets/vet-1`);
+    expect(resolve.request.method).toBe('GET');
+    resolve.flush({ id: 'vet-1', name: 'Clínica Sol', address: null, phoneNumber: null });
+  });
 });

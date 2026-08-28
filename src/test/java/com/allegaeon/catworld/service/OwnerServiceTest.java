@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -76,6 +77,44 @@ class OwnerServiceTest {
 
     @Captor
     private ArgumentCaptor<Owner> ownerCaptor;
+
+    @Test
+    void ownerLookupValidatesEscapesPagesHydratesAllCatsAndSupportsFocusedRead() {
+        assertThrows(BadRequestException.class, () -> service.searchOwners("   ", 0));
+        assertThrows(BadRequestException.class, () -> service.searchOwners("x", -1));
+        verify(ownerRepository, never()).search(any(), any());
+
+        when(ownerRepository.search(eq("x"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(),
+                org.springframework.data.domain.PageRequest.of(3, 5), 7));
+        LookupPage<OwnerLookupItem> empty = service.searchOwners(" x ", 3);
+        assertEquals(3, empty.page());
+        assertEquals(5, empty.pageSize());
+        assertEquals(7, empty.totalElements());
+        assertEquals(List.of(), empty.items());
+
+        UUID ownerId = UUID.randomUUID();
+        Owner owner = owner(ownerId, creator("creator"));
+        var alpha = relationshipCat("Alpha", owner);
+        var zulu = relationshipCat("Zulu", owner);
+        when(ownerRepository.search(eq("needle"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(owner)));
+        when(catRepository.findLookupCatsByOwnerIds(List.of(ownerId))).thenReturn(List.of(alpha, zulu));
+        OwnerLookupItem result = service.searchOwners("needle", 0).items().getFirst();
+        assertEquals(ownerId, result.id());
+        assertEquals(List.of("Alpha", "Zulu"), result.currentCats().stream().map(CurrentCatLookupItem::name).toList());
+
+        when(ownerRepository.findById(ownerId)).thenReturn(Optional.of(owner));
+        assertEquals(result, service.getOwnerLookup(ownerId));
+        UUID missing = UUID.randomUUID();
+        when(ownerRepository.findById(missing)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.getOwnerLookup(missing));
+    }
+
+    @Test
+    void ownerLookupEscapesEveryLikeMetacharacterAfterTrimming() {
+        when(ownerRepository.search(any(), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        service.searchOwners(" %_! ", 0);
+        verify(ownerRepository).search(eq("!%!_!!"), any(Pageable.class));
+    }
 
     @Test
     void ownerDetailComposesCompleteThreeItemPreviewAndHidesFourItemStayPreview() {

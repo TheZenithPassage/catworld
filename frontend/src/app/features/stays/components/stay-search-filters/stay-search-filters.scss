@@ -17,38 +17,8 @@
   flex: 1 1 18rem;
 }
 
-.search-control {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-}
-
-.search-field {
-  min-width: 0;
-  flex: 1;
-}
-
-.empty-options {
-  font-weight: 600;
-}
-
-.filter-actions {
-  display: flex;
-  flex: 0 0 100%;
-  justify-content: center;
-}
-
-.filter-actions button {
-  width: fit-content;
-}
-
 @media (max-width: 520px) {
-  .search-control {
-    flex-direction: column;
-  }
-
-  .search-field,
-  .filter-actions button {
+  .search-filter {
     width: 100%;
   }
 }

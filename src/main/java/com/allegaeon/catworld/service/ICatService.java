@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ public interface ICatService {
 
     List<CatResponseDTO> getAllCats();
     CatResponseDTO getCat(UUID id);
+    LookupPage<CatLookupItem> searchCats(String query, int page);
     CatDetailResponse getCatDetail(UUID id);
     RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page);
     CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo);

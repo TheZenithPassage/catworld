@@ -6,6 +6,7 @@ import com.allegaeon.catworld.dto.CatPhotoContent;
 import com.allegaeon.catworld.exception.CatPhotoException;
 import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -88,6 +89,24 @@ public class CatControllerTest {
 
     @Nested
     class GetCatTests {
+
+        @Test
+        void searchRouteUsesDefaultPageAndSerializesLookupEnvelopeAndValidation() throws Exception {
+            UUID catId = UUID.randomUUID();
+            UUID ownerId = UUID.randomUUID();
+            when(catService.searchCats("m", 0)).thenReturn(new LookupPage<>(
+                    List.of(new CatLookupItem(catId, "Milo", ownerId, "Owner")), 0, 5, 1));
+            mockMvc.perform(get("/api/cats/search").param("q", "m"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].ownerId").value(ownerId.toString()))
+                    .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.pageSize").value(5))
+                    .andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.totalPages").doesNotExist()).andExpect(jsonPath("$.hasNext").doesNotExist());
+            when(catService.searchCats("", 0)).thenThrow(new BadRequestException("Search query must not be empty"));
+            when(catService.searchCats("m", -1)).thenThrow(new BadRequestException("Page must not be negative"));
+            mockMvc.perform(get("/api/cats/search").param("q", "")).andExpect(status().isBadRequest());
+            mockMvc.perform(get("/api/cats/search").param("q", "m").param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
 
         @Test
         void detailAndStayPageExposeTypedLightweightStatusAndDefaultPage() throws Exception {

@@ -1,0 +1,87 @@
+<mat-form-field appearance="outline" [class.lookup-success]="selectedId() !== null">
+  <mat-label>{{ label() }}</mat-label>
+  <input
+    #lookupInput
+    matInput
+    type="text"
+    autocomplete="off"
+    [value]="query()"
+    [required]="required()"
+    [matAutocomplete]="autocomplete"
+    [errorStateMatcher]="errorStateMatcher"
+    [attr.title]="selectedId() ? query() : null"
+    [attr.aria-invalid]="invalidFeedback()"
+    (input)="inputChanged($event)"
+  />
+
+  @if (loading() || query().length > 0 || selectedId() || invalidFeedback()) {
+    <span matSuffix class="lookup-suffix">
+      @if (loading() || selectedId() || invalidFeedback()) {
+        <span class="lookup-status" aria-live="polite">
+          @if (loading()) {
+            <mat-progress-spinner
+              class="lookup-spinner"
+              mode="indeterminate"
+              [diameter]="18"
+              [attr.aria-label]="text().entityLookup.loading"
+            />
+          } @else if (selectedId()) {
+            <svg class="success-check" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="m5 12.5 4.2 4.2L19 7" />
+            </svg>
+          } @else {
+            <span class="invalid-indicator" aria-hidden="true">!</span>
+          }
+        </span>
+      }
+      @if (query().length > 0 || selectedId()) {
+        <button
+          mat-icon-button
+          type="button"
+          class="clear-button"
+          [attr.aria-label]="text().entityLookup.clear"
+          (click)="clear()"
+        >
+          <span class="clear-glyph" aria-hidden="true">×</span>
+        </button>
+      }
+    </span>
+  }
+  @if (items().length > 0) {
+    <mat-hint class="progress" aria-live="polite">{{ progressLabel() }}</mat-hint>
+  }
+  <mat-error>
+    @if (invalidFeedback()) {
+      {{ invalidMessage() }}
+    }
+  </mat-error>
+
+  <mat-autocomplete
+    #autocomplete="matAutocomplete"
+    [displayWith]="displayValue"
+    (optionSelected)="optionSelected($event)"
+    (optionActivated)="optionActivated($event)"
+    (opened)="panelOpened()"
+    (closed)="panelClosed()"
+  >
+    @for (item of items(); track $index) {
+      <mat-option class="lookup-option" [value]="item">
+        <span class="result-content">
+          <span class="primary">{{ adapter().present(item).primary }}</span>
+          @if (adapter().present(item).secondary; as secondary) {
+            <span class="secondary">{{ secondary }}</span>
+          }
+        </span>
+      </mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>
+
+@if (error()) {
+  <div class="state error" role="alert">
+    <span>{{ error() }}</span>
+    <button mat-button type="button" class="retry" (click)="retry()">
+      {{ text().entityLookup.retry }}
+    </button>
+  </div>
+}

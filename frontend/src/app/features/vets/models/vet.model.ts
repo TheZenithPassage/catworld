@@ -12,3 +12,8 @@ export interface CreateVetRequest {
 }
 
 export type UpdateVetRequest = CreateVetRequest;
+
+export interface VetLookup {
+  id: string;
+  name: string;
+}

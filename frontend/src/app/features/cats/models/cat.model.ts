@@ -50,3 +50,10 @@ export interface CatPhotoMutation {
   photo: File | null;
   removePhoto: boolean;
 }
+
+export interface CatLookup {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+}

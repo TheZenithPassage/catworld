@@ -96,4 +96,25 @@ describe('CatApiService', () => {
     expect(request.request.responseType).toBe('blob');
     request.flush(blob);
   });
+
+  it('searches encoded cat pages with the focused owner presentation shape', () => {
+    service.searchCats('  Milo & Mia  ', 1).subscribe((page) =>
+      expect(page.items[0]).toEqual({
+        id: 'cat-1',
+        name: 'Milo',
+        ownerId: 'owner-1',
+        ownerName: 'María',
+      }),
+    );
+    const request = httpTestingController.expectOne(
+      `${API_BASE_URL}/cats/search?q=Milo%20%26%20Mia&page=1`,
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      items: [{ id: 'cat-1', name: 'Milo', ownerId: 'owner-1', ownerName: 'María' }],
+      page: 1,
+      pageSize: 5,
+      totalElements: 6,
+    });
+  });
 });

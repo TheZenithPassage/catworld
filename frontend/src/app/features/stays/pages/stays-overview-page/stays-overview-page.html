@@ -48,10 +48,7 @@
     </mat-checkbox>
   </div>
 
-  <app-stay-search-filters
-    [stays]="stays()"
-    (filtersChange)="setSearchFilters($event)"
-  ></app-stay-search-filters>
+  <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
 
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().stays.overview.loading"></app-ui-state>

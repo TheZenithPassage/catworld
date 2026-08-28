@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
+import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -71,6 +72,22 @@ class VetServiceTest {
 
     @Captor
     private ArgumentCaptor<Vet> vetCaptor;
+
+    @Test
+    void vetLookupValidatesEscapesAndMapsFixedPage() {
+        assertThrows(BadRequestException.class, () -> service.searchVets("  ", 0));
+        assertThrows(BadRequestException.class, () -> service.searchVets("v", -1));
+        Vet vet = vet(UUID.randomUUID(), creator());
+        when(vetRepository.search(eq("v!%!_!!"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(vet),
+                org.springframework.data.domain.PageRequest.of(2, 5), 11));
+
+        LookupPage<VetLookupItem> result = service.searchVets(" v%_! ", 2);
+
+        assertEquals(2, result.page());
+        assertEquals(5, result.pageSize());
+        assertEquals(11, result.totalElements());
+        assertEquals(new VetLookupItem(vet.getId(), vet.getName()), result.items().getFirst());
+    }
 
     @Test
     void vetDetailComposesOneCompleteCatPreview() {

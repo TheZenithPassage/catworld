@@ -31,10 +31,7 @@
     }
   </div>
 
-  <app-stay-search-filters
-    [stays]="stays()"
-    (filtersChange)="setSearchFilters($event)"
-  ></app-stay-search-filters>
+  <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
 
   <div class="calendar-display-options">
     @if (hasEntityFilter()) {
