@@ -117,7 +117,7 @@
             class="permanent-delete-action"
             mat-stroked-button
             type="button"
-            [disabled]="deleting()"
+            [disabled]="cancellationContextLoading() || deleting()"
             (click)="confirmPermanentDeletion(stay)"
           >
             {{

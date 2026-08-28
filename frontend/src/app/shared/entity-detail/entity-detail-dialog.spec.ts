@@ -1385,6 +1385,68 @@ describe('EntityDetailDialog', () => {
     ).toBe(false);
   });
 
+  it('blocks permanent deletion while independently loaded cancellation context is pending', async () => {
+    const pricingGate = new Subject<Stay>();
+    const cancellationContext = new Subject<Stay>();
+    const cancellationClosed = new Subject<boolean>();
+    const deletionClosed = new Subject<boolean>();
+    const materialDialog = {
+      open: vi.fn((component: unknown) => ({
+        afterClosed: () =>
+          component === StayCancellationDialog ? cancellationClosed : deletionClosed,
+      })),
+    };
+    const deletableStay = { ...operationalStay, canDelete: true };
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById
+      .mockReturnValueOnce(pricingGate.asObservable())
+      .mockReturnValueOnce(cancellationContext.asObservable());
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialog, useValue: materialDialog },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+
+    buttonContaining(fixture, fixture.componentInstance.text().stays.cancellation.action).click();
+    fixture.detectChanges();
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.cancellationContextLoading()).toBe(true);
+
+    pricingGate.next(deletableStay);
+    fixture.detectChanges();
+    const deleteButton = buttonContaining(
+      fixture,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    );
+    expect(deleteButton.disabled).toBe(true);
+    fixture.componentInstance.confirmPermanentDeletion(fixture.componentInstance.detail()!);
+    expect(materialDialog.open).not.toHaveBeenCalled();
+    expect(stayApi.deleteStay).not.toHaveBeenCalled();
+
+    cancellationContext.next(deletableStay);
+    fixture.detectChanges();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      StayCancellationDialog,
+      expect.objectContaining({ data: expect.objectContaining({ stayId: 'stay-1' }) }),
+    );
+    expect(fixture.componentInstance.cancellationContextLoading()).toBe(false);
+
+    cancellationClosed.next(false);
+    cancellationClosed.complete();
+    fixture.componentInstance.confirmPermanentDeletion(fixture.componentInstance.detail()!);
+    expect(materialDialog.open).toHaveBeenLastCalledWith(
+      PermanentDeletionConfirmationDialog,
+      expect.any(Object),
+    );
+  });
+
   it('renders deletion only for exact eligibility and supplies a human Stay subject without deleting on dismissal', async () => {
     const afterClosed = new Subject<boolean>();
     const materialDialog = {

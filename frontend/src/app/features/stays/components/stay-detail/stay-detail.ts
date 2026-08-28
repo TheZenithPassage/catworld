@@ -145,7 +145,7 @@ export class StayDetail {
     return stay?.stayId === detail.stayId && stay.canDelete === true;
   }
   confirmPermanentDeletion(detail: StayDetailResponse): void {
-    if (this.deleting()) return;
+    if (this.deleting() || this.cancellationContextLoading()) return;
     const stay = this.pricingStay();
     if (stay?.stayId !== detail.stayId || stay.canDelete !== true) return;
     const subject = `${stay.cats.map((cat) => cat.name).join(', ')} — ${stay.ownerName} — ${this.date(stay.startAt)} – ${this.date(stay.endAt)}`;
@@ -163,7 +163,8 @@ export class StayDetail {
       .subscribe(() => this.deletePermanently(stay.stayId));
   }
   private deletePermanently(stayId: string): void {
-    if (this.deleting()) return;
+    if (this.deleting() || this.cancellationContextLoading()) return;
+    this.invalidateCancellationContext();
     const generation = ++this.deletionGeneration;
     this.deleting.set(true);
     this.deletionError.set(null);
@@ -189,7 +190,7 @@ export class StayDetail {
     this.deletionCompleted.emit({ entityType: 'stay', entityId: stayId });
   }
   cancelStay(detail: StayDetailResponse): void {
-    if (this.cancellationContextLoading()) return;
+    if (this.cancellationContextLoading() || this.deleting()) return;
     const completeStay = this.pricingStay();
     if (completeStay?.stayId === detail.stayId) {
       this.cancellationContextError.set(false);
