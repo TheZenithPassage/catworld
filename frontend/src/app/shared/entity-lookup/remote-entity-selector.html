@@ -56,7 +56,7 @@
     (opened)="panelOpened()"
     (closed)="panelClosed()"
   >
-    @for (item of items(); track adapter().id(item)) {
+    @for (item of items(); track $index) {
       <mat-option class="lookup-option" [value]="item">
         <span class="result-content">
           <span class="primary">{{ adapter().present(item).primary }}</span>

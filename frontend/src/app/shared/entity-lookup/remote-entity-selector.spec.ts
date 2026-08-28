@@ -150,6 +150,7 @@ describe('RemoteEntitySelector', () => {
   });
 
   it('requests a later page without debounce and reaches its appended option by keyboard', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { fixture, component, loader } = setup();
     type(fixture, 'many');
     vi.advanceTimersByTime(300);
@@ -157,7 +158,7 @@ describe('RemoteEntitySelector', () => {
       id: `${index + 1}`,
       label: `Result ${index + 1}`,
     }));
-    respond(0, firstPage, 6);
+    respond(0, firstPage, 7);
     settleOverlay(fixture);
     const harness = await loader.getHarness(MatAutocompleteHarness);
     expect(await harness.getOptions()).toHaveLength(5);
@@ -172,14 +173,23 @@ describe('RemoteEntitySelector', () => {
     expect(component.items()).toEqual(firstPage);
     expect(await harness.getOptions()).toHaveLength(5);
 
-    respond(1, [{ id: '6', label: 'Result 6' }], 6, 1);
+    respond(
+      1,
+      [
+        { id: '1', label: 'Result 1 repeated after a concurrent mutation' },
+        { id: '6', label: 'Result 6' },
+      ],
+      7,
+      1,
+    );
     settleOverlay(fixture);
-    expect(component.items().map((item) => item.id)).toEqual(['1', '2', '3', '4', '5', '6']);
-    expect(await harness.getOptions()).toHaveLength(6);
+    expect(component.items().map((item) => item.id)).toEqual(['1', '2', '3', '4', '5', '1', '6']);
+    expect(await harness.getOptions()).toHaveLength(7);
+    expect(consoleError).not.toHaveBeenCalled();
 
     // Material resets its active option when the QueryList grows. Traverse the
     // accumulated public option list from the beginning to reach the new page.
-    for (let index = 0; index < 6; index++) pressKey(fixture, 'ArrowDown');
+    for (let index = 0; index < 7; index++) pressKey(fixture, 'ArrowDown');
     input.scrollLeft = 100;
     pressKey(fixture, 'Enter');
 

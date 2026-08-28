@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 :host {
   --lookup-success-background: #edf8ef;
 
@@ -27,19 +29,23 @@ input {
 }
 
 .lookup-success {
-  --mat-form-field-outlined-outline-color: #2e7d32;
-  --mat-form-field-outlined-hover-outline-color: #1b5e20;
-  --mat-form-field-outlined-focus-outline-color: #2e7d32;
-  --mat-form-field-outlined-label-text-color: #2e7d32;
-  --mat-form-field-outlined-hover-label-text-color: #1b5e20;
-  --mat-form-field-outlined-focus-label-text-color: #1b5e20;
-  --mat-form-field-outlined-input-text-color: #1f5128;
-  --mat-form-field-outlined-caret-color: #2e7d32;
-  --mat-form-field-trailing-icon-color: #2e7d32;
+  @include mat.form-field-overrides(
+    (
+      outlined-outline-color: #2e7d32,
+      outlined-hover-outline-color: #1b5e20,
+      outlined-focus-outline-color: #2e7d32,
+      outlined-label-text-color: #2e7d32,
+      outlined-hover-label-text-color: #1b5e20,
+      outlined-focus-label-text-color: #1b5e20,
+      outlined-input-text-color: #1f5128,
+      outlined-caret-color: #2e7d32,
+      trailing-icon-color: #2e7d32,
+    )
+  );
 
-  border-radius: var(--mat-form-field-outlined-container-shape, 4px);
+  border-radius: 0.25rem;
   background: linear-gradient(var(--lookup-success-background), var(--lookup-success-background))
-    top / 100% var(--mat-form-field-container-height, 56px) no-repeat;
+    top / 100% 56px no-repeat;
 }
 
 .lookup-success input {
@@ -55,7 +61,11 @@ input {
 }
 
 .lookup-spinner {
-  --mdc-circular-progress-active-indicator-color: var(--color-primary);
+  @include mat.progress-spinner-overrides(
+    (
+      active-indicator-color: var(--color-primary),
+    )
+  );
 }
 
 .success-check {
@@ -72,7 +82,7 @@ input {
   width: 2.5rem;
   height: 2.5rem;
   padding: 0;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--color-text-muted);
 }
 
 .lookup-success .clear-button {
@@ -99,7 +109,7 @@ input {
 
 .secondary,
 .progress {
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--color-text-muted);
 }
 
 .progress {
@@ -108,7 +118,7 @@ input {
 
 .validation,
 .error {
-  color: var(--mat-sys-error);
+  color: var(--color-danger);
 }
 
 .error {
