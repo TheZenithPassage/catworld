@@ -63,6 +63,7 @@
           <button
             mat-button
             type="button"
+            [disabled]="deleting()"
             (click)="navigate.emit({ entityType: 'owner', entityId: stay.owner.id })"
           >
             {{ stay.owner.fullName }}
@@ -86,13 +87,14 @@
             <button
               mat-button
               type="button"
+              [disabled]="deleting()"
               (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
             >
               {{ cat.name }} — {{ cat.ownerName }}
             </button>
           }
         } @else {
-          <button mat-button type="button" (click)="openCats.emit()">
+          <button mat-button type="button" [disabled]="deleting()" (click)="openCats.emit()">
             {{ text().entityDetail.associatedRecords(stay.cats.totalElements) }}
           </button>
         }

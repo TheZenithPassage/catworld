@@ -1455,7 +1455,15 @@ describe('EntityDetailDialog', () => {
   ] as const)('locks one root deletion request and completes on %s', async (_label, failure) => {
     const confirmation = new Subject<boolean>();
     const deletion = new Subject<void>();
-    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayDetail.mockReturnValue(
+      of({
+        ...stayDetailResponse('stay-1'),
+        cats: {
+          totalElements: 2,
+          items: [catItem('cat-1'), catItem('cat-2')],
+        },
+      }),
+    );
     stayApi.getStayById.mockReturnValue(of({ ...operationalStay, canDelete: true }));
     stayApi.deleteStay.mockReturnValue(deletion);
     await TestBed.configureTestingModule({
@@ -1490,6 +1498,37 @@ describe('EntityDetailDialog', () => {
     expect(fixture.nativeElement.textContent).toContain(
       fixture.componentInstance.text().deletion.actions.deleting,
     );
+    const referenceBeforeNavigation = fixture.componentInstance.reference();
+    const historyBeforeNavigation = fixture.componentInstance.history();
+    const relatedButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('.detail-field dd button, .relationship-group button'),
+    ) as HTMLButtonElement[];
+    expect(relatedButtons).toHaveLength(3);
+    expect(relatedButtons.every((button) => button.disabled)).toBe(true);
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.componentInstance.openCats({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.componentInstance.openStays({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.componentInstance.openCatPhoto({
+      catId: 'cat-1',
+      catName: 'Milo',
+      ownerName: 'Ada Lovelace',
+    });
+    fixture.componentInstance.openStayPricing();
+    fixture.componentInstance.back();
+    expect(fixture.componentInstance.reference()).toBe(referenceBeforeNavigation);
+    expect(fixture.componentInstance.history()).toBe(historyBeforeNavigation);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+    const stayDetail = fixture.debugElement.query(By.directive(StayDetail))
+      .componentInstance as StayDetail;
+    stayDetail.detail.set({
+      ...stayDetailResponse('stay-1'),
+      cats: { totalElements: 4, items: [] },
+    });
+    fixture.detectChanges();
+    expect(
+      buttonContaining(fixture, fixture.componentInstance.text().entityDetail.associatedRecords(4))
+        .disabled,
+    ).toBe(true);
     buttonContaining(fixture, fixture.componentInstance.text().deletion.actions.deleting).click();
     expect(stayApi.deleteStay).toHaveBeenCalledOnce();
 
