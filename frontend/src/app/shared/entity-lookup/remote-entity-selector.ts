@@ -83,6 +83,23 @@ export class RemoteEntitySelector<T> {
       ? this.text().entityLookup.required
       : this.text().entityLookup.unresolved,
   );
+  readonly noResults = computed(
+    () =>
+      this.error() === null &&
+      !this.loading() &&
+      this.searched() &&
+      this.items().length === 0 &&
+      this.query().trim().length > 0,
+  );
+  readonly invalidFeedback = computed(
+    () =>
+      this.error() === null &&
+      !this.loading() &&
+      (this.noResults() || (this.submitted() && !this.valid())),
+  );
+  readonly invalidMessage = computed(() =>
+    this.noResults() ? this.text().entityLookup.noResults : this.validationMessage(),
+  );
   readonly progressLabel = computed(() =>
     this.text().entityLookup.progress(Math.min(this.items().length, this.total()), this.total()),
   );
@@ -118,6 +135,7 @@ export class RemoteEntitySelector<T> {
 
   inputChanged(event: Event): void {
     this.interactionGeneration++;
+    this.submitted.set(false);
     this.query.set((event.target as HTMLInputElement).value);
     this.value.set(null);
     this.selectedId.set(null);

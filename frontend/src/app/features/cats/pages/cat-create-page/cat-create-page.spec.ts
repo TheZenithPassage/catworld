@@ -327,7 +327,7 @@ describe('CatCreatePage', () => {
 
     expect(catApiService.createCat).not.toHaveBeenCalled();
     expect(component.name()).toBe('Milo');
-    expect(fixture.nativeElement.querySelectorAll('.validation')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('.validation')).toHaveLength(0);
   });
 
   it('creates without a photo after rejecting an invalid candidate and preserves fields', () => {

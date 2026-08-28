@@ -953,11 +953,16 @@ page zero. Lookup has no paginator, custom overlay, inline fallback, page-clamp
 recovery or concurrent-mutation reconciliation.
 
 Loading, no-result and failure states are distinct, localized and field-local.
-Loading uses a compact Material spinner in the form-field suffix with localized
-accessible naming and no visible normal-flow loading row. Retry remains
+One passive suffix status slot shows a spinner while loading, a green approval
+check for an explicit valid selection, or a red exclamation mark after a
+successful zero-result search or a failed required/unresolved submission.
+Localized semantic text remains available to assistive technology without
+adding visible normal-flow validation or no-result rows. Editing clears prior
+submit validation before the new lookup lifecycle, and clear restores the
+neutral state. Infrastructure failure remains separate: Retry remains
 immediate, preserves the typed query and stays outside the listbox. Passive
 loaded/total progress remains outside option semantics. A committed selection
-replaces the spinner with a passive approval check in the same suffix slot and
+uses the approval check in the same suffix slot and
 uses a green outline plus lighter green control background rather than adding a
 separate selected-status row. The adapter-selected presentation stays inside
 the input; Owner selections include every available current Cat name in one

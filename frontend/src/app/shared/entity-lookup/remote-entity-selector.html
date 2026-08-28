@@ -9,13 +9,13 @@
     [required]="required()"
     [matAutocomplete]="autocomplete"
     [attr.title]="selectedId() ? query() : null"
-    [attr.aria-invalid]="submitted() && !valid() ? 'true' : null"
+    [attr.aria-invalid]="invalidFeedback() ? 'true' : null"
     (input)="inputChanged($event)"
   />
 
-  @if (loading() || query().length > 0 || selectedId()) {
+  @if (loading() || query().length > 0 || selectedId() || invalidFeedback()) {
     <span matSuffix class="lookup-suffix">
-      @if (loading() || selectedId()) {
+      @if (loading() || selectedId() || invalidFeedback()) {
         <span class="lookup-status" aria-live="polite">
           @if (loading()) {
             <mat-progress-spinner
@@ -24,10 +24,13 @@
               [diameter]="18"
               [attr.aria-label]="text().entityLookup.loading"
             />
-          } @else {
+          } @else if (selectedId()) {
             <svg class="success-check" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path d="m5 12.5 4.2 4.2L19 7" />
             </svg>
+          } @else {
+            <span class="invalid-indicator" aria-hidden="true">!</span>
+            <span class="visually-hidden">{{ invalidMessage() }}</span>
           }
         </span>
       }
@@ -69,9 +72,6 @@
   </mat-autocomplete>
 </mat-form-field>
 
-@if (submitted() && !valid()) {
-  <p class="validation" role="alert">{{ validationMessage() }}</p>
-}
 @if (error()) {
   <div class="state error" role="alert">
     <span>{{ error() }}</span>
@@ -79,6 +79,4 @@
       {{ text().entityLookup.retry }}
     </button>
   </div>
-} @else if (searched() && items().length === 0) {
-  <p class="state" aria-live="polite">{{ text().entityLookup.noResults }}</p>
 }

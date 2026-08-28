@@ -248,20 +248,28 @@ describe('RemoteEntitySelector', () => {
 
     expect(component.markSubmitted()).toBe(false);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.validation')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.validation')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
       component.text().entityLookup.required,
     );
+    expect(inputFor(fixture).getAttribute('aria-invalid')).toBe('true');
 
     type(fixture, '   ');
+    expect(component.submitted()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
+    expect(inputFor(fixture).getAttribute('aria-invalid')).toBe('false');
     vi.advanceTimersByTime(300);
     expect(requests).toHaveLength(0);
     expect(component.markSubmitted()).toBe(false);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.validation')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
       component.text().entityLookup.unresolved,
     );
 
     type(fixture, 'Exact label');
+    expect(component.submitted()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
     vi.advanceTimersByTime(300);
     respond(0, [{ id: '1', label: 'Exact label' }]);
     settleOverlay(fixture);
@@ -300,6 +308,7 @@ describe('RemoteEntitySelector', () => {
     expect(component.items()).toEqual([]);
     expect(component.total()).toBe(0);
     expect(component.submitted()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
     expect(states.at(-1)).toEqual({ selectedId: null, rawContentPresent: false });
 
     const optional = setup().component;
@@ -318,6 +327,7 @@ describe('RemoteEntitySelector', () => {
     expect(
       fixture.nativeElement.querySelector('mat-progress-spinner.lookup-spinner'),
     ).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain(component.text().entityLookup.loading);
 
     requests[0].result.error(new Error('offline'));
@@ -327,6 +337,7 @@ describe('RemoteEntitySelector', () => {
     expect(fixture.nativeElement.querySelector('.error')?.textContent).toContain(
       component.text().entityLookup.loadFailed,
     );
+    expect(fixture.nativeElement.querySelector('.invalid-indicator')).toBeNull();
     expect(document.querySelector('[role="listbox"] .retry')).toBeNull();
 
     retry.click();
@@ -335,9 +346,11 @@ describe('RemoteEntitySelector', () => {
     expect(component.query()).toBe('owner');
     respond(1, [], 0);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.state')?.textContent).toContain(
+    expect(fixture.nativeElement.querySelector('.state')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.lookup-status')?.textContent).toContain(
       component.text().entityLookup.noResults,
     );
+    expect(inputFor(fixture).getAttribute('aria-invalid')).toBe('true');
 
     type(fixture, 'language');
     vi.advanceTimersByTime(300);
