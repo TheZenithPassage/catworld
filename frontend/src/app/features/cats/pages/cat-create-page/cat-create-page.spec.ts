@@ -422,7 +422,7 @@ describe('CatCreatePage', () => {
     }
   });
 
-  it('restores every Cat draft field and overlays only a returned Owner', () => {
+  it('restores a returned Owner but does not return it when the nested Cat is cancelled', () => {
     const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
     const draft = completeDraft(photo);
     ownerApiService.getOwnerLookup.mockImplementation((id: string) =>
@@ -483,7 +483,7 @@ describe('CatCreatePage', () => {
     router.navigate.mockClear();
     component.cancel();
     expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
-      queryParams: { ownerId: 'owner-2', creationFlowId: flowId },
+      queryParams: { creationFlowId: flowId },
     });
     preview.mockRestore();
   });

@@ -214,11 +214,17 @@ export class CatCreatePage implements AfterViewInit {
     this.photoInput?.reset();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {
-      const ownerId =
-        this.ownerId() ||
-        (!this.ownerLookupStateReceived ? this.route.snapshot.queryParamMap.get('ownerId') : null);
       const queryParams: Record<string, string> = {};
-      if (ownerId) queryParams['ownerId'] = ownerId;
+      const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+      const isStayFlow = this.creationFlow.has(flowId) && this.creationFlow.root(flowId) === 'stay';
+      if (!isStayFlow) {
+        const ownerId =
+          this.ownerId() ||
+          (!this.ownerLookupStateReceived
+            ? this.route.snapshot.queryParamMap.get('ownerId')
+            : null);
+        if (ownerId) queryParams['ownerId'] = ownerId;
+      }
       this.prepareFlowReturn('/stays/new', queryParams);
       this.router.navigate(['/stays/new'], {
         queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
