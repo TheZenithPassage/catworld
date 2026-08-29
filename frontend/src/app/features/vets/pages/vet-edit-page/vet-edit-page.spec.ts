@@ -172,6 +172,18 @@ describe('VetEditor', () => {
     );
   });
 
+  it('shows a localized Material error and does not update for an overlong registration number', async () => {
+    createComponent();
+    setInputValue('registrationNumber', 'R'.repeat(101));
+
+    await submitRenderedForm();
+
+    expect(vetApiService.updateVet).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(
+      component.text().vets.edit.errors.registrationNumberTooLong,
+    );
+  });
+
   it('shows load errors through shared Material error state', () => {
     vetApiService.getVetById.mockReturnValue(
       throwError(

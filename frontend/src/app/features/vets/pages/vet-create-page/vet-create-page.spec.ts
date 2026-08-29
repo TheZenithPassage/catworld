@@ -143,6 +143,19 @@ describe('VetCreatePage', () => {
     );
   });
 
+  it('shows a localized Material error and does not create for an overlong registration number', async () => {
+    fixture.detectChanges();
+    setInputValue('name', 'Dr. Whiskers');
+    setInputValue('registrationNumber', 'R'.repeat(101));
+
+    await submitRenderedForm();
+
+    expect(vetApiService.createVet).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(
+      component.text().vets.create.errors.registrationNumberTooLong,
+    );
+  });
+
   it('preserves cat return navigation after vet creation', () => {
     vetApiService.createVet.mockReturnValue(of({ id: 'vet-1' }));
     queryParams = {

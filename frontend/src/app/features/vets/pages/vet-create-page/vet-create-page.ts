@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -45,6 +46,9 @@ export class VetCreatePage {
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly nameError = createLanguageResetError(this.i18nService.language);
   readonly registrationNumberError = createLanguageResetError(this.i18nService.language);
+  readonly registrationNumberErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.registrationNumberError() !== null,
+  };
 
   submit(): void {
     this.error.set(null);

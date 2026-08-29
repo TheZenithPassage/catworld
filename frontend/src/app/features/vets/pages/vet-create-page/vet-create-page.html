@@ -53,6 +53,7 @@
         matInput
         type="text"
         name="registrationNumber"
+        [errorStateMatcher]="registrationNumberErrorStateMatcher"
         [ngModel]="registrationNumber()"
         (ngModelChange)="registrationNumber.set($event)"
       />
