@@ -94,7 +94,8 @@ describe('VetCreatePage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(5);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="name"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="phoneNumber"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
@@ -118,6 +119,7 @@ describe('VetCreatePage', () => {
     component.address.set('  ');
     component.phoneNumber.set(' 555-3333 ');
     component.registrationNumber.set('  REG-123  ');
+    component.notes.set('  first line\n  second line  ');
 
     component.submit();
 
@@ -126,9 +128,20 @@ describe('VetCreatePage', () => {
       address: null,
       phoneNumber: '555-3333',
       registrationNumber: 'REG-123',
+      notes: 'first line\n  second line',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/vets']);
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not create for overlong notes', async () => {
+    component.name.set('Dr. Whiskers');
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(vetApiService.createVet).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().vets.create.errors.notesTooLong);
   });
 
   it('normalizes a blank registration number to null in the create payload', () => {

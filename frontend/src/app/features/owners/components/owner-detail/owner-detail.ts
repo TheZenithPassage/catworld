@@ -81,6 +81,10 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
             <dt>{{ text().owners.form.facebook }}</dt>
             <dd>{{ value(owner.facebook) }}</dd>
           </div>
+          <div class="detail-field detail-field-notes">
+            <dt>{{ text().owners.form.notes }}</dt>
+            <dd>{{ value(owner.notes) }}</dd>
+          </div>
         </dl>
         @if (detail.cats.totalElements > 0) {
           <section class="relationship-group">

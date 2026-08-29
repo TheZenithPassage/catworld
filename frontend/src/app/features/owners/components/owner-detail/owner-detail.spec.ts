@@ -22,6 +22,7 @@ describe('OwnerDetail permanent deletion', () => {
       secondaryPhoneName: null,
       instagram: null,
       facebook: null,
+      notes: null,
     },
     cats: {
       totalElements: 1,
@@ -76,6 +77,22 @@ describe('OwnerDetail permanent deletion', () => {
     component.detail.set(detail(undefined));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.permanent-delete-action')).toBeNull();
+  });
+
+  it('renders present multiline notes and the normal empty value', () => {
+    component.detail.set({
+      ...detail(true),
+      owner: { ...detail(true).owner, notes: 'line one\nline two' },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      'line one\nline two',
+    );
+    component.detail.set(detail(true));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      component.text().owners.emptyValue,
+    );
   });
 
   it('uses only the full name as subject and cancellation sends no DELETE', () => {

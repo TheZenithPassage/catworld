@@ -29,4 +29,7 @@ public class VetRequestDTO {
         return normalized.isEmpty() ? null : normalized;
     }
 
+    @Size(max = 10000, message = "Notes must not exceed 10000 characters")
+    private String notes;
+
 }

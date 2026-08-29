@@ -22,6 +22,7 @@ describe('VetEditor', () => {
     address: 'Clinic Street 1',
     phoneNumber: '555-3333',
     registrationNumber: 'REG-OLD',
+    notes: null,
   };
 
   const vetApiService = {
@@ -115,7 +116,8 @@ describe('VetEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(vetApiService.getVetById).toHaveBeenCalledWith('vet-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(5);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe(
       'Dr. Whiskers',
     );
@@ -145,6 +147,7 @@ describe('VetEditor', () => {
     component.address.set('');
     component.phoneNumber.set(' 555-4444 ');
     component.registrationNumber.set('  REG-NEW  ');
+    component.notes.set('  first line\n  second line  ');
 
     component.submit();
 
@@ -153,10 +156,21 @@ describe('VetEditor', () => {
       address: null,
       phoneNumber: '555-4444',
       registrationNumber: 'REG-NEW',
+      notes: 'first line\n  second line',
     });
     expect(saved).toHaveBeenCalledWith(vet);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not update for overlong notes', async () => {
+    createComponent();
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(vetApiService.updateVet).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().vets.edit.errors.notesTooLong);
   });
 
   it('normalizes a cleared registration number to null in the update payload', () => {

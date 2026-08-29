@@ -19,6 +19,7 @@ describe('VetDetail permanent deletion', () => {
       address: null,
       phoneNumber: null,
       registrationNumber: 'REG-123',
+      notes: null,
     },
     cats: {
       totalElements: 1,
@@ -70,6 +71,22 @@ describe('VetDetail permanent deletion', () => {
     component.detail.set(detail(undefined));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.permanent-delete-action')).toBeNull();
+  });
+
+  it('renders present multiline notes and the normal empty value', () => {
+    component.detail.set({
+      ...detail(true),
+      vet: { ...detail(true).vet, notes: 'line one\nline two' },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      'line one\nline two',
+    );
+    component.detail.set(detail(true));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      component.text().vets.emptyValue,
+    );
   });
 
   it('renders the registration number and the existing optional empty value', () => {

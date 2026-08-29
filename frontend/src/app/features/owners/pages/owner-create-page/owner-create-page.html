@@ -96,6 +96,21 @@
       />
     </mat-form-field>
 
+    <mat-form-field appearance="outline">
+      <mat-label>{{ text().owners.form.notes }}</mat-label>
+      <textarea
+        matInput
+        name="notes"
+        rows="5"
+        [errorStateMatcher]="notesErrorStateMatcher"
+        [ngModel]="notes()"
+        (ngModelChange)="updateNotes($event)"
+      ></textarea>
+      @if (notesError(); as message) {
+        <mat-error>{{ message }}</mat-error>
+      }
+    </mat-form-field>
+
     <div class="form-actions">
       <button mat-flat-button type="submit" [disabled]="submitting()">
         {{ submitting() ? text().owners.create.submitting : text().owners.create.submit }}

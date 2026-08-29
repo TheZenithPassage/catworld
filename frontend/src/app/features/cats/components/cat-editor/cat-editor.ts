@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
@@ -69,6 +70,7 @@ export class CatEditor {
   readonly foodBrand = signal('');
   readonly litterBrand = signal('');
   readonly personality = signal('');
+  readonly notes = signal('');
   readonly lastInternalDewormerName = signal('');
   readonly lastInternalDewormingDate = signal('');
   readonly lastExternalDewormerName = signal('');
@@ -83,6 +85,15 @@ export class CatEditor {
   readonly nameError = createLanguageResetError(this.i18n.language);
   readonly birthDateError = createLanguageResetError(this.i18n.language);
   readonly sexError = createLanguageResetError(this.i18n.language);
+  readonly notesError = createLanguageResetError(this.i18n.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().cats.edit.errors.notesTooLong : null);
+  }
   constructor() {
     effect(() => {
       const entity = this.entity();
@@ -129,6 +140,7 @@ export class CatEditor {
     this.nameError.set(null);
     this.birthDateError.set(null);
     this.sexError.set(null);
+    this.notesError.set(null);
     if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
@@ -146,6 +158,10 @@ export class CatEditor {
       this.sexError.set(this.text().cats.edit.errors.sexRequired);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().cats.edit.errors.notesTooLong);
+      return;
+    }
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
@@ -159,6 +175,7 @@ export class CatEditor {
       foodBrand: this.optional(this.foodBrand()),
       litterBrand: this.optional(this.litterBrand()),
       personality: this.optional(this.personality()),
+      notes: this.optional(this.notes()),
       lastInternalDewormerName: this.optional(this.lastInternalDewormerName()),
       lastInternalDewormingDate: this.optional(this.lastInternalDewormingDate()),
       lastExternalDewormerName: this.optional(this.lastExternalDewormerName()),
@@ -217,6 +234,7 @@ export class CatEditor {
     this.foodBrand.set(c.foodBrand ?? '');
     this.litterBrand.set(c.litterBrand ?? '');
     this.personality.set(c.personality ?? '');
+    this.notes.set(c.notes ?? '');
     this.lastInternalDewormerName.set(c.lastInternalDewormerName ?? '');
     this.lastInternalDewormingDate.set(c.lastInternalDewormingDate ?? '');
     this.lastExternalDewormerName.set(c.lastExternalDewormerName ?? '');

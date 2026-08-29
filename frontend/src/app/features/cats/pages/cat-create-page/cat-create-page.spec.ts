@@ -34,6 +34,7 @@ describe('CatCreatePage', () => {
       secondaryPhoneName: null,
       instagram: null,
       facebook: null,
+      notes: null,
     },
   ];
 
@@ -44,6 +45,7 @@ describe('CatCreatePage', () => {
       address: null,
       phoneNumber: null,
       registrationNumber: null,
+      notes: null,
     },
   ];
 
@@ -58,6 +60,7 @@ describe('CatCreatePage', () => {
     foodBrand: null,
     litterBrand: null,
     personality: null,
+    notes: null,
     lastInternalDewormerName: null,
     lastInternalDewormingDate: null,
     lastExternalDewormerName: null,
@@ -179,7 +182,8 @@ describe('CatCreatePage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(18);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
     expect(ownerApiService.getOwners).not.toHaveBeenCalled();
@@ -218,6 +222,7 @@ describe('CatCreatePage', () => {
     component.foodBrand.set(' chicken ');
     component.litterBrand.set('  ');
     component.personality.set(' friendly ');
+    component.notes.set('  first line\n  second line  ');
     component.lastInternalDewormerName.set('');
     component.lastInternalDewormingDate.set('2025-01-01');
     component.lastExternalDewormerName.set(' topical ');
@@ -238,6 +243,7 @@ describe('CatCreatePage', () => {
         foodBrand: 'chicken',
         litterBrand: null,
         personality: 'friendly',
+        notes: 'first line\n  second line',
         lastInternalDewormerName: null,
         lastInternalDewormingDate: '2025-01-01',
         lastExternalDewormerName: 'topical',
@@ -251,6 +257,20 @@ describe('CatCreatePage', () => {
     );
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not create for overlong notes', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().cats.create.errors.notesTooLong);
   });
 
   it('preserves stay return query params after cat creation', () => {

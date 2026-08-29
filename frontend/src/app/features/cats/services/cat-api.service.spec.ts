@@ -19,6 +19,7 @@ describe('CatApiService', () => {
     foodBrand: null,
     litterBrand: null,
     personality: null,
+    notes: null,
     lastInternalDewormerName: null,
     lastInternalDewormingDate: null,
     lastExternalDewormerName: null,

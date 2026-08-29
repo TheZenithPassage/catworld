@@ -37,6 +37,9 @@ public class Cat extends AuditableEntity {
     private String litterBrand;
     private String personality;
 
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     private String lastInternalDewormerName;
     private LocalDate lastInternalDewormingDate;
     private String lastExternalDewormerName;

@@ -40,6 +40,7 @@ describe('EntityDetailDialog', () => {
     secondaryPhoneName: null,
     instagram: null,
     facebook: null,
+    notes: null,
   };
   const updated = { ...owner, fullName: 'Ada Byron' };
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
@@ -54,6 +55,7 @@ describe('EntityDetailDialog', () => {
     foodBrand: null,
     litterBrand: null,
     personality: null,
+    notes: null,
     lastInternalDewormerName: null,
     lastInternalDewormingDate: null,
     lastExternalDewormerName: null,
@@ -73,6 +75,7 @@ describe('EntityDetailDialog', () => {
     phoneNumber: null,
     address: null,
     registrationNumber: null,
+    notes: null,
   };
   const updatedVet = { ...vet, name: 'Dr. Vet Updated' };
   const detail = (value: Owner): OwnerDetailResponse => ({
@@ -309,6 +312,7 @@ describe('EntityDetailDialog', () => {
             phoneNumber: null,
             address: null,
             registrationNumber: null,
+            notes: null,
           },
           cats: { totalElements: 0, items: [] },
         }),
@@ -728,6 +732,7 @@ describe('EntityDetailDialog', () => {
           foodBrand: null,
           litterBrand: null,
           personality: null,
+          notes: null,
           lastInternalDewormerName: null,
           lastInternalDewormingDate: null,
           lastExternalDewormerName: null,
@@ -851,6 +856,7 @@ describe('EntityDetailDialog', () => {
           foodBrand: null,
           litterBrand: null,
           personality: null,
+          notes: null,
           lastInternalDewormerName: null,
           lastInternalDewormingDate: null,
           lastExternalDewormerName: null,
@@ -1770,6 +1776,7 @@ describe('EntityDetailDialog cat photo destination', () => {
             foodBrand: null,
             litterBrand: null,
             personality: null,
+            notes: null,
             lastInternalDewormerName: null,
             lastInternalDewormingDate: null,
             lastExternalDewormerName: null,

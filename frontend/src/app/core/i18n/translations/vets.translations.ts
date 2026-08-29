@@ -17,6 +17,7 @@ export interface VetsTranslations {
     address: string;
     phoneNumber: string;
     registrationNumber: string;
+    notes: string;
   };
   create: {
     title: string;
@@ -27,6 +28,7 @@ export interface VetsTranslations {
       nameRequired: string;
       registrationNumberTooLong: string;
       createFailed: string;
+      notesTooLong: string;
     };
   };
   edit: {
@@ -43,6 +45,7 @@ export interface VetsTranslations {
       nameRequired: string;
       registrationNumberTooLong: string;
       updateFailed: string;
+      notesTooLong: string;
     };
   };
   overview: {
@@ -85,6 +88,7 @@ export const VETS_TRANSLATIONS = {
       address: 'Dirección',
       phoneNumber: 'Número de teléfono',
       registrationNumber: 'Número de matrícula profesional',
+      notes: 'Notas',
     },
     create: {
       title: 'Crear veterinario',
@@ -95,6 +99,7 @@ export const VETS_TRANSLATIONS = {
         nameRequired: 'El nombre es obligatorio',
         registrationNumberTooLong: 'El número de matrícula no puede superar los 100 caracteres',
         createFailed: 'Error al crear el veterinario',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     edit: {
@@ -111,6 +116,7 @@ export const VETS_TRANSLATIONS = {
         nameRequired: 'El nombre es obligatorio',
         registrationNumberTooLong: 'El número de matrícula no puede superar los 100 caracteres',
         updateFailed: 'Error al actualizar el veterinario',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     overview: {
@@ -151,6 +157,7 @@ export const VETS_TRANSLATIONS = {
       address: 'Address',
       phoneNumber: 'Phone number',
       registrationNumber: 'Professional registration number',
+      notes: 'Notes',
     },
     create: {
       title: 'Create vet',
@@ -161,6 +168,7 @@ export const VETS_TRANSLATIONS = {
         nameRequired: 'Name is required',
         registrationNumberTooLong: 'Registration number must not exceed 100 characters',
         createFailed: 'Error creating vet',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     edit: {
@@ -177,6 +185,7 @@ export const VETS_TRANSLATIONS = {
         nameRequired: 'Name is required',
         registrationNumberTooLong: 'Registration number must not exceed 100 characters',
         updateFailed: 'Error updating vet',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     overview: {

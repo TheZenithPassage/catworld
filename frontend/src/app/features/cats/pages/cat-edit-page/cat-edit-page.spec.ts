@@ -32,6 +32,7 @@ describe('CatEditor', () => {
       secondaryPhoneName: null,
       instagram: null,
       facebook: null,
+      notes: null,
     },
   ];
 
@@ -42,6 +43,7 @@ describe('CatEditor', () => {
       address: null,
       phoneNumber: null,
       registrationNumber: null,
+      notes: null,
     },
   ];
 
@@ -56,6 +58,7 @@ describe('CatEditor', () => {
     foodBrand: null,
     litterBrand: null,
     personality: 'Friendly',
+    notes: null,
     lastInternalDewormerName: null,
     lastInternalDewormingDate: null,
     lastExternalDewormerName: null,
@@ -182,7 +185,8 @@ describe('CatEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(17);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(18);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
     expect(ownerApiService.getOwners).not.toHaveBeenCalled();
@@ -246,6 +250,7 @@ describe('CatEditor', () => {
     component.foodBrand.set('  ');
     component.litterBrand.set(' pine ');
     component.personality.set('');
+    component.notes.set('  first line\n  second line  ');
     component.lastInternalDewormerName.set(' pill ');
     component.lastInternalDewormingDate.set('');
     component.lastExternalDewormerName.set('');
@@ -267,6 +272,7 @@ describe('CatEditor', () => {
         foodBrand: null,
         litterBrand: 'pine',
         personality: null,
+        notes: 'first line\n  second line',
         lastInternalDewormerName: 'pill',
         lastInternalDewormingDate: null,
         lastExternalDewormerName: null,
@@ -282,6 +288,36 @@ describe('CatEditor', () => {
     expect(saved).toHaveBeenCalledWith(cat);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not update for overlong notes', async () => {
+    createComponent();
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().cats.edit.errors.notesTooLong);
+  });
+
+  it('shows and clears the notes boundary error immediately without updating', async () => {
+    createComponent();
+
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(component.text().cats.edit.errors.notesTooLong);
+
+    component.updateNotes('x'.repeat(10001));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).toContain(component.text().cats.edit.errors.notesTooLong);
+
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(component.text().cats.edit.errors.notesTooLong);
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
   });
 
   it('submits unchanged, removal, replacement, and restored saved-photo intents', () => {

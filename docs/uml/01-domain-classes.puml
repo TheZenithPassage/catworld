@@ -17,6 +17,7 @@ package "catworld.domain" {
     +String secondaryPhoneName
     +String instagram
     +String facebook
+    +String notes
     +UserAccount createdBy  <<NotNull>>
   }
 
@@ -26,6 +27,7 @@ package "catworld.domain" {
     +String address
     +String phoneNumber
     +String registrationNumber
+    +String notes
     +UserAccount createdBy  <<NotNull>>
   }
 
@@ -45,6 +47,7 @@ package "catworld.domain" {
     +String foodBrand
     +String litterBrand
     +String personality
+    +String notes
     +String lastInternalDewormerName
     +LocalDate lastInternalDewormingDate
     +String lastExternalDewormerName

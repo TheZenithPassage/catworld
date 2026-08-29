@@ -43,6 +43,7 @@ export class VetEditor {
   readonly address = signal('');
   readonly phoneNumber = signal('');
   readonly registrationNumber = signal('');
+  readonly notes = signal('');
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
@@ -52,6 +53,15 @@ export class VetEditor {
   readonly registrationNumberErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.registrationNumberError() !== null,
   };
+  readonly notesError = createLanguageResetError(this.i18n.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().vets.edit.errors.notesTooLong : null);
+  }
   constructor() {
     effect(() => {
       const entity = this.entity();
@@ -81,6 +91,7 @@ export class VetEditor {
     this.error.set(null);
     this.nameError.set(null);
     this.registrationNumberError.set(null);
+    this.notesError.set(null);
     if (!this.entityId()) {
       this.error.set(this.text().vets.edit.errors.vetIdMissing);
       return;
@@ -93,11 +104,16 @@ export class VetEditor {
       this.registrationNumberError.set(this.text().vets.edit.errors.registrationNumberTooLong);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().vets.edit.errors.notesTooLong);
+      return;
+    }
     const request: UpdateVetRequest = {
       name: this.name().trim(),
       address: this.optional(this.address()),
       phoneNumber: this.optional(this.phoneNumber()),
       registrationNumber: this.optional(this.registrationNumber()),
+      notes: this.optional(this.notes()),
     };
     this.setSubmitting(true);
     this.api.updateVet(this.entityId(), request).subscribe({
@@ -120,6 +136,7 @@ export class VetEditor {
     this.address.set(v.address ?? '');
     this.phoneNumber.set(v.phoneNumber ?? '');
     this.registrationNumber.set(v.registrationNumber ?? '');
+    this.notes.set(v.notes ?? '');
     this.vetLoaded.set(true);
   }
   private optional(v: string): string | null {

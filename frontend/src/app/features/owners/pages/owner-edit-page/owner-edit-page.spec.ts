@@ -25,6 +25,7 @@ describe('OwnerEditor', () => {
     secondaryPhoneName: null,
     instagram: null,
     facebook: 'catworld',
+    notes: null,
   };
 
   const ownerApiService = {
@@ -118,7 +119,8 @@ describe('OwnerEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(ownerApiService.getOwnerById).toHaveBeenCalledWith('owner-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(7);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(8);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect((compiled.querySelector('input[name="fullName"]') as HTMLInputElement).value).toBe(
       'Ada Lovelace',
     );
@@ -169,6 +171,7 @@ describe('OwnerEditor', () => {
     component.secondaryPhoneName.set('  ');
     component.instagram.set(' catworld ');
     component.facebook.set('');
+    component.notes.set('  first line\n  second line  ');
 
     component.submit();
 
@@ -180,10 +183,21 @@ describe('OwnerEditor', () => {
       secondaryPhoneName: null,
       instagram: 'catworld',
       facebook: null,
+      notes: 'first line\n  second line',
     });
     expect(saved).toHaveBeenCalledWith(owner);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not update for overlong notes', async () => {
+    createComponent();
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(ownerApiService.updateOwner).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().owners.edit.errors.notesTooLong);
   });
 
   it('shows load errors through shared Material error state', () => {

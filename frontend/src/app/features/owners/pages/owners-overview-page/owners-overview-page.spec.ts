@@ -21,6 +21,7 @@ describe('OwnersOverviewPage', () => {
       secondaryPhoneName: 'Work',
       instagram: 'ada-cats',
       facebook: null,
+      notes: null,
     },
     {
       id: 'owner-2',
@@ -31,6 +32,7 @@ describe('OwnersOverviewPage', () => {
       secondaryPhoneName: null,
       instagram: null,
       facebook: 'grace-cats',
+      notes: null,
     },
   ];
 

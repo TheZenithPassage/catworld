@@ -41,6 +41,7 @@ export class VetCreatePage {
   readonly address = signal('');
   readonly phoneNumber = signal('');
   readonly registrationNumber = signal('');
+  readonly notes = signal('');
 
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
@@ -49,6 +50,15 @@ export class VetCreatePage {
   readonly registrationNumberErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.registrationNumberError() !== null,
   };
+  readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().vets.create.errors.notesTooLong : null);
+  }
 
   submit(): void {
     this.error.set(null);
@@ -63,12 +73,17 @@ export class VetCreatePage {
       this.registrationNumberError.set(this.text().vets.create.errors.registrationNumberTooLong);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().vets.create.errors.notesTooLong);
+      return;
+    }
 
     const request: CreateVetRequest = {
       name: this.name().trim(),
       address: this.toNullableString(this.address()),
       phoneNumber: this.toNullableString(this.phoneNumber()),
       registrationNumber: this.toNullableString(this.registrationNumber()),
+      notes: this.toNullableString(this.notes()),
     };
 
     this.submitting.set(true);
@@ -88,6 +103,7 @@ export class VetCreatePage {
   private clearValidationErrors(): void {
     this.nameError.set(null);
     this.registrationNumberError.set(null);
+    this.notesError.set(null);
   }
 
   private toNullableString(value: string): string | null {

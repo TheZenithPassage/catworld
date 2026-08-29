@@ -5,6 +5,7 @@ export interface Vet {
   address: string | null;
   phoneNumber: string | null;
   registrationNumber: string | null;
+  notes: string | null;
 }
 
 export interface CreateVetRequest {
@@ -12,6 +13,7 @@ export interface CreateVetRequest {
   address: string | null;
   phoneNumber: string | null;
   registrationNumber: string | null;
+  notes: string | null;
 }
 
 export type UpdateVetRequest = CreateVetRequest;

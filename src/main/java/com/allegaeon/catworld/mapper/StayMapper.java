@@ -56,7 +56,7 @@ public class StayMapper {
         return Stay.builder()
                 .startAt(stayRequestDTO.getStartAt())
                 .endAt(stayRequestDTO.getEndAt())
-                .notes(stayRequestDTO.getNotes())
+                .notes(normalizeOptional(stayRequestDTO.getNotes()))
                 .build();
 
     }
@@ -65,10 +65,16 @@ public class StayMapper {
 
         stay.setStartAt(stayUpdateDTO.getStartAt());
         stay.setEndAt(stayUpdateDTO.getEndAt());
-        stay.setNotes(stayUpdateDTO.getNotes());
+        stay.setNotes(normalizeOptional(stayUpdateDTO.getNotes()));
 
         return stay;
 
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     public StayPaymentResponseDTO toPaymentResponseDTO(

@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -91,6 +92,15 @@ export class StayCreatePage implements AfterViewInit {
 
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
+  readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().stays.create.errors.notesTooLong : null);
+  }
 
   readonly availableCats = computed(() => this.selectedOwner()?.currentCats ?? []);
   readonly reasonRequired = computed(() => {
@@ -234,6 +244,12 @@ export class StayCreatePage implements AfterViewInit {
 
   submit(): void {
     this.error.set(null);
+    this.notesError.set(null);
+
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().stays.create.errors.notesTooLong);
+      return;
+    }
 
     if (!this.ownerSelector().markSubmitted() || !this.selectedOwner()) return;
 

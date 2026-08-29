@@ -27,6 +27,7 @@ public class OwnerMapper {
                 .secondaryPhoneName(owner.getSecondaryPhoneName())
                 .instagram(owner.getInstagram())
                 .facebook(owner.getFacebook())
+                .notes(owner.getNotes())
                 .canDelete(canDelete)
                 .build();
 
@@ -42,6 +43,7 @@ public class OwnerMapper {
                 .secondaryPhoneName(ownerRequestDTO.getSecondaryPhoneName())
                 .instagram(ownerRequestDTO.getInstagram())
                 .facebook(ownerRequestDTO.getFacebook())
+                .notes(normalizeOptional(ownerRequestDTO.getNotes()))
                 .build();
 
     }
@@ -55,9 +57,16 @@ public class OwnerMapper {
         owner.setSecondaryPhoneName(ownerRequestDTO.getSecondaryPhoneName());
         owner.setInstagram(ownerRequestDTO.getInstagram());
         owner.setFacebook(ownerRequestDTO.getFacebook());
+        owner.setNotes(normalizeOptional(ownerRequestDTO.getNotes()));
 
         return owner;
 
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
 }
