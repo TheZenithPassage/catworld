@@ -115,8 +115,12 @@ export class CatCreatePage implements AfterViewInit {
       this.lastExternalDewormingDate.set(draft.lastExternalDewormingDate);
       this.lastTripleFelineDate.set(draft.lastTripleFelineDate);
       this.lastRabiesDate.set(draft.lastRabiesDate);
-      if (draft.ownerId) this.ownerSelector?.resolveKnownId(draft.ownerId);
-      if (draft.vetId) this.vetSelector?.resolveKnownId(draft.vetId);
+      const returnedOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+      const returnedVetId = this.route.snapshot.queryParamMap.get('vetId');
+      const ownerId = returnedOwnerId || draft.ownerId;
+      const vetId = returnedVetId || draft.vetId;
+      if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
+      if (vetId) this.vetSelector?.resolveKnownId(vetId);
       if (draft.photo) this.photoInput?.restore(draft.photo);
       return;
     }

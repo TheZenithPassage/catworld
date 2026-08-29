@@ -193,7 +193,7 @@ describe('VetCreatePage', () => {
     });
   });
 
-  it('propagates an outer creation flow through a cat return', () => {
+  it('propagates an outer creation flow through Cat success and cancel returns', () => {
     const flowId = TestBed.inject(CreationFlowService).start('stay');
     vetApiService.createVet.mockReturnValue(of({ id: 'vet-1' }));
     queryParams = {
@@ -208,6 +208,15 @@ describe('VetCreatePage', () => {
     expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
       queryParams: {
         vetId: 'vet-1',
+        returnTo: '/stays/new',
+        creationFlowId: flowId,
+      },
+    });
+
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: {
         returnTo: '/stays/new',
         creationFlowId: flowId,
       },

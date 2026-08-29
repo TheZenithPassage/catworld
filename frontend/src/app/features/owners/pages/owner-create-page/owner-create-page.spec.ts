@@ -217,7 +217,7 @@ describe('OwnerCreatePage', () => {
     });
   });
 
-  it('propagates an outer creation flow through a cat return', () => {
+  it('propagates an outer creation flow through Cat success and cancel returns', () => {
     const flowId = TestBed.inject(CreationFlowService).start('stay');
     ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));
     queryParams = {
@@ -236,6 +236,34 @@ describe('OwnerCreatePage', () => {
         returnTo: '/stays/new',
         creationFlowId: flowId,
       },
+    });
+
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: {
+        returnTo: '/stays/new',
+        creationFlowId: flowId,
+      },
+    });
+  });
+
+  it('propagates a direct Stay flow through Owner success and cancel returns', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));
+    queryParams = { returnTo: '/stays/new', creationFlowId: flowId };
+    component.fullName.set('Ada Lovelace');
+    component.primaryPhone.set('555-1111');
+
+    component.submit();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', creationFlowId: flowId },
+    });
+
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { creationFlowId: flowId },
     });
   });
 

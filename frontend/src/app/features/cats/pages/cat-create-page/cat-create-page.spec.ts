@@ -25,7 +25,6 @@ import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-en
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
 import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
-import { CreationFlowId } from '../../../../core/creation-flow/creation-flow.models';
 
 describe('CatCreatePage', () => {
   let component: CatCreatePage;
@@ -423,42 +422,123 @@ describe('CatCreatePage', () => {
     }
   });
 
-  it('captures and restores a complete related-creation draft with its accepted photo', () => {
-    createComponent();
-    fixture.detectChanges();
+  it('restores every Cat draft field and overlays only a returned Owner', () => {
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    const draft = completeDraft(photo);
+    ownerApiService.getOwnerLookup.mockImplementation((id: string) =>
+      of({ id, fullName: id === 'owner-2' ? 'Grace Hopper' : 'Ada Lovelace', currentCats: [] }),
+    );
+    const preview = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fresh-restoration');
+
+    const flowId = arriveWithDraft('/owners/new', { ownerId: 'owner-2' }, draft);
+
+    expect({
+      name: component.name(),
+      birthDate: component.birthDate(),
+      sex: component.sex(),
+      breed: component.breed(),
+      coat: component.coat(),
+      color: component.color(),
+      foodBrand: component.foodBrand(),
+      litterBrand: component.litterBrand(),
+      personality: component.personality(),
+      notes: component.notes(),
+      lastInternalDewormerName: component.lastInternalDewormerName(),
+      lastInternalDewormingDate: component.lastInternalDewormingDate(),
+      lastExternalDewormerName: component.lastExternalDewormerName(),
+      lastExternalDewormingDate: component.lastExternalDewormingDate(),
+      lastTripleFelineDate: component.lastTripleFelineDate(),
+      lastRabiesDate: component.lastRabiesDate(),
+    }).toEqual({
+      name: draft.name,
+      birthDate: draft.birthDate,
+      sex: draft.sex,
+      breed: draft.breed,
+      coat: draft.coat,
+      color: draft.color,
+      foodBrand: draft.foodBrand,
+      litterBrand: draft.litterBrand,
+      personality: draft.personality,
+      notes: draft.notes,
+      lastInternalDewormerName: draft.lastInternalDewormerName,
+      lastInternalDewormingDate: draft.lastInternalDewormingDate,
+      lastExternalDewormerName: draft.lastExternalDewormerName,
+      lastExternalDewormingDate: draft.lastExternalDewormingDate,
+      lastTripleFelineDate: draft.lastTripleFelineDate,
+      lastRabiesDate: draft.lastRabiesDate,
+    });
+    expect(component.ownerId()).toBe('owner-2');
+    expect(component.vetId()).toBe('vet-1');
     const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
       .componentInstance as CatPhotoInput;
-    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
-    photoInput.restore(photo);
-    component.name.set('Milo draft');
-    component.notes.set('  raw draft notes  ');
-    component.ownerId.set('owner-1');
-    component.vetId.set('vet-1');
-
-    component.createRelated('owner', new Event('click', { cancelable: true }));
-
-    const queryParams = router.navigate.mock.calls.at(-1)?.[1].queryParams as Record<
-      string,
-      string
-    >;
-    const flowId = queryParams['creationFlowId'];
-    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
-      queryParams: expect.objectContaining({ creationFlowId: flowId, vetId: 'vet-1' }),
+    expect(photoInput.mutation().photo).toBe(photo);
+    expect(photoInput.previewUrl()).toBe('blob:fresh-restoration');
+    expect(preview).toHaveBeenCalledWith(photo);
+    expect(queryParams).toEqual({
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-2',
     });
-    routerEvents.next(new NavigationStart(1, `/owners/new?creationFlowId=${flowId}`, 'imperative'));
-    const creationFlow = TestBed.inject(CreationFlowService);
-    creationFlow.expectHop(flowId as CreationFlowId, '/owners/new', '/cats/new');
-    routerEvents.next(new NavigationStart(2, `/cats/new?creationFlowId=${flowId}`, 'imperative'));
-    expect(creationFlow.consumeCat(flowId)).toEqual(
-      expect.objectContaining({
-        name: 'Milo draft',
-        notes: '  raw draft notes  ',
-        ownerId: 'owner-1',
-        vetId: 'vet-1',
-        photo,
-      }),
-    );
+    expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(true);
+    preview.mockRestore();
   });
+
+  it('overlays only a returned Vet and restores both saved relations after child cancel', () => {
+    const draft = completeDraft(null);
+    vetApiService.getVetById.mockImplementation((id: string) =>
+      of({ ...vets[0], id, name: id === 'vet-2' ? 'Dr. New' : 'Dr. Vet' }),
+    );
+
+    arriveWithDraft('/vets/new', { vetId: 'vet-2' }, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-2');
+
+    fixture.destroy();
+    arriveWithDraft('/owners/new', {}, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+
+    fixture.destroy();
+    arriveWithDraft('/vets/new', {}, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('keeps scalar and photo state when a returned relation cannot be resolved', () => {
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+
+    arriveWithDraft('/owners/new', { ownerId: 'missing-owner' }, completeDraft(photo));
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+    expect(component.name()).toBe('Milo draft');
+    expect(component.notes()).toBe('  raw draft notes\nsecond line  ');
+    expect(
+      fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance.mutation().photo,
+    ).toBe(photo);
+  });
+
+  function arriveWithDraft(
+    via: '/owners/new' | '/vets/new',
+    returned: Record<string, string>,
+    draft: ReturnType<typeof completeDraft>,
+  ): string {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('stay');
+    creationFlow.captureCat(flowId, draft);
+    creationFlow.expectHop(flowId, '/cats/new', via);
+    routerEvents.next(new NavigationStart(1, `${via}?creationFlowId=${flowId}`, 'imperative'));
+    creationFlow.expectHop(flowId, via, '/cats/new');
+    queryParams = { creationFlowId: flowId, returnTo: '/stays/new', ...returned };
+    const search = new URLSearchParams(queryParams).toString();
+    routerEvents.next(new NavigationStart(2, `/cats/new?${search}`, 'imperative'));
+    createComponent();
+    fixture.detectChanges();
+    return flowId;
+  }
 
   it('cancels back to the originating stay with owner context and clears photo state', () => {
     queryParams = { returnTo: '/stays/new', ownerId: 'owner-1' };
@@ -532,4 +612,28 @@ describe('CatCreatePage', () => {
 
 function fileChange(file: File): Event {
   return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}
+
+function completeDraft(photo: File | null) {
+  return {
+    name: 'Milo draft',
+    birthDate: '2020-01-02',
+    sex: 'MALE' as const,
+    breed: 'mixed',
+    coat: 'short',
+    color: 'orange',
+    foodBrand: 'food',
+    litterBrand: 'litter',
+    personality: 'friendly',
+    notes: '  raw draft notes\nsecond line  ',
+    lastInternalDewormerName: 'internal',
+    lastInternalDewormingDate: '2025-01-01',
+    lastExternalDewormerName: 'external',
+    lastExternalDewormingDate: '2025-02-01',
+    lastTripleFelineDate: '2025-03-01',
+    lastRabiesDate: '2025-04-01',
+    ownerId: 'owner-1',
+    vetId: 'vet-1',
+    photo,
+  };
 }

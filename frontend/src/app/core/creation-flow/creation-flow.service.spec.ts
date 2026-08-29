@@ -105,6 +105,5 @@ function stayDraft() {
     notes: 'stay notes',
     agreedAmount: '100',
     pricingReason: '',
-    pricingReasonContext: 'untouched' as const,
   };
 }

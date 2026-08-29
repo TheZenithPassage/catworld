@@ -34,7 +34,6 @@ export interface StayCreationDraft {
   notes: string;
   agreedAmount: string;
   pricingReason: string;
-  pricingReasonContext: 'untouched' | 'manual' | 'suggested';
 }
 
 export interface CreationFlowFrames {
