@@ -35,8 +35,8 @@
 
       <a
         mat-stroked-button
-        routerLink="/owners/new"
-        [queryParams]="{ returnTo: '/stays/new' }"
+        href="/owners/new"
+        (click)="createRelated('owner', $event)"
         class="related-action"
       >
         {{ text().stays.create.createOwner }}
@@ -70,8 +70,8 @@
 
             <a
               mat-stroked-button
-              routerLink="/cats/new"
-              [queryParams]="{ returnTo: '/stays/new', ownerId: selectedOwnerId() }"
+              href="/cats/new"
+              (click)="createRelated('cat', $event)"
               class="create-cat-option"
             >
               {{ text().stays.create.createCat }}
