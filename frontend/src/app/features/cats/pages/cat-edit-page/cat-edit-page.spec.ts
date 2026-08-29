@@ -300,6 +300,26 @@ describe('CatEditor', () => {
     expect(getMaterialErrorText()).toContain(component.text().cats.edit.errors.notesTooLong);
   });
 
+  it('shows and clears the notes boundary error immediately without updating', async () => {
+    createComponent();
+
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(component.text().cats.edit.errors.notesTooLong);
+
+    component.updateNotes('x'.repeat(10001));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).toContain(component.text().cats.edit.errors.notesTooLong);
+
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(component.text().cats.edit.errors.notesTooLong);
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
+  });
+
   it('submits unchanged, removal, replacement, and restored saved-photo intents', () => {
     catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
     catApiService.updateCat.mockReturnValue(NEVER);

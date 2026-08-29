@@ -57,6 +57,11 @@ export class OwnerEditor {
   readonly notesErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.notesError() !== null,
   };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().owners.edit.errors.notesTooLong : null);
+  }
   constructor() {
     effect(() => {
       const entity = this.entity();

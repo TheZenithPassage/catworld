@@ -88,6 +88,11 @@ export class CatCreatePage implements AfterViewInit {
   readonly notesErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.notesError() !== null,
   };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().cats.create.errors.notesTooLong : null);
+  }
   ngAfterViewInit(): void {
     const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
     const vetId = this.route.snapshot.queryParamMap.get('vetId');

@@ -55,6 +55,13 @@ export class OwnerCreatePage {
     isErrorState: () => this.notesError() !== null,
   };
 
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(
+      value.length > 10000 ? this.text().owners.create.errors.notesTooLong : null,
+    );
+  }
+
   submit(): void {
     this.error.set(null);
     this.clearValidationErrors();

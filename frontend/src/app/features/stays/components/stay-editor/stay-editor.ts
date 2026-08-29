@@ -109,6 +109,11 @@ export class StayEditor {
   readonly notesErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.notesError() !== null,
   };
+
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().stays.edit.errors.notesTooLong : null);
+  }
   readonly stayLoaded = signal(false);
   readonly stay = signal<Stay | null>(null);
   readonly canEditStay = computed(() => {

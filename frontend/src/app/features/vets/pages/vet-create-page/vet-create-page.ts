@@ -55,6 +55,11 @@ export class VetCreatePage {
     isErrorState: () => this.notesError() !== null,
   };
 
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().vets.create.errors.notesTooLong : null);
+  }
+
   submit(): void {
     this.error.set(null);
     this.clearValidationErrors();

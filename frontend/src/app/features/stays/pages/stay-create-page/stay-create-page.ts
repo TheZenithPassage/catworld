@@ -97,6 +97,11 @@ export class StayCreatePage implements AfterViewInit {
     isErrorState: () => this.notesError() !== null,
   };
 
+  updateNotes(value: string): void {
+    this.notes.set(value);
+    this.notesError.set(value.length > 10000 ? this.text().stays.create.errors.notesTooLong : null);
+  }
+
   readonly availableCats = computed(() => this.selectedOwner()?.currentCats ?? []);
   readonly reasonRequired = computed(() => {
     const suggestion = this.pricingPreview()?.suggestedAmount;

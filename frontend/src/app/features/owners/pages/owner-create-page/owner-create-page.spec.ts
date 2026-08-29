@@ -170,6 +170,28 @@ describe('OwnerCreatePage', () => {
     expect(getMaterialErrorText()).toContain(component.text().owners.create.errors.notesTooLong);
   });
 
+  it('shows and clears the notes boundary error immediately without creating', async () => {
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(
+      component.text().owners.create.errors.notesTooLong,
+    );
+
+    component.updateNotes('x'.repeat(10001));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).toContain(component.text().owners.create.errors.notesTooLong);
+
+    component.updateNotes('x'.repeat(10000));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(getMaterialErrorText()).not.toContain(
+      component.text().owners.create.errors.notesTooLong,
+    );
+    expect(ownerApiService.createOwner).not.toHaveBeenCalled();
+  });
+
   it('preserves cat return navigation after owner creation', () => {
     ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));
     queryParams = {
