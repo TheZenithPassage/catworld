@@ -62,12 +62,39 @@ describe('CreationFlowService', () => {
     expect(service.has(flowId)).toBe(false);
 
     flowId = service.start('cat');
+    service.expectHop(flowId, '/cats/new', '/owners/new');
+    navigate(`/owners/new?creationFlowId=${flowId}`, 'hashchange');
+    expect(service.has(flowId)).toBe(false);
+
+    flowId = service.start('cat');
     auth.logout();
     await TestBed.tick();
     expect(service.has(flowId)).toBe(false);
   });
 
-  function navigate(url: string, trigger: 'imperative' | 'popstate' = 'imperative'): void {
+  it('replaces a consumed frame when the same kind is captured again', () => {
+    const flowId = service.start('cat');
+    service.captureCat(flowId, catDraft(null));
+    service.expectHop(flowId, '/cats/new', '/owners/new');
+    navigate(`/owners/new?creationFlowId=${flowId}`);
+    service.expectHop(flowId, '/owners/new', '/cats/new');
+    navigate(`/cats/new?creationFlowId=${flowId}`);
+    expect(service.consumeCat(flowId)?.name).toBe('Milo');
+
+    service.captureCat(flowId, { ...catDraft(null), name: 'Fresh Milo' });
+    service.expectHop(flowId, '/cats/new', '/vets/new');
+    navigate(`/vets/new?creationFlowId=${flowId}`);
+    service.expectHop(flowId, '/vets/new', '/cats/new');
+    navigate(`/cats/new?creationFlowId=${flowId}`);
+
+    expect(service.consumeCat(flowId)?.name).toBe('Fresh Milo');
+    expect(service.consumeCat(flowId)).toBeNull();
+  });
+
+  function navigate(
+    url: string,
+    trigger: 'imperative' | 'popstate' | 'hashchange' = 'imperative',
+  ): void {
     events.next(new NavigationStart(1, url, trigger));
   }
 });

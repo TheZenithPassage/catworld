@@ -96,8 +96,11 @@ export class CatCreatePage implements AfterViewInit {
     this.notesError.set(value.length > 10000 ? this.text().cats.create.errors.notesTooLong : null);
   }
   ngAfterViewInit(): void {
-    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
-    const draft = flowId ? this.creationFlow.consumeCat(flowId) : null;
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    const hasFlowMarker = queryParamMap.has(CREATION_FLOW_QUERY_PARAM);
+    const hasMatchingFlow = this.creationFlow.has(flowId);
+    const draft = hasMatchingFlow ? this.creationFlow.consumeCat(flowId) : null;
     if (draft) {
       this.name.set(draft.name);
       this.birthDate.set(draft.birthDate);
@@ -124,10 +127,15 @@ export class CatCreatePage implements AfterViewInit {
       if (draft.photo) this.photoInput?.restore(draft.photo);
       return;
     }
-    const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
-    const vetId = this.route.snapshot.queryParamMap.get('vetId');
-    if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
-    if (vetId) this.vetSelector?.resolveKnownId(vetId);
+    if (!hasFlowMarker) {
+      const ownerId = queryParamMap.get('ownerId');
+      const vetId = queryParamMap.get('vetId');
+      if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
+      if (vetId) this.vetSelector?.resolveKnownId(vetId);
+    } else if (hasMatchingFlow && this.creationFlow.root(flowId) === 'stay') {
+      const ownerId = queryParamMap.get('ownerId');
+      if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
+    }
   }
 
   ownerChanged(state: EntityLookupState<OwnerLookup>): void {
@@ -345,14 +353,17 @@ export class CatCreatePage implements AfterViewInit {
   }
 
   private prepareFlowReturn(destination: string, queryParams: Record<string, string>): void {
-    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
-    if (!this.creationFlow.has(flowId)) return;
-    if (this.creationFlow.root(flowId) === 'cat') {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (!queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) return;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
+    if (this.creationFlow.has(flowId) && this.creationFlow.root(flowId) === 'cat') {
       this.creationFlow.clear(flowId);
       return;
     }
     queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
-    this.creationFlow.expectHop(flowId, '/cats/new', destination);
+    if (this.creationFlow.has(flowId)) {
+      this.creationFlow.expectHop(flowId, '/cats/new', destination);
+    }
   }
 
   private clearRootFlow(): void {

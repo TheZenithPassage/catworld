@@ -338,6 +338,43 @@ describe('CatCreatePage', () => {
     expect(vetSelector.selectedId()).toBe('vet-1');
   });
 
+  it('preserves absent-marker legacy relations but isolates stale and empty flow overlays', () => {
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+
+    fixture.destroy();
+    queryParams = { creationFlowId: 'stale', ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+
+    fixture.destroy();
+    queryParams = { creationFlowId: '', ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+  });
+
+  it('accepts only the Owner input on a matching initial Stay to Cat entry', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    queryParams = {
+      creationFlowId: flowId,
+      ownerId: 'owner-1',
+      vetId: 'vet-1',
+    };
+
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('');
+  });
+
   it('blocks unresolved owner and whitespace-only vet input without changing form state', () => {
     createComponent();
     fixture.detectChanges();
@@ -616,6 +653,36 @@ describe('CatCreatePage', () => {
     expect(creationFlow.has(flowId)).toBe(false);
     expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
       queryParams: { ownerId: 'owner-1' },
+    });
+  });
+
+  it('preserves stale and empty flow markers on success and cancel returns to Stay', () => {
+    queryParams = {
+      creationFlowId: 'stale',
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    component.submit();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', catId: 'cat-1', creationFlowId: 'stale' },
+    });
+
+    fixture.destroy();
+    router.navigate.mockClear();
+    queryParams = { creationFlowId: '', returnTo: '/stays/new', ownerId: 'owner-1' };
+    createComponent();
+    fixture.detectChanges();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', creationFlowId: '' },
     });
   });
 

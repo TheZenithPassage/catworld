@@ -189,10 +189,13 @@ export class OwnerCreatePage {
   }
 
   private prepareFlowReturn(destination: string, queryParams: Record<string, string>): void {
-    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
-    if (!this.creationFlow.has(flowId)) return;
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (!queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) return;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
     queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
-    this.creationFlow.expectHop(flowId, '/owners/new', destination);
+    if (this.creationFlow.has(flowId)) {
+      this.creationFlow.expectHop(flowId, '/owners/new', destination);
+    }
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

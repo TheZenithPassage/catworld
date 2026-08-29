@@ -248,6 +248,32 @@ describe('OwnerCreatePage', () => {
     });
   });
 
+  it('preserves a stale flow marker through Cat success and cancel returns', () => {
+    ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));
+    queryParams = {
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+      creationFlowId: 'stale',
+    };
+    component.fullName.set('Ada Lovelace');
+    component.primaryPhone.set('555-1111');
+
+    component.submit();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: {
+        ownerId: 'owner-1',
+        returnTo: '/stays/new',
+        creationFlowId: 'stale',
+      },
+    });
+
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: { returnTo: '/stays/new', creationFlowId: 'stale' },
+    });
+  });
+
   it('propagates a direct Stay flow through Owner success and cancel returns', () => {
     const flowId = TestBed.inject(CreationFlowService).start('stay');
     ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));

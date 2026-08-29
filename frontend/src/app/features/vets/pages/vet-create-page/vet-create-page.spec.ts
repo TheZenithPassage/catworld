@@ -223,6 +223,27 @@ describe('VetCreatePage', () => {
     });
   });
 
+  it('preserves an empty flow marker through Cat success and cancel returns', () => {
+    vetApiService.createVet.mockReturnValue(of({ id: 'vet-1' }));
+    queryParams = {
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+      creationFlowId: '',
+    };
+    component.name.set('Dr. Whiskers');
+
+    component.submit();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: { vetId: 'vet-1', returnTo: '/stays/new', creationFlowId: '' },
+    });
+
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: { returnTo: '/stays/new', creationFlowId: '' },
+    });
+  });
+
   it('shows backend validation errors through shared Material error state', () => {
     vetApiService.createVet.mockReturnValue(
       throwError(
