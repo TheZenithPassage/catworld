@@ -3,12 +3,13 @@ import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, DefaultUrlSerializer, Router } from '@angular/router';
+import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { VetApiService } from '../../services/vet-api.service';
 import { VetCreatePage } from './vet-create-page';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 
 describe('VetCreatePage', () => {
   let component: VetCreatePage;
@@ -21,6 +22,8 @@ describe('VetCreatePage', () => {
 
   const router = {
     navigate: vi.fn(),
+    events: EMPTY,
+    parseUrl: (url: string) => new DefaultUrlSerializer().parse(url),
   };
 
   beforeEach(async () => {
@@ -186,6 +189,27 @@ describe('VetCreatePage', () => {
         vetId: 'vet-1',
         ownerId: 'owner-1',
         returnTo: '/stays/new',
+      },
+    });
+  });
+
+  it('propagates an outer creation flow through a cat return', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    vetApiService.createVet.mockReturnValue(of({ id: 'vet-1' }));
+    queryParams = {
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+      creationFlowId: flowId,
+    };
+    component.name.set('Dr. Whiskers');
+
+    component.submit();
+
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: {
+        vetId: 'vet-1',
+        returnTo: '/stays/new',
+        creationFlowId: flowId,
       },
     });
   });

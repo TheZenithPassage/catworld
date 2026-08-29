@@ -3,12 +3,13 @@ import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, DefaultUrlSerializer, Router } from '@angular/router';
+import { EMPTY, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerCreatePage } from './owner-create-page';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 
 describe('OwnerCreatePage', () => {
   let component: OwnerCreatePage;
@@ -21,6 +22,8 @@ describe('OwnerCreatePage', () => {
 
   const router = {
     navigate: vi.fn(),
+    events: EMPTY,
+    parseUrl: (url: string) => new DefaultUrlSerializer().parse(url),
   };
 
   beforeEach(async () => {
@@ -210,6 +213,28 @@ describe('OwnerCreatePage', () => {
         ownerId: 'owner-1',
         vetId: 'vet-1',
         returnTo: '/stays/new',
+      },
+    });
+  });
+
+  it('propagates an outer creation flow through a cat return', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    ownerApiService.createOwner.mockReturnValue(of({ id: 'owner-1' }));
+    queryParams = {
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+      creationFlowId: flowId,
+    };
+    component.fullName.set('Ada Lovelace');
+    component.primaryPhone.set('555-1111');
+
+    component.submit();
+
+    expect(router.navigate).toHaveBeenLastCalledWith(['/cats/new'], {
+      queryParams: {
+        ownerId: 'owner-1',
+        returnTo: '/stays/new',
+        creationFlowId: flowId,
       },
     });
   });

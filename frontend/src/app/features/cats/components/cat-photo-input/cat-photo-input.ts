@@ -41,10 +41,14 @@ export class CatPhotoInput implements OnDestroy {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    this.restore(file);
+  }
+
+  restore(file: File): boolean {
     const error = this.validate(file);
     if (error) {
       this.selectionError.set(error);
-      return;
+      return false;
     }
     this.selectionError.set(null);
     this.releasePreview();
@@ -53,6 +57,7 @@ export class CatPhotoInput implements OnDestroy {
     if (this.canPreview(file)) {
       this.previewUrl.set(URL.createObjectURL(file));
     }
+    return true;
   }
 
   previewFailed(url: string): void {

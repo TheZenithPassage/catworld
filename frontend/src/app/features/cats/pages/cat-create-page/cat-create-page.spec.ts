@@ -3,7 +3,13 @@ import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import {
+  ActivatedRoute,
+  convertToParamMap,
+  DefaultUrlSerializer,
+  NavigationStart,
+  Router,
+} from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -18,6 +24,8 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
+import { CreationFlowId } from '../../../../core/creation-flow/creation-flow.models';
 
 describe('CatCreatePage', () => {
   let component: CatCreatePage;
@@ -90,8 +98,11 @@ describe('CatCreatePage', () => {
     getVetById: vi.fn(),
   };
 
+  const routerEvents = new Subject<NavigationStart>();
   const router = {
     navigate: vi.fn(),
+    events: routerEvents,
+    parseUrl: (url: string) => new DefaultUrlSerializer().parse(url),
   };
 
   beforeEach(async () => {
@@ -410,6 +421,43 @@ describe('CatCreatePage', () => {
       expect(photoInput.mutation().photo).toBe(photo);
       expect(photoInput.previewUrl()).not.toBeNull();
     }
+  });
+
+  it('captures and restores a complete related-creation draft with its accepted photo', () => {
+    createComponent();
+    fixture.detectChanges();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    photoInput.restore(photo);
+    component.name.set('Milo draft');
+    component.notes.set('  raw draft notes  ');
+    component.ownerId.set('owner-1');
+    component.vetId.set('vet-1');
+
+    component.createRelated('owner', new Event('click', { cancelable: true }));
+
+    const queryParams = router.navigate.mock.calls.at(-1)?.[1].queryParams as Record<
+      string,
+      string
+    >;
+    const flowId = queryParams['creationFlowId'];
+    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
+      queryParams: expect.objectContaining({ creationFlowId: flowId, vetId: 'vet-1' }),
+    });
+    routerEvents.next(new NavigationStart(1, `/owners/new?creationFlowId=${flowId}`, 'imperative'));
+    const creationFlow = TestBed.inject(CreationFlowService);
+    creationFlow.expectHop(flowId as CreationFlowId, '/owners/new', '/cats/new');
+    routerEvents.next(new NavigationStart(2, `/cats/new?creationFlowId=${flowId}`, 'imperative'));
+    expect(creationFlow.consumeCat(flowId)).toEqual(
+      expect.objectContaining({
+        name: 'Milo draft',
+        notes: '  raw draft notes  ',
+        ownerId: 'owner-1',
+        vetId: 'vet-1',
+        photo,
+      }),
+    );
   });
 
   it('cancels back to the originating stay with owner context and clears photo state', () => {

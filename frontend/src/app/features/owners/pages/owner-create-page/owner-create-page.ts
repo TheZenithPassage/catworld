@@ -8,6 +8,8 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { CREATION_FLOW_QUERY_PARAM } from '../../../../core/creation-flow/creation-flow.models';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -34,6 +36,7 @@ export class OwnerCreatePage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly creationFlow = inject(CreationFlowService);
 
   readonly text = this.i18nService.text;
 
@@ -118,13 +121,20 @@ export class OwnerCreatePage {
 
       if (vetId) queryParams['vetId'] = vetId;
       if (catReturnTo === '/stays/new') queryParams['returnTo'] = catReturnTo;
+      this.prepareFlowReturn('/cats/new', queryParams);
 
       this.router.navigate(['/cats/new'], { queryParams });
       return;
     }
 
     if (returnTo === '/stays/new') {
-      this.router.navigate(['/stays/new']);
+      const queryParams: Record<string, string> = {};
+      this.prepareFlowReturn('/stays/new', queryParams);
+      if (Object.keys(queryParams).length > 0) {
+        this.router.navigate(['/stays/new'], { queryParams });
+      } else {
+        this.router.navigate(['/stays/new']);
+      }
       return;
     }
 
@@ -160,18 +170,29 @@ export class OwnerCreatePage {
         queryParams['returnTo'] = catReturnTo;
       }
 
+      this.prepareFlowReturn('/cats/new', queryParams);
+
       this.router.navigate(['/cats/new'], { queryParams });
       return;
     }
 
     if (returnTo === '/stays/new') {
+      const queryParams: Record<string, string> = { ownerId };
+      this.prepareFlowReturn('/stays/new', queryParams);
       this.router.navigate(['/stays/new'], {
-        queryParams: { ownerId },
+        queryParams,
       });
       return;
     }
 
     this.router.navigate(['/owners']);
+  }
+
+  private prepareFlowReturn(destination: string, queryParams: Record<string, string>): void {
+    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    if (!this.creationFlow.has(flowId)) return;
+    queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
+    this.creationFlow.expectHop(flowId, '/owners/new', destination);
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

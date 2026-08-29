@@ -881,6 +881,17 @@ controls where Material provides the matching control role. Each routed form
 page keeps its own signal-based field state, request payload shaping, submit
 method, navigation and responsive form layout in component SCSS.
 
+Related-record creation continuity uses one focused root-provided Angular
+creation-flow service. A same-tab in-memory flow is identified by the opaque
+`creationFlowId` query parameter and owns independent typed Cat and Stay draft
+frames plus the next expected route hop. Intentional create-and-return hops
+propagate that identity; a matching consumer restores its frame once. Cat photo
+drafts retain the accepted `File`, never an object URL, and restoration passes
+the file through the photo input's normal acceptance path to create a fresh
+preview. The service clears the flow on unrelated imperative navigation,
+browser history traversal, authentication loss and root completion or cancel.
+It uses no browser storage, history state, backend persistence or API contract.
+
 Required-field validation for these migrated forms is presented through
 Material field errors while preserving existing validation rules and submit
 timing where the control has field-level validation. Page-level loading,
