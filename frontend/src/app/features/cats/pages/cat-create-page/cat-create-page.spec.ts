@@ -346,22 +346,61 @@ describe('CatCreatePage', () => {
     expect(component.vetId()).toBe('vet-1');
 
     fixture.destroy();
+    ownerApiService.getOwnerLookup.mockClear();
+    vetApiService.getVetById.mockClear();
     queryParams = { creationFlowId: 'stale', ownerId: 'owner-1', vetId: 'vet-1' };
     createComponent();
     fixture.detectChanges();
     expect(component.ownerId()).toBe('');
     expect(component.vetId()).toBe('');
+    expect(component.getCreateOwnerQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(component.getCreateVetQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
 
     fixture.destroy();
+    ownerApiService.getOwnerLookup.mockClear();
+    vetApiService.getVetById.mockClear();
     queryParams = { creationFlowId: '', ownerId: 'owner-1', vetId: 'vet-1' };
     createComponent();
     fixture.detectChanges();
     expect(component.ownerId()).toBe('');
     expect(component.vetId()).toBe('');
+    expect(component.getCreateOwnerQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(component.getCreateVetQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
   });
 
-  it('accepts only the Owner input on a matching initial Stay to Cat entry', () => {
+  it('accepts a pending Owner but not a Vet on a matching initial Stay to Cat entry', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
     const flowId = TestBed.inject(CreationFlowService).start('stay');
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    queryParams = {
+      creationFlowId: flowId,
+      ownerId: 'owner-1',
+      vetId: 'vet-1',
+    };
+
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+    expect(component.getCreateVetQueryParams()).toEqual({
+      returnTo: '/cats/new',
+      ownerId: 'owner-1',
+    });
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
+
+    ownerResolution.next({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] });
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+  });
+
+  it('accepts both relation parameters from a matching active Cat flow', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('cat');
     queryParams = {
       creationFlowId: flowId,
       ownerId: 'owner-1',
@@ -372,7 +411,7 @@ describe('CatCreatePage', () => {
     fixture.detectChanges();
 
     expect(component.ownerId()).toBe('owner-1');
-    expect(component.vetId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
   });
 
   it('blocks unresolved owner and whitespace-only vet input without changing form state', () => {
@@ -556,11 +595,119 @@ describe('CatCreatePage', () => {
 
     expect(component.ownerId()).toBe('');
     expect(component.vetId()).toBe('vet-1');
+    expect(component.getCreateVetQueryParams()).toEqual({
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+    });
     expect(component.name()).toBe('Milo draft');
     expect(component.notes()).toBe('  raw draft notes\nsecond line  ');
     expect(
       fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance.mutation().photo,
     ).toBe(photo);
+  });
+
+  it('captures a committed Owner while known-ID resolution is pending and restores it after cancel', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('Pending Owner draft');
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+
+    component.createRelated('owner', cancelableClick());
+    const flowId = latestCreatedFlowId();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
+      queryParams: {
+        returnTo: '/cats/new',
+        vetId: 'vet-1',
+        creationFlowId: flowId,
+      },
+    });
+
+    returnFromCancelledRelated('owner', flowId);
+
+    expect(component.name()).toBe('Pending Owner draft');
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+
+    ownerResolution.next({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] });
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('captures a committed Vet while known-ID resolution is pending and restores it after cancel', () => {
+    const vetResolution = new Subject<VetLookup>();
+    vetApiService.getVetById.mockReturnValue(vetResolution);
+    const flowId = arriveWithDraft('/owners/new', {}, completeDraft(null));
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('');
+
+    component.createRelated('vet', cancelableClick());
+    expect(latestCreatedFlowId()).toBe(flowId);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/vets/new'], {
+      queryParams: {
+        returnTo: '/cats/new',
+        ownerId: 'owner-1',
+        catReturnTo: '/stays/new',
+        creationFlowId: flowId,
+      },
+    });
+
+    returnFromCancelledRelated('vet', flowId, { returnTo: '/stays/new' });
+
+    expect(component.notes()).toBe('  raw draft notes\nsecond line  ');
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('');
+
+    vetResolution.next(vets[0]);
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('clears a pending committed Owner after explicit selector clearing', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    createComponent();
+    fixture.detectChanges();
+    const ownerSelector = fixture.debugElement.queryAll(By.directive(RemoteEntitySelector))[0]
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+
+    ownerSelector.clear();
+    component.createRelated('vet', cancelableClick());
+    returnFromCancelledRelated('vet', latestCreatedFlowId());
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+    expect(ownerApiService.getOwnerLookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces a pending committed Vet after explicit selector selection', () => {
+    const vetResolution = new Subject<VetLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    vetApiService.getVetById.mockReturnValue(vetResolution);
+    createComponent();
+    fixture.detectChanges();
+    const vetSelector = fixture.debugElement.queryAll(By.directive(RemoteEntitySelector))[1]
+      .componentInstance as RemoteEntitySelector<VetLookup>;
+
+    vetSelector.select({ ...vets[0], id: 'vet-2', name: 'Dr. New' });
+    vetApiService.getVetById.mockImplementation((id: string) =>
+      of({ ...vets[0], id, name: 'Dr. New' }),
+    );
+    component.createRelated('owner', cancelableClick());
+    returnFromCancelledRelated('owner', latestCreatedFlowId());
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-2');
   });
 
   function arriveWithDraft(
@@ -580,6 +727,40 @@ describe('CatCreatePage', () => {
     createComponent();
     fixture.detectChanges();
     return flowId;
+  }
+
+  function latestCreatedFlowId(): string {
+    const queryParams = router.navigate.mock.calls.at(-1)?.[1]?.queryParams as
+      | Record<string, string>
+      | undefined;
+    const flowId = queryParams?.['creationFlowId'];
+    if (!flowId) throw new Error('Expected related navigation to create a flow.');
+    return flowId;
+  }
+
+  function returnFromCancelledRelated(
+    kind: 'owner' | 'vet',
+    flowId: string,
+    returned: Record<string, string> = {},
+  ): void {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const childPath = kind === 'owner' ? '/owners/new' : '/vets/new';
+    routerEvents.next(
+      new NavigationStart(101, `${childPath}?creationFlowId=${flowId}`, 'imperative'),
+    );
+    if (!creationFlow.has(flowId)) throw new Error('Expected an active creation flow.');
+    creationFlow.expectHop(flowId, childPath, '/cats/new');
+    queryParams = { creationFlowId: flowId, ...returned };
+    routerEvents.next(
+      new NavigationStart(
+        102,
+        `/cats/new?${new URLSearchParams(queryParams).toString()}`,
+        'imperative',
+      ),
+    );
+    fixture.destroy();
+    createComponent();
+    fixture.detectChanges();
   }
 
   it('cancels back to the originating stay with owner context and clears photo state', () => {
@@ -682,7 +863,7 @@ describe('CatCreatePage', () => {
     fixture.detectChanges();
     component.cancel();
     expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
-      queryParams: { ownerId: 'owner-1', creationFlowId: '' },
+      queryParams: { creationFlowId: '' },
     });
   });
 
@@ -735,6 +916,10 @@ describe('CatCreatePage', () => {
 
 function fileChange(file: File): Event {
   return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}
+
+function cancelableClick(): Event {
+  return { preventDefault: vi.fn() } as unknown as Event;
 }
 
 function completeDraft(photo: File | null) {
