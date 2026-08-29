@@ -341,6 +341,10 @@ export class CatCreatePage implements AfterViewInit {
   private prepareFlowReturn(destination: string, queryParams: Record<string, string>): void {
     const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
     if (!this.creationFlow.has(flowId)) return;
+    if (this.creationFlow.root(flowId) === 'cat') {
+      this.creationFlow.clear(flowId);
+      return;
+    }
     queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
     this.creationFlow.expectHop(flowId, '/cats/new', destination);
   }

@@ -480,6 +480,11 @@ describe('CatCreatePage', () => {
       ownerId: 'owner-2',
     });
     expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(true);
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-2', creationFlowId: flowId },
+    });
     preview.mockRestore();
   });
 
@@ -561,6 +566,57 @@ describe('CatCreatePage', () => {
     createComponent();
     component.cancel();
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
+  });
+
+  it('clears a root Cat flow on successful legacy return to Stay without propagating its ID', () => {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('cat');
+    creationFlow.captureCat(
+      flowId,
+      completeDraft(new File(['photo'], 'cat.jpg', { type: 'image/jpeg' })),
+    );
+    queryParams = {
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    component.submit();
+
+    expect(creationFlow.has(flowId)).toBe(false);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', catId: 'cat-1' },
+    });
+  });
+
+  it('clears a root Cat flow on explicit legacy cancel to Stay without propagating its ID', () => {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('cat');
+    creationFlow.captureCat(
+      flowId,
+      completeDraft(new File(['photo'], 'cat.jpg', { type: 'image/jpeg' })),
+    );
+    queryParams = {
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+
+    component.cancel();
+
+    expect(creationFlow.has(flowId)).toBe(false);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1' },
+    });
   });
 
   it('shows backend validation errors through shared Material error state', () => {
