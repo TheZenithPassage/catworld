@@ -85,6 +85,7 @@ class StayPricingMySqlIntegrationTest {
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
         jdbcTemplate.update("delete from stay_cat");
+        jdbcTemplate.update("delete from stay_payments");
         jdbcTemplate.update("delete from stays");
         jdbcTemplate.update("delete from cats");
         jdbcTemplate.update("delete from vets");
