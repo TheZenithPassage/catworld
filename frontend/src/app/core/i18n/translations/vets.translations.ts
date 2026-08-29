@@ -16,6 +16,7 @@ export interface VetsTranslations {
     name: string;
     address: string;
     phoneNumber: string;
+    registrationNumber: string;
   };
   create: {
     title: string;
@@ -24,6 +25,7 @@ export interface VetsTranslations {
     submitting: string;
     errors: {
       nameRequired: string;
+      registrationNumberTooLong: string;
       createFailed: string;
     };
   };
@@ -39,6 +41,7 @@ export interface VetsTranslations {
       loadFailed: string;
       dataNotLoaded: string;
       nameRequired: string;
+      registrationNumberTooLong: string;
       updateFailed: string;
     };
   };
@@ -81,6 +84,7 @@ export const VETS_TRANSLATIONS = {
       name: 'Nombre',
       address: 'Dirección',
       phoneNumber: 'Número de teléfono',
+      registrationNumber: 'Número de matrícula profesional',
     },
     create: {
       title: 'Crear veterinario',
@@ -89,6 +93,7 @@ export const VETS_TRANSLATIONS = {
       submitting: 'Creando...',
       errors: {
         nameRequired: 'El nombre es obligatorio',
+        registrationNumberTooLong: 'El número de matrícula no puede superar los 100 caracteres',
         createFailed: 'Error al crear el veterinario',
       },
     },
@@ -104,6 +109,7 @@ export const VETS_TRANSLATIONS = {
         loadFailed: 'Error al cargar el veterinario',
         dataNotLoaded: 'Los datos del veterinario no están cargados',
         nameRequired: 'El nombre es obligatorio',
+        registrationNumberTooLong: 'El número de matrícula no puede superar los 100 caracteres',
         updateFailed: 'Error al actualizar el veterinario',
       },
     },
@@ -144,6 +150,7 @@ export const VETS_TRANSLATIONS = {
       name: 'Name',
       address: 'Address',
       phoneNumber: 'Phone number',
+      registrationNumber: 'Professional registration number',
     },
     create: {
       title: 'Create vet',
@@ -152,6 +159,7 @@ export const VETS_TRANSLATIONS = {
       submitting: 'Creating...',
       errors: {
         nameRequired: 'Name is required',
+        registrationNumberTooLong: 'Registration number must not exceed 100 characters',
         createFailed: 'Error creating vet',
       },
     },
@@ -167,6 +175,7 @@ export const VETS_TRANSLATIONS = {
         loadFailed: 'Error loading vet',
         dataNotLoaded: 'Vet data is not loaded',
         nameRequired: 'Name is required',
+        registrationNumberTooLong: 'Registration number must not exceed 100 characters',
         updateFailed: 'Error updating vet',
       },
     },

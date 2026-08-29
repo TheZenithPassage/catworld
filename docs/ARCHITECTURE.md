@@ -103,6 +103,11 @@ Represents a reference veterinarian.
 
 A `Vet` can be associated with multiple cats, but a cat can also exist without a vet.
 
+Each Vet may store one optional professional `registrationNumber`. The normal
+Vet request and response contract exposes the value, backend mapping trims
+surrounding whitespace and converts blank input to null, and accepted values
+have a 100-character maximum without uniqueness or registry-format rules.
+
 Each `Vet` stores the application account that created it.
 
 #### Cat
@@ -519,7 +524,8 @@ Hibernate schema auto-update is not used for development schema evolution. The a
 Important schema points:
 
 - `owners` stores owner contact data.
-- `vets` stores reference vet data.
+- `vets` stores reference vet data, including nullable
+  `registration_number VARCHAR(100)` without a uniqueness constraint.
 - `cats` has `owner_id` and optional `vet_id`.
 - `stays` has `owner_id` plus nullable `retained_nightly_rate` and
   `agreed_amount` `DECIMAL(19,0)` snapshots. Existing rows are not backfilled.

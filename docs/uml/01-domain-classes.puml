@@ -25,6 +25,7 @@ package "catworld.domain" {
     +String name  <<NotNull>>
     +String address
     +String phoneNumber
+    +String registrationNumber
     +UserAccount createdBy  <<NotNull>>
   }
 

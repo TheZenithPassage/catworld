@@ -136,6 +136,29 @@ public class VetControllerTest {
     class PostVetTests {
 
         @Test
+        void validatesNormalizedRegistrationNumberLength() throws Exception {
+            String accepted = "R".repeat(100);
+            when(vetService.createVet(any(VetRequestDTO.class))).thenReturn(VetResponseDTO.builder()
+                    .id(UUID.randomUUID()).name("Vet Clinic").registrationNumber(accepted).build());
+
+            mockMvc.perform(post("/api/vets")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Vet Clinic\",\"registrationNumber\":\"" + accepted + "\"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.registrationNumber").value(accepted));
+
+            mockMvc.perform(post("/api/vets")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(VetRequestDTO.builder()
+                                    .name("Vet Clinic")
+                                    .registrationNumber("R".repeat(101))
+                                    .build())))
+                    .andExpect(status().isBadRequest());
+
+            verify(vetService, times(1)).createVet(any(VetRequestDTO.class));
+        }
+
+        @Test
         void shouldReturnCreated_whenPostVetRequestIsValid() throws Exception {
             UUID vetId = UUID.randomUUID();
 

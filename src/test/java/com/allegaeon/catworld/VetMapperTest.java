@@ -1,5 +1,6 @@
 package com.allegaeon.catworld;
 
+import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.mapper.VetMapper;
 import com.allegaeon.catworld.model.UserAccount;
@@ -27,6 +28,7 @@ class VetMapperTest {
                 .name("Central Vet")
                 .address("Main Street")
                 .phoneNumber("123456789")
+                .registrationNumber("REG-123")
                 .createdBy(UserAccount.builder()
                         .id(UUID.randomUUID())
                         .username("creator")
@@ -38,6 +40,7 @@ class VetMapperTest {
 
         assertEquals(vetId, deletable.getId());
         assertEquals("Central Vet", deletable.getName());
+        assertEquals("REG-123", deletable.getRegistrationNumber());
         assertTrue(deletable.isCanDelete());
         assertFalse(blocked.isCanDelete());
 
@@ -48,5 +51,20 @@ class VetMapperTest {
         assertFalse(responseFields.contains("creatorid"));
         assertFalse(responseFields.contains("createdby"));
         assertFalse(responseFields.contains("createdbyid"));
+    }
+
+    @Test
+    void normalizesRegistrationNumberForCreateAndUpdate() {
+        Vet created = vetMapper.toEntity(VetRequestDTO.builder()
+                .name("Central Vet")
+                .registrationNumber("  REG-123  ")
+                .build());
+        assertEquals("REG-123", created.getRegistrationNumber());
+
+        Vet updated = vetMapper.updateEntity(created, VetRequestDTO.builder()
+                .name("Central Vet")
+                .registrationNumber("   ")
+                .build());
+        assertEquals(null, updated.getRegistrationNumber());
     }
 }

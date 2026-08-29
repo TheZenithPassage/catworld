@@ -27,6 +27,7 @@ package "MySQL schema" {
     name <<NN>>
     address
     phone_number
+    registration_number varchar(100)
     created_by_id <<FK,NN>>
     --
     created_at <<NN>>

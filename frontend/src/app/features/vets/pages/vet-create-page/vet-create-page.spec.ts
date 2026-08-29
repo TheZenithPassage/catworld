@@ -94,7 +94,7 @@ describe('VetCreatePage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(3);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
     expect(compiled.querySelector('input[name="name"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="phoneNumber"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
@@ -117,6 +117,7 @@ describe('VetCreatePage', () => {
     component.name.set('  Dr. Whiskers  ');
     component.address.set('  ');
     component.phoneNumber.set(' 555-3333 ');
+    component.registrationNumber.set('  REG-123  ');
 
     component.submit();
 
@@ -124,9 +125,22 @@ describe('VetCreatePage', () => {
       name: 'Dr. Whiskers',
       address: null,
       phoneNumber: '555-3333',
+      registrationNumber: 'REG-123',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/vets']);
     expect(component.submitting()).toBe(false);
+  });
+
+  it('normalizes a blank registration number to null in the create payload', () => {
+    vetApiService.createVet.mockReturnValue(of({ id: 'vet-1' }));
+    component.name.set('Dr. Whiskers');
+    component.registrationNumber.set('   ');
+
+    component.submit();
+
+    expect(vetApiService.createVet).toHaveBeenCalledWith(
+      expect.objectContaining({ registrationNumber: null }),
+    );
   });
 
   it('preserves cat return navigation after vet creation', () => {

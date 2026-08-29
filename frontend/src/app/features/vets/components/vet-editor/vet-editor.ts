@@ -41,11 +41,13 @@ export class VetEditor {
   readonly name = signal('');
   readonly address = signal('');
   readonly phoneNumber = signal('');
+  readonly registrationNumber = signal('');
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly vetLoaded = signal(false);
   readonly nameError = createLanguageResetError(this.i18n.language);
+  readonly registrationNumberError = createLanguageResetError(this.i18n.language);
   constructor() {
     effect(() => {
       const entity = this.entity();
@@ -74,6 +76,7 @@ export class VetEditor {
   submit(): void {
     this.error.set(null);
     this.nameError.set(null);
+    this.registrationNumberError.set(null);
     if (!this.entityId()) {
       this.error.set(this.text().vets.edit.errors.vetIdMissing);
       return;
@@ -82,10 +85,15 @@ export class VetEditor {
       this.nameError.set(this.text().vets.edit.errors.nameRequired);
       return;
     }
+    if (this.registrationNumber().trim().length > 100) {
+      this.registrationNumberError.set(this.text().vets.edit.errors.registrationNumberTooLong);
+      return;
+    }
     const request: UpdateVetRequest = {
       name: this.name().trim(),
       address: this.optional(this.address()),
       phoneNumber: this.optional(this.phoneNumber()),
+      registrationNumber: this.optional(this.registrationNumber()),
     };
     this.setSubmitting(true);
     this.api.updateVet(this.entityId(), request).subscribe({
@@ -107,6 +115,7 @@ export class VetEditor {
     this.name.set(v.name);
     this.address.set(v.address ?? '');
     this.phoneNumber.set(v.phoneNumber ?? '');
+    this.registrationNumber.set(v.registrationNumber ?? '');
     this.vetLoaded.set(true);
   }
   private optional(v: string): string | null {

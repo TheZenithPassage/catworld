@@ -12,7 +12,14 @@ import { VetDetail } from './vet-detail';
 describe('VetDetail permanent deletion', () => {
   const vetId = 'vet-uuid';
   const detail = (canDelete?: boolean): VetDetailResponse => ({
-    vet: { id: vetId, canDelete, name: 'Vet Central', address: null, phoneNumber: null },
+    vet: {
+      id: vetId,
+      canDelete,
+      name: 'Vet Central',
+      address: null,
+      phoneNumber: null,
+      registrationNumber: 'REG-123',
+    },
     cats: {
       totalElements: 1,
       items: [{ id: 'cat-1', name: 'Milo', ownerId: 'owner-1', ownerName: 'Ana Owner' }],
@@ -63,6 +70,25 @@ describe('VetDetail permanent deletion', () => {
     component.detail.set(detail(undefined));
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.permanent-delete-action')).toBeNull();
+  });
+
+  it('renders the registration number and the existing optional empty value', () => {
+    expect(fixture.nativeElement.textContent).toContain(
+      component.text().vets.form.registrationNumber,
+    );
+    expect(fixture.nativeElement.textContent).toContain('REG-123');
+
+    component.detail.set({
+      ...detail(true),
+      vet: { ...detail(true).vet, registrationNumber: null },
+    });
+    fixture.detectChanges();
+
+    const fields = [...fixture.nativeElement.querySelectorAll('.detail-field')];
+    const registrationField = fields.find((field: Element) =>
+      field.textContent?.includes(component.text().vets.form.registrationNumber),
+    );
+    expect(registrationField?.textContent).toContain(component.text().vets.emptyValue);
   });
 
   it('uses only the vet name as subject and cancellation sends no DELETE', () => {

@@ -21,6 +21,7 @@ describe('VetEditor', () => {
     name: 'Dr. Whiskers',
     address: 'Clinic Street 1',
     phoneNumber: '555-3333',
+    registrationNumber: 'REG-OLD',
   };
 
   const vetApiService = {
@@ -114,7 +115,7 @@ describe('VetEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(vetApiService.getVetById).toHaveBeenCalledWith('vet-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(3);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(4);
     expect((compiled.querySelector('input[name="name"]') as HTMLInputElement).value).toBe(
       'Dr. Whiskers',
     );
@@ -143,6 +144,7 @@ describe('VetEditor', () => {
     component.name.set('  Dr. Whiskers  ');
     component.address.set('');
     component.phoneNumber.set(' 555-4444 ');
+    component.registrationNumber.set('  REG-NEW  ');
 
     component.submit();
 
@@ -150,10 +152,24 @@ describe('VetEditor', () => {
       name: 'Dr. Whiskers',
       address: null,
       phoneNumber: '555-4444',
+      registrationNumber: 'REG-NEW',
     });
     expect(saved).toHaveBeenCalledWith(vet);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('normalizes a cleared registration number to null in the update payload', () => {
+    createComponent();
+    vetApiService.updateVet.mockReturnValue(of({ ...vet, registrationNumber: null }));
+    component.registrationNumber.set('   ');
+
+    component.submit();
+
+    expect(vetApiService.updateVet).toHaveBeenCalledWith(
+      'vet-1',
+      expect.objectContaining({ registrationNumber: null }),
+    );
   });
 
   it('shows load errors through shared Material error state', () => {

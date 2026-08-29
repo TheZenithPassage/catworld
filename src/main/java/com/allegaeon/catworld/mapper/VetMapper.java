@@ -21,6 +21,7 @@ public class VetMapper {
                 .name(vet.getName())
                 .address(vet.getAddress())
                 .phoneNumber(vet.getPhoneNumber())
+                .registrationNumber(vet.getRegistrationNumber())
                 .canDelete(canDelete)
                 .build();
 
@@ -32,6 +33,7 @@ public class VetMapper {
                 .name(vetRequestDTO.getName())
                 .address(vetRequestDTO.getAddress())
                 .phoneNumber(vetRequestDTO.getPhoneNumber())
+                .registrationNumber(normalizeOptional(vetRequestDTO.getRegistrationNumber()))
                 .build();
 
     }
@@ -41,9 +43,16 @@ public class VetMapper {
         vet.setName(vetRequestDTO.getName());
         vet.setAddress(vetRequestDTO.getAddress());
         vet.setPhoneNumber(vetRequestDTO.getPhoneNumber());
+        vet.setRegistrationNumber(normalizeOptional(vetRequestDTO.getRegistrationNumber()));
 
         return vet;
 
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
 }

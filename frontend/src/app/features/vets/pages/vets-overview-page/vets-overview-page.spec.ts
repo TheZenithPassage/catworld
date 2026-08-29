@@ -17,12 +17,14 @@ describe('VetsOverviewPage', () => {
       name: 'Dr. Whiskers',
       address: '2 Clinic Road',
       phoneNumber: '555-4444',
+      registrationNumber: 'REG-1',
     },
     {
       id: 'vet-2',
       name: 'Dr. Paws',
       address: null,
       phoneNumber: null,
+      registrationNumber: null,
     },
   ];
 
