@@ -4,12 +4,14 @@ export interface Vet {
   name: string;
   address: string | null;
   phoneNumber: string | null;
+  registrationNumber: string | null;
 }
 
 export interface CreateVetRequest {
   name: string;
   address: string | null;
   phoneNumber: string | null;
+  registrationNumber: string | null;
 }
 
 export type UpdateVetRequest = CreateVetRequest;

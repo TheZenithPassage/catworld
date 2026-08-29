@@ -41,6 +41,7 @@ describe('CatEditor', () => {
       name: 'Dr. Vet',
       address: null,
       phoneNumber: null,
+      registrationNumber: null,
     },
   ];
 

@@ -11,6 +11,7 @@ import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.service.IVetService;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -134,6 +136,38 @@ public class VetControllerTest {
 
     @Nested
     class PostVetTests {
+
+        @Test
+        void validatesNormalizedRegistrationNumberLength() throws Exception {
+            String accepted = "R".repeat(100);
+            when(vetService.createVet(any(VetRequestDTO.class))).thenReturn(VetResponseDTO.builder()
+                    .id(UUID.randomUUID()).name("Vet Clinic").registrationNumber(accepted).build());
+
+            mockMvc.perform(post("/api/vets")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Vet Clinic\",\"registrationNumber\":\"  " + accepted + "  \"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.registrationNumber").value(accepted));
+
+            mockMvc.perform(post("/api/vets")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"name\":\"Vet Clinic\",\"registrationNumber\":\""
+                                    + " ".repeat(101) + "\"}"))
+                    .andExpect(status().isCreated());
+
+            mockMvc.perform(post("/api/vets")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(VetRequestDTO.builder()
+                                    .name("Vet Clinic")
+                                    .registrationNumber("R".repeat(101))
+                                    .build())))
+                    .andExpect(status().isBadRequest());
+
+            ArgumentCaptor<VetRequestDTO> requests = ArgumentCaptor.forClass(VetRequestDTO.class);
+            verify(vetService, times(2)).createVet(requests.capture());
+            assertEquals(accepted, requests.getAllValues().get(0).getRegistrationNumber());
+            assertEquals(null, requests.getAllValues().get(1).getRegistrationNumber());
+        }
 
         @Test
         void shouldReturnCreated_whenPostVetRequestIsValid() throws Exception {

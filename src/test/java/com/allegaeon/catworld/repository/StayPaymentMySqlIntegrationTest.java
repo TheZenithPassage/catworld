@@ -134,7 +134,7 @@ class StayPaymentMySqlIntegrationTest {
     @Test
     void fullFlywaySchemaPreservesExactValuesAndRollsBackFailedAudit() {
         assertEquals(
-                List.of("1", "2", "3", "4", "5", "6", "7", "8", "9"),
+                List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
                 jdbcTemplate.queryForList(
                         """
                         select version

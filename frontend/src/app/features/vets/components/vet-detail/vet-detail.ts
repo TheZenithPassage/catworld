@@ -64,6 +64,10 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
             <dt>{{ text().vets.form.address }}</dt>
             <dd>{{ value(vet.address) }}</dd>
           </div>
+          <div class="detail-field">
+            <dt>{{ text().vets.form.registrationNumber }}</dt>
+            <dd>{{ value(vet.registrationNumber) }}</dd>
+          </div>
         </dl>
         @if (detail.cats.totalElements > 0) {
           <section class="relationship-group">

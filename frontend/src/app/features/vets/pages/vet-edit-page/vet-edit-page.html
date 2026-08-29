@@ -59,6 +59,21 @@
           />
         </mat-form-field>
 
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().vets.form.registrationNumber }}</mat-label>
+          <input
+            matInput
+            type="text"
+            name="registrationNumber"
+            [errorStateMatcher]="registrationNumberErrorStateMatcher"
+            [ngModel]="registrationNumber()"
+            (ngModelChange)="registrationNumber.set($event)"
+          />
+          @if (registrationNumberError(); as message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+
         <div class="form-actions">
           @if (!routed()) {
             <button

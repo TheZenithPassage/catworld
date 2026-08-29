@@ -20,4 +20,13 @@ public class VetRequestDTO {
     @Size(max = 20, message = "Phone number must not exceed 20 characters")
     private String phoneNumber;
 
+    private String registrationNumber;
+
+    @Size(max = 100, message = "Registration number must not exceed 100 characters")
+    public String getRegistrationNumber() {
+        if (registrationNumber == null) return null;
+        String normalized = registrationNumber.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
 }

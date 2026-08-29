@@ -43,6 +43,7 @@ describe('CatCreatePage', () => {
       name: 'Dr. Vet',
       address: null,
       phoneNumber: null,
+      registrationNumber: null,
     },
   ];
 

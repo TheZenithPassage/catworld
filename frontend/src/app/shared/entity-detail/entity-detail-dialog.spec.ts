@@ -67,7 +67,13 @@ describe('EntityDetailDialog', () => {
     hasPhoto: false,
   };
   const updatedCat = { ...cat, name: 'Milo Updated' };
-  const vet: Vet = { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null };
+  const vet: Vet = {
+    id: 'vet-1',
+    name: 'Dr. Vet',
+    phoneNumber: null,
+    address: null,
+    registrationNumber: null,
+  };
   const updatedVet = { ...vet, name: 'Dr. Vet Updated' };
   const detail = (value: Owner): OwnerDetailResponse => ({
     owner: value,
@@ -297,7 +303,13 @@ describe('EntityDetailDialog', () => {
     async (entityType, entityId) => {
       vetApi.getVetDetail.mockReturnValue(
         of({
-          vet: { id: 'vet-1', name: 'Dr. Vet', phoneNumber: null, address: null },
+          vet: {
+            id: 'vet-1',
+            name: 'Dr. Vet',
+            phoneNumber: null,
+            address: null,
+            registrationNumber: null,
+          },
           cats: { totalElements: 0, items: [] },
         }),
       );
