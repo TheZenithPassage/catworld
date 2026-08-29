@@ -192,6 +192,7 @@ export interface StaysTranslations {
   create: {
     title: string;
     description: string;
+    cancel: string;
     loading: string;
     owner: string;
     selectOwner: string;
@@ -457,6 +458,7 @@ export const STAYS_TRANSLATIONS = {
     create: {
       title: 'Crear estancia',
       description: 'Registrar una nueva estancia.',
+      cancel: 'Cancelar',
       loading: 'Cargando datos del formulario...',
       owner: 'Dueño',
       selectOwner: 'Selecciona un dueño',
@@ -719,6 +721,7 @@ export const STAYS_TRANSLATIONS = {
     create: {
       title: 'Create stay',
       description: 'Register a new stay.',
+      cancel: 'Cancel',
       loading: 'Loading form data...',
       owner: 'Owner',
       selectOwner: 'Select an owner',

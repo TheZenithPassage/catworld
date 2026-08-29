@@ -460,6 +460,26 @@ describe('CatCreatePage', () => {
       'name: already exists',
     );
   });
+
+  it('renders equivalent header and bottom actions with shared submission state', () => {
+    createComponent();
+    fixture.detectChanges();
+    const submit = vi.spyOn(component, 'submit').mockImplementation(() => undefined);
+    const groups = fixture.nativeElement.querySelectorAll(
+      '.create-page-actions--header, .create-page-actions--bottom',
+    );
+    expect(groups).toHaveLength(2);
+    for (const group of groups) {
+      expect(
+        [...group.querySelectorAll('button')].map((button) => button.textContent?.trim()),
+      ).toEqual([component.text().cats.create.cancel, component.text().cats.create.submit]);
+      group.querySelector('button[type="submit"]')?.click();
+    }
+    expect(submit).toHaveBeenCalledTimes(2);
+    component.submitting.set(true);
+    component.cancel();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
 });
 
 function fileChange(file: File): Event {

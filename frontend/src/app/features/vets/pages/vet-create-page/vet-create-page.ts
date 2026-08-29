@@ -100,6 +100,25 @@ export class VetCreatePage {
     });
   }
 
+  cancel(): void {
+    if (this.submitting()) return;
+
+    const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    if (returnTo === '/cats/new') {
+      const queryParams: Record<string, string> = {};
+      const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
+      const catReturnTo = this.route.snapshot.queryParamMap.get('catReturnTo');
+
+      if (ownerId) queryParams['ownerId'] = ownerId;
+      if (catReturnTo === '/stays/new') queryParams['returnTo'] = catReturnTo;
+
+      this.router.navigate(['/cats/new'], { queryParams });
+      return;
+    }
+
+    this.router.navigate(['/vets']);
+  }
+
   private clearValidationErrors(): void {
     this.nameError.set(null);
     this.registrationNumberError.set(null);

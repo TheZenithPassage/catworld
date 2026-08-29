@@ -179,6 +179,8 @@ export class CatCreatePage implements AfterViewInit {
   }
 
   cancel(): void {
+    if (this.submitting()) return;
+
     this.photoInput?.reset();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {

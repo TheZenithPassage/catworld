@@ -1,10 +1,25 @@
 <section class="stay-create-page">
-  <header class="page-header">
-    <h2>{{ text().stays.create.title }}</h2>
-    <p>{{ text().stays.create.description }}</p>
+  <header class="page-header create-page-header">
+    <div class="create-page-header__copy">
+      <h2>{{ text().stays.create.title }}</h2>
+      <p>{{ text().stays.create.description }}</p>
+    </div>
+    <div class="form-actions create-page-actions--header">
+      <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
+        {{ text().stays.create.cancel }}
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        form="stay-create-form"
+        [disabled]="submitting() || previewLoading() || !pricingConfirmed()"
+      >
+        {{ submitting() ? text().stays.create.submitting : text().stays.create.submit }}
+      </button>
+    </div>
   </header>
 
-  <form class="stay-form" (ngSubmit)="submit()">
+  <form id="stay-create-form" class="stay-form" (ngSubmit)="submit()">
     @if (error(); as errorMessage) {
       <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
     }
@@ -197,7 +212,10 @@
       }
     </mat-form-field>
 
-    <div class="form-actions">
+    <div class="form-actions create-page-actions--bottom">
+      <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
+        {{ text().stays.create.cancel }}
+      </button>
       <button
         id="create-stay-submit"
         mat-flat-button

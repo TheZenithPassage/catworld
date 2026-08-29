@@ -70,6 +70,7 @@ export interface CatsTranslations {
     title: string;
     description: string;
     loadingOwners: string;
+    cancel: string;
     submit: string;
     submitting: string;
     errors: {
@@ -213,6 +214,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Crear gato',
       description: 'Registrar un nuevo gato.',
       loadingOwners: 'Cargando dueños...',
+      cancel: 'Cancelar',
       submit: 'Crear gato',
       submitting: 'Creando...',
       errors: {
@@ -353,6 +355,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Create cat',
       description: 'Register a new cat.',
       loadingOwners: 'Loading owners...',
+      cancel: 'Cancel',
       submit: 'Create cat',
       submitting: 'Creating...',
       errors: {
