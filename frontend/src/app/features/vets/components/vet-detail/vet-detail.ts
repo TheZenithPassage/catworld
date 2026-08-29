@@ -1,6 +1,7 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { Vet } from '../../models/vet.model';
 import { VetDetailResponse } from '../../../../shared/entity-detail/relationship.models';
@@ -8,6 +9,15 @@ import { EntityReference } from '../../../../shared/entity-detail/entity-referen
 import { VetApiService } from '../../services/vet-api.service';
 import { VetEditor } from '../vet-editor/vet-editor';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatDialog } from '@angular/material/dialog';
+import { filter } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import {
+  PermanentDeletionConfirmationDialog,
+  PermanentDeletionConfirmationDialogData,
+  isPermanentDeletionConfirmed,
+} from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
+import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
 @Component({
   selector: 'app-vet-detail',
   imports: [MatButton, MatProgressSpinner, UiStateComponent, VetEditor],
@@ -63,22 +73,50 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
                 <button
                   mat-button
                   type="button"
+                  [disabled]="deleting()"
                   (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
                 >
                   {{ cat.name }} — {{ cat.ownerName }}
                 </button>
               }
             } @else {
-              <button mat-button type="button" (click)="openCats.emit()">
+              <button mat-button type="button" [disabled]="deleting()" (click)="openCats.emit()">
                 {{ text().entityDetail.associatedRecords(detail.cats.totalElements) }}
               </button>
             }
           </section>
         }
+        @if (deletionError(); as message) {
+          <p class="detail-error" role="alert">{{ message }}</p>
+        }
         <div class="detail-actions">
-          <button mat-flat-button type="button" (click)="editRequested.emit()">
-            {{ text().vets.detail.edit }}
-          </button>
+          <div class="detail-actions-start">
+            @if (vet.canDelete === true) {
+              <button
+                class="permanent-delete-action"
+                mat-stroked-button
+                type="button"
+                [disabled]="deleting()"
+                (click)="confirmPermanentDeletion(vet)"
+              >
+                {{
+                  deleting()
+                    ? text().deletion.actions.deleting
+                    : text().deletion.actions.deletePermanently
+                }}
+              </button>
+            }
+          </div>
+          <div class="detail-actions-end">
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="deleting()"
+              (click)="editRequested.emit()"
+            >
+              {{ text().vets.detail.edit }}
+            </button>
+          </div>
         </div>
       }
     }`,
@@ -87,7 +125,9 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 export class VetDetail {
   private readonly api = inject(VetApiService);
   private readonly i18n = inject(I18nService);
+  private readonly dialog = inject(MatDialog);
   private loadGeneration = 0;
+  private deletionGeneration = 0;
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
@@ -95,6 +135,7 @@ export class VetDetail {
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly submittingChanged = output<boolean>();
+  readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
@@ -103,13 +144,59 @@ export class VetDetail {
   readonly detail = signal<VetDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
+  readonly deleting = signal(false);
+  readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.loadGeneration++);
+    inject(DestroyRef).onDestroy(() => {
+      this.loadGeneration++;
+      this.deletionGeneration++;
+    });
     effect(() => {
       const entityId = this.entityId();
       if (this.loadedEntityId !== entityId) this.detail.set(null);
       this.load(entityId);
     });
+  }
+  confirmPermanentDeletion(vet: Vet): void {
+    if (this.deleting() || vet.id !== this.entityId() || vet.canDelete !== true) return;
+    this.dialog
+      .open<PermanentDeletionConfirmationDialog, PermanentDeletionConfirmationDialogData>(
+        PermanentDeletionConfirmationDialog,
+        {
+          data: { subject: vet.name },
+          width: '34rem',
+          maxWidth: 'calc(100vw - 2rem)',
+        },
+      )
+      .afterClosed()
+      .pipe(filter(isPermanentDeletionConfirmed))
+      .subscribe(() => this.deletePermanently(vet.id));
+  }
+  private deletePermanently(vetId: string): void {
+    if (this.deleting() || vetId !== this.entityId()) return;
+    const generation = ++this.deletionGeneration;
+    this.deleting.set(true);
+    this.deletionError.set(null);
+    this.submittingChanged.emit(true);
+    this.api.deleteVet(vetId).subscribe({
+      next: () => this.completeDeletion(generation, vetId),
+      error: (error: unknown) => {
+        if (generation !== this.deletionGeneration || vetId !== this.entityId()) return;
+        if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.completeDeletion(generation, vetId);
+          return;
+        }
+        this.deleting.set(false);
+        this.submittingChanged.emit(false);
+        this.deletionError.set(deletionErrorMessage(error, this.text().deletion));
+      },
+    });
+  }
+  private completeDeletion(generation: number, vetId: string): void {
+    if (generation !== this.deletionGeneration || vetId !== this.entityId()) return;
+    this.deleting.set(false);
+    this.submittingChanged.emit(false);
+    this.deletionCompleted.emit({ entityType: 'vet', entityId: vetId });
   }
   load(entityId = this.entityId()): void {
     const generation = ++this.loadGeneration;

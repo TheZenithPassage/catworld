@@ -7,6 +7,7 @@ export interface StayCatSummary {
 
 export interface Stay {
   stayId: string;
+  canDelete?: boolean;
   startAt: string;
   endAt: string;
   numberOfNights: number;

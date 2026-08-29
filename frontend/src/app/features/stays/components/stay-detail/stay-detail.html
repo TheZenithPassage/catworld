@@ -63,6 +63,7 @@
           <button
             mat-button
             type="button"
+            [disabled]="deleting()"
             (click)="navigate.emit({ entityType: 'owner', entityId: stay.owner.id })"
           >
             {{ stay.owner.fullName }}
@@ -75,6 +76,9 @@
         {{ text().stays.cancellation.contextLoadFailed }}
       </p>
     }
+    @if (deletionError(); as message) {
+      <p class="detail-error" role="alert">{{ message }}</p>
+    }
     @if (stay.cats.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().stays.detail.cats }}</h3>
@@ -83,40 +87,69 @@
             <button
               mat-button
               type="button"
+              [disabled]="deleting()"
               (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
             >
               {{ cat.name }} — {{ cat.ownerName }}
             </button>
           }
         } @else {
-          <button mat-button type="button" (click)="openCats.emit()">
+          <button mat-button type="button" [disabled]="deleting()" (click)="openCats.emit()">
             {{ text().entityDetail.associatedRecords(stay.cats.totalElements) }}
           </button>
         }
       </section>
     }
     <div class="detail-actions">
-      @if (canCancel(stay)) {
-        <button
-          class="cancel-action"
-          mat-stroked-button
-          type="button"
-          [disabled]="cancellationContextLoading()"
-          (click)="cancelStay(stay)"
-        >
-          {{ text().stays.cancellation.action }}
-        </button>
-      }
-      @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
-        <button mat-stroked-button type="button" (click)="pricingRequested.emit()">
-          {{ text().stays.detail.pricing }}
-        </button>
-      }
-      @if (canEdit(stay)) {
-        <button mat-flat-button type="button" (click)="editRequested.emit()">
-          {{ text().stays.detail.edit }}
-        </button>
-      }
+      <div class="detail-actions-start">
+        @if (canCancel(stay)) {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="cancellationContextLoading() || deleting()"
+            (click)="cancelStay(stay)"
+          >
+            {{ text().stays.cancellation.action }}
+          </button>
+        }
+        @if (canDelete(stay)) {
+          <button
+            class="permanent-delete-action"
+            mat-stroked-button
+            type="button"
+            [disabled]="cancellationContextLoading() || deleting()"
+            (click)="confirmPermanentDeletion(stay)"
+          >
+            {{
+              deleting()
+                ? text().deletion.actions.deleting
+                : text().deletion.actions.deletePermanently
+            }}
+          </button>
+        }
+      </div>
+      <div class="detail-actions-end">
+        @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="deleting()"
+            (click)="pricingRequested.emit()"
+          >
+            {{ text().stays.detail.pricing }}
+          </button>
+        }
+        @if (canEdit(stay)) {
+          <button
+            mat-flat-button
+            type="button"
+            [disabled]="deleting()"
+            (click)="editRequested.emit()"
+          >
+            {{ text().stays.detail.edit }}
+          </button>
+        }
+      </div>
     </div>
   }
 }

@@ -32,6 +32,7 @@
             <button
               mat-button
               type="button"
+              [disabled]="deleting()"
               (click)="
                 openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })
               "
@@ -57,6 +58,7 @@
           <button
             mat-button
             type="button"
+            [disabled]="deleting()"
             (click)="navigate.emit({ entityType: 'owner', entityId: cat.ownerId })"
           >
             {{ cat.ownerName }}
@@ -70,6 +72,7 @@
             <button
               mat-button
               type="button"
+              [disabled]="deleting()"
               (click)="navigate.emit({ entityType: 'vet', entityId: cat.vetId })"
             >
               {{ cat.vetName }}
@@ -136,22 +139,50 @@
             <button
               mat-button
               type="button"
+              [disabled]="deleting()"
               (click)="navigate.emit({ entityType: 'stay', entityId: stay.stayId })"
             >
               <app-stay-relationship-label [item]="stay" />
             </button>
           }
         } @else {
-          <button mat-button type="button" (click)="openStays.emit()">
+          <button mat-button type="button" [disabled]="deleting()" (click)="openStays.emit()">
             {{ text().entityDetail.associatedRecords(detail.stays.totalElements) }}
           </button>
         }
       </section>
     }
+    @if (deletionError(); as message) {
+      <p class="detail-error" role="alert">{{ message }}</p>
+    }
     <div class="detail-actions">
-      <button mat-flat-button type="button" (click)="editRequested.emit()">
-        {{ text().cats.detail.edit }}
-      </button>
+      <div class="detail-actions-start">
+        @if (canDelete(detail)) {
+          <button
+            class="permanent-delete-action"
+            mat-stroked-button
+            type="button"
+            [disabled]="deleting()"
+            (click)="confirmPermanentDeletion(detail)"
+          >
+            {{
+              deleting()
+                ? text().deletion.actions.deleting
+                : text().deletion.actions.deletePermanently
+            }}
+          </button>
+        }
+      </div>
+      <div class="detail-actions-end">
+        <button
+          mat-flat-button
+          type="button"
+          [disabled]="deleting()"
+          (click)="editRequested.emit()"
+        >
+          {{ text().cats.detail.edit }}
+        </button>
+      </div>
     </div>
   }
 }

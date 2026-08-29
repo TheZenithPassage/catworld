@@ -26,6 +26,7 @@ import { NightlyReferenceRateApiService } from '../../features/nightly-rates/ser
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
 import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
+import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
 import type { EntityDetailUpdate } from './entity-reference';
 import { Router } from '@angular/router';
 
@@ -126,6 +127,7 @@ describe('EntityDetailDialog', () => {
     previewDateChangePricing: vi.fn(),
     updateStay: vi.fn(),
     cancelStay: vi.fn(),
+    deleteStay: vi.fn(),
   };
   const operationalStay: Stay = {
     stayId: 'stay-1',
@@ -1381,6 +1383,332 @@ describe('EntityDetailDialog', () => {
           button.textContent?.trim() === fixture.componentInstance.text().stays.cancellation.action,
       ),
     ).toBe(false);
+  });
+
+  it('blocks permanent deletion while independently loaded cancellation context is pending', async () => {
+    const pricingGate = new Subject<Stay>();
+    const cancellationContext = new Subject<Stay>();
+    const cancellationClosed = new Subject<boolean>();
+    const deletionClosed = new Subject<boolean>();
+    const materialDialog = {
+      open: vi.fn((component: unknown) => ({
+        afterClosed: () =>
+          component === StayCancellationDialog ? cancellationClosed : deletionClosed,
+      })),
+    };
+    const deletableStay = { ...operationalStay, canDelete: true };
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById
+      .mockReturnValueOnce(pricingGate.asObservable())
+      .mockReturnValueOnce(cancellationContext.asObservable());
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialog, useValue: materialDialog },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+
+    buttonContaining(fixture, fixture.componentInstance.text().stays.cancellation.action).click();
+    fixture.detectChanges();
+    expect(stayApi.getStayById).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.cancellationContextLoading()).toBe(true);
+
+    pricingGate.next(deletableStay);
+    fixture.detectChanges();
+    const deleteButton = buttonContaining(
+      fixture,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    );
+    expect(deleteButton.disabled).toBe(true);
+    fixture.componentInstance.confirmPermanentDeletion(fixture.componentInstance.detail()!);
+    expect(materialDialog.open).not.toHaveBeenCalled();
+    expect(stayApi.deleteStay).not.toHaveBeenCalled();
+
+    cancellationContext.next(deletableStay);
+    fixture.detectChanges();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      StayCancellationDialog,
+      expect.objectContaining({ data: expect.objectContaining({ stayId: 'stay-1' }) }),
+    );
+    expect(fixture.componentInstance.cancellationContextLoading()).toBe(false);
+
+    cancellationClosed.next(false);
+    cancellationClosed.complete();
+    fixture.componentInstance.confirmPermanentDeletion(fixture.componentInstance.detail()!);
+    expect(materialDialog.open).toHaveBeenLastCalledWith(
+      PermanentDeletionConfirmationDialog,
+      expect.any(Object),
+    );
+  });
+
+  it('renders deletion only for exact eligibility and supplies a human Stay subject without deleting on dismissal', async () => {
+    const afterClosed = new Subject<boolean>();
+    const materialDialog = {
+      open: vi.fn(() => ({ afterClosed: () => afterClosed.asObservable() })),
+    };
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById.mockReturnValue(
+      of({
+        ...operationalStay,
+        canDelete: true,
+        agreedAmount: '100',
+        ownerName: 'Ada Lovelace',
+        cats: [
+          { catId: 'cat-1', name: 'Milo' },
+          { catId: 'cat-2', name: 'Nina' },
+        ],
+      }),
+    );
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialog, useValue: materialDialog },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+
+    expect(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('.detail-actions button')].map(
+        (button) => button.textContent?.trim(),
+      ),
+    ).toEqual([
+      fixture.componentInstance.text().stays.cancellation.action,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+      fixture.componentInstance.text().stays.detail.pricing,
+      fixture.componentInstance.text().stays.detail.edit,
+    ]);
+
+    buttonContaining(
+      fixture,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    ).click();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      PermanentDeletionConfirmationDialog,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          subject: expect.stringMatching(/Milo, Nina.*Ada Lovelace.*2030/),
+        }),
+      }),
+    );
+    afterClosed.next(false);
+    expect(stayApi.deleteStay).not.toHaveBeenCalled();
+
+    fixture.componentInstance.pricingStay.set({ ...operationalStay, canDelete: false });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain(
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    );
+  });
+
+  it.each([
+    ['204', null],
+    ['404', new HttpErrorResponse({ status: 404 })],
+  ] as const)('locks one root deletion request and completes on %s', async (_label, failure) => {
+    const confirmation = new Subject<boolean>();
+    const deletion = new Subject<void>();
+    stayApi.getStayDetail.mockReturnValue(
+      of({
+        ...stayDetailResponse('stay-1'),
+        cats: {
+          totalElements: 2,
+          items: [catItem('cat-1'), catItem('cat-2')],
+        },
+      }),
+    );
+    stayApi.getStayById.mockReturnValue(of({ ...operationalStay, canDelete: true }));
+    stayApi.deleteStay.mockReturnValue(deletion);
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        {
+          provide: MatDialog,
+          useValue: { open: vi.fn(() => ({ afterClosed: () => confirmation.asObservable() })) },
+        },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
+    fixture.detectChanges();
+    buttonContaining(
+      fixture,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    ).click();
+    confirmation.next(true);
+    fixture.detectChanges();
+
+    expect(stayApi.deleteStay).toHaveBeenCalledOnce();
+    expect(dialogRef.disableClose).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().deletion.actions.deleting,
+    );
+    const referenceBeforeNavigation = fixture.componentInstance.reference();
+    const historyBeforeNavigation = fixture.componentInstance.history();
+    const relatedButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('.detail-field dd button, .relationship-group button'),
+    ) as HTMLButtonElement[];
+    expect(relatedButtons).toHaveLength(3);
+    expect(relatedButtons.every((button) => button.disabled)).toBe(true);
+    fixture.componentInstance.showReference({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.componentInstance.openCats({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.componentInstance.openStays({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.componentInstance.openCatPhoto({
+      catId: 'cat-1',
+      catName: 'Milo',
+      ownerName: 'Ada Lovelace',
+    });
+    fixture.componentInstance.openStayPricing();
+    fixture.componentInstance.back();
+    expect(fixture.componentInstance.reference()).toBe(referenceBeforeNavigation);
+    expect(fixture.componentInstance.history()).toBe(historyBeforeNavigation);
+    expect(dialogRef.close).not.toHaveBeenCalled();
+    const stayDetail = fixture.debugElement.query(By.directive(StayDetail))
+      .componentInstance as StayDetail;
+    stayDetail.detail.set({
+      ...stayDetailResponse('stay-1'),
+      cats: { totalElements: 4, items: [] },
+    });
+    fixture.detectChanges();
+    expect(
+      buttonContaining(fixture, fixture.componentInstance.text().entityDetail.associatedRecords(4))
+        .disabled,
+    ).toBe(true);
+    buttonContaining(fixture, fixture.componentInstance.text().deletion.actions.deleting).click();
+    expect(stayApi.deleteStay).toHaveBeenCalledOnce();
+
+    if (failure) deletion.error(failure);
+    else deletion.next();
+    fixture.detectChanges();
+    expect(emitted).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'stay-1' });
+    expect(dialogRef.close).toHaveBeenCalledOnce();
+    expect(dialogRef.disableClose).toBe(false);
+  });
+
+  it.each([
+    [403, 'forbidden'],
+    [409, 'conflict'],
+    [500, 'generic'],
+  ] as const)('retains Stay detail with shared %s deletion feedback', async (status, kind) => {
+    const confirmation = new Subject<boolean>();
+    stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
+    stayApi.getStayById.mockReturnValue(of({ ...operationalStay, canDelete: true }));
+    stayApi.deleteStay.mockReturnValue(throwError(() => new HttpErrorResponse({ status })));
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [
+        provideNoopAnimations(),
+        { provide: StayApiService, useValue: stayApi },
+        {
+          provide: MatDialog,
+          useValue: { open: vi.fn(() => ({ afterClosed: () => confirmation.asObservable() })) },
+        },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    buttonContaining(
+      fixture,
+      fixture.componentInstance.text().deletion.actions.deletePermanently,
+    ).click();
+    confirmation.next(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(
+      fixture.componentInstance.text().deletion.errors[kind],
+    );
+    expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
+  });
+
+  it('returns nested deletion through Back and reloads the immediately previous detail', async () => {
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    const emitted = vi.fn();
+    fixture.componentInstance.entityUpdated.subscribe(emitted);
+    fixture.detectChanges();
+    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    const ownerLoads = api.getOwnerDetail.mock.calls.length;
+    const stay = fixture.debugElement.query(By.directive(StayDetail))
+      .componentInstance as StayDetail;
+    stay.deletionCompleted.emit({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.reference()).toEqual({
+      entityType: 'owner',
+      entityId: 'owner-1',
+    });
+    expect(api.getOwnerDetail.mock.calls.length).toBeGreaterThan(ownerLoads);
+    expect(emitted).not.toHaveBeenCalled();
+    expect(dialogRef.close).not.toHaveBeenCalled();
+  });
+
+  it('reloads and clamps the immediately previous relationship page after nested deletion', async () => {
+    const page = (pageNumber: number, totalPages: number) => ({
+      items: [],
+      page: pageNumber,
+      pageSize: 5,
+      totalElements: totalPages * 5,
+      totalPages,
+    });
+    api.getOwnerStays
+      .mockReturnValueOnce(of(page(0, 3)))
+      .mockReturnValueOnce(of(page(2, 3)))
+      .mockReturnValueOnce(of(page(2, 2)))
+      .mockReturnValueOnce(of(page(1, 2)));
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    fixture.detectChanges();
+    fixture.componentInstance.openStays({ entityType: 'owner', entityId: 'owner-1' });
+    fixture.componentInstance.pageChanged({ pageIndex: 2 } as any);
+    fixture.componentInstance.showReference({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    const stay = fixture.debugElement.query(By.directive(StayDetail))
+      .componentInstance as StayDetail;
+    stay.deletionCompleted.emit({ entityType: 'stay', entityId: 'stay-1' });
+    fixture.detectChanges();
+    expect(api.getOwnerStays).toHaveBeenLastCalledWith('owner-1', 1);
+    expect(fixture.componentInstance.relationshipPage()?.page).toBe(1);
+    expect(fixture.componentInstance.entry()).toMatchObject({ kind: 'list', page: 1 });
   });
 
   function catItem(id: string) {

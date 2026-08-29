@@ -2,6 +2,7 @@ export type Sex = 'MALE' | 'FEMALE';
 
 export interface Cat {
   id: string;
+  canDelete?: boolean;
   name: string;
   birthDate: string;
   sex: Sex;

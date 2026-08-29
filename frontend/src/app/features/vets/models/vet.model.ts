@@ -1,5 +1,6 @@
 export interface Vet {
   id: string;
+  canDelete?: boolean;
   name: string;
   address: string | null;
   phoneNumber: string | null;

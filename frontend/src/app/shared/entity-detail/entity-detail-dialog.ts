@@ -132,6 +132,7 @@ export class EntityDetailDialog {
     return entry.kind === 'cat-photo' ? this.text().cats.detail.photoAlt(entry.catName) : '';
   }
   showReference(reference: EntityReference): void {
+    if (this.submitting()) return;
     this.leavePhoto();
     this.captureContentGeometry();
     this.editing.set(false);
@@ -143,6 +144,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openCats(parent: EntityReference): void {
+    if (this.submitting()) return;
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -161,6 +163,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openStays(parent: EntityReference): void {
+    if (this.submitting()) return;
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -175,6 +178,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   back(): void {
+    if (this.submitting()) return;
     if (this.history().length <= 1) return;
     this.captureContentGeometry();
     this.leavePhoto();
@@ -192,6 +196,7 @@ export class EntityDetailDialog {
     this.focusContent();
   }
   openCatPhoto(photo: { catId: string; catName: string; ownerName: string }): void {
+    if (this.submitting()) return;
     this.captureContentGeometry();
     this.leavePhoto();
     const entry: HistoryEntry = { kind: 'cat-photo', ...photo };
@@ -370,6 +375,15 @@ export class EntityDetailDialog {
     this.leaveEdit();
     this.entityUpdated.emit(update);
   }
+  deletionCompleted(reference: EntityReference): void {
+    this.submissionChanged(false);
+    if (this.history().length === 1) {
+      this.entityUpdated.emit(reference);
+      this.dialogRef.close();
+      return;
+    }
+    this.back();
+  }
   submissionChanged(submitting: boolean): void {
     this.submitting.set(submitting);
     this.dialogRef.disableClose = submitting;
@@ -399,6 +413,7 @@ export class EntityDetailDialog {
     this.geometryGeneration++;
   }
   openStayPricing(): void {
+    if (this.submitting()) return;
     const stayId = this.reference().entityId;
     const origin = this.router.url;
     this.dialogRef.close();

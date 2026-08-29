@@ -99,8 +99,21 @@ dd button {
   padding-top: 0.25rem;
 }
 
-.detail-actions .cancel-action {
+.detail-actions-start,
+.detail-actions-end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.detail-actions-start {
   margin-right: auto;
+}
+
+.detail-actions .permanent-delete-action {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .detail-error {
@@ -123,7 +136,12 @@ dd button {
     flex-direction: column;
   }
 
-  .detail-actions .cancel-action {
+  .detail-actions-start,
+  .detail-actions-end {
+    display: contents;
+  }
+
+  .detail-actions-start {
     margin-right: 0;
   }
 

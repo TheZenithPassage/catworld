@@ -1,6 +1,10 @@
 import { AppLanguage } from '../app-language';
 
 export interface DeletionTranslations {
+  actions: {
+    deletePermanently: string;
+    deleting: string;
+  };
   confirmation: {
     title: string;
     descriptionPrefix: string;
@@ -20,6 +24,10 @@ export interface DeletionTranslations {
 
 export const DELETION_TRANSLATIONS = {
   es: {
+    actions: {
+      deletePermanently: 'Eliminar de forma permanente',
+      deleting: 'Eliminando…',
+    },
     confirmation: {
       title: 'Eliminar de forma permanente',
       descriptionPrefix: 'Vas a eliminar de forma permanente',
@@ -37,6 +45,10 @@ export const DELETION_TRANSLATIONS = {
     },
   },
   en: {
+    actions: {
+      deletePermanently: 'Delete permanently',
+      deleting: 'Deleting…',
+    },
     confirmation: {
       title: 'Delete permanently',
       descriptionPrefix: 'You are about to permanently delete',
