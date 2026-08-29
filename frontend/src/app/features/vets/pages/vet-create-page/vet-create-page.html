@@ -1,10 +1,20 @@
 <section class="vet-create-page">
-  <header class="page-header">
-    <h2>{{ text().vets.create.title }}</h2>
-    <p>{{ text().vets.create.description }}</p>
+  <header class="page-header create-page-header">
+    <div class="create-page-header__copy">
+      <h2>{{ text().vets.create.title }}</h2>
+      <p>{{ text().vets.create.description }}</p>
+    </div>
+    <div class="form-actions create-page-actions--header">
+      <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
+        {{ text().vets.create.cancel }}
+      </button>
+      <button mat-flat-button type="submit" form="vet-create-form" [disabled]="submitting()">
+        {{ submitting() ? text().vets.create.submitting : text().vets.create.submit }}
+      </button>
+    </div>
   </header>
 
-  <form class="vet-form" (ngSubmit)="submit()">
+  <form id="vet-create-form" class="vet-form" (ngSubmit)="submit()">
     @if (error(); as errorMessage) {
       <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
     }
@@ -77,7 +87,10 @@
       }
     </mat-form-field>
 
-    <div class="form-actions">
+    <div class="form-actions create-page-actions--bottom">
+      <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
+        {{ text().vets.create.cancel }}
+      </button>
       <button mat-flat-button type="submit" [disabled]="submitting()">
         {{ submitting() ? text().vets.create.submitting : text().vets.create.submit }}
       </button>

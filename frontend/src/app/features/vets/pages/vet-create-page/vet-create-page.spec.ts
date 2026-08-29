@@ -211,4 +211,34 @@ describe('VetCreatePage', () => {
       'name: already exists',
     );
   });
+
+  it('renders equivalent header and bottom actions through one submit path', () => {
+    fixture.detectChanges();
+    const submit = vi.spyOn(component, 'submit').mockImplementation(() => undefined);
+    const groups = fixture.nativeElement.querySelectorAll(
+      '.create-page-actions--header, .create-page-actions--bottom',
+    );
+    expect(groups).toHaveLength(2);
+    for (const group of groups) {
+      expect(
+        [...group.querySelectorAll('button')].map((button) => button.textContent?.trim()),
+      ).toEqual([component.text().vets.create.cancel, component.text().vets.create.submit]);
+      group.querySelector('button[type="submit"]')?.click();
+    }
+    expect(submit).toHaveBeenCalledTimes(2);
+    component.submitting.set(true);
+    component.cancel();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('cancels to standalone and immediate related destinations', () => {
+    component.cancel();
+    expect(router.navigate).toHaveBeenCalledWith(['/vets']);
+    router.navigate.mockClear();
+    queryParams = { returnTo: '/cats/new', ownerId: 'owner-1', catReturnTo: '/stays/new' };
+    component.cancel();
+    expect(router.navigate).toHaveBeenCalledWith(['/cats/new'], {
+      queryParams: { ownerId: 'owner-1', returnTo: '/stays/new' },
+    });
+  });
 });

@@ -831,4 +831,41 @@ describe('StayCreatePage', () => {
     expect(component.agreedAmount()).toBe('9999999999999999999');
     expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(2);
   });
+
+  it('renders equivalent action groups with the shared pricing gate and unique bottom anchor', () => {
+    createComponent();
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelectorAll(
+        '.create-page-actions--header, .create-page-actions--bottom',
+      ),
+    ).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('#create-stay-submit')).toHaveLength(1);
+
+    const submitButtons = () =>
+      [...fixture.nativeElement.querySelectorAll('button[type="submit"]')] as HTMLButtonElement[];
+    expect(submitButtons().every((button) => button.disabled)).toBe(true);
+    component.pricingConfirmed.set(true);
+    fixture.detectChanges();
+    expect(submitButtons().every((button) => !button.disabled)).toBe(true);
+    component.previewLoading.set(true);
+    fixture.detectChanges();
+    expect(submitButtons().every((button) => button.disabled)).toBe(true);
+  });
+
+  it('uses one guarded cancellation path for both rendered buttons', () => {
+    createComponent();
+    fixture.detectChanges();
+    const cancelButtons = fixture.nativeElement.querySelectorAll(
+      '.create-page-actions--header button[type="button"], .create-page-actions--bottom button[type="button"]',
+    );
+    expect(cancelButtons).toHaveLength(2);
+    cancelButtons[0].click();
+    expect(router.navigate).toHaveBeenCalledWith(['/stays']);
+
+    router.navigate.mockClear();
+    component.submitting.set(true);
+    component.cancel();
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
 });

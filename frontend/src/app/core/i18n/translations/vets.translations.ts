@@ -22,6 +22,7 @@ export interface VetsTranslations {
   create: {
     title: string;
     description: string;
+    cancel: string;
     submit: string;
     submitting: string;
     errors: {
@@ -93,6 +94,7 @@ export const VETS_TRANSLATIONS = {
     create: {
       title: 'Crear veterinario',
       description: 'Registrar un nuevo veterinario.',
+      cancel: 'Cancelar',
       submit: 'Crear veterinario',
       submitting: 'Creando...',
       errors: {
@@ -162,6 +164,7 @@ export const VETS_TRANSLATIONS = {
     create: {
       title: 'Create vet',
       description: 'Register a new vet.',
+      cancel: 'Cancel',
       submit: 'Create vet',
       submitting: 'Creating...',
       errors: {

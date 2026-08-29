@@ -292,6 +292,11 @@ export class StayCreatePage implements AfterViewInit {
     this.saveStay(request, !overrideVaccineConflicts, basis, this.ownerResetGeneration);
   }
 
+  cancel(): void {
+    if (this.submitting()) return;
+    this.router.navigate(['/stays']);
+  }
+
   private saveStay(
     request: CreateStayRequest,
     showVaccineConflict: boolean,

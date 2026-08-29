@@ -214,6 +214,55 @@ textarea {
   padding-top: 0.35rem;
 }
 
+.create-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.create-page-header__copy {
+  display: grid;
+  flex: 1 1 24rem;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.create-page-actions--header {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-left: auto;
+  padding-top: 0;
+}
+
+.create-page-actions--bottom {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.create-page-actions--bottom > button {
+  width: 100%;
+}
+
+@media (max-width: 704px) {
+  .create-page-actions--header {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .create-page-actions--header > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .create-page-actions--bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
 .calendar-page > p {
   width: fit-content;
   max-width: 100%;

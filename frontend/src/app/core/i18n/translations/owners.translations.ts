@@ -26,6 +26,7 @@ export interface OwnersTranslations {
   create: {
     title: string;
     description: string;
+    cancel: string;
     submit: string;
     submitting: string;
     errors: {
@@ -106,6 +107,7 @@ export const OWNERS_TRANSLATIONS = {
     create: {
       title: 'Crear dueño',
       description: 'Crear un nuevo dueño.',
+      cancel: 'Cancelar',
       submit: 'Crear dueño',
       submitting: 'Creando...',
       errors: {
@@ -184,6 +186,7 @@ export const OWNERS_TRANSLATIONS = {
     create: {
       title: 'Create owner',
       description: 'Register a new owner.',
+      cancel: 'Cancel',
       submit: 'Create owner',
       submitting: 'Creating...',
       errors: {
