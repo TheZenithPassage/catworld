@@ -8,6 +8,8 @@ import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { CREATION_FLOW_QUERY_PARAM } from '../../../../core/creation-flow/creation-flow.models';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -34,6 +36,7 @@ export class VetCreatePage {
   private readonly router = inject(Router);
   private readonly vetApiService = inject(VetApiService);
   private readonly i18nService = inject(I18nService);
+  private readonly creationFlow = inject(CreationFlowService);
 
   readonly text = this.i18nService.text;
 
@@ -111,6 +114,7 @@ export class VetCreatePage {
 
       if (ownerId) queryParams['ownerId'] = ownerId;
       if (catReturnTo === '/stays/new') queryParams['returnTo'] = catReturnTo;
+      this.prepareFlowReturn(queryParams);
 
       this.router.navigate(['/cats/new'], { queryParams });
       return;
@@ -148,11 +152,23 @@ export class VetCreatePage {
         queryParams['returnTo'] = catReturnTo;
       }
 
+      this.prepareFlowReturn(queryParams);
+
       this.router.navigate(['/cats/new'], { queryParams });
       return;
     }
 
     this.router.navigate(['/vets']);
+  }
+
+  private prepareFlowReturn(queryParams: Record<string, string>): void {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (!queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) return;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
+    queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
+    if (this.creationFlow.has(flowId)) {
+      this.creationFlow.expectHop(flowId, '/vets/new', '/cats/new');
+    }
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

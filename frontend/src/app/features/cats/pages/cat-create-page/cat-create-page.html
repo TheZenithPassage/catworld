@@ -79,8 +79,8 @@
 
       <a
         mat-stroked-button
-        routerLink="/owners/new"
-        [queryParams]="getCreateOwnerQueryParams()"
+        href="/owners/new"
+        (click)="createRelated('owner', $event)"
         class="related-action"
       >
         {{ text().cats.form.createOwner }}
@@ -97,8 +97,8 @@
 
       <a
         mat-stroked-button
-        routerLink="/vets/new"
-        [queryParams]="getCreateVetQueryParams()"
+        href="/vets/new"
+        (click)="createRelated('vet', $event)"
         class="related-action"
       >
         {{ text().cats.form.createVet }}

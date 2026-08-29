@@ -5,9 +5,11 @@ import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { CREATION_FLOW_QUERY_PARAM } from '../../../../core/creation-flow/creation-flow.models';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
@@ -33,7 +35,6 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
     MatFormField,
     MatInput,
     MatLabel,
-    RouterLink,
     TrimRequiredDirective,
     RemoteEntitySelector,
     UiStateComponent,
@@ -50,6 +51,7 @@ export class CatCreatePage implements AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly creationFlow = inject(CreationFlowService);
 
   readonly text = this.i18nService.text;
 
@@ -62,8 +64,8 @@ export class CatCreatePage implements AfterViewInit {
   readonly ownerId = signal('');
   readonly vetId = signal('');
   readonly vetRawContentPresent = signal(false);
-  private ownerLookupStateReceived = false;
-  private vetLookupStateReceived = false;
+  private pendingCommittedOwnerId = '';
+  private pendingCommittedVetId = '';
 
   readonly breed = signal('');
   readonly coat = signal('');
@@ -94,20 +96,60 @@ export class CatCreatePage implements AfterViewInit {
     this.notesError.set(value.length > 10000 ? this.text().cats.create.errors.notesTooLong : null);
   }
   ngAfterViewInit(): void {
-    const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
-    const vetId = this.route.snapshot.queryParamMap.get('vetId');
-    if (ownerId) this.ownerSelector?.resolveKnownId(ownerId);
-    if (vetId) this.vetSelector?.resolveKnownId(vetId);
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    const hasFlowMarker = queryParamMap.has(CREATION_FLOW_QUERY_PARAM);
+    const hasMatchingFlow = this.creationFlow.has(flowId);
+    const draft = hasMatchingFlow ? this.creationFlow.consumeCat(flowId) : null;
+    if (draft) {
+      this.name.set(draft.name);
+      this.birthDate.set(draft.birthDate);
+      this.sex.set(draft.sex);
+      this.breed.set(draft.breed);
+      this.coat.set(draft.coat);
+      this.color.set(draft.color);
+      this.foodBrand.set(draft.foodBrand);
+      this.litterBrand.set(draft.litterBrand);
+      this.personality.set(draft.personality);
+      this.notes.set(draft.notes);
+      this.lastInternalDewormerName.set(draft.lastInternalDewormerName);
+      this.lastInternalDewormingDate.set(draft.lastInternalDewormingDate);
+      this.lastExternalDewormerName.set(draft.lastExternalDewormerName);
+      this.lastExternalDewormingDate.set(draft.lastExternalDewormingDate);
+      this.lastTripleFelineDate.set(draft.lastTripleFelineDate);
+      this.lastRabiesDate.set(draft.lastRabiesDate);
+      const returnedOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+      const returnedVetId = this.route.snapshot.queryParamMap.get('vetId');
+      const ownerId = returnedOwnerId || draft.ownerId;
+      const vetId = returnedVetId || draft.vetId;
+      if (ownerId) this.resolveCommittedOwnerId(ownerId);
+      if (vetId) this.resolveCommittedVetId(vetId);
+      if (draft.photo) this.photoInput?.restore(draft.photo);
+      return;
+    }
+    if (!hasFlowMarker) {
+      const ownerId = queryParamMap.get('ownerId');
+      const vetId = queryParamMap.get('vetId');
+      if (ownerId) this.resolveCommittedOwnerId(ownerId);
+      if (vetId) this.resolveCommittedVetId(vetId);
+    } else if (hasMatchingFlow) {
+      const ownerId = queryParamMap.get('ownerId');
+      if (ownerId) this.resolveCommittedOwnerId(ownerId);
+      if (this.creationFlow.root(flowId) === 'cat') {
+        const vetId = queryParamMap.get('vetId');
+        if (vetId) this.resolveCommittedVetId(vetId);
+      }
+    }
   }
 
   ownerChanged(state: EntityLookupState<OwnerLookup>): void {
-    this.ownerLookupStateReceived = true;
     this.ownerId.set(state.selectedId ?? '');
+    this.pendingCommittedOwnerId = state.selectedId ?? '';
   }
 
   vetChanged(state: EntityLookupState<VetLookup>): void {
-    this.vetLookupStateReceived = true;
     this.vetId.set(state.selectedId ?? '');
+    this.pendingCommittedVetId = state.selectedId ?? '';
     this.vetRawContentPresent.set(state.rawContentPresent);
   }
 
@@ -184,14 +226,20 @@ export class CatCreatePage implements AfterViewInit {
     this.photoInput?.reset();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {
-      const ownerId =
-        this.ownerId() ||
-        (!this.ownerLookupStateReceived ? this.route.snapshot.queryParamMap.get('ownerId') : null);
+      const queryParams: Record<string, string> = {};
+      const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+      const isStayFlow = this.creationFlow.has(flowId) && this.creationFlow.root(flowId) === 'stay';
+      if (!isStayFlow) {
+        const ownerId = this.currentCommittedOwnerId();
+        if (ownerId) queryParams['ownerId'] = ownerId;
+      }
+      this.prepareFlowReturn('/stays/new', queryParams);
       this.router.navigate(['/stays/new'], {
-        queryParams: ownerId ? { ownerId } : undefined,
+        queryParams: Object.keys(queryParams).length > 0 ? queryParams : undefined,
       });
       return;
     }
+    this.clearRootFlow();
     this.router.navigate(['/cats']);
   }
 
@@ -207,9 +255,7 @@ export class CatCreatePage implements AfterViewInit {
       returnTo: '/cats/new',
     };
 
-    const currentOwnerId =
-      this.ownerId() ||
-      (!this.ownerLookupStateReceived ? this.route.snapshot.queryParamMap.get('ownerId') : null);
+    const currentOwnerId = this.currentCommittedOwnerId();
     const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (currentOwnerId) {
@@ -223,14 +269,26 @@ export class CatCreatePage implements AfterViewInit {
     return queryParams;
   }
 
+  createRelated(kind: 'owner' | 'vet', event: Event): void {
+    event.preventDefault();
+    if (this.submitting()) return;
+    const existingId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    const flowId = this.creationFlow.has(existingId) ? existingId : this.creationFlow.start('cat');
+    this.creationFlow.captureCat(flowId, this.captureDraft());
+    const destination = kind === 'owner' ? '/owners/new' : '/vets/new';
+    this.creationFlow.expectHop(flowId, '/cats/new', destination);
+    const queryParams =
+      kind === 'owner' ? this.getCreateOwnerQueryParams() : this.getCreateVetQueryParams();
+    queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
+    this.router.navigate([destination], { queryParams });
+  }
+
   getCreateOwnerQueryParams(): Record<string, string> {
     const queryParams: Record<string, string> = {
       returnTo: '/cats/new',
     };
 
-    const currentVetId =
-      this.vetId() ||
-      (!this.vetLookupStateReceived ? this.route.snapshot.queryParamMap.get('vetId') : null);
+    const currentVetId = this.currentCommittedVetId();
     const currentReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (currentVetId) {
@@ -254,13 +312,77 @@ export class CatCreatePage implements AfterViewInit {
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
 
     if (returnTo === '/stays/new') {
+      const queryParams: Record<string, string> = { ownerId, catId };
+      this.prepareFlowReturn('/stays/new', queryParams);
       this.router.navigate(['/stays/new'], {
-        queryParams: { ownerId, catId },
+        queryParams,
       });
       return;
     }
 
+    this.clearRootFlow();
     this.router.navigate(['/cats']);
+  }
+
+  private captureDraft() {
+    return {
+      name: this.name(),
+      birthDate: this.birthDate(),
+      sex: this.sex(),
+      breed: this.breed(),
+      coat: this.coat(),
+      color: this.color(),
+      foodBrand: this.foodBrand(),
+      litterBrand: this.litterBrand(),
+      personality: this.personality(),
+      notes: this.notes(),
+      lastInternalDewormerName: this.lastInternalDewormerName(),
+      lastInternalDewormingDate: this.lastInternalDewormingDate(),
+      lastExternalDewormerName: this.lastExternalDewormerName(),
+      lastExternalDewormingDate: this.lastExternalDewormingDate(),
+      lastTripleFelineDate: this.lastTripleFelineDate(),
+      lastRabiesDate: this.lastRabiesDate(),
+      ownerId: this.currentCommittedOwnerId(),
+      vetId: this.currentCommittedVetId(),
+      photo: this.photoInput?.mutation().photo ?? null,
+    };
+  }
+
+  private resolveCommittedOwnerId(ownerId: string): void {
+    this.pendingCommittedOwnerId = ownerId;
+    this.ownerSelector?.resolveKnownId(ownerId);
+  }
+
+  private resolveCommittedVetId(vetId: string): void {
+    this.pendingCommittedVetId = vetId;
+    this.vetSelector?.resolveKnownId(vetId);
+  }
+
+  private currentCommittedOwnerId(): string {
+    return this.ownerId() || (this.ownerSelector?.loading() ? this.pendingCommittedOwnerId : '');
+  }
+
+  private currentCommittedVetId(): string {
+    return this.vetId() || (this.vetSelector?.loading() ? this.pendingCommittedVetId : '');
+  }
+
+  private prepareFlowReturn(destination: string, queryParams: Record<string, string>): void {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (!queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) return;
+    const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
+    if (this.creationFlow.has(flowId) && this.creationFlow.root(flowId) === 'cat') {
+      this.creationFlow.clear(flowId);
+      return;
+    }
+    queryParams[CREATION_FLOW_QUERY_PARAM] = flowId;
+    if (this.creationFlow.has(flowId)) {
+      this.creationFlow.expectHop(flowId, '/cats/new', destination);
+    }
+  }
+
+  private clearRootFlow(): void {
+    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    if (flowId && this.creationFlow.root(flowId) === 'cat') this.creationFlow.clear(flowId);
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {

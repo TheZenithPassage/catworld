@@ -83,6 +83,18 @@ describe('CatPhotoInput', () => {
     expect(component.previewUrl()).toBe('blob:preview');
   });
 
+  it('restores an accepted file through normal validation with a fresh preview URL', () => {
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+
+    expect(component.restore(photo)).toBe(true);
+    expect(component.mutation().photo).toBe(photo);
+    expect(component.previewUrl()).toBe('blob:preview');
+    expect(createUrl).toHaveBeenCalledWith(photo);
+
+    expect(component.restore(new File(['bad'], 'cat.gif', { type: 'image/gif' }))).toBe(false);
+    expect(component.mutation().photo).toBe(photo);
+  });
+
   it('renders supported native button triggers with focus and disabled behavior', () => {
     fixture.detectChanges();
     const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;

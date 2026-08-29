@@ -3,11 +3,22 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatDialog } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router, RouterLink } from '@angular/router';
+import {
+  ActivatedRoute,
+  convertToParamMap,
+  DefaultUrlSerializer,
+  NavigationStart,
+  Router,
+} from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import {
+  CREATION_FLOW_QUERY_PARAM,
+  CreationFlowId,
+} from '../../../../core/creation-flow/creation-flow.models';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
@@ -74,12 +85,16 @@ describe('StayCreatePage', () => {
     previewCreationPricing: vi.fn(),
   };
 
+  const routerEvents = new Subject<NavigationStart>();
   const router = {
     navigate: vi.fn(),
+    events: routerEvents,
+    parseUrl: (url: string) => new DefaultUrlSerializer().parse(url),
   };
 
   const authSessionService = {
     hasRole: vi.fn(),
+    authenticated: vi.fn(),
   };
 
   const matDialog = {
@@ -115,6 +130,7 @@ describe('StayCreatePage', () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
     authSessionService.hasRole.mockReturnValue(true);
+    authSessionService.authenticated.mockReturnValue({ username: 'admin', role: 'ADMIN' });
     dialogClosed = new Subject<boolean | undefined>();
     matDialog.open.mockReturnValue({
       afterClosed: () => dialogClosed.asObservable(),
@@ -184,6 +200,49 @@ describe('StayCreatePage', () => {
 
   function selectOwner(owner = owners[0]): void {
     fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.select(owner);
+  }
+
+  const stayDraft = {
+    ownerId: 'owner-1',
+    catIds: ['cat-1', 'cat-2'],
+    startAt: '2099-03-01T09:30',
+    endAt: '2099-03-08T11:45',
+    notes: '  raw stay notes\nsecond line  ',
+    agreedAmount: '1234567890123456789',
+    pricingReason: 'Keep the exact agreement',
+  };
+
+  function arriveWithStayDraft(
+    via: '/owners/new' | '/cats/new',
+    returned: Record<string, string>,
+    nested = false,
+  ): string {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('stay');
+    creationFlow.captureStay(flowId, stayDraft);
+    creationFlow.expectHop(flowId, '/stays/new', via);
+    routerEvents.next(new NavigationStart(1, `${via}?creationFlowId=${flowId}`, 'imperative'));
+    if (nested) {
+      creationFlow.expectHop(flowId, '/cats/new', '/owners/new');
+      routerEvents.next(
+        new NavigationStart(2, `/owners/new?creationFlowId=${flowId}`, 'imperative'),
+      );
+      creationFlow.expectHop(flowId, '/owners/new', '/cats/new');
+      routerEvents.next(
+        new NavigationStart(3, `/cats/new?creationFlowId=${flowId}&ownerId=owner-2`, 'imperative'),
+      );
+    }
+    creationFlow.expectHop(flowId, via, '/stays/new');
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: flowId, ...returned };
+    routerEvents.next(
+      new NavigationStart(
+        4,
+        `/stays/new?${new URLSearchParams(queryParams).toString()}`,
+        'imperative',
+      ),
+    );
+    createComponent();
+    return flowId;
   }
 
   it('adopts and confirms an available zero suggestion without creating the stay', () => {
@@ -283,15 +342,13 @@ describe('StayCreatePage', () => {
     expect(compiled.querySelector('input[name="endAt"]')).not.toBeNull();
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
-    const ownerLink = fixture.debugElement.query(By.directive(RouterLink)).injector.get(RouterLink);
-    expect(ownerLink.queryParams).toEqual({ returnTo: '/stays/new' });
+    const ownerLink = compiled.querySelector('.related-action') as HTMLAnchorElement;
+    expect(ownerLink.getAttribute('href')).toBe('/owners/new');
 
     selectOwner();
     fixture.detectChanges();
-    const catLink = fixture.debugElement
-      .query(By.css('.create-cat-option'))
-      .injector.get(RouterLink);
-    expect(catLink.queryParams).toEqual({ returnTo: '/stays/new', ownerId: 'owner-1' });
+    const catLink = compiled.querySelector('.create-cat-option') as HTMLAnchorElement;
+    expect(catLink.getAttribute('href')).toBe('/cats/new');
   });
 
   it('shows a localized Material error and does not create for overlong notes', async () => {
@@ -320,6 +377,219 @@ describe('StayCreatePage', () => {
     expect(component.selectedCatIds()).toEqual(['cat-1']);
     expect(component.availableCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
     expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(2);
+  });
+
+  it('captures the exact Stay frame and uses one flow identity for related creation', () => {
+    createComponent();
+    selectOwner();
+    component.selectedCatIds.set(['cat-2']);
+    component.startAt.set(stayDraft.startAt);
+    component.endAt.set(stayDraft.endAt);
+    component.notes.set(stayDraft.notes);
+    component.agreedAmount.set(stayDraft.agreedAmount);
+    component.pricingReason.set(stayDraft.pricingReason);
+
+    component.createRelated('cat', new Event('click', { cancelable: true }));
+
+    const navigation = router.navigate.mock.calls.at(-1);
+    const flowId = navigation?.[1].queryParams[CREATION_FLOW_QUERY_PARAM] as string;
+    expect(navigation).toEqual([
+      ['/cats/new'],
+      {
+        queryParams: {
+          returnTo: '/stays/new',
+          ownerId: 'owner-1',
+          [CREATION_FLOW_QUERY_PARAM]: flowId,
+        },
+      },
+    ]);
+    routerEvents.next(new NavigationStart(1, `/cats/new?creationFlowId=${flowId}`, 'imperative'));
+    TestBed.inject(CreationFlowService).expectHop(
+      flowId as CreationFlowId,
+      '/cats/new',
+      '/stays/new',
+    );
+    routerEvents.next(new NavigationStart(2, `/stays/new?creationFlowId=${flowId}`, 'imperative'));
+    expect(TestBed.inject(CreationFlowService).consumeStay(flowId)).toEqual({
+      ...stayDraft,
+      catIds: ['cat-2'],
+    });
+  });
+
+  it('restores Owner success and cancel with fresh relationship authority and scalar state', () => {
+    const replacementOwner: OwnerLookup = {
+      id: 'owner-new',
+      fullName: 'New Owner',
+      currentCats: [{ id: 'cat-new', name: 'New Cat' }],
+    };
+    ownerApiService.getOwnerLookup.mockImplementation((id: string) =>
+      of(id === replacementOwner.id ? replacementOwner : owners[0]),
+    );
+
+    arriveWithStayDraft('/owners/new', { ownerId: replacementOwner.id });
+
+    expect(component.selectedOwner()).toEqual(replacementOwner);
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+    expect(component.startAt()).toBe(stayDraft.startAt);
+    expect(component.endAt()).toBe(stayDraft.endAt);
+    expect(component.notes()).toBe(stayDraft.notes);
+    expect(component.agreedAmount()).toBe(stayDraft.agreedAmount);
+    expect(component.pricingReason()).toBe(stayDraft.pricingReason);
+    expect(component.pricingReasonContext()).toBe('manual');
+    expect(component.pricingConfirmed()).toBe(false);
+
+    fixture.destroy();
+    stayApiService.previewCreationPricing.mockClear();
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      of({ ...owners[0], currentCats: [{ id: 'cat-2', name: 'Luna current' }] }),
+    );
+    arriveWithStayDraft('/owners/new', {});
+
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.selectedCatIds()).toEqual(['cat-2']);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+    expect(component.pricingPreview()).toEqual(pricingPreview);
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it('unions same-Owner Cat success and replaces Cats for a different returned Owner', () => {
+    arriveWithStayDraft('/cats/new', { ownerId: 'owner-1', catId: 'cat-2' }, true);
+
+    expect(component.selectedCatIds()).toEqual(['cat-1', 'cat-2']);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+
+    fixture.destroy();
+    stayApiService.previewCreationPricing.mockClear();
+    ownerApiService.getOwnerLookup.mockReturnValue(of(owners[1]));
+    arriveWithStayDraft('/cats/new', { ownerId: 'owner-2', catId: 'cat-3' });
+
+    expect(component.selectedOwnerId()).toBe('owner-2');
+    expect(component.selectedCatIds()).toEqual(['cat-3']);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores Cat cancel, filters invalid Cats, and preserves scalars when Owner is missing', () => {
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      of({ ...owners[0], currentCats: [{ id: 'cat-1', name: 'Milo current' }] }),
+    );
+    arriveWithStayDraft('/cats/new', { ownerId: 'owner-1' });
+
+    expect(component.selectedCatIds()).toEqual(['cat-1']);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+
+    fixture.destroy();
+    stayApiService.previewCreationPricing.mockClear();
+    ownerApiService.getOwnerLookup.mockReturnValue(throwError(() => new Error('missing')));
+    arriveWithStayDraft('/cats/new', {});
+
+    expect(component.selectedOwner()).toBeNull();
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(component.notes()).toBe(stayDraft.notes);
+    expect(component.agreedAmount()).toBe(stayDraft.agreedAmount);
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+  });
+
+  it('recaptures pending restored relationships and abandons them after Owner input', () => {
+    const pendingResolution = new Subject<OwnerLookup>();
+    ownerApiService.getOwnerLookup.mockReturnValue(pendingResolution);
+    const flowId = arriveWithStayDraft('/owners/new', {});
+
+    component.createRelated('owner', new Event('click', { cancelable: true }));
+    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
+      queryParams: {
+        returnTo: '/stays/new',
+        [CREATION_FLOW_QUERY_PARAM]: flowId,
+      },
+    });
+    routerEvents.next(new NavigationStart(5, `/owners/new?creationFlowId=${flowId}`, 'imperative'));
+    TestBed.inject(CreationFlowService).expectHop(
+      flowId as CreationFlowId,
+      '/owners/new',
+      '/stays/new',
+    );
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockReturnValue(of(owners[0]));
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: flowId };
+    routerEvents.next(new NavigationStart(6, `/stays/new?creationFlowId=${flowId}`, 'imperative'));
+    createComponent();
+
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.selectedCatIds()).toEqual(['cat-1', 'cat-2']);
+    expect(component.notes()).toBe(stayDraft.notes);
+
+    fixture.destroy();
+    stayApiService.previewCreationPricing.mockClear();
+    ownerApiService.getOwnerLookup.mockReturnValue(pendingResolution);
+    arriveWithStayDraft('/owners/new', {});
+    const selector = fixture.debugElement.query(By.directive(RemoteEntitySelector))
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+    component.onOwnerLookupInput();
+    selector.inputChanged({ target: { value: 'Grace' } } as unknown as Event);
+    selector.select(owners[1]);
+    component.createRelated('owner', new Event('click', { cancelable: true }));
+    const secondFlowId = router.navigate.mock.calls.at(-1)?.[1].queryParams[
+      CREATION_FLOW_QUERY_PARAM
+    ] as CreationFlowId;
+    routerEvents.next(
+      new NavigationStart(7, `/owners/new?creationFlowId=${secondFlowId}`, 'imperative'),
+    );
+    TestBed.inject(CreationFlowService).expectHop(secondFlowId, '/owners/new', '/stays/new');
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockReturnValue(of(owners[1]));
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: secondFlowId };
+    routerEvents.next(
+      new NavigationStart(8, `/stays/new?creationFlowId=${secondFlowId}`, 'imperative'),
+    );
+    createComponent();
+
+    expect(component.selectedOwnerId()).toBe('owner-2');
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+  });
+
+  it('restores the draft after nested different-Owner success followed by Cat cancel', () => {
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      of({ ...owners[0], currentCats: [{ id: 'cat-2', name: 'Luna current' }] }),
+    );
+
+    arriveWithStayDraft('/cats/new', {}, true);
+
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.selectedCatIds()).toEqual(['cat-2']);
+    expect(component.startAt()).toBe(stayDraft.startAt);
+    expect(component.agreedAmount()).toBe(stayDraft.agreedAmount);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it('ignores empty and stale flow overlays and clears the root flow on cancel', () => {
+    queryParams = {
+      [CREATION_FLOW_QUERY_PARAM]: '',
+      ownerId: 'owner-1',
+      catId: 'cat-1',
+    };
+    createComponent();
+
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(component.selectedOwner()).toBeNull();
+
+    fixture.destroy();
+    queryParams = {
+      [CREATION_FLOW_QUERY_PARAM]: 'stale-flow',
+      ownerId: 'owner-1',
+      catId: 'cat-1',
+    };
+    createComponent();
+
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(component.selectedOwner()).toBeNull();
+
+    fixture.destroy();
+    const flowId = arriveWithStayDraft('/owners/new', {});
+    component.cancel();
+    expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(false);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays']);
   });
 
   it('renders immediately without loading Owner or Cat catalogs', () => {
@@ -492,6 +762,8 @@ describe('StayCreatePage', () => {
 
   it('creates a stay with the current payload shape and returns to stays', () => {
     createComponent();
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: flowId };
     stayApiService.createStay.mockReturnValue(of(createdStay));
 
     selectOwner();
@@ -513,6 +785,7 @@ describe('StayCreatePage', () => {
     });
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
+    expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(false);
   });
 
   it('shows backend validation errors through shared Material error state', () => {

@@ -8,8 +8,14 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import {
+  CREATION_FLOW_QUERY_PARAM,
+  CreationFlowId,
+  StayCreationDraft,
+} from '../../../../core/creation-flow/creation-flow.models';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { OwnerLookupAdapter } from '../../../../shared/entity-lookup/domain-lookup.adapters';
@@ -43,7 +49,6 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatLabel,
     MatProgressSpinner,
     RemoteEntitySelector,
-    RouterLink,
     UiStateComponent,
   ],
   templateUrl: './stay-create-page.html',
@@ -55,6 +60,7 @@ export class StayCreatePage implements AfterViewInit {
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
+  private readonly creationFlow = inject(CreationFlowService);
   private readonly dialog = inject(MatDialog);
   private readonly ownerSelector = viewChild.required(RemoteEntitySelector<OwnerLookup>);
 
@@ -131,20 +137,42 @@ export class StayCreatePage implements AfterViewInit {
   private ownerResetGeneration = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
+  private pendingRestoredRelationships: { ownerId: string; catIds: string[] } | null = null;
 
   ngAfterViewInit(): void {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) {
+      const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
+      const draft = this.creationFlow.consumeStay(flowId);
+      if (draft) this.restoreDraft(draft);
+      return;
+    }
+
     const queryOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
     if (queryOwnerId) this.ownerSelector().resolveKnownId(queryOwnerId);
   }
 
   onOwnerLookupInput(): void {
     this.returnQuerySelectionApplicable = false;
+    this.pendingRestoredRelationships = null;
   }
 
   onOwnerChange(owner: OwnerLookup | null): void {
     if (owner === this.selectedOwner()) return;
     this.resetOwnerDependentState();
     this.selectedOwner.set(owner);
+
+    const pendingRelationships = this.pendingRestoredRelationships;
+    if (owner && pendingRelationships?.ownerId === owner.id) {
+      const validCatIds = new Set(owner.currentCats.map((cat) => cat.id));
+      this.selectedCatIds.set(
+        [...new Set(pendingRelationships.catIds)].filter((catId) => validCatIds.has(catId)),
+      );
+      this.pendingRestoredRelationships = null;
+      this.refreshPricingPreview();
+      return;
+    }
+    this.pendingRestoredRelationships = null;
 
     if (owner && this.returnQuerySelectionApplicable) {
       this.returnQuerySelectionApplicable = false;
@@ -294,7 +322,28 @@ export class StayCreatePage implements AfterViewInit {
 
   cancel(): void {
     if (this.submitting()) return;
+    this.clearRootFlow();
     this.router.navigate(['/stays']);
+  }
+
+  createRelated(kind: 'owner' | 'cat', event: Event): void {
+    event.preventDefault();
+    if (this.submitting()) return;
+
+    const existingId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    const flowId =
+      this.creationFlow.has(existingId) && this.creationFlow.root(existingId) === 'stay'
+        ? existingId
+        : this.creationFlow.start('stay');
+    this.creationFlow.captureStay(flowId, this.captureDraft());
+    const destination = kind === 'owner' ? '/owners/new' : '/cats/new';
+    this.creationFlow.expectHop(flowId, '/stays/new', destination);
+    const queryParams: Record<string, string> = {
+      returnTo: '/stays/new',
+      [CREATION_FLOW_QUERY_PARAM]: flowId,
+    };
+    if (kind === 'cat') queryParams['ownerId'] = this.selectedOwnerId();
+    this.router.navigate([destination], { queryParams });
   }
 
   private saveStay(
@@ -308,6 +357,7 @@ export class StayCreatePage implements AfterViewInit {
     this.stayApiService.createStay(request).subscribe({
       next: () => {
         this.submitting.set(false);
+        this.clearRootFlow();
         this.router.navigate(['/stays']);
       },
       error: (error: unknown) => {
@@ -426,6 +476,60 @@ export class StayCreatePage implements AfterViewInit {
 
   private clearVaccineOverrideRecovery(): void {
     this.vaccineOverrideRecoveryBasis = null;
+  }
+
+  private captureDraft(): StayCreationDraft {
+    const pendingRelationships = this.pendingRestoredRelationships;
+    return {
+      ownerId: pendingRelationships?.ownerId ?? this.selectedOwnerId(),
+      catIds: pendingRelationships?.catIds ?? this.selectedCatIds(),
+      startAt: this.startAt(),
+      endAt: this.endAt(),
+      notes: this.notes(),
+      agreedAmount: this.agreedAmount(),
+      pricingReason: this.pricingReason(),
+    };
+  }
+
+  private restoreDraft(draft: StayCreationDraft): void {
+    this.startAt.set(draft.startAt);
+    this.endAt.set(draft.endAt);
+    this.notes.set(draft.notes);
+    this.agreedAmount.set(draft.agreedAmount);
+    this.pricingReason.set(draft.pricingReason);
+    this.pricingReasonContext.set('manual');
+    this.clearVaccineOverrideRecovery();
+    this.previewRequestSequence++;
+    this.pricingPreview.set(null);
+    this.previewLoading.set(false);
+    this.previewError.set(null);
+    this.pricingConfirmed.set(false);
+    this.stalePricing.set(false);
+    this.error.set(null);
+    this.notesError.set(null);
+
+    const returnedOwnerId = this.route.snapshot.queryParamMap.get('ownerId');
+    const returnedCatId = this.route.snapshot.queryParamMap.get('catId');
+    let ownerId = draft.ownerId;
+    let catIds = draft.catIds;
+
+    if (returnedCatId) {
+      ownerId = returnedOwnerId || draft.ownerId;
+      catIds = ownerId === draft.ownerId ? [...draft.catIds, returnedCatId] : [returnedCatId];
+    } else if (returnedOwnerId && returnedOwnerId !== draft.ownerId) {
+      ownerId = returnedOwnerId;
+      catIds = [];
+    }
+
+    if (!ownerId) return;
+    this.returnQuerySelectionApplicable = false;
+    this.pendingRestoredRelationships = { ownerId, catIds };
+    this.ownerSelector().resolveKnownId(ownerId);
+  }
+
+  private clearRootFlow(): void {
+    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
+    if (flowId && this.creationFlow.root(flowId) === 'stay') this.creationFlow.clear(flowId);
   }
 
   private getCreateStayErrorMessage(error: unknown): string {

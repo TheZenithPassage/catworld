@@ -3,7 +3,13 @@ import { NgModel } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import {
+  ActivatedRoute,
+  convertToParamMap,
+  DefaultUrlSerializer,
+  NavigationStart,
+  Router,
+} from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -18,6 +24,7 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
+import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 
 describe('CatCreatePage', () => {
   let component: CatCreatePage;
@@ -90,8 +97,11 @@ describe('CatCreatePage', () => {
     getVetById: vi.fn(),
   };
 
+  const routerEvents = new Subject<NavigationStart>();
   const router = {
     navigate: vi.fn(),
+    events: routerEvents,
+    parseUrl: (url: string) => new DefaultUrlSerializer().parse(url),
   };
 
   beforeEach(async () => {
@@ -328,6 +338,82 @@ describe('CatCreatePage', () => {
     expect(vetSelector.selectedId()).toBe('vet-1');
   });
 
+  it('preserves absent-marker legacy relations but isolates stale and empty flow overlays', () => {
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockClear();
+    vetApiService.getVetById.mockClear();
+    queryParams = { creationFlowId: 'stale', ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+    expect(component.getCreateOwnerQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(component.getCreateVetQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
+
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockClear();
+    vetApiService.getVetById.mockClear();
+    queryParams = { creationFlowId: '', ownerId: 'owner-1', vetId: 'vet-1' };
+    createComponent();
+    fixture.detectChanges();
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+    expect(component.getCreateOwnerQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(component.getCreateVetQueryParams()).toEqual({ returnTo: '/cats/new' });
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
+  });
+
+  it('accepts a pending Owner but not a Vet on a matching initial Stay to Cat entry', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    const flowId = TestBed.inject(CreationFlowService).start('stay');
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    queryParams = {
+      creationFlowId: flowId,
+      ownerId: 'owner-1',
+      vetId: 'vet-1',
+    };
+
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('');
+    expect(component.getCreateVetQueryParams()).toEqual({
+      returnTo: '/cats/new',
+      ownerId: 'owner-1',
+    });
+    expect(vetApiService.getVetById).not.toHaveBeenCalled();
+
+    ownerResolution.next({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] });
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+  });
+
+  it('accepts both relation parameters from a matching active Cat flow', () => {
+    const flowId = TestBed.inject(CreationFlowService).start('cat');
+    queryParams = {
+      creationFlowId: flowId,
+      ownerId: 'owner-1',
+      vetId: 'vet-1',
+    };
+
+    createComponent();
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
   it('blocks unresolved owner and whitespace-only vet input without changing form state', () => {
     createComponent();
     fixture.detectChanges();
@@ -412,6 +498,271 @@ describe('CatCreatePage', () => {
     }
   });
 
+  it('restores a returned Owner but does not return it when the nested Cat is cancelled', () => {
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    const draft = completeDraft(photo);
+    ownerApiService.getOwnerLookup.mockImplementation((id: string) =>
+      of({ id, fullName: id === 'owner-2' ? 'Grace Hopper' : 'Ada Lovelace', currentCats: [] }),
+    );
+    const preview = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fresh-restoration');
+
+    const flowId = arriveWithDraft('/owners/new', { ownerId: 'owner-2' }, draft);
+
+    expect({
+      name: component.name(),
+      birthDate: component.birthDate(),
+      sex: component.sex(),
+      breed: component.breed(),
+      coat: component.coat(),
+      color: component.color(),
+      foodBrand: component.foodBrand(),
+      litterBrand: component.litterBrand(),
+      personality: component.personality(),
+      notes: component.notes(),
+      lastInternalDewormerName: component.lastInternalDewormerName(),
+      lastInternalDewormingDate: component.lastInternalDewormingDate(),
+      lastExternalDewormerName: component.lastExternalDewormerName(),
+      lastExternalDewormingDate: component.lastExternalDewormingDate(),
+      lastTripleFelineDate: component.lastTripleFelineDate(),
+      lastRabiesDate: component.lastRabiesDate(),
+    }).toEqual({
+      name: draft.name,
+      birthDate: draft.birthDate,
+      sex: draft.sex,
+      breed: draft.breed,
+      coat: draft.coat,
+      color: draft.color,
+      foodBrand: draft.foodBrand,
+      litterBrand: draft.litterBrand,
+      personality: draft.personality,
+      notes: draft.notes,
+      lastInternalDewormerName: draft.lastInternalDewormerName,
+      lastInternalDewormingDate: draft.lastInternalDewormingDate,
+      lastExternalDewormerName: draft.lastExternalDewormerName,
+      lastExternalDewormingDate: draft.lastExternalDewormingDate,
+      lastTripleFelineDate: draft.lastTripleFelineDate,
+      lastRabiesDate: draft.lastRabiesDate,
+    });
+    expect(component.ownerId()).toBe('owner-2');
+    expect(component.vetId()).toBe('vet-1');
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    expect(photoInput.mutation().photo).toBe(photo);
+    expect(photoInput.previewUrl()).toBe('blob:fresh-restoration');
+    expect(preview).toHaveBeenCalledWith(photo);
+    expect(queryParams).toEqual({
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-2',
+    });
+    expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(true);
+    router.navigate.mockClear();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { creationFlowId: flowId },
+    });
+    preview.mockRestore();
+  });
+
+  it('overlays only a returned Vet and restores both saved relations after child cancel', () => {
+    const draft = completeDraft(null);
+    vetApiService.getVetById.mockImplementation((id: string) =>
+      of({ ...vets[0], id, name: id === 'vet-2' ? 'Dr. New' : 'Dr. Vet' }),
+    );
+
+    arriveWithDraft('/vets/new', { vetId: 'vet-2' }, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-2');
+
+    fixture.destroy();
+    arriveWithDraft('/owners/new', {}, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+
+    fixture.destroy();
+    arriveWithDraft('/vets/new', {}, draft);
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('keeps scalar and photo state when a returned relation cannot be resolved', () => {
+    const photo = new File(['photo'], 'cat.jpg', { type: 'image/jpeg' });
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 404 })),
+    );
+
+    arriveWithDraft('/owners/new', { ownerId: 'missing-owner' }, completeDraft(photo));
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+    expect(component.getCreateVetQueryParams()).toEqual({
+      returnTo: '/cats/new',
+      catReturnTo: '/stays/new',
+    });
+    expect(component.name()).toBe('Milo draft');
+    expect(component.notes()).toBe('  raw draft notes\nsecond line  ');
+    expect(
+      fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance.mutation().photo,
+    ).toBe(photo);
+  });
+
+  it('captures a committed Owner while known-ID resolution is pending and restores it after cancel', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('Pending Owner draft');
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+
+    component.createRelated('owner', cancelableClick());
+    const flowId = latestCreatedFlowId();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
+      queryParams: {
+        returnTo: '/cats/new',
+        vetId: 'vet-1',
+        creationFlowId: flowId,
+      },
+    });
+
+    returnFromCancelledRelated('owner', flowId);
+
+    expect(component.name()).toBe('Pending Owner draft');
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+
+    ownerResolution.next({ id: 'owner-1', fullName: 'Ada Lovelace', currentCats: [] });
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('captures a committed Vet while known-ID resolution is pending and restores it after cancel', () => {
+    const vetResolution = new Subject<VetLookup>();
+    vetApiService.getVetById.mockReturnValue(vetResolution);
+    const flowId = arriveWithDraft('/owners/new', {}, completeDraft(null));
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('');
+
+    component.createRelated('vet', cancelableClick());
+    expect(latestCreatedFlowId()).toBe(flowId);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/vets/new'], {
+      queryParams: {
+        returnTo: '/cats/new',
+        ownerId: 'owner-1',
+        catReturnTo: '/stays/new',
+        creationFlowId: flowId,
+      },
+    });
+
+    returnFromCancelledRelated('vet', flowId, { returnTo: '/stays/new' });
+
+    expect(component.notes()).toBe('  raw draft notes\nsecond line  ');
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('');
+
+    vetResolution.next(vets[0]);
+    fixture.detectChanges();
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-1');
+  });
+
+  it('clears a pending committed Owner after explicit selector clearing', () => {
+    const ownerResolution = new Subject<OwnerLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    ownerApiService.getOwnerLookup.mockReturnValue(ownerResolution);
+    createComponent();
+    fixture.detectChanges();
+    const ownerSelector = fixture.debugElement.queryAll(By.directive(RemoteEntitySelector))[0]
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+
+    ownerSelector.clear();
+    component.createRelated('vet', cancelableClick());
+    returnFromCancelledRelated('vet', latestCreatedFlowId());
+
+    expect(component.ownerId()).toBe('');
+    expect(component.vetId()).toBe('vet-1');
+    expect(ownerApiService.getOwnerLookup).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces a pending committed Vet after explicit selector selection', () => {
+    const vetResolution = new Subject<VetLookup>();
+    queryParams = { ownerId: 'owner-1', vetId: 'vet-1' };
+    vetApiService.getVetById.mockReturnValue(vetResolution);
+    createComponent();
+    fixture.detectChanges();
+    const vetSelector = fixture.debugElement.queryAll(By.directive(RemoteEntitySelector))[1]
+      .componentInstance as RemoteEntitySelector<VetLookup>;
+
+    vetSelector.select({ ...vets[0], id: 'vet-2', name: 'Dr. New' });
+    vetApiService.getVetById.mockImplementation((id: string) =>
+      of({ ...vets[0], id, name: 'Dr. New' }),
+    );
+    component.createRelated('owner', cancelableClick());
+    returnFromCancelledRelated('owner', latestCreatedFlowId());
+
+    expect(component.ownerId()).toBe('owner-1');
+    expect(component.vetId()).toBe('vet-2');
+  });
+
+  function arriveWithDraft(
+    via: '/owners/new' | '/vets/new',
+    returned: Record<string, string>,
+    draft: ReturnType<typeof completeDraft>,
+  ): string {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('stay');
+    creationFlow.captureCat(flowId, draft);
+    creationFlow.expectHop(flowId, '/cats/new', via);
+    routerEvents.next(new NavigationStart(1, `${via}?creationFlowId=${flowId}`, 'imperative'));
+    creationFlow.expectHop(flowId, via, '/cats/new');
+    queryParams = { creationFlowId: flowId, returnTo: '/stays/new', ...returned };
+    const search = new URLSearchParams(queryParams).toString();
+    routerEvents.next(new NavigationStart(2, `/cats/new?${search}`, 'imperative'));
+    createComponent();
+    fixture.detectChanges();
+    return flowId;
+  }
+
+  function latestCreatedFlowId(): string {
+    const queryParams = router.navigate.mock.calls.at(-1)?.[1]?.queryParams as
+      | Record<string, string>
+      | undefined;
+    const flowId = queryParams?.['creationFlowId'];
+    if (!flowId) throw new Error('Expected related navigation to create a flow.');
+    return flowId;
+  }
+
+  function returnFromCancelledRelated(
+    kind: 'owner' | 'vet',
+    flowId: string,
+    returned: Record<string, string> = {},
+  ): void {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const childPath = kind === 'owner' ? '/owners/new' : '/vets/new';
+    routerEvents.next(
+      new NavigationStart(101, `${childPath}?creationFlowId=${flowId}`, 'imperative'),
+    );
+    if (!creationFlow.has(flowId)) throw new Error('Expected an active creation flow.');
+    creationFlow.expectHop(flowId, childPath, '/cats/new');
+    queryParams = { creationFlowId: flowId, ...returned };
+    routerEvents.next(
+      new NavigationStart(
+        102,
+        `/cats/new?${new URLSearchParams(queryParams).toString()}`,
+        'imperative',
+      ),
+    );
+    fixture.destroy();
+    createComponent();
+    fixture.detectChanges();
+  }
+
   it('cancels back to the originating stay with owner context and clears photo state', () => {
     queryParams = { returnTo: '/stays/new', ownerId: 'owner-1' };
     createComponent();
@@ -433,6 +784,87 @@ describe('CatCreatePage', () => {
     createComponent();
     component.cancel();
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
+  });
+
+  it('clears a root Cat flow on successful legacy return to Stay without propagating its ID', () => {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('cat');
+    creationFlow.captureCat(
+      flowId,
+      completeDraft(new File(['photo'], 'cat.jpg', { type: 'image/jpeg' })),
+    );
+    queryParams = {
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    component.submit();
+
+    expect(creationFlow.has(flowId)).toBe(false);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', catId: 'cat-1' },
+    });
+  });
+
+  it('clears a root Cat flow on explicit legacy cancel to Stay without propagating its ID', () => {
+    const creationFlow = TestBed.inject(CreationFlowService);
+    const flowId = creationFlow.start('cat');
+    creationFlow.captureCat(
+      flowId,
+      completeDraft(new File(['photo'], 'cat.jpg', { type: 'image/jpeg' })),
+    );
+    queryParams = {
+      creationFlowId: flowId,
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+
+    component.cancel();
+
+    expect(creationFlow.has(flowId)).toBe(false);
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1' },
+    });
+  });
+
+  it('preserves stale and empty flow markers on success and cancel returns to Stay', () => {
+    queryParams = {
+      creationFlowId: 'stale',
+      returnTo: '/stays/new',
+      ownerId: 'owner-1',
+    };
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    component.submit();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { ownerId: 'owner-1', catId: 'cat-1', creationFlowId: 'stale' },
+    });
+
+    fixture.destroy();
+    router.navigate.mockClear();
+    queryParams = { creationFlowId: '', returnTo: '/stays/new', ownerId: 'owner-1' };
+    createComponent();
+    fixture.detectChanges();
+    component.cancel();
+    expect(router.navigate).toHaveBeenLastCalledWith(['/stays/new'], {
+      queryParams: { creationFlowId: '' },
+    });
   });
 
   it('shows backend validation errors through shared Material error state', () => {
@@ -484,4 +916,32 @@ describe('CatCreatePage', () => {
 
 function fileChange(file: File): Event {
   return { target: { files: [file], value: 'selected' } } as unknown as Event;
+}
+
+function cancelableClick(): Event {
+  return { preventDefault: vi.fn() } as unknown as Event;
+}
+
+function completeDraft(photo: File | null) {
+  return {
+    name: 'Milo draft',
+    birthDate: '2020-01-02',
+    sex: 'MALE' as const,
+    breed: 'mixed',
+    coat: 'short',
+    color: 'orange',
+    foodBrand: 'food',
+    litterBrand: 'litter',
+    personality: 'friendly',
+    notes: '  raw draft notes\nsecond line  ',
+    lastInternalDewormerName: 'internal',
+    lastInternalDewormingDate: '2025-01-01',
+    lastExternalDewormerName: 'external',
+    lastExternalDewormingDate: '2025-02-01',
+    lastTripleFelineDate: '2025-03-01',
+    lastRabiesDate: '2025-04-01',
+    ownerId: 'owner-1',
+    vetId: 'vet-1',
+    photo,
+  };
 }
