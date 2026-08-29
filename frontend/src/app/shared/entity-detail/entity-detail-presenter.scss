@@ -44,6 +44,14 @@ dd {
   font-weight: 650;
 }
 
+.detail-field-notes {
+  grid-column: 1 / -1;
+}
+
+.detail-field-notes dd {
+  white-space: pre-wrap;
+}
+
 dd button {
   justify-content: flex-start;
   max-width: 100%;

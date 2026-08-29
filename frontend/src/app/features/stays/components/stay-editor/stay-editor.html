@@ -152,9 +152,13 @@
               matInput
               name="notes"
               rows="4"
+              [errorStateMatcher]="notesErrorStateMatcher"
               [ngModel]="notes()"
               (ngModelChange)="notes.set($event)"
             ></textarea>
+            @if (notesError(); as message) {
+              <mat-error>{{ message }}</mat-error>
+            }
           </mat-form-field>
 
           <div class="form-actions">

@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -43,11 +44,16 @@ export class OwnerCreatePage {
   readonly secondaryPhoneName = signal('');
   readonly instagram = signal('');
   readonly facebook = signal('');
+  readonly notes = signal('');
 
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly fullNameError = createLanguageResetError(this.i18nService.language);
   readonly primaryPhoneError = createLanguageResetError(this.i18nService.language);
+  readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
 
   submit(): void {
     this.error.set(null);
@@ -62,6 +68,10 @@ export class OwnerCreatePage {
       this.primaryPhoneError.set(this.text().owners.create.errors.primaryPhoneRequired);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().owners.create.errors.notesTooLong);
+      return;
+    }
 
     const request: CreateOwnerRequest = {
       fullName: this.fullName().trim(),
@@ -71,6 +81,7 @@ export class OwnerCreatePage {
       secondaryPhoneName: this.toNullableString(this.secondaryPhoneName()),
       instagram: this.toNullableString(this.instagram()),
       facebook: this.toNullableString(this.facebook()),
+      notes: this.toNullableString(this.notes()),
     };
 
     this.submitting.set(true);
@@ -92,6 +103,7 @@ export class OwnerCreatePage {
   private clearValidationErrors(): void {
     this.fullNameError.set(null);
     this.primaryPhoneError.set(null);
+    this.notesError.set(null);
   }
 
   private toNullableString(value: string): string | null {

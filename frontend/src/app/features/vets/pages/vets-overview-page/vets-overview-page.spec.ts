@@ -18,6 +18,7 @@ describe('VetsOverviewPage', () => {
       address: '2 Clinic Road',
       phoneNumber: '555-4444',
       registrationNumber: 'REG-1',
+      notes: null,
     },
     {
       id: 'vet-2',
@@ -25,6 +26,7 @@ describe('VetsOverviewPage', () => {
       address: null,
       phoneNumber: null,
       registrationNumber: null,
+      notes: null,
     },
   ];
 

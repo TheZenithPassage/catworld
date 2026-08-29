@@ -8,6 +8,7 @@ export interface Owner {
   secondaryPhoneName: string | null;
   instagram: string | null;
   facebook: string | null;
+  notes: string | null;
 }
 
 export interface CreateOwnerRequest {
@@ -18,6 +19,7 @@ export interface CreateOwnerRequest {
   secondaryPhoneName: string | null;
   instagram: string | null;
   facebook: string | null;
+  notes: string | null;
 }
 
 export type UpdateOwnerRequest = CreateOwnerRequest;

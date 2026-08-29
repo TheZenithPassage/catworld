@@ -97,6 +97,9 @@ An `Owner` can have:
 - multiple stays
 - one application account recorded as its creator
 
+An Owner may store optional operational `notes` through its normal create,
+update and response contract.
+
 #### Vet
 
 Represents a reference veterinarian.
@@ -110,13 +113,25 @@ have a 100-character maximum without uniqueness or registry-format rules.
 
 Each `Vet` stores the application account that created it.
 
+A Vet may also store optional operational `notes` through its normal contract.
+
 #### Cat
 
 Represents a cat registered in the boarding system.
 
 A `Cat` belongs to one `Owner` and may optionally reference one `Vet`.
 
+A Cat may store optional operational `notes` through its normal create, update
+and response contract.
+
 Each `Cat` stores the application account that created it.
+
+Owner, Cat, Vet and Stay share one nullable notes contract: requests accept at
+most 10,000 characters, backend mutation mapping trims surrounding whitespace,
+blank input becomes `null`, and internal whitespace and line breaks are
+preserved. Owner, Cat and Vet details render the complete value through their
+normal response DTOs. Their overview search, lookup and relationship-summary
+contracts remain notes-free; the existing Stay overview behavior is unchanged.
 
 #### Stay
 

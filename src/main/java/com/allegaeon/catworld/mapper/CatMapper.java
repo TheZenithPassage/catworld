@@ -30,6 +30,7 @@ public class CatMapper {
                 .foodBrand(cat.getFoodBrand())
                 .litterBrand(cat.getLitterBrand())
                 .personality(cat.getPersonality())
+                .notes(cat.getNotes())
                 .lastInternalDewormerName(cat.getLastInternalDewormerName())
                 .lastInternalDewormingDate(cat.getLastInternalDewormingDate())
                 .lastExternalDewormerName(cat.getLastExternalDewormerName())
@@ -58,6 +59,7 @@ public class CatMapper {
                 .foodBrand(catRequestDTO.getFoodBrand())
                 .litterBrand(catRequestDTO.getLitterBrand())
                 .personality(catRequestDTO.getPersonality())
+                .notes(normalizeOptional(catRequestDTO.getNotes()))
                 .lastInternalDewormerName(catRequestDTO.getLastInternalDewormerName())
                 .lastInternalDewormingDate(catRequestDTO.getLastInternalDewormingDate())
                 .lastExternalDewormerName(catRequestDTO.getLastExternalDewormerName())
@@ -81,6 +83,7 @@ public class CatMapper {
         cat.setFoodBrand(catRequestDTO.getFoodBrand());
         cat.setLitterBrand(catRequestDTO.getLitterBrand());
         cat.setPersonality(catRequestDTO.getPersonality());
+        cat.setNotes(normalizeOptional(catRequestDTO.getNotes()));
         cat.setLastInternalDewormerName(catRequestDTO.getLastInternalDewormerName());
         cat.setLastInternalDewormingDate(catRequestDTO.getLastInternalDewormingDate());
         cat.setLastExternalDewormerName(catRequestDTO.getLastExternalDewormerName());
@@ -92,6 +95,12 @@ public class CatMapper {
 
         return cat;
 
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null) return null;
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
 }

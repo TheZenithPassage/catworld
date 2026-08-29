@@ -63,6 +63,19 @@ describe('CatDetail permanent deletion', () => {
     expect(api.getCatDetail).toHaveBeenCalledOnce();
   });
 
+  it('renders present multiline notes and the normal empty value', () => {
+    component.detail.set({ ...detail(), cat: { ...detail().cat, notes: 'line one\nline two' } });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      'line one\nline two',
+    );
+    component.detail.set(detail());
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
+      component.text().cats.emptyValue,
+    );
+  });
+
   it('uses the human-readable Cat and Owner subject and cancellation sends no request', () => {
     deleteButton().click();
     const [, config] = dialog.open.mock.calls[0];
@@ -214,6 +227,7 @@ function detail(canDelete: boolean | undefined = true): CatDetailResponse {
       foodBrand: null,
       litterBrand: null,
       personality: null,
+      notes: null,
       lastInternalDewormerName: null,
       lastInternalDewormingDate: null,
       lastExternalDewormerName: null,

@@ -33,4 +33,7 @@ public class OwnerRequestDTO {
     @Size(max = 100, message = "Facebook must not exceed 100 characters")
     private String facebook;
 
+    @Size(max = 10000, message = "Notes must not exceed 10000 characters")
+    private String notes;
+
 }

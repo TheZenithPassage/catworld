@@ -19,7 +19,7 @@ public class StayUpdateDTO {
     @NotNull(message = "endAt is required")
     private LocalDateTime endAt;
 
-    @Size(max = 500, message = "Notes must not exceed 500 characters")
+    @Size(max = 10000, message = "Notes must not exceed 10000 characters")
     private String notes;
 
     private boolean overrideVaccineConflicts;

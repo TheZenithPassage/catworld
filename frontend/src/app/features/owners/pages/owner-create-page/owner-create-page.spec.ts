@@ -94,7 +94,8 @@ describe('OwnerCreatePage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(7);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(8);
+    expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="fullName"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="primaryPhone"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
@@ -140,6 +141,7 @@ describe('OwnerCreatePage', () => {
     component.secondaryPhoneName.set('');
     component.instagram.set(' catworld ');
     component.facebook.set('  ');
+    component.notes.set('  first line\n  second line  ');
 
     component.submit();
 
@@ -151,9 +153,21 @@ describe('OwnerCreatePage', () => {
       secondaryPhoneName: null,
       instagram: 'catworld',
       facebook: null,
+      notes: 'first line\n  second line',
     });
     expect(router.navigate).toHaveBeenCalledWith(['/owners']);
     expect(component.submitting()).toBe(false);
+  });
+
+  it('shows a localized Material error and does not create for overlong notes', async () => {
+    component.fullName.set('Ada Lovelace');
+    component.primaryPhone.set('555-1111');
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(ownerApiService.createOwner).not.toHaveBeenCalled();
+    expect(getMaterialErrorText()).toContain(component.text().owners.create.errors.notesTooLong);
   });
 
   it('preserves cat return navigation after owner creation', () => {

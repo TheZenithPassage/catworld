@@ -294,6 +294,19 @@ describe('StayCreatePage', () => {
     expect(catLink.queryParams).toEqual({ returnTo: '/stays/new', ownerId: 'owner-1' });
   });
 
+  it('shows a localized Material error and does not create for overlong notes', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.notes.set('x'.repeat(10001));
+    component.submit();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(stayApiService.createStay).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      component.text().stays.create.errors.notesTooLong,
+    );
+  });
+
   it('preserves owner and cat query-param preselection', () => {
     queryParams = {
       ownerId: 'owner-1',

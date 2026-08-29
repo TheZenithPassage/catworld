@@ -18,6 +18,7 @@ public class OwnerResponseDTO {
     private String secondaryPhoneName;
     private String instagram;
     private String facebook;
+    private String notes;
     private boolean canDelete;
 
 }

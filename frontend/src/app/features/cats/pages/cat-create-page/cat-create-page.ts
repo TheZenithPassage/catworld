@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -70,6 +71,7 @@ export class CatCreatePage implements AfterViewInit {
   readonly foodBrand = signal('');
   readonly litterBrand = signal('');
   readonly personality = signal('');
+  readonly notes = signal('');
   readonly lastInternalDewormerName = signal('');
   readonly lastInternalDewormingDate = signal('');
   readonly lastExternalDewormerName = signal('');
@@ -82,6 +84,10 @@ export class CatCreatePage implements AfterViewInit {
   readonly nameError = createLanguageResetError(this.i18nService.language);
   readonly birthDateError = createLanguageResetError(this.i18nService.language);
   readonly sexError = createLanguageResetError(this.i18nService.language);
+  readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
   ngAfterViewInit(): void {
     const ownerId = this.route.snapshot.queryParamMap.get('ownerId');
     const vetId = this.route.snapshot.queryParamMap.get('vetId');
@@ -119,6 +125,10 @@ export class CatCreatePage implements AfterViewInit {
       this.sexError.set(this.text().cats.create.errors.sexRequired);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().cats.create.errors.notesTooLong);
+      return;
+    }
 
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
@@ -134,6 +144,7 @@ export class CatCreatePage implements AfterViewInit {
       foodBrand: this.toNullableString(this.foodBrand()),
       litterBrand: this.toNullableString(this.litterBrand()),
       personality: this.toNullableString(this.personality()),
+      notes: this.toNullableString(this.notes()),
       lastInternalDewormerName: this.toNullableString(this.lastInternalDewormerName()),
       lastInternalDewormingDate: this.toNullableString(this.lastInternalDewormingDate()),
       lastExternalDewormerName: this.toNullableString(this.lastExternalDewormerName()),
@@ -181,6 +192,7 @@ export class CatCreatePage implements AfterViewInit {
     this.nameError.set(null);
     this.birthDateError.set(null);
     this.sexError.set(null);
+    this.notesError.set(null);
   }
 
   getCreateVetQueryParams(): Record<string, string> {

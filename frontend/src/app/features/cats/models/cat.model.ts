@@ -12,6 +12,7 @@ export interface Cat {
   foodBrand: string | null;
   litterBrand: string | null;
   personality: string | null;
+  notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
   lastExternalDewormerName: string | null;
@@ -35,6 +36,7 @@ export interface CreateCatRequest {
   foodBrand: string | null;
   litterBrand: string | null;
   personality: string | null;
+  notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
   lastExternalDewormerName: string | null;

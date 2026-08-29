@@ -210,6 +210,7 @@ export interface StaysTranslations {
       datesRequired: string;
       endAfterStart: string;
       createFailed: string;
+      notesTooLong: string;
     };
   };
   edit: {
@@ -232,6 +233,7 @@ export interface StaysTranslations {
       datesRequired: string;
       endAfterStart: string;
       updateFailed: string;
+      notesTooLong: string;
     };
   };
   detail: {
@@ -473,6 +475,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         createFailed: 'Error al crear la estancia',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     edit: {
@@ -495,6 +498,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         updateFailed: 'Error al actualizar la estancia',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     detail: {
@@ -733,6 +737,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'Start and end date are required',
         endAfterStart: 'End date must be after start date',
         createFailed: 'Error creating stay',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     edit: {
@@ -755,6 +760,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'Start and end date are required',
         endAfterStart: 'End date must be after start date',
         updateFailed: 'Error updating stay',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     detail: {

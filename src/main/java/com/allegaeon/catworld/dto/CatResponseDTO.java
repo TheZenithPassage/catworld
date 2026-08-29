@@ -22,6 +22,7 @@ public class CatResponseDTO {
     private String foodBrand;
     private String litterBrand;
     private String personality;
+    private String notes;
     private String lastInternalDewormerName;
     private LocalDate lastInternalDewormingDate;
     private String lastExternalDewormerName;

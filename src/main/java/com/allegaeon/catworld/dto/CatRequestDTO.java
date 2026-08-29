@@ -45,6 +45,9 @@ public class CatRequestDTO {
     @Size(max = 255, message = "Personality must not exceed 255 characters")
     private String personality;
 
+    @Size(max = 10000, message = "Notes must not exceed 10000 characters")
+    private String notes;
+
     @Size(max = 100, message = "Last internal dewormer name must not exceed 100 characters")
     private String lastInternalDewormerName;
 

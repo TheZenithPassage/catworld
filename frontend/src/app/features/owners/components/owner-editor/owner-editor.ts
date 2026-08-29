@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
@@ -45,12 +46,17 @@ export class OwnerEditor {
   readonly secondaryPhoneName = signal('');
   readonly instagram = signal('');
   readonly facebook = signal('');
+  readonly notes = signal('');
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly ownerLoaded = signal(false);
   readonly fullNameError = createLanguageResetError(this.i18n.language);
   readonly primaryPhoneError = createLanguageResetError(this.i18n.language);
+  readonly notesError = createLanguageResetError(this.i18n.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
   constructor() {
     effect(() => {
       const entity = this.entity();
@@ -80,6 +86,7 @@ export class OwnerEditor {
     this.error.set(null);
     this.fullNameError.set(null);
     this.primaryPhoneError.set(null);
+    this.notesError.set(null);
     if (!this.entityId()) {
       this.error.set(this.text().owners.edit.errors.ownerIdMissing);
       return;
@@ -92,6 +99,10 @@ export class OwnerEditor {
       this.primaryPhoneError.set(this.text().owners.edit.errors.primaryPhoneRequired);
       return;
     }
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().owners.edit.errors.notesTooLong);
+      return;
+    }
     const request: UpdateOwnerRequest = {
       fullName: this.fullName().trim(),
       address: this.optional(this.address()),
@@ -100,6 +111,7 @@ export class OwnerEditor {
       secondaryPhoneName: this.optional(this.secondaryPhoneName()),
       instagram: this.optional(this.instagram()),
       facebook: this.optional(this.facebook()),
+      notes: this.optional(this.notes()),
     };
     this.setSubmitting(true);
     this.api.updateOwner(this.entityId(), request).subscribe({
@@ -125,6 +137,7 @@ export class OwnerEditor {
     this.secondaryPhoneName.set(o.secondaryPhoneName ?? '');
     this.instagram.set(o.instagram ?? '');
     this.facebook.set(o.facebook ?? '');
+    this.notes.set(o.notes ?? '');
     this.ownerLoaded.set(true);
   }
   private optional(v: string): string | null {

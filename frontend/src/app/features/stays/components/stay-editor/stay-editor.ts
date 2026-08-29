@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -104,6 +105,10 @@ export class StayEditor {
   readonly loading = signal(false);
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
+  readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly notesErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.notesError() !== null,
+  };
   readonly stayLoaded = signal(false);
   readonly stay = signal<Stay | null>(null);
   readonly canEditStay = computed(() => {
@@ -204,6 +209,12 @@ export class StayEditor {
 
   submit(): void {
     this.error.set(null);
+    this.notesError.set(null);
+
+    if (this.notes().length > 10000) {
+      this.notesError.set(this.text().stays.edit.errors.notesTooLong);
+      return;
+    }
 
     if (!this.stayLoaded()) {
       this.showError(this.text().stays.edit.errors.dataNotLoaded);

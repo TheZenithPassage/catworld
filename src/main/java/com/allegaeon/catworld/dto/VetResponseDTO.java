@@ -15,6 +15,7 @@ public class VetResponseDTO {
     private String address;
     private String phoneNumber;
     private String registrationNumber;
+    private String notes;
     private boolean canDelete;
 
 }

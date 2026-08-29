@@ -21,6 +21,7 @@ export interface OwnersTranslations {
     secondaryPhoneName: string;
     instagram: string;
     facebook: string;
+    notes: string;
   };
   create: {
     title: string;
@@ -31,6 +32,7 @@ export interface OwnersTranslations {
       fullNameRequired: string;
       primaryPhoneRequired: string;
       createFailed: string;
+      notesTooLong: string;
     };
   };
   edit: {
@@ -46,6 +48,7 @@ export interface OwnersTranslations {
       fullNameRequired: string;
       primaryPhoneRequired: string;
       updateFailed: string;
+      notesTooLong: string;
     };
   };
   overview: {
@@ -98,6 +101,7 @@ export const OWNERS_TRANSLATIONS = {
       secondaryPhoneName: 'Nombre del teléfono secundario',
       instagram: 'Instagram',
       facebook: 'Facebook',
+      notes: 'Notas',
     },
     create: {
       title: 'Crear dueño',
@@ -108,6 +112,7 @@ export const OWNERS_TRANSLATIONS = {
         fullNameRequired: 'El nombre completo es obligatorio',
         primaryPhoneRequired: 'El teléfono principal es obligatorio',
         createFailed: 'Error al crear el dueño',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     edit: {
@@ -123,6 +128,7 @@ export const OWNERS_TRANSLATIONS = {
         fullNameRequired: 'El nombre completo es obligatorio',
         primaryPhoneRequired: 'El teléfono principal es obligatorio',
         updateFailed: 'Error al actualizar el dueño',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     overview: {
@@ -173,6 +179,7 @@ export const OWNERS_TRANSLATIONS = {
       secondaryPhoneName: 'Secondary phone name',
       instagram: 'Instagram',
       facebook: 'Facebook',
+      notes: 'Notes',
     },
     create: {
       title: 'Create owner',
@@ -183,6 +190,7 @@ export const OWNERS_TRANSLATIONS = {
         fullNameRequired: 'Full name is required',
         primaryPhoneRequired: 'Primary phone is required',
         createFailed: 'Error creating owner',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     edit: {
@@ -198,6 +206,7 @@ export const OWNERS_TRANSLATIONS = {
         fullNameRequired: 'Full name is required',
         primaryPhoneRequired: 'Primary phone is required',
         updateFailed: 'Error updating owner',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     overview: {

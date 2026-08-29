@@ -37,6 +37,7 @@ export interface CatsTranslations {
     foodBrand: string;
     litterBrand: string;
     personality: string;
+    notes: string;
     lastInternalDewormerName: string;
     lastInternalDewormingDate: string;
     lastExternalDewormerName: string;
@@ -78,6 +79,7 @@ export interface CatsTranslations {
       sexRequired: string;
       ownerRequired: string;
       createFailed: string;
+      notesTooLong: string;
     };
   };
   edit: {
@@ -96,6 +98,7 @@ export interface CatsTranslations {
       sexRequired: string;
       ownerRequired: string;
       updateFailed: string;
+      notesTooLong: string;
     };
   };
   overview: {
@@ -174,6 +177,7 @@ export const CATS_TRANSLATIONS = {
       foodBrand: 'Marca de comida',
       litterBrand: 'Marca de arena',
       personality: 'Personalidad',
+      notes: 'Notas',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
       lastExternalDewormerName: 'Nombre del último desparasitante externo',
@@ -218,6 +222,7 @@ export const CATS_TRANSLATIONS = {
         sexRequired: 'El sexo es obligatorio',
         ownerRequired: 'El dueño es obligatorio',
         createFailed: 'Error al crear el gato',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     edit: {
@@ -236,6 +241,7 @@ export const CATS_TRANSLATIONS = {
         sexRequired: 'El sexo es obligatorio',
         ownerRequired: 'El dueño es obligatorio',
         updateFailed: 'Error al actualizar el gato',
+        notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
     overview: {
@@ -312,6 +318,7 @@ export const CATS_TRANSLATIONS = {
       foodBrand: 'Food brand',
       litterBrand: 'Litter brand',
       personality: 'Personality',
+      notes: 'Notes',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
       lastExternalDewormerName: 'Last external dewormer name',
@@ -355,6 +362,7 @@ export const CATS_TRANSLATIONS = {
         sexRequired: 'Sex is required',
         ownerRequired: 'Owner is required',
         createFailed: 'Error creating cat',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     edit: {
@@ -373,6 +381,7 @@ export const CATS_TRANSLATIONS = {
         sexRequired: 'Sex is required',
         ownerRequired: 'Owner is required',
         updateFailed: 'Error updating cat',
+        notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
     overview: {

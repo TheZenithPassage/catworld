@@ -28,6 +28,9 @@ public class Vet extends AuditableEntity {
     @Column(name = "registration_number", length = 100)
     private String registrationNumber;
 
+    @Column(columnDefinition = "TEXT")
+    private String notes;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
     private UserAccount createdBy;

@@ -15,6 +15,7 @@ package "MySQL schema" {
     secondary_phone_name
     instagram
     facebook
+    notes TEXT
     created_by_id <<FK,NN>>
     --
     created_at <<NN>>
@@ -28,6 +29,7 @@ package "MySQL schema" {
     address
     phone_number
     registration_number varchar(100)
+    notes TEXT
     created_by_id <<FK,NN>>
     --
     created_at <<NN>>
@@ -46,6 +48,7 @@ package "MySQL schema" {
     food_brand
     litter_brand
     personality
+    notes TEXT
     last_internal_dewormer_name
     last_internal_deworming_date
     last_external_dewormer_name
