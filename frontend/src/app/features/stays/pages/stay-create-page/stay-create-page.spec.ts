@@ -228,7 +228,9 @@ describe('StayCreatePage', () => {
         new NavigationStart(2, `/owners/new?creationFlowId=${flowId}`, 'imperative'),
       );
       creationFlow.expectHop(flowId, '/owners/new', '/cats/new');
-      routerEvents.next(new NavigationStart(3, `/cats/new?creationFlowId=${flowId}`, 'imperative'));
+      routerEvents.next(
+        new NavigationStart(3, `/cats/new?creationFlowId=${flowId}&ownerId=owner-2`, 'imperative'),
+      );
     }
     creationFlow.expectHop(flowId, via, '/stays/new');
     queryParams = { [CREATION_FLOW_QUERY_PARAM]: flowId, ...returned };
@@ -488,7 +490,91 @@ describe('StayCreatePage', () => {
     expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
   });
 
-  it('ignores stale flow overlays and clears the root flow on cancel', () => {
+  it('recaptures pending restored relationships and abandons them after Owner input', () => {
+    const pendingResolution = new Subject<OwnerLookup>();
+    ownerApiService.getOwnerLookup.mockReturnValue(pendingResolution);
+    const flowId = arriveWithStayDraft('/owners/new', {});
+
+    component.createRelated('owner', new Event('click', { cancelable: true }));
+    expect(router.navigate).toHaveBeenLastCalledWith(['/owners/new'], {
+      queryParams: {
+        returnTo: '/stays/new',
+        [CREATION_FLOW_QUERY_PARAM]: flowId,
+      },
+    });
+    routerEvents.next(new NavigationStart(5, `/owners/new?creationFlowId=${flowId}`, 'imperative'));
+    TestBed.inject(CreationFlowService).expectHop(
+      flowId as CreationFlowId,
+      '/owners/new',
+      '/stays/new',
+    );
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockReturnValue(of(owners[0]));
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: flowId };
+    routerEvents.next(new NavigationStart(6, `/stays/new?creationFlowId=${flowId}`, 'imperative'));
+    createComponent();
+
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.selectedCatIds()).toEqual(['cat-1', 'cat-2']);
+    expect(component.notes()).toBe(stayDraft.notes);
+
+    fixture.destroy();
+    stayApiService.previewCreationPricing.mockClear();
+    ownerApiService.getOwnerLookup.mockReturnValue(pendingResolution);
+    arriveWithStayDraft('/owners/new', {});
+    const selector = fixture.debugElement.query(By.directive(RemoteEntitySelector))
+      .componentInstance as RemoteEntitySelector<OwnerLookup>;
+    component.onOwnerLookupInput();
+    selector.inputChanged({ target: { value: 'Grace' } } as unknown as Event);
+    selector.select(owners[1]);
+    component.createRelated('owner', new Event('click', { cancelable: true }));
+    const secondFlowId = router.navigate.mock.calls.at(-1)?.[1].queryParams[
+      CREATION_FLOW_QUERY_PARAM
+    ] as CreationFlowId;
+    routerEvents.next(
+      new NavigationStart(7, `/owners/new?creationFlowId=${secondFlowId}`, 'imperative'),
+    );
+    TestBed.inject(CreationFlowService).expectHop(secondFlowId, '/owners/new', '/stays/new');
+    fixture.destroy();
+    ownerApiService.getOwnerLookup.mockReturnValue(of(owners[1]));
+    queryParams = { [CREATION_FLOW_QUERY_PARAM]: secondFlowId };
+    routerEvents.next(
+      new NavigationStart(8, `/stays/new?creationFlowId=${secondFlowId}`, 'imperative'),
+    );
+    createComponent();
+
+    expect(component.selectedOwnerId()).toBe('owner-2');
+    expect(component.selectedCatIds()).toEqual([]);
+    expect(stayApiService.previewCreationPricing).not.toHaveBeenCalled();
+  });
+
+  it('restores the draft after nested different-Owner success followed by Cat cancel', () => {
+    ownerApiService.getOwnerLookup.mockReturnValue(
+      of({ ...owners[0], currentCats: [{ id: 'cat-2', name: 'Luna current' }] }),
+    );
+
+    arriveWithStayDraft('/cats/new', {}, true);
+
+    expect(component.selectedOwnerId()).toBe('owner-1');
+    expect(component.selectedCatIds()).toEqual(['cat-2']);
+    expect(component.startAt()).toBe(stayDraft.startAt);
+    expect(component.agreedAmount()).toBe(stayDraft.agreedAmount);
+    expect(stayApiService.previewCreationPricing).toHaveBeenCalledTimes(1);
+    expect(component.pricingConfirmed()).toBe(false);
+  });
+
+  it('ignores empty and stale flow overlays and clears the root flow on cancel', () => {
+    queryParams = {
+      [CREATION_FLOW_QUERY_PARAM]: '',
+      ownerId: 'owner-1',
+      catId: 'cat-1',
+    };
+    createComponent();
+
+    expect(ownerApiService.getOwnerLookup).not.toHaveBeenCalled();
+    expect(component.selectedOwner()).toBeNull();
+
+    fixture.destroy();
     queryParams = {
       [CREATION_FLOW_QUERY_PARAM]: 'stale-flow',
       ownerId: 'owner-1',

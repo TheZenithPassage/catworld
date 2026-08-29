@@ -137,11 +137,12 @@ export class StayCreatePage implements AfterViewInit {
   private ownerResetGeneration = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
-  private pendingRestoredCatIds: string[] | null = null;
+  private pendingRestoredRelationships: { ownerId: string; catIds: string[] } | null = null;
 
   ngAfterViewInit(): void {
-    const flowId = this.route.snapshot.queryParamMap.get(CREATION_FLOW_QUERY_PARAM);
-    if (flowId) {
+    const queryParamMap = this.route.snapshot.queryParamMap;
+    if (queryParamMap.has(CREATION_FLOW_QUERY_PARAM)) {
+      const flowId = queryParamMap.get(CREATION_FLOW_QUERY_PARAM) ?? '';
       const draft = this.creationFlow.consumeStay(flowId);
       if (draft) this.restoreDraft(draft);
       return;
@@ -153,7 +154,7 @@ export class StayCreatePage implements AfterViewInit {
 
   onOwnerLookupInput(): void {
     this.returnQuerySelectionApplicable = false;
-    this.pendingRestoredCatIds = null;
+    this.pendingRestoredRelationships = null;
   }
 
   onOwnerChange(owner: OwnerLookup | null): void {
@@ -161,15 +162,17 @@ export class StayCreatePage implements AfterViewInit {
     this.resetOwnerDependentState();
     this.selectedOwner.set(owner);
 
-    if (owner && this.pendingRestoredCatIds) {
+    const pendingRelationships = this.pendingRestoredRelationships;
+    if (owner && pendingRelationships?.ownerId === owner.id) {
       const validCatIds = new Set(owner.currentCats.map((cat) => cat.id));
       this.selectedCatIds.set(
-        [...new Set(this.pendingRestoredCatIds)].filter((catId) => validCatIds.has(catId)),
+        [...new Set(pendingRelationships.catIds)].filter((catId) => validCatIds.has(catId)),
       );
-      this.pendingRestoredCatIds = null;
+      this.pendingRestoredRelationships = null;
       this.refreshPricingPreview();
       return;
     }
+    this.pendingRestoredRelationships = null;
 
     if (owner && this.returnQuerySelectionApplicable) {
       this.returnQuerySelectionApplicable = false;
@@ -476,9 +479,10 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private captureDraft(): StayCreationDraft {
+    const pendingRelationships = this.pendingRestoredRelationships;
     return {
-      ownerId: this.selectedOwnerId(),
-      catIds: this.selectedCatIds(),
+      ownerId: pendingRelationships?.ownerId ?? this.selectedOwnerId(),
+      catIds: pendingRelationships?.catIds ?? this.selectedCatIds(),
       startAt: this.startAt(),
       endAt: this.endAt(),
       notes: this.notes(),
@@ -519,7 +523,7 @@ export class StayCreatePage implements AfterViewInit {
 
     if (!ownerId) return;
     this.returnQuerySelectionApplicable = false;
-    this.pendingRestoredCatIds = catIds;
+    this.pendingRestoredRelationships = { ownerId, catIds };
     this.ownerSelector().resolveKnownId(ownerId);
   }
 
