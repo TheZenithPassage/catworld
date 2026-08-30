@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router, RouterLink } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
@@ -47,6 +48,7 @@ describe('CalendarPage', () => {
   };
   const dialogUpdates = new Subject<EntityDetailUpdate>();
   const entityDetailDialog = { open: vi.fn(() => dialogUpdates.asObservable()) };
+  const materialDialog = { open: vi.fn() };
 
   let component: CalendarPage;
   let fixture: ComponentFixture<CalendarPage>;
@@ -72,6 +74,7 @@ describe('CalendarPage', () => {
         ]),
         { provide: StayApiService, useValue: stayApiService },
         { provide: EntityDetailDialogService, useValue: entityDetailDialog },
+        { provide: MatDialog, useValue: materialDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -208,6 +211,7 @@ describe('CalendarPage', () => {
         provideRouter([]),
         { provide: StayApiService, useValue: stayApiService },
         { provide: EntityDetailDialogService, useValue: entityDetailDialog },
+        { provide: MatDialog, useValue: materialDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -303,5 +307,23 @@ describe('CalendarPage', () => {
     expect(activateDailyCount).toHaveBeenCalledWith(aggregate);
     expect(activateDailyCount.mock.calls[0][0] as CalendarDailyAggregate).toBe(aggregate);
     expect(entityDetailDialog.open).not.toHaveBeenCalled();
+  });
+
+  it('opens the daily summary with the exact aggregate supplied by count activation', () => {
+    createComponent();
+    const aggregate = component.dailyAggregates()[0];
+
+    component.activateDailyCount(aggregate);
+
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(aggregate);
+    expect(materialDialog.open.mock.calls[0][1]).toEqual(
+      expect.objectContaining({
+        width: 'min(40rem, calc(100vw - 2rem))',
+        maxWidth: 'calc(100vw - 2rem)',
+        maxHeight: 'calc(100dvh - 2rem)',
+        autoFocus: 'dialog',
+      }),
+    );
   });
 });

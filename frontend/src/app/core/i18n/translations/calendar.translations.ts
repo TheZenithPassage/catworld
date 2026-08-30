@@ -42,6 +42,15 @@ export interface CalendarTranslations {
     accessibleSingular: string;
     accessiblePlural: string;
   };
+  dailySummary: {
+    title: string;
+    dateLabel: string;
+    totalSingular: string;
+    totalPlural: string;
+    entry: string;
+    exit: string;
+    close: string;
+  };
 }
 
 export const CALENDAR_TRANSLATIONS = {
@@ -87,6 +96,15 @@ export const CALENDAR_TRANSLATIONS = {
       accessibleSingular: 'Abrir el resumen diario de {{count}} gato',
       accessiblePlural: 'Abrir el resumen diario de {{count}} gatos',
     },
+    dailySummary: {
+      title: 'Resumen diario',
+      dateLabel: 'Fecha',
+      totalSingular: 'Total: {{count}} gato',
+      totalPlural: 'Total: {{count}} gatos',
+      entry: 'Entrada',
+      exit: 'Salida',
+      close: 'Cerrar',
+    },
   },
   en: {
     title: 'Calendar',
@@ -129,6 +147,15 @@ export const CALENDAR_TRANSLATIONS = {
       plural: '{{count}} cats',
       accessibleSingular: 'Open daily summary for {{count}} cat',
       accessiblePlural: 'Open daily summary for {{count}} cats',
+    },
+    dailySummary: {
+      title: 'Daily summary',
+      dateLabel: 'Date',
+      totalSingular: 'Total: {{count}} cat',
+      totalPlural: 'Total: {{count}} cats',
+      entry: 'Entry',
+      exit: 'Exit',
+      close: 'Close',
     },
   },
 } satisfies Record<AppLanguage, CalendarTranslations>;

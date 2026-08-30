@@ -1,6 +1,7 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatRadioModule } from '@angular/material/radio';
 import { RouterLink } from '@angular/router';
 
@@ -38,6 +39,7 @@ import {
   isCalendarDisplayMode,
 } from './calendar-display-mode';
 import { CalendarDailyAggregate, getCalendarDailyAggregates } from './calendar-daily-aggregate';
+import { CalendarDailySummaryDialog } from './calendar-daily-summary-dialog';
 
 interface CalendarLocalPreferences {
   displayMode: CalendarDisplayMode;
@@ -61,6 +63,7 @@ interface CalendarLocalPreferences {
 export class CalendarPage {
   private readonly stayApiService = inject(StayApiService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
+  private readonly dialog = inject(MatDialog);
   private readonly i18nService = inject(I18nService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
@@ -194,8 +197,14 @@ export class CalendarPage {
     });
   });
 
-  activateDailyCount(_aggregate: CalendarDailyAggregate): void {
-    // S3 owns the daily-summary dialog opened from this explicit count-event seam.
+  activateDailyCount(aggregate: CalendarDailyAggregate): void {
+    this.dialog.open(CalendarDailySummaryDialog, {
+      data: aggregate,
+      width: 'min(40rem, calc(100vw - 2rem))',
+      maxWidth: 'calc(100vw - 2rem)',
+      maxHeight: 'calc(100dvh - 2rem)',
+      autoFocus: 'dialog',
+    });
   }
 
   constructor() {
