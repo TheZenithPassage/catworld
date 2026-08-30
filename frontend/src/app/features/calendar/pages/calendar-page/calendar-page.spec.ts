@@ -244,7 +244,19 @@ describe('CalendarPage', () => {
     expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
   });
 
-  it('renders accessible full and numeric count content and dispatches its aggregate without opening Stay details', () => {
+  it('delegates detailed event content to FullCalendar default rendering', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (
+      eventInfo: unknown,
+    ) => unknown;
+
+    expect(eventContent({ event: { title: 'Milo', extendedProps: { stayId: 'stay-1' } } })).toBe(
+      true,
+    );
+  });
+
+  it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {
     createComponent();
     component.setDisplayMode('daily-counts');
     fixture.detectChanges();
@@ -257,23 +269,32 @@ describe('CalendarPage', () => {
     };
     const content = eventContent({
       event: {
+        id: countEvent.id,
         title: countEvent.title,
         extendedProps: countEvent.extendedProps,
       },
     });
-    const mountedElement = document.createElement('a');
+    const relocalizedAccessibleName = `Resumen accesible ${aggregate.count}`;
+    const relocalizedContent = eventContent({
+      event: {
+        id: countEvent.id,
+        title: `${aggregate.count} gatos`,
+        extendedProps: {
+          ...countEvent.extendedProps,
+          dailyCountAccessibleName: relocalizedAccessibleName,
+        },
+      },
+    });
 
-    expect(content.domNodes[0].textContent).toBe(countEvent.title);
-    expect(content.domNodes[1].textContent).toBe(String(aggregate.count));
-    expect(content.domNodes[1].getAttribute('aria-hidden')).toBe('true');
-
-    component.calendarOptions().eventDidMount!({
-      el: mountedElement,
-      event: { extendedProps: countEvent.extendedProps },
-    } as never);
-    expect(mountedElement.getAttribute('aria-label')).toBe(
+    expect(content.domNodes[0].textContent).toBe(
       countEvent.extendedProps?.['dailyCountAccessibleName'],
     );
+    expect(content.domNodes[1].textContent).toBe(countEvent.title);
+    expect(content.domNodes[1].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[2].textContent).toBe(String(aggregate.count));
+    expect(content.domNodes[2].getAttribute('aria-hidden')).toBe('true');
+    expect(relocalizedContent.domNodes[0].textContent).toBe(relocalizedAccessibleName);
+    expect(relocalizedContent.domNodes[1].textContent).toBe(`${aggregate.count} gatos`);
 
     component.calendarOptions().eventClick!({
       event: { id: countEvent.id, extendedProps: countEvent.extendedProps },

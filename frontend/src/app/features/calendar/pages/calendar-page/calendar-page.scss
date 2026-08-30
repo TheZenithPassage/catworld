@@ -416,14 +416,18 @@
   font-size: 0.65rem;
 }
 
-:host ::ng-deep .calendar-wrapper--daily-counts .fc .fc-daygrid-day-frame {
-  min-height: 3.25rem;
-}
-
 :host ::ng-deep .calendar-wrapper--daily-counts .fc .daily-count-event {
   padding: 0.12rem 0.2rem;
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);
+}
+
+:host ::ng-deep .calendar-wrapper--daily-counts .daily-count-event__accessible {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 :host ::ng-deep .calendar-wrapper--daily-counts .fc .daily-count-event .fc-event-main {

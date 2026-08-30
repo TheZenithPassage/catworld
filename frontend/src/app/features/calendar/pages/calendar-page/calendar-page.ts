@@ -143,13 +143,6 @@ export class CalendarPage {
     },
     eventDidMount: ({ el, event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
-        const accessibleName = event.extendedProps['dailyCountAccessibleName'];
-
-        if (typeof accessibleName === 'string') {
-          el.setAttribute('aria-label', accessibleName);
-          el.title = accessibleName;
-        }
-
         el.style.cursor = 'pointer';
         return;
       }
@@ -166,11 +159,18 @@ export class CalendarPage {
     },
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
-        return undefined;
+        return true;
       }
+
+      const accessibleName = document.createElement('span');
+      accessibleName.className = 'daily-count-event__accessible';
+      accessibleName.textContent = String(
+        eventInfo.event.extendedProps['dailyCountAccessibleName'] ?? '',
+      );
 
       const fullLabel = document.createElement('span');
       fullLabel.className = 'daily-count-event__full';
+      fullLabel.setAttribute('aria-hidden', 'true');
       fullLabel.textContent = eventInfo.event.title;
 
       const numeral = document.createElement('span');
@@ -178,7 +178,7 @@ export class CalendarPage {
       numeral.setAttribute('aria-hidden', 'true');
       numeral.textContent = String(eventInfo.event.extendedProps['dailyCountNumeral'] ?? '');
 
-      return { domNodes: [fullLabel, numeral] };
+      return { domNodes: [accessibleName, fullLabel, numeral] };
     },
   }));
 
