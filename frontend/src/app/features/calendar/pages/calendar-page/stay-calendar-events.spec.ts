@@ -4,31 +4,13 @@ import { Stay } from '../../../stays/models/stay.model';
 import { toStayCalendarEvents } from './stay-calendar-events';
 
 describe('toStayCalendarEvents', () => {
-  it('keeps the full stay span when daily labels and compact mode are disabled', () => {
+  it('creates the existing check-in and check-out marker events in entry/exit mode', () => {
     const stay = createStay();
 
     const events = toStayCalendarEvents({
       visibleStays: [stay],
       colorAssignments: new Map(),
-      dailyLabelsEnabled: false,
-      compactModeEnabled: false,
-    });
-
-    expect(events).toHaveLength(1);
-    expect(events[0].id).toBe(stay.stayId);
-    expect(events[0].start).toBe(stay.startAt);
-    expect(events[0].end).toBe(stay.endAt);
-    expect(getClassNames(events[0])).not.toContain('stay-event--compact');
-  });
-
-  it('creates check-in and check-out markers when compact mode is enabled without daily labels', () => {
-    const stay = createStay();
-
-    const events = toStayCalendarEvents({
-      visibleStays: [stay],
-      colorAssignments: new Map(),
-      dailyLabelsEnabled: false,
-      compactModeEnabled: true,
+      displayMode: 'entry-exit-markers',
     });
 
     expect(events).toHaveLength(2);
@@ -57,8 +39,7 @@ describe('toStayCalendarEvents', () => {
     const events = toStayCalendarEvents({
       visibleStays: [stay],
       colorAssignments: new Map(),
-      dailyLabelsEnabled: true,
-      compactModeEnabled: false,
+      displayMode: 'daily-labels',
     });
 
     expect(events).toHaveLength(3);
@@ -68,39 +49,13 @@ describe('toStayCalendarEvents', () => {
     );
   });
 
-  it('keeps daily labels but adds compact styling when both toggles are enabled', () => {
-    const stay = createStay({
-      startAt: '2099-06-03T10:00:00',
-      endAt: '2099-06-05T10:00:00',
-    });
-
-    const events = toStayCalendarEvents({
-      visibleStays: [stay],
-      colorAssignments: new Map(),
-      dailyLabelsEnabled: true,
-      compactModeEnabled: true,
-    });
-
-    expect(events).toHaveLength(3);
-    expect(events.every((event) => getClassNames(event).includes('stay-event--compact'))).toBe(
-      true,
-    );
-    expect(
-      events.every((event) => !getClassNames(event).includes('stay-event--compact-start')),
-    ).toBe(true);
-    expect(events.every((event) => !getClassNames(event).includes('stay-event--compact-end'))).toBe(
-      true,
-    );
-  });
-
-  it('adds translated compact marker labels when compact mode is enabled without daily labels', () => {
+  it('adds translated labels to entry and exit marker events', () => {
     const stay = createStay();
 
     const events = toStayCalendarEvents({
       visibleStays: [stay],
       colorAssignments: new Map(),
-      dailyLabelsEnabled: false,
-      compactModeEnabled: true,
+      displayMode: 'entry-exit-markers',
       compactMarkerLabels: {
         start: 'Entrada',
         end: 'Salida',

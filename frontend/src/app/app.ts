@@ -1,8 +1,10 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatToolbar } from '@angular/material/toolbar';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { I18nService } from './core/i18n/i18n.service';
@@ -38,6 +40,7 @@ export class App {
   readonly text = this.i18nService.text;
 
   readonly authenticated = this.authSessionService.authenticated;
+  readonly calendarRoute = signal(this.isCalendarUrl(this.router.url));
   readonly navigationItems = computed<ShellNavigationItem[]>(() => {
     const nav = this.text().app.nav;
     const items: ShellNavigationItem[] = [
@@ -58,6 +61,15 @@ export class App {
     return items;
   });
 
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(),
+      )
+      .subscribe((event) => this.calendarRoute.set(this.isCalendarUrl(event.urlAfterRedirects)));
+  }
+
   logout(): void {
     this.authSessionService.logout();
     this.router.navigate(['/login']);
@@ -65,5 +77,9 @@ export class App {
 
   toggleLanguage(): void {
     this.i18nService.toggleLanguage();
+  }
+
+  private isCalendarUrl(url: string): boolean {
+    return url.split(/[?#]/, 1)[0] === '/calendar';
   }
 }

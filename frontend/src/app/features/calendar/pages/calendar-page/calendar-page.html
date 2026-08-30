@@ -34,51 +34,27 @@
   <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
 
   <div class="calendar-display-options">
-    @if (hasEntityFilter()) {
-      <div class="calendar-display-options-header">
-        <strong>{{ text().calendar.filteredDisplayOptions.title }}</strong>
-      </div>
+    <div class="calendar-display-options-header">
+      <strong>{{ text().calendar.displayModes.title }}</strong>
+      <p>{{ text().calendar.displayModes.description }}</p>
+    </div>
 
-      <div
-        class="calendar-display-option calendar-display-option--single"
-        (click)="activateFilteredDisplayOption($event)"
-      >
-        <mat-checkbox
-          class="calendar-display-control"
-          [checked]="filteredDailyLabelsEnabled()"
-          (change)="setFilteredDailyLabelsEnabled($event.checked)"
-        >
-          <span class="calendar-display-option-content">
-            <strong>{{ text().calendar.filteredDisplayOptions.dailyLabels }}</strong>
-          </span>
-        </mat-checkbox>
-      </div>
-    } @else {
-      <div class="calendar-display-options-header">
-        <strong>{{ text().calendar.displayModes.title }}</strong>
-        <p>{{ text().calendar.displayModes.description }}</p>
-      </div>
-
-      <mat-radio-group
-        class="calendar-display-options-list"
-        [value]="unfilteredDisplayMode()"
-        (change)="setUnfilteredDisplayMode($event.value)"
-      >
-        @for (displayMode of displayModeOptions; track displayMode) {
-          <div
-            class="calendar-display-option"
-            (click)="activateUnfilteredDisplayOption($event, displayMode)"
-          >
-            <mat-radio-button class="calendar-display-control" [value]="displayMode">
-              <span class="calendar-display-option-content">
-                <strong>{{ text().calendar.displayModes.options[displayMode].label }}</strong>
-                <small>{{ text().calendar.displayModes.options[displayMode].description }}</small>
-              </span>
-            </mat-radio-button>
-          </div>
-        }
-      </mat-radio-group>
-    }
+    <mat-radio-group
+      class="calendar-display-options-list"
+      [value]="displayMode()"
+      (change)="setDisplayMode($event.value)"
+    >
+      @for (displayMode of displayModeOptions; track displayMode) {
+        <div class="calendar-display-option" (click)="activateDisplayOption($event, displayMode)">
+          <mat-radio-button class="calendar-display-control" [value]="displayMode">
+            <span class="calendar-display-option-content">
+              <strong>{{ text().calendar.displayModes.options[displayMode].label }}</strong>
+              <small>{{ text().calendar.displayModes.options[displayMode].description }}</small>
+            </span>
+          </mat-radio-button>
+        </div>
+      }
+    </mat-radio-group>
   </div>
 
   @if (loading()) {
@@ -96,7 +72,7 @@
     } @else if (filteredStays().length === 0) {
       <app-ui-state kind="empty" [message]="text().calendar.emptyFiltered"></app-ui-state>
     } @else {
-      <div class="calendar-wrapper">
+      <div [class]="'calendar-wrapper calendar-wrapper--' + displayMode()">
         <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
       </div>
     }

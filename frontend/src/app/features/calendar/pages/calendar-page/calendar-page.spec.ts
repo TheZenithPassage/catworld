@@ -126,14 +126,18 @@ describe('CalendarPage', () => {
     );
   });
 
-  it('uses Material display controls while preserving display mode behavior', () => {
+  it('offers exactly the three unified modes and keeps mode independent from entity filters', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const displayOptions = compiled.querySelectorAll('.calendar-display-option mat-radio-button');
     const entryExitInput = displayOptions[2].querySelector('input') as HTMLInputElement;
 
-    expect(displayOptions).toHaveLength(3);
+    expect(
+      Array.from(displayOptions).map(
+        (option) => (option.querySelector('input') as HTMLInputElement).value,
+      ),
+    ).toEqual(['daily-labels', 'daily-counts', 'entry-exit-markers']);
     expect(compiled.textContent).toContain(
       component.text().calendar.displayModes.options['daily-labels'].label,
     );
@@ -141,31 +145,51 @@ describe('CalendarPage', () => {
     (displayOptions[1].closest('.calendar-display-option') as HTMLElement).click();
     fixture.detectChanges();
 
-    expect(component.unfilteredDisplayMode()).toBe('compact-daily-labels');
-
-    entryExitInput.click();
-    fixture.detectChanges();
-
-    expect(component.unfilteredDisplayMode()).toBe('entry-exit-markers');
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(compiled.querySelector('.calendar-wrapper--daily-counts')).not.toBeNull();
 
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
     fixture.detectChanges();
 
-    const filteredDailyLabelsOption = compiled.querySelector(
-      '.calendar-display-option--single',
-    ) as HTMLElement;
-    filteredDailyLabelsOption.click();
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(compiled.querySelectorAll('.calendar-display-option mat-radio-button')).toHaveLength(3);
+    expect(compiled.querySelector('.calendar-display-option mat-checkbox')).toBeNull();
+
+    entryExitInput.click();
     fixture.detectChanges();
 
-    expect(component.filteredDailyLabelsEnabled()).toBe(true);
+    expect(component.displayMode()).toBe('entry-exit-markers');
 
-    const filteredDailyLabelsInput = filteredDailyLabelsOption.querySelector(
-      'input',
-    ) as HTMLInputElement;
-    filteredDailyLabelsInput.click();
+    component.setSearchFilters({ catId: null, ownerId: null });
     fixture.detectChanges();
 
-    expect(component.filteredDailyLabelsEnabled()).toBe(false);
+    expect(component.displayMode()).toBe('entry-exit-markers');
+  });
+
+  it('defaults invalid and obsolete display preferences safely while retaining the visible month', () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({
+        displayMode: 'compact-daily-labels',
+        unfilteredDisplayMode: 'entry-exit-markers',
+        dailyLabelsEnabled: false,
+        compactModeEnabled: true,
+        visibleMonth: '2099-04-01',
+      }),
+    );
+
+    createComponent();
+
+    expect(component.displayMode()).toBe('daily-labels');
+    expect(component.visibleMonth()).toBe('2099-04-01');
+    expect(component.calendarOptions().initialDate).toBe('2099-04-01');
+
+    component.calendarOptions().datesSet!({
+      view: { currentStart: new Date(2099, 6, 1) },
+    } as never);
+    fixture.detectChanges();
+
+    expect(component.visibleMonth()).toBe('2099-07-01');
   });
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {
