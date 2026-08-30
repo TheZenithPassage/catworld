@@ -5,7 +5,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { RouterLink } from '@angular/router';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
-import { CalendarOptions, DatesSetArg } from '@fullcalendar/core';
+import { CalendarOptions, DatesSetArg, EventContentArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import esLocale from '@fullcalendar/core/locales/es';
 import enGbLocale from '@fullcalendar/core/locales/en-gb';
@@ -37,6 +37,7 @@ import {
   DEFAULT_CALENDAR_DISPLAY_MODE,
   isCalendarDisplayMode,
 } from './calendar-display-mode';
+import { CalendarDailyAggregate, getCalendarDailyAggregates } from './calendar-daily-aggregate';
 
 interface CalendarLocalPreferences {
   displayMode: CalendarDisplayMode;
@@ -93,6 +94,7 @@ export class CalendarPage {
         isStayVisibleBySearchFilters(stay, this.searchFilters()),
     ),
   );
+  readonly dailyAggregates = computed(() => getCalendarDailyAggregates(this.filteredStays()));
 
   readonly calendarOptions = computed<CalendarOptions>(() => ({
     plugins: [dayGridPlugin],
@@ -115,6 +117,16 @@ export class CalendarPage {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
     },
     eventClick: ({ event }) => {
+      if (event.extendedProps['eventKind'] === 'daily-count') {
+        const aggregate = event.extendedProps['dailyAggregate'];
+
+        if (this.isCalendarDailyAggregate(aggregate)) {
+          this.activateDailyCount(aggregate);
+        }
+
+        return;
+      }
+
       const stayId = event.extendedProps['stayId'] ?? event.id;
 
       this.entityDetailDialog
@@ -130,6 +142,18 @@ export class CalendarPage {
         });
     },
     eventDidMount: ({ el, event }) => {
+      if (event.extendedProps['eventKind'] === 'daily-count') {
+        const accessibleName = event.extendedProps['dailyCountAccessibleName'];
+
+        if (typeof accessibleName === 'string') {
+          el.setAttribute('aria-label', accessibleName);
+          el.title = accessibleName;
+        }
+
+        el.style.cursor = 'pointer';
+        return;
+      }
+
       const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
       const openStayInList = this.text().calendar.openStayInList;
 
@@ -140,17 +164,39 @@ export class CalendarPage {
 
       el.style.cursor = 'pointer';
     },
+    eventContent: (eventInfo: EventContentArg) => {
+      if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
+        return undefined;
+      }
+
+      const fullLabel = document.createElement('span');
+      fullLabel.className = 'daily-count-event__full';
+      fullLabel.textContent = eventInfo.event.title;
+
+      const numeral = document.createElement('span');
+      numeral.className = 'daily-count-event__number';
+      numeral.setAttribute('aria-hidden', 'true');
+      numeral.textContent = String(eventInfo.event.extendedProps['dailyCountNumeral'] ?? '');
+
+      return { domNodes: [fullLabel, numeral] };
+    },
   }));
 
   readonly calendarEvents = computed(() => {
     const colorAssignments = getStayColorAssignments(this.stays());
     return toStayCalendarEvents({
       visibleStays: this.filteredStays(),
+      dailyAggregates: this.dailyAggregates(),
       colorAssignments,
       displayMode: this.displayMode(),
       compactMarkerLabels: this.text().calendar.compactMarkerLabels,
+      dailyCountLabels: this.text().calendar.dailyCounts,
     });
   });
+
+  activateDailyCount(_aggregate: CalendarDailyAggregate): void {
+    // S3 owns the daily-summary dialog opened from this explicit count-event seam.
+  }
 
   constructor() {
     effect(() => {
@@ -267,6 +313,15 @@ export class CalendarPage {
 
   private isObjectRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private isCalendarDailyAggregate(value: unknown): value is CalendarDailyAggregate {
+    return (
+      this.isObjectRecord(value) &&
+      typeof value['date'] === 'string' &&
+      typeof value['count'] === 'number' &&
+      Array.isArray(value['participants'])
+    );
   }
 
   private toDateValue(date: Date): string {

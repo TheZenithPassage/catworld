@@ -36,6 +36,12 @@ export interface CalendarTranslations {
     start: string;
     end: string;
   };
+  dailyCounts: {
+    singular: string;
+    plural: string;
+    accessibleSingular: string;
+    accessiblePlural: string;
+  };
 }
 
 export const CALENDAR_TRANSLATIONS = {
@@ -58,7 +64,7 @@ export const CALENDAR_TRANSLATIONS = {
         },
         'daily-counts': {
           label: 'Totales diarios',
-          description: 'Muestra un resumen compacto del total de estancias de cada día.',
+          description: 'Muestra un resumen compacto del total de gatos de cada día.',
         },
         'entry-exit-markers': {
           label: 'Entradas y salidas',
@@ -74,6 +80,12 @@ export const CALENDAR_TRANSLATIONS = {
     compactMarkerLabels: {
       start: 'Entrada',
       end: 'Salida',
+    },
+    dailyCounts: {
+      singular: '{{count}} gato',
+      plural: '{{count}} gatos',
+      accessibleSingular: 'Abrir el resumen diario de {{count}} gato',
+      accessiblePlural: 'Abrir el resumen diario de {{count}} gatos',
     },
   },
   en: {
@@ -95,7 +107,7 @@ export const CALENDAR_TRANSLATIONS = {
         },
         'daily-counts': {
           label: 'Daily counts',
-          description: 'Shows a compact summary of the total stays for each day.',
+          description: 'Shows a compact summary of the total cats for each day.',
         },
         'entry-exit-markers': {
           label: 'Entry and exit markers',
@@ -111,6 +123,12 @@ export const CALENDAR_TRANSLATIONS = {
     compactMarkerLabels: {
       start: 'Check-in',
       end: 'Check-out',
+    },
+    dailyCounts: {
+      singular: '{{count}} cat',
+      plural: '{{count}} cats',
+      accessibleSingular: 'Open daily summary for {{count}} cat',
+      accessiblePlural: 'Open daily summary for {{count}} cats',
     },
   },
 } satisfies Record<AppLanguage, CalendarTranslations>;

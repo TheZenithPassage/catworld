@@ -2,6 +2,7 @@ import { EventInput } from '@fullcalendar/core';
 
 import { Stay } from '../../../stays/models/stay.model';
 import { toStayCalendarEvents } from './stay-calendar-events';
+import { CalendarDailyAggregate } from './calendar-daily-aggregate';
 
 describe('toStayCalendarEvents', () => {
   it('creates the existing check-in and check-out marker events in entry/exit mode', () => {
@@ -65,6 +66,72 @@ describe('toStayCalendarEvents', () => {
     expect(events).toHaveLength(2);
     expect(events[0].extendedProps?.['compactMarkerLabel']).toBe('Entrada');
     expect(events[1].extendedProps?.['compactMarkerLabel']).toBe('Salida');
+  });
+
+  it('creates one positive explicitly discriminated count event with its aggregate identity', () => {
+    const aggregate: CalendarDailyAggregate = {
+      date: '2099-06-03',
+      participants: [
+        {
+          catId: 'cat-1',
+          catName: 'John',
+          ownerId: 'owner-1',
+          ownerName: 'Owner One',
+          hasEntry: true,
+          hasExit: false,
+        },
+      ],
+      count: 1,
+    };
+
+    const events = toStayCalendarEvents({
+      visibleStays: [],
+      dailyAggregates: [aggregate],
+      colorAssignments: new Map(),
+      displayMode: 'daily-counts',
+      dailyCountLabels: {
+        singular: '{{count}} cat',
+        plural: '{{count}} cats',
+        accessibleSingular: 'Open summary for {{count}} cat',
+        accessiblePlural: 'Open summary for {{count}} cats',
+      },
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual(
+      expect.objectContaining({
+        id: 'daily-count-2099-06-03',
+        title: '1 cat',
+        start: '2099-06-03',
+        allDay: true,
+      }),
+    );
+    expect(events[0].extendedProps).toEqual(
+      expect.objectContaining({
+        eventKind: 'daily-count',
+        dailyAggregate: aggregate,
+        dailyCountAccessibleName: 'Open summary for 1 cat',
+        dailyCountNumeral: '1',
+      }),
+    );
+    expect(events[0].extendedProps?.['dailyAggregate']).toBe(aggregate);
+  });
+
+  it('does not manufacture zero count events', () => {
+    expect(
+      toStayCalendarEvents({
+        visibleStays: [createStay()],
+        dailyAggregates: [{ date: '2099-06-03', participants: [], count: 0 }],
+        colorAssignments: new Map(),
+        displayMode: 'daily-counts',
+        dailyCountLabels: {
+          singular: '{{count}} cat',
+          plural: '{{count}} cats',
+          accessibleSingular: 'Open summary for {{count}} cat',
+          accessiblePlural: 'Open summary for {{count}} cats',
+        },
+      }),
+    ).toEqual([]);
   });
 });
 

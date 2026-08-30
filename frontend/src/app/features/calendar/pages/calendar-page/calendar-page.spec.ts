@@ -11,6 +11,7 @@ import { StayStatusVisibilityPreferencesService } from '../../../stays/services/
 import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
+import { CalendarDailyAggregate } from './calendar-daily-aggregate';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -241,5 +242,45 @@ describe('CalendarPage', () => {
 
     dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
     expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders accessible full and numeric count content and dispatches its aggregate without opening Stay details', () => {
+    createComponent();
+    component.setDisplayMode('daily-counts');
+    fixture.detectChanges();
+
+    const aggregate = component.dailyAggregates()[0];
+    const countEvent = component.calendarEvents()[0];
+    const activateDailyCount = vi.spyOn(component, 'activateDailyCount');
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const content = eventContent({
+      event: {
+        title: countEvent.title,
+        extendedProps: countEvent.extendedProps,
+      },
+    });
+    const mountedElement = document.createElement('a');
+
+    expect(content.domNodes[0].textContent).toBe(countEvent.title);
+    expect(content.domNodes[1].textContent).toBe(String(aggregate.count));
+    expect(content.domNodes[1].getAttribute('aria-hidden')).toBe('true');
+
+    component.calendarOptions().eventDidMount!({
+      el: mountedElement,
+      event: { extendedProps: countEvent.extendedProps },
+    } as never);
+    expect(mountedElement.getAttribute('aria-label')).toBe(
+      countEvent.extendedProps?.['dailyCountAccessibleName'],
+    );
+
+    component.calendarOptions().eventClick!({
+      event: { id: countEvent.id, extendedProps: countEvent.extendedProps },
+    } as never);
+
+    expect(activateDailyCount).toHaveBeenCalledWith(aggregate);
+    expect(activateDailyCount.mock.calls[0][0] as CalendarDailyAggregate).toBe(aggregate);
+    expect(entityDetailDialog.open).not.toHaveBeenCalled();
   });
 });
