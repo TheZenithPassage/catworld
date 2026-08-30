@@ -15,8 +15,15 @@ export interface CalendarDailyAggregate {
   count: number;
 }
 
-export function getCalendarDailyAggregates(visibleStays: Stay[]): CalendarDailyAggregate[] {
+export function getCalendarDailyAggregates(
+  visibleStays: Stay[],
+  locale = 'es-ES',
+): CalendarDailyAggregate[] {
   const participantsByDate = new Map<string, Map<string, CalendarDailyParticipant>>();
+  const participantCollator = new Intl.Collator(locale, {
+    usage: 'sort',
+    sensitivity: 'base',
+  });
 
   for (const stay of visibleStays) {
     if (stay.cancelledAt !== null) {
@@ -58,9 +65,11 @@ export function getCalendarDailyAggregates(visibleStays: Stay[]): CalendarDailyA
   }
 
   return [...participantsByDate.entries()]
-    .sort(([firstDate], [secondDate]) => compareText(firstDate, secondDate))
+    .sort(([firstDate], [secondDate]) => compareStableText(firstDate, secondDate))
     .map(([date, participantsByCat]) => {
-      const participants = [...participantsByCat.values()].sort(compareParticipants);
+      const participants = [...participantsByCat.values()].sort((first, second) =>
+        compareParticipants(first, second, participantCollator),
+      );
 
       return {
         date,
@@ -118,15 +127,16 @@ function isLeapYear(year: number): boolean {
 function compareParticipants(
   first: CalendarDailyParticipant,
   second: CalendarDailyParticipant,
+  collator: Intl.Collator,
 ): number {
   return (
-    compareText(first.catName, second.catName) ||
-    compareText(first.ownerName, second.ownerName) ||
-    compareText(first.catId, second.catId) ||
-    compareText(first.ownerId, second.ownerId)
+    collator.compare(first.catName, second.catName) ||
+    collator.compare(first.ownerName, second.ownerName) ||
+    compareStableText(first.catId, second.catId) ||
+    compareStableText(first.ownerId, second.ownerId)
   );
 }
 
-function compareText(first: string, second: string): number {
+function compareStableText(first: string, second: string): number {
   return first < second ? -1 : first > second ? 1 : 0;
 }

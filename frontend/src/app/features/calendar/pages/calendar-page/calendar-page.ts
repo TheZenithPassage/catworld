@@ -97,7 +97,9 @@ export class CalendarPage {
         isStayVisibleBySearchFilters(stay, this.searchFilters()),
     ),
   );
-  readonly dailyAggregates = computed(() => getCalendarDailyAggregates(this.filteredStays()));
+  readonly dailyAggregates = computed(() =>
+    getCalendarDailyAggregates(this.filteredStays(), this.i18nService.dateLocale()),
+  );
 
   readonly calendarOptions = computed<CalendarOptions>(() => ({
     plugins: [dayGridPlugin],
@@ -146,6 +148,8 @@ export class CalendarPage {
     },
     eventDidMount: ({ el, event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
         el.style.cursor = 'pointer';
         return;
       }

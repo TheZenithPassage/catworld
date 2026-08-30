@@ -170,6 +170,50 @@ describe('CalendarPage', () => {
     expect(component.displayMode()).toBe('entry-exit-markers');
   });
 
+  it('updates daily counts and participants for Cat and Owner filters without changing mode', () => {
+    const otherStay: Stay = {
+      ...stay,
+      stayId: 'stay-2',
+      ownerId: 'owner-2',
+      ownerName: 'Grace Hopper',
+      catIds: ['cat-2'],
+      cats: [{ catId: 'cat-2', name: 'Ámbar' }],
+    };
+    stayApiService.getStays.mockReturnValue(of([stay, otherStay]));
+    createComponent();
+    component.setDisplayMode('daily-counts');
+
+    const aggregateForFirstDate = (): CalendarDailyAggregate | undefined =>
+      component.dailyAggregates().find(({ date }) => date === '2099-01-02');
+
+    expect(aggregateForFirstDate()?.count).toBe(2);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual([
+      'cat-2',
+      'cat-1',
+    ]);
+
+    component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(1);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-1']);
+
+    component.setSearchFilters({ catId: null, ownerId: 'owner-2' });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(1);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-2']);
+
+    component.setSearchFilters({ catId: null, ownerId: null });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(2);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual([
+      'cat-2',
+      'cat-1',
+    ]);
+  });
+
   it('defaults invalid and obsolete display preferences safely while retaining the visible month', () => {
     localStorage.setItem(
       'catworld.calendar.preferences',
@@ -307,6 +351,57 @@ describe('CalendarPage', () => {
     expect(activateDailyCount).toHaveBeenCalledWith(aggregate);
     expect(activateDailyCount.mock.calls[0][0] as CalendarDailyAggregate).toBe(aggregate);
     expect(entityDetailDialog.open).not.toHaveBeenCalled();
+  });
+
+  it('renders daily counts as keyboard buttons that open the exact aggregate with Enter and Space', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-counts', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const aggregate = component.dailyAggregates()[0];
+    const countEvent = fixture.nativeElement.querySelector('.daily-count-event') as HTMLElement;
+
+    expect(countEvent).not.toBeNull();
+    expect(countEvent.getAttribute('role')).toBe('button');
+    expect(countEvent.tabIndex).toBe(0);
+
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    countEvent.dispatchEvent(enterEvent);
+
+    expect(enterEvent.defaultPrevented).toBe(true);
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(aggregate);
+
+    materialDialog.open.mockClear();
+    component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const filteredAggregate = component.dailyAggregates()[0];
+    const updatedCountEvent = fixture.nativeElement.querySelector(
+      '.daily-count-event',
+    ) as HTMLElement;
+    const spaceEvent = new KeyboardEvent('keydown', {
+      key: ' ',
+      bubbles: true,
+      cancelable: true,
+    });
+    updatedCountEvent.dispatchEvent(spaceEvent);
+
+    expect(filteredAggregate).not.toBe(aggregate);
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(spaceEvent.defaultPrevented).toBe(true);
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(filteredAggregate);
   });
 
   it('opens the daily summary with the exact aggregate supplied by count activation', () => {
