@@ -72,7 +72,13 @@
     } @else if (filteredStays().length === 0) {
       <app-ui-state kind="empty" [message]="text().calendar.emptyFiltered"></app-ui-state>
     } @else {
-      <div [class]="'calendar-wrapper calendar-wrapper--' + displayMode()">
+      <div
+        [class]="'calendar-wrapper calendar-wrapper--' + displayMode()"
+        [class.calendar-wrapper--compact-month-visible]="compactMonthVisible()"
+      >
+        <div class="calendar-sticky-month" aria-hidden="true">
+          <span>{{ compactMonthLabel() }}</span>
+        </div>
         <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
       </div>
     }

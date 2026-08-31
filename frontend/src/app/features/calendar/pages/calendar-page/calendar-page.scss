@@ -47,6 +47,10 @@
   box-shadow: var(--shadow-soft);
 }
 
+.calendar-sticky-month {
+  display: none;
+}
+
 .status-filters {
   display: flex;
   flex-wrap: wrap;
@@ -419,7 +423,7 @@
 :host ::ng-deep .calendar-wrapper--daily-counts .fc .daily-count-event {
   padding: 0.12rem 0.2rem;
   background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
+  color: var(--color-text);
 }
 
 :host ::ng-deep .calendar-wrapper--daily-counts .daily-count-event__accessible {
@@ -431,6 +435,7 @@
 }
 
 :host ::ng-deep .calendar-wrapper--daily-counts .fc .daily-count-event .fc-event-main {
+  color: var(--color-text);
   font-size: 0.7rem;
   font-weight: 800;
   text-align: center;

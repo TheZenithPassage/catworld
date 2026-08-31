@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
@@ -60,7 +60,7 @@ interface CalendarLocalPreferences {
   templateUrl: './calendar-page.html',
   styleUrl: './calendar-page.scss',
 })
-export class CalendarPage {
+export class CalendarPage implements OnDestroy {
   private readonly stayApiService = inject(StayApiService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
@@ -71,6 +71,7 @@ export class CalendarPage {
 
   private readonly calendarPreferencesStorageKey = 'catworld.calendar.preferences';
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
+  private monthTitleObserver: IntersectionObserver | undefined;
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -89,6 +90,25 @@ export class CalendarPage {
   readonly displayMode = signal<CalendarDisplayMode>(this.storedCalendarPreferences.displayMode);
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
+  readonly compactMonthVisible = signal(false);
+  readonly compactMonthLabel = computed(() => {
+    const visibleMonth = this.visibleMonth();
+
+    if (!visibleMonth) {
+      return '';
+    }
+
+    const [year, month] = visibleMonth.split('-').map(Number);
+    const locale = this.i18nService.dateLocale();
+
+    return new Intl.DateTimeFormat(locale, {
+      month: 'short',
+      year: 'numeric',
+    })
+      .format(new Date(year, month - 1, 1))
+      .replaceAll('.', '')
+      .toLocaleUpperCase(locale);
+  });
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly filteredStays = computed(() =>
     this.stays().filter(
@@ -121,6 +141,14 @@ export class CalendarPage {
     datesSet: (dateInfo: DatesSetArg) => {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
     },
+    viewDidMount: ({ el }) => {
+      const monthTitle = el.closest('.fc')?.querySelector<HTMLElement>('.fc-toolbar-title');
+
+      if (monthTitle) {
+        this.observeMonthTitle(monthTitle);
+      }
+    },
+    viewWillUnmount: () => this.disconnectMonthTitleObserver(),
     eventClick: ({ event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
         const aggregate = event.extendedProps['dailyAggregate'];
@@ -222,6 +250,10 @@ export class CalendarPage {
     });
 
     this.loadStays();
+  }
+
+  ngOnDestroy(): void {
+    this.disconnectMonthTitleObserver();
   }
 
   loadStays(): void {
@@ -335,6 +367,25 @@ export class CalendarPage {
       typeof value['count'] === 'number' &&
       Array.isArray(value['participants'])
     );
+  }
+
+  private observeMonthTitle(monthTitle: HTMLElement): void {
+    this.disconnectMonthTitleObserver();
+
+    if (typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+
+    this.monthTitleObserver = new IntersectionObserver(([entry]) => {
+      this.compactMonthVisible.set(entry ? !entry.isIntersecting : false);
+    });
+    this.monthTitleObserver.observe(monthTitle);
+  }
+
+  private disconnectMonthTitleObserver(): void {
+    this.monthTitleObserver?.disconnect();
+    this.monthTitleObserver = undefined;
+    this.compactMonthVisible.set(false);
   }
 
   private toDateValue(date: Date): string {
