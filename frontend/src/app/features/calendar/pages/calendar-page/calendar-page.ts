@@ -71,7 +71,8 @@ export class CalendarPage implements OnDestroy {
 
   private readonly calendarPreferencesStorageKey = 'catworld.calendar.preferences';
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
-  private monthTitleObserver: IntersectionObserver | undefined;
+  private stickyHeaderPositionListener: (() => void) | undefined;
+  private stickyMonthElement: HTMLElement | undefined;
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -90,7 +91,8 @@ export class CalendarPage implements OnDestroy {
   readonly displayMode = signal<CalendarDisplayMode>(this.storedCalendarPreferences.displayMode);
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
-  readonly compactMonthVisible = signal(false);
+  readonly calendarStickyTop = signal(0);
+  readonly calendarMonthReveal = signal(0);
   readonly compactMonthLabel = computed(() => {
     const visibleMonth = this.visibleMonth();
 
@@ -140,15 +142,20 @@ export class CalendarPage implements OnDestroy {
     },
     datesSet: (dateInfo: DatesSetArg) => {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
+      this.updateStickyMonthLabel();
     },
     viewDidMount: ({ el }) => {
-      const monthTitle = el.closest('.fc')?.querySelector<HTMLElement>('.fc-toolbar-title');
+      const stickyHeader = el
+        .closest('.fc')
+        ?.querySelector<HTMLElement>(
+          '.fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > *',
+        );
 
-      if (monthTitle) {
-        this.observeMonthTitle(monthTitle);
+      if (stickyHeader) {
+        this.mountStickyMonth(stickyHeader);
       }
     },
-    viewWillUnmount: () => this.disconnectMonthTitleObserver(),
+    viewWillUnmount: () => this.disconnectStickyMonth(),
     eventClick: ({ event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
         const aggregate = event.extendedProps['dailyAggregate'];
@@ -253,7 +260,7 @@ export class CalendarPage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.disconnectMonthTitleObserver();
+    this.disconnectStickyMonth();
   }
 
   loadStays(): void {
@@ -369,23 +376,59 @@ export class CalendarPage implements OnDestroy {
     );
   }
 
-  private observeMonthTitle(monthTitle: HTMLElement): void {
-    this.disconnectMonthTitleObserver();
+  private mountStickyMonth(stickyHeader: HTMLElement): void {
+    this.disconnectStickyMonth();
 
-    if (typeof IntersectionObserver === 'undefined') {
-      return;
-    }
+    const appHeader = document.querySelector<HTMLElement>('.app-header');
+    const stickyHeaderRow = stickyHeader.parentElement;
+    const stickyMonth = document.createElement('div');
+    stickyMonth.className = 'calendar-sticky-month';
+    stickyMonth.setAttribute('aria-hidden', 'true');
+    stickyHeader.prepend(stickyMonth);
+    this.stickyMonthElement = stickyMonth;
+    this.updateStickyMonthLabel();
 
-    this.monthTitleObserver = new IntersectionObserver(([entry]) => {
-      this.compactMonthVisible.set(entry ? !entry.isIntersecting : false);
-    });
-    this.monthTitleObserver.observe(monthTitle);
+    const updateStickyMonthReveal = () => {
+      if (!stickyHeaderRow) {
+        return;
+      }
+
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const stickyTop =
+        appHeader && getComputedStyle(appHeader).position === 'sticky'
+          ? Math.max(0, appHeader.getBoundingClientRect().bottom)
+          : 0;
+      const naturalHeaderTop = stickyHeaderRow.getBoundingClientRect().top;
+      const reveal = Math.min(
+        rootFontSize,
+        Math.max(0, stickyTop + rootFontSize - naturalHeaderTop),
+      );
+      this.calendarStickyTop.set(stickyTop);
+      this.calendarMonthReveal.set(reveal);
+    };
+
+    window.addEventListener('scroll', updateStickyMonthReveal, { passive: true });
+    window.addEventListener('resize', updateStickyMonthReveal);
+    this.stickyHeaderPositionListener = () => {
+      window.removeEventListener('scroll', updateStickyMonthReveal);
+      window.removeEventListener('resize', updateStickyMonthReveal);
+    };
+    updateStickyMonthReveal();
   }
 
-  private disconnectMonthTitleObserver(): void {
-    this.monthTitleObserver?.disconnect();
-    this.monthTitleObserver = undefined;
-    this.compactMonthVisible.set(false);
+  private disconnectStickyMonth(): void {
+    this.stickyHeaderPositionListener?.();
+    this.stickyHeaderPositionListener = undefined;
+    this.stickyMonthElement?.remove();
+    this.stickyMonthElement = undefined;
+    this.calendarStickyTop.set(0);
+    this.calendarMonthReveal.set(0);
+  }
+
+  private updateStickyMonthLabel(): void {
+    if (this.stickyMonthElement) {
+      this.stickyMonthElement.textContent = this.compactMonthLabel();
+    }
   }
 
   private toDateValue(date: Date): string {

@@ -276,41 +276,41 @@ textarea {
   font-weight: 650;
 }
 
-@media (max-width: 600px), (max-width: 1000px) and (max-height: 600px) {
+app-calendar-page .calendar-sticky-month {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1rem;
+  background: var(--color-surface-muted);
+  color: #6d5140;
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+app-calendar-page .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > * {
+  top: var(--calendar-sticky-top);
+  padding-top: var(--calendar-month-reveal);
+  background: var(--color-surface-muted);
+  overflow: visible;
+}
+
+app-calendar-page .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky .fc-col-header {
+  position: relative;
+  z-index: 3;
+  background: var(--color-surface-muted);
+}
+
+@media (min-width: 601px) {
   app-calendar-page .calendar-sticky-month {
-    position: sticky;
-    z-index: 4;
-    top: 0;
-    display: block;
-    height: 0;
-    overflow: visible;
-    color: #6d5140;
-    font-size: 0.6rem;
-    font-weight: 850;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    text-align: center;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
-  app-calendar-page .calendar-sticky-month span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 1rem;
-    padding-inline: 0.25rem;
-    background: var(--color-surface-muted);
-  }
-
-  app-calendar-page .calendar-wrapper--compact-month-visible .calendar-sticky-month {
-    visibility: visible;
-  }
-
-  app-calendar-page
-    .calendar-wrapper--compact-month-visible
-    .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky
-    > * {
-    top: 1rem;
+    font-size: 1rem;
   }
 }

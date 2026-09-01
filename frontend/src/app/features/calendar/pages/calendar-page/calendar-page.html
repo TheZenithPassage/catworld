@@ -74,11 +74,9 @@
     } @else {
       <div
         [class]="'calendar-wrapper calendar-wrapper--' + displayMode()"
-        [class.calendar-wrapper--compact-month-visible]="compactMonthVisible()"
+        [style.--calendar-sticky-top.px]="calendarStickyTop()"
+        [style.--calendar-month-reveal.px]="calendarMonthReveal()"
       >
-        <div class="calendar-sticky-month" aria-hidden="true">
-          <span>{{ compactMonthLabel() }}</span>
-        </div>
         <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
       </div>
     }

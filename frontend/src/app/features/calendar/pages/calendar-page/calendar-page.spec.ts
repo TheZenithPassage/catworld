@@ -241,36 +241,7 @@ describe('CalendarPage', () => {
     expect(component.visibleMonth()).toBe('2099-07-01');
   });
 
-  it('shows compact localized month context only while the normal title is outside the viewport', async () => {
-    let observerCallback: IntersectionObserverCallback | undefined;
-    const observe = vi.fn();
-    const disconnect = vi.fn();
-
-    class MockIntersectionObserver implements IntersectionObserver {
-      readonly root = null;
-      readonly rootMargin = '0px';
-      readonly thresholds = [0];
-
-      constructor(callback: IntersectionObserverCallback) {
-        observerCallback = callback;
-      }
-
-      disconnect(): void {
-        disconnect();
-      }
-
-      observe(target: Element): void {
-        observe(target);
-      }
-
-      takeRecords(): IntersectionObserverEntry[] {
-        return [];
-      }
-
-      unobserve(): void {}
-    }
-
-    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+  it('renders and updates the compact localized month context without changing layout state', async () => {
     localStorage.setItem(
       'catworld.calendar.preferences',
       JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-04-01' }),
@@ -280,22 +251,15 @@ describe('CalendarPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const wrapper = fixture.nativeElement.querySelector('.calendar-wrapper') as HTMLElement;
     const compactMonth = fixture.nativeElement.querySelector(
       '.calendar-sticky-month',
     ) as HTMLElement;
-
-    expect(observe).toHaveBeenCalledWith(expect.any(HTMLElement));
-    expect(compactMonth.textContent?.trim()).toBe('ABR 2099');
-    expect(wrapper.classList.contains('calendar-wrapper--compact-month-visible')).toBe(false);
-
-    observerCallback?.(
-      [{ isIntersecting: false } as IntersectionObserverEntry],
-      {} as IntersectionObserver,
+    const stickyHeader = compactMonth.closest(
+      '.fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > *',
     );
-    fixture.detectChanges();
 
-    expect(wrapper.classList.contains('calendar-wrapper--compact-month-visible')).toBe(true);
+    expect(compactMonth.textContent?.trim()).toBe('ABR 2099');
+    expect(stickyHeader).not.toBeNull();
 
     component.calendarOptions().datesSet!({
       view: { currentStart: new Date(2099, 6, 1) },
@@ -304,17 +268,9 @@ describe('CalendarPage', () => {
 
     expect(compactMonth.textContent?.trim()).toBe('JUL 2099');
 
-    observerCallback?.(
-      [{ isIntersecting: true } as IntersectionObserverEntry],
-      {} as IntersectionObserver,
-    );
-    fixture.detectChanges();
-
-    expect(wrapper.classList.contains('calendar-wrapper--compact-month-visible')).toBe(false);
-
     component.ngOnDestroy();
 
-    expect(disconnect).toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('.calendar-sticky-month')).toBeNull();
   });
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {
