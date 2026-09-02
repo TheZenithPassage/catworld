@@ -3,10 +3,19 @@ import { EventInput } from '@fullcalendar/core';
 import { Stay } from '../../../stays/models/stay.model';
 import { getStayStatus, StayStatus } from '../../../stays/utils/stay-status.util';
 import { STAY_COLOR_PALETTE, StayCalendarColor } from './stay-calendar-colors';
+import { CalendarDisplayMode } from './calendar-display-mode';
+import { CalendarDailyAggregate } from './calendar-daily-aggregate';
 
 type CompactMarkerKind = 'start' | 'end';
 
 export type StayCalendarCompactMarkerLabels = Record<CompactMarkerKind, string>;
+
+export interface DailyCountEventLabels {
+  singular: string;
+  plural: string;
+  accessibleSingular: string;
+  accessiblePlural: string;
+}
 
 const EMPTY_COMPACT_MARKER_LABELS: StayCalendarCompactMarkerLabels = {
   start: '',
@@ -15,32 +24,70 @@ const EMPTY_COMPACT_MARKER_LABELS: StayCalendarCompactMarkerLabels = {
 
 interface ToStayCalendarEventsParams {
   visibleStays: Stay[];
+  dailyAggregates?: CalendarDailyAggregate[];
   colorAssignments: Map<string, StayCalendarColor>;
-  dailyLabelsEnabled: boolean;
-  compactModeEnabled: boolean;
+  displayMode: CalendarDisplayMode;
   compactMarkerLabels?: StayCalendarCompactMarkerLabels;
+  dailyCountLabels?: DailyCountEventLabels;
 }
 
 export function toStayCalendarEvents({
   visibleStays,
+  dailyAggregates = [],
   colorAssignments,
-  dailyLabelsEnabled,
-  compactModeEnabled,
+  displayMode,
   compactMarkerLabels = EMPTY_COMPACT_MARKER_LABELS,
+  dailyCountLabels,
 }: ToStayCalendarEventsParams): EventInput[] {
-  if (dailyLabelsEnabled) {
+  if (displayMode === 'daily-counts') {
+    return dailyCountLabels
+      ? dailyAggregates
+          .filter((aggregate) => aggregate.count > 0)
+          .map((aggregate) => toDailyCountEvent(aggregate, dailyCountLabels))
+      : [];
+  }
+
+  if (displayMode === 'daily-labels') {
     return visibleStays.flatMap((stay) =>
-      toDailyCalendarEvents(stay, colorAssignments.get(stay.stayId), compactModeEnabled),
+      toDailyCalendarEvents(stay, colorAssignments.get(stay.stayId)),
     );
   }
 
-  if (compactModeEnabled) {
-    return visibleStays.flatMap((stay) =>
-      toCompactCalendarEvents(stay, colorAssignments.get(stay.stayId), compactMarkerLabels),
-    );
-  }
+  return visibleStays.flatMap((stay) =>
+    toCompactCalendarEvents(stay, colorAssignments.get(stay.stayId), compactMarkerLabels),
+  );
+}
 
-  return visibleStays.map((stay) => toCalendarEvent(stay, colorAssignments.get(stay.stayId)));
+function toDailyCountEvent(
+  aggregate: CalendarDailyAggregate,
+  labels: DailyCountEventLabels,
+): EventInput {
+  const title = formatCountLabel(
+    aggregate.count === 1 ? labels.singular : labels.plural,
+    aggregate.count,
+  );
+  const accessibleName = formatCountLabel(
+    aggregate.count === 1 ? labels.accessibleSingular : labels.accessiblePlural,
+    aggregate.count,
+  );
+
+  return {
+    id: `daily-count-${aggregate.date}`,
+    title,
+    start: aggregate.date,
+    allDay: true,
+    classNames: ['daily-count-event'],
+    extendedProps: {
+      eventKind: 'daily-count',
+      dailyAggregate: aggregate,
+      dailyCountAccessibleName: accessibleName,
+      dailyCountNumeral: String(aggregate.count),
+    },
+  };
+}
+
+function formatCountLabel(template: string, count: number): string {
+  return template.replace('{{count}}', String(count));
 }
 
 export function compareStayCalendarEvents(firstEvent: unknown, secondEvent: unknown): number {
@@ -147,11 +194,7 @@ function toCompactCalendarEvent(
   };
 }
 
-function toDailyCalendarEvents(
-  stay: Stay,
-  color: StayCalendarColor | undefined,
-  compactModeEnabled: boolean,
-): EventInput[] {
+function toDailyCalendarEvents(stay: Stay, color: StayCalendarColor | undefined): EventInput[] {
   const startDate = new Date(stay.startAt);
   const endDate = new Date(stay.endAt);
   const events: EventInput[] = [];
@@ -160,7 +203,7 @@ function toDailyCalendarEvents(
   const lastDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
 
   while (currentDate <= lastDate) {
-    events.push(toCalendarEventForDate(stay, currentDate, color, compactModeEnabled));
+    events.push(toCalendarEventForDate(stay, currentDate, color));
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
@@ -171,7 +214,6 @@ function toCalendarEventForDate(
   stay: Stay,
   date: Date,
   color: StayCalendarColor | undefined,
-  compactModeEnabled: boolean,
 ): EventInput {
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
@@ -186,7 +228,7 @@ function toCalendarEventForDate(
     backgroundColor: eventColor.backgroundColor,
     borderColor: eventColor.borderColor,
     textColor: eventColor.textColor,
-    classNames: getStayEventClassNames(status, compactModeEnabled ? ['stay-event--compact'] : []),
+    classNames: getStayEventClassNames(status),
     extendedProps: {
       stayId: stay.stayId,
       status,

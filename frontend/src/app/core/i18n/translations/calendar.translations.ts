@@ -17,7 +17,7 @@ export interface CalendarTranslations {
         label: string;
         description: string;
       };
-      'compact-daily-labels': {
+      'daily-counts': {
         label: string;
         description: string;
       };
@@ -27,10 +27,6 @@ export interface CalendarTranslations {
       };
     };
   };
-  filteredDisplayOptions: {
-    title: string;
-    dailyLabels: string;
-  };
   loading: string;
   empty: string;
   emptyFiltered: string;
@@ -39,6 +35,21 @@ export interface CalendarTranslations {
   compactMarkerLabels: {
     start: string;
     end: string;
+  };
+  dailyCounts: {
+    singular: string;
+    plural: string;
+    accessibleSingular: string;
+    accessiblePlural: string;
+  };
+  dailySummary: {
+    title: string;
+    dateLabel: string;
+    totalSingular: string;
+    totalPlural: string;
+    entry: string;
+    exit: string;
+    close: string;
   };
 }
 
@@ -60,19 +71,15 @@ export const CALENDAR_TRANSLATIONS = {
           label: 'Estándar',
           description: 'Diseño estándar.',
         },
-        'compact-daily-labels': {
-          label: 'Compacto',
-          description: 'Reduce el tamaño de las etiquetas.',
+        'daily-counts': {
+          label: 'Totales diarios',
+          description: 'Muestra un resumen compacto del total de gatos de cada día.',
         },
         'entry-exit-markers': {
           label: 'Entradas y salidas',
           description: 'Muestra solo el inicio y el final de cada estancia.',
         },
       },
-    },
-    filteredDisplayOptions: {
-      title: 'Vista del calendario',
-      dailyLabels: 'Mostrar etiqueta en cada día',
     },
     loading: 'Cargando calendario...',
     empty: 'No hay estancias registradas.',
@@ -82,6 +89,21 @@ export const CALENDAR_TRANSLATIONS = {
     compactMarkerLabels: {
       start: 'Entrada',
       end: 'Salida',
+    },
+    dailyCounts: {
+      singular: '{{count}} gato',
+      plural: '{{count}} gatos',
+      accessibleSingular: 'Abrir el resumen diario de {{count}} gato',
+      accessiblePlural: 'Abrir el resumen diario de {{count}} gatos',
+    },
+    dailySummary: {
+      title: 'Resumen diario',
+      dateLabel: 'Fecha',
+      totalSingular: 'Total: {{count}} gato',
+      totalPlural: 'Total: {{count}} gatos',
+      entry: 'Entrada',
+      exit: 'Salida',
+      close: 'Cerrar',
     },
   },
   en: {
@@ -95,25 +117,21 @@ export const CALENDAR_TRANSLATIONS = {
     statusFiltersAriaLabel: 'Calendar status filters',
     displayModes: {
       title: 'Calendar view',
-      description: 'Choose how stays are displayed when no cat or owner filter is active.',
+      description: 'Choose how stays are displayed, with or without a cat or owner filter.',
       options: {
         'daily-labels': {
           label: 'Standard',
           description: 'Standard design.',
         },
-        'compact-daily-labels': {
-          label: 'Compact',
-          description: 'Reduce the size of the labels.',
+        'daily-counts': {
+          label: 'Daily counts',
+          description: 'Shows a compact summary of the total cats for each day.',
         },
         'entry-exit-markers': {
           label: 'Entry and exit markers',
           description: 'Shows only the start and end of each stay.',
         },
       },
-    },
-    filteredDisplayOptions: {
-      title: 'Calendar view',
-      dailyLabels: 'Show label on each day',
     },
     loading: 'Loading calendar...',
     empty: 'No stays registered.',
@@ -123,6 +141,21 @@ export const CALENDAR_TRANSLATIONS = {
     compactMarkerLabels: {
       start: 'Check-in',
       end: 'Check-out',
+    },
+    dailyCounts: {
+      singular: '{{count}} cat',
+      plural: '{{count}} cats',
+      accessibleSingular: 'Open daily summary for {{count}} cat',
+      accessiblePlural: 'Open daily summary for {{count}} cats',
+    },
+    dailySummary: {
+      title: 'Daily summary',
+      dateLabel: 'Date',
+      totalSingular: 'Total: {{count}} cat',
+      totalPlural: 'Total: {{count}} cats',
+      entry: 'Entry',
+      exit: 'Exit',
+      close: 'Close',
     },
   },
 } satisfies Record<AppLanguage, CalendarTranslations>;

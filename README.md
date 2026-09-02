@@ -27,7 +27,7 @@ CatWorld is a full-stack administration system for cat-boarding operations. It c
 * Validation against overlapping active stays.
 * Dynamic reserved, checked-in, checked-out and cancelled statuses.
 * Filtering by status, cat and owner.
-* Monthly calendar with standard, compact and entry/exit display modes.
+* Responsive monthly calendar with daily labels, daily counts and entry/exit display modes; status, owner and cat filters apply independently of the selected mode.
 * HTTP Basic login backed by persistent application users, with authenticated username and role available to the Angular application.
 * ADMIN-only account management for creating accounts, assigning roles and enabling or disabling access.
 * Docker Compose setup with MySQL, Spring Boot, Angular and Nginx.

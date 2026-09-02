@@ -1,11 +1,12 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatRadioModule } from '@angular/material/radio';
 import { RouterLink } from '@angular/router';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
-import { CalendarOptions, DatesSetArg } from '@fullcalendar/core';
+import { CalendarOptions, DatesSetArg, EventContentArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import esLocale from '@fullcalendar/core/locales/es';
 import enGbLocale from '@fullcalendar/core/locales/en-gb';
@@ -20,7 +21,6 @@ import { StaySearchFiltersComponent } from '../../../stays/components/stay-searc
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStaySearchFilters,
-  hasActiveStayEntityFilter,
   isStayVisibleBySearchFilters,
   StaySearchFilters,
 } from '../../../stays/utils/stay-search-filter.util';
@@ -35,14 +35,14 @@ import { createLanguageResetError } from '../../../../core/i18n/language-reset-e
 import {
   CALENDAR_DISPLAY_MODES,
   CalendarDisplayMode,
-  DEFAULT_UNFILTERED_CALENDAR_DISPLAY_MODE,
+  DEFAULT_CALENDAR_DISPLAY_MODE,
   isCalendarDisplayMode,
-  toCalendarDisplaySettings,
-  toUnfilteredCalendarDisplayModeFromLegacySettings,
 } from './calendar-display-mode';
+import { CalendarDailyAggregate, getCalendarDailyAggregates } from './calendar-daily-aggregate';
+import { CalendarDailySummaryDialog } from './calendar-daily-summary-dialog';
 
 interface CalendarLocalPreferences {
-  unfilteredDisplayMode: CalendarDisplayMode;
+  displayMode: CalendarDisplayMode;
   visibleMonth: string | null;
 }
 
@@ -60,9 +60,10 @@ interface CalendarLocalPreferences {
   templateUrl: './calendar-page.html',
   styleUrl: './calendar-page.scss',
 })
-export class CalendarPage {
+export class CalendarPage implements OnDestroy {
   private readonly stayApiService = inject(StayApiService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
+  private readonly dialog = inject(MatDialog);
   private readonly i18nService = inject(I18nService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
@@ -70,6 +71,8 @@ export class CalendarPage {
 
   private readonly calendarPreferencesStorageKey = 'catworld.calendar.preferences';
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
+  private stickyHeaderPositionListener: (() => void) | undefined;
+  private stickyMonthElement: HTMLElement | undefined;
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -85,32 +88,39 @@ export class CalendarPage {
 
   readonly displayModeOptions = CALENDAR_DISPLAY_MODES;
 
-  readonly unfilteredDisplayMode = signal<CalendarDisplayMode>(
-    this.storedCalendarPreferences.unfilteredDisplayMode,
-  );
-
-  readonly filteredDailyLabelsEnabled = signal(false);
+  readonly displayMode = signal<CalendarDisplayMode>(this.storedCalendarPreferences.displayMode);
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
-  readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
-  readonly hasEntityFilter = computed(() => hasActiveStayEntityFilter(this.searchFilters()));
+  readonly calendarStickyTop = signal(0);
+  readonly calendarMonthReveal = signal(0);
+  readonly compactMonthLabel = computed(() => {
+    const visibleMonth = this.visibleMonth();
 
-  readonly calendarDisplaySettings = computed(() => {
-    if (this.hasEntityFilter()) {
-      return {
-        dailyLabelsEnabled: this.filteredDailyLabelsEnabled(),
-        compactModeEnabled: false,
-      };
+    if (!visibleMonth) {
+      return '';
     }
 
-    return toCalendarDisplaySettings(this.unfilteredDisplayMode());
+    const [year, month] = visibleMonth.split('-').map(Number);
+    const locale = this.i18nService.dateLocale();
+
+    return new Intl.DateTimeFormat(locale, {
+      month: 'short',
+      year: 'numeric',
+    })
+      .format(new Date(year, month - 1, 1))
+      .replaceAll('.', '')
+      .toLocaleUpperCase(locale);
   });
+  readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly filteredStays = computed(() =>
     this.stays().filter(
       (stay) =>
         isStayVisibleByStatus(stay, this.statusVisibility()) &&
         isStayVisibleBySearchFilters(stay, this.searchFilters()),
     ),
+  );
+  readonly dailyAggregates = computed(() =>
+    getCalendarDailyAggregates(this.filteredStays(), this.i18nService.dateLocale()),
   );
 
   readonly calendarOptions = computed<CalendarOptions>(() => ({
@@ -132,8 +142,31 @@ export class CalendarPage {
     },
     datesSet: (dateInfo: DatesSetArg) => {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
+      this.updateStickyMonthLabel();
     },
+    viewDidMount: ({ el }) => {
+      const stickyHeader = el
+        .closest('.fc')
+        ?.querySelector<HTMLElement>(
+          '.fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > *',
+        );
+
+      if (stickyHeader) {
+        this.mountStickyMonth(stickyHeader);
+      }
+    },
+    viewWillUnmount: () => this.disconnectStickyMonth(),
     eventClick: ({ event }) => {
+      if (event.extendedProps['eventKind'] === 'daily-count') {
+        const aggregate = event.extendedProps['dailyAggregate'];
+
+        if (this.isCalendarDailyAggregate(aggregate)) {
+          this.activateDailyCount(aggregate);
+        }
+
+        return;
+      }
+
       const stayId = event.extendedProps['stayId'] ?? event.id;
 
       this.entityDetailDialog
@@ -149,6 +182,13 @@ export class CalendarPage {
         });
     },
     eventDidMount: ({ el, event }) => {
+      if (event.extendedProps['eventKind'] === 'daily-count') {
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
+        el.style.cursor = 'pointer';
+        return;
+      }
+
       const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
       const openStayInList = this.text().calendar.openStayInList;
 
@@ -159,25 +199,57 @@ export class CalendarPage {
 
       el.style.cursor = 'pointer';
     },
+    eventContent: (eventInfo: EventContentArg) => {
+      if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
+        return true;
+      }
+
+      const accessibleName = document.createElement('span');
+      accessibleName.className = 'daily-count-event__accessible';
+      accessibleName.textContent = String(
+        eventInfo.event.extendedProps['dailyCountAccessibleName'] ?? '',
+      );
+
+      const fullLabel = document.createElement('span');
+      fullLabel.className = 'daily-count-event__full';
+      fullLabel.setAttribute('aria-hidden', 'true');
+      fullLabel.textContent = eventInfo.event.title;
+
+      const numeral = document.createElement('span');
+      numeral.className = 'daily-count-event__number';
+      numeral.setAttribute('aria-hidden', 'true');
+      numeral.textContent = String(eventInfo.event.extendedProps['dailyCountNumeral'] ?? '');
+
+      return { domNodes: [accessibleName, fullLabel, numeral] };
+    },
   }));
 
   readonly calendarEvents = computed(() => {
     const colorAssignments = getStayColorAssignments(this.stays());
-    const displaySettings = this.calendarDisplaySettings();
-
     return toStayCalendarEvents({
       visibleStays: this.filteredStays(),
+      dailyAggregates: this.dailyAggregates(),
       colorAssignments,
-      dailyLabelsEnabled: displaySettings.dailyLabelsEnabled,
-      compactModeEnabled: displaySettings.compactModeEnabled,
+      displayMode: this.displayMode(),
       compactMarkerLabels: this.text().calendar.compactMarkerLabels,
+      dailyCountLabels: this.text().calendar.dailyCounts,
     });
   });
+
+  activateDailyCount(aggregate: CalendarDailyAggregate): void {
+    this.dialog.open(CalendarDailySummaryDialog, {
+      data: aggregate,
+      width: 'min(40rem, calc(100vw - 2rem))',
+      maxWidth: 'calc(100vw - 2rem)',
+      maxHeight: 'calc(100dvh - 2rem)',
+      autoFocus: 'dialog',
+    });
+  }
 
   constructor() {
     effect(() => {
       this.storeCalendarPreferences({
-        unfilteredDisplayMode: this.unfilteredDisplayMode(),
+        displayMode: this.displayMode(),
         visibleMonth: this.visibleMonth(),
       });
 
@@ -185,6 +257,10 @@ export class CalendarPage {
     });
 
     this.loadStays();
+  }
+
+  ngOnDestroy(): void {
+    this.disconnectStickyMonth();
   }
 
   loadStays(): void {
@@ -223,37 +299,21 @@ export class CalendarPage {
   }
 
   setSearchFilters(filters: StaySearchFilters): void {
-    const hadEntityFilter = this.hasEntityFilter();
-    const willHaveEntityFilter = hasActiveStayEntityFilter(filters);
-
     this.searchFilters.set(filters);
-
-    if (!hadEntityFilter && willHaveEntityFilter) {
-      this.filteredDailyLabelsEnabled.set(false);
-    }
   }
 
-  setUnfilteredDisplayMode(displayMode: CalendarDisplayMode): void {
-    this.unfilteredDisplayMode.set(displayMode);
+  setDisplayMode(displayMode: CalendarDisplayMode): void {
+    this.displayMode.set(displayMode);
   }
 
-  activateUnfilteredDisplayOption(event: MouseEvent, displayMode: CalendarDisplayMode): void {
+  activateDisplayOption(event: MouseEvent, displayMode: CalendarDisplayMode): void {
     if (event.target !== event.currentTarget) return;
-    this.setUnfilteredDisplayMode(displayMode);
-  }
-
-  setFilteredDailyLabelsEnabled(checked: boolean): void {
-    this.filteredDailyLabelsEnabled.set(checked);
-  }
-
-  activateFilteredDisplayOption(event: MouseEvent): void {
-    if (event.target !== event.currentTarget) return;
-    this.setFilteredDailyLabelsEnabled(!this.filteredDailyLabelsEnabled());
+    this.setDisplayMode(displayMode);
   }
 
   private readStoredCalendarPreferences(): CalendarLocalPreferences {
     const defaultPreferences: CalendarLocalPreferences = {
-      unfilteredDisplayMode: DEFAULT_UNFILTERED_CALENDAR_DISPLAY_MODE,
+      displayMode: DEFAULT_CALENDAR_DISPLAY_MODE,
       visibleMonth: null,
     };
 
@@ -271,7 +331,9 @@ export class CalendarPage {
       }
 
       return {
-        unfilteredDisplayMode: this.readStoredUnfilteredDisplayMode(parsedValue),
+        displayMode: isCalendarDisplayMode(parsedValue['displayMode'])
+          ? parsedValue['displayMode']
+          : defaultPreferences.displayMode,
         visibleMonth: this.isDateValue(parsedValue['visibleMonth'])
           ? parsedValue['visibleMonth']
           : defaultPreferences.visibleMonth,
@@ -279,17 +341,6 @@ export class CalendarPage {
     } catch {
       return defaultPreferences;
     }
-  }
-
-  private readStoredUnfilteredDisplayMode(value: Record<string, unknown>): CalendarDisplayMode {
-    if (isCalendarDisplayMode(value['unfilteredDisplayMode'])) {
-      return value['unfilteredDisplayMode'];
-    }
-
-    return toUnfilteredCalendarDisplayModeFromLegacySettings(
-      value['dailyLabelsEnabled'],
-      value['compactModeEnabled'],
-    );
   }
 
   private storeCalendarPreferences(preferences: CalendarLocalPreferences): void {
@@ -314,6 +365,70 @@ export class CalendarPage {
 
   private isObjectRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private isCalendarDailyAggregate(value: unknown): value is CalendarDailyAggregate {
+    return (
+      this.isObjectRecord(value) &&
+      typeof value['date'] === 'string' &&
+      typeof value['count'] === 'number' &&
+      Array.isArray(value['participants'])
+    );
+  }
+
+  private mountStickyMonth(stickyHeader: HTMLElement): void {
+    this.disconnectStickyMonth();
+
+    const appHeader = document.querySelector<HTMLElement>('.app-header');
+    const stickyHeaderRow = stickyHeader.parentElement;
+    const stickyMonth = document.createElement('div');
+    stickyMonth.className = 'calendar-sticky-month';
+    stickyMonth.setAttribute('aria-hidden', 'true');
+    stickyHeader.prepend(stickyMonth);
+    this.stickyMonthElement = stickyMonth;
+    this.updateStickyMonthLabel();
+
+    const updateStickyMonthReveal = () => {
+      if (!stickyHeaderRow) {
+        return;
+      }
+
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const stickyTop =
+        appHeader && getComputedStyle(appHeader).position === 'sticky'
+          ? Math.max(0, appHeader.getBoundingClientRect().bottom)
+          : 0;
+      const naturalHeaderTop = stickyHeaderRow.getBoundingClientRect().top;
+      const reveal = Math.min(
+        rootFontSize,
+        Math.max(0, stickyTop + rootFontSize - naturalHeaderTop),
+      );
+      this.calendarStickyTop.set(stickyTop);
+      this.calendarMonthReveal.set(reveal);
+    };
+
+    window.addEventListener('scroll', updateStickyMonthReveal, { passive: true });
+    window.addEventListener('resize', updateStickyMonthReveal);
+    this.stickyHeaderPositionListener = () => {
+      window.removeEventListener('scroll', updateStickyMonthReveal);
+      window.removeEventListener('resize', updateStickyMonthReveal);
+    };
+    updateStickyMonthReveal();
+  }
+
+  private disconnectStickyMonth(): void {
+    this.stickyHeaderPositionListener?.();
+    this.stickyHeaderPositionListener = undefined;
+    this.stickyMonthElement?.remove();
+    this.stickyMonthElement = undefined;
+    this.calendarStickyTop.set(0);
+    this.calendarMonthReveal.set(0);
+  }
+
+  private updateStickyMonthLabel(): void {
+    if (this.stickyMonthElement) {
+      this.stickyMonthElement.textContent = this.compactMonthLabel();
+    }
   }
 
   private toDateValue(date: Date): string {

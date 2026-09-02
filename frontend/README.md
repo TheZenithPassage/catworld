@@ -8,7 +8,7 @@ Angular frontend for the CatWorld cat boarding management application.
 - Owner, cat and vet management screens.
 - Stay creation, editing, cancellation and filtering.
 - Monthly FullCalendar integration.
-- Standard, compact and entry/exit calendar modes.
+- Responsive monthly Calendar foundation with daily-label, daily-count and entry/exit modes; status, Owner and Cat filters preserve the selected representation.
 - English and Spanish interface.
 - Angular Material foundation for interactive UI components and application-wide theming.
 - Responsive component SCSS for layout and product-specific presentation.

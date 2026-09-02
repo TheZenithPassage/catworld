@@ -275,3 +275,42 @@ textarea {
   color: var(--color-text-muted);
   font-weight: 650;
 }
+
+app-calendar-page .calendar-sticky-month {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1rem;
+  background: var(--color-surface-muted);
+  color: #6d5140;
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+app-calendar-page .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > * {
+  top: var(--calendar-sticky-top);
+  padding-top: var(--calendar-month-reveal);
+  background: var(--color-surface-muted);
+  overflow: visible;
+}
+
+app-calendar-page .fc-scrollgrid-section-header.fc-scrollgrid-section-sticky .fc-col-header {
+  position: relative;
+  z-index: 3;
+  background: var(--color-surface-muted);
+}
+
+@media (min-width: 601px) {
+  app-calendar-page .calendar-sticky-month {
+    font-size: 1rem;
+  }
+}

@@ -1,0 +1,89 @@
+:host {
+  display: flex;
+  max-height: calc(100dvh - 2rem);
+  min-height: 0;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.daily-summary-header {
+  flex: 0 0 auto;
+}
+
+h2[mat-dialog-title] {
+  margin-bottom: 0;
+}
+
+.daily-summary-date,
+.daily-summary-total {
+  margin: 0;
+  padding: 0 1.5rem;
+}
+
+.daily-summary-date {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.daily-summary-total {
+  padding-top: 0.25rem;
+  padding-bottom: 1rem;
+}
+
+mat-dialog-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.daily-summary-participants {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-summary-participant {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.daily-summary-participant__identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.daily-summary-participant__movements {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.daily-summary-movement {
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+mat-dialog-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 34rem) {
+  .daily-summary-participant {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .daily-summary-participant__movements {
+    justify-content: flex-start;
+  }
+}

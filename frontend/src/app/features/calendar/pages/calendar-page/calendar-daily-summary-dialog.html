@@ -1,0 +1,45 @@
+<header class="daily-summary-header">
+  <h2 mat-dialog-title>{{ text().calendar.dailySummary.title }}</h2>
+  <p class="daily-summary-date">
+    <span>{{ text().calendar.dailySummary.dateLabel }}:</span>
+    <strong>{{ formattedDate() }}</strong>
+  </p>
+  <p class="daily-summary-total">{{ totalLabel() }}</p>
+</header>
+
+<mat-dialog-content>
+  <ul class="daily-summary-participants">
+    @for (participant of data.participants; track participant.catId) {
+      <li class="daily-summary-participant">
+        <span class="daily-summary-participant__identity">
+          {{ participant.catName }} — {{ participant.ownerName }}
+        </span>
+        @if (participant.hasEntry || participant.hasExit) {
+          <span class="daily-summary-participant__movements">
+            @if (participant.hasEntry) {
+              <span class="daily-summary-movement daily-summary-movement--entry">
+                {{ text().calendar.dailySummary.entry }}
+              </span>
+            }
+            @if (participant.hasExit) {
+              <span class="daily-summary-movement daily-summary-movement--exit">
+                {{ text().calendar.dailySummary.exit }}
+              </span>
+            }
+          </span>
+        }
+      </li>
+    }
+  </ul>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button
+    mat-flat-button
+    type="button"
+    [aria-label]="text().calendar.dailySummary.close"
+    [mat-dialog-close]="true"
+  >
+    {{ text().calendar.dailySummary.close }}
+  </button>
+</mat-dialog-actions>

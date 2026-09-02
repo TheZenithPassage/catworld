@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router, RouterLink } from '@angular/router';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
@@ -11,6 +12,7 @@ import { StayStatusVisibilityPreferencesService } from '../../../stays/services/
 import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
+import { CalendarDailyAggregate } from './calendar-daily-aggregate';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -46,6 +48,7 @@ describe('CalendarPage', () => {
   };
   const dialogUpdates = new Subject<EntityDetailUpdate>();
   const entityDetailDialog = { open: vi.fn(() => dialogUpdates.asObservable()) };
+  const materialDialog = { open: vi.fn() };
 
   let component: CalendarPage;
   let fixture: ComponentFixture<CalendarPage>;
@@ -71,6 +74,7 @@ describe('CalendarPage', () => {
         ]),
         { provide: StayApiService, useValue: stayApiService },
         { provide: EntityDetailDialogService, useValue: entityDetailDialog },
+        { provide: MatDialog, useValue: materialDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -80,6 +84,7 @@ describe('CalendarPage', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     TestBed.resetTestingModule();
     localStorage.clear();
   });
@@ -126,14 +131,18 @@ describe('CalendarPage', () => {
     );
   });
 
-  it('uses Material display controls while preserving display mode behavior', () => {
+  it('offers exactly the three unified modes and keeps mode independent from entity filters', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
     const displayOptions = compiled.querySelectorAll('.calendar-display-option mat-radio-button');
     const entryExitInput = displayOptions[2].querySelector('input') as HTMLInputElement;
 
-    expect(displayOptions).toHaveLength(3);
+    expect(
+      Array.from(displayOptions).map(
+        (option) => (option.querySelector('input') as HTMLInputElement).value,
+      ),
+    ).toEqual(['daily-labels', 'daily-counts', 'entry-exit-markers']);
     expect(compiled.textContent).toContain(
       component.text().calendar.displayModes.options['daily-labels'].label,
     );
@@ -141,31 +150,127 @@ describe('CalendarPage', () => {
     (displayOptions[1].closest('.calendar-display-option') as HTMLElement).click();
     fixture.detectChanges();
 
-    expect(component.unfilteredDisplayMode()).toBe('compact-daily-labels');
-
-    entryExitInput.click();
-    fixture.detectChanges();
-
-    expect(component.unfilteredDisplayMode()).toBe('entry-exit-markers');
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(compiled.querySelector('.calendar-wrapper--daily-counts')).not.toBeNull();
 
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
     fixture.detectChanges();
 
-    const filteredDailyLabelsOption = compiled.querySelector(
-      '.calendar-display-option--single',
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(compiled.querySelectorAll('.calendar-display-option mat-radio-button')).toHaveLength(3);
+    expect(compiled.querySelector('.calendar-display-option mat-checkbox')).toBeNull();
+
+    entryExitInput.click();
+    fixture.detectChanges();
+
+    expect(component.displayMode()).toBe('entry-exit-markers');
+
+    component.setSearchFilters({ catId: null, ownerId: null });
+    fixture.detectChanges();
+
+    expect(component.displayMode()).toBe('entry-exit-markers');
+  });
+
+  it('updates daily counts and participants for Cat and Owner filters without changing mode', () => {
+    const otherStay: Stay = {
+      ...stay,
+      stayId: 'stay-2',
+      ownerId: 'owner-2',
+      ownerName: 'Grace Hopper',
+      catIds: ['cat-2'],
+      cats: [{ catId: 'cat-2', name: 'Ámbar' }],
+    };
+    stayApiService.getStays.mockReturnValue(of([stay, otherStay]));
+    createComponent();
+    component.setDisplayMode('daily-counts');
+
+    const aggregateForFirstDate = (): CalendarDailyAggregate | undefined =>
+      component.dailyAggregates().find(({ date }) => date === '2099-01-02');
+
+    expect(aggregateForFirstDate()?.count).toBe(2);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual([
+      'cat-2',
+      'cat-1',
+    ]);
+
+    component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(1);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-1']);
+
+    component.setSearchFilters({ catId: null, ownerId: 'owner-2' });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(1);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-2']);
+
+    component.setSearchFilters({ catId: null, ownerId: null });
+
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(aggregateForFirstDate()?.count).toBe(2);
+    expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual([
+      'cat-2',
+      'cat-1',
+    ]);
+  });
+
+  it('defaults invalid and obsolete display preferences safely while retaining the visible month', () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({
+        displayMode: 'compact-daily-labels',
+        unfilteredDisplayMode: 'entry-exit-markers',
+        dailyLabelsEnabled: false,
+        compactModeEnabled: true,
+        visibleMonth: '2099-04-01',
+      }),
+    );
+
+    createComponent();
+
+    expect(component.displayMode()).toBe('daily-labels');
+    expect(component.visibleMonth()).toBe('2099-04-01');
+    expect(component.calendarOptions().initialDate).toBe('2099-04-01');
+
+    component.calendarOptions().datesSet!({
+      view: { currentStart: new Date(2099, 6, 1) },
+    } as never);
+    fixture.detectChanges();
+
+    expect(component.visibleMonth()).toBe('2099-07-01');
+  });
+
+  it('renders and updates the compact localized month context without changing layout state', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-04-01' }),
+    );
+
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compactMonth = fixture.nativeElement.querySelector(
+      '.calendar-sticky-month',
     ) as HTMLElement;
-    filteredDailyLabelsOption.click();
+    const stickyHeader = compactMonth.closest(
+      '.fc-scrollgrid-section-header.fc-scrollgrid-section-sticky > *',
+    );
+
+    expect(compactMonth.textContent?.trim()).toBe('ABR 2099');
+    expect(stickyHeader).not.toBeNull();
+
+    component.calendarOptions().datesSet!({
+      view: { currentStart: new Date(2099, 6, 1) },
+    } as never);
     fixture.detectChanges();
 
-    expect(component.filteredDailyLabelsEnabled()).toBe(true);
+    expect(compactMonth.textContent?.trim()).toBe('JUL 2099');
 
-    const filteredDailyLabelsInput = filteredDailyLabelsOption.querySelector(
-      'input',
-    ) as HTMLInputElement;
-    filteredDailyLabelsInput.click();
-    fixture.detectChanges();
+    component.ngOnDestroy();
 
-    expect(component.filteredDailyLabelsEnabled()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.calendar-sticky-month')).toBeNull();
   });
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {
@@ -183,6 +288,7 @@ describe('CalendarPage', () => {
         provideRouter([]),
         { provide: StayApiService, useValue: stayApiService },
         { provide: EntityDetailDialogService, useValue: entityDetailDialog },
+        { provide: MatDialog, useValue: materialDialog },
         {
           provide: StayStatusVisibilityPreferencesService,
           useValue: visibilityPreferencesService,
@@ -217,5 +323,135 @@ describe('CalendarPage', () => {
 
     dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
     expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+  });
+
+  it('delegates detailed event content to FullCalendar default rendering', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (
+      eventInfo: unknown,
+    ) => unknown;
+
+    expect(eventContent({ event: { title: 'Milo', extendedProps: { stayId: 'stay-1' } } })).toBe(
+      true,
+    );
+  });
+
+  it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {
+    createComponent();
+    component.setDisplayMode('daily-counts');
+    fixture.detectChanges();
+
+    const aggregate = component.dailyAggregates()[0];
+    const countEvent = component.calendarEvents()[0];
+    const activateDailyCount = vi.spyOn(component, 'activateDailyCount');
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const content = eventContent({
+      event: {
+        id: countEvent.id,
+        title: countEvent.title,
+        extendedProps: countEvent.extendedProps,
+      },
+    });
+    const relocalizedAccessibleName = `Resumen accesible ${aggregate.count}`;
+    const relocalizedContent = eventContent({
+      event: {
+        id: countEvent.id,
+        title: `${aggregate.count} gatos`,
+        extendedProps: {
+          ...countEvent.extendedProps,
+          dailyCountAccessibleName: relocalizedAccessibleName,
+        },
+      },
+    });
+
+    expect(content.domNodes[0].textContent).toBe(
+      countEvent.extendedProps?.['dailyCountAccessibleName'],
+    );
+    expect(content.domNodes[1].textContent).toBe(countEvent.title);
+    expect(content.domNodes[1].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[2].textContent).toBe(String(aggregate.count));
+    expect(content.domNodes[2].getAttribute('aria-hidden')).toBe('true');
+    expect(relocalizedContent.domNodes[0].textContent).toBe(relocalizedAccessibleName);
+    expect(relocalizedContent.domNodes[1].textContent).toBe(`${aggregate.count} gatos`);
+
+    component.calendarOptions().eventClick!({
+      event: { id: countEvent.id, extendedProps: countEvent.extendedProps },
+    } as never);
+
+    expect(activateDailyCount).toHaveBeenCalledWith(aggregate);
+    expect(activateDailyCount.mock.calls[0][0] as CalendarDailyAggregate).toBe(aggregate);
+    expect(entityDetailDialog.open).not.toHaveBeenCalled();
+  });
+
+  it('renders daily counts as keyboard buttons that open the exact aggregate with Enter and Space', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-counts', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const aggregate = component.dailyAggregates()[0];
+    const countEvent = fixture.nativeElement.querySelector('.daily-count-event') as HTMLElement;
+
+    expect(countEvent).not.toBeNull();
+    expect(countEvent.getAttribute('role')).toBe('button');
+    expect(countEvent.tabIndex).toBe(0);
+
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+    });
+    countEvent.dispatchEvent(enterEvent);
+
+    expect(enterEvent.defaultPrevented).toBe(true);
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(aggregate);
+
+    materialDialog.open.mockClear();
+    component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const filteredAggregate = component.dailyAggregates()[0];
+    const updatedCountEvent = fixture.nativeElement.querySelector(
+      '.daily-count-event',
+    ) as HTMLElement;
+    const spaceEvent = new KeyboardEvent('keydown', {
+      key: ' ',
+      bubbles: true,
+      cancelable: true,
+    });
+    updatedCountEvent.dispatchEvent(spaceEvent);
+
+    expect(filteredAggregate).not.toBe(aggregate);
+    expect(component.displayMode()).toBe('daily-counts');
+    expect(spaceEvent.defaultPrevented).toBe(true);
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(filteredAggregate);
+  });
+
+  it('opens the daily summary with the exact aggregate supplied by count activation', () => {
+    createComponent();
+    const aggregate = component.dailyAggregates()[0];
+
+    component.activateDailyCount(aggregate);
+
+    expect(materialDialog.open).toHaveBeenCalledOnce();
+    expect(materialDialog.open.mock.calls[0][1]?.data).toBe(aggregate);
+    expect(materialDialog.open.mock.calls[0][1]).toEqual(
+      expect.objectContaining({
+        width: 'min(40rem, calc(100vw - 2rem))',
+        maxWidth: 'calc(100vw - 2rem)',
+        maxHeight: 'calc(100dvh - 2rem)',
+        autoFocus: 'dialog',
+      }),
+    );
   });
 });

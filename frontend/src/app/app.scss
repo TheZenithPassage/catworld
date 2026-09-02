@@ -257,6 +257,10 @@
   }
 }
 
+.app-header.app-header--calendar-route {
+  position: static;
+}
+
 @media (max-width: 360px) {
   .app-header {
     gap: 0.15rem;
