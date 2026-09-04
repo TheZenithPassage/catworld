@@ -16,10 +16,21 @@ import {
   PaymentRegistrationRequest,
   PricingDecision,
   Stay,
+  StayOverviewItem,
+  StayOverviewStatus,
   StayDatePricingPreview,
   StayDatePricingPreviewRequest,
   UpdateStayRequest,
 } from '../models/stay.model';
+import { OverviewPage } from '../../../shared/pagination/overview-page';
+
+export interface StayOverviewFilters {
+  statuses: StayOverviewStatus[];
+  ownerId: string | null;
+  catId: string | null;
+  paymentConditions: string[];
+  outstandingOnly: boolean;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -30,6 +41,22 @@ export class StayApiService {
 
   getStays(): Observable<Stay[]> {
     return this.http.get<Stay[]>(this.baseUrl);
+  }
+
+  getStayOverview(
+    page: number,
+    filters: StayOverviewFilters,
+  ): Observable<OverviewPage<StayOverviewItem>> {
+    return this.http.get<OverviewPage<StayOverviewItem>>(`${this.baseUrl}/overview`, {
+      params: {
+        page,
+        status: filters.statuses,
+        paymentCondition: filters.paymentConditions,
+        outstandingOnly: filters.outstandingOnly,
+        ...(filters.ownerId ? { ownerId: filters.ownerId } : {}),
+        ...(filters.catId ? { catId: filters.catId } : {}),
+      },
+    });
   }
 
   getStayById(id: string): Observable<Stay> {

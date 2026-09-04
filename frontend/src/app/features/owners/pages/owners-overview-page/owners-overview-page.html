@@ -4,12 +4,27 @@
       <h2>{{ text().owners.overview.title }}</h2>
       <p>{{ text().owners.overview.description }}</p>
     </div>
-
-    <a mat-flat-button routerLink="/owners/new" class="page-action">
-      {{ text().owners.overview.create }}
-    </a>
+    <a mat-flat-button routerLink="/owners/new" class="page-action">{{
+      text().owners.overview.create
+    }}</a>
   </header>
-
+  <div class="overview-search">
+    <mat-form-field appearance="outline" class="search-field"
+      ><mat-label>{{ text().owners.overview.searchLabel }}</mat-label
+      ><input
+        matInput
+        #searchInput
+        type="search"
+        [value]="searchText()"
+        [placeholder]="text().owners.overview.searchPlaceholder"
+        (input)="setSearchText(searchInput.value)"
+    /></mat-form-field>
+    @if (searchText()) {
+      <button mat-stroked-button type="button" class="clear-action" (click)="clearSearch()">
+        {{ text().owners.overview.clearSearch }}
+      </button>
+    }
+  </div>
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().owners.overview.loading"></app-ui-state>
   } @else if (error()) {
@@ -20,84 +35,33 @@
       (actionTriggered)="loadOwners()"
     ></app-ui-state>
   } @else if (owners().length === 0) {
-    <app-ui-state kind="empty" [message]="text().owners.overview.empty"></app-ui-state>
+    <app-ui-state
+      kind="empty"
+      [message]="searchText() ? text().owners.overview.emptyFiltered : text().owners.overview.empty"
+    ></app-ui-state>
   } @else {
-    <div class="overview-search">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>{{ text().owners.overview.searchLabel }}</mat-label>
-        <input
-          matInput
-          #searchInput
-          type="search"
-          [value]="searchText()"
-          [placeholder]="text().owners.overview.searchPlaceholder"
-          (input)="setSearchText(searchInput.value)"
-        />
-      </mat-form-field>
-
-      @if (searchText()) {
-        <button mat-stroked-button type="button" class="clear-action" (click)="clearSearch()">
-          {{ text().owners.overview.clearSearch }}
-        </button>
+    <div class="overview-list">
+      @for (owner of owners(); track owner.id) {
+        <article
+          class="overview-card"
+          [id]="'owner-' + owner.id"
+          [class.selected-row]="isSelectedOwner(owner)"
+          tabindex="0"
+          [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
+          (click)="openOwner(owner)"
+          (keydown)="activateOwner($event, owner)"
+        >
+          <h3>{{ owner.fullName }}</h3>
+          <p>{{ catNames(owner) }}</p>
+        </article>
       }
     </div>
-
-    @if (filteredOwners().length === 0) {
-      <app-ui-state kind="empty" [message]="text().owners.overview.emptyFiltered"></app-ui-state>
-    } @else {
-      <div class="table-wrapper">
-        <table mat-table [dataSource]="filteredOwners()" class="owners-table">
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.name }}</th>
-            <td mat-cell *matCellDef="let owner">{{ owner.fullName }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="primaryPhone">
-            <th mat-header-cell *matHeaderCellDef>
-              {{ text().owners.overview.table.primaryPhone }}
-            </th>
-            <td mat-cell *matCellDef="let owner">{{ owner.primaryPhone }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="secondaryPhone">
-            <th mat-header-cell *matHeaderCellDef>
-              {{ text().owners.overview.table.secondaryPhone }}
-            </th>
-            <td mat-cell *matCellDef="let owner">{{ getSecondaryPhone(owner) }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="address">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.address }}</th>
-            <td mat-cell *matCellDef="let owner">{{ formatOptionalValue(owner.address) }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="social">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.social }}</th>
-            <td mat-cell *matCellDef="let owner">
-              <span
-                >{{ text().owners.overview.social.instagram }}:
-                {{ formatOptionalValue(owner.instagram) }}</span
-              >
-              <small class="secondary-line">
-                {{ text().owners.overview.social.facebook }}:
-                {{ formatOptionalValue(owner.facebook) }}
-              </small>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr
-            mat-row
-            *matRowDef="let owner; columns: displayedColumns"
-            [id]="'owner-' + owner.id"
-            [class.selected-row]="isSelectedOwner(owner)"
-            tabindex="0"
-            [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
-            (click)="openOwner(owner)"
-            (keydown)="activateOwner($event, owner)"
-          ></tr>
-        </table>
-      </div>
-    }
   }
+  <mat-paginator
+    [length]="totalElements()"
+    [pageIndex]="page()"
+    [pageSize]="pageSize"
+    [hidePageSize]="true"
+    (page)="changePage($event)"
+  ></mat-paginator>
 </section>

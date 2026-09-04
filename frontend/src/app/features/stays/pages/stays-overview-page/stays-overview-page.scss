@@ -3,6 +3,35 @@
   gap: 1.25rem;
 }
 
+.overview-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.overview-card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.overview-card p,
+.overview-card h3 {
+  margin: 0;
+}
+.overview-card p {
+  margin-top: 0.35rem;
+}
+.stay-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.overview-card.selected-row {
+  outline: 2px solid var(--color-primary);
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;

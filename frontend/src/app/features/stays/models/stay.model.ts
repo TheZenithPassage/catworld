@@ -5,6 +5,18 @@ export interface StayCatSummary {
   name: string;
 }
 
+export type StayOverviewStatus = 'RESERVED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
+
+export interface StayOverviewItem {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: StayOverviewStatus;
+  ownerId: string;
+  ownerName: string;
+  cats: Array<{ id: string; name: string }>;
+}
+
 export interface Stay {
   stayId: string;
   canDelete?: boolean;

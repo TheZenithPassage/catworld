@@ -34,3 +34,9 @@ export interface OwnerLookup {
   fullName: string;
   currentCats: OwnerLookupCat[];
 }
+
+export interface OwnerOverviewItem {
+  id: string;
+  fullName: string;
+  cats: OwnerLookupCat[];
+}

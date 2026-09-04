@@ -60,3 +60,11 @@ export interface CatLookup {
   ownerId: string;
   ownerName: string;
 }
+
+export interface CatOverviewItem {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerName: string;
+  hasPhoto: boolean;
+}

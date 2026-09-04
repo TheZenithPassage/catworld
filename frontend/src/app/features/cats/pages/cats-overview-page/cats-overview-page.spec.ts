@@ -1,204 +1,97 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { provideRouter, RouterLink } from '@angular/router';
-import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
+import { provideRouter } from '@angular/router';
+import { EMPTY, of, Subject } from 'rxjs';
 import { vi } from 'vitest';
-
-import { Cat } from '../../models/cat.model';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatsOverviewPage } from './cats-overview-page';
-import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
-import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
-
-describe('CatsOverviewPage', () => {
-  const cats: Cat[] = [
-    {
-      id: 'cat-1',
-      name: 'Milo',
-      birthDate: '2020-01-02',
-      sex: 'MALE',
-      breed: 'Tabby',
-      coat: 'Short',
-      color: 'Orange',
-      foodBrand: 'Chicken',
-      litterBrand: 'Fine Sand',
-      personality: 'Friendly',
-      notes: null,
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: '2025-01-01',
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: '2025-02-03',
-      lastRabiesDate: null,
-      ownerId: 'owner-1',
-      ownerName: 'Ada Lovelace',
-      vetId: 'vet-1',
-      vetName: 'Dr. Vet',
-      hasPhoto: false,
-    },
-    {
-      id: 'cat-2',
-      name: 'Luna',
-      birthDate: '2021-03-04',
-      sex: 'FEMALE',
-      breed: null,
-      coat: null,
-      color: null,
-      foodBrand: null,
-      litterBrand: null,
-      personality: null,
-      notes: null,
-      lastInternalDewormerName: null,
-      lastInternalDewormingDate: null,
-      lastExternalDewormerName: null,
-      lastExternalDewormingDate: null,
-      lastTripleFelineDate: null,
-      lastRabiesDate: null,
-      ownerId: 'owner-2',
-      ownerName: 'Grace Hopper',
-      vetId: null,
-      vetName: null,
-      hasPhoto: false,
-    },
-  ];
-
-  const catApiService = {
-    getCats: vi.fn(),
-  };
-  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
-
-  let component: CatsOverviewPage;
-  let fixture: ComponentFixture<CatsOverviewPage>;
-
+describe('CatsOverviewPage paging and photos', () => {
+  let callback: IntersectionObserverCallback;
+  const observe = vi.fn(),
+    disconnect = vi.fn(),
+    unobserve = vi.fn();
+  const api = { getCatOverview: vi.fn(), getCatPhoto: vi.fn() };
   beforeEach(async () => {
-    vi.resetAllMocks();
-    catApiService.getCats.mockReturnValue(of(cats));
-
-    await TestBed.configureTestingModule({
-      imports: [CatsOverviewPage],
-      providers: [
-        provideNoopAnimations(),
-        provideRouter([
-          { path: 'owners', component: CatsOverviewPage },
-          { path: 'cats/:id/edit', component: CatsOverviewPage },
-        ]),
-        { provide: CatApiService, useValue: catApiService },
-        { provide: EntityDetailDialogService, useValue: details },
-      ],
-    }).compileComponents();
-  });
-
-  afterEach(() => {
-    TestBed.resetTestingModule();
-  });
-
-  function createComponent(): void {
-    fixture = TestBed.createComponent(CatsOverviewPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  }
-
-  it('renders keyboard-focusable cat rows without an edit action', () => {
-    createComponent();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const headerText = [...compiled.querySelectorAll('th')]
-      .map((header) => header.textContent?.trim())
-      .join(' ');
-
-    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
-    expect(headerText).toContain(component.text().cats.overview.table.name);
-    expect(headerText).toContain(component.text().cats.overview.table.health);
-    expect(compiled.textContent).toContain('Milo');
-    expect(compiled.textContent).toContain('Ada Lovelace');
-    expect(compiled.textContent).toContain('Chicken');
-    expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
-      component.text().cats.overview.create,
-    );
-    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
-    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
-    (compiled.querySelector('.owner-search-link') as HTMLElement).click();
-    expect(details.open).not.toHaveBeenCalled();
-    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
-    expect(row.getAttribute('aria-label')).toBe(
-      `${component.text().cats.detail.openDetails}: Milo`,
-    );
-    row.click();
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    expect(details.open).toHaveBeenCalledTimes(3);
-    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'cat', entityId: 'cat-1' });
-  });
-
-  it('preserves owner query-param navigation from the owner cell', () => {
-    createComponent();
-
-    const ownerLink = fixture.debugElement
-      .query(By.css('.owner-search-link'))
-      .injector.get(RouterLink);
-
-    expect(ownerLink.queryParams).toEqual({
-      search: 'Ada Lovelace',
-      selectedOwnerId: 'owner-1',
-    });
-  });
-
-  it('reloads cats only after the dialog reports a successful update', () => {
-    const updates = new Subject<{ entityType: 'cat'; entityId: string }>();
-    details.open.mockReturnValueOnce(updates.asObservable());
-    createComponent();
-
-    component.openCat(cats[0]);
-    expect(catApiService.getCats).toHaveBeenCalledTimes(1);
-
-    updates.next({ entityType: 'cat', entityId: 'cat-1' });
-    expect(catApiService.getCats).toHaveBeenCalledTimes(2);
-  });
-
-  it('filters cats by cat or owner name and shows the filtered-empty state', () => {
-    createComponent();
-
-    component.setSearchText('Grace');
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('Luna');
-    expect(fixture.nativeElement.textContent).not.toContain('Milo');
-
-    component.setSearchText('No match');
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain(
-      component.text().cats.overview.emptyFiltered,
-    );
-    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
-  });
-
-  it('renders empty and error states outside the Material table', async () => {
-    catApiService.getCats.mockReturnValueOnce(of([]));
-    createComponent();
-    expect(fixture.nativeElement.textContent).toContain(component.text().cats.overview.empty);
-    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
-
-    TestBed.resetTestingModule();
-    catApiService.getCats.mockReturnValue(throwError(() => new Error('load failed')));
-
+    vi.clearAllMocks();
+    api.getCatOverview.mockReturnValue(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    globalThis.IntersectionObserver = class {
+      constructor(cb: IntersectionObserverCallback) {
+        callback = cb;
+      }
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = unobserve;
+    } as any;
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:cat');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     await TestBed.configureTestingModule({
       imports: [CatsOverviewPage],
       providers: [
         provideNoopAnimations(),
         provideRouter([]),
-        { provide: CatApiService, useValue: catApiService },
+        { provide: CatApiService, useValue: api },
+        { provide: EntityDetailDialogService, useValue: { open: () => EMPTY } },
       ],
     }).compileComponents();
-
-    fixture = TestBed.createComponent(CatsOverviewPage);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain(
-      component.text().cats.overview.errorLoading,
+  });
+  it('debounces remote search and loads a Blob only when visible', () => {
+    vi.useFakeTimers();
+    const photo = new Subject<Blob>();
+    api.getCatOverview.mockReturnValue(
+      of({
+        items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: true }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
     );
-    expect(fixture.nativeElement.textContent).toContain(component.text().cats.overview.retry);
+    api.getCatPhoto.mockReturnValue(photo);
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.detectChanges();
+    vi.runAllTimers();
+    expect(observe).toHaveBeenCalled();
+    const target = f.nativeElement.querySelector('[data-cat-photo="true"]');
+    callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+    expect(api.getCatPhoto).toHaveBeenCalledWith('c');
+    photo.next(new Blob(['x']));
+    expect(f.componentInstance.photos()['c']).toBe('blob:cat');
+    f.componentInstance.setSearchText('A');
+    vi.advanceTimersByTime(300);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:cat');
+    expect(api.getCatOverview).toHaveBeenLastCalledWith(0, 'A');
+    vi.useRealTimers();
+  });
+  it('keeps nested Owner activation from opening the Cat', async () => {
+    vi.useFakeTimers();
+    api.getCatOverview.mockReturnValue(
+      of({
+        items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    const details = TestBed.inject(EntityDetailDialogService);
+    const spy = vi.spyOn(details, 'open');
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.detectChanges();
+    const ownerLink = f.nativeElement.querySelector('.owner-search-link') as HTMLAnchorElement;
+    ownerLink.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    expect(spy).not.toHaveBeenCalled();
+    expect(f.nativeElement.querySelector('mat-paginator')).not.toBeNull();
+    f.componentInstance.activateCat(
+      { key: 'Enter', preventDefault: vi.fn() } as unknown as KeyboardEvent,
+      { id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false },
+    );
+    expect(spy).toHaveBeenCalledWith({ entityType: 'cat', entityId: 'c' });
+    vi.useRealTimers();
   });
 });

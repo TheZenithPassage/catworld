@@ -31,6 +31,12 @@ describe('OwnerApiService', () => {
     request.flush(null);
   });
 
+  it('requests a trimmed fixed-page overview', () => {
+    service.getOwnerOverview(2, '  Ada  ').subscribe((page) => expect(page.pageSize).toBe(10));
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/owners/overview?page=2&q=Ada`);
+    request.flush({ items: [], page: 2, pageSize: 10, totalElements: 21 });
+  });
+
   it('loads typed owner detail and fixed nested relationship pages', () => {
     service.getOwnerDetail('owner-1').subscribe();
     service.getOwnerCats('owner-1', 2).subscribe();

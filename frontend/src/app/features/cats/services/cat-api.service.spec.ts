@@ -44,6 +44,12 @@ describe('CatApiService', () => {
     TestBed.resetTestingModule();
   });
 
+  it('requests a trimmed fixed-page overview', () => {
+    service.getCatOverview(1, '  Milo  ').subscribe((page) => expect(page.pageSize).toBe(10));
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/cats/overview?page=1&q=Milo`);
+    request.flush({ items: [], page: 1, pageSize: 10, totalElements: 11 });
+  });
+
   it('deletes a cat permanently', () => {
     service.deleteCat('cat-1').subscribe();
 
