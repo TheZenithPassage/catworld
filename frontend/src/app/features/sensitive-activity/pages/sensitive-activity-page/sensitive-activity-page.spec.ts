@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 
 import {
@@ -16,6 +17,7 @@ describe('SensitiveActivityPage', () => {
   const params = new BehaviorSubject(convertToParamMap({}));
   const api = { getActivity: vi.fn() };
   const router = { navigate: vi.fn().mockResolvedValue(true) };
+  const dialog = { open: vi.fn() };
   let fixture: ComponentFixture<SensitiveActivityPage>;
 
   const common = {
@@ -101,6 +103,7 @@ describe('SensitiveActivityPage', () => {
     params.next(convertToParamMap({}));
     api.getActivity.mockReset().mockReturnValue(of(events));
     router.navigate.mockClear();
+    dialog.open.mockClear();
     await TestBed.configureTestingModule({
       imports: [SensitiveActivityPage],
       providers: [
@@ -111,6 +114,7 @@ describe('SensitiveActivityPage', () => {
           useValue: { queryParamMap: params, snapshot: { queryParamMap: params.value } },
         },
         { provide: Router, useValue: router },
+        { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
     TestBed.inject(I18nService).language.set('en');
@@ -118,7 +122,7 @@ describe('SensitiveActivityPage', () => {
     fixture.detectChanges();
   });
 
-  it('renders every variant once in backend order with exact durable context and no live links', () => {
+  it('renders compact summaries in backend order and opens the exact selected event', () => {
     const root = fixture.nativeElement as HTMLElement;
     const articles = Array.from(root.querySelectorAll('article'));
     expect(articles).toHaveLength(6);
@@ -133,26 +137,34 @@ describe('SensitiveActivityPage', () => {
       'Payment removed',
     ]);
     expect(root.textContent).toContain('9999999999999999999');
-    expect(root.textContent).toContain('One cat');
-    expect(root.textContent).toContain('10.00');
-    expect(root.textContent).toContain('20.00');
-    expect(root.textContent).toContain('Override');
-    expect(root.textContent).toContain('21.00');
-    expect(root.textContent).toContain('Correction');
-    expect(root.textContent).toContain('5.00');
-    expect(root.textContent).toContain('Edit');
-    expect(root.textContent).toContain('Annul');
-    expect(root.textContent).toContain('Remove');
-    expect(
-      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
-    ).toEqual(['01/08/2026', '01/08/2026', '01/08/2026']);
+    expect(root.textContent).toContain('Global · Nightly rate');
+    expect(root.textContent).toContain('Context');
+    expect(root.textContent).toContain('Rate change');
     expect(root.textContent).toContain('Ada Owner');
     expect(root.textContent).toContain('Miso');
     expect(root.textContent).toContain('1 Aug 2026, 09:00');
-    expect(root.textContent).toContain('1 Aug 2026, 10:00');
-    expect(root.textContent).toContain('3 Aug 2026, 10:00');
-    expect(root.textContent).not.toContain('2026-08-01T10:00:00');
+    expect(root.textContent).not.toContain('Override');
+    expect(root.textContent).not.toContain('Correction');
+    expect(root.textContent).not.toContain('Payment date');
+    expect(root.textContent).not.toContain('deleted-stay');
     expect(root.querySelectorAll('article a')).toHaveLength(0);
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>('.event-actions button'));
+    expect(buttons).toHaveLength(6);
+
+    buttons[3].click();
+
+    expect(api.getActivity).toHaveBeenCalledTimes(1);
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: events[3],
+        width: 'min(52rem, calc(100vw - 2rem))',
+        maxWidth: 'calc(100vw - 2rem)',
+        maxHeight: 'calc(100dvh - 2rem)',
+        autoFocus: 'dialog',
+        restoreFocus: true,
+      }),
+    );
   });
 
   it('reconstructs and submits datetime filters in business time', () => {
@@ -498,35 +510,6 @@ describe('SensitiveActivityPage', () => {
 
     config.businessTimeZone.set('Europe/Madrid');
     expect(component.formatDate('2026-08-12T13:00:00Z')).toContain('15:00');
-  });
-
-  it('presents stay LocalDateTime fields without timezone displacement', () => {
-    const component = fixture.componentInstance;
-    const config = TestBed.inject(RuntimeConfigService);
-    config.businessTimeZone.set('Europe/Madrid');
-
-    expect(component.formatStayDateTime('2026-08-12T23:30:00')).toContain('23:30');
-    expect(component.formatStayDateTime('2026-08-13T00:15:00')).toContain('00:15');
-  });
-
-  it('localizes payment dates without changing their calendar day', () => {
-    const i18n = TestBed.inject(I18nService);
-    i18n.language.set('es');
-    api.getActivity.mockReturnValue(
-      of(
-        events.map((event) =>
-          'paymentDate' in event ? { ...event, paymentDate: '2026-01-01' } : event,
-        ),
-      ),
-    );
-    fixture.destroy();
-    fixture = TestBed.createComponent(SensitiveActivityPage);
-    fixture.detectChanges();
-
-    const root = fixture.nativeElement as HTMLElement;
-    expect(
-      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
-    ).toEqual(['01/01/2026', '01/01/2026', '01/01/2026']);
   });
 
   it('shows the localized malformed-contract state when temporal parsing fails', () => {

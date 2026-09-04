@@ -6,6 +6,7 @@ import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/m
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
@@ -13,14 +14,13 @@ import { Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { NativeBadInputDirective } from '../../../../shared/forms/native-bad-input.directive';
-import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
+import { SensitiveActivityDetailDialog } from '../../components/sensitive-activity-detail-dialog/sensitive-activity-detail-dialog';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import {
   EMPTY_SENSITIVE_ACTIVITY_FILTERS,
   isSensitiveActivityInstant,
   MalformedSensitiveActivityError,
-  NightlyRateCategory,
   SENSITIVE_EVENT_TYPES,
   SensitiveActivityFilters,
   SensitiveEconomicActivityEvent,
@@ -72,6 +72,7 @@ export class SensitiveActivityPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
+  private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
@@ -211,44 +212,36 @@ export class SensitiveActivityPage {
     return this.text().sensitiveActivity.events[event.eventType];
   }
 
-  categoryLabel(category: NightlyRateCategory): string {
-    return this.text().sensitiveActivity.categories[category];
-  }
-
   display(value: string | null | undefined): string {
     return value ?? this.text().sensitiveActivity.unavailable;
-  }
-
-  suggestedAmount(event: { retainedNightlyRate: string; numberOfNights: number }): string {
-    const negative = event.retainedNightlyRate.startsWith('-');
-    const unsignedAmount = negative
-      ? event.retainedNightlyRate.slice(1)
-      : event.retainedNightlyRate;
-    const [whole, fraction = ''] = unsignedAmount.split('.');
-    const scaledProduct = BigInt(`${whole}${fraction}`) * BigInt(event.numberOfNights);
-    const scaledText = scaledProduct.toString().padStart(fraction.length + 1, '0');
-    const amount = fraction.length
-      ? `${scaledText.slice(0, -fraction.length)}.${scaledText.slice(-fraction.length)}`
-      : scaledText;
-    return negative && scaledProduct !== 0n ? `-${amount}` : amount;
   }
 
   formatDate(value: string): string {
     return this.businessTime.formatInstant(value, this.dateLocale());
   }
 
-  formatPaymentDate(value: string): string {
-    return formatLocalDate(value, this.dateLocale());
-  }
-
-  formatStayDateTime(value: string): string {
-    return this.businessTime.formatLocalDateTime(value, this.dateLocale());
-  }
-
   catsLabel(cats: SensitiveStayContext['cats']): string {
     return cats.length
       ? cats.map((cat) => cat.name).join(', ')
       : this.text().sensitiveActivity.unavailable;
+  }
+
+  contextLabel(event: SensitiveEconomicActivityEvent): string {
+    if (event.eventType === 'NIGHTLY_RATE_CHANGED') {
+      return this.text().sensitiveActivity.globalNightlyRate;
+    }
+    return `${event.affectedContext.owner.fullName} · ${this.catsLabel(event.affectedContext.cats)}`;
+  }
+
+  openDetail(event: SensitiveEconomicActivityEvent): void {
+    this.dialog.open(SensitiveActivityDetailDialog, {
+      data: event,
+      width: 'min(52rem, calc(100vw - 2rem))',
+      maxWidth: 'calc(100vw - 2rem)',
+      maxHeight: 'calc(100dvh - 2rem)',
+      autoFocus: 'dialog',
+      restoreFocus: true,
+    });
   }
 
   private load(): void {

@@ -4,6 +4,7 @@ import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
@@ -12,6 +13,12 @@ import { OwnerApiService } from '../../services/owner-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { CatApiService } from '../../../cats/services/cat-api.service';
+
+interface OwnerSummary {
+  owner: Owner;
+  currentCatNames: string[];
+}
 
 @Component({
   selector: 'app-owners-overview-page',
@@ -29,6 +36,7 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
 })
 export class OwnersOverviewPage {
   private readonly ownerApiService = inject(OwnerApiService);
+  private readonly catApiService = inject(CatApiService);
   private readonly i18nService = inject(I18nService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -36,15 +44,15 @@ export class OwnersOverviewPage {
 
   readonly text = this.i18nService.text;
 
-  readonly owners = signal<Owner[]>([]);
+  readonly owners = signal<OwnerSummary[]>([]);
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly selectedOwnerId = signal<string | null>(null);
   readonly searchText = signal('');
-  readonly displayedColumns = ['name', 'primaryPhone', 'secondaryPhone', 'address', 'social'];
+  readonly displayedColumns = ['name', 'cats'];
 
   readonly filteredOwners = computed(() =>
-    this.owners().filter((owner) => matchesSearchText([owner.fullName], this.searchText())),
+    this.owners().filter(({ owner }) => matchesSearchText([owner.fullName], this.searchText())),
   );
 
   constructor() {
@@ -60,9 +68,24 @@ export class OwnersOverviewPage {
     this.loading.set(true);
     this.error.set(null);
 
-    this.ownerApiService.getOwners().subscribe({
-      next: (owners) => {
-        this.owners.set(owners);
+    forkJoin({
+      owners: this.ownerApiService.getOwners(),
+      cats: this.catApiService.getCats(),
+    }).subscribe({
+      next: ({ owners, cats }) => {
+        const catNamesByOwner = new Map<string, string[]>();
+        for (const cat of cats) {
+          const names = catNamesByOwner.get(cat.ownerId) ?? [];
+          names.push(cat.name);
+          catNamesByOwner.set(cat.ownerId, names);
+        }
+
+        this.owners.set(
+          owners.map((owner) => ({
+            owner,
+            currentCatNames: catNamesByOwner.get(owner.id) ?? [],
+          })),
+        );
         this.loading.set(false);
         this.scrollSelectedOwnerIntoView();
       },
@@ -91,22 +114,6 @@ export class OwnersOverviewPage {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
-  }
-
-  formatOptionalValue(value: string | null): string {
-    return value || this.text().owners.emptyValue;
-  }
-
-  getSecondaryPhone(owner: Owner): string {
-    if (!owner.secondaryPhone) {
-      return this.text().owners.emptyValue;
-    }
-
-    if (!owner.secondaryPhoneName) {
-      return owner.secondaryPhone;
-    }
-
-    return `${owner.secondaryPhone} (${owner.secondaryPhoneName})`;
   }
 
   isSelectedOwner(owner: Owner): boolean {

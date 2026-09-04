@@ -167,159 +167,27 @@
                   ><mat-card-title>{{ eventLabel(event) }}</mat-card-title></mat-card-header
                 >
                 <mat-card-content>
-                  <dl class="event-details">
+                  <dl class="event-summary">
                     <div>
-                      <dt>{{ text().sensitiveActivity.fields.actor }}</dt>
-                      <dd>{{ event.actor.username }}</dd>
+                      <dt>{{ text().sensitiveActivity.fields.context }}</dt>
+                      <dd>{{ contextLabel(event) }}</dd>
                     </div>
                     <div>
                       <dt>{{ text().sensitiveActivity.fields.occurredAt }}</dt>
                       <dd>{{ formatDate(event.occurredAt) }}</dd>
                     </div>
-                    @switch (event.eventType) {
-                      @case ('NIGHTLY_RATE_CHANGED') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.category }}</dt>
-                          <dd>{{ categoryLabel(event.category) }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.previousRate }}</dt>
-                          <dd>{{ display(event.previousRate) }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.newRate }}</dt>
-                          <dd>{{ display(event.newRate) }}</dd>
-                        </div>
-                      }
-                      @case ('PRICING_OVERRIDE') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.retainedRate }}</dt>
-                          <dd>{{ event.retainedNightlyRate }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.nights }}</dt>
-                          <dd>{{ event.numberOfNights }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.suggestedAmount }}</dt>
-                          <dd>{{ suggestedAmount(event) }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.agreement }}</dt>
-                          <dd>{{ event.agreedAmount }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
-                          <dd>{{ event.reason }}</dd>
-                        </div>
-                      }
-                      @case ('AGREED_AMOUNT_CORRECTED') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.previousAgreement }}</dt>
-                          <dd>{{ display(event.previousAgreedAmount) }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.newAgreement }}</dt>
-                          <dd>{{ event.newAgreedAmount }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
-                          <dd>{{ event.reason }}</dd>
-                        </div>
-                      }
-                      @case ('PAYMENT_EDITED') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.previousAmount }}</dt>
-                          <dd>{{ event.previousAmount }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.newAmount }}</dt>
-                          <dd>{{ event.newAmount }}</dd>
-                        </div>
-                      }
-                      @case ('PAYMENT_ANNULLED') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
-                          <dd>{{ event.amount }}</dd>
-                        </div>
-                      }
-                      @case ('PAYMENT_REMOVED') {
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
-                          <dd>{{ event.amount }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.annulled }}</dt>
-                          <dd>
-                            {{
-                              event.annulled
-                                ? text().sensitiveActivity.yes
-                                : text().sensitiveActivity.no
-                            }}
-                          </dd>
-                        </div>
-                      }
-                    }
-                    @if (
-                      event.eventType === 'PAYMENT_EDITED' ||
-                      event.eventType === 'PAYMENT_ANNULLED' ||
-                      event.eventType === 'PAYMENT_REMOVED'
-                    ) {
+                    @if (event.eventType === 'NIGHTLY_RATE_CHANGED') {
                       <div>
-                        <dt>{{ text().sensitiveActivity.fields.paymentDate }}</dt>
-                        <dd class="payment-date">{{ formatPaymentDate(event.paymentDate) }}</dd>
-                      </div>
-                      <div>
-                        <dt>{{ text().sensitiveActivity.fields.note }}</dt>
-                        <dd>{{ display(event.note) }}</dd>
-                      </div>
-                      <div>
-                        <dt>{{ text().sensitiveActivity.fields.registeredBy }}</dt>
-                        <dd>{{ event.registeredBy.username }}</dd>
-                      </div>
-                      <div>
-                        <dt>{{ text().sensitiveActivity.fields.registeredAt }}</dt>
-                        <dd>
-                          {{ formatDate(event.registeredAt) }}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
-                        <dd>{{ event.reason }}</dd>
+                        <dt>{{ text().sensitiveActivity.fields.rateChange }}</dt>
+                        <dd>{{ display(event.previousRate) }} → {{ display(event.newRate) }}</dd>
                       </div>
                     }
                   </dl>
-                  @if (event.affectedContext; as context) {
-                    <section
-                      class="affected-context"
-                      [attr.aria-label]="text().sensitiveActivity.fields.stay"
-                    >
-                      <h3>{{ text().sensitiveActivity.fields.stay }}</h3>
-                      <dl class="event-details">
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.cats }}</dt>
-                          <dd>{{ catsLabel(context.cats) }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
-                          <dd>{{ context.owner.fullName }}</dd>
-                        </div>
-                        <div>
-                          <dt>{{ text().sensitiveActivity.fields.stayDates }}</dt>
-                          <dd>
-                            {{ formatStayDateTime(context.startAt) }} –
-                            {{ formatStayDateTime(context.endAt) }}
-                          </dd>
-                        </div>
-                        @if (context.cancelledAt) {
-                          <div>
-                            <dt>{{ text().sensitiveActivity.fields.cancelledAt }}</dt>
-                            <dd>{{ formatStayDateTime(context.cancelledAt) }}</dd>
-                          </div>
-                        }
-                      </dl>
-                    </section>
-                  }
+                  <div class="event-actions">
+                    <button mat-stroked-button type="button" (click)="openDetail(event)">
+                      {{ text().sensitiveActivity.detailAction }}
+                    </button>
+                  </div>
                 </mat-card-content>
               </mat-card>
             </article>

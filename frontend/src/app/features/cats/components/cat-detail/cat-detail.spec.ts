@@ -76,6 +76,28 @@ describe('CatDetail permanent deletion', () => {
     );
   });
 
+  it('keeps representative care, appearance, and health information in detail', () => {
+    component.detail.set({
+      ...detail(),
+      cat: {
+        ...detail().cat,
+        breed: 'Retained breed',
+        foodBrand: 'Retained food',
+        personality: 'Retained personality',
+        lastInternalDewormerName: 'Retained dewormer',
+        lastRabiesDate: '2026-07-01',
+      },
+    });
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Retained breed');
+    expect(text).toContain('Retained food');
+    expect(text).toContain('Retained personality');
+    expect(text).toContain('Retained dewormer');
+    expect(text).toContain('01/07/2026');
+  });
+
   it('uses the human-readable Cat and Owner subject and cancellation sends no request', () => {
     deleteButton().click();
     const [, config] = dialog.open.mock.calls[0];

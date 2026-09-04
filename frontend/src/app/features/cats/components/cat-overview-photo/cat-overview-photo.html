@@ -1,0 +1,11 @@
+@if (photoUrl(); as url) {
+  <img class="cat-photo" [src]="url" [alt]="text().cats.detail.photoAlt(catName())" />
+} @else {
+  <span
+    class="cat-photo cat-photo-fallback"
+    role="img"
+    [attr.aria-label]="text().cats.detail.photoMissing"
+  >
+    <span aria-hidden="true">🐾</span>
+  </span>
+}

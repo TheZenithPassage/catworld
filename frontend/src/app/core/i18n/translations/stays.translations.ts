@@ -170,6 +170,7 @@ export interface StaysTranslations {
     errorCancelling: string;
     table: {
       state: string;
+      period: string;
       start: string;
       end: string;
       nights: string;
@@ -436,6 +437,7 @@ export const STAYS_TRANSLATIONS = {
       errorCancelling: 'Error al cancelar la estancia',
       table: {
         state: 'Estado',
+        period: 'Período',
         start: 'Inicio',
         end: 'Fin',
         nights: 'Noches',
@@ -699,6 +701,7 @@ export const STAYS_TRANSLATIONS = {
       errorCancelling: 'Error cancelling stay',
       table: {
         state: 'State',
+        period: 'Period',
         start: 'Start',
         end: 'End',
         nights: 'Nights',

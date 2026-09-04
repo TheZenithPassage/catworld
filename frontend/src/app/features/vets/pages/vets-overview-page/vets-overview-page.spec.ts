@@ -63,7 +63,7 @@ describe('VetsOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders keyboard-focusable vet rows without an Actions column', () => {
+  it('renders exact name and address summaries with keyboard detail access', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -73,9 +73,12 @@ describe('VetsOverviewPage', () => {
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
     expect(headerText).toContain(component.text().vets.overview.table.name);
+    expect(headerText).toContain(component.text().vets.overview.table.address);
     expect(headerText).not.toContain(component.text().vets.overview.table.actions);
     expect(compiled.textContent).toContain('Dr. Whiskers');
-    expect(compiled.textContent).toContain('555-4444');
+    expect(compiled.textContent).toContain('2 Clinic Road');
+    expect(compiled.textContent).not.toContain('555-4444');
+    expect(compiled.textContent).not.toContain('REG-1');
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().vets.overview.create,
     );

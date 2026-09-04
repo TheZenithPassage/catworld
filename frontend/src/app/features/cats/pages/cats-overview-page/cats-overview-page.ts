@@ -7,11 +7,12 @@ import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
-import { Cat, Sex } from '../../models/cat.model';
+import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { matchesSearchText } from '../../../../core/search/search-text.util';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { CatOverviewPhoto } from '../../components/cat-overview-photo/cat-overview-photo';
 
 @Component({
   selector: 'app-cats-overview-page',
@@ -22,6 +23,7 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
     MatLabel,
     MatTableModule,
     RouterLink,
+    CatOverviewPhoto,
     UiStateComponent,
   ],
   templateUrl: './cats-overview-page.html',
@@ -33,22 +35,11 @@ export class CatsOverviewPage {
   private readonly details = inject(EntityDetailDialogService);
 
   readonly text = this.i18nService.text;
-  readonly dateLocale = this.i18nService.dateLocale;
-
   readonly cats = signal<Cat[]>([]);
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly searchText = signal('');
-  readonly displayedColumns = [
-    'name',
-    'owner',
-    'sex',
-    'birthDate',
-    'appearance',
-    'care',
-    'health',
-    'vet',
-  ];
+  readonly displayedColumns = ['photo', 'name', 'owner'];
 
   readonly filteredCats = computed(() =>
     this.cats().filter((cat) => matchesSearchText([cat.name, cat.ownerName], this.searchText())),
@@ -82,29 +73,6 @@ export class CatsOverviewPage {
     this.searchText.set('');
   }
 
-  formatOptionalValue(value: string | null): string {
-    return value || this.text().cats.emptyValue;
-  }
-
-  formatDate(value: string | null): string {
-    if (!value) {
-      return this.text().cats.emptyValue;
-    }
-
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short',
-    }).format(new Date(`${value}T00:00:00`));
-  }
-
-  formatSex(sex: Sex): string {
-    return sex === 'MALE' ? this.text().cats.form.male : this.text().cats.form.female;
-  }
-
-  getAppearance(cat: Cat): string {
-    const values = [cat.breed, cat.coat, cat.color].filter(Boolean);
-
-    return values.length > 0 ? values.join(' / ') : this.text().cats.emptyValue;
-  }
   openCat(cat: Cat): void {
     this.details.open({ entityType: 'cat', entityId: cat.id }).subscribe(() => this.loadCats());
   }

@@ -860,6 +860,16 @@ no separate Actions column. Stay detail obtains the full operational Stay only
 to prove whether a recorded agreement exists before exposing Pricing & Payments;
 the lightweight detail response remains economics-free.
 
+Entity overviews are deliberately compact entry points into that complete
+route-free detail flow. Owner rows contain only the owner name and current cat
+names, composed from one Owner collection and one Cat collection. Cat rows
+contain the authenticated photo or local fallback, name and owner; the
+feature-local thumbnail component owns object-URL replacement and revocation.
+Vet rows contain name and address. Stay rows contain cats, owner, one
+business-time-formatted start/end period and dynamic status. Their desktop
+tables reorganize into labeled stacked rows on narrow screens, with shrinkable,
+wrapping content instead of minimum-width tables or horizontal scrolling.
+
 The reusable Stay editor owns the complete date, notes, pricing preview,
 reconfirmation, stale-confirmation, vaccine-conflict and role-sensitive update
 workflow through route-free inputs and outputs. The Stay detail presenter loads
@@ -915,13 +925,13 @@ explicit confirmation. Existing-stay updates follow the backend
 while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
-reconfirms. The stays overview renders backend-supplied retained rate,
-suggestion, agreement, paid total and remaining amount. Post-creation agreement
-correction and payment actions belong to the dedicated Pricing & Payments page
-rather than the overview. Registration, amount editing and annulment use focused
-responsive Material dialogs; permanent payment removal remains on the shared
-protected-deletion confirmation path. Successful mutations replace page state
-from the complete authoritative Stay returned by the backend.
+reconfirms. The stays overview does not render retained rate, suggestion,
+agreement, paid total or remaining amount. Post-creation agreement correction
+and payment actions belong to the dedicated Pricing & Payments page.
+Registration, amount editing and annulment use focused responsive Material
+dialogs; permanent payment removal remains on the shared protected-deletion
+confirmation path. Successful mutations replace page state from the complete
+authoritative Stay returned by the backend.
 
 ### Reusable Entity Lookup and Selection
 
@@ -1066,6 +1076,17 @@ runtime, preserves monetary JSON strings and nullable amounts without numeric
 conversion, and rejects malformed or unknown variants instead of inferring an
 event. The page preserves backend ordering and durable owner, cat, stay and
 payment context without requiring live operational routes.
+
+The Sensitive Activity overview renders only the localized event type, compact
+occurrence time and useful global or retained Stay context. Its localized
+detail action opens a feature-local Material dialog with the exact selected
+event already returned by the list request, so opening detail performs no new
+HTTP request. The dialog exhaustively renders common fields and all six variant
+payloads, including exact monetary strings, explicit absent values, actor and
+payment identifiers, and durable Stay/owner/cat context. It remains independent
+of the shared entity-detail stack and provides no live entity links. Dialog
+width and height are viewport bounded; long values wrap and the two-column
+detail grid collapses to one column on narrow screens.
 
 Actor, period, event-type, owner, cat and stay filters share one page-owned state
 with supported query parameters. Refinement and refresh preserve active

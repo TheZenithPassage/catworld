@@ -30,6 +30,7 @@ import {
 } from '../../utils/stay-status.util';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 
 @Component({
   selector: 'app-stays-overview-page',
@@ -49,6 +50,7 @@ export class StaysOverviewPage {
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18nService = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
@@ -64,16 +66,7 @@ export class StaysOverviewPage {
   );
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly paymentFilters = signal(getDefaultStayPaymentFilters());
-  readonly displayedColumns = [
-    'state',
-    'start',
-    'end',
-    'nights',
-    'economics',
-    'cats',
-    'owner',
-    'notes',
-  ];
+  readonly displayedColumns = ['cats', 'owner', 'period', 'state'];
 
   readonly filteredStays = computed(() =>
     this.stays().filter(
@@ -121,32 +114,16 @@ export class StaysOverviewPage {
     return this.text().stays.status[getStayStatus(stay)];
   }
 
-  getPaymentCondition(stay: Stay): string {
-    return this.text().stays.filters.paymentCondition[stay.paymentCondition];
-  }
-
   formatDate(value: string | null): string {
     if (!value) {
       return this.text().stays.emptyValue;
     }
 
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    return this.businessTime.formatLocalDateTime(value, this.dateLocale());
   }
 
-  getCatSummary(stay: Stay): string {
-    return stay.cats.length === 1
-      ? `1 ${this.text().stays.overview.catSingular}`
-      : `${stay.cats.length} ${this.text().stays.overview.catPlural}`;
-  }
-
-  getNightCountLabel(numberOfNights: number): string {
-    const unit =
-      numberOfNights === 1 ? this.text().stays.nights.singular : this.text().stays.nights.plural;
-
-    return `${numberOfNights} ${unit}`;
+  formatPeriod(stay: Stay): string {
+    return `${this.formatDate(stay.startAt)} — ${this.formatDate(stay.endAt)}`;
   }
 
   getCatNames(stay: Stay): string {

@@ -23,10 +23,13 @@ describe('StaysOverviewPage', () => {
     createdAt: '2026-07-03T10:00:00',
     updatedAt: '2026-07-03T10:00:00',
     notes: 'Needs quiet room',
-    catIds: ['cat-1'],
+    catIds: ['cat-1', 'cat-6'],
     ownerId: 'owner-1',
     ownerName: 'Ada Lovelace',
-    cats: [{ catId: 'cat-1', name: 'Milo' }],
+    cats: [
+      { catId: 'cat-1', name: 'Milo' },
+      { catId: 'cat-6', name: 'Turing' },
+    ],
     retainedNightlyRate: '50',
     suggestedAmount: '100',
     agreedAmount: '100',
@@ -170,9 +173,14 @@ describe('StaysOverviewPage', () => {
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
     expect(headerText).toContain(component.text().stays.overview.table.state);
+    expect(headerText).toContain(component.text().stays.overview.table.period);
+    expect(headerText).toContain(component.text().stays.overview.table.cats);
+    expect(headerText).toContain(component.text().stays.overview.table.owner);
     expect(headerText).not.toContain(component.text().stays.overview.table.actions);
     expect(compiled.textContent).toContain('Ada Lovelace');
-    expect(compiled.textContent).toContain('Needs quiet room');
+    expect(compiled.textContent).toContain('Milo');
+    expect(compiled.textContent).toContain('Turing');
+    expect(compiled.textContent).not.toContain('Needs quiet room');
     expect(compiled.querySelector('#stay-stay-1.selected-row')).not.toBeNull();
     expect(compiled.querySelectorAll('mat-checkbox.status-filter')).toHaveLength(
       component.statusFilterOptions.length,
@@ -215,43 +223,20 @@ describe('StaysOverviewPage', () => {
     expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
   });
 
-  it('renders exact authoritative economics and localized payment conditions', () => {
+  it('renders one compact period and omits night, economic, and notes detail from records', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const zeroEconomics = compiled.querySelector('#stay-stay-2 .economics-cell')?.textContent;
-    const nullPermittedEconomics = compiled.querySelector(
-      '#stay-stay-5 .economics-cell',
-    )?.textContent;
-
-    expect(zeroEconomics).toContain(`${component.text().stays.pricing.agreement}: 0`);
-    expect(zeroEconomics).toContain(`${component.text().stays.pricing.totalPaid}: 0`);
-    expect(zeroEconomics).toContain(`${component.text().stays.pricing.remaining}: 0`);
-    expect(nullPermittedEconomics?.trim()).toBe(
-      component.text().stays.pricing.noPaymentInformation,
-    );
-    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.retainedRate}:`);
-    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.suggestion}:`);
-    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.agreement}:`);
-    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.totalPaid}:`);
-    expect(nullPermittedEconomics).not.toContain(`${component.text().stays.pricing.remaining}:`);
-    expect(
-      [...compiled.querySelectorAll('#stay-stay-5 button')].some((button) =>
-        button.textContent?.includes(component.text().stays.pricing.correctAgreement),
-      ),
-    ).toBe(false);
-    expect(compiled.textContent).toContain('9999999999999999999');
-    expect(compiled.textContent).toContain('9999999999999999998');
-    expect(compiled.textContent).toContain(
-      component.text().stays.filters.paymentCondition.NO_PAYMENT,
-    );
-    expect(compiled.textContent).toContain(
-      component.text().stays.filters.paymentCondition.PARTIAL_PAYMENT,
-    );
-    expect(compiled.textContent).toContain(
-      component.text().stays.filters.paymentCondition.FULL_PAYMENT,
-    );
-    expect(compiled.textContent).not.toContain('PARTIAL_PAYMENT');
+    const rowText = compiled.querySelector('#stay-stay-1')?.textContent ?? '';
+    expect(rowText).toContain('Milo');
+    expect(rowText).toContain('Turing');
+    expect(rowText).toContain('Ada Lovelace');
+    expect(rowText).toContain(component.formatPeriod(reservedStay));
+    expect(rowText).toContain(component.getStayStatus(reservedStay));
+    expect(rowText).not.toContain('Needs quiet room');
+    expect(rowText).not.toContain('7 nights');
+    expect(rowText).not.toContain('50');
+    expect(rowText).not.toContain('100');
     const paymentGroup = compiled.querySelector(
       `[role="group"][aria-label="${component.text().stays.filters.paymentAriaLabel}"]`,
     );

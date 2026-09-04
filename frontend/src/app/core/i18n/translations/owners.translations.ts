@@ -66,6 +66,7 @@ export interface OwnersTranslations {
     errorLoading: string;
     table: {
       name: string;
+      cats: string;
       primaryPhone: string;
       secondaryPhone: string;
       address: string;
@@ -147,6 +148,7 @@ export const OWNERS_TRANSLATIONS = {
       errorLoading: 'Error al cargar dueños',
       table: {
         name: 'Nombre',
+        cats: 'Gatos actuales',
         primaryPhone: 'Teléfono principal',
         secondaryPhone: 'Teléfono secundario',
         address: 'Dirección',
@@ -226,6 +228,7 @@ export const OWNERS_TRANSLATIONS = {
       errorLoading: 'Error loading owners',
       table: {
         name: 'Name',
+        cats: 'Current cats',
         primaryPhone: 'Primary phone',
         secondaryPhone: 'Secondary phone',
         address: 'Address',

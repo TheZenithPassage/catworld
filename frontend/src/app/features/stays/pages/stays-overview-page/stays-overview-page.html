@@ -66,72 +66,35 @@
   } @else {
     <div class="table-wrapper">
       <table mat-table [dataSource]="filteredStays()" class="stays-table">
-        <ng-container matColumnDef="state">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.state }}</th>
-          <td mat-cell *matCellDef="let stay">{{ getStayStatus(stay) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="start">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.start }}</th>
-          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.startAt) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="end">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.end }}</th>
-          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.endAt) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="nights">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.nights }}</th>
-          <td mat-cell *matCellDef="let stay">{{ getNightCountLabel(stay.numberOfNights) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="economics">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.pricing.economics }}</th>
-          <td mat-cell *matCellDef="let stay" class="economics-cell">
-            @if (stay.agreedAmount !== null) {
-              <div class="economics-content">
-                <span
-                  >{{ text().stays.pricing.retainedRate }}:
-                  {{ stay.retainedNightlyRate ?? text().stays.pricing.unavailable }}</span
-                >
-                <span
-                  >{{ text().stays.pricing.suggestion }}:
-                  {{ stay.suggestedAmount ?? text().stays.pricing.unavailable }}</span
-                >
-                <span>{{ text().stays.pricing.agreement }}: {{ stay.agreedAmount }}</span>
-                <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
-                <span
-                  >{{ text().stays.pricing.remaining }}:
-                  {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
-                >
-                <span>{{ getPaymentCondition(stay) }}</span>
-              </div>
-            } @else {
-              <span>{{ text().stays.pricing.noPaymentInformation }}</span>
-            }
-          </td>
-        </ng-container>
-
         <ng-container matColumnDef="cats">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.cats }}</th>
-          <td mat-cell *matCellDef="let stay">
-            <span>{{ getCatSummary(stay) }}</span>
-            <small class="cat-name-summary">
-              {{ getCatNames(stay) }}
-            </small>
+          <td mat-cell *matCellDef="let stay" [attr.data-label]="text().stays.overview.table.cats">
+            <span class="cat-name-summary">{{ getCatNames(stay) }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="owner">
           <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.owner }}</th>
-          <td mat-cell *matCellDef="let stay">{{ stay.ownerName }}</td>
+          <td mat-cell *matCellDef="let stay" [attr.data-label]="text().stays.overview.table.owner">
+            {{ stay.ownerName }}
+          </td>
         </ng-container>
 
-        <ng-container matColumnDef="notes">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.notes }}</th>
-          <td mat-cell *matCellDef="let stay" class="notes-cell">
-            {{ stay.notes || text().stays.emptyValue }}
+        <ng-container matColumnDef="period">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.period }}</th>
+          <td
+            mat-cell
+            *matCellDef="let stay"
+            [attr.data-label]="text().stays.overview.table.period"
+          >
+            {{ formatPeriod(stay) }}
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="state">
+          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.state }}</th>
+          <td mat-cell *matCellDef="let stay" [attr.data-label]="text().stays.overview.table.state">
+            {{ getStayStatus(stay) }}
           </td>
         </ng-container>
 

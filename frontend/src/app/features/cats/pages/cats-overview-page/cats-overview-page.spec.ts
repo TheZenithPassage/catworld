@@ -99,7 +99,7 @@ describe('CatsOverviewPage', () => {
     fixture.detectChanges();
   }
 
-  it('renders keyboard-focusable cat rows without an edit action', () => {
+  it('renders exact photo, name, and owner summaries with keyboard detail access', () => {
     createComponent();
 
     const compiled = fixture.nativeElement as HTMLElement;
@@ -108,11 +108,18 @@ describe('CatsOverviewPage', () => {
       .join(' ');
 
     expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
+    expect(headerText).toContain(component.text().cats.detail.photo);
     expect(headerText).toContain(component.text().cats.overview.table.name);
-    expect(headerText).toContain(component.text().cats.overview.table.health);
+    expect(headerText).toContain(component.text().cats.overview.table.owner);
+    expect(headerText).not.toContain(component.text().cats.overview.table.health);
     expect(compiled.textContent).toContain('Milo');
     expect(compiled.textContent).toContain('Ada Lovelace');
-    expect(compiled.textContent).toContain('Chicken');
+    expect(compiled.textContent).not.toContain('Chicken');
+    expect(compiled.textContent).not.toContain('Tabby');
+    expect(compiled.textContent).not.toContain('2020-01-02');
+    expect(compiled.textContent).not.toContain('Dr. Vet');
+    expect(compiled.querySelectorAll('app-cat-overview-photo')).toHaveLength(2);
+    expect(compiled.querySelectorAll('app-cat-overview-photo [role="img"]')).toHaveLength(2);
     expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
       component.text().cats.overview.create,
     );

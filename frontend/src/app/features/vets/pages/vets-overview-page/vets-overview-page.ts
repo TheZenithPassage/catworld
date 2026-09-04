@@ -38,7 +38,7 @@ export class VetsOverviewPage {
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly searchText = signal('');
-  readonly displayedColumns = ['name', 'phoneNumber', 'address'];
+  readonly displayedColumns = ['name', 'address'];
 
   readonly filteredVets = computed(() =>
     this.vets().filter((vet) => matchesSearchText([vet.name], this.searchText())),

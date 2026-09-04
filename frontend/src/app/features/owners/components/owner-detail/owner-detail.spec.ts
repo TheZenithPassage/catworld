@@ -95,6 +95,23 @@ describe('OwnerDetail permanent deletion', () => {
     );
   });
 
+  it('keeps representative contact, address, and social information in detail', () => {
+    component.detail.set({
+      ...detail(true),
+      owner: {
+        ...detail(true).owner,
+        address: 'Long retained address',
+        primaryPhone: '555-0100',
+        instagram: '@retained-owner',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Long retained address');
+    expect(fixture.nativeElement.textContent).toContain('555-0100');
+    expect(fixture.nativeElement.textContent).toContain('@retained-owner');
+  });
+
   it('uses only the full name as subject and cancellation sends no DELETE', () => {
     fixture.nativeElement.querySelector('.permanent-delete-action').click();
     expect(dialog.open).toHaveBeenCalledWith(

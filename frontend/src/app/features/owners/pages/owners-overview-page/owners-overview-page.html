@@ -49,52 +49,44 @@
         <table mat-table [dataSource]="filteredOwners()" class="owners-table">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.name }}</th>
-            <td mat-cell *matCellDef="let owner">{{ owner.fullName }}</td>
+            <td
+              mat-cell
+              *matCellDef="let summary"
+              [attr.data-label]="text().owners.overview.table.name"
+            >
+              {{ summary.owner.fullName }}
+            </td>
           </ng-container>
 
-          <ng-container matColumnDef="primaryPhone">
-            <th mat-header-cell *matHeaderCellDef>
-              {{ text().owners.overview.table.primaryPhone }}
-            </th>
-            <td mat-cell *matCellDef="let owner">{{ owner.primaryPhone }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="secondaryPhone">
-            <th mat-header-cell *matHeaderCellDef>
-              {{ text().owners.overview.table.secondaryPhone }}
-            </th>
-            <td mat-cell *matCellDef="let owner">{{ getSecondaryPhone(owner) }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="address">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.address }}</th>
-            <td mat-cell *matCellDef="let owner">{{ formatOptionalValue(owner.address) }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="social">
-            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.social }}</th>
-            <td mat-cell *matCellDef="let owner">
-              <span
-                >{{ text().owners.overview.social.instagram }}:
-                {{ formatOptionalValue(owner.instagram) }}</span
-              >
-              <small class="secondary-line">
-                {{ text().owners.overview.social.facebook }}:
-                {{ formatOptionalValue(owner.facebook) }}
-              </small>
+          <ng-container matColumnDef="cats">
+            <th mat-header-cell *matHeaderCellDef>{{ text().owners.overview.table.cats }}</th>
+            <td
+              mat-cell
+              *matCellDef="let summary"
+              [attr.data-label]="text().owners.overview.table.cats"
+            >
+              @if (summary.currentCatNames.length > 0) {
+                <ul class="cat-name-list">
+                  @for (catName of summary.currentCatNames; track $index) {
+                    <li>{{ catName }}</li>
+                  }
+                </ul>
+              } @else {
+                {{ text().owners.emptyValue }}
+              }
             </td>
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr
             mat-row
-            *matRowDef="let owner; columns: displayedColumns"
-            [id]="'owner-' + owner.id"
-            [class.selected-row]="isSelectedOwner(owner)"
+            *matRowDef="let summary; columns: displayedColumns"
+            [id]="'owner-' + summary.owner.id"
+            [class.selected-row]="isSelectedOwner(summary.owner)"
             tabindex="0"
-            [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
-            (click)="openOwner(owner)"
-            (keydown)="activateOwner($event, owner)"
+            [attr.aria-label]="text().owners.detail.openDetails + ': ' + summary.owner.fullName"
+            (click)="openOwner(summary.owner)"
+            (keydown)="activateOwner($event, summary.owner)"
           ></tr>
         </table>
       </div>

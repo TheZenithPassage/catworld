@@ -14,6 +14,10 @@ export interface SensitiveActivityTranslations {
   failure: string;
   retry: string;
   unavailable: string;
+  globalNightlyRate: string;
+  detailAction: string;
+  detailTitle: string;
+  closeDetail: string;
   filters: {
     label: string;
     actorId: string;
@@ -36,8 +40,11 @@ export interface SensitiveActivityTranslations {
   categories: Record<NightlyRateCategory, string>;
   fields: Record<
     | 'actor'
+    | 'actorId'
     | 'occurredAt'
     | 'eventId'
+    | 'context'
+    | 'rateChange'
     | 'category'
     | 'previousRate'
     | 'newRate'
@@ -54,13 +61,19 @@ export interface SensitiveActivityTranslations {
     | 'paymentDate'
     | 'note'
     | 'registeredBy'
+    | 'registeredById'
     | 'registeredAt'
     | 'annulled'
     | 'reason'
     | 'stay'
+    | 'stayId'
     | 'owner'
+    | 'ownerId'
     | 'cats'
+    | 'catId'
     | 'stayDates'
+    | 'stayStart'
+    | 'stayEnd'
     | 'cancelledAt',
     string
   >;
@@ -88,6 +101,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     failure: 'No se pudo cargar la actividad económica sensible.',
     retry: 'Reintentar',
     unavailable: 'No disponible',
+    globalNightlyRate: 'Global · Tarifa nocturna',
+    detailAction: 'Ver detalles',
+    detailTitle: 'Detalles de la actividad sensible',
+    closeDetail: 'Cerrar',
     filters: {
       label: 'Filtros de actividad sensible',
       actorId: 'ID de cuenta del actor',
@@ -121,8 +138,11 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     },
     fields: {
       actor: 'Actor',
+      actorId: 'ID del actor',
       occurredAt: 'Fecha y hora',
       eventId: 'ID del evento',
+      context: 'Contexto',
+      rateChange: 'Cambio de tarifa',
       category: 'Categoría',
       previousRate: 'Tarifa anterior',
       newRate: 'Tarifa nueva',
@@ -139,13 +159,19 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       paymentDate: 'Fecha del pago',
       note: 'Nota',
       registeredBy: 'Registrado por',
+      registeredById: 'ID de quien registró',
       registeredAt: 'Registrado el',
       annulled: 'Anulado',
       reason: 'Motivo',
       stay: 'Estancia',
+      stayId: 'ID de la estancia',
       owner: 'Dueño',
+      ownerId: 'ID del dueño',
       cats: 'Gatos',
+      catId: 'ID del gato',
       stayDates: 'Fechas de estancia',
+      stayStart: 'Inicio de la estancia',
+      stayEnd: 'Fin de la estancia',
       cancelledAt: 'Cancelada el',
     },
     yes: 'Sí',
@@ -161,6 +187,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     failure: 'Sensitive economic activity could not be loaded.',
     retry: 'Retry',
     unavailable: 'Unavailable',
+    globalNightlyRate: 'Global · Nightly rate',
+    detailAction: 'View details',
+    detailTitle: 'Sensitive activity details',
+    closeDetail: 'Close',
     filters: {
       label: 'Sensitive activity filters',
       actorId: 'Actor account ID',
@@ -187,8 +217,11 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     },
     fields: {
       actor: 'Actor',
+      actorId: 'Actor ID',
       occurredAt: 'Date and time',
       eventId: 'Event ID',
+      context: 'Context',
+      rateChange: 'Rate change',
       category: 'Category',
       previousRate: 'Previous rate',
       newRate: 'New rate',
@@ -205,13 +238,19 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       paymentDate: 'Payment date',
       note: 'Note',
       registeredBy: 'Registered by',
+      registeredById: 'Registrar ID',
       registeredAt: 'Registered at',
       annulled: 'Annulled',
       reason: 'Reason',
       stay: 'Stay',
+      stayId: 'Stay ID',
       owner: 'Owner',
+      ownerId: 'Owner ID',
       cats: 'Cats',
+      catId: 'Cat ID',
       stayDates: 'Stay dates',
+      stayStart: 'Stay start',
+      stayEnd: 'Stay end',
       cancelledAt: 'Cancelled at',
     },
     yes: 'Yes',

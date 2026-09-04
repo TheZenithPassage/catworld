@@ -108,6 +108,17 @@ describe('VetDetail permanent deletion', () => {
     expect(registrationField?.textContent).toContain(component.text().vets.emptyValue);
   });
 
+  it('keeps the phone number and registration information in detail', () => {
+    component.detail.set({
+      ...detail(true),
+      vet: { ...detail(true).vet, phoneNumber: '555-0199' },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('555-0199');
+    expect(fixture.nativeElement.textContent).toContain('REG-123');
+  });
+
   it('uses only the vet name as subject and cancellation sends no DELETE', () => {
     fixture.nativeElement.querySelector('.permanent-delete-action').click();
     expect(dialog.open).toHaveBeenCalledWith(

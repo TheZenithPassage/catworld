@@ -49,19 +49,20 @@
         <table mat-table [dataSource]="filteredVets()" class="vets-table">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>{{ text().vets.overview.table.name }}</th>
-            <td mat-cell *matCellDef="let vet">{{ vet.name }}</td>
-          </ng-container>
-
-          <ng-container matColumnDef="phoneNumber">
-            <th mat-header-cell *matHeaderCellDef>
-              {{ text().vets.overview.table.phoneNumber }}
-            </th>
-            <td mat-cell *matCellDef="let vet">{{ formatOptionalValue(vet.phoneNumber) }}</td>
+            <td mat-cell *matCellDef="let vet" [attr.data-label]="text().vets.overview.table.name">
+              {{ vet.name }}
+            </td>
           </ng-container>
 
           <ng-container matColumnDef="address">
             <th mat-header-cell *matHeaderCellDef>{{ text().vets.overview.table.address }}</th>
-            <td mat-cell *matCellDef="let vet">{{ formatOptionalValue(vet.address) }}</td>
+            <td
+              mat-cell
+              *matCellDef="let vet"
+              [attr.data-label]="text().vets.overview.table.address"
+            >
+              {{ formatOptionalValue(vet.address) }}
+            </td>
           </ng-container>
 
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
