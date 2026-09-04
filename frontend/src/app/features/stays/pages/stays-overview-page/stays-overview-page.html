@@ -53,7 +53,7 @@
       [actionLabel]="text().stays.overview.retry"
       (actionTriggered)="loadStays()"
     ></app-ui-state>
-  } @else if (!stays().length) {
+  } @else if (!stays().length && !selectedStay()) {
     <app-ui-state
       kind="empty"
       [message]="
@@ -62,6 +62,23 @@
     ></app-ui-state>
   } @else {
     <div class="overview-list">
+      @if (selectedStay(); as stay) {
+        <article
+          class="overview-card selected-row contextual-selection"
+          [id]="'stay-' + stay.id"
+          tabindex="0"
+          [attr.aria-label]="getOpenDetailAriaLabel(stay)"
+          (click)="openDetail(stay)"
+          (keydown)="activateRow($event, stay)"
+        >
+          <div class="stay-heading">
+            <h3>{{ getCatNames(stay) }}</h3>
+            <strong>{{ getStayStatus(stay) }}</strong>
+          </div>
+          <p>{{ stay.ownerName }}</p>
+          <p>{{ formatDate(stay.startAt) }} — {{ formatDate(stay.endAt) }}</p>
+        </article>
+      }
       @for (stay of stays(); track stay.id) {
         <article
           class="overview-card"

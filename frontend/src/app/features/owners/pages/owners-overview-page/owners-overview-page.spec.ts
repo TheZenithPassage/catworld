@@ -9,9 +9,16 @@ import { OwnersOverviewPage } from './owners-overview-page';
 
 describe('OwnersOverviewPage paging', () => {
   const pending = new Subject<any>();
-  const api = { getOwnerOverview: vi.fn(() => pending.asObservable()) };
+  const api = { getOwnerOverview: vi.fn(() => pending.asObservable()), getOwnerDetail: vi.fn() };
   beforeEach(async () => {
     vi.clearAllMocks();
+    api.getOwnerDetail.mockReturnValue(
+      of({
+        owner: { id: 'selected', fullName: 'Selected Owner' },
+        cats: { items: [{ id: 'cat', name: 'Context Cat' }], totalElements: 1 },
+        stays: { items: [], totalElements: 0 },
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [OwnersOverviewPage],
       providers: [
@@ -93,5 +100,26 @@ describe('OwnersOverviewPage paging', () => {
       { id: 'o', fullName: 'Ada', cats: [] },
     );
     expect(open).toHaveBeenCalledTimes(2);
+  });
+  it('resolves and activates a selected Owner absent from the active page', () => {
+    api.getOwnerOverview.mockReturnValue(
+      of({
+        items: [{ id: 'other', fullName: 'Other', cats: [] }],
+        page: 3,
+        pageSize: 10,
+        totalElements: 31,
+      }),
+    );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.componentInstance.selectedOwnerId.set('selected');
+    fixture.componentInstance.loadOwners(3);
+    fixture.detectChanges();
+    const contextual = fixture.nativeElement.querySelector('.contextual-selection');
+    expect(api.getOwnerDetail).toHaveBeenCalledWith('selected');
+    expect(contextual.textContent).toContain('Selected Owner');
+    expect(contextual.textContent).toContain('Context Cat');
+    const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
+    contextual.click();
+    expect(open).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'selected' });
   });
 });

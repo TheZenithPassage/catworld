@@ -8,6 +8,7 @@ import { Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import { PaymentCondition, StayOverviewItem, StayOverviewStatus } from '../../models/stay.model';
@@ -47,10 +48,12 @@ export class StaysOverviewPage {
   private readonly details = inject(EntityDetailDialogService);
   private readonly preferences = inject(StayStatusVisibilityPreferencesService);
   private request?: Subscription;
+  private selectedRequest?: Subscription;
   private requestId = 0;
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
+  readonly selectedStay = signal<StayOverviewItem | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly paymentConditionFilterOptions = PAYMENT_CONDITION_FILTER_OPTIONS;
   readonly statusVisibility = signal<StayStatusVisibility>(this.preferences.read());
@@ -112,6 +115,7 @@ export class StaysOverviewPage {
       this.totalElements.set(0);
       this.loading.set(false);
       this.syncPage();
+      this.resolveSelectedStay([]);
       return;
     }
     this.request = this.api
@@ -134,7 +138,7 @@ export class StaysOverviewPage {
           this.totalElements.set(r.totalElements);
           this.loading.set(false);
           this.syncPage();
-          this.scrollSelected();
+          this.resolveSelectedStay(r.items);
         },
         error: () => {
           if (id === this.requestId) {
@@ -241,6 +245,34 @@ export class StaysOverviewPage {
     const id = this.selectedStayId();
     if (id)
       setTimeout(() => document.getElementById(`stay-${id}`)?.scrollIntoView({ block: 'center' }));
+  }
+  private resolveSelectedStay(items: StayOverviewItem[]): void {
+    const selectedId = this.selectedStayId();
+    this.selectedRequest?.unsubscribe();
+    if (!selectedId || items.some((stay) => stay.id === selectedId)) {
+      this.selectedStay.set(null);
+      this.scrollSelected();
+      return;
+    }
+    this.selectedRequest = this.api.getStayDetail(selectedId).subscribe({
+      next: (detail) => {
+        if (this.selectedStayId() !== selectedId) return;
+        this.selectedStay.set(this.selectedOverview(detail));
+        this.scrollSelected();
+      },
+      error: () => this.selectedStay.set(null),
+    });
+  }
+  private selectedOverview(detail: StayDetailResponse): StayOverviewItem {
+    return {
+      id: detail.stayId,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+      status: detail.status,
+      ownerId: detail.owner.id,
+      ownerName: detail.owner.fullName,
+      cats: detail.cats.items.map((cat) => ({ id: cat.id, name: cat.name })),
+    };
   }
   private toBackendStatus(s: StayStatus): StayOverviewStatus {
     return (

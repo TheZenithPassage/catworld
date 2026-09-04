@@ -33,6 +33,7 @@ export class OwnersOverviewPage {
   private readonly router = inject(Router);
   private readonly details = inject(EntityDetailDialogService);
   private request?: Subscription;
+  private selectedRequest?: Subscription;
   private searchTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
   readonly text = this.i18n.text;
@@ -44,6 +45,7 @@ export class OwnersOverviewPage {
   readonly totalElements = signal(0);
   readonly pageSize = 10;
   readonly selectedOwnerId = signal<string | null>(null);
+  readonly selectedOwner = signal<OwnerOverviewItem | null>(null);
   constructor() {
     const q = this.route.snapshot.queryParamMap;
     this.searchText.set(q.get('search') ?? '');
@@ -66,7 +68,7 @@ export class OwnersOverviewPage {
         this.page.set(result.page);
         this.totalElements.set(result.totalElements);
         this.loading.set(false);
-        this.scrollSelected();
+        this.resolveSelectedOwner(result.items);
       },
       error: () => {
         if (id === this.requestId) {
@@ -117,6 +119,27 @@ export class OwnersOverviewPage {
   }
   isSelectedOwner(owner: OwnerOverviewItem): boolean {
     return owner.id === this.selectedOwnerId();
+  }
+  private resolveSelectedOwner(items: OwnerOverviewItem[]): void {
+    const selectedId = this.selectedOwnerId();
+    this.selectedRequest?.unsubscribe();
+    if (!selectedId || items.some((owner) => owner.id === selectedId)) {
+      this.selectedOwner.set(null);
+      this.scrollSelected();
+      return;
+    }
+    this.selectedRequest = this.api.getOwnerDetail(selectedId).subscribe({
+      next: (detail) => {
+        if (this.selectedOwnerId() !== selectedId) return;
+        this.selectedOwner.set({
+          id: detail.owner.id,
+          fullName: detail.owner.fullName,
+          cats: detail.cats.items.map((cat) => ({ id: cat.id, name: cat.name })),
+        });
+        this.scrollSelected();
+      },
+      error: () => this.selectedOwner.set(null),
+    });
   }
   private scrollSelected(): void {
     const id = this.selectedOwnerId();

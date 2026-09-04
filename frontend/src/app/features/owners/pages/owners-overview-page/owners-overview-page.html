@@ -34,13 +34,26 @@
       [actionLabel]="text().owners.overview.retry"
       (actionTriggered)="loadOwners()"
     ></app-ui-state>
-  } @else if (owners().length === 0) {
+  } @else if (owners().length === 0 && !selectedOwner()) {
     <app-ui-state
       kind="empty"
       [message]="searchText() ? text().owners.overview.emptyFiltered : text().owners.overview.empty"
     ></app-ui-state>
   } @else {
     <div class="overview-list">
+      @if (selectedOwner(); as owner) {
+        <article
+          class="overview-card selected-row contextual-selection"
+          [id]="'owner-' + owner.id"
+          tabindex="0"
+          [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
+          (click)="openOwner(owner)"
+          (keydown)="activateOwner($event, owner)"
+        >
+          <h3>{{ owner.fullName }}</h3>
+          <p>{{ catNames(owner) }}</p>
+        </article>
+      }
       @for (owner of owners(); track owner.id) {
         <article
           class="overview-card"

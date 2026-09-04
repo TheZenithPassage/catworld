@@ -8,7 +8,7 @@ import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaysOverviewPage } from './stays-overview-page';
 describe('StaysOverviewPage server paging', () => {
-  const api = { getStayOverview: vi.fn() };
+  const api = { getStayOverview: vi.fn(), getStayDetail: vi.fn() };
   const visibility = {
     read: () => ({ reserved: true, 'checked-in': true, 'checked-out': false, cancelled: false }),
     store: vi.fn(),
@@ -16,6 +16,21 @@ describe('StaysOverviewPage server paging', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     api.getStayOverview.mockReturnValue(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    api.getStayDetail.mockReturnValue(
+      of({
+        stayId: 's',
+        status: 'RESERVED',
+        startAt: '2099-01-01T10:00:00',
+        endAt: '2099-01-02T10:00:00',
+        numberOfNights: 1,
+        notes: null,
+        owner: { id: 'o', fullName: 'Ada' },
+        cats: {
+          items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada' }],
+          totalElements: 1,
+        },
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [StaysOverviewPage],
       providers: [
@@ -98,6 +113,35 @@ describe('StaysOverviewPage server paging', () => {
       { key: 'Enter', preventDefault: vi.fn() } as unknown as KeyboardEvent,
       f.componentInstance.stays()[0],
     );
+    expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
+  });
+  it('keeps an off-page selected Stay present and actionable without changing the active page', () => {
+    api.getStayOverview.mockReturnValue(
+      of({
+        items: [
+          {
+            id: 'other',
+            startAt: '2099-02-01T10:00:00',
+            endAt: '2099-02-02T10:00:00',
+            status: 'RESERVED',
+            ownerId: 'x',
+            ownerName: 'Other',
+            cats: [{ id: 'x', name: 'Other Cat' }],
+          },
+        ],
+        page: 2,
+        pageSize: 10,
+        totalElements: 30,
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    const contextual = f.nativeElement.querySelector('.contextual-selection');
+    expect(api.getStayDetail).toHaveBeenCalledWith('s');
+    expect(f.componentInstance.page()).toBe(2);
+    expect(contextual.textContent).toContain('Milo');
+    const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
+    contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
   });
 });
