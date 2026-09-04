@@ -39,7 +39,11 @@
       >{{ text().stays.filters.outstandingOnly }}</mat-checkbox
     >
   </div>
-  <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
+  <app-stay-search-filters
+    [initialCatId]="searchFilters().catId"
+    [initialOwnerId]="searchFilters().ownerId"
+    (filtersChange)="setSearchFilters($event)"
+  ></app-stay-search-filters>
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().stays.overview.loading"></app-ui-state>
   } @else if (error()) {

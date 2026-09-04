@@ -190,6 +190,8 @@ export class StaysOverviewPage {
     if (e.target === e.currentTarget) this.setStatusVisibility(s, !this.isStatusVisible(s));
   }
   setSearchFilters(f: StaySearchFilters): void {
+    if (f.catId === this.searchFilters().catId && f.ownerId === this.searchFilters().ownerId)
+      return;
     this.searchFilters.set(f);
     this.resetAndLoad();
   }

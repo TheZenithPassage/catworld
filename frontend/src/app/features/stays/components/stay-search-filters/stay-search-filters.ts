@@ -1,4 +1,12 @@
-import { Component, inject, output, signal, viewChild } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CatLookup } from '../../../cats/models/cat.model';
@@ -25,6 +33,8 @@ export class StaySearchFiltersComponent {
 
   readonly text = this.i18nService.text;
   readonly filtersChange = output<StaySearchFilters>();
+  readonly initialCatId = input<string | null>(null);
+  readonly initialOwnerId = input<string | null>(null);
   readonly catAdapter = inject(CatLookupAdapter);
   readonly ownerAdapter = inject(OwnerLookupAdapter);
   readonly catSelector = viewChild<RemoteEntitySelector<CatLookup>>('catSelector');
@@ -32,6 +42,14 @@ export class StaySearchFiltersComponent {
 
   readonly selectedCatId = signal<string | null>(null);
   readonly selectedOwnerId = signal<string | null>(null);
+  constructor() {
+    afterNextRender(() => {
+      const catId = this.initialCatId();
+      const ownerId = this.initialOwnerId();
+      if (catId) this.catSelector()?.resolveKnownId(catId);
+      else if (ownerId) this.ownerSelector()?.resolveKnownId(ownerId);
+    });
+  }
   onCatStateChange(state: EntityLookupState<CatLookup>): void {
     const changed = this.selectedCatId() !== state.selectedId;
     this.selectedCatId.set(state.selectedId);
