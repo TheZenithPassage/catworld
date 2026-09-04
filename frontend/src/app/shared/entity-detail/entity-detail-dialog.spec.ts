@@ -29,6 +29,7 @@ import { StayCancellationDialog } from '../../features/stays/components/stay-can
 import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
 import type { EntityDetailUpdate } from './entity-reference';
 import { Router } from '@angular/router';
+import { appPaginatorIntl } from '../pagination/app-paginator-intl';
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -169,6 +170,9 @@ describe('EntityDetailDialog', () => {
   };
 
   beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: MatPaginatorIntl, useFactory: appPaginatorIntl }],
+    });
     vi.clearAllMocks();
     dialogRef.disableClose = false;
     stayApi.getStayById.mockReturnValue(of(operationalStay));

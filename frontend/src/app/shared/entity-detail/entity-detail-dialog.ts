@@ -22,7 +22,7 @@ import { StayDetail } from '../../features/stays/components/stay-detail/stay-det
 import { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
-import { MatPaginator, MatPaginatorIntl, PageEvent } from '@angular/material/paginator';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
@@ -35,7 +35,6 @@ import { Subscription } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
-import { appPaginatorIntl } from '../pagination/app-paginator-intl';
 
 const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
 
@@ -64,7 +63,6 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
   ],
   templateUrl: './entity-detail-dialog.html',
   styleUrl: './entity-detail-dialog.scss',
-  providers: [{ provide: MatPaginatorIntl, useFactory: appPaginatorIntl }],
 })
 export class EntityDetailDialog {
   private readonly ownerApi = inject(OwnerApiService);
