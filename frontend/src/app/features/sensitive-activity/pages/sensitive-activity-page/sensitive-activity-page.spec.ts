@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject, of, throwError } from 'rxjs';
+import { Subject } from 'rxjs';
 
 import {
   MalformedSensitiveActivityError,
@@ -11,11 +12,14 @@ import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive
 import { SensitiveActivityPage } from './sensitive-activity-page';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
+import { MatDialog } from '@angular/material/dialog';
+import { OverviewPage } from '../../../../shared/pagination/overview-page';
 
 describe('SensitiveActivityPage', () => {
   const params = new BehaviorSubject(convertToParamMap({}));
   const api = { getActivity: vi.fn() };
   const router = { navigate: vi.fn().mockResolvedValue(true) };
+  const dialog = { open: vi.fn() };
   let fixture: ComponentFixture<SensitiveActivityPage>;
 
   const common = {
@@ -99,7 +103,10 @@ describe('SensitiveActivityPage', () => {
 
   beforeEach(async () => {
     params.next(convertToParamMap({}));
-    api.getActivity.mockReset().mockReturnValue(of(events));
+    api.getActivity
+      .mockReset()
+      .mockReturnValue(of({ items: events, page: 0, pageSize: 10, totalElements: events.length }));
+    dialog.open.mockReset();
     router.navigate.mockClear();
     await TestBed.configureTestingModule({
       imports: [SensitiveActivityPage],
@@ -111,6 +118,7 @@ describe('SensitiveActivityPage', () => {
           useValue: { queryParamMap: params, snapshot: { queryParamMap: params.value } },
         },
         { provide: Router, useValue: router },
+        { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
     TestBed.inject(I18nService).language.set('en');
@@ -118,34 +126,22 @@ describe('SensitiveActivityPage', () => {
     fixture.detectChanges();
   });
 
-  it('renders every variant once in backend order with exact durable context and no live links', () => {
+  it('renders compact durable summaries in backend order and opens loaded detail directly', () => {
     const root = fixture.nativeElement as HTMLElement;
     const articles = Array.from(root.querySelectorAll('article'));
     expect(articles).toHaveLength(6);
-    expect(
-      articles.map((article) => article.querySelector('mat-card-title')?.textContent?.trim()),
-    ).toEqual([
-      'Nightly rate changed',
-      'Pricing override',
-      'Agreed amount corrected',
-      'Payment edited',
-      'Payment annulled',
-      'Payment removed',
-    ]);
+    expect(articles.map((article) => article.querySelector('strong')?.textContent?.trim())).toEqual(
+      [
+        'Nightly rate changed',
+        'Pricing override',
+        'Agreed amount corrected',
+        'Payment edited',
+        'Payment annulled',
+        'Payment removed',
+      ],
+    );
     expect(root.textContent).toContain('9999999999999999999');
     expect(root.textContent).toContain('One cat');
-    expect(root.textContent).toContain('10.00');
-    expect(root.textContent).toContain('20.00');
-    expect(root.textContent).toContain('Override');
-    expect(root.textContent).toContain('21.00');
-    expect(root.textContent).toContain('Correction');
-    expect(root.textContent).toContain('5.00');
-    expect(root.textContent).toContain('Edit');
-    expect(root.textContent).toContain('Annul');
-    expect(root.textContent).toContain('Remove');
-    expect(
-      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
-    ).toEqual(['01/08/2026', '01/08/2026', '01/08/2026']);
     expect(root.textContent).toContain('Ada Owner');
     expect(root.textContent).toContain('Miso');
     expect(root.textContent).toContain('1 Aug 2026, 09:00');
@@ -153,6 +149,13 @@ describe('SensitiveActivityPage', () => {
     expect(root.textContent).toContain('3 Aug 2026, 10:00');
     expect(root.textContent).not.toContain('2026-08-01T10:00:00');
     expect(root.querySelectorAll('article a')).toHaveLength(0);
+
+    articles[3].click();
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: events[3], restoreFocus: true }),
+    );
+    expect(api.getActivity).toHaveBeenCalledTimes(1);
   });
 
   it('reconstructs and submits datetime filters in business time', () => {
@@ -188,12 +191,14 @@ describe('SensitiveActivityPage', () => {
     expect(fixture.componentInstance.filters().occurredFrom).toBe('2026-10-25T02:30');
     expect(api.getActivity).toHaveBeenLastCalledWith(
       expect.objectContaining({ occurredFrom: '2026-10-25T01:30:00.000Z' }),
+      0,
     );
 
     fixture.componentInstance.refresh();
 
     expect(api.getActivity).toHaveBeenLastCalledWith(
       expect.objectContaining({ occurredFrom: '2026-10-25T01:30:00.000Z' }),
+      0,
     );
   });
 
@@ -222,6 +227,7 @@ describe('SensitiveActivityPage', () => {
         occurredFrom: '2026-10-25T00:45:00.000Z',
         occurredTo: '2026-10-25T01:15:00.000Z',
       }),
+      0,
     );
   });
 
@@ -509,26 +515,6 @@ describe('SensitiveActivityPage', () => {
     expect(component.formatStayDateTime('2026-08-13T00:15:00')).toContain('00:15');
   });
 
-  it('localizes payment dates without changing their calendar day', () => {
-    const i18n = TestBed.inject(I18nService);
-    i18n.language.set('es');
-    api.getActivity.mockReturnValue(
-      of(
-        events.map((event) =>
-          'paymentDate' in event ? { ...event, paymentDate: '2026-01-01' } : event,
-        ),
-      ),
-    );
-    fixture.destroy();
-    fixture = TestBed.createComponent(SensitiveActivityPage);
-    fixture.detectChanges();
-
-    const root = fixture.nativeElement as HTMLElement;
-    expect(
-      Array.from(root.querySelectorAll('.payment-date')).map((date) => date.textContent),
-    ).toEqual(['01/01/2026', '01/01/2026', '01/01/2026']);
-  });
-
   it('shows the localized malformed-contract state when temporal parsing fails', () => {
     fixture.destroy();
     api.getActivity.mockReturnValue(
@@ -554,7 +540,10 @@ describe('SensitiveActivityPage', () => {
     component.updateFilter('ownerId', ownerB);
     component.refresh();
 
-    expect(api.getActivity).toHaveBeenLastCalledWith(expect.objectContaining({ ownerId: ownerA }));
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ ownerId: ownerA }),
+      0,
+    );
     expect(params.value.get('ownerId')).toBe(ownerA);
     expect(router.navigate).not.toHaveBeenCalled();
 
@@ -563,6 +552,81 @@ describe('SensitiveActivityPage', () => {
       [],
       expect.objectContaining({ queryParams: expect.objectContaining({ ownerId: ownerB }) }),
     );
+  });
+
+  it('loads the URL page, preserves filters in paginator navigation, and resets page on apply', () => {
+    fixture.destroy();
+    const ownerId = '11111111-1111-1111-1111-111111111111';
+    params.next(convertToParamMap({ ownerId, page: '2' }));
+    api.getActivity.mockReturnValue(
+      of({ items: [events[0]], page: 2, pageSize: 10, totalElements: 26 }),
+    );
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    expect(api.getActivity).toHaveBeenLastCalledWith(expect.objectContaining({ ownerId }), 2);
+    expect(fixture.nativeElement.querySelector('mat-paginator')).not.toBeNull();
+    fixture.componentInstance.pageChanged({ pageIndex: 1 } as never);
+    expect(router.navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({ queryParams: expect.objectContaining({ ownerId, page: '1' }) }),
+    );
+
+    router.navigate.mockClear();
+    fixture.componentInstance.updateFilter('eventType', 'PAYMENT_EDITED');
+    fixture.componentInstance.applyFilters();
+    expect(router.navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.not.objectContaining({ page: expect.anything() }),
+      }),
+    );
+  });
+
+  it('reloads the last valid page when the URL page is impossible', () => {
+    fixture.destroy();
+    params.next(convertToParamMap({ eventType: 'PAYMENT_EDITED', page: '8' }));
+    api.getActivity.mockReturnValue(of({ items: [], page: 8, pageSize: 10, totalElements: 24 }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+
+    expect(router.navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: { eventType: 'PAYMENT_EDITED', page: '2' },
+        replaceUrl: true,
+      }),
+    );
+  });
+
+  it('prevents a superseded page response from replacing active state', () => {
+    fixture.destroy();
+    const first = new Subject<OverviewPage<SensitiveEconomicActivityEvent>>();
+    const second = new Subject<OverviewPage<SensitiveEconomicActivityEvent>>();
+    api.getActivity.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    params.next(convertToParamMap({ page: '1' }));
+    fixture = TestBed.createComponent(SensitiveActivityPage);
+    fixture.detectChanges();
+    params.next(convertToParamMap({ page: '2' }));
+    second.next({ items: [events[1]], page: 2, pageSize: 10, totalElements: 30 });
+    first.next({ items: [events[0]], page: 1, pageSize: 10, totalElements: 30 });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.events()).toEqual([events[1]]);
+    expect(fixture.componentInstance.page()).toBe(2);
+  });
+
+  it.each(['Enter', ' '])('opens detail with %s without requesting again', (key) => {
+    const before = api.getActivity.mock.calls.length;
+    fixture.componentInstance.activateDetail(
+      { key, preventDefault: vi.fn() } as unknown as KeyboardEvent,
+      events[0],
+    );
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: events[0] }),
+    );
+    expect(api.getActivity).toHaveBeenCalledTimes(before);
   });
 
   function fieldFor(root: HTMLElement, name: string): HTMLElement {

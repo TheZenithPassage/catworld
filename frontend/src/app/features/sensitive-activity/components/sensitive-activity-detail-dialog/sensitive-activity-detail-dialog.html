@@ -1,0 +1,153 @@
+<h2 mat-dialog-title>{{ text().sensitiveActivity.detailTitle }}: {{ eventLabel() }}</h2>
+<mat-dialog-content>
+  <dl class="detail-grid">
+    <div>
+      <dt>{{ text().sensitiveActivity.fields.actor }}</dt>
+      <dd>{{ event.actor.username }}</dd>
+    </div>
+    <div>
+      <dt>{{ text().sensitiveActivity.fields.occurredAt }}</dt>
+      <dd>{{ formatInstant(event.occurredAt) }}</dd>
+    </div>
+    @switch (event.eventType) {
+      @case ('NIGHTLY_RATE_CHANGED') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.category }}</dt>
+          <dd>{{ categoryLabel(event.category) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.previousRate }}</dt>
+          <dd>{{ display(event.previousRate) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.newRate }}</dt>
+          <dd>{{ display(event.newRate) }}</dd>
+        </div>
+      }
+      @case ('PRICING_OVERRIDE') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.retainedRate }}</dt>
+          <dd>{{ event.retainedNightlyRate }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.nights }}</dt>
+          <dd>{{ event.numberOfNights }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.suggestedAmount }}</dt>
+          <dd>{{ suggestedAmount(event) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.agreement }}</dt>
+          <dd>{{ event.agreedAmount }}</dd>
+        </div>
+        <div class="wide">
+          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+          <dd>{{ event.reason }}</dd>
+        </div>
+      }
+      @case ('AGREED_AMOUNT_CORRECTED') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.previousAgreement }}</dt>
+          <dd>{{ display(event.previousAgreedAmount) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.newAgreement }}</dt>
+          <dd>{{ event.newAgreedAmount }}</dd>
+        </div>
+        <div class="wide">
+          <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+          <dd>{{ event.reason }}</dd>
+        </div>
+      }
+      @case ('PAYMENT_EDITED') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.previousAmount }}</dt>
+          <dd>{{ event.previousAmount }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.newAmount }}</dt>
+          <dd>{{ event.newAmount }}</dd>
+        </div>
+      }
+      @case ('PAYMENT_ANNULLED') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
+          <dd>{{ event.amount }}</dd>
+        </div>
+      }
+      @case ('PAYMENT_REMOVED') {
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.amount }}</dt>
+          <dd>{{ event.amount }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.annulled }}</dt>
+          <dd>{{ yesNo(event.annulled) }}</dd>
+        </div>
+      }
+    }
+    @if (
+      event.eventType === 'PAYMENT_EDITED' ||
+      event.eventType === 'PAYMENT_ANNULLED' ||
+      event.eventType === 'PAYMENT_REMOVED'
+    ) {
+      <div>
+        <dt>{{ text().sensitiveActivity.fields.paymentDate }}</dt>
+        <dd>{{ formatPaymentDate(event.paymentDate) }}</dd>
+      </div>
+      <div class="wide">
+        <dt>{{ text().sensitiveActivity.fields.note }}</dt>
+        <dd>{{ display(event.note) }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().sensitiveActivity.fields.registeredBy }}</dt>
+        <dd>{{ event.registeredBy.username }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().sensitiveActivity.fields.registeredAt }}</dt>
+        <dd>{{ formatInstant(event.registeredAt) }}</dd>
+      </div>
+      <div class="wide">
+        <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
+        <dd>{{ event.reason }}</dd>
+      </div>
+    }
+  </dl>
+  @if (event.affectedContext; as context) {
+    <section class="stay-context" [attr.aria-label]="text().sensitiveActivity.fields.stay">
+      <h3>{{ text().sensitiveActivity.fields.stay }}</h3>
+      <dl class="detail-grid">
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.owner }}</dt>
+          <dd>{{ context.owner.fullName }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.cats }}</dt>
+          <dd>{{ catsLabel(context.cats) }}</dd>
+        </div>
+        <div class="wide">
+          <dt>{{ text().sensitiveActivity.fields.stayDates }}</dt>
+          <dd>
+            {{ formatStayDateTime(context.startAt) }} – {{ formatStayDateTime(context.endAt) }}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.cancelledAt }}</dt>
+          <dd>
+            {{
+              context.cancelledAt
+                ? formatStayDateTime(context.cancelledAt)
+                : text().sensitiveActivity.unavailable
+            }}
+          </dd>
+        </div>
+      </dl>
+    </section>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-flat-button mat-dialog-close type="button">
+    {{ text().sensitiveActivity.close }}
+  </button>
+</mat-dialog-actions>

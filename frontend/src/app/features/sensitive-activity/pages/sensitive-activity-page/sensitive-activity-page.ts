@@ -2,10 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
-import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
+import { MatCard, MatCardContent } from '@angular/material/card';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { MatDialog } from '@angular/material/dialog';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
@@ -15,6 +17,7 @@ import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { NativeBadInputDirective } from '../../../../shared/forms/native-bad-input.directive';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
+import { SensitiveActivityDetailDialog } from '../../components/sensitive-activity-detail-dialog/sensitive-activity-detail-dialog';
 import { SensitiveEconomicActivityApiService } from '../../data-access/sensitive-economic-activity-api.service';
 import {
   EMPTY_SENSITIVE_ACTIVITY_FILTERS,
@@ -53,12 +56,11 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
     MatButton,
     MatCard,
     MatCardContent,
-    MatCardHeader,
-    MatCardTitle,
     MatError,
     MatFormField,
     MatInput,
     MatLabel,
+    MatPaginator,
     NativeBadInputDirective,
     UiStateComponent,
   ],
@@ -72,6 +74,7 @@ export class SensitiveActivityPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
+  private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
@@ -81,6 +84,9 @@ export class SensitiveActivityPage {
     ...EMPTY_SENSITIVE_ACTIVITY_FILTERS,
   });
   readonly events = signal<readonly SensitiveEconomicActivityEvent[]>([]);
+  readonly page = signal(0);
+  readonly totalElements = signal(0);
+  readonly pageSize = 10;
   readonly loading = signal(true);
   readonly loadError = signal<LoadError>(null);
   readonly filterErrors = signal<Record<ValidatedFilterKey, FilterError>>({
@@ -106,6 +112,7 @@ export class SensitiveActivityPage {
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const eventTypeValue = params.get('eventType') ?? '';
+      const requestedPage = this.parsePage(params.get('page'));
       const occurredFromInstant = params.get('occurredFrom') ?? '';
       const occurredToInstant = params.get('occurredTo') ?? '';
       const routeFilters: SensitiveActivityFilters = {
@@ -134,7 +141,8 @@ export class SensitiveActivityPage {
         ? this.validateAppliedPeriod(appliedRouteFilters)
         : false;
       if (idsValid && temporalFiltersValid && periodValid) {
-        this.load();
+        this.page.set(requestedPage);
+        this.load(requestedPage);
       } else {
         this.cancelLoad();
         this.loading.set(false);
@@ -184,7 +192,7 @@ export class SensitiveActivityPage {
       this.temporalFiltersValid(applied) &&
       !this.periodInvalid(applied)
     ) {
-      this.load();
+      this.load(this.page());
     }
   }
 
@@ -193,6 +201,31 @@ export class SensitiveActivityPage {
     this.clearFilterErrors();
     this.editedTemporalFilters.clear();
     this.router.navigate([], { relativeTo: this.route, queryParams: {} });
+  }
+
+  pageChanged(event: PageEvent): void {
+    if (event.pageIndex === this.page()) return;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: this.queryParams(this.appliedFilters(), event.pageIndex),
+    });
+  }
+
+  openDetail(event: SensitiveEconomicActivityEvent): void {
+    this.dialog.open(SensitiveActivityDetailDialog, {
+      data: event,
+      width: 'min(42rem, calc(100vw - 2rem))',
+      maxWidth: 'calc(100vw - 2rem)',
+      maxHeight: 'calc(100vh - 2rem)',
+      autoFocus: 'first-tabbable',
+      restoreFocus: true,
+    });
+  }
+
+  activateDetail(keyboardEvent: KeyboardEvent, event: SensitiveEconomicActivityEvent): void {
+    if (keyboardEvent.key !== 'Enter' && keyboardEvent.key !== ' ') return;
+    keyboardEvent.preventDefault();
+    this.openDetail(event);
   }
 
   stateMessage(): string {
@@ -251,18 +284,30 @@ export class SensitiveActivityPage {
       : this.text().sensitiveActivity.unavailable;
   }
 
-  private load(): void {
+  private load(requestedPage: number): void {
     this.cancelLoad();
     const version = this.loadVersion;
     this.loading.set(true);
     this.loadError.set(null);
     this.loadSubscription = this.api
-      .getActivity(this.appliedFilters())
+      .getActivity(this.appliedFilters(), requestedPage)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (events) => {
+        next: (response) => {
           if (version !== this.loadVersion) return;
-          this.events.set(events);
+          const lastPage = Math.max(0, Math.ceil(response.totalElements / this.pageSize) - 1);
+          if (requestedPage > lastPage) {
+            this.loading.set(false);
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: this.queryParams(this.appliedFilters(), lastPage),
+              replaceUrl: true,
+            });
+            return;
+          }
+          this.events.set(response.items);
+          this.page.set(response.page);
+          this.totalElements.set(response.totalElements);
           this.loading.set(false);
         },
         error: (error: unknown) => {
@@ -285,6 +330,17 @@ export class SensitiveActivityPage {
     this.loadVersion += 1;
     this.loadSubscription?.unsubscribe();
     this.loadSubscription = null;
+  }
+
+  private parsePage(value: string | null): number {
+    return value && /^\d+$/.test(value) && Number.isSafeInteger(Number(value)) ? Number(value) : 0;
+  }
+
+  private queryParams(filters: SensitiveActivityFilters, page: number): Record<string, string> {
+    return {
+      ...Object.fromEntries(Object.entries(filters).filter(([, value]) => Boolean(value))),
+      ...(page > 0 ? { page: String(page) } : {}),
+    };
   }
 
   private validateAppliedPeriod(filters: SensitiveActivityFilters): boolean {

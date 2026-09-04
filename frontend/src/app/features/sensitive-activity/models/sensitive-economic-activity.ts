@@ -1,3 +1,5 @@
+import { OverviewPage } from '../../../shared/pagination/overview-page';
+
 export const SENSITIVE_EVENT_TYPES = [
   'NIGHTLY_RATE_CHANGED',
   'PRICING_OVERRIDE',
@@ -110,9 +112,26 @@ export const EMPTY_SENSITIVE_ACTIVITY_FILTERS: SensitiveActivityFilters = {
 
 export class MalformedSensitiveActivityError extends Error {}
 
-export function parseSensitiveActivity(value: unknown): SensitiveEconomicActivityEvent[] {
-  if (!Array.isArray(value)) throw new MalformedSensitiveActivityError('Expected an array');
-  return value.map(parseEvent);
+export function parseSensitiveActivity(
+  value: unknown,
+  expectedPage?: number,
+): OverviewPage<SensitiveEconomicActivityEvent> {
+  const envelope = object(value);
+  const items = envelope['items'];
+  if (!Array.isArray(items)) throw new MalformedSensitiveActivityError('Expected items');
+  const page = integer(envelope['page']);
+  const pageSize = integer(envelope['pageSize']);
+  const totalElements = integer(envelope['totalElements']);
+  if (pageSize !== 10) {
+    throw new MalformedSensitiveActivityError('Expected fixed page size');
+  }
+  if (expectedPage !== undefined && page !== expectedPage) {
+    throw new MalformedSensitiveActivityError('Unexpected response page');
+  }
+  if (items.length > pageSize || totalElements < items.length) {
+    throw new MalformedSensitiveActivityError('Invalid page counts');
+  }
+  return { items: items.map(parseEvent), page, pageSize, totalElements };
 }
 
 function parseEvent(value: unknown): SensitiveEconomicActivityEvent {

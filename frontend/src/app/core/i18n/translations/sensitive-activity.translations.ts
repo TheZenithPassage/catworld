@@ -13,6 +13,9 @@ export interface SensitiveActivityTranslations {
   malformed: string;
   failure: string;
   retry: string;
+  openDetail: string;
+  detailTitle: string;
+  close: string;
   unavailable: string;
   filters: {
     label: string;
@@ -37,7 +40,6 @@ export interface SensitiveActivityTranslations {
   fields: Record<
     | 'actor'
     | 'occurredAt'
-    | 'eventId'
     | 'category'
     | 'previousRate'
     | 'newRate'
@@ -47,7 +49,6 @@ export interface SensitiveActivityTranslations {
     | 'agreement'
     | 'previousAgreement'
     | 'newAgreement'
-    | 'paymentId'
     | 'amount'
     | 'previousAmount'
     | 'newAmount'
@@ -87,6 +88,9 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     malformed: 'El servidor devolvió actividad con un formato no reconocido.',
     failure: 'No se pudo cargar la actividad económica sensible.',
     retry: 'Reintentar',
+    openDetail: 'Abrir detalle',
+    detailTitle: 'Detalle de actividad',
+    close: 'Cerrar',
     unavailable: 'No disponible',
     filters: {
       label: 'Filtros de actividad sensible',
@@ -122,7 +126,6 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     fields: {
       actor: 'Actor',
       occurredAt: 'Fecha y hora',
-      eventId: 'ID del evento',
       category: 'Categoría',
       previousRate: 'Tarifa anterior',
       newRate: 'Tarifa nueva',
@@ -132,7 +135,6 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       agreement: 'Importe acordado',
       previousAgreement: 'Acuerdo anterior',
       newAgreement: 'Acuerdo nuevo',
-      paymentId: 'ID del pago',
       amount: 'Importe',
       previousAmount: 'Importe anterior',
       newAmount: 'Importe nuevo',
@@ -160,6 +162,9 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     malformed: 'The server returned activity in an unrecognized format.',
     failure: 'Sensitive economic activity could not be loaded.',
     retry: 'Retry',
+    openDetail: 'Open detail',
+    detailTitle: 'Activity detail',
+    close: 'Close',
     unavailable: 'Unavailable',
     filters: {
       label: 'Sensitive activity filters',
@@ -188,7 +193,6 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     fields: {
       actor: 'Actor',
       occurredAt: 'Date and time',
-      eventId: 'Event ID',
       category: 'Category',
       previousRate: 'Previous rate',
       newRate: 'New rate',
@@ -198,7 +202,6 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       agreement: 'Agreed amount',
       previousAgreement: 'Previous agreement',
       newAgreement: 'New agreement',
-      paymentId: 'Payment ID',
       amount: 'Amount',
       previousAmount: 'Previous amount',
       newAmount: 'New amount',
