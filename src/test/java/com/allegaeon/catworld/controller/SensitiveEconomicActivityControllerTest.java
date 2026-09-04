@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import com.allegaeon.catworld.dto.overview.OverviewPage;
+import static org.mockito.ArgumentMatchers.eq;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -30,7 +32,7 @@ class SensitiveEconomicActivityControllerTest {
         UUID actorId = UUID.randomUUID();
         UUID eventId = UUID.randomUUID();
         Instant occurred = Instant.parse("2026-08-02T12:00:00Z");
-        when(service.getActivity(any())).thenReturn(List.of(
+        when(service.getActivity(any(), eq(0))).thenReturn(new OverviewPage<>(List.of(
                 new NightlyRateChangedActivityDTO(
                         eventId,
                         SensitiveEconomicEventType.NIGHTLY_RATE_CHANGED,
@@ -39,7 +41,7 @@ class SensitiveEconomicActivityControllerTest {
                         null,
                         com.allegaeon.catworld.model.NightlyReferenceRateCategory.ONE_CAT,
                         new BigDecimal("9999999999999999998"),
-                        new BigDecimal("9999999999999999999"))));
+                        new BigDecimal("9999999999999999999"))), 0, 1));
 
         mockMvc.perform(get("/api/sensitive-economic-activity")
                         .param("actorId", actorId.toString())
@@ -47,13 +49,16 @@ class SensitiveEconomicActivityControllerTest {
                         .param("occurredTo", "2026-08-03T00:00:00Z")
                         .param("eventType", "NIGHTLY_RATE_CHANGED"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].eventId").value(eventId.toString()))
-                .andExpect(jsonPath("$[0].eventType")
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.pageSize").value(10))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].eventId").value(eventId.toString()))
+                .andExpect(jsonPath("$.items[0].eventType")
                         .value("NIGHTLY_RATE_CHANGED"))
-                .andExpect(jsonPath("$[0].actor.id").value(actorId.toString()))
-                .andExpect(jsonPath("$[0].previousRate")
+                .andExpect(jsonPath("$.items[0].actor.id").value(actorId.toString()))
+                .andExpect(jsonPath("$.items[0].previousRate")
                         .value("9999999999999999998"))
-                .andExpect(jsonPath("$[0].newRate")
+                .andExpect(jsonPath("$.items[0].newRate")
                         .value("9999999999999999999"));
 
         verify(service).getActivity(new SensitiveEconomicActivityFilter(
@@ -61,7 +66,7 @@ class SensitiveEconomicActivityControllerTest {
                 Instant.parse("2026-08-01T00:00:00Z"),
                 Instant.parse("2026-08-03T00:00:00Z"),
                 SensitiveEconomicEventType.NIGHTLY_RATE_CHANGED,
-                null, null, null));
+                null, null, null), 0);
     }
 
     @Test

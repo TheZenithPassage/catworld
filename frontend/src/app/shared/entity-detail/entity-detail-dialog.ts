@@ -30,12 +30,12 @@ import { CatRelationshipPage } from './relationship.models';
 import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
-import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
+import { appPaginatorIntl } from '../pagination/app-paginator-intl';
 
 const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
 
@@ -62,9 +62,9 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatProgressSpinner,
     StayRelationshipLabel,
   ],
-  providers: [{ provide: MatPaginatorIntl, useFactory: dialogPaginatorIntl }],
   templateUrl: './entity-detail-dialog.html',
   styleUrl: './entity-detail-dialog.scss',
+  providers: [{ provide: MatPaginatorIntl, useFactory: appPaginatorIntl }],
 })
 export class EntityDetailDialog {
   private readonly ownerApi = inject(OwnerApiService);

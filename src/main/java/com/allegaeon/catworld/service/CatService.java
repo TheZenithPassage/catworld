@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.CatPhotoContent;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -40,6 +41,24 @@ public class CatService implements ICatService{
 
     private static final int LOOKUP_PAGE_SIZE = 5;
     private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
+    private static final Sort OVERVIEW_RECENT_ORDER = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
+
+    @Override
+    @Transactional(readOnly = true)
+    public OverviewPage<CatOverviewItem> getCatOverview(int page, String query) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        String trimmed = query == null ? "" : query.trim();
+        Page<Cat> cats = trimmed.isEmpty()
+                ? catRepository.findOverview(PageRequest.of(page, OverviewPage.PAGE_SIZE, OVERVIEW_RECENT_ORDER))
+                : catRepository.searchOverview(escapeLookupQuery(trimmed), PageRequest.of(page, OverviewPage.PAGE_SIZE, LOOKUP_ORDER));
+        Set<UUID> photos = cats.isEmpty() ? Set.of() : emptyIfNull(catPhotoRepository.findPresentCatIds(
+                cats.getContent().stream().map(Cat::getId).toList()));
+        return new OverviewPage<>(cats.stream().map(cat -> new CatOverviewItem(cat.getId(), cat.getName(),
+                cat.getOwner().getId(), cat.getOwner().getFullName(), photos.contains(cat.getId()))).toList(),
+                page, cats.getTotalElements());
+    }
+
+    private <T> Set<T> emptyIfNull(Set<T> values) { return values == null ? Set.of() : values; }
 
     private final CatRepository catRepository;
     private final CatMapper catMapper;

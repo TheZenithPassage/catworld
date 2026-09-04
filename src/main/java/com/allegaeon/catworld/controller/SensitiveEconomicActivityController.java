@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.List;
+import com.allegaeon.catworld.dto.overview.OverviewPage;
 import java.util.UUID;
 
 @RestController
@@ -24,7 +25,8 @@ public class SensitiveEconomicActivityController {
     private final ISensitiveEconomicActivityService activityService;
 
     @GetMapping
-    public ResponseEntity<List<SensitiveEconomicActivityResponseDTO>> getActivity(
+    public ResponseEntity<OverviewPage<SensitiveEconomicActivityResponseDTO>> getActivity(
+            @RequestParam(defaultValue = "0") int page,
             @RequestParam(required = false) UUID actorId,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
@@ -45,7 +47,7 @@ public class SensitiveEconomicActivityController {
                         ownerId,
                         catId,
                         stayId
-                )
+                ), page
         ));
     }
 }

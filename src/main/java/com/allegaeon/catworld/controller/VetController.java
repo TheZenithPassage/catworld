@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.IVetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,13 @@ public class VetController {
     @GetMapping
     public ResponseEntity<List<VetResponseDTO>> getAllVets() {
         return ResponseEntity.ok(vetService.getAllVets());
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<OverviewPage<VetOverviewItem>> getVetOverview(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String q) {
+        return ResponseEntity.ok(vetService.getVetOverview(page, q));
     }
 
     @GetMapping("/{id}")

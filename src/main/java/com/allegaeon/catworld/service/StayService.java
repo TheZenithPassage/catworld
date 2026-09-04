@@ -48,6 +48,10 @@ import com.allegaeon.catworld.repository.StayPaymentRemovalRepository;
 import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
+import com.allegaeon.catworld.repository.StayOverviewReadRepository;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.lookup.CurrentCatLookupItem;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.OwnerRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
@@ -88,6 +92,7 @@ public class StayService implements IStayService {
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
     private final StayCatRepository stayCatRepository;
+    private final StayOverviewReadRepository stayOverviewReadRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
@@ -102,6 +107,31 @@ public class StayService implements IStayService {
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
     private final StayPaymentAuthorizationPolicy stayPaymentAuthorizationPolicy;
     private final Clock clock;
+
+    @Override
+    @Transactional(readOnly = true)
+    public OverviewPage<StayOverviewItem> getStayOverview(int page, Set<com.allegaeon.catworld.model.StayStatus> statuses,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        LocalDateTime now = LocalDateTime.now(clock);
+        Page<Stay> stays = stayOverviewReadRepository.find(page, OverviewPage.PAGE_SIZE,
+                now, statuses, ownerId, catId, paymentConditions, outstandingOnly);
+        Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
+        if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
+                .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
+                        .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName())));
+        return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
+                stay.getStartAt(), stay.getEndAt(), statusAt(stay, now),
+                stay.getOwner().getId(), stay.getOwner().getFullName(),
+                List.copyOf(cats.getOrDefault(stay.getId(), List.of())))).toList(), page, stays.getTotalElements());
+    }
+
+    private com.allegaeon.catworld.model.StayStatus statusAt(Stay stay, LocalDateTime now) {
+        if (stay.getCancelledAt() != null) return com.allegaeon.catworld.model.StayStatus.CANCELLED;
+        if (now.isBefore(stay.getStartAt())) return com.allegaeon.catworld.model.StayStatus.RESERVED;
+        if (now.isBefore(stay.getEndAt())) return com.allegaeon.catworld.model.StayStatus.CHECKED_IN;
+        return com.allegaeon.catworld.model.StayStatus.CHECKED_OUT;
+    }
 
     @Override
     public List<StayResponseDTO> getAllStays() {

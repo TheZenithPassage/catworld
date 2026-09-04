@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.repository.CatRepository;
@@ -35,6 +36,20 @@ public class VetService implements IVetService {
     private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
     private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
     private static final int LOOKUP_PAGE_SIZE = 5;
+    private static final Sort OVERVIEW_RECENT_ORDER = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
+
+    @Override
+    @Transactional(readOnly = true)
+    public OverviewPage<VetOverviewItem> getVetOverview(int page, String query) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+        String trimmed = query == null ? "" : query.trim();
+        Page<Vet> vets = trimmed.isEmpty()
+                ? vetRepository.findOverview(PageRequest.of(page, OverviewPage.PAGE_SIZE, OVERVIEW_RECENT_ORDER))
+                : vetRepository.searchOverview(escapeLookupQuery(trimmed), PageRequest.of(page, OverviewPage.PAGE_SIZE, LOOKUP_ORDER));
+        return new OverviewPage<>(vets.stream()
+                .map(vet -> new VetOverviewItem(vet.getId(), vet.getName(), vet.getAddress())).toList(),
+                page, vets.getTotalElements());
+    }
 
     private final VetRepository vetRepository;
     private final VetMapper vetMapper;

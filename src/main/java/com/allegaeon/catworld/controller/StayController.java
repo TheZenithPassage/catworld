@@ -24,6 +24,10 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.overview.*;
+import com.allegaeon.catworld.model.StayStatus;
+import java.util.Set;
 
 @RequiredArgsConstructor
 @RestController
@@ -35,6 +39,18 @@ public class StayController {
     @GetMapping
     public ResponseEntity<List<StayResponseDTO>> getStays() {
         return ResponseEntity.ok(stayService.getAllStays());
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<OverviewPage<StayOverviewItem>> getStayOverview(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(name = "status", required = false) Set<StayStatus> statuses,
+            @RequestParam(required = false) UUID ownerId,
+            @RequestParam(required = false) UUID catId,
+            @RequestParam(name = "paymentCondition", required = false) Set<PaymentCondition> paymentConditions,
+            @RequestParam(required = false) Boolean outstandingOnly) {
+        return ResponseEntity.ok(stayService.getStayOverview(page, statuses, ownerId, catId,
+                paymentConditions, outstandingOnly));
     }
 
     @GetMapping("/{id}")

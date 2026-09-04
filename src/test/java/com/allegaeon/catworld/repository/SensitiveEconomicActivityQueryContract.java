@@ -185,8 +185,11 @@ final class SensitiveEconomicActivityQueryContract {
             JdbcTemplate jdbc,
             ISensitiveEconomicActivityService service,
             Fixture fixture) {
-        List<SensitiveEconomicActivityResponseDTO> all =
-                service.getActivity(null);
+        var initialPage = service.getActivity(null, 0);
+        assertEquals(0, initialPage.page());
+        assertEquals(10, initialPage.pageSize());
+        assertEquals(7, initialPage.totalElements());
+        List<SensitiveEconomicActivityResponseDTO> all = initialPage.items();
 
         assertEquals(List.of(
                 fixture.firstRateId(),
@@ -320,6 +323,22 @@ final class SensitiveEconomicActivityQueryContract {
                 "select count(*) from owners", Integer.class));
         assertEquals(0, jdbc.queryForObject(
                 "select count(*) from cats", Integer.class));
+
+        for (int index = 70; index < 75; index++) {
+            insertRateChange(jdbc,
+                    uuid(String.format("00000000-0000-0000-0000-%012d", index)),
+                    "ONE_CAT", "10", "11", fixture);
+        }
+        var firstPage = service.getActivity(null, 0);
+        var secondPage = service.getActivity(null, 1);
+        assertEquals(12, firstPage.totalElements());
+        assertEquals(12, secondPage.totalElements());
+        assertEquals(10, firstPage.items().size());
+        assertEquals(2, secondPage.items().size());
+        assertEquals(12, java.util.stream.Stream.concat(
+                        firstPage.items().stream(), secondPage.items().stream())
+                .map(event -> event.eventType() + ":" + event.eventId())
+                .distinct().count());
     }
 
     private static UUID context(

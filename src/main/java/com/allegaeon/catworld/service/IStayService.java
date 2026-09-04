@@ -18,10 +18,16 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
+import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.overview.*;
+import com.allegaeon.catworld.model.StayStatus;
+import java.util.Set;
 
 public interface IStayService {
 
     List<StayResponseDTO> getAllStays();
+    OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly);
     StayResponseDTO getStay(UUID stayId);
     StayDetailResponse getStayDetail(UUID stayId);
     RelationshipPage<CatRelationshipItem> getStayCats(UUID stayId, int page);

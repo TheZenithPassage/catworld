@@ -12,6 +12,8 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { RuntimeConfigService } from './core/config/runtime-config.service';
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { appPaginatorIntl } from './shared/pagination/app-paginator-intl';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -26,5 +28,6 @@ export const appConfig: ApplicationConfig = {
     ),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimations(),
+    { provide: MatPaginatorIntl, useFactory: appPaginatorIntl },
   ],
 };
