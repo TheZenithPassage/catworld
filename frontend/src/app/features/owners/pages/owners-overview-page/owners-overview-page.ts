@@ -128,13 +128,13 @@ export class OwnersOverviewPage {
       this.scrollSelected();
       return;
     }
-    this.selectedRequest = this.api.getOwnerDetail(selectedId).subscribe({
-      next: (detail) => {
+    this.selectedRequest = this.api.getOwnerLookup(selectedId).subscribe({
+      next: (owner) => {
         if (this.selectedOwnerId() !== selectedId) return;
         this.selectedOwner.set({
-          id: detail.owner.id,
-          fullName: detail.owner.fullName,
-          cats: detail.cats.items.map((cat) => ({ id: cat.id, name: cat.name })),
+          id: owner.id,
+          fullName: owner.fullName,
+          cats: owner.currentCats,
         });
         this.scrollSelected();
       },

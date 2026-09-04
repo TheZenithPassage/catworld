@@ -8,7 +8,7 @@ import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import { StaysOverviewPage } from './stays-overview-page';
 describe('StaysOverviewPage server paging', () => {
-  const api = { getStayOverview: vi.fn(), getStayDetail: vi.fn() };
+  const api = { getStayOverview: vi.fn(), getStayDetail: vi.fn(), getStayById: vi.fn() };
   const visibility = {
     read: () => ({ reserved: true, 'checked-in': true, 'checked-out': false, cancelled: false }),
     store: vi.fn(),
@@ -29,6 +29,14 @@ describe('StaysOverviewPage server paging', () => {
           items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada' }],
           totalElements: 1,
         },
+      }),
+    );
+    api.getStayById.mockReturnValue(
+      of({
+        cats: Array.from({ length: 5 }, (_, index) => ({
+          catId: `c-${index}`,
+          name: `Stay Cat ${index + 1}`,
+        })),
       }),
     );
     await TestBed.configureTestingModule({
@@ -138,8 +146,11 @@ describe('StaysOverviewPage server paging', () => {
     f.detectChanges();
     const contextual = f.nativeElement.querySelector('.contextual-selection');
     expect(api.getStayDetail).toHaveBeenCalledWith('s');
+    expect(api.getStayById).toHaveBeenCalledWith('s');
     expect(f.componentInstance.page()).toBe(2);
-    expect(contextual.textContent).toContain('Milo');
+    for (let index = 1; index <= 5; index++)
+      expect(contextual.textContent).toContain(`Stay Cat ${index}`);
+    expect(contextual.textContent).toContain(f.componentInstance.text().stays.status.reserved);
     const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
     contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });

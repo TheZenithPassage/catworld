@@ -4,14 +4,19 @@ import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
-import { PaymentCondition, StayOverviewItem, StayOverviewStatus } from '../../models/stay.model';
+import {
+  PaymentCondition,
+  Stay,
+  StayOverviewItem,
+  StayOverviewStatus,
+} from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
 import {
@@ -254,16 +259,19 @@ export class StaysOverviewPage {
       this.scrollSelected();
       return;
     }
-    this.selectedRequest = this.api.getStayDetail(selectedId).subscribe({
-      next: (detail) => {
+    this.selectedRequest = forkJoin({
+      detail: this.api.getStayDetail(selectedId),
+      stay: this.api.getStayById(selectedId),
+    }).subscribe({
+      next: ({ detail, stay }) => {
         if (this.selectedStayId() !== selectedId) return;
-        this.selectedStay.set(this.selectedOverview(detail));
+        this.selectedStay.set(this.selectedOverview(detail, stay));
         this.scrollSelected();
       },
       error: () => this.selectedStay.set(null),
     });
   }
-  private selectedOverview(detail: StayDetailResponse): StayOverviewItem {
+  private selectedOverview(detail: StayDetailResponse, stay: Stay): StayOverviewItem {
     return {
       id: detail.stayId,
       startAt: detail.startAt,
@@ -271,7 +279,7 @@ export class StaysOverviewPage {
       status: detail.status,
       ownerId: detail.owner.id,
       ownerName: detail.owner.fullName,
-      cats: detail.cats.items.map((cat) => ({ id: cat.id, name: cat.name })),
+      cats: stay.cats.map((cat) => ({ id: cat.catId, name: cat.name })),
     };
   }
   private toBackendStatus(s: StayStatus): StayOverviewStatus {

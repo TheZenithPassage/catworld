@@ -9,14 +9,17 @@ import { OwnersOverviewPage } from './owners-overview-page';
 
 describe('OwnersOverviewPage paging', () => {
   const pending = new Subject<any>();
-  const api = { getOwnerOverview: vi.fn(() => pending.asObservable()), getOwnerDetail: vi.fn() };
+  const api = { getOwnerOverview: vi.fn(() => pending.asObservable()), getOwnerLookup: vi.fn() };
   beforeEach(async () => {
     vi.clearAllMocks();
-    api.getOwnerDetail.mockReturnValue(
+    api.getOwnerLookup.mockReturnValue(
       of({
-        owner: { id: 'selected', fullName: 'Selected Owner' },
-        cats: { items: [{ id: 'cat', name: 'Context Cat' }], totalElements: 1 },
-        stays: { items: [], totalElements: 0 },
+        id: 'selected',
+        fullName: 'Selected Owner',
+        currentCats: Array.from({ length: 5 }, (_, index) => ({
+          id: `cat-${index}`,
+          name: `Context Cat ${index + 1}`,
+        })),
       }),
     );
     await TestBed.configureTestingModule({
@@ -115,9 +118,10 @@ describe('OwnersOverviewPage paging', () => {
     fixture.componentInstance.loadOwners(3);
     fixture.detectChanges();
     const contextual = fixture.nativeElement.querySelector('.contextual-selection');
-    expect(api.getOwnerDetail).toHaveBeenCalledWith('selected');
+    expect(api.getOwnerLookup).toHaveBeenCalledWith('selected');
     expect(contextual.textContent).toContain('Selected Owner');
-    expect(contextual.textContent).toContain('Context Cat');
+    for (let index = 1; index <= 5; index++)
+      expect(contextual.textContent).toContain(`Context Cat ${index}`);
     const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
     contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'selected' });
