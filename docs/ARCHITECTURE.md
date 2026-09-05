@@ -916,13 +916,12 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders only Cat names, Owner, compact period and
-backend-derived dynamic status. Complete economic information remains in Stay
-detail and the dedicated Pricing & Payments page, where post-creation agreement
-correction and payment actions belong. Registration, amount editing and
-annulment use focused responsive Material dialogs; permanent payment removal
-remains on the shared protected-deletion confirmation path. Successful
-mutations replace page state from the complete authoritative Stay returned by
-the backend.
+backend-derived dynamic status. Complete economic information remains on the
+dedicated Pricing & Payments page, where post-creation agreement correction and
+payment actions belong. Registration, amount editing and annulment use focused
+responsive Material dialogs; permanent payment removal remains on the shared
+protected-deletion confirmation path. Successful mutations replace page state
+from the complete authoritative Stay returned by the backend.
 
 ### Reusable Entity Lookup and Selection
 
