@@ -33,10 +33,13 @@ describe('StaysOverviewPage server paging', () => {
     );
     api.getStayById.mockReturnValue(
       of({
+        ownerId: 'o',
         cats: Array.from({ length: 5 }, (_, index) => ({
           catId: `c-${index}`,
           name: `Stay Cat ${index + 1}`,
         })),
+        paymentCondition: 'NO_PAYMENT',
+        outstandingCollectionEligible: false,
       }),
     );
     await TestBed.configureTestingModule({
@@ -171,6 +174,43 @@ describe('StaysOverviewPage server paging', () => {
     const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
     contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
+  });
+  it('does not reintroduce an off-page selected Stay hidden by the active status filters', () => {
+    api.getStayOverview.mockReturnValue(
+      of({
+        items: [
+          {
+            id: 'other',
+            startAt: '2099-02-01T10:00:00',
+            endAt: '2099-02-02T10:00:00',
+            status: 'RESERVED',
+            ownerId: 'x',
+            ownerName: 'Other',
+            cats: [{ id: 'x', name: 'Other Cat' }],
+          },
+        ],
+        page: 2,
+        pageSize: 10,
+        totalElements: 30,
+      }),
+    );
+    api.getStayDetail.mockReturnValue(
+      of({
+        stayId: 's',
+        status: 'CHECKED_OUT',
+        startAt: '2099-01-01T10:00:00',
+        endAt: '2099-01-02T10:00:00',
+        numberOfNights: 1,
+        notes: null,
+        owner: { id: 'o', fullName: 'Ada' },
+        cats: { items: [], totalElements: 0 },
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(api.getStayDetail).toHaveBeenCalledWith('s');
+    expect(f.componentInstance.selectedStay()).toBeNull();
+    expect(f.nativeElement.querySelector('.contextual-selection')).toBeNull();
   });
   it('cancels pending overview work and blocks query synchronization after destruction', () => {
     const pending = new Subject<any>();

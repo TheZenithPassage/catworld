@@ -113,6 +113,7 @@ export class StaysOverviewPage {
   }
   loadStays(page = this.page()): void {
     if (this.destroyed) return;
+    this.selectedStay.set(null);
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.loading.set(true);
@@ -281,12 +282,17 @@ export class StaysOverviewPage {
       this.scrollSelected();
       return;
     }
+    this.selectedStay.set(null);
     this.selectedRequest = forkJoin({
       detail: this.api.getStayDetail(selectedId),
       stay: this.api.getStayById(selectedId),
     }).subscribe({
       next: ({ detail, stay }) => {
         if (this.destroyed || this.selectedStayId() !== selectedId) return;
+        if (!this.matchesActiveFilters(detail, stay)) {
+          this.selectedStay.set(null);
+          return;
+        }
         this.selectedStay.set(this.selectedOverview(detail, stay));
         this.scrollSelected();
       },
@@ -294,6 +300,17 @@ export class StaysOverviewPage {
         if (!this.destroyed) this.selectedStay.set(null);
       },
     });
+  }
+  private matchesActiveFilters(detail: StayDetailResponse, stay: Stay): boolean {
+    const search = this.searchFilters();
+    const payment = this.paymentFilters();
+    return (
+      this.statusVisibility()[this.fromBackendStatus(detail.status)] &&
+      (!search.ownerId || stay.ownerId === search.ownerId) &&
+      (!search.catId || stay.cats.some((cat) => cat.catId === search.catId)) &&
+      payment.conditionVisibility[stay.paymentCondition] &&
+      (!payment.outstandingOnly || stay.outstandingCollectionEligible)
+    );
   }
   private selectedOverview(detail: StayDetailResponse, stay: Stay): StayOverviewItem {
     return {
