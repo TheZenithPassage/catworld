@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { EMPTY, of } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayApiService } from '../../services/stay-api.service';
@@ -171,5 +171,93 @@ describe('StaysOverviewPage server paging', () => {
     const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
     contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
+  });
+  it('cancels pending overview work and blocks query synchronization after destruction', () => {
+    const pending = new Subject<any>();
+    api.getStayOverview.mockReturnValue(pending);
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(pending.observed).toBe(true);
+    f.destroy();
+    expect(pending.observed).toBe(false);
+    pending.next({ items: [], page: 2, pageSize: 10, totalElements: 0 });
+    f.componentInstance.loadStays(0);
+    expect(api.getStayOverview).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+  it('cancels contextual Stay resolution and detail-close reloads after destruction', () => {
+    const detail = new Subject<any>();
+    const stay = new Subject<any>();
+    const detailClosed = new Subject<any>();
+    api.getStayOverview.mockReturnValue(
+      of({
+        items: [
+          {
+            id: 'other',
+            startAt: '2099-02-01T10:00:00',
+            endAt: '2099-02-02T10:00:00',
+            status: 'RESERVED',
+            ownerId: 'x',
+            ownerName: 'Other',
+            cats: [{ id: 'x', name: 'Other Cat' }],
+          },
+        ],
+        page: 2,
+        pageSize: 10,
+        totalElements: 30,
+      }),
+    );
+    api.getStayDetail.mockReturnValue(detail);
+    api.getStayById.mockReturnValue(stay);
+    const details = TestBed.inject(EntityDetailDialogService);
+    vi.spyOn(details, 'open').mockReturnValue(detailClosed);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(detail.observed).toBe(true);
+    expect(stay.observed).toBe(true);
+    f.componentInstance.openDetail(f.componentInstance.stays()[0]);
+    api.getStayOverview.mockClear();
+    f.destroy();
+    expect(detail.observed).toBe(false);
+    expect(stay.observed).toBe(false);
+    expect(detailClosed.observed).toBe(false);
+    detail.next({});
+    stay.next({});
+    detailClosed.next({});
+    expect(f.componentInstance.selectedStay()).toBeNull();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+  });
+  it('cancels deferred selected-Stay scrolling when destroyed', () => {
+    vi.useFakeTimers();
+    const scrollIntoView = vi.fn();
+    api.getStayOverview.mockReturnValue(
+      of({
+        items: [
+          {
+            id: 's',
+            startAt: '2099-01-01T10:00:00',
+            endAt: '2099-01-02T10:00:00',
+            status: 'RESERVED',
+            ownerId: 'o',
+            ownerName: 'Ada',
+            cats: [{ id: 'c', name: 'Milo' }],
+          },
+        ],
+        page: 2,
+        pageSize: 10,
+        totalElements: 30,
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    vi.spyOn(document, 'getElementById').mockReturnValue({
+      scrollIntoView,
+    } as unknown as HTMLElement);
+    f.detectChanges();
+    f.destroy();
+    vi.runAllTimers();
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

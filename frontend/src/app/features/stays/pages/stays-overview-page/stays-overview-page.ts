@@ -54,7 +54,9 @@ export class StaysOverviewPage {
   private readonly preferences = inject(StayStatusVisibilityPreferencesService);
   private request?: Subscription;
   private selectedRequest?: Subscription;
+  private scrollTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
+  private destroyed = false;
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
@@ -71,6 +73,13 @@ export class StaysOverviewPage {
   readonly totalElements = signal(0);
   readonly pageSize = 10;
   constructor() {
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      this.request?.unsubscribe();
+      this.selectedRequest?.unsubscribe();
+      clearTimeout(this.scrollTimer);
+    });
     effect(() => this.preferences.store(this.statusVisibility()));
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
       this.selectedStayId.set(p.get('selectedStayId'));
@@ -103,6 +112,7 @@ export class StaysOverviewPage {
     this.loadStays();
   }
   loadStays(page = this.page()): void {
+    if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.loading.set(true);
@@ -133,7 +143,7 @@ export class StaysOverviewPage {
       })
       .subscribe({
         next: (r) => {
-          if (id !== this.requestId) return;
+          if (this.destroyed || id !== this.requestId) return;
           const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
           if (page > lastValidPage) {
             this.loadStays(lastValidPage);
@@ -147,7 +157,7 @@ export class StaysOverviewPage {
           this.resolveSelectedStay(r.items);
         },
         error: () => {
-          if (id === this.requestId) {
+          if (!this.destroyed && id === this.requestId) {
             this.error.set(this.text().stays.overview.errorLoading);
             this.loading.set(false);
           }
@@ -178,7 +188,10 @@ export class StaysOverviewPage {
     );
   }
   openDetail(s: StayOverviewItem): void {
-    this.details.open({ entityType: 'stay', entityId: s.id }).subscribe(() => this.loadStays());
+    this.details
+      .open({ entityType: 'stay', entityId: s.id })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadStays());
   }
   activateRow(e: KeyboardEvent, s: StayOverviewItem): void {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -227,6 +240,7 @@ export class StaysOverviewPage {
     this.loadStays(0);
   }
   private syncPage(): void {
+    if (this.destroyed) return;
     const statuses = Object.entries(this.statusVisibility())
       .filter(([, visible]) => visible)
       .map(([status]) => this.toBackendStatus(status as StayStatus));
@@ -248,11 +262,18 @@ export class StaysOverviewPage {
     });
   }
   private scrollSelected(): void {
+    clearTimeout(this.scrollTimer);
     const id = this.selectedStayId();
-    if (id)
-      setTimeout(() => document.getElementById(`stay-${id}`)?.scrollIntoView({ block: 'center' }));
+    if (id) {
+      this.scrollTimer = setTimeout(() => {
+        this.scrollTimer = undefined;
+        if (!this.destroyed)
+          document.getElementById(`stay-${id}`)?.scrollIntoView({ block: 'center' });
+      });
+    }
   }
   private resolveSelectedStay(items: StayOverviewItem[]): void {
+    if (this.destroyed) return;
     const selectedId = this.selectedStayId();
     this.selectedRequest?.unsubscribe();
     if (!selectedId || items.some((stay) => stay.id === selectedId)) {
@@ -265,11 +286,13 @@ export class StaysOverviewPage {
       stay: this.api.getStayById(selectedId),
     }).subscribe({
       next: ({ detail, stay }) => {
-        if (this.selectedStayId() !== selectedId) return;
+        if (this.destroyed || this.selectedStayId() !== selectedId) return;
         this.selectedStay.set(this.selectedOverview(detail, stay));
         this.scrollSelected();
       },
-      error: () => this.selectedStay.set(null),
+      error: () => {
+        if (!this.destroyed) this.selectedStay.set(null);
+      },
     });
   }
   private selectedOverview(detail: StayDetailResponse, stay: Stay): StayOverviewItem {
