@@ -60,8 +60,9 @@ export class OwnersOverviewPage {
     this.request = this.api.getOwnerOverview(page, this.searchText()).subscribe({
       next: (result) => {
         if (id !== this.requestId) return;
-        if (!result.items.length && result.totalElements > 0 && page > 0) {
-          this.loadOwners(Math.max(0, Math.ceil(result.totalElements / this.pageSize) - 1));
+        const lastValidPage = Math.max(0, Math.ceil(result.totalElements / this.pageSize) - 1);
+        if (page > lastValidPage) {
+          this.loadOwners(lastValidPage);
           return;
         }
         this.owners.set(result.items);
@@ -79,6 +80,8 @@ export class OwnersOverviewPage {
     });
   }
   setSearchText(value: string): void {
+    this.requestId++;
+    this.request?.unsubscribe();
     this.searchText.set(value);
     this.selectedOwnerId.set(null);
     clearTimeout(this.searchTimer);

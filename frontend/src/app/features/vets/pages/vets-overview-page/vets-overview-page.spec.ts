@@ -23,9 +23,10 @@ describe('VetsOverviewPage paging', () => {
   });
   it('debounces search and clamps an impossible page', () => {
     vi.useFakeTimers();
+    const initial = new Subject<any>();
     const impossible = new Subject<any>();
     api.getVetOverview
-      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(initial)
       .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
       .mockReturnValueOnce(impossible)
       .mockReturnValueOnce(
@@ -39,7 +40,17 @@ describe('VetsOverviewPage paging', () => {
     const f = TestBed.createComponent(VetsOverviewPage);
     f.detectChanges();
     f.componentInstance.setSearchText('V');
-    vi.advanceTimersByTime(300);
+    initial.next({
+      items: [{ id: 'old', name: 'Old Vet', address: 'Old Lane' }],
+      page: 4,
+      pageSize: 10,
+      totalElements: 41,
+    });
+    expect(f.componentInstance.vets()).toEqual([]);
+    expect(f.componentInstance.page()).toBe(0);
+    vi.advanceTimersByTime(299);
+    expect(api.getVetOverview).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
     expect(api.getVetOverview).toHaveBeenLastCalledWith(0, 'V');
     f.componentInstance.changePage({
       pageIndex: 4,
@@ -51,6 +62,18 @@ describe('VetsOverviewPage paging', () => {
     expect(api.getVetOverview).toHaveBeenLastCalledWith(1, 'V');
     expect(f.componentInstance.page()).toBe(1);
     vi.useRealTimers();
+  });
+  it('clamps a non-zero page to zero when the matching population becomes empty', () => {
+    api.getVetOverview
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 3, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.loadVets(3);
+    expect(api.getVetOverview).toHaveBeenLastCalledWith(0, '');
+    expect(f.componentInstance.page()).toBe(0);
+    expect(f.componentInstance.totalElements()).toBe(0);
   });
   it('renders only name and address with direct paginator', () => {
     api.getVetOverview.mockReturnValue(

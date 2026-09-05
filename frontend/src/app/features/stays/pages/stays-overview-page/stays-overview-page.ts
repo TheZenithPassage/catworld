@@ -134,8 +134,9 @@ export class StaysOverviewPage {
       .subscribe({
         next: (r) => {
           if (id !== this.requestId) return;
-          if (!r.items.length && r.totalElements > 0 && page > 0) {
-            this.loadStays(Math.max(0, Math.ceil(r.totalElements / 10) - 1));
+          const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
+          if (page > lastValidPage) {
+            this.loadStays(lastValidPage);
             return;
           }
           this.stays.set(r.items);

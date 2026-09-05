@@ -51,8 +51,9 @@ export class VetsOverviewPage {
     this.request = this.api.getVetOverview(page, this.searchText()).subscribe({
       next: (r) => {
         if (id !== this.requestId) return;
-        if (!r.items.length && r.totalElements > 0 && page > 0) {
-          this.loadVets(Math.max(0, Math.ceil(r.totalElements / 10) - 1));
+        const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
+        if (page > lastValidPage) {
+          this.loadVets(lastValidPage);
           return;
         }
         this.vets.set(r.items);
@@ -69,6 +70,8 @@ export class VetsOverviewPage {
     });
   }
   setSearchText(value: string): void {
+    this.requestId++;
+    this.request?.unsubscribe();
     this.searchText.set(value);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {

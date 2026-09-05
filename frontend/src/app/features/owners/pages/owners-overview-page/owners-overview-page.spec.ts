@@ -55,17 +55,18 @@ describe('OwnersOverviewPage paging', () => {
     const fixture = TestBed.createComponent(OwnersOverviewPage);
     fixture.detectChanges();
     fixture.componentInstance.setSearchText('A');
+    first.next({
+      items: [{ id: 'old', fullName: 'Old', cats: [] }],
+      page: 4,
+      pageSize: 10,
+      totalElements: 41,
+    });
+    expect(fixture.componentInstance.owners()).toEqual([]);
+    expect(fixture.componentInstance.page()).toBe(0);
     vi.advanceTimersByTime(299);
     expect(api.getOwnerOverview).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(1);
     expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, 'A');
-    first.next({
-      items: [{ id: 'old', fullName: 'Old', cats: [] }],
-      page: 0,
-      pageSize: 10,
-      totalElements: 1,
-    });
-    expect(fixture.componentInstance.owners()).toEqual([]);
     fixture.componentInstance.changePage({
       pageIndex: 2,
       pageSize: 10,
@@ -77,6 +78,18 @@ describe('OwnersOverviewPage paging', () => {
     expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
     expect(fixture.componentInstance.owners()[0].fullName).toBe('Ada');
     vi.useRealTimers();
+  });
+  it('clamps a non-zero page to zero when the matching population becomes empty', () => {
+    api.getOwnerOverview
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 3, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.loadOwners(3);
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(fixture.componentInstance.totalElements()).toBe(0);
   });
   it('renders only name/current Cats with a direct fixed paginator and keyboard activation', () => {
     api.getOwnerOverview.mockReturnValue(

@@ -35,6 +35,52 @@ describe('CatsOverviewPage paging and photos', () => {
       ],
     }).compileComponents();
   });
+  it('invalidates an in-flight overview response before the search debounce fires', () => {
+    vi.useFakeTimers();
+    const initial = new Subject<any>();
+    api.getCatOverview.mockReturnValueOnce(initial).mockReturnValueOnce(
+      of({
+        items: [{ id: 'new', name: 'New', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    expect(api.getCatOverview).toHaveBeenCalledTimes(1);
+    f.componentInstance.setSearchText('N');
+    initial.next({
+      items: [{ id: 'old', name: 'Old', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+      page: 4,
+      pageSize: 10,
+      totalElements: 41,
+    });
+    expect(f.componentInstance.cats()).toEqual([]);
+    expect(f.componentInstance.page()).toBe(0);
+    vi.advanceTimersByTime(299);
+    expect(api.getCatOverview).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(api.getCatOverview).toHaveBeenLastCalledWith(0, 'N');
+    expect(f.componentInstance.cats()[0].name).toBe('New');
+    vi.useRealTimers();
+  });
+  it('clamps a non-zero page to zero when the matching population becomes empty', () => {
+    vi.useFakeTimers();
+    api.getCatOverview
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 3, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.componentInstance.loadCats(3);
+    expect(api.getCatOverview).toHaveBeenLastCalledWith(0, '');
+    expect(f.componentInstance.page()).toBe(0);
+    expect(f.componentInstance.totalElements()).toBe(0);
+    vi.useRealTimers();
+  });
   it('debounces remote search and loads a Blob only when visible', () => {
     vi.useFakeTimers();
     const photo = new Subject<Blob>();

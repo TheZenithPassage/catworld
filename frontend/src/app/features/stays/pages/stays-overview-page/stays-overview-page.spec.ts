@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { EMPTY, of } from 'rxjs';
 import { vi } from 'vitest';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
@@ -89,6 +89,23 @@ describe('StaysOverviewPage server paging', () => {
     expect(api.getStayOverview).toHaveBeenLastCalledWith(
       0,
       expect.objectContaining({ outstandingOnly: true }),
+    );
+  });
+  it('clamps an empty matching population to page zero and clears the synchronized page', () => {
+    api.getStayOverview
+      .mockReturnValueOnce(of({ items: [], page: 2, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(api.getStayOverview.mock.calls[0][0]).toBe(2);
+    expect(api.getStayOverview).toHaveBeenLastCalledWith(0, expect.any(Object));
+    expect(f.componentInstance.page()).toBe(0);
+    expect(f.componentInstance.totalElements()).toBe(0);
+    expect(navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({ queryParams: expect.objectContaining({ page: null }) }),
     );
   });
   it('renders approved compact summary with direct paginator and opens via keyboard', () => {
