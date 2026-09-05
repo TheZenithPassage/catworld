@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -32,6 +32,7 @@ export class VetsOverviewPage {
   private request?: Subscription;
   private timer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
+  private destroyed = false;
   readonly text = this.i18n.text;
   readonly vets = signal<VetOverviewItem[]>([]);
   readonly loading = signal(false);
@@ -41,9 +42,16 @@ export class VetsOverviewPage {
   readonly totalElements = signal(0);
   readonly pageSize = 10;
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      clearTimeout(this.timer);
+      this.request?.unsubscribe();
+    });
     this.loadVets();
   }
   loadVets(page = this.page()): void {
+    if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.loading.set(true);
@@ -75,6 +83,8 @@ export class VetsOverviewPage {
     this.searchText.set(value);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
+      this.timer = undefined;
+      if (this.destroyed) return;
       this.page.set(0);
       this.loadVets(0);
     }, 300);

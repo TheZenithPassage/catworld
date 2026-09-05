@@ -75,6 +75,22 @@ describe('VetsOverviewPage paging', () => {
     expect(f.componentInstance.page()).toBe(0);
     expect(f.componentInstance.totalElements()).toBe(0);
   });
+  it('cancels pending search and active overview work when destroyed', () => {
+    vi.useFakeTimers();
+    const initial = new Subject<any>();
+    const active = new Subject<any>();
+    api.getVetOverview.mockReturnValueOnce(initial).mockReturnValueOnce(active);
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.setSearchText('V');
+    f.componentInstance.loadVets(0);
+    expect(active.observed).toBe(true);
+    f.destroy();
+    expect(active.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    expect(api.getVetOverview).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
   it('renders only name and address with direct paginator', () => {
     api.getVetOverview.mockReturnValue(
       of({

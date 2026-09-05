@@ -11,12 +11,14 @@ describe('CatsOverviewPage paging and photos', () => {
   const observe = vi.fn(),
     disconnect = vi.fn(),
     unobserve = vi.fn();
+  const createObserver = vi.fn();
   const api = { getCatOverview: vi.fn(), getCatPhoto: vi.fn() };
   beforeEach(async () => {
     vi.clearAllMocks();
     api.getCatOverview.mockReturnValue(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
     globalThis.IntersectionObserver = class {
       constructor(cb: IntersectionObserverCallback) {
+        createObserver();
         callback = cb;
       }
       observe = observe;
@@ -79,6 +81,71 @@ describe('CatsOverviewPage paging and photos', () => {
     expect(api.getCatOverview).toHaveBeenLastCalledWith(0, '');
     expect(f.componentInstance.page()).toBe(0);
     expect(f.componentInstance.totalElements()).toBe(0);
+    vi.useRealTimers();
+  });
+  it('cancels pending search and active overview work when destroyed', () => {
+    vi.useFakeTimers();
+    const initial = new Subject<any>();
+    const active = new Subject<any>();
+    api.getCatOverview.mockReturnValueOnce(initial).mockReturnValueOnce(active);
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.componentInstance.loadCats();
+    f.componentInstance.setSearchText('M');
+    f.componentInstance.loadCats(0);
+    expect(active.observed).toBe(true);
+    f.destroy();
+    expect(active.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    expect(api.getCatOverview).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+  it('cancels deferred photo observation when destroyed', () => {
+    vi.useFakeTimers();
+    api.getCatOverview.mockReturnValue(
+      of({
+        items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: true }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.componentInstance.loadCats();
+    f.detectChanges();
+    f.destroy();
+    vi.runAllTimers();
+    expect(createObserver).not.toHaveBeenCalled();
+    expect(api.getCatPhoto).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it('cancels an in-flight photo before it can create a Blob URL after destruction', () => {
+    vi.useFakeTimers();
+    const photo = new Subject<Blob>();
+    api.getCatOverview.mockReturnValue(
+      of({
+        items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: true }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    api.getCatPhoto.mockReturnValue(photo);
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.detectChanges();
+    vi.runAllTimers();
+    const target = f.nativeElement.querySelector('[data-cat-photo="true"]');
+    callback(
+      [{ isIntersecting: true, target } as IntersectionObserverEntry],
+      {} as IntersectionObserver,
+    );
+    expect(photo.observed).toBe(true);
+    f.destroy();
+    expect(photo.observed).toBe(false);
+    photo.next(new Blob(['x']));
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
   it('debounces remote search and loads a Blob only when visible', () => {

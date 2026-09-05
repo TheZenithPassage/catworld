@@ -31,7 +31,9 @@ export class CatsOverviewPage {
   private readonly details = inject(EntityDetailDialogService);
   private request?: Subscription;
   private timer?: ReturnType<typeof setTimeout>;
+  private photoObserverTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
+  private destroyed = false;
   private observer?: IntersectionObserver;
   private readonly photoRequests = new Map<string, Subscription>();
   private readonly urls = new Map<string, string>();
@@ -45,10 +47,17 @@ export class CatsOverviewPage {
   readonly totalElements = signal(0);
   readonly pageSize = 10;
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.retirePhotos());
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      clearTimeout(this.timer);
+      this.request?.unsubscribe();
+      this.retirePhotos();
+    });
     afterNextRender(() => this.loadCats());
   }
   loadCats(page = this.page()): void {
+    if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.retirePhotos();
@@ -66,7 +75,10 @@ export class CatsOverviewPage {
         this.page.set(r.page);
         this.totalElements.set(r.totalElements);
         this.loading.set(false);
-        setTimeout(() => this.observePhotos(id));
+        this.photoObserverTimer = setTimeout(() => {
+          this.photoObserverTimer = undefined;
+          if (!this.destroyed && id === this.requestId) this.observePhotos(id);
+        });
       },
       error: () => {
         if (id === this.requestId) {
@@ -82,6 +94,8 @@ export class CatsOverviewPage {
     this.searchText.set(v);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
+      this.timer = undefined;
+      if (this.destroyed) return;
       this.page.set(0);
       this.loadCats(0);
     }, 300);
@@ -105,9 +119,11 @@ export class CatsOverviewPage {
     }
   }
   private observePhotos(generation: number): void {
+    if (this.destroyed || generation !== this.requestId) return;
     this.observer?.disconnect();
     this.observer = new IntersectionObserver(
       (entries) => {
+        if (this.destroyed || generation !== this.requestId) return;
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
           const id = (entry.target as HTMLElement).dataset['catId'];
@@ -122,13 +138,19 @@ export class CatsOverviewPage {
       .forEach((el) => this.observer?.observe(el));
   }
   private loadPhoto(id: string, generation: number): void {
-    if (this.photoRequests.has(id) || this.urls.has(id)) return;
+    if (
+      this.destroyed ||
+      generation !== this.requestId ||
+      this.photoRequests.has(id) ||
+      this.urls.has(id)
+    )
+      return;
     this.photoRequests.set(
       id,
       this.api.getCatPhoto(id).subscribe({
         next: (blob) => {
           this.photoRequests.delete(id);
-          if (generation !== this.requestId) return;
+          if (this.destroyed || generation !== this.requestId) return;
           const url = URL.createObjectURL(blob);
           this.urls.set(id, url);
           this.photos.update((p) => ({ ...p, [id]: url }));
@@ -138,7 +160,10 @@ export class CatsOverviewPage {
     );
   }
   private retirePhotos(): void {
+    clearTimeout(this.photoObserverTimer);
+    this.photoObserverTimer = undefined;
     this.observer?.disconnect();
+    this.observer = undefined;
     this.photoRequests.forEach((r) => r.unsubscribe());
     this.photoRequests.clear();
     this.urls.forEach((url) => URL.revokeObjectURL(url));

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -35,7 +35,9 @@ export class OwnersOverviewPage {
   private request?: Subscription;
   private selectedRequest?: Subscription;
   private searchTimer?: ReturnType<typeof setTimeout>;
+  private scrollTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
+  private destroyed = false;
   readonly text = this.i18n.text;
   readonly owners = signal<OwnerOverviewItem[]>([]);
   readonly loading = signal(false);
@@ -47,12 +49,21 @@ export class OwnersOverviewPage {
   readonly selectedOwnerId = signal<string | null>(null);
   readonly selectedOwner = signal<OwnerOverviewItem | null>(null);
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      clearTimeout(this.searchTimer);
+      clearTimeout(this.scrollTimer);
+      this.request?.unsubscribe();
+      this.selectedRequest?.unsubscribe();
+    });
     const q = this.route.snapshot.queryParamMap;
     this.searchText.set(q.get('search') ?? '');
     this.selectedOwnerId.set(q.get('selectedOwnerId'));
     this.loadOwners();
   }
   loadOwners(page = this.page()): void {
+    if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.loading.set(true);
@@ -86,6 +97,8 @@ export class OwnersOverviewPage {
     this.selectedOwnerId.set(null);
     clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
+      this.searchTimer = undefined;
+      if (this.destroyed) return;
       this.page.set(0);
       this.loadOwners(0);
     }, 300);
@@ -145,8 +158,14 @@ export class OwnersOverviewPage {
     });
   }
   private scrollSelected(): void {
+    clearTimeout(this.scrollTimer);
     const id = this.selectedOwnerId();
-    if (id)
-      setTimeout(() => document.getElementById(`owner-${id}`)?.scrollIntoView({ block: 'center' }));
+    if (id) {
+      this.scrollTimer = setTimeout(() => {
+        this.scrollTimer = undefined;
+        if (!this.destroyed)
+          document.getElementById(`owner-${id}`)?.scrollIntoView({ block: 'center' });
+      });
+    }
   }
 }

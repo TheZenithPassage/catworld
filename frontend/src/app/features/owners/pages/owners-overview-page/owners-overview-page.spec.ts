@@ -91,6 +91,40 @@ describe('OwnersOverviewPage paging', () => {
     expect(fixture.componentInstance.page()).toBe(0);
     expect(fixture.componentInstance.totalElements()).toBe(0);
   });
+  it('cancels pending search and active overview work when destroyed', () => {
+    vi.useFakeTimers();
+    const initial = new Subject<any>();
+    const active = new Subject<any>();
+    api.getOwnerOverview.mockReturnValueOnce(initial).mockReturnValueOnce(active);
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('A');
+    fixture.componentInstance.loadOwners(0);
+    expect(active.observed).toBe(true);
+    fixture.destroy();
+    expect(active.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    expect(api.getOwnerOverview).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+  it('cancels contextual Owner resolution when destroyed', () => {
+    const overview = new Subject<any>();
+    const selected = new Subject<any>();
+    api.getOwnerOverview.mockReturnValue(overview);
+    api.getOwnerLookup.mockReturnValue(selected);
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.componentInstance.selectedOwnerId.set('selected');
+    overview.next({
+      items: [{ id: 'other', fullName: 'Other', cats: [] }],
+      page: 0,
+      pageSize: 10,
+      totalElements: 1,
+    });
+    expect(selected.observed).toBe(true);
+    fixture.destroy();
+    expect(overview.observed).toBe(false);
+    expect(selected.observed).toBe(false);
+  });
   it('renders only name/current Cats with a direct fixed paginator and keyboard activation', () => {
     api.getOwnerOverview.mockReturnValue(
       of({
