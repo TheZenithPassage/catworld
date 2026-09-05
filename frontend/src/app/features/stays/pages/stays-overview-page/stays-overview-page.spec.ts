@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { EMPTY, of, Subject } from 'rxjs';
+import { BehaviorSubject, EMPTY, of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayApiService } from '../../services/stay-api.service';
@@ -13,8 +13,10 @@ describe('StaysOverviewPage server paging', () => {
     read: () => ({ reserved: true, 'checked-in': true, 'checked-out': false, cancelled: false }),
     store: vi.fn(),
   };
+  const queryParams = new BehaviorSubject(convertToParamMap({ selectedStayId: 's', page: '2' }));
   beforeEach(async () => {
     vi.clearAllMocks();
+    queryParams.next(convertToParamMap({ selectedStayId: 's', page: '2' }));
     api.getStayOverview.mockReturnValue(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
     api.getStayDetail.mockReturnValue(
       of({
@@ -53,7 +55,7 @@ describe('StaysOverviewPage server paging', () => {
         {
           provide: ActivatedRoute,
           useValue: {
-            queryParamMap: of(convertToParamMap({ selectedStayId: 's', page: '2' })),
+            queryParamMap: queryParams,
             snapshot: { queryParamMap: convertToParamMap({}) },
           },
         },
@@ -89,7 +91,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(f.componentInstance.page()).toBe(1);
     expect(f.componentInstance.isSelectedStay(f.componentInstance.stays()[0])).toBe(true);
     f.componentInstance.setOutstandingOnly(true);
-    expect(api.getStayOverview).toHaveBeenLastCalledWith(
+    expect(api.getStayOverview).toHaveBeenCalledWith(
       0,
       expect.objectContaining({ outstandingOnly: true }),
     );
@@ -109,6 +111,41 @@ describe('StaysOverviewPage server paging', () => {
     expect(navigate).toHaveBeenLastCalledWith(
       [],
       expect.objectContaining({ queryParams: expect.objectContaining({ page: null }) }),
+    );
+  });
+  it('renders the ordinary empty state when the complete Stay population is empty', () => {
+    queryParams.next(convertToParamMap({}));
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(api.getStayOverview).toHaveBeenCalledWith(0, {
+      statuses: ['RESERVED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'],
+      ownerId: null,
+      catId: null,
+      paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
+      outstandingOnly: false,
+    });
+    expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
+    expect(f.nativeElement.textContent).not.toContain(
+      f.componentInstance.text().stays.overview.emptyFiltered,
+    );
+  });
+  it('renders the filtered empty state when Stays exist outside the active filters', () => {
+    queryParams.next(convertToParamMap({}));
+    api.getStayOverview.mockImplementation((_page: number, filters: any) =>
+      of({
+        items: [],
+        page: 0,
+        pageSize: 10,
+        totalElements: filters.statuses.length === 4 ? 1 : 0,
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain(
+      f.componentInstance.text().stays.overview.emptyFiltered,
+    );
+    expect(f.nativeElement.textContent).not.toContain(
+      f.componentInstance.text().stays.overview.empty,
     );
   });
   it('renders approved compact summary with direct paginator and opens via keyboard', () => {

@@ -53,6 +53,7 @@ export class StaysOverviewPage {
   private readonly details = inject(EntityDetailDialogService);
   private readonly preferences = inject(StayStatusVisibilityPreferencesService);
   private request?: Subscription;
+  private emptyStateRequest?: Subscription;
   private selectedRequest?: Subscription;
   private scrollTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
@@ -69,6 +70,7 @@ export class StaysOverviewPage {
   readonly stays = signal<StayOverviewItem[]>([]);
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
+  readonly globallyEmpty = signal(false);
   readonly page = signal(0);
   readonly totalElements = signal(0);
   readonly pageSize = 10;
@@ -77,6 +79,7 @@ export class StaysOverviewPage {
       this.destroyed = true;
       this.requestId++;
       this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
       this.selectedRequest?.unsubscribe();
       clearTimeout(this.scrollTimer);
     });
@@ -116,6 +119,7 @@ export class StaysOverviewPage {
     this.selectedStay.set(null);
     const id = ++this.requestId;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
     const statuses = Object.entries(this.statusVisibility())
@@ -129,9 +133,7 @@ export class StaysOverviewPage {
       this.stays.set([]);
       this.page.set(0);
       this.totalElements.set(0);
-      this.loading.set(false);
-      this.syncPage();
-      this.resolveSelectedStay([]);
+      this.resolveGlobalEmptyState(id);
       return;
     }
     this.request = this.api
@@ -153,9 +155,40 @@ export class StaysOverviewPage {
           this.stays.set(r.items);
           this.page.set(r.page);
           this.totalElements.set(r.totalElements);
+          if (r.totalElements === 0) {
+            this.resolveGlobalEmptyState(id);
+            return;
+          }
+          this.globallyEmpty.set(false);
           this.loading.set(false);
           this.syncPage();
           this.resolveSelectedStay(r.items);
+        },
+        error: () => {
+          if (!this.destroyed && id === this.requestId) {
+            this.error.set(this.text().stays.overview.errorLoading);
+            this.loading.set(false);
+          }
+        },
+      });
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api
+      .getStayOverview(0, {
+        statuses: this.statusFilterOptions.map(({ status }) => this.toBackendStatus(status)),
+        ownerId: null,
+        catId: null,
+        paymentConditions: [...this.paymentConditionFilterOptions],
+        outstandingOnly: false,
+      })
+      .subscribe({
+        next: (r) => {
+          if (this.destroyed || id !== this.requestId) return;
+          this.globallyEmpty.set(r.totalElements === 0);
+          this.loading.set(false);
+          this.syncPage();
+          this.resolveSelectedStay([]);
         },
         error: () => {
           if (!this.destroyed && id === this.requestId) {
