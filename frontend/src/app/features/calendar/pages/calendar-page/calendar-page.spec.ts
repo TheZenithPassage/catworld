@@ -313,8 +313,20 @@ describe('CalendarPage', () => {
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.actions.retry);
   });
 
-  it('opens Stay details without navigation and replaces the cache from the authoritative update', async () => {
+  it('reloads the bounded view after a Stay moves out, preserving applied filters and navigation', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ visibleMonth: '2099-01-01', displayMode: 'daily-labels' }),
+    );
     createComponent();
+    component.setSearchFilters({
+      catId: null,
+      ownerId: 'owner-1',
+      dateFrom: '2099-01-01',
+      dateMatchMode: 'OVERLAPS',
+    });
+    component.applyFilters();
+    const applied = component.searchFilters();
     const router = TestBed.inject(Router);
     const before = router.url;
     component.calendarOptions().eventClick!({
@@ -325,13 +337,37 @@ describe('CalendarPage', () => {
       entityId: 'stay-1',
     });
     expect(router.url).toBe(before);
-    const updated = { ...stay, notes: 'authoritative', startAt: '2099-02-01T10:00:00' };
+    const updated = { ...stay, startAt: '2099-02-01T10:00:00', endAt: '2099-02-08T10:00:00' };
+    stayApiService.getStays.mockReturnValueOnce(of([]));
     dialogUpdates.next(updated);
-    expect(component.stays()).toEqual([updated]);
-    expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+    fixture.detectChanges();
+    expect(component.stays()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain(component.text().calendar.empty);
+    expect(component.searchFilters()).toEqual(applied);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2099-01-01',
+      dateTo: '2099-01-31',
+      dateMatchMode: 'OVERLAPS',
+    });
+
+    stayApiService.getStays.mockReturnValue(of([updated]));
+    const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+      .componentInstance as FullCalendarComponent;
+    calendar.getApi().next();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.filteredStays()).toEqual([updated]);
+    expect(component.searchFilters()).toEqual(applied);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2099-02-01',
+      dateTo: '2099-02-28',
+      dateMatchMode: 'OVERLAPS',
+    });
 
     dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
-    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(4);
   });
 
   it('delegates detailed event content to FullCalendar default rendering', () => {

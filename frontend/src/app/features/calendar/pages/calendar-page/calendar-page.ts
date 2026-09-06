@@ -181,15 +181,7 @@ export class CalendarPage implements OnDestroy {
 
       this.entityDetailDialog
         .open({ entityType: 'stay', entityId: stayId })
-        .subscribe((updated) => {
-          if ('entityType' in updated) {
-            this.loadStays();
-            return;
-          }
-          this.stays.update((items) =>
-            items.map((item) => (item.stayId === updated.stayId ? updated : item)),
-          );
-        });
+        .subscribe(() => this.loadStays());
     },
     eventDidMount: ({ el, event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
