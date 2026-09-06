@@ -3,6 +3,7 @@ import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatRadioModule } from '@angular/material/radio';
+import { Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
@@ -21,6 +22,7 @@ import { StaySearchFiltersComponent } from '../../../stays/components/stay-searc
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStaySearchFilters,
+  isStayDateRangeValid,
   isStayVisibleBySearchFilters,
   StaySearchFilters,
 } from '../../../stays/utils/stay-search-filter.util';
@@ -112,6 +114,12 @@ export class CalendarPage implements OnDestroy {
       .toLocaleUpperCase(locale);
   });
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
+  readonly draftStatusVisibility = signal(this.statusVisibility());
+  readonly draftSearchFilters = signal(this.searchFilters());
+  readonly validDates = isStayDateRangeValid;
+  private viewInterval: { dateFrom: string; dateTo: string } | null = null;
+  private request?: Subscription;
+  private requestId = 0;
   readonly filteredStays = computed(() =>
     this.stays().filter(
       (stay) =>
@@ -143,6 +151,7 @@ export class CalendarPage implements OnDestroy {
     datesSet: (dateInfo: DatesSetArg) => {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
       this.updateStickyMonthLabel();
+      this.setViewInterval(dateInfo);
     },
     viewDidMount: ({ el }) => {
       const stickyHeader = el
@@ -255,36 +264,60 @@ export class CalendarPage implements OnDestroy {
 
       this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
     });
-
-    this.loadStays();
   }
 
   ngOnDestroy(): void {
+    this.requestId++;
+    this.request?.unsubscribe();
     this.disconnectStickyMonth();
   }
 
+  setViewInterval(info: DatesSetArg): void {
+    const lastDay = new Date(info.view.currentEnd);
+    lastDay.setDate(lastDay.getDate() - 1);
+    const interval = {
+      dateFrom: this.toDateValue(info.view.currentStart),
+      dateTo: this.toDateValue(lastDay),
+    };
+    if (
+      this.viewInterval?.dateFrom === interval.dateFrom &&
+      this.viewInterval?.dateTo === interval.dateTo
+    )
+      return;
+    this.viewInterval = interval;
+    this.stays.set([]);
+    this.loadStays();
+  }
+
   loadStays(): void {
+    if (!this.viewInterval) return;
+    const id = ++this.requestId;
+    this.request?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
 
-    this.stayApiService.getStays().subscribe({
-      next: (stays) => {
-        this.stays.set(stays);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set(this.text().calendar.errorLoading);
-        this.loading.set(false);
-      },
-    });
+    this.request = this.stayApiService
+      .getStays({ ...this.viewInterval, dateMatchMode: 'OVERLAPS' })
+      .subscribe({
+        next: (stays) => {
+          if (id !== this.requestId) return;
+          this.stays.set(stays);
+          this.loading.set(false);
+        },
+        error: () => {
+          if (id !== this.requestId) return;
+          this.error.set(this.text().calendar.errorLoading);
+          this.loading.set(false);
+        },
+      });
   }
 
   isStatusVisible(status: StayStatus): boolean {
-    return this.statusVisibility()[status];
+    return this.draftStatusVisibility()[status];
   }
 
   setStatusVisibility(status: StayStatus, checked: boolean): void {
-    this.statusVisibility.update((currentVisibility) => ({
+    this.draftStatusVisibility.update((currentVisibility) => ({
       ...currentVisibility,
       [status]: checked,
     }));
@@ -299,7 +332,14 @@ export class CalendarPage implements OnDestroy {
   }
 
   setSearchFilters(filters: StaySearchFilters): void {
-    this.searchFilters.set(filters);
+    this.draftSearchFilters.set(filters);
+  }
+
+  applyFilters(): void {
+    if (!isStayDateRangeValid(this.draftSearchFilters())) return;
+    this.statusVisibility.set(this.draftStatusVisibility());
+    this.searchFilters.set(this.draftSearchFilters());
+    // A pending view load remains valid: its bounded population is filtered using the latest applied state.
   }
 
   setDisplayMode(displayMode: CalendarDisplayMode): void {

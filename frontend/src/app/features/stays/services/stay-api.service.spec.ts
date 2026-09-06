@@ -153,4 +153,14 @@ describe('StayApiService', () => {
     expect(removal.request.body).toEqual({ reason: 'Entered in error' });
     removal.flush({});
   });
+  it('encodes calendar dates and an explicit mode on bounded collection reads', () => {
+    service
+      .getStays({ dateFrom: '2030-01-01', dateTo: '2030-01-31', dateMatchMode: 'OVERLAPS' })
+      .subscribe();
+    const request = httpTestingController.expectOne((r) => r.url === API_BASE_URL + '/stays');
+    expect(request.request.params.get('dateFrom')).toBe('2030-01-01');
+    expect(request.request.params.get('dateTo')).toBe('2030-01-31');
+    expect(request.request.params.get('dateMatchMode')).toBe('OVERLAPS');
+    request.flush([]);
+  });
 });

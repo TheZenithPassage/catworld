@@ -62,6 +62,27 @@ public class StayControllerTest {
     @MockitoBean
     private IStayService stayService;
 
+    @Test
+    void temporalReadsValidateAndBindDateContract() throws Exception {
+        for (String endpoint : List.of("/api/stays", "/api/stays/overview")) {
+            mockMvc.perform(get(endpoint).param("dateFrom", "2030-01-01"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(get(endpoint).param("dateTo", "2030-01-01").param("dateMatchMode", "UNKNOWN"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(get(endpoint).param("dateFrom", "2030-02-01").param("dateTo", "2030-01-01").param("dateMatchMode", "OVERLAPS"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(get(endpoint).param("dateFrom", "not-a-date").param("dateMatchMode", "OVERLAPS"))
+                    .andExpect(status().isBadRequest());
+        }
+        verifyNoInteractions(stayService);
+        var dates = new com.allegaeon.catworld.dto.StayDateFilter(LocalDate.of(2030,1,1), null,
+                com.allegaeon.catworld.dto.StayDateMatchMode.RANGE_WITHIN_STAY);
+        when(stayService.getAllStays(dates)).thenReturn(List.of());
+        mockMvc.perform(get("/api/stays").param("dateFrom", "2030-01-01").param("dateMatchMode", "RANGE_WITHIN_STAY"))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        verify(stayService).getAllStays(dates);
+    }
+
     @Nested
     class GetStayTests {
 

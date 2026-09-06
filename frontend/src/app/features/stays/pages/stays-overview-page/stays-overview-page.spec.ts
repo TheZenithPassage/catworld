@@ -35,6 +35,8 @@ describe('StaysOverviewPage server paging', () => {
     );
     api.getStayById.mockReturnValue(
       of({
+        startAt: '2099-01-01T10:00:00',
+        endAt: '2099-01-02T10:00:00',
         ownerId: 'o',
         cats: Array.from({ length: 5 }, (_, index) => ({
           catId: `c-${index}`,
@@ -91,6 +93,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(f.componentInstance.page()).toBe(1);
     expect(f.componentInstance.isSelectedStay(f.componentInstance.stays()[0])).toBe(true);
     f.componentInstance.setOutstandingOnly(true);
+    f.componentInstance.applyFilters();
     expect(api.getStayOverview).toHaveBeenCalledWith(
       0,
       expect.objectContaining({ outstandingOnly: true }),
@@ -336,5 +339,73 @@ describe('StaysOverviewPage server paging', () => {
     vi.runAllTimers();
     expect(scrollIntoView).not.toHaveBeenCalled();
     vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+  it('atomically applies draft criteria from page zero and serializes only applied dates', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    api.getStayOverview.mockClear();
+    navigate.mockClear();
+    visibility.store.mockClear();
+    const c = f.componentInstance;
+    c.setStatusVisibility('checked-in', false);
+    c.setPaymentConditionVisibility('FULL_PAYMENT', false);
+    c.setOutstandingOnly(true);
+    c.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2099-01-01',
+      dateTo: '2099-01-02',
+      dateMatchMode: 'STAY_WITHIN_RANGE',
+    });
+    f.detectChanges();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(visibility.store).not.toHaveBeenCalled();
+    (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(api.getStayOverview.mock.calls[0]).toEqual([
+      0,
+      expect.objectContaining({
+        statuses: ['RESERVED'],
+        paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'],
+        outstandingOnly: true,
+        dateFrom: '2099-01-01',
+        dateTo: '2099-01-02',
+        dateMatchMode: 'STAY_WITHIN_RANGE',
+      }),
+    ]);
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({
+          dateFrom: '2099-01-01',
+          dateMatchMode: 'STAY_WITHIN_RANGE',
+        }),
+      }),
+    );
+    c.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2099-02-01',
+      dateTo: '2099-01-01',
+    });
+    f.detectChanges();
+    expect((f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(c.searchFilters().dateFrom).toBe('2099-01-01');
+  });
+
+  it('defaults legacy route mode and hides contextual selection outside applied dates', () => {
+    queryParams.next(convertToParamMap({ selectedStayId: 's', dateFrom: '2100-01-01' }));
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(f.componentInstance.searchFilters().dateMatchMode).toBe('OVERLAPS');
+    expect(f.componentInstance.selectedStay()).toBeNull();
+    expect(f.nativeElement.querySelector('.contextual-selection')).toBeNull();
+    expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
   });
 });

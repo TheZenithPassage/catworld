@@ -14,11 +14,25 @@
   display: grid;
   gap: 0.35rem;
   min-width: min(100%, 18rem);
-  flex: 1 1 18rem;
+  flex: 1 1 calc(50% - 1rem);
 }
 
 @media (max-width: 520px) {
   .search-filter {
     width: 100%;
   }
+}
+
+.date-filter {
+  flex: 0 1 12rem;
+  min-width: 0;
+}
+.date-mode-filter {
+  flex: 0 1 18rem;
+  min-width: 0;
+}
+.date-range-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--mat-sys-error);
 }

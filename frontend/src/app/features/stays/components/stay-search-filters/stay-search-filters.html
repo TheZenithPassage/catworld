@@ -16,4 +16,37 @@
       (stateChange)="onOwnerStateChange($event)"
     />
   </div>
+  <mat-form-field appearance="outline" class="date-filter">
+    <mat-label>{{ text().stays.filters.dateFrom }}</mat-label>
+    <input
+      matInput
+      type="date"
+      [ngModel]="dateFilters().dateFrom"
+      (ngModelChange)="setDate('dateFrom', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="date-filter">
+    <mat-label>{{ text().stays.filters.dateTo }}</mat-label>
+    <input
+      matInput
+      type="date"
+      [ngModel]="dateFilters().dateTo"
+      (ngModelChange)="setDate('dateTo', $event)"
+    />
+  </mat-form-field>
+  <mat-form-field appearance="outline" class="date-mode-filter">
+    <mat-label>{{ text().stays.filters.dateMatchMode }}</mat-label>
+    <select
+      matNativeControl
+      [ngModel]="dateFilters().dateMatchMode ?? 'OVERLAPS'"
+      (ngModelChange)="setDateMode($event)"
+    >
+      @for (mode of dateModes; track mode) {
+        <option [value]="mode">{{ text().stays.filters.dateModes[mode] }}</option>
+      }
+    </select>
+  </mat-form-field>
+  @if (!validDates(dateFilters())) {
+    <p class="date-range-error" role="alert">{{ text().stays.filters.invalidDateRange }}</p>
+  }
 </div>

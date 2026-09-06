@@ -110,6 +110,12 @@ export interface StaysTranslations {
     };
   };
   filters: {
+    dateFrom: string;
+    dateTo: string;
+    dateMatchMode: string;
+    dateModes: Record<'OVERLAPS' | 'STAY_WITHIN_RANGE' | 'RANGE_WITHIN_STAY', string>;
+    invalidDateRange: string;
+    apply: string;
     searchAriaLabel: string;
     paymentAriaLabel: string;
     outstandingOnly: string;
@@ -372,6 +378,16 @@ export const STAYS_TRANSLATIONS = {
       },
     },
     filters: {
+      dateFrom: 'Desde',
+      dateTo: 'Hasta',
+      dateMatchMode: 'Relación con el período',
+      dateModes: {
+        OVERLAPS: 'Coincide con el período',
+        STAY_WITHIN_RANGE: 'Estadía dentro del período',
+        RANGE_WITHIN_STAY: 'Período dentro de la estadía',
+      },
+      invalidDateRange: 'Desde no puede ser posterior a Hasta.',
+      apply: 'Filtrar',
       searchAriaLabel: 'Filtros de búsqueda de estancias',
       paymentAriaLabel: 'Filtros de cobro de estancias',
       outstandingOnly: 'Solo cobros pendientes',
@@ -636,6 +652,16 @@ export const STAYS_TRANSLATIONS = {
       },
     },
     filters: {
+      dateFrom: 'From',
+      dateTo: 'To',
+      dateMatchMode: 'Date relationship',
+      dateModes: {
+        OVERLAPS: 'Overlaps the period',
+        STAY_WITHIN_RANGE: 'Stay within the period',
+        RANGE_WITHIN_STAY: 'Period within the stay',
+      },
+      invalidDateRange: 'From must not be later than To.',
+      apply: 'Filter',
       searchAriaLabel: 'Stay search filters',
       paymentAriaLabel: 'Stay payment filters',
       outstandingOnly: 'Outstanding collection only',
