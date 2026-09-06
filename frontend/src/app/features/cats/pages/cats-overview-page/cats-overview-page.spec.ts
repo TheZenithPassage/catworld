@@ -148,6 +148,113 @@ describe('CatsOverviewPage paging and photos', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
+  it('shows the ordinary empty state when an effective search probes a globally empty population', () => {
+    vi.useFakeTimers();
+    api.getCatOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.componentInstance.setSearchText(' Missing ');
+    vi.advanceTimersByTime(300);
+    f.detectChanges();
+    expect(api.getCatOverview).toHaveBeenNthCalledWith(2, 0, 'Missing');
+    expect(api.getCatOverview).toHaveBeenNthCalledWith(3, 0, '');
+    expect(f.componentInstance.globallyEmpty()).toBe(true);
+    expect(f.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      f.componentInstance.text().cats.overview.empty,
+    );
+    vi.useRealTimers();
+  });
+  it('shows the filtered empty state when an unfiltered Cat probe finds records', () => {
+    vi.useFakeTimers();
+    api.getCatOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    f.detectChanges();
+    expect(f.componentInstance.globallyEmpty()).toBe(false);
+    expect(f.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      f.componentInstance.text().cats.overview.emptyFiltered,
+    );
+    vi.useRealTimers();
+  });
+  it('cancels a stale Cat empty-state probe before a newer search can be overwritten', () => {
+    vi.useFakeTimers();
+    const staleProbe = new Subject<any>();
+    api.getCatOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(staleProbe)
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'n', name: 'New', ownerId: 'o', ownerName: 'Ada', hasPhoto: false }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    expect(staleProbe.observed).toBe(true);
+    f.componentInstance.setSearchText('New');
+    expect(staleProbe.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    staleProbe.next({ items: [], page: 0, pageSize: 10, totalElements: 0 });
+    expect(f.componentInstance.cats()[0].name).toBe('New');
+    expect(f.componentInstance.globallyEmpty()).toBe(false);
+    vi.useRealTimers();
+  });
+  it('treats whitespace-only Cat search text as unfiltered', () => {
+    vi.useFakeTimers();
+    const f = TestBed.createComponent(CatsOverviewPage);
+    f.detectChanges();
+    vi.runAllTimers();
+    f.componentInstance.setSearchText('   ');
+    vi.advanceTimersByTime(300);
+    expect(api.getCatOverview).toHaveBeenLastCalledWith(0, '');
+    expect(api.getCatOverview).toHaveBeenCalledTimes(2);
+    expect(f.componentInstance.globallyEmpty()).toBe(true);
+    vi.useRealTimers();
+  });
   it('debounces remote search and loads a Blob only when visible', () => {
     vi.useFakeTimers();
     const photo = new Subject<Blob>();

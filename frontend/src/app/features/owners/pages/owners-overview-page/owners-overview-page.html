@@ -37,7 +37,9 @@
   } @else if (owners().length === 0 && !selectedOwner()) {
     <app-ui-state
       kind="empty"
-      [message]="searchText() ? text().owners.overview.emptyFiltered : text().owners.overview.empty"
+      [message]="
+        globallyEmpty() ? text().owners.overview.empty : text().owners.overview.emptyFiltered
+      "
     ></app-ui-state>
   } @else {
     <div class="overview-list">

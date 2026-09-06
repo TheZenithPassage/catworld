@@ -27,7 +27,14 @@ describe('VetsOverviewPage paging', () => {
     const impossible = new Subject<any>();
     api.getVetOverview
       .mockReturnValueOnce(initial)
-      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'v', name: 'Vet', address: 'Lane' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 41,
+        }),
+      )
       .mockReturnValueOnce(impossible)
       .mockReturnValueOnce(
         of({
@@ -89,6 +96,109 @@ describe('VetsOverviewPage paging', () => {
     expect(active.observed).toBe(false);
     vi.advanceTimersByTime(300);
     expect(api.getVetOverview).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+  it('shows the ordinary empty state when an effective search probes a globally empty population', () => {
+    vi.useFakeTimers();
+    api.getVetOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'v', name: 'Vet', address: 'Lane' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.setSearchText(' Missing ');
+    vi.advanceTimersByTime(300);
+    f.detectChanges();
+    expect(api.getVetOverview).toHaveBeenNthCalledWith(2, 0, 'Missing');
+    expect(api.getVetOverview).toHaveBeenNthCalledWith(3, 0, '');
+    expect(f.componentInstance.globallyEmpty()).toBe(true);
+    expect(f.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      f.componentInstance.text().vets.overview.empty,
+    );
+    vi.useRealTimers();
+  });
+  it('shows the filtered empty state when an unfiltered Vet probe finds records', () => {
+    vi.useFakeTimers();
+    api.getVetOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'v', name: 'Vet', address: 'Lane' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'v', name: 'Vet', address: 'Lane' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    f.detectChanges();
+    expect(f.componentInstance.globallyEmpty()).toBe(false);
+    expect(f.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      f.componentInstance.text().vets.overview.emptyFiltered,
+    );
+    vi.useRealTimers();
+  });
+  it('cancels a stale Vet empty-state probe before a newer search can be overwritten', () => {
+    vi.useFakeTimers();
+    const staleProbe = new Subject<any>();
+    api.getVetOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'v', name: 'Vet', address: 'Lane' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(staleProbe)
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'n', name: 'New', address: 'Road' }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    expect(staleProbe.observed).toBe(true);
+    f.componentInstance.setSearchText('New');
+    expect(staleProbe.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    staleProbe.next({ items: [], page: 0, pageSize: 10, totalElements: 0 });
+    expect(f.componentInstance.vets()[0].name).toBe('New');
+    expect(f.componentInstance.globallyEmpty()).toBe(false);
+    vi.useRealTimers();
+  });
+  it('treats whitespace-only Vet search text as unfiltered', () => {
+    vi.useFakeTimers();
+    const f = TestBed.createComponent(VetsOverviewPage);
+    f.detectChanges();
+    f.componentInstance.setSearchText('   ');
+    vi.advanceTimersByTime(300);
+    expect(api.getVetOverview).toHaveBeenLastCalledWith(0, '');
+    expect(api.getVetOverview).toHaveBeenCalledTimes(2);
+    expect(f.componentInstance.globallyEmpty()).toBe(true);
     vi.useRealTimers();
   });
   it('renders only name and address with direct paginator', () => {

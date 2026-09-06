@@ -125,6 +125,112 @@ describe('OwnersOverviewPage paging', () => {
     expect(overview.observed).toBe(false);
     expect(selected.observed).toBe(false);
   });
+  it('shows the ordinary empty state when an effective search probes a globally empty population', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText(' Missing ');
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(api.getOwnerOverview).toHaveBeenNthCalledWith(2, 0, 'Missing');
+    expect(api.getOwnerOverview).toHaveBeenNthCalledWith(3, 0, '');
+    expect(fixture.componentInstance.globallyEmpty()).toBe(true);
+    expect(fixture.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      fixture.componentInstance.text().owners.overview.empty,
+    );
+    vi.useRealTimers();
+  });
+  it('shows the filtered empty state when an unfiltered Owner probe finds records', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.globallyEmpty()).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      fixture.componentInstance.text().owners.overview.emptyFiltered,
+    );
+    vi.useRealTimers();
+  });
+  it('cancels a stale Owner empty-state probe before a newer search can be overwritten', () => {
+    vi.useFakeTimers();
+    const staleProbe = new Subject<any>();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(staleProbe)
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'n', fullName: 'New', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    expect(staleProbe.observed).toBe(true);
+    fixture.componentInstance.setSearchText('New');
+    expect(staleProbe.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    staleProbe.next({ items: [], page: 0, pageSize: 10, totalElements: 0 });
+    expect(fixture.componentInstance.owners()[0].fullName).toBe('New');
+    expect(fixture.componentInstance.globallyEmpty()).toBe(false);
+    vi.useRealTimers();
+  });
+  it('treats whitespace-only Owner search text as unfiltered', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview.mockReturnValue(
+      of({ items: [], page: 0, pageSize: 10, totalElements: 0 }),
+    );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('   ');
+    vi.advanceTimersByTime(300);
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
+    expect(api.getOwnerOverview).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.globallyEmpty()).toBe(true);
+    vi.useRealTimers();
+  });
   it('renders only name/current Cats with a direct fixed paginator and keyboard activation', () => {
     api.getOwnerOverview.mockReturnValue(
       of({

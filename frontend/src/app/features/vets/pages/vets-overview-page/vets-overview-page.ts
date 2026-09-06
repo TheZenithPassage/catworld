@@ -30,6 +30,7 @@ export class VetsOverviewPage {
   private readonly i18n = inject(I18nService);
   private readonly details = inject(EntityDetailDialogService);
   private request?: Subscription;
+  private emptyStateRequest?: Subscription;
   private timer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
   private destroyed = false;
@@ -38,6 +39,7 @@ export class VetsOverviewPage {
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
+  readonly globallyEmpty = signal(false);
   readonly page = signal(0);
   readonly totalElements = signal(0);
   readonly pageSize = 10;
@@ -47,6 +49,7 @@ export class VetsOverviewPage {
       this.requestId++;
       clearTimeout(this.timer);
       this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
     });
     this.loadVets();
   }
@@ -54,9 +57,11 @@ export class VetsOverviewPage {
     if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
-    this.request = this.api.getVetOverview(page, this.searchText()).subscribe({
+    const query = this.searchText().trim();
+    this.request = this.api.getVetOverview(page, query).subscribe({
       next: (r) => {
         if (id !== this.requestId) return;
         const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
@@ -67,6 +72,11 @@ export class VetsOverviewPage {
         this.vets.set(r.items);
         this.page.set(r.page);
         this.totalElements.set(r.totalElements);
+        if (r.totalElements === 0 && query) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(r.totalElements === 0);
         this.loading.set(false);
       },
       error: () => {
@@ -80,6 +90,7 @@ export class VetsOverviewPage {
   setSearchText(value: string): void {
     this.requestId++;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.searchText.set(value);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -109,5 +120,21 @@ export class VetsOverviewPage {
       e.preventDefault();
       this.openVet(v);
     }
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api.getVetOverview(0, '').subscribe({
+      next: (result) => {
+        if (this.destroyed || id !== this.requestId) return;
+        this.globallyEmpty.set(result.totalElements === 0);
+        this.loading.set(false);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().vets.overview.errorLoading);
+          this.loading.set(false);
+        }
+      },
+    });
   }
 }

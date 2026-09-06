@@ -37,7 +37,7 @@
   } @else if (!vets().length) {
     <app-ui-state
       kind="empty"
-      [message]="searchText() ? text().vets.overview.emptyFiltered : text().vets.overview.empty"
+      [message]="globallyEmpty() ? text().vets.overview.empty : text().vets.overview.emptyFiltered"
     ></app-ui-state>
   } @else {
     <div class="overview-list">

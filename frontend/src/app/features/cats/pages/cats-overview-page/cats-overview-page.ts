@@ -30,6 +30,7 @@ export class CatsOverviewPage {
   private readonly i18n = inject(I18nService);
   private readonly details = inject(EntityDetailDialogService);
   private request?: Subscription;
+  private emptyStateRequest?: Subscription;
   private timer?: ReturnType<typeof setTimeout>;
   private photoObserverTimer?: ReturnType<typeof setTimeout>;
   private requestId = 0;
@@ -43,6 +44,7 @@ export class CatsOverviewPage {
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
+  readonly globallyEmpty = signal(false);
   readonly page = signal(0);
   readonly totalElements = signal(0);
   readonly pageSize = 10;
@@ -52,6 +54,7 @@ export class CatsOverviewPage {
       this.requestId++;
       clearTimeout(this.timer);
       this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
       this.retirePhotos();
     });
     afterNextRender(() => this.loadCats());
@@ -60,10 +63,12 @@ export class CatsOverviewPage {
     if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.retirePhotos();
     this.loading.set(true);
     this.error.set(null);
-    this.request = this.api.getCatOverview(page, this.searchText()).subscribe({
+    const query = this.searchText().trim();
+    this.request = this.api.getCatOverview(page, query).subscribe({
       next: (r) => {
         if (id !== this.requestId) return;
         const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
@@ -74,6 +79,11 @@ export class CatsOverviewPage {
         this.cats.set(r.items);
         this.page.set(r.page);
         this.totalElements.set(r.totalElements);
+        if (r.totalElements === 0 && query) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(r.totalElements === 0);
         this.loading.set(false);
         this.photoObserverTimer = setTimeout(() => {
           this.photoObserverTimer = undefined;
@@ -91,6 +101,7 @@ export class CatsOverviewPage {
   setSearchText(v: string): void {
     this.requestId++;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.searchText.set(v);
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -117,6 +128,22 @@ export class CatsOverviewPage {
       e.preventDefault();
       this.openCat(c);
     }
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api.getCatOverview(0, '').subscribe({
+      next: (result) => {
+        if (this.destroyed || id !== this.requestId) return;
+        this.globallyEmpty.set(result.totalElements === 0);
+        this.loading.set(false);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().cats.overview.errorLoading);
+          this.loading.set(false);
+        }
+      },
+    });
   }
   private observePhotos(generation: number): void {
     if (this.destroyed || generation !== this.requestId) return;

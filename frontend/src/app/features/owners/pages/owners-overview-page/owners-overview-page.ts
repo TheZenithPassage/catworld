@@ -33,6 +33,7 @@ export class OwnersOverviewPage {
   private readonly router = inject(Router);
   private readonly details = inject(EntityDetailDialogService);
   private request?: Subscription;
+  private emptyStateRequest?: Subscription;
   private selectedRequest?: Subscription;
   private searchTimer?: ReturnType<typeof setTimeout>;
   private scrollTimer?: ReturnType<typeof setTimeout>;
@@ -43,6 +44,7 @@ export class OwnersOverviewPage {
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
+  readonly globallyEmpty = signal(false);
   readonly page = signal(0);
   readonly totalElements = signal(0);
   readonly pageSize = 10;
@@ -55,6 +57,7 @@ export class OwnersOverviewPage {
       clearTimeout(this.searchTimer);
       clearTimeout(this.scrollTimer);
       this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
       this.selectedRequest?.unsubscribe();
     });
     const q = this.route.snapshot.queryParamMap;
@@ -66,9 +69,11 @@ export class OwnersOverviewPage {
     if (this.destroyed) return;
     const id = ++this.requestId;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
-    this.request = this.api.getOwnerOverview(page, this.searchText()).subscribe({
+    const query = this.searchText().trim();
+    this.request = this.api.getOwnerOverview(page, query).subscribe({
       next: (result) => {
         if (id !== this.requestId) return;
         const lastValidPage = Math.max(0, Math.ceil(result.totalElements / this.pageSize) - 1);
@@ -79,6 +84,11 @@ export class OwnersOverviewPage {
         this.owners.set(result.items);
         this.page.set(result.page);
         this.totalElements.set(result.totalElements);
+        if (result.totalElements === 0 && query) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(result.totalElements === 0);
         this.loading.set(false);
         this.resolveSelectedOwner(result.items);
       },
@@ -93,6 +103,7 @@ export class OwnersOverviewPage {
   setSearchText(value: string): void {
     this.requestId++;
     this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.searchText.set(value);
     this.selectedOwnerId.set(null);
     clearTimeout(this.searchTimer);
@@ -135,6 +146,23 @@ export class OwnersOverviewPage {
   }
   isSelectedOwner(owner: OwnerOverviewItem): boolean {
     return owner.id === this.selectedOwnerId();
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api.getOwnerOverview(0, '').subscribe({
+      next: (result) => {
+        if (this.destroyed || id !== this.requestId) return;
+        this.globallyEmpty.set(result.totalElements === 0);
+        this.loading.set(false);
+        this.resolveSelectedOwner([]);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().owners.overview.errorLoading);
+          this.loading.set(false);
+        }
+      },
+    });
   }
   private resolveSelectedOwner(items: OwnerOverviewItem[]): void {
     const selectedId = this.selectedOwnerId();
