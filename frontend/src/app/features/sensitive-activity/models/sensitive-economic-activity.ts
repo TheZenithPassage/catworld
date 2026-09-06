@@ -91,6 +91,8 @@ export type SensitiveEconomicActivityEvent =
       });
 
 export interface SensitiveActivityFilters {
+  stayFrom?: string;
+  stayTo?: string;
   actorId: string;
   occurredFrom: string;
   occurredTo: string;
@@ -101,6 +103,8 @@ export interface SensitiveActivityFilters {
 }
 
 export const EMPTY_SENSITIVE_ACTIVITY_FILTERS: SensitiveActivityFilters = {
+  stayFrom: '',
+  stayTo: '',
   actorId: '',
   occurredFrom: '',
   occurredTo: '',

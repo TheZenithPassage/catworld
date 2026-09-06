@@ -44,6 +44,10 @@ public class SensitiveEconomicActivityService
     }
 
     private void validateRange(SensitiveEconomicActivityFilter filter) {
+        if (filter.stayFrom() != null && filter.stayTo() != null
+                && filter.stayFrom().isAfter(filter.stayTo())) {
+            throw new BadRequestException("stayFrom must not be after stayTo");
+        }
         if (filter.occurredFrom() != null
                 && filter.occurredTo() != null
                 && !filter.occurredFrom().isBefore(filter.occurredTo())) {

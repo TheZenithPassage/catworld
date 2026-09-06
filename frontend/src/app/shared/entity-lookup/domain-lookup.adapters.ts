@@ -44,6 +44,16 @@ export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
   search(query: string, page: number) {
     return this.api.searchCats(query, page);
   }
+  resolve(id: string) {
+    return this.api.getCatById(id).pipe(
+      map((value) => ({
+        id: value.id,
+        name: value.name,
+        ownerId: value.ownerId,
+        ownerName: value.ownerName,
+      })),
+    );
+  }
   id(value: CatLookup): string {
     return value.id;
   }

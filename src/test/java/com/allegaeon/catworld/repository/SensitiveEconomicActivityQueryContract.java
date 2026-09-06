@@ -185,6 +185,7 @@ final class SensitiveEconomicActivityQueryContract {
             JdbcTemplate jdbc,
             ISensitiveEconomicActivityService service,
             Fixture fixture) {
+        assertStayPeriods(jdbc, service, fixture);
         var initialPage = service.getActivity(null, 0);
         assertEquals(0, initialPage.page());
         assertEquals(10, initialPage.pageSize());
@@ -339,6 +340,33 @@ final class SensitiveEconomicActivityQueryContract {
                         firstPage.items().stream(), secondPage.items().stream())
                 .map(event -> event.eventType() + ":" + event.eventId())
                 .distinct().count());
+    }
+
+    private static void assertStayPeriods(JdbcTemplate jdbc, ISensitiveEconomicActivityService service, Fixture f) {
+        LocalDate from = LocalDate.of(2026, 9, 10), to = LocalDate.of(2026, 9, 12);
+        var period = new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,from,to);
+        assertTrue(service.getActivity(period).isEmpty());
+        jdbc.update("INSERT INTO owners (id,full_name,primary_phone,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,?)",
+                bytes(f.ownerId()), "Current Owner", "1", bytes(f.actorId()), timestamp(REGISTERED_AT), timestamp(REGISTERED_AT));
+        jdbc.update("INSERT INTO stays (id,start_at,end_at,owner_id,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
+                bytes(f.stayId()), Timestamp.valueOf(from.atTime(23,59)), Timestamp.valueOf(to.atStartOfDay()),
+                bytes(f.ownerId()), bytes(f.actorId()), timestamp(REGISTERED_AT), timestamp(REGISTERED_AT));
+        assertEquals(5, service.getActivity(period).size());
+        assertEquals(5, service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,to,null)).size());
+        assertEquals(5, service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,null,from)).size());
+        assertEquals(5, service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,from,from)).size());
+        assertTrue(service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,to.plusDays(1),null)).isEmpty());
+        assertTrue(service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,null,from.minusDays(1))).isEmpty());
+        for (boolean byOwner : new boolean[]{true,false}) {
+            var composed = new SensitiveEconomicActivityFilter(f.actorId(), OCCURRED_AT, OCCURRED_AT.plusSeconds(1),
+                    SensitiveEconomicEventType.PAYMENT_EDITED, byOwner ? f.ownerId() : null,
+                    byOwner ? null : f.firstCatId(), f.stayId(), from, to);
+            assertEquals(List.of(f.editId()), service.getActivity(composed).stream().map(SensitiveEconomicActivityResponseDTO::eventId).toList());
+        }
+        assertTrue(service.getActivity(new SensitiveEconomicActivityFilter(null,null,null,SensitiveEconomicEventType.NIGHTLY_RATE_CHANGED,null,null,null,from,to)).isEmpty());
+        jdbc.update("DELETE FROM stays WHERE id=?", bytes(f.stayId()));
+        jdbc.update("DELETE FROM owners WHERE id=?", bytes(f.ownerId()));
+        assertTrue(service.getActivity(period).isEmpty());
     }
 
     private static UUID context(

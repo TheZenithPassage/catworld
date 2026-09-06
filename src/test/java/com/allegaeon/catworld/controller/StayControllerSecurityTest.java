@@ -57,6 +57,28 @@ class StayControllerSecurityTest {
     private IStayService stayService;
 
     @Test
+    void stayLookupsPreserveAuthenticatedReadAccess() throws Exception {
+        UUID id = UUID.randomUUID();
+        var item = new com.allegaeon.catworld.dto.lookup.StayLookupItem(id,
+                java.time.LocalDateTime.parse("2026-08-10T10:00:00"), java.time.LocalDateTime.parse("2026-08-12T10:00:00"),
+                new com.allegaeon.catworld.dto.lookup.StayLookupItem.Owner(UUID.randomUUID(), "Owner"), java.util.List.of());
+        when(stayService.searchStays(null, null, java.time.LocalDate.parse("2026-08-10"), null, 0))
+                .thenReturn(new com.allegaeon.catworld.dto.lookup.LookupPage<>(java.util.List.of(item), 0, 5, 1));
+        when(stayService.getStayLookup(id)).thenReturn(item);
+        mockMvc.perform(get("/api/stays/search?from=2026-08-10")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/stays/" + id + "/lookup")).andExpect(status().isUnauthorized());
+        for (String role : new String[]{"ADMIN", "STAFF"}) {
+            mockMvc.perform(get("/api/stays/search?from=2026-08-10").with(user("reader").roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5))
+                    .andExpect(jsonPath("$.items[0].stayId").value(id.toString()))
+                    .andExpect(jsonPath("$.items[0].owner.fullName").value("Owner"))
+                    .andExpect(jsonPath("$.items[0].agreedAmount").doesNotExist());
+            mockMvc.perform(get("/api/stays/" + id + "/lookup").with(user("reader").roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.stayId").value(id.toString()));
+        }
+    }
+
+    @Test
     void adminAndStaffCanReachAuthenticatedCreationContract() throws Exception {
         when(stayService.createStay(any())).thenReturn(
                 StayResponseDTO.builder().stayId(UUID.randomUUID()).build()

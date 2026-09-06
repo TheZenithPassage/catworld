@@ -1099,6 +1099,31 @@ conversion, and rejects malformed or unknown variants instead of inferring an
 event. The page preserves backend ordering and durable owner, cat, stay and
 payment context without requiring live operational routes.
 
+Sensitive Activity replaces raw identifier entry with Actor, Owner and Cat remote
+selectors. Actor lookup uses ADMIN-only `/api/users/search` and
+`/api/users/{id}/lookup`, including disabled persisted accounts. Owner and Cat
+are mutually exclusive and unselected text contributes no identifier. Known
+URL identifiers resolve to human-readable selection labels.
+
+The single filter form separates General, Affected Stay Context and Event
+Occurred. Optional `stayFrom`/`stayTo` calendar dates filter current operational
+Stays through the event's `stayId`, using inclusive date overlap independently
+of the event occurrence interval. Missing operational Stays do not match active
+Stay-date predicates; immutable event context display remains historical.
+
+An explicit Find specific stay action consumes draft Owner/Cat/Stay dates and
+opens compact inline fixed-five candidates. Authenticated `/api/stays/search`
+accepts optional `ownerId`, `catId`, `from`, `to` and `page`; it requires a
+criterion, rejects simultaneous Owner/Cat and reversed ranges, and includes all
+current lifecycle statuses. `/api/stays/{id}/lookup` resolves the same lightweight
+Stay dates, Owner and participating Cats without economics. Candidate paging
+orders Stay start time then ID and hydrates Cats only after paging. Selecting a
+candidate collapses results to an Exact Stay summary. Change reopens valid
+results without searching; Remove clears only Exact Stay. Editing Stay criteria
+cancels pending requests and clears stale candidates/selection; unrelated edits
+and Refresh never search candidates. Applied criteria and candidate state are
+separate, and Clear removes both.
+
 Actor, period, event-type, owner, cat and stay filters share one page-owned state
 with supported query parameters. Refinement and refresh preserve active
 criteria, clear removes every criterion, and Angular sends the composed filter

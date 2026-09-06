@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.lookup.*;
+import org.springframework.web.bind.annotation.RequestParam;
+
 import com.allegaeon.catworld.dto.UserAccountCreateRequestDTO;
 import com.allegaeon.catworld.dto.UserAccountEnabledRequestDTO;
 import com.allegaeon.catworld.dto.UserAccountResponseDTO;
@@ -28,6 +31,17 @@ import java.util.UUID;
 public class UserAccountController {
 
     private final IUserAccountService userAccountService;
+
+    @GetMapping("/search")
+    public LookupPage<AccountLookupItem> searchUsers(@RequestParam String q,
+            @RequestParam(defaultValue = "0") int page) {
+        return userAccountService.searchUsers(q, page);
+    }
+
+    @GetMapping("/{id}/lookup")
+    public AccountLookupItem getUserLookup(@PathVariable UUID id) {
+        return userAccountService.getUserLookup(id);
+    }
 
     @GetMapping
     public ResponseEntity<List<UserAccountResponseDTO>> getAllUsers() {

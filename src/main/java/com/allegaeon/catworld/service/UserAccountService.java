@@ -1,5 +1,9 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.lookup.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 import com.allegaeon.catworld.dto.UserAccountCreateRequestDTO;
 import com.allegaeon.catworld.dto.UserAccountResponseDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
@@ -54,6 +58,28 @@ public class UserAccountService implements IUserAccountService {
     private final StayPaymentEditRepository stayPaymentEditRepository;
     private final StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
     private final StayPaymentRemovalRepository stayPaymentRemovalRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPage<AccountLookupItem> searchUsers(String query, int page) {
+        if (page < 0 || query == null || query.trim().isEmpty()) {
+            throw new BadRequestException("A non-empty query and non-negative page are required");
+        }
+        String escaped = query.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+        var result = userAccountRepository.searchLookup(escaped,
+                PageRequest.of(page, 5, Sort.by("username", "id")));
+        return new LookupPage<>(result.stream().map(user ->
+                new AccountLookupItem(user.getId(), user.getUsername())).toList(),
+                page, 5, result.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public AccountLookupItem getUserLookup(UUID id) {
+        var user = userAccountRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User account", id));
+        return new AccountLookupItem(user.getId(), user.getUsername());
+    }
 
     @Override
     @Transactional(readOnly = true)

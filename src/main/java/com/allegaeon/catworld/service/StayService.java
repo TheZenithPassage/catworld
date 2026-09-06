@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.lookup.LookupPage;
+import com.allegaeon.catworld.dto.lookup.StayLookupItem;
+import java.time.LocalDate;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
@@ -70,7 +73,6 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -89,6 +91,7 @@ import java.util.stream.Collectors;
 public class StayService implements IStayService {
 
     private final StayRepository stayRepository;
+    private final com.allegaeon.catworld.repository.StayLookupReadRepository stayLookupReadRepository;
     private final StayMapper stayMapper;
     private final CatRepository catRepository;
     private final StayCatRepository stayCatRepository;
@@ -107,6 +110,33 @@ public class StayService implements IStayService {
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
     private final StayPaymentAuthorizationPolicy stayPaymentAuthorizationPolicy;
     private final Clock clock;
+
+    @Override
+    @Transactional(readOnly = true)
+    public LookupPage<StayLookupItem> searchStays(UUID ownerId, UUID catId, LocalDate from, LocalDate to, int page) {
+        if (page < 0 || page > Integer.MAX_VALUE / 5) throw new BadRequestException("Invalid page");
+        if (ownerId != null && catId != null) throw new BadRequestException("Choose Owner or Cat, not both");
+        if (ownerId == null && catId == null && from == null && to == null) throw new BadRequestException("Stay search requires a criterion");
+        if (from != null && to != null && from.isAfter(to)) throw new BadRequestException("from must not be after to");
+        var result = stayLookupReadRepository.find(ownerId, catId, from, to, page);
+        return new LookupPage<>(lookupStays(result.getContent()), page, 5, result.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public StayLookupItem getStayLookup(UUID id) {
+        var stay = stayRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Stay", id));
+        return lookupStays(List.of(stay)).getFirst();
+    }
+
+    private List<StayLookupItem> lookupStays(List<Stay> stays) {
+        if (stays.isEmpty()) return List.of();
+        var cats = stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList());
+        return stays.stream().map(stay -> new StayLookupItem(stay.getId(), stay.getStartAt(), stay.getEndAt(),
+                new StayLookupItem.Owner(stay.getOwner().getId(), stay.getOwner().getFullName()),
+                cats.stream().filter(link -> link.getStay().getId().equals(stay.getId()))
+                        .map(link -> new CurrentCatLookupItem(link.getCat().getId(), link.getCat().getName())).toList())).toList();
+    }
 
     @Override
     @Transactional(readOnly = true)
