@@ -1135,7 +1135,8 @@ views preserves them. Cancellation and request identity prevent previous view
 responses from replacing current data. FullCalendar remains mounted during
 loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
-uses the applied filtered population.
+uses the applied filtered population. Adjacent-month cells are hidden so dates
+outside the loaded logical interval cannot present incomplete operational results.
 
 ### Component Conventions
 

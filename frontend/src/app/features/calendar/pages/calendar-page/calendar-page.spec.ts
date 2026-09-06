@@ -13,6 +13,7 @@ import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 import { CalendarDailyAggregate } from './calendar-daily-aggregate';
+import { FullCalendarComponent } from '@fullcalendar/angular';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -497,6 +498,66 @@ describe('CalendarPage', () => {
     expect(component.filteredStays()).toEqual([stay]);
     expect(component.searchFilters().dateMatchMode).toBe('RANGE_WITHIN_STAY');
     fixture.detectChanges();
+  });
+
+  it('hides incomplete adjacent dates in every mode and loads their complete population on navigation', async () => {
+    const crossing = { ...stay, startAt: '2030-01-31T10:00:00', endAt: '2030-02-02T10:00:00' };
+    const adjacent = {
+      ...crossing,
+      stayId: 'stay-2',
+      startAt: '2030-02-01T10:00:00',
+      catIds: ['cat-2'],
+      cats: [{ catId: 'cat-2', name: 'Pixel' }],
+    };
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ visibleMonth: '2030-01-01', displayMode: 'daily-counts' }),
+    );
+    stayApiService.getStays.mockImplementation(({ dateFrom }) =>
+      of(dateFrom === '2030-01-01' ? [crossing] : [crossing, adjacent]),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    for (const mode of component.displayModeOptions) {
+      component.setDisplayMode(mode);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-date="2030-02-01"]')).toBeNull();
+    }
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-01-01',
+      dateTo: '2030-01-31',
+      dateMatchMode: 'OVERLAPS',
+    });
+    component.setDisplayMode('daily-counts');
+    const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+      .componentInstance as FullCalendarComponent;
+    calendar.getApi().next();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-02-01',
+      dateTo: '2030-02-28',
+      dateMatchMode: 'OVERLAPS',
+    });
+    const count = fixture.nativeElement.querySelector(
+      '[data-date="2030-02-01"] .fc-event',
+    ) as HTMLElement;
+    expect(count.textContent).toContain('2');
+    count.click();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          count: 2,
+          participants: expect.arrayContaining([
+            expect.objectContaining({ catId: 'cat-1' }),
+            expect.objectContaining({ catId: 'cat-2' }),
+          ]),
+        }),
+      }),
+    );
   });
 
   it('keeps draft changes out of visible events until Filter and blocks reversed dates', () => {

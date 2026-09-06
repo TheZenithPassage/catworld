@@ -134,6 +134,7 @@ export class CalendarPage implements OnDestroy {
   readonly calendarOptions = computed<CalendarOptions>(() => ({
     plugins: [dayGridPlugin],
     initialView: 'dayGridMonth',
+    showNonCurrentDates: false,
     initialDate: this.storedCalendarPreferences.visibleMonth ?? undefined,
     locale: this.language() === 'es' ? esLocale : enGbLocale,
     firstDay: 1,
