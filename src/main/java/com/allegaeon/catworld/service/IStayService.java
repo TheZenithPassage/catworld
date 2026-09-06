@@ -14,6 +14,7 @@ import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
 
 import java.util.List;
+import com.allegaeon.catworld.dto.StayDateFilter;
 import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
@@ -25,9 +26,19 @@ import java.util.Set;
 
 public interface IStayService {
 
-    List<StayResponseDTO> getAllStays();
+    default List<StayResponseDTO> getAllStays() {
+        return getAllStays(new StayDateFilter(null, null, null));
+    }
+
+    List<StayResponseDTO> getAllStays(StayDateFilter dates);
     OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly);
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates);
+
+    default OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
+        return getStayOverview(page, statuses, ownerId, catId, paymentConditions, outstandingOnly,
+                new StayDateFilter(null, null, null));
+    }
     StayResponseDTO getStay(UUID stayId);
     StayDetailResponse getStayDetail(UUID stayId);
     RelationshipPage<CatRelationshipItem> getStayCats(UUID stayId, int page);

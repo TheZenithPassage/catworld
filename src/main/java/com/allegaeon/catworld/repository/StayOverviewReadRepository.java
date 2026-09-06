@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PaymentCondition;
+import com.allegaeon.catworld.dto.StayDateFilter;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
@@ -26,12 +27,18 @@ public class StayOverviewReadRepository {
 
     public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
             UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
+        return find(page, size, now, statuses, ownerId, catId, paymentConditions, outstandingOnly,
+                new StayDateFilter(null, null, null));
+    }
+
+    public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Stay> query = cb.createQuery(Stay.class);
         Root<Stay> stay = query.from(Stay.class);
         stay.fetch("owner", JoinType.INNER);
         List<Predicate> predicates = predicates(cb, query, stay, now, statuses, ownerId, catId,
-                paymentConditions, outstandingOnly);
+                paymentConditions, outstandingOnly, dates);
         query.select(stay).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.asc(stay.get("startAt")), cb.asc(stay.get("id")));
 
@@ -41,16 +48,25 @@ public class StayOverviewReadRepository {
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Stay> countStay = countQuery.from(Stay.class);
         List<Predicate> countPredicates = predicates(cb, countQuery, countStay, now, statuses,
-                ownerId, catId, paymentConditions, outstandingOnly);
+                ownerId, catId, paymentConditions, outstandingOnly, dates);
         countQuery.select(cb.count(countStay)).where(countPredicates.toArray(Predicate[]::new));
         return new PageImpl<>(items, org.springframework.data.domain.PageRequest.of(page, size),
                 entityManager.createQuery(countQuery).getSingleResult());
     }
 
+    public List<Stay> findCollection(StayDateFilter dates) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Stay> query = cb.createQuery(Stay.class);
+        Root<Stay> stay = query.from(Stay.class);
+        query.select(stay).where(StayDatePredicates.matching(cb, stay, dates).toArray(Predicate[]::new))
+                .orderBy(cb.asc(stay.get("startAt")), cb.asc(stay.get("id")));
+        return entityManager.createQuery(query).getResultList();
+    }
+
     private List<Predicate> predicates(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Stay> stay,
             LocalDateTime now, Set<StayStatus> statuses, UUID ownerId, UUID catId,
-            Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
-        List<Predicate> result = new ArrayList<>();
+            Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
+        List<Predicate> result = new ArrayList<>(StayDatePredicates.matching(cb, stay, dates));
         if (ownerId != null) result.add(cb.equal(stay.get("owner").get("id"), ownerId));
         if (catId != null) {
             Subquery<Integer> cats = query.subquery(Integer.class);

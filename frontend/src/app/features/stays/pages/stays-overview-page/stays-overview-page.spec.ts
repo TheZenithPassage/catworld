@@ -6,6 +6,12 @@ import { vi } from 'vitest';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
+import { By } from '@angular/platform-browser';
+import {
+  CatLookupAdapter,
+  OwnerLookupAdapter,
+} from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import { StaysOverviewPage } from './stays-overview-page';
 describe('StaysOverviewPage server paging', () => {
   const api = { getStayOverview: vi.fn(), getStayDetail: vi.fn(), getStayById: vi.fn() };
@@ -35,6 +41,8 @@ describe('StaysOverviewPage server paging', () => {
     );
     api.getStayById.mockReturnValue(
       of({
+        startAt: '2099-01-01T10:00:00',
+        endAt: '2099-01-02T10:00:00',
         ownerId: 'o',
         cats: Array.from({ length: 5 }, (_, index) => ({
           catId: `c-${index}`,
@@ -91,6 +99,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(f.componentInstance.page()).toBe(1);
     expect(f.componentInstance.isSelectedStay(f.componentInstance.stays()[0])).toBe(true);
     f.componentInstance.setOutstandingOnly(true);
+    f.componentInstance.applyFilters();
     expect(api.getStayOverview).toHaveBeenCalledWith(
       0,
       expect.objectContaining({ outstandingOnly: true }),
@@ -336,5 +345,178 @@ describe('StaysOverviewPage server paging', () => {
     vi.runAllTimers();
     expect(scrollIntoView).not.toHaveBeenCalled();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
+  it('atomically applies draft criteria from page zero and serializes only applied dates', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    api.getStayOverview.mockClear();
+    navigate.mockClear();
+    visibility.store.mockClear();
+    const c = f.componentInstance;
+    c.setStatusVisibility('checked-in', false);
+    c.setPaymentConditionVisibility('FULL_PAYMENT', false);
+    c.setOutstandingOnly(true);
+    c.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2099-01-01',
+      dateTo: '2099-01-02',
+      dateMatchMode: 'STAY_WITHIN_RANGE',
+    });
+    f.detectChanges();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(visibility.store).not.toHaveBeenCalled();
+    (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+    f.detectChanges();
+    expect(api.getStayOverview.mock.calls[0]).toEqual([
+      0,
+      expect.objectContaining({
+        statuses: ['RESERVED'],
+        paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'],
+        outstandingOnly: true,
+        dateFrom: '2099-01-01',
+        dateTo: '2099-01-02',
+        dateMatchMode: 'STAY_WITHIN_RANGE',
+      }),
+    ]);
+    expect(navigate).toHaveBeenCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({
+          dateFrom: '2099-01-01',
+          dateMatchMode: 'STAY_WITHIN_RANGE',
+        }),
+      }),
+    );
+    c.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2099-02-01',
+      dateTo: '2099-01-01',
+    });
+    f.detectChanges();
+    expect((f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    expect(c.searchFilters().dateFrom).toBe('2099-01-01');
+  });
+
+  it('defaults legacy route mode and hides contextual selection outside applied dates', () => {
+    queryParams.next(convertToParamMap({ selectedStayId: 's', dateFrom: '2100-01-01' }));
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    expect(f.componentInstance.searchFilters().dateMatchMode).toBe('OVERLAPS');
+    expect(f.componentInstance.selectedStay()).toBeNull();
+    expect(f.nativeElement.querySelector('.contextual-selection')).toBeNull();
+    expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
+  });
+  it('serializes applied page-zero criteria even when Filter fails, without leaking drafts or reloading from query sync', async () => {
+    api.getStayOverview.mockReturnValue(
+      of({ items: [], page: 2, pageSize: 10, totalElements: 30 }),
+    );
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockImplementation((_, extras) => {
+      const tree = router.createUrlTree([], { queryParams: extras!.queryParams });
+      queryParams.next(router.parseUrl(router.serializeUrl(tree)).queryParamMap);
+      return Promise.resolve(true);
+    });
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    navigate.mockClear();
+    api.getStayOverview.mockClear();
+    const before = queryParams.value;
+    const draft = {
+      ownerId: 'o',
+      catId: null,
+      dateFrom: '2030-01-01',
+      dateTo: '2030-01-31',
+      dateMatchMode: 'STAY_WITHIN_RANGE' as const,
+    };
+    f.componentInstance.setSearchFilters(draft);
+    f.componentInstance.setStatusVisibility('checked-in', false);
+    f.componentInstance.setOutstandingOnly(true);
+    f.detectChanges();
+    expect(queryParams.value).toBe(before);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+
+    const failed = new Subject<never>();
+    api.getStayOverview.mockReturnValueOnce(failed);
+    (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+    failed.error(new Error('overview unavailable'));
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.componentInstance.searchFilters()).toEqual(draft);
+    expect(f.componentInstance.page()).toBe(0);
+    expect(queryParams.value.get('page')).toBeNull();
+    expect(queryParams.value.get('dateFrom')).toBe(draft.dateFrom);
+    expect(queryParams.value.get('dateTo')).toBe(draft.dateTo);
+    expect(queryParams.value.get('dateMatchMode')).toBe(draft.dateMatchMode);
+    expect(queryParams.value.get('ownerId')).toBe('o');
+    expect(queryParams.value.get('statusFilter')).toBe('RESERVED');
+    expect(queryParams.value.get('outstandingOnly')).toBe('true');
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(api.getStayOverview).toHaveBeenCalledTimes(1);
+    expect(api.getStayOverview).toHaveBeenCalledWith(0, expect.objectContaining(draft));
+    expect(f.nativeElement.textContent).toContain(
+      f.componentInstance.text().stays.overview.errorLoading,
+    );
+  });
+
+  it.each(['cat', 'owner'] as const)(
+    'applies dates without dropping the deep-linked %s when lookup is pending or failed',
+    (kind) => {
+      const pending = new Subject<any>();
+      TestBed.overrideProvider(kind === 'cat' ? CatLookupAdapter : OwnerLookupAdapter, {
+        useValue: { resolve: () => pending, search: () => EMPTY },
+      });
+      queryParams.next(convertToParamMap({ [kind + 'Id']: 'known-id' }));
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const f = TestBed.createComponent(StaysOverviewPage);
+      f.detectChanges();
+      const from = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+      from.value = '2030-01-01';
+      from.dispatchEvent(new Event('input'));
+      f.detectChanges();
+      api.getStayOverview.mockClear();
+      (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(api.getStayOverview.mock.calls[0][1]).toMatchObject({
+        [kind + 'Id']: 'known-id',
+        dateFrom: '2030-01-01',
+      });
+      expect(navigate).toHaveBeenLastCalledWith(
+        [],
+        expect.objectContaining({
+          queryParams: expect.objectContaining({
+            [kind + 'Id']: 'known-id',
+            dateFrom: '2030-01-01',
+          }),
+        }),
+      );
+      pending.error(new Error('lookup failed'));
+      f.detectChanges();
+      const mode = f.nativeElement.querySelector('select') as HTMLSelectElement;
+      mode.value = 'RANGE_WITHIN_STAY';
+      mode.dispatchEvent(new Event('change'));
+      f.detectChanges();
+      api.getStayOverview.mockClear();
+      (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(api.getStayOverview.mock.calls[0][1]).toMatchObject({
+        [kind + 'Id']: 'known-id',
+        dateMatchMode: 'RANGE_WITHIN_STAY',
+      });
+      const child = f.debugElement.query(By.directive(StaySearchFiltersComponent))
+        .componentInstance as StaySearchFiltersComponent;
+      (kind === 'cat' ? child.catSelector() : child.ownerSelector())!.clear();
+      f.componentInstance.applyFilters();
+      expect(f.componentInstance.searchFilters()[kind === 'cat' ? 'catId' : 'ownerId']).toBeNull();
+    },
+  );
 });

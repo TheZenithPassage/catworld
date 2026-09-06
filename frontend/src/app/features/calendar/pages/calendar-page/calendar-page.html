@@ -31,7 +31,21 @@
     }
   </div>
 
-  <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
+  <app-stay-search-filters
+    [dateFilters]="draftSearchFilters()"
+    (filtersChange)="setSearchFilters($event)"
+  ></app-stay-search-filters>
+
+  <div>
+    <button
+      mat-flat-button
+      class="apply-filters"
+      [disabled]="!validDates(draftSearchFilters())"
+      (click)="applyFilters()"
+    >
+      {{ text().stays.filters.apply }}
+    </button>
+  </div>
 
   <div class="calendar-display-options">
     <div class="calendar-display-options-header">
@@ -71,14 +85,13 @@
       <app-ui-state kind="empty" [message]="text().calendar.empty"></app-ui-state>
     } @else if (filteredStays().length === 0) {
       <app-ui-state kind="empty" [message]="text().calendar.emptyFiltered"></app-ui-state>
-    } @else {
-      <div
-        [class]="'calendar-wrapper calendar-wrapper--' + displayMode()"
-        [style.--calendar-sticky-top.px]="calendarStickyTop()"
-        [style.--calendar-month-reveal.px]="calendarMonthReveal()"
-      >
-        <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
-      </div>
     }
   }
+  <div
+    [class]="'calendar-wrapper calendar-wrapper--' + displayMode()"
+    [style.--calendar-sticky-top.px]="calendarStickyTop()"
+    [style.--calendar-month-reveal.px]="calendarMonthReveal()"
+  >
+    <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
+  </div>
 </section>

@@ -13,6 +13,8 @@ import { CalendarPage } from './calendar-page';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 import { CalendarDailyAggregate } from './calendar-daily-aggregate';
+import { FullCalendarComponent } from '@fullcalendar/angular';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -126,6 +128,8 @@ describe('CalendarPage', () => {
     fixture.detectChanges();
 
     expect(component.isStatusVisible('reserved')).toBe(false);
+    component.applyFilters();
+    fixture.detectChanges();
     expect(visibilityPreferencesService.store).toHaveBeenCalledWith(
       expect.objectContaining({ reserved: false }),
     );
@@ -154,6 +158,7 @@ describe('CalendarPage', () => {
     expect(compiled.querySelector('.calendar-wrapper--daily-counts')).not.toBeNull();
 
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    component.applyFilters();
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('daily-counts');
@@ -166,6 +171,7 @@ describe('CalendarPage', () => {
     expect(component.displayMode()).toBe('entry-exit-markers');
 
     component.setSearchFilters({ catId: null, ownerId: null });
+    component.applyFilters();
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('entry-exit-markers');
@@ -194,18 +200,21 @@ describe('CalendarPage', () => {
     ]);
 
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    component.applyFilters();
 
     expect(component.displayMode()).toBe('daily-counts');
     expect(aggregateForFirstDate()?.count).toBe(1);
     expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-1']);
 
     component.setSearchFilters({ catId: null, ownerId: 'owner-2' });
+    component.applyFilters();
 
     expect(component.displayMode()).toBe('daily-counts');
     expect(aggregateForFirstDate()?.count).toBe(1);
     expect(aggregateForFirstDate()?.participants.map(({ catId }) => catId)).toEqual(['cat-2']);
 
     component.setSearchFilters({ catId: null, ownerId: null });
+    component.applyFilters();
 
     expect(component.displayMode()).toBe('daily-counts');
     expect(aggregateForFirstDate()?.count).toBe(2);
@@ -234,7 +243,7 @@ describe('CalendarPage', () => {
     expect(component.calendarOptions().initialDate).toBe('2099-04-01');
 
     component.calendarOptions().datesSet!({
-      view: { currentStart: new Date(2099, 6, 1) },
+      view: { currentStart: new Date(2099, 6, 1), currentEnd: new Date(2099, 7, 1) },
     } as never);
     fixture.detectChanges();
 
@@ -262,7 +271,7 @@ describe('CalendarPage', () => {
     expect(stickyHeader).not.toBeNull();
 
     component.calendarOptions().datesSet!({
-      view: { currentStart: new Date(2099, 6, 1) },
+      view: { currentStart: new Date(2099, 6, 1), currentEnd: new Date(2099, 7, 1) },
     } as never);
     fixture.detectChanges();
 
@@ -304,8 +313,20 @@ describe('CalendarPage', () => {
     expect(fixture.nativeElement.textContent).toContain(component.text().calendar.actions.retry);
   });
 
-  it('opens Stay details without navigation and replaces the cache from the authoritative update', async () => {
+  it('reloads the bounded view after a Stay moves out, preserving applied filters and navigation', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ visibleMonth: '2099-01-01', displayMode: 'daily-labels' }),
+    );
     createComponent();
+    component.setSearchFilters({
+      catId: null,
+      ownerId: 'owner-1',
+      dateFrom: '2099-01-01',
+      dateMatchMode: 'OVERLAPS',
+    });
+    component.applyFilters();
+    const applied = component.searchFilters();
     const router = TestBed.inject(Router);
     const before = router.url;
     component.calendarOptions().eventClick!({
@@ -316,13 +337,37 @@ describe('CalendarPage', () => {
       entityId: 'stay-1',
     });
     expect(router.url).toBe(before);
-    const updated = { ...stay, notes: 'authoritative', startAt: '2099-02-01T10:00:00' };
+    const updated = { ...stay, startAt: '2099-02-01T10:00:00', endAt: '2099-02-08T10:00:00' };
+    stayApiService.getStays.mockReturnValueOnce(of([]));
     dialogUpdates.next(updated);
-    expect(component.stays()).toEqual([updated]);
-    expect(stayApiService.getStays).toHaveBeenCalledTimes(1);
+    fixture.detectChanges();
+    expect(component.stays()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain(component.text().calendar.empty);
+    expect(component.searchFilters()).toEqual(applied);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2099-01-01',
+      dateTo: '2099-01-31',
+      dateMatchMode: 'OVERLAPS',
+    });
+
+    stayApiService.getStays.mockReturnValue(of([updated]));
+    const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+      .componentInstance as FullCalendarComponent;
+    calendar.getApi().next();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(component.filteredStays()).toEqual([updated]);
+    expect(component.searchFilters()).toEqual(applied);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2099-02-01',
+      dateTo: '2099-02-28',
+      dateMatchMode: 'OVERLAPS',
+    });
 
     dialogUpdates.next({ entityType: 'stay', entityId: 'stay-1' });
-    expect(stayApiService.getStays).toHaveBeenCalledTimes(2);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(4);
   });
 
   it('delegates detailed event content to FullCalendar default rendering', () => {
@@ -415,6 +460,7 @@ describe('CalendarPage', () => {
 
     materialDialog.open.mockClear();
     component.setSearchFilters({ catId: 'cat-1', ownerId: null });
+    component.applyFilters();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -453,5 +499,174 @@ describe('CalendarPage', () => {
         autoFocus: 'dialog',
       }),
     );
+  });
+  it('waits for the logical interval, bounds navigation and cancels stale responses while retaining applied criteria', () => {
+    const old = new Subject<Stay[]>();
+    const next = new Subject<Stay[]>();
+    stayApiService.getStays.mockReturnValueOnce(old).mockReturnValueOnce(next);
+    fixture = TestBed.createComponent(CalendarPage);
+    component = fixture.componentInstance;
+    expect(stayApiService.getStays).not.toHaveBeenCalled();
+    component.setViewInterval({
+      view: { currentStart: new Date(2030, 0, 1), currentEnd: new Date(2030, 1, 1) },
+    } as never);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-01-01',
+      dateTo: '2030-01-31',
+      dateMatchMode: 'OVERLAPS',
+    });
+    component.setSearchFilters({
+      catId: null,
+      ownerId: 'owner-1',
+      dateFrom: '2099-01-05',
+      dateMatchMode: 'RANGE_WITHIN_STAY',
+    });
+    component.applyFilters();
+    component.setViewInterval({
+      view: { currentStart: new Date(2030, 1, 1), currentEnd: new Date(2030, 1, 8) },
+    } as never);
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-02-01',
+      dateTo: '2030-02-07',
+      dateMatchMode: 'OVERLAPS',
+    });
+    next.next([stay]);
+    old.next([{ ...stay, stayId: 'old' }]);
+    expect(component.filteredStays()).toEqual([stay]);
+    expect(component.searchFilters().dateMatchMode).toBe('RANGE_WITHIN_STAY');
+    fixture.detectChanges();
+  });
+
+  it('hides incomplete adjacent dates in every mode and loads their complete population on navigation', async () => {
+    const crossing = { ...stay, startAt: '2030-01-31T10:00:00', endAt: '2030-02-02T10:00:00' };
+    const adjacent = {
+      ...crossing,
+      stayId: 'stay-2',
+      startAt: '2030-02-01T10:00:00',
+      catIds: ['cat-2'],
+      cats: [{ catId: 'cat-2', name: 'Pixel' }],
+    };
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ visibleMonth: '2030-01-01', displayMode: 'daily-counts' }),
+    );
+    stayApiService.getStays.mockImplementation(({ dateFrom }) =>
+      of(dateFrom === '2030-01-01' ? [crossing] : [crossing, adjacent]),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    for (const mode of component.displayModeOptions) {
+      component.setDisplayMode(mode);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-date="2030-02-01"]')).toBeNull();
+    }
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-01-01',
+      dateTo: '2030-01-31',
+      dateMatchMode: 'OVERLAPS',
+    });
+    component.setDisplayMode('daily-counts');
+    const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+      .componentInstance as FullCalendarComponent;
+    calendar.getApi().next();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(stayApiService.getStays).toHaveBeenLastCalledWith({
+      dateFrom: '2030-02-01',
+      dateTo: '2030-02-28',
+      dateMatchMode: 'OVERLAPS',
+    });
+    const count = fixture.nativeElement.querySelector(
+      '[data-date="2030-02-01"] .fc-event',
+    ) as HTMLElement;
+    expect(count.textContent).toContain('2');
+    count.click();
+    expect(materialDialog.open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          count: 2,
+          participants: expect.arrayContaining([
+            expect.objectContaining({ catId: 'cat-1' }),
+            expect.objectContaining({ catId: 'cat-2' }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ['en', 'No stays in the displayed period.'],
+    ['es', 'No hay estancias en el período mostrado.'],
+  ] as const)(
+    'describes an empty bounded view in %s and keeps navigation available',
+    async (language, message) => {
+      TestBed.inject(I18nService).language.set(language);
+      localStorage.setItem(
+        'catworld.calendar.preferences',
+        JSON.stringify({ visibleMonth: '2099-01-01', displayMode: 'daily-labels' }),
+      );
+      stayApiService.getStays.mockImplementation(({ dateFrom }) =>
+        of(dateFrom === '2099-01-01' ? [stay] : []),
+      );
+      createComponent();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain(message);
+      const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+        .componentInstance as FullCalendarComponent;
+      calendar.getApi().next();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain(message);
+      expect(fixture.nativeElement.textContent).not.toContain(
+        component.text().calendar.emptyFiltered,
+      );
+      expect(stayApiService.getStays.mock.calls).toEqual([
+        [{ dateFrom: '2099-01-01', dateTo: '2099-01-31', dateMatchMode: 'OVERLAPS' }],
+        [{ dateFrom: '2099-02-01', dateTo: '2099-02-28', dateMatchMode: 'OVERLAPS' }],
+      ]);
+      calendar.getApi().prev();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(component.filteredStays()).toEqual([stay]);
+      expect(fixture.nativeElement.textContent).not.toContain(message);
+    },
+  );
+
+  it('keeps draft changes out of visible events until Filter and blocks reversed dates', () => {
+    createComponent();
+    const before = component.calendarEvents();
+    const calls = stayApiService.getStays.mock.calls.length;
+    component.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2100-01-01',
+      dateMatchMode: 'OVERLAPS',
+    });
+    fixture.detectChanges();
+    expect(component.calendarEvents()).toEqual(before);
+    expect(stayApiService.getStays).toHaveBeenCalledTimes(calls);
+    (fixture.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(component.filteredStays()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain(component.text().calendar.emptyFiltered);
+    component.setSearchFilters({
+      catId: null,
+      ownerId: null,
+      dateFrom: '2100-01-01',
+      dateTo: '2099-01-01',
+    });
+    fixture.detectChanges();
+    expect(
+      (fixture.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).disabled,
+    ).toBe(true);
+    component.setDisplayMode('entry-exit-markers');
+    expect(component.displayMode()).toBe('entry-exit-markers');
+    expect(component.searchFilters().dateTo).toBeUndefined();
   });
 });

@@ -34,16 +34,27 @@
     }
     <mat-checkbox
       class="payment-filter outstanding-filter"
-      [checked]="paymentFilters().outstandingOnly"
+      [checked]="draftPaymentFilters().outstandingOnly"
       (change)="setOutstandingOnly($event.checked)"
       >{{ text().stays.filters.outstandingOnly }}</mat-checkbox
     >
   </div>
   <app-stay-search-filters
+    [dateFilters]="draftSearchFilters()"
     [initialCatId]="searchFilters().catId"
     [initialOwnerId]="searchFilters().ownerId"
     (filtersChange)="setSearchFilters($event)"
   ></app-stay-search-filters>
+  <div>
+    <button
+      mat-flat-button
+      class="apply-filters"
+      [disabled]="!validDates(draftSearchFilters())"
+      (click)="applyFilters()"
+    >
+      {{ text().stays.filters.apply }}
+    </button>
+  </div>
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().stays.overview.loading"></app-ui-state>
   } @else if (error()) {

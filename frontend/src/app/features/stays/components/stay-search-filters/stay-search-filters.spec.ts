@@ -36,6 +36,7 @@ describe('StaySearchFiltersComponent', () => {
   }> = [];
 
   const catAdapter = {
+    resolve: vi.fn(),
     search: (query: string, page: number): Observable<EntityLookupPage<CatLookup>> => {
       const result = new Subject<EntityLookupPage<CatLookup>>();
       catRequests.push({ query, page, result });
@@ -49,6 +50,7 @@ describe('StaySearchFiltersComponent', () => {
     }),
   };
   const ownerAdapter = {
+    resolve: vi.fn(),
     search: (query: string, page: number): Observable<EntityLookupPage<OwnerLookup>> => {
       const result = new Subject<EntityLookupPage<OwnerLookup>>();
       ownerRequests.push({ query, page, result });
@@ -109,7 +111,9 @@ describe('StaySearchFiltersComponent', () => {
     component.catSelector()?.select(cat);
     fixture.detectChanges();
 
-    expect(emittedFilters).toContainEqual({ catId: 'cat-current', ownerId: null });
+    expect(emittedFilters).toContainEqual(
+      expect.objectContaining({ catId: 'cat-current', ownerId: null }),
+    );
   });
 
   it('applies mutual exclusion only to positive selections and preserves the opposite filter otherwise', () => {
@@ -119,21 +123,21 @@ describe('StaySearchFiltersComponent', () => {
     vi.advanceTimersByTime(300);
     catRequests[0].result.error(new Error('lookup failed'));
     fixture.detectChanges();
-    expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: owner.id });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: owner.id });
 
     component.catSelector()?.retry();
     catRequests[1].result.next({ items: [cat], page: 0, pageSize: 5, totalElements: 10 });
-    expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: owner.id });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: owner.id });
 
     component.onCatStateChange({ value: cat, selectedId: cat.id, rawContentPresent: true });
     expect(component.selectedOwnerId()).toBeNull();
     expect(component.ownerSelector()?.query()).toBe('');
-    expect(emittedFilters.at(-1)).toEqual({ catId: cat.id, ownerId: null });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: cat.id, ownerId: null });
 
     component.onOwnerStateChange({ value: owner, selectedId: owner.id, rawContentPresent: true });
     expect(component.selectedCatId()).toBeNull();
     expect(component.catSelector()?.query()).toBe('');
-    expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: owner.id });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: owner.id });
   });
 
   it('keeps per-field clear behavior and omits a redundant global clear action', () => {
@@ -142,12 +146,94 @@ describe('StaySearchFiltersComponent', () => {
 
     component.onCatStateChange({ value: cat, selectedId: cat.id, rawContentPresent: true });
     component.catSelector()?.clear();
-    expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: null });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: null });
 
     component.onOwnerStateChange({ value: owner, selectedId: owner.id, rawContentPresent: true });
     component.ownerSelector()?.clear();
     expect(component.selectedOwnerId()).toBeNull();
     expect(component.ownerSelector()?.query()).toBe('');
-    expect(emittedFilters.at(-1)).toEqual({ catId: null, ownerId: null });
+    expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: null });
   });
+  it('renders one default relationship selector, emits all modes and shows reversed-range feedback', async () => {
+    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    expect(fixture.nativeElement.querySelectorAll('select')).toHaveLength(1);
+    expect(select.value).toBe('OVERLAPS');
+    expect(Array.from(select.options).map((o) => o.value)).toEqual([
+      'OVERLAPS',
+      'STAY_WITHIN_RANGE',
+      'RANGE_WITHIN_STAY',
+    ]);
+    for (const mode of ['STAY_WITHIN_RANGE', 'RANGE_WITHIN_STAY', 'OVERLAPS']) {
+      select.value = mode;
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(emittedFilters.at(-1)).toMatchObject({ dateMatchMode: mode });
+    }
+    fixture.componentRef.setInput('dateFilters', {
+      dateFrom: '2030-02-01',
+      dateTo: '2030-01-01',
+      dateMatchMode: 'OVERLAPS',
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain(
+      component.text().stays.filters.invalidDateRange,
+    );
+    fixture.componentRef.setInput('dateFilters', {
+      dateFrom: '2030-01-01',
+      dateTo: '2030-02-01',
+      dateMatchMode: 'OVERLAPS',
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.date-range-error')).toBeNull();
+  });
+  it.each(['cat', 'owner'] as const)(
+    'preserves a deep-linked %s through pending/failed label resolution and temporal edits',
+    (kind) => {
+      fixture.destroy();
+      const pending = new Subject<any>();
+      const retry = new Subject<any>();
+      const adapter = kind === 'cat' ? catAdapter : ownerAdapter;
+      const selected = kind === 'cat' ? cat : owner;
+      adapter.resolve.mockReturnValueOnce(pending).mockReturnValueOnce(retry);
+      fixture = TestBed.createComponent(StaySearchFiltersComponent);
+      component = fixture.componentInstance;
+      const expected = {
+        catId: kind === 'cat' ? cat.id : null,
+        ownerId: kind === 'owner' ? owner.id : null,
+      };
+      fixture.componentRef.setInput(
+        kind === 'cat' ? 'initialCatId' : 'initialOwnerId',
+        selected.id,
+      );
+      fixture.componentRef.setInput('dateFilters', { ...expected, dateMatchMode: 'OVERLAPS' });
+      component.filtersChange.subscribe((filters) => emittedFilters.push(filters));
+      fixture.detectChanges();
+      expect(pending.observed).toBe(true);
+      const from = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+      type(from, '2030-01-01');
+      expect(emittedFilters.at(-1)).toMatchObject({ ...expected, dateFrom: '2030-01-01' });
+      pending.error(new Error('label unavailable'));
+      fixture.detectChanges();
+      const mode = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+      mode.value = 'RANGE_WITHIN_STAY';
+      mode.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(emittedFilters.at(-1)).toMatchObject({
+        ...expected,
+        dateMatchMode: 'RANGE_WITHIN_STAY',
+      });
+      const selector = kind === 'cat' ? component.catSelector()! : component.ownerSelector()!;
+      selector.retry();
+      selector.clear();
+      retry.next(selected);
+      expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: null });
+      expect(retry.observed).toBe(false);
+      if (kind === 'cat') component.ownerSelector()!.select(owner);
+      else component.catSelector()!.select(cat);
+      expect(emittedFilters.at(-1)).toMatchObject({
+        catId: kind === 'owner' ? cat.id : null,
+        ownerId: kind === 'cat' ? owner.id : null,
+      });
+    },
+  );
 });
