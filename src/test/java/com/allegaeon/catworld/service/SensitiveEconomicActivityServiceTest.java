@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import com.allegaeon.catworld.dto.overview.OverviewPage;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,14 +58,14 @@ class SensitiveEconomicActivityServiceTest {
         when(readRepository.findActivity(
                 new SensitiveEconomicActivityFilter(
                         null, null, null, null, null, null, null
-                )
-        )).thenReturn(List.of(projection));
+                ), 0
+        )).thenReturn(new OverviewPage<>(List.of(projection), 0, 1));
         when(mapper.map(projection)).thenReturn(response);
 
-        List<SensitiveEconomicActivityResponseDTO> result =
-                service.getActivity(null);
+        OverviewPage<SensitiveEconomicActivityResponseDTO> result =
+                service.getActivity(null, 0);
 
-        assertEquals(List.of(response), result);
+        assertEquals(List.of(response), result.items());
         verify(authorizationPolicy).authorizeRead(admin);
     }
 
@@ -89,18 +90,19 @@ class SensitiveEconomicActivityServiceTest {
         SensitiveEconomicActivityResponseDTO secondResponse = response();
         when(currentUserAccountService.getCurrentUserAccount())
                 .thenReturn(admin);
-        when(readRepository.findActivity(filter))
-                .thenReturn(List.of(first, second));
+        when(readRepository.findActivity(filter, 2))
+                .thenReturn(new OverviewPage<>(List.of(first, second), 2, 25));
         when(mapper.map(first)).thenReturn(firstResponse);
         when(mapper.map(second)).thenReturn(secondResponse);
 
-        List<SensitiveEconomicActivityResponseDTO> result =
-                service.getActivity(filter);
+        OverviewPage<SensitiveEconomicActivityResponseDTO> result =
+                service.getActivity(filter, 2);
 
-        assertEquals(List.of(firstResponse, secondResponse), result);
+        assertEquals(List.of(firstResponse, secondResponse), result.items());
+        assertEquals(25, result.totalElements());
         ArgumentCaptor<SensitiveEconomicActivityFilter> captor =
                 ArgumentCaptor.forClass(SensitiveEconomicActivityFilter.class);
-        verify(readRepository).findActivity(captor.capture());
+        verify(readRepository).findActivity(captor.capture(), org.mockito.ArgumentMatchers.eq(2));
         assertSame(filter, captor.getValue());
     }
 

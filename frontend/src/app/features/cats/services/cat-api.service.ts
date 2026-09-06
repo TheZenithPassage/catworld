@@ -3,7 +3,14 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { Cat, CatLookup, CreateCatRequest, UpdateCatRequest } from '../models/cat.model';
+import {
+  Cat,
+  CatLookup,
+  CatOverviewItem,
+  CreateCatRequest,
+  UpdateCatRequest,
+} from '../models/cat.model';
+import { OverviewPage } from '../../../shared/pagination/overview-page';
 import { EntityLookupPage } from '../../../shared/entity-lookup/entity-lookup.models';
 import {
   CatDetailResponse,
@@ -19,6 +26,12 @@ export class CatApiService {
 
   getCats(): Observable<Cat[]> {
     return this.http.get<Cat[]>(this.baseUrl);
+  }
+
+  getCatOverview(page = 0, query = ''): Observable<OverviewPage<CatOverviewItem>> {
+    return this.http.get<OverviewPage<CatOverviewItem>>(`${this.baseUrl}/overview`, {
+      params: { page, ...(query ? { q: query.trim() } : {}) },
+    });
   }
 
   getCatById(catId: string): Observable<Cat> {

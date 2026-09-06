@@ -1,18 +1,16 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { MatTableModule } from '@angular/material/table';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { RouterLink } from '@angular/router';
-
+import { Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
-import { Cat, Sex } from '../../models/cat.model';
-import { CatApiService } from '../../services/cat-api.service';
-import { matchesSearchText } from '../../../../core/search/search-text.util';
-import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
-
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { CatOverviewItem } from '../../models/cat.model';
+import { CatApiService } from '../../services/cat-api.service';
 @Component({
   selector: 'app-cats-overview-page',
   imports: [
@@ -20,7 +18,7 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
     MatFormField,
     MatInput,
     MatLabel,
-    MatTableModule,
+    MatPaginator,
     RouterLink,
     UiStateComponent,
   ],
@@ -28,90 +26,175 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
   styleUrl: './cats-overview-page.scss',
 })
 export class CatsOverviewPage {
-  private readonly catApiService = inject(CatApiService);
-  private readonly i18nService = inject(I18nService);
+  private readonly api = inject(CatApiService);
+  private readonly i18n = inject(I18nService);
   private readonly details = inject(EntityDetailDialogService);
-
-  readonly text = this.i18nService.text;
-  readonly dateLocale = this.i18nService.dateLocale;
-
-  readonly cats = signal<Cat[]>([]);
+  private request?: Subscription;
+  private emptyStateRequest?: Subscription;
+  private timer?: ReturnType<typeof setTimeout>;
+  private photoObserverTimer?: ReturnType<typeof setTimeout>;
+  private requestId = 0;
+  private destroyed = false;
+  private observer?: IntersectionObserver;
+  private readonly photoRequests = new Map<string, Subscription>();
+  private readonly urls = new Map<string, string>();
+  readonly text = this.i18n.text;
+  readonly cats = signal<CatOverviewItem[]>([]);
+  readonly photos = signal<Record<string, string>>({});
   readonly loading = signal(false);
-  readonly error = createLanguageResetError(this.i18nService.language);
+  readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
-  readonly displayedColumns = [
-    'name',
-    'owner',
-    'sex',
-    'birthDate',
-    'appearance',
-    'care',
-    'health',
-    'vet',
-  ];
-
-  readonly filteredCats = computed(() =>
-    this.cats().filter((cat) => matchesSearchText([cat.name, cat.ownerName], this.searchText())),
-  );
-
+  readonly globallyEmpty = signal(false);
+  readonly page = signal(0);
+  readonly totalElements = signal(0);
+  readonly pageSize = 10;
   constructor() {
-    this.loadCats();
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      clearTimeout(this.timer);
+      this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
+      this.retirePhotos();
+    });
+    afterNextRender(() => this.loadCats());
   }
-
-  loadCats(): void {
+  loadCats(page = this.page()): void {
+    if (this.destroyed) return;
+    const id = ++this.requestId;
+    this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
+    this.retirePhotos();
     this.loading.set(true);
     this.error.set(null);
-
-    this.catApiService.getCats().subscribe({
-      next: (cats) => {
-        this.cats.set(cats);
+    const query = this.searchText().trim();
+    this.request = this.api.getCatOverview(page, query).subscribe({
+      next: (r) => {
+        if (id !== this.requestId) return;
+        const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
+        if (page > lastValidPage) {
+          this.loadCats(lastValidPage);
+          return;
+        }
+        this.cats.set(r.items);
+        this.page.set(r.page);
+        this.totalElements.set(r.totalElements);
+        if (r.totalElements === 0 && query) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(r.totalElements === 0);
         this.loading.set(false);
+        this.photoObserverTimer = setTimeout(() => {
+          this.photoObserverTimer = undefined;
+          if (!this.destroyed && id === this.requestId) this.observePhotos(id);
+        });
       },
       error: () => {
-        this.error.set(this.text().cats.overview.errorLoading);
-        this.loading.set(false);
+        if (id === this.requestId) {
+          this.error.set(this.text().cats.overview.errorLoading);
+          this.loading.set(false);
+        }
       },
     });
   }
-
-  setSearchText(value: string): void {
-    this.searchText.set(value);
+  setSearchText(v: string): void {
+    this.requestId++;
+    this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
+    this.searchText.set(v);
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      if (this.destroyed) return;
+      this.page.set(0);
+      this.loadCats(0);
+    }, 300);
   }
-
   clearSearch(): void {
+    clearTimeout(this.timer);
     this.searchText.set('');
+    this.page.set(0);
+    this.loadCats(0);
   }
-
-  formatOptionalValue(value: string | null): string {
-    return value || this.text().cats.emptyValue;
+  changePage(e: PageEvent): void {
+    this.loadCats(e.pageIndex);
   }
-
-  formatDate(value: string | null): string {
-    if (!value) {
-      return this.text().cats.emptyValue;
+  openCat(c: CatOverviewItem): void {
+    this.details.open({ entityType: 'cat', entityId: c.id }).subscribe(() => this.loadCats());
+  }
+  activateCat(e: KeyboardEvent, c: CatOverviewItem): void {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.openCat(c);
     }
-
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short',
-    }).format(new Date(`${value}T00:00:00`));
   }
-
-  formatSex(sex: Sex): string {
-    return sex === 'MALE' ? this.text().cats.form.male : this.text().cats.form.female;
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api.getCatOverview(0, '').subscribe({
+      next: (result) => {
+        if (this.destroyed || id !== this.requestId) return;
+        this.globallyEmpty.set(result.totalElements === 0);
+        this.loading.set(false);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().cats.overview.errorLoading);
+          this.loading.set(false);
+        }
+      },
+    });
   }
-
-  getAppearance(cat: Cat): string {
-    const values = [cat.breed, cat.coat, cat.color].filter(Boolean);
-
-    return values.length > 0 ? values.join(' / ') : this.text().cats.emptyValue;
+  private observePhotos(generation: number): void {
+    if (this.destroyed || generation !== this.requestId) return;
+    this.observer?.disconnect();
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        if (this.destroyed || generation !== this.requestId) return;
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const id = (entry.target as HTMLElement).dataset['catId'];
+          if (id) this.loadPhoto(id, generation);
+          this.observer?.unobserve(entry.target);
+        }
+      },
+      { rootMargin: '160px' },
+    );
+    document
+      .querySelectorAll<HTMLElement>('[data-cat-photo="true"]')
+      .forEach((el) => this.observer?.observe(el));
   }
-  openCat(cat: Cat): void {
-    this.details.open({ entityType: 'cat', entityId: cat.id }).subscribe(() => this.loadCats());
+  private loadPhoto(id: string, generation: number): void {
+    if (
+      this.destroyed ||
+      generation !== this.requestId ||
+      this.photoRequests.has(id) ||
+      this.urls.has(id)
+    )
+      return;
+    this.photoRequests.set(
+      id,
+      this.api.getCatPhoto(id).subscribe({
+        next: (blob) => {
+          this.photoRequests.delete(id);
+          if (this.destroyed || generation !== this.requestId) return;
+          const url = URL.createObjectURL(blob);
+          this.urls.set(id, url);
+          this.photos.update((p) => ({ ...p, [id]: url }));
+        },
+        error: () => this.photoRequests.delete(id),
+      }),
+    );
   }
-  activateCat(event: KeyboardEvent, cat: Cat): void {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      this.openCat(cat);
-    }
+  private retirePhotos(): void {
+    clearTimeout(this.photoObserverTimer);
+    this.photoObserverTimer = undefined;
+    this.observer?.disconnect();
+    this.observer = undefined;
+    this.photoRequests.forEach((r) => r.unsubscribe());
+    this.photoRequests.clear();
+    this.urls.forEach((url) => URL.revokeObjectURL(url));
+    this.urls.clear();
+    this.photos.set({});
   }
 }

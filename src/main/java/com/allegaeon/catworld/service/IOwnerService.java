@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import java.util.UUID;
 public interface IOwnerService {
 
     List<OwnerResponseDTO> getAllOwners();
+    OverviewPage<OwnerOverviewItem> getOwnerOverview(int page, String query);
     OwnerResponseDTO getOwner(UUID id);
     LookupPage<OwnerLookupItem> searchOwners(String query, int page);
     OwnerLookupItem getOwnerLookup(UUID id);

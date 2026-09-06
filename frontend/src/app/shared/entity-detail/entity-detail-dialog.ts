@@ -22,7 +22,7 @@ import { StayDetail } from '../../features/stays/components/stay-detail/stay-det
 import { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
-import { MatPaginator, MatPaginatorIntl, PageEvent } from '@angular/material/paginator';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
@@ -30,7 +30,6 @@ import { CatRelationshipPage } from './relationship.models';
 import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
-import { dialogPaginatorIntl } from './dialog-paginator-intl';
 import { Observable } from 'rxjs';
 import { Subscription } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -62,7 +61,6 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatProgressSpinner,
     StayRelationshipLabel,
   ],
-  providers: [{ provide: MatPaginatorIntl, useFactory: dialogPaginatorIntl }],
   templateUrl: './entity-detail-dialog.html',
   styleUrl: './entity-detail-dialog.scss',
 })

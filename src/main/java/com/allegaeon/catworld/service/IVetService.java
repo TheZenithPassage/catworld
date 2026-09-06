@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.VetRequestDTO;
 import com.allegaeon.catworld.dto.VetResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import java.util.UUID;
 public interface IVetService {
 
     List<VetResponseDTO> getAllVets();
+    OverviewPage<VetOverviewItem> getVetOverview(int page, String query);
     VetResponseDTO getVet(UUID id);
     LookupPage<VetLookupItem> searchVets(String query, int page);
     VetDetailResponse getVetDetail(UUID id);

@@ -3,7 +3,14 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateOwnerRequest, Owner, OwnerLookup, UpdateOwnerRequest } from '../models/owner.model';
+import {
+  CreateOwnerRequest,
+  Owner,
+  OwnerLookup,
+  OwnerOverviewItem,
+  UpdateOwnerRequest,
+} from '../models/owner.model';
+import { OverviewPage } from '../../../shared/pagination/overview-page';
 import { EntityLookupPage } from '../../../shared/entity-lookup/entity-lookup.models';
 import {
   CatRelationshipPage,
@@ -20,6 +27,12 @@ export class OwnerApiService {
 
   getOwners(): Observable<Owner[]> {
     return this.http.get<Owner[]>(this.baseUrl);
+  }
+
+  getOwnerOverview(page = 0, query = ''): Observable<OverviewPage<OwnerOverviewItem>> {
+    return this.http.get<OverviewPage<OwnerOverviewItem>>(`${this.baseUrl}/overview`, {
+      params: { page, ...(query ? { q: query.trim() } : {}) },
+    });
   }
 
   getOwnerById(ownerId: string): Observable<Owner> {

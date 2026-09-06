@@ -23,6 +23,12 @@ describe('VetApiService', () => {
     TestBed.resetTestingModule();
   });
 
+  it('requests a trimmed fixed-page overview', () => {
+    service.getVetOverview(3, '  Vet  ').subscribe((page) => expect(page.pageSize).toBe(10));
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/vets/overview?page=3&q=Vet`);
+    request.flush({ items: [], page: 3, pageSize: 10, totalElements: 31 });
+  });
+
   it('deletes a vet permanently', () => {
     service.deleteVet('vet-1').subscribe();
 

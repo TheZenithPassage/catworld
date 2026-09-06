@@ -4,9 +4,14 @@ import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityFil
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityResponseDTO;
 
 import java.util.List;
+import com.allegaeon.catworld.dto.overview.OverviewPage;
 
 public interface ISensitiveEconomicActivityService {
 
-    List<SensitiveEconomicActivityResponseDTO> getActivity(
-            SensitiveEconomicActivityFilter filter);
+    OverviewPage<SensitiveEconomicActivityResponseDTO> getActivity(
+            SensitiveEconomicActivityFilter filter, int page);
+
+    default List<SensitiveEconomicActivityResponseDTO> getActivity(SensitiveEconomicActivityFilter filter) {
+        return getActivity(filter, 0).items();
+    }
 }

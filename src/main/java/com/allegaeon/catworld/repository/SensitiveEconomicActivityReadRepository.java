@@ -20,13 +20,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.allegaeon.catworld.dto.overview.OverviewPage;
+import com.allegaeon.catworld.model.SensitiveStayContextCat;
 
 @Repository
 @RequiredArgsConstructor
 public class SensitiveEconomicActivityReadRepository {
 
     private static final String UNION_QUERY = """
-            SELECT activity.*, context_cat.cat_id, context_cat.cat_name
+            SELECT activity.*
             FROM (
                 SELECT
                     rate_change.id AS event_id,
@@ -276,32 +278,41 @@ public class SensitiveEconomicActivityReadRepository {
                 JOIN sensitive_stay_contexts context
                     ON context.id = removal.sensitive_context_id
             ) activity
-            LEFT JOIN sensitive_stay_context_cats context_cat
-                ON context_cat.context_id = activity.context_id
             WHERE 1 = 1
             """;
 
     private static final String GLOBAL_ORDER = """
             ORDER BY activity.occurred_at DESC,
                      activity.event_type_order ASC,
-                     activity.event_id ASC,
-                     context_cat.cat_id ASC
+                     activity.event_id ASC
             """;
 
     private final EntityManager entityManager;
 
-    public List<SensitiveEconomicActivityProjection> findActivity(
-            SensitiveEconomicActivityFilter filter) {
+    public OverviewPage<SensitiveEconomicActivityProjection> findActivity(
+            SensitiveEconomicActivityFilter filter, int page) {
         StringBuilder sql = new StringBuilder(UNION_QUERY);
         appendPredicates(sql, filter);
+        String filteredSql = sql.toString();
         sql.append('\n').append(GLOBAL_ORDER);
 
         Query query = entityManager.createNativeQuery(sql.toString());
         bindParameters(query, filter);
+        query.setFirstResult(page * OverviewPage.PAGE_SIZE);
+        query.setMaxResults(OverviewPage.PAGE_SIZE);
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
-        return project(rows);
+        Query countQuery = entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM (" + filteredSql + ") counted_activity");
+        bindParameters(countQuery, filter);
+        long total = ((Number) countQuery.getSingleResult()).longValue();
+        return new OverviewPage<>(project(rows), page, total);
+    }
+
+    public List<SensitiveEconomicActivityProjection> findActivity(
+            SensitiveEconomicActivityFilter filter) {
+        return findActivity(filter, 0).items();
     }
 
     private void appendPredicates(
@@ -367,6 +378,15 @@ public class SensitiveEconomicActivityReadRepository {
 
     private List<SensitiveEconomicActivityProjection> project(
             List<Object[]> rows) {
+        List<UUID> contextIds = rows.stream().map(row -> uuid(row[6]))
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<UUID, List<SensitiveEconomicActivityProjection.CatProjection>> catsByContext = new java.util.HashMap<>();
+        if (!contextIds.isEmpty()) {
+            entityManager.createQuery("select cat from SensitiveStayContextCat cat where cat.context.id in :contextIds order by cat.id.catId", SensitiveStayContextCat.class)
+                    .setParameter("contextIds", contextIds).getResultList().forEach(cat ->
+                            catsByContext.computeIfAbsent(cat.getContext().getId(), ignored -> new ArrayList<>())
+                                    .add(new SensitiveEconomicActivityProjection.CatProjection(cat.getCatId(), cat.getCatName())));
+        }
         Map<ActivityKey, Accumulator> activities = new LinkedHashMap<>();
         for (Object[] row : rows) {
             ActivityKey key = new ActivityKey(
@@ -377,16 +397,7 @@ public class SensitiveEconomicActivityReadRepository {
                     key,
                     ignored -> new Accumulator(row)
             );
-            UUID catId = uuid(row[32]);
-            if (catId != null) {
-                accumulator.cats.putIfAbsent(
-                        catId,
-                        new SensitiveEconomicActivityProjection.CatProjection(
-                                catId,
-                                string(row[33])
-                        )
-                );
-            }
+            catsByContext.getOrDefault(uuid(row[6]), List.of()).forEach(cat -> accumulator.cats.putIfAbsent(cat.id(), cat));
         }
         return activities.values().stream()
                 .map(Accumulator::toProjection)

@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -47,6 +48,26 @@ public class OwnerService implements IOwnerService {
     private static final Sort STAY_ORDER = Sort.by(Sort.Order.desc("startAt"), Sort.Order.asc("id"));
     private static final Sort LOOKUP_ORDER = Sort.by(Sort.Order.asc("fullName"), Sort.Order.asc("id"));
     private static final int LOOKUP_PAGE_SIZE = 5;
+    private static final Sort OVERVIEW_RECENT_ORDER = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"));
+    private static final Sort OVERVIEW_SEARCH_ORDER = Sort.by(Sort.Order.asc("fullName"), Sort.Order.asc("id"));
+
+    @Override
+    @Transactional(readOnly = true)
+    public OverviewPage<OwnerOverviewItem> getOwnerOverview(int page, String query) {
+        requireOverviewPage(page);
+        String trimmed = query == null ? "" : query.trim();
+        Page<Owner> owners = trimmed.isEmpty()
+                ? ownerRepository.findOverview(PageRequest.of(page, OverviewPage.PAGE_SIZE, OVERVIEW_RECENT_ORDER))
+                : ownerRepository.searchOverview(escapeLookupQuery(trimmed), PageRequest.of(page, OverviewPage.PAGE_SIZE, OVERVIEW_SEARCH_ORDER));
+        List<OwnerLookupItem> hydrated = hydrateLookupOwners(owners.getContent());
+        return new OverviewPage<>(hydrated.stream()
+                .map(owner -> new OwnerOverviewItem(owner.id(), owner.fullName(), owner.currentCats())).toList(),
+                page, owners.getTotalElements());
+    }
+
+    private void requireOverviewPage(int page) {
+        if (page < 0) throw new BadRequestException("Page must not be negative");
+    }
 
     @Override
     public List<OwnerResponseDTO> getAllOwners() {

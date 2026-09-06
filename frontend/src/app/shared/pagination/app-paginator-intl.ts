@@ -2,7 +2,7 @@ import { effect, inject } from '@angular/core';
 import { MatPaginatorIntl } from '@angular/material/paginator';
 import { I18nService } from '../../core/i18n/i18n.service';
 
-export function dialogPaginatorIntl(): MatPaginatorIntl {
+export function appPaginatorIntl(): MatPaginatorIntl {
   const intl = new MatPaginatorIntl();
   const i18n = inject(I18nService);
   effect(() => {

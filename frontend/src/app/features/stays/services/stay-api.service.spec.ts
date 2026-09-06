@@ -31,6 +31,27 @@ describe('StayApiService', () => {
     request.flush(null);
   });
 
+  it('encodes complete-population overview filters', () => {
+    service
+      .getStayOverview(2, {
+        statuses: ['RESERVED', 'CHECKED_IN'],
+        ownerId: 'owner-1',
+        catId: null,
+        paymentConditions: ['NO_PAYMENT'],
+        outstandingOnly: true,
+      })
+      .subscribe((page) => expect(page.pageSize).toBe(10));
+    const request = httpTestingController.expectOne(
+      (candidate) =>
+        candidate.url === `${API_BASE_URL}/stays/overview` && candidate.params.get('page') === '2',
+    );
+    expect(request.request.params.getAll('status')).toEqual(['RESERVED', 'CHECKED_IN']);
+    expect(request.request.params.get('ownerId')).toBe('owner-1');
+    expect(request.request.params.getAll('paymentCondition')).toEqual(['NO_PAYMENT']);
+    expect(request.request.params.get('outstandingOnly')).toBe('true');
+    request.flush({ items: [], page: 2, pageSize: 10, totalElements: 21 });
+  });
+
   it('reads exact lightweight Stay detail and fixed-page Cat endpoints', () => {
     service.getStayDetail('stay-1').subscribe();
     const detail = httpTestingController.expectOne(`${API_BASE_URL}/stays/stay-1/detail`);

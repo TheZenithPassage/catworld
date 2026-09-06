@@ -1,42 +1,42 @@
-import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
-import { MatTableModule } from '@angular/material/table';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { forkJoin, Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
-import { PaymentCondition, Stay } from '../../models/stay.model';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { StayDetailResponse } from '../../../../shared/entity-detail/relationship.models';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
+import {
+  PaymentCondition,
+  Stay,
+  StayOverviewItem,
+  StayOverviewStatus,
+} from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
-import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
-import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStayPaymentFilters,
   getDefaultStaySearchFilters,
-  isStayVisibleByPaymentFilters,
-  isStayVisibleBySearchFilters,
   PAYMENT_CONDITION_FILTER_OPTIONS,
   PaymentConditionVisibility,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 import {
-  getStayStatus,
-  isStayVisibleByStatus,
   STAY_STATUS_FILTER_OPTIONS,
   StayStatus,
   StayStatusVisibility,
 } from '../../utils/stay-status.util';
-import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
-import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
-
 @Component({
   selector: 'app-stays-overview-page',
   imports: [
     MatButton,
     MatCheckbox,
-    MatTableModule,
+    MatPaginator,
     RouterLink,
     StaySearchFiltersComponent,
     UiStateComponent,
@@ -45,199 +45,335 @@ import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-refe
   styleUrl: './stays-overview-page.scss',
 })
 export class StaysOverviewPage {
-  private readonly stayApiService = inject(StayApiService);
+  private readonly api = inject(StayApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly i18nService = inject(I18nService);
-  private readonly entityDetailDialog = inject(EntityDetailDialogService);
-  private readonly stayStatusVisibilityPreferencesService = inject(
-    StayStatusVisibilityPreferencesService,
-  );
-
-  readonly text = this.i18nService.text;
-  readonly dateLocale = this.i18nService.dateLocale;
+  private readonly i18n = inject(I18nService);
+  private readonly details = inject(EntityDetailDialogService);
+  private readonly preferences = inject(StayStatusVisibilityPreferencesService);
+  private request?: Subscription;
+  private emptyStateRequest?: Subscription;
+  private selectedRequest?: Subscription;
+  private scrollTimer?: ReturnType<typeof setTimeout>;
+  private requestId = 0;
+  private destroyed = false;
+  readonly text = this.i18n.text;
+  readonly dateLocale = this.i18n.dateLocale;
   readonly selectedStayId = signal<string | null>(null);
+  readonly selectedStay = signal<StayOverviewItem | null>(null);
   readonly statusFilterOptions = STAY_STATUS_FILTER_OPTIONS;
   readonly paymentConditionFilterOptions = PAYMENT_CONDITION_FILTER_OPTIONS;
-  readonly statusVisibility = signal<StayStatusVisibility>(
-    this.stayStatusVisibilityPreferencesService.read(),
-  );
+  readonly statusVisibility = signal<StayStatusVisibility>(this.preferences.read());
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly paymentFilters = signal(getDefaultStayPaymentFilters());
-  readonly displayedColumns = [
-    'state',
-    'start',
-    'end',
-    'nights',
-    'economics',
-    'cats',
-    'owner',
-    'notes',
-  ];
-
-  readonly filteredStays = computed(() =>
-    this.stays().filter(
-      (stay) =>
-        isStayVisibleByStatus(stay, this.statusVisibility()) &&
-        isStayVisibleBySearchFilters(stay, this.searchFilters()) &&
-        isStayVisibleByPaymentFilters(stay, this.paymentFilters()),
-    ),
-  );
-
-  readonly stays = signal<Stay[]>([]);
+  readonly stays = signal<StayOverviewItem[]>([]);
   readonly loading = signal(false);
-  readonly error = createLanguageResetError(this.i18nService.language);
-
+  readonly error = createLanguageResetError(this.i18n.language);
+  readonly globallyEmpty = signal(false);
+  readonly page = signal(0);
+  readonly totalElements = signal(0);
+  readonly pageSize = 10;
   constructor() {
-    effect(() => {
-      this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
+    this.destroyRef.onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
+      this.selectedRequest?.unsubscribe();
+      clearTimeout(this.scrollTimer);
     });
-
-    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      this.selectedStayId.set(params.get('selectedStayId'));
+    effect(() => this.preferences.store(this.statusVisibility()));
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      this.selectedStayId.set(p.get('selectedStayId'));
+      const page = Number(p.get('page'));
+      if (Number.isInteger(page) && page >= 0) this.page.set(page);
+      const statusState = p.get('statusFilter');
+      const statuses = statusState === 'none' ? [] : (statusState?.split(',') ?? []);
+      if (statusState) {
+        this.statusVisibility.set({
+          reserved: statuses.includes('RESERVED'),
+          'checked-in': statuses.includes('CHECKED_IN'),
+          'checked-out': statuses.includes('CHECKED_OUT'),
+          cancelled: statuses.includes('CANCELLED'),
+        });
+      }
+      this.searchFilters.set({ ownerId: p.get('ownerId'), catId: p.get('catId') });
+      const paymentState = p.get('paymentFilter');
+      const conditions = paymentState === 'none' ? [] : (paymentState?.split(',') ?? []);
+      if (paymentState) {
+        this.paymentFilters.set({
+          conditionVisibility: {
+            NO_PAYMENT: conditions.includes('NO_PAYMENT'),
+            PARTIAL_PAYMENT: conditions.includes('PARTIAL_PAYMENT'),
+            FULL_PAYMENT: conditions.includes('FULL_PAYMENT'),
+          },
+          outstandingOnly: p.get('outstandingOnly') === 'true',
+        });
+      }
     });
-
     this.loadStays();
   }
-
-  loadStays(): void {
+  loadStays(page = this.page()): void {
+    if (this.destroyed) return;
+    this.selectedStay.set(null);
+    const id = ++this.requestId;
+    this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
-
-    this.stayApiService.getStays().subscribe({
-      next: (stays) => {
-        this.stays.set(stays);
-        this.loading.set(false);
-        this.scrollSelectedStayIntoView();
-      },
-      error: () => {
-        this.error.set(this.text().stays.overview.errorLoading);
-        this.loading.set(false);
-      },
-    });
-  }
-
-  getStayStatus(stay: Stay): string {
-    return this.text().stays.status[getStayStatus(stay)];
-  }
-
-  getPaymentCondition(stay: Stay): string {
-    return this.text().stays.filters.paymentCondition[stay.paymentCondition];
-  }
-
-  formatDate(value: string | null): string {
-    if (!value) {
-      return this.text().stays.emptyValue;
+    const statuses = Object.entries(this.statusVisibility())
+      .filter(([, v]) => v)
+      .map(([s]) => this.toBackendStatus(s as StayStatus));
+    const paymentConditions = Object.entries(this.paymentFilters().conditionVisibility)
+      .filter(([, v]) => v)
+      .map(([c]) => c);
+    const search = this.searchFilters();
+    if (statuses.length === 0 || paymentConditions.length === 0) {
+      this.stays.set([]);
+      this.page.set(0);
+      this.totalElements.set(0);
+      this.resolveGlobalEmptyState(id);
+      return;
     }
-
+    this.request = this.api
+      .getStayOverview(page, {
+        statuses,
+        ownerId: search.ownerId,
+        catId: search.catId,
+        paymentConditions,
+        outstandingOnly: this.paymentFilters().outstandingOnly,
+      })
+      .subscribe({
+        next: (r) => {
+          if (this.destroyed || id !== this.requestId) return;
+          const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
+          if (page > lastValidPage) {
+            this.loadStays(lastValidPage);
+            return;
+          }
+          this.stays.set(r.items);
+          this.page.set(r.page);
+          this.totalElements.set(r.totalElements);
+          if (r.totalElements === 0) {
+            this.resolveGlobalEmptyState(id);
+            return;
+          }
+          this.globallyEmpty.set(false);
+          this.loading.set(false);
+          this.syncPage();
+          this.resolveSelectedStay(r.items);
+        },
+        error: () => {
+          if (!this.destroyed && id === this.requestId) {
+            this.error.set(this.text().stays.overview.errorLoading);
+            this.loading.set(false);
+          }
+        },
+      });
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api
+      .getStayOverview(0, {
+        statuses: this.statusFilterOptions.map(({ status }) => this.toBackendStatus(status)),
+        ownerId: null,
+        catId: null,
+        paymentConditions: [...this.paymentConditionFilterOptions],
+        outstandingOnly: false,
+      })
+      .subscribe({
+        next: (r) => {
+          if (this.destroyed || id !== this.requestId) return;
+          this.globallyEmpty.set(r.totalElements === 0);
+          this.loading.set(false);
+          this.syncPage();
+          this.resolveSelectedStay([]);
+        },
+        error: () => {
+          if (!this.destroyed && id === this.requestId) {
+            this.error.set(this.text().stays.overview.errorLoading);
+            this.loading.set(false);
+          }
+        },
+      });
+  }
+  changePage(e: PageEvent): void {
+    this.loadStays(e.pageIndex);
+  }
+  getStayStatus(s: StayOverviewItem): string {
+    return this.text().stays.status[this.fromBackendStatus(s.status)];
+  }
+  formatDate(v: string): string {
     return new Intl.DateTimeFormat(this.dateLocale(), {
       dateStyle: 'short',
       timeStyle: 'short',
-    }).format(new Date(value));
+    }).format(new Date(v));
   }
-
-  getCatSummary(stay: Stay): string {
-    return stay.cats.length === 1
-      ? `1 ${this.text().stays.overview.catSingular}`
-      : `${stay.cats.length} ${this.text().stays.overview.catPlural}`;
+  getCatNames(s: StayOverviewItem): string {
+    return s.cats.map((c) => c.name).join(', ');
   }
-
-  getNightCountLabel(numberOfNights: number): string {
-    const unit =
-      numberOfNights === 1 ? this.text().stays.nights.singular : this.text().stays.nights.plural;
-
-    return `${numberOfNights} ${unit}`;
-  }
-
-  getCatNames(stay: Stay): string {
-    return stay.cats.map((cat) => cat.name).join(', ');
-  }
-
-  getOpenDetailAriaLabel(stay: Stay): string {
+  getOpenDetailAriaLabel(s: StayOverviewItem): string {
     return this.text().stays.overview.openDetailAriaLabel(
-      this.getCatNames(stay),
-      stay.ownerName,
-      this.formatDate(stay.startAt),
-      this.formatDate(stay.endAt),
+      s.cats.map((cat) => cat.name).join(', '),
+      s.ownerName,
+      this.formatDate(s.startAt),
+      this.formatDate(s.endAt),
     );
   }
-
-  openDetail(stay: Stay): void {
-    this.entityDetailDialog
-      .open({ entityType: 'stay', entityId: stay.stayId })
-      .subscribe((update) => this.applyDetailUpdate(update));
+  openDetail(s: StayOverviewItem): void {
+    this.details
+      .open({ entityType: 'stay', entityId: s.id })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadStays());
   }
-
-  activateRow(event: KeyboardEvent, stay: Stay): void {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    this.openDetail(stay);
-  }
-
-  private applyDetailUpdate(update: EntityDetailUpdate): void {
-    if (!('stayId' in update)) {
-      this.loadStays();
-      return;
+  activateRow(e: KeyboardEvent, s: StayOverviewItem): void {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.openDetail(s);
     }
-    this.stays.update((stays) =>
-      stays.map((stay) => (stay.stayId === update.stayId ? update : stay)),
-    );
   }
-
-  isSelectedStay(stay: Stay): boolean {
-    return this.selectedStayId() === stay.stayId;
+  isSelectedStay(s: StayOverviewItem): boolean {
+    return this.selectedStayId() === s.id;
   }
-
-  isStatusVisible(status: StayStatus): boolean {
-    return this.statusVisibility()[status];
+  isStatusVisible(s: StayStatus): boolean {
+    return this.statusVisibility()[s];
   }
-
-  setStatusVisibility(status: StayStatus, checked: boolean): void {
-    this.statusVisibility.update((currentVisibility) => ({
-      ...currentVisibility,
-      [status]: checked,
-    }));
+  setStatusVisibility(s: StayStatus, v: boolean): void {
+    this.statusVisibility.update((x) => ({ ...x, [s]: v }));
+    this.resetAndLoad();
   }
-
-  toggleStatusFromPill(event: MouseEvent, status: StayStatus): void {
-    if (event.target !== event.currentTarget) {
+  toggleStatusFromPill(e: MouseEvent, s: StayStatus): void {
+    if (e.target === e.currentTarget) this.setStatusVisibility(s, !this.isStatusVisible(s));
+  }
+  setSearchFilters(f: StaySearchFilters): void {
+    if (f.catId === this.searchFilters().catId && f.ownerId === this.searchFilters().ownerId)
       return;
-    }
-
-    this.setStatusVisibility(status, !this.isStatusVisible(status));
+    this.searchFilters.set(f);
+    this.resetAndLoad();
   }
-
-  setSearchFilters(filters: StaySearchFilters): void {
-    this.searchFilters.set(filters);
+  isPaymentConditionVisible(c: PaymentCondition): boolean {
+    return this.paymentFilters().conditionVisibility[c];
   }
-
-  isPaymentConditionVisible(condition: PaymentCondition): boolean {
-    return this.paymentFilters().conditionVisibility[condition];
-  }
-
-  setPaymentConditionVisibility(condition: PaymentCondition, checked: boolean): void {
-    this.paymentFilters.update((filters) => ({
-      ...filters,
+  setPaymentConditionVisibility(c: PaymentCondition, v: boolean): void {
+    this.paymentFilters.update((f) => ({
+      ...f,
       conditionVisibility: {
-        ...filters.conditionVisibility,
-        [condition]: checked,
+        ...f.conditionVisibility,
+        [c]: v,
       } satisfies PaymentConditionVisibility,
     }));
+    this.resetAndLoad();
   }
-
-  setOutstandingOnly(checked: boolean): void {
-    this.paymentFilters.update((filters) => ({ ...filters, outstandingOnly: checked }));
+  setOutstandingOnly(v: boolean): void {
+    this.paymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
+    this.resetAndLoad();
   }
-
-  private scrollSelectedStayIntoView(): void {
-    const selectedStayId = this.selectedStayId();
-
-    if (!selectedStayId) {
+  private resetAndLoad(): void {
+    this.page.set(0);
+    this.loadStays(0);
+  }
+  private syncPage(): void {
+    if (this.destroyed) return;
+    const statuses = Object.entries(this.statusVisibility())
+      .filter(([, visible]) => visible)
+      .map(([status]) => this.toBackendStatus(status as StayStatus));
+    const conditions = Object.entries(this.paymentFilters().conditionVisibility)
+      .filter(([, visible]) => visible)
+      .map(([condition]) => condition);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        page: this.page() || null,
+        statusFilter: statuses.join(',') || 'none',
+        ownerId: this.searchFilters().ownerId,
+        catId: this.searchFilters().catId,
+        paymentFilter: conditions.join(',') || 'none',
+        outstandingOnly: this.paymentFilters().outstandingOnly || null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+  private scrollSelected(): void {
+    clearTimeout(this.scrollTimer);
+    const id = this.selectedStayId();
+    if (id) {
+      this.scrollTimer = setTimeout(() => {
+        this.scrollTimer = undefined;
+        if (!this.destroyed)
+          document.getElementById(`stay-${id}`)?.scrollIntoView({ block: 'center' });
+      });
+    }
+  }
+  private resolveSelectedStay(items: StayOverviewItem[]): void {
+    if (this.destroyed) return;
+    const selectedId = this.selectedStayId();
+    this.selectedRequest?.unsubscribe();
+    if (!selectedId || items.some((stay) => stay.id === selectedId)) {
+      this.selectedStay.set(null);
+      this.scrollSelected();
       return;
     }
-
-    setTimeout(() => {
-      document.getElementById(`stay-${selectedStayId}`)?.scrollIntoView({ block: 'center' });
+    this.selectedStay.set(null);
+    this.selectedRequest = forkJoin({
+      detail: this.api.getStayDetail(selectedId),
+      stay: this.api.getStayById(selectedId),
+    }).subscribe({
+      next: ({ detail, stay }) => {
+        if (this.destroyed || this.selectedStayId() !== selectedId) return;
+        if (!this.matchesActiveFilters(detail, stay)) {
+          this.selectedStay.set(null);
+          return;
+        }
+        this.selectedStay.set(this.selectedOverview(detail, stay));
+        this.scrollSelected();
+      },
+      error: () => {
+        if (!this.destroyed) this.selectedStay.set(null);
+      },
     });
+  }
+  private matchesActiveFilters(detail: StayDetailResponse, stay: Stay): boolean {
+    const search = this.searchFilters();
+    const payment = this.paymentFilters();
+    return (
+      this.statusVisibility()[this.fromBackendStatus(detail.status)] &&
+      (!search.ownerId || stay.ownerId === search.ownerId) &&
+      (!search.catId || stay.cats.some((cat) => cat.catId === search.catId)) &&
+      payment.conditionVisibility[stay.paymentCondition] &&
+      (!payment.outstandingOnly || stay.outstandingCollectionEligible)
+    );
+  }
+  private selectedOverview(detail: StayDetailResponse, stay: Stay): StayOverviewItem {
+    return {
+      id: detail.stayId,
+      startAt: detail.startAt,
+      endAt: detail.endAt,
+      status: detail.status,
+      ownerId: detail.owner.id,
+      ownerName: detail.owner.fullName,
+      cats: stay.cats.map((cat) => ({ id: cat.catId, name: cat.name })),
+    };
+  }
+  private toBackendStatus(s: StayStatus): StayOverviewStatus {
+    return (
+      {
+        reserved: 'RESERVED',
+        'checked-in': 'CHECKED_IN',
+        'checked-out': 'CHECKED_OUT',
+        cancelled: 'CANCELLED',
+      } as const
+    )[s];
+  }
+  private fromBackendStatus(s: StayOverviewStatus): StayStatus {
+    return (
+      {
+        RESERVED: 'reserved',
+        CHECKED_IN: 'checked-in',
+        CHECKED_OUT: 'checked-out',
+        CANCELLED: 'cancelled',
+      } as const
+    )[s];
   }
 }

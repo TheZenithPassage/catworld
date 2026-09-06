@@ -22,3 +22,9 @@ export interface VetLookup {
   id: string;
   name: string;
 }
+
+export interface VetOverviewItem {
+  id: string;
+  name: string;
+  address: string | null;
+}

@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.IOwnerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,13 @@ public class OwnerController {
     @GetMapping
     public ResponseEntity<List<OwnerResponseDTO>> getAllOwners() {
         return ResponseEntity.ok(ownerService.getAllOwners());
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<OverviewPage<OwnerOverviewItem>> getOwnerOverview(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String q) {
+        return ResponseEntity.ok(ownerService.getOwnerOverview(page, q));
     }
 
     @GetMapping("/{id}")

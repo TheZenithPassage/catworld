@@ -915,10 +915,10 @@ explicit confirmation. Existing-stay updates follow the backend
 while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
-reconfirms. The stays overview renders backend-supplied retained rate,
-suggestion, agreement, paid total and remaining amount. Post-creation agreement
-correction and payment actions belong to the dedicated Pricing & Payments page
-rather than the overview. Registration, amount editing and annulment use focused
+reconfirms. The stays overview renders only Cat names, Owner, compact period and
+backend-derived dynamic status. Complete economic information remains on the
+dedicated Pricing & Payments page, where post-creation agreement correction and
+payment actions belong. Registration, amount editing and annulment use focused
 responsive Material dialogs; permanent payment removal remains on the shared
 protected-deletion confirmation path. Successful mutations replace page state
 from the complete authoritative Stay returned by the backend.
@@ -1030,6 +1030,38 @@ shared stay search filters are Material-based. FullCalendar vendor-owned
 controls remain a separate integration boundary. Material inputs, supported
 native selects, checkboxes and buttons do not depend on legacy global
 native-control selectors.
+
+### Operational Overview Pagination
+
+Owner, Cat, Vet and Stay operational overviews use focused server-side reads
+that return `{ items, page, pageSize, totalElements }`, with zero-based pages
+and a server-fixed size of ten. The envelope deliberately exposes neither
+`totalPages` nor `hasNext`; non-negative pages beyond the current population
+return an empty `items` list and the complete matching total. Their existing
+collection, detail, fixed-five lookup and relationship contracts remain
+unchanged, including the complete Stay collection consumed by Calendar.
+
+Owner, Cat and Vet default pages are ordered by creation time descending with
+an identifier tie-breaker. Their optional trimmed substring search is applied
+by the database using its case- and accent-insensitive comparison behavior and
+orders matching display names followed by identifiers. Owner pages are chosen
+before one bounded current-Cat hydration query. Cat photo presence is resolved
+for only the selected page without loading photo bytes. Stay overview status,
+Owner, Cat, payment-condition and outstanding-only filters are likewise
+applied before counting and paging; Stay status remains derived from dates and
+cancellation data, and results use start time followed by identifier order.
+
+Sensitive Economic Activity uses the same fixed-ten envelope. Its existing
+authorization, filter validation, six discriminated variants, monetary strings,
+durable snapshots and global event ordering remain intact. The database counts
+and pages complete event identities before the selected events' snapshot Cats
+are hydrated, so a multi-Cat event cannot be split or duplicated across pages.
+
+Angular exposes the matching generic `OverviewPage<T>` model under shared
+pagination and provides the localized `MatPaginatorIntl` once at application
+configuration level. Operational pages may consume Material paginator directly;
+the fixed-five relationship contracts retain their existing size and no custom
+paginator wrapper is introduced.
 
 For stays with a known agreement, authenticated `/stays/:id/pricing` is the only
 post-creation routed economic surface and exposes

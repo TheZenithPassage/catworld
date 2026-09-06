@@ -15,6 +15,12 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface OwnerRepository extends JpaRepository<Owner, UUID> {
 
+    @Query("select o from Owner o")
+    Page<Owner> findOverview(Pageable pageable);
+
+    @Query("select o from Owner o where lower(o.fullName) like lower(concat('%', :query, '%')) escape '!'")
+    Page<Owner> searchOverview(@Param("query") String query, Pageable pageable);
+
     @Query(value = """
             select distinct o from Owner o left join o.cats c
             where lower(o.fullName) like lower(concat('%', :query, '%')) escape '!'

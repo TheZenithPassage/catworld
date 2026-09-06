@@ -1,195 +1,282 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
-import { EMPTY, Observable, of, Subject, throwError } from 'rxjs';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { EMPTY, of, Subject } from 'rxjs';
 import { vi } from 'vitest';
-
-import { Owner } from '../../models/owner.model';
+import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnersOverviewPage } from './owners-overview-page';
-import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
-import type { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 
-describe('OwnersOverviewPage', () => {
-  const owners: Owner[] = [
-    {
-      id: 'owner-1',
-      fullName: 'Ada Lovelace',
-      address: '1 Cat Lane',
-      primaryPhone: '555-1111',
-      secondaryPhone: '555-2222',
-      secondaryPhoneName: 'Work',
-      instagram: 'ada-cats',
-      facebook: null,
-      notes: null,
-    },
-    {
-      id: 'owner-2',
-      fullName: 'Grace Hopper',
-      address: null,
-      primaryPhone: '555-3333',
-      secondaryPhone: null,
-      secondaryPhoneName: null,
-      instagram: null,
-      facebook: 'grace-cats',
-      notes: null,
-    },
-  ];
-
-  const ownerApiService = {
-    getOwners: vi.fn(),
-  };
-  const details = { open: vi.fn((): Observable<EntityDetailUpdate> => EMPTY) };
-
-  let component: OwnersOverviewPage;
-  let fixture: ComponentFixture<OwnersOverviewPage>;
-  let router: Router;
-  let queryParams: Record<string, string>;
-
+describe('OwnersOverviewPage paging', () => {
+  const pending = new Subject<any>();
+  const api = { getOwnerOverview: vi.fn(() => pending.asObservable()), getOwnerLookup: vi.fn() };
   beforeEach(async () => {
-    vi.resetAllMocks();
-    queryParams = { selectedOwnerId: 'owner-1' };
-    ownerApiService.getOwners.mockReturnValue(of(owners));
-
+    vi.clearAllMocks();
+    api.getOwnerLookup.mockReturnValue(
+      of({
+        id: 'selected',
+        fullName: 'Selected Owner',
+        currentCats: Array.from({ length: 5 }, (_, index) => ({
+          id: `cat-${index}`,
+          name: `Context Cat ${index + 1}`,
+        })),
+      }),
+    );
     await TestBed.configureTestingModule({
       imports: [OwnersOverviewPage],
       providers: [
         provideNoopAnimations(),
         provideRouter([]),
-        { provide: OwnerApiService, useValue: ownerApiService },
-        { provide: EntityDetailDialogService, useValue: details },
+        { provide: OwnerApiService, useValue: api },
+        { provide: EntityDetailDialogService, useValue: { open: () => EMPTY } },
         {
           provide: ActivatedRoute,
-          useValue: {
-            snapshot: {
-              get queryParamMap() {
-                return convertToParamMap(queryParams);
-              },
-            },
-          },
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
         },
       ],
     }).compileComponents();
-
-    router = TestBed.inject(Router);
-    vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
-
-  afterEach(() => {
-    TestBed.resetTestingModule();
-  });
-
-  function createComponent(): void {
-    fixture = TestBed.createComponent(OwnersOverviewPage);
-    component = fixture.componentInstance;
+  it('debounces one-character search, pages immediately, and ignores superseded responses', () => {
+    vi.useFakeTimers();
+    const first = new Subject<any>();
+    const second = new Subject<any>();
+    api.getOwnerOverview
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second)
+      .mockReturnValueOnce(of({ items: [], page: 2, pageSize: 10, totalElements: 21 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
     fixture.detectChanges();
-  }
-
-  it('renders keyboard-focusable owner rows without an Actions column and preserves selection', () => {
-    createComponent();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const headerText = [...compiled.querySelectorAll('th')]
-      .map((header) => header.textContent?.trim())
-      .join(' ');
-
-    expect(compiled.querySelector('table[mat-table]')).not.toBeNull();
-    expect(headerText).toContain(component.text().owners.overview.table.name);
-    expect(headerText).not.toContain(component.text().owners.overview.table.actions);
-    expect(compiled.textContent).toContain('Ada Lovelace');
-    expect(compiled.textContent).toContain('555-2222 (Work)');
-    expect(compiled.querySelector('#owner-owner-1.selected-row')).not.toBeNull();
-    expect(compiled.querySelector('a[mat-flat-button]')?.textContent).toContain(
-      component.text().owners.overview.create,
-    );
-    expect(compiled.querySelector('tr[mat-row][tabindex="0"]')).not.toBeNull();
-    expect(compiled.querySelector('a[mat-stroked-button]')).toBeNull();
-    const row = compiled.querySelector('tr[mat-row]') as HTMLElement;
-    expect(row.getAttribute('aria-label')).toBe(
-      `${component.text().owners.detail.openDetails}: Ada Lovelace`,
-    );
-    row.click();
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-    row.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-    expect(details.open).toHaveBeenCalledTimes(3);
-    expect(details.open).toHaveBeenLastCalledWith({ entityType: 'owner', entityId: 'owner-1' });
-  });
-
-  it('filters owners and clears search while preserving query-param cleanup', () => {
-    queryParams = { search: 'Grace', selectedOwnerId: 'owner-2' };
-    createComponent();
-
-    expect(fixture.nativeElement.textContent).toContain('Grace Hopper');
-    expect(fixture.nativeElement.textContent).not.toContain('Ada Lovelace');
-
-    const clearButton = fixture.nativeElement.querySelector(
-      'button[mat-stroked-button]',
-    ) as HTMLButtonElement;
-    clearButton.click();
-    fixture.detectChanges();
-
-    expect(component.searchText()).toBe('');
-    expect(component.selectedOwnerId()).toBeNull();
-    expect(router.navigate).toHaveBeenCalledWith([], {
-      relativeTo: TestBed.inject(ActivatedRoute),
-      queryParams: {
-        search: null,
-        selectedOwnerId: null,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
+    fixture.componentInstance.setSearchText('A');
+    first.next({
+      items: [{ id: 'old', fullName: 'Old', cats: [] }],
+      page: 4,
+      pageSize: 10,
+      totalElements: 41,
     });
+    expect(fixture.componentInstance.owners()).toEqual([]);
+    expect(fixture.componentInstance.page()).toBe(0);
+    vi.advanceTimersByTime(299);
+    expect(api.getOwnerOverview).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, 'A');
+    fixture.componentInstance.changePage({
+      pageIndex: 2,
+      pageSize: 10,
+      length: 21,
+      previousPageIndex: 0,
+    });
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(2, 'A');
+    fixture.componentInstance.clearSearch();
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
+    expect(fixture.componentInstance.owners()[0].fullName).toBe('Ada');
+    vi.useRealTimers();
   });
-
-  it('reloads owners only after the dialog reports a successful update', () => {
-    const updates = new Subject<{ entityType: 'owner'; entityId: string }>();
-    details.open.mockReturnValueOnce(updates.asObservable());
-    createComponent();
-
-    component.openOwner(owners[0]);
-    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(1);
-
-    updates.next({ entityType: 'owner', entityId: 'owner-1' });
-    expect(ownerApiService.getOwners).toHaveBeenCalledTimes(2);
-  });
-
-  it('renders empty, filtered-empty, and error states outside the Material table', () => {
-    ownerApiService.getOwners.mockReturnValueOnce(of([]));
-    createComponent();
-    expect(fixture.nativeElement.textContent).toContain(component.text().owners.overview.empty);
-    expect(fixture.nativeElement.querySelector('table[mat-table]')).toBeNull();
-
-    TestBed.resetTestingModule();
-  });
-
-  it('renders a localized error state with retry action when owner loading fails', async () => {
-    TestBed.resetTestingModule();
-    ownerApiService.getOwners.mockReturnValue(throwError(() => new Error('load failed')));
-
-    await TestBed.configureTestingModule({
-      imports: [OwnersOverviewPage],
-      providers: [
-        provideNoopAnimations(),
-        provideRouter([]),
-        { provide: OwnerApiService, useValue: ownerApiService },
-        {
-          provide: ActivatedRoute,
-          useValue: {
-            snapshot: {
-              queryParamMap: convertToParamMap({}),
-            },
-          },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(OwnersOverviewPage);
-    component = fixture.componentInstance;
+  it('clamps a non-zero page to zero when the matching population becomes empty', () => {
+    api.getOwnerOverview
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 3, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
     fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain(
-      component.text().owners.overview.errorLoading,
+    fixture.componentInstance.loadOwners(3);
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
+    expect(fixture.componentInstance.page()).toBe(0);
+    expect(fixture.componentInstance.totalElements()).toBe(0);
+  });
+  it('cancels pending search and active overview work when destroyed', () => {
+    vi.useFakeTimers();
+    const initial = new Subject<any>();
+    const active = new Subject<any>();
+    api.getOwnerOverview.mockReturnValueOnce(initial).mockReturnValueOnce(active);
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('A');
+    fixture.componentInstance.loadOwners(0);
+    expect(active.observed).toBe(true);
+    fixture.destroy();
+    expect(active.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    expect(api.getOwnerOverview).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+  it('cancels contextual Owner resolution when destroyed', () => {
+    const overview = new Subject<any>();
+    const selected = new Subject<any>();
+    api.getOwnerOverview.mockReturnValue(overview);
+    api.getOwnerLookup.mockReturnValue(selected);
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.componentInstance.selectedOwnerId.set('selected');
+    overview.next({
+      items: [{ id: 'other', fullName: 'Other', cats: [] }],
+      page: 0,
+      pageSize: 10,
+      totalElements: 1,
+    });
+    expect(selected.observed).toBe(true);
+    fixture.destroy();
+    expect(overview.observed).toBe(false);
+    expect(selected.observed).toBe(false);
+  });
+  it('shows the ordinary empty state when an effective search probes a globally empty population', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }));
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText(' Missing ');
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(api.getOwnerOverview).toHaveBeenNthCalledWith(2, 0, 'Missing');
+    expect(api.getOwnerOverview).toHaveBeenNthCalledWith(3, 0, '');
+    expect(fixture.componentInstance.globallyEmpty()).toBe(true);
+    expect(fixture.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      fixture.componentInstance.text().owners.overview.empty,
     );
-    expect(fixture.nativeElement.textContent).toContain(component.text().owners.overview.retry);
+    vi.useRealTimers();
+  });
+  it('shows the filtered empty state when an unfiltered Owner probe finds records', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.globallyEmpty()).toBe(false);
+    expect(fixture.nativeElement.querySelector('app-ui-state').textContent).toContain(
+      fixture.componentInstance.text().owners.overview.emptyFiltered,
+    );
+    vi.useRealTimers();
+  });
+  it('cancels a stale Owner empty-state probe before a newer search can be overwritten', () => {
+    vi.useFakeTimers();
+    const staleProbe = new Subject<any>();
+    api.getOwnerOverview
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'o', fullName: 'Ada', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      )
+      .mockReturnValueOnce(of({ items: [], page: 0, pageSize: 10, totalElements: 0 }))
+      .mockReturnValueOnce(staleProbe)
+      .mockReturnValueOnce(
+        of({
+          items: [{ id: 'n', fullName: 'New', cats: [] }],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        }),
+      );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('Missing');
+    vi.advanceTimersByTime(300);
+    expect(staleProbe.observed).toBe(true);
+    fixture.componentInstance.setSearchText('New');
+    expect(staleProbe.observed).toBe(false);
+    vi.advanceTimersByTime(300);
+    staleProbe.next({ items: [], page: 0, pageSize: 10, totalElements: 0 });
+    expect(fixture.componentInstance.owners()[0].fullName).toBe('New');
+    expect(fixture.componentInstance.globallyEmpty()).toBe(false);
+    vi.useRealTimers();
+  });
+  it('treats whitespace-only Owner search text as unfiltered', () => {
+    vi.useFakeTimers();
+    api.getOwnerOverview.mockReturnValue(
+      of({ items: [], page: 0, pageSize: 10, totalElements: 0 }),
+    );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    fixture.componentInstance.setSearchText('   ');
+    vi.advanceTimersByTime(300);
+    expect(api.getOwnerOverview).toHaveBeenLastCalledWith(0, '');
+    expect(api.getOwnerOverview).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.globallyEmpty()).toBe(true);
+    vi.useRealTimers();
+  });
+  it('renders only name/current Cats with a direct fixed paginator and keyboard activation', () => {
+    api.getOwnerOverview.mockReturnValue(
+      of({
+        items: [{ id: 'o', fullName: 'Ada', cats: [{ id: 'c', name: 'Milo' }] }],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.detectChanges();
+    const card = fixture.nativeElement.querySelector('.overview-card');
+    expect(card.textContent).toContain('Ada');
+    expect(card.textContent).toContain('Milo');
+    expect(fixture.nativeElement.querySelector('mat-paginator')).not.toBeNull();
+    const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
+    fixture.componentInstance.activateOwner(
+      { key: 'Enter', preventDefault: vi.fn() } as unknown as KeyboardEvent,
+      { id: 'o', fullName: 'Ada', cats: [] },
+    );
+    fixture.componentInstance.activateOwner(
+      { key: ' ', preventDefault: vi.fn() } as unknown as KeyboardEvent,
+      { id: 'o', fullName: 'Ada', cats: [] },
+    );
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+  it('resolves and activates a selected Owner absent from the active page', () => {
+    api.getOwnerOverview.mockReturnValue(
+      of({
+        items: [{ id: 'other', fullName: 'Other', cats: [] }],
+        page: 3,
+        pageSize: 10,
+        totalElements: 31,
+      }),
+    );
+    const fixture = TestBed.createComponent(OwnersOverviewPage);
+    fixture.componentInstance.selectedOwnerId.set('selected');
+    fixture.componentInstance.loadOwners(3);
+    fixture.detectChanges();
+    const contextual = fixture.nativeElement.querySelector('.contextual-selection');
+    expect(api.getOwnerLookup).toHaveBeenCalledWith('selected');
+    expect(contextual.textContent).toContain('Selected Owner');
+    for (let index = 1; index <= 5; index++)
+      expect(contextual.textContent).toContain(`Context Cat ${index}`);
+    const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
+    contextual.click();
+    expect(open).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'selected' });
   });
 });

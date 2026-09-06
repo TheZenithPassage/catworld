@@ -3,7 +3,14 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-import { CreateVetRequest, UpdateVetRequest, Vet, VetLookup } from '../models/vet.model';
+import {
+  CreateVetRequest,
+  UpdateVetRequest,
+  Vet,
+  VetLookup,
+  VetOverviewItem,
+} from '../models/vet.model';
+import { OverviewPage } from '../../../shared/pagination/overview-page';
 import { EntityLookupPage } from '../../../shared/entity-lookup/entity-lookup.models';
 import {
   CatRelationshipPage,
@@ -19,6 +26,12 @@ export class VetApiService {
 
   getVets(): Observable<Vet[]> {
     return this.http.get<Vet[]>(this.baseUrl);
+  }
+
+  getVetOverview(page = 0, query = ''): Observable<OverviewPage<VetOverviewItem>> {
+    return this.http.get<OverviewPage<VetOverviewItem>>(`${this.baseUrl}/overview`, {
+      params: { page, ...(query ? { q: query.trim() } : {}) },
+    });
   }
 
   getVetById(vetId: string): Observable<Vet> {

@@ -4,12 +4,10 @@
       <h2>{{ text().stays.overview.title }}</h2>
       <p>{{ text().stays.overview.description }}</p>
     </div>
-
-    <a mat-flat-button routerLink="/stays/new" class="page-action">
-      {{ text().stays.overview.create }}
-    </a>
+    <a mat-flat-button routerLink="/stays/new" class="page-action">{{
+      text().stays.overview.create
+    }}</a>
   </header>
-
   <div class="status-filters" [attr.aria-label]="text().stays.overview.statusFiltersAriaLabel">
     @for (option of statusFilterOptions; track option.status) {
       <mat-checkbox
@@ -17,14 +15,10 @@
         [checked]="isStatusVisible(option.status)"
         (click)="toggleStatusFromPill($event, option.status)"
         (change)="setStatusVisibility(option.status, $event.checked)"
+        >{{ text().stays.status[option.status] }}</mat-checkbox
       >
-        <span class="status-filter-label">
-          {{ text().stays.status[option.status] }}
-        </span>
-      </mat-checkbox>
     }
   </div>
-
   <div
     class="payment-filters"
     role="group"
@@ -35,21 +29,21 @@
         class="payment-filter"
         [checked]="isPaymentConditionVisible(condition)"
         (change)="setPaymentConditionVisibility(condition, $event.checked)"
+        >{{ text().stays.filters.paymentCondition[condition] }}</mat-checkbox
       >
-        {{ text().stays.filters.paymentCondition[condition] }}
-      </mat-checkbox>
     }
     <mat-checkbox
       class="payment-filter outstanding-filter"
       [checked]="paymentFilters().outstandingOnly"
       (change)="setOutstandingOnly($event.checked)"
+      >{{ text().stays.filters.outstandingOnly }}</mat-checkbox
     >
-      {{ text().stays.filters.outstandingOnly }}
-    </mat-checkbox>
   </div>
-
-  <app-stay-search-filters (filtersChange)="setSearchFilters($event)"></app-stay-search-filters>
-
+  <app-stay-search-filters
+    [initialCatId]="searchFilters().catId"
+    [initialOwnerId]="searchFilters().ownerId"
+    (filtersChange)="setSearchFilters($event)"
+  ></app-stay-search-filters>
   @if (loading()) {
     <app-ui-state kind="loading" [message]="text().stays.overview.loading"></app-ui-state>
   } @else if (error()) {
@@ -59,94 +53,57 @@
       [actionLabel]="text().stays.overview.retry"
       (actionTriggered)="loadStays()"
     ></app-ui-state>
-  } @else if (stays().length === 0) {
-    <app-ui-state kind="empty" [message]="text().stays.overview.empty"></app-ui-state>
-  } @else if (filteredStays().length === 0) {
-    <app-ui-state kind="empty" [message]="text().stays.overview.emptyFiltered"></app-ui-state>
+  } @else if (!stays().length && !selectedStay()) {
+    <app-ui-state
+      kind="empty"
+      [message]="
+        globallyEmpty() ? text().stays.overview.empty : text().stays.overview.emptyFiltered
+      "
+    ></app-ui-state>
   } @else {
-    <div class="table-wrapper">
-      <table mat-table [dataSource]="filteredStays()" class="stays-table">
-        <ng-container matColumnDef="state">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.state }}</th>
-          <td mat-cell *matCellDef="let stay">{{ getStayStatus(stay) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="start">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.start }}</th>
-          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.startAt) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="end">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.end }}</th>
-          <td mat-cell *matCellDef="let stay">{{ formatDate(stay.endAt) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="nights">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.nights }}</th>
-          <td mat-cell *matCellDef="let stay">{{ getNightCountLabel(stay.numberOfNights) }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="economics">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.pricing.economics }}</th>
-          <td mat-cell *matCellDef="let stay" class="economics-cell">
-            @if (stay.agreedAmount !== null) {
-              <div class="economics-content">
-                <span
-                  >{{ text().stays.pricing.retainedRate }}:
-                  {{ stay.retainedNightlyRate ?? text().stays.pricing.unavailable }}</span
-                >
-                <span
-                  >{{ text().stays.pricing.suggestion }}:
-                  {{ stay.suggestedAmount ?? text().stays.pricing.unavailable }}</span
-                >
-                <span>{{ text().stays.pricing.agreement }}: {{ stay.agreedAmount }}</span>
-                <span>{{ text().stays.pricing.totalPaid }}: {{ stay.totalPaid }}</span>
-                <span
-                  >{{ text().stays.pricing.remaining }}:
-                  {{ stay.remainingAmount ?? text().stays.pricing.unavailable }}</span
-                >
-                <span>{{ getPaymentCondition(stay) }}</span>
-              </div>
-            } @else {
-              <span>{{ text().stays.pricing.noPaymentInformation }}</span>
-            }
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="cats">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.cats }}</th>
-          <td mat-cell *matCellDef="let stay">
-            <span>{{ getCatSummary(stay) }}</span>
-            <small class="cat-name-summary">
-              {{ getCatNames(stay) }}
-            </small>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="owner">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.owner }}</th>
-          <td mat-cell *matCellDef="let stay">{{ stay.ownerName }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="notes">
-          <th mat-header-cell *matHeaderCellDef>{{ text().stays.overview.table.notes }}</th>
-          <td mat-cell *matCellDef="let stay" class="notes-cell">
-            {{ stay.notes || text().stays.emptyValue }}
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr
-          mat-row
-          *matRowDef="let stay; columns: displayedColumns"
-          [id]="'stay-' + stay.stayId"
+    <div class="overview-list">
+      @if (selectedStay(); as stay) {
+        <article
+          class="overview-card selected-row contextual-selection"
+          [id]="'stay-' + stay.id"
+          tabindex="0"
+          [attr.aria-label]="getOpenDetailAriaLabel(stay)"
+          (click)="openDetail(stay)"
+          (keydown)="activateRow($event, stay)"
+        >
+          <div class="stay-heading">
+            <h3>{{ getCatNames(stay) }}</h3>
+            <strong>{{ getStayStatus(stay) }}</strong>
+          </div>
+          <p>{{ stay.ownerName }}</p>
+          <p>{{ formatDate(stay.startAt) }} — {{ formatDate(stay.endAt) }}</p>
+        </article>
+      }
+      @for (stay of stays(); track stay.id) {
+        <article
+          class="overview-card"
+          [id]="'stay-' + stay.id"
           [class.selected-row]="isSelectedStay(stay)"
           tabindex="0"
           [attr.aria-label]="getOpenDetailAriaLabel(stay)"
           (click)="openDetail(stay)"
           (keydown)="activateRow($event, stay)"
-        ></tr>
-      </table>
+        >
+          <div class="stay-heading">
+            <h3>{{ getCatNames(stay) }}</h3>
+            <strong>{{ getStayStatus(stay) }}</strong>
+          </div>
+          <p>{{ stay.ownerName }}</p>
+          <p>{{ formatDate(stay.startAt) }} — {{ formatDate(stay.endAt) }}</p>
+        </article>
+      }
     </div>
   }
+  <mat-paginator
+    [length]="totalElements()"
+    [pageIndex]="page()"
+    [pageSize]="pageSize"
+    [hidePageSize]="true"
+    (page)="changePage($event)"
+  ></mat-paginator>
 </section>

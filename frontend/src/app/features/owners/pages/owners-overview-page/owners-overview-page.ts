@@ -1,17 +1,16 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { MatTableModule } from '@angular/material/table';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-
+import { Subscription } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
-import { Owner } from '../../models/owner.model';
-import { OwnerApiService } from '../../services/owner-api.service';
-import { matchesSearchText } from '../../../../core/search/search-text.util';
-import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
+import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { OwnerOverviewItem } from '../../models/owner.model';
+import { OwnerApiService } from '../../services/owner-api.service';
 
 @Component({
   selector: 'app-owners-overview-page',
@@ -20,7 +19,7 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
     MatFormField,
     MatInput,
     MatLabel,
-    MatTableModule,
+    MatPaginator,
     RouterLink,
     UiStateComponent,
   ],
@@ -28,112 +27,173 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
   styleUrl: './owners-overview-page.scss',
 })
 export class OwnersOverviewPage {
-  private readonly ownerApiService = inject(OwnerApiService);
-  private readonly i18nService = inject(I18nService);
+  private readonly api = inject(OwnerApiService);
+  private readonly i18n = inject(I18nService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly details = inject(EntityDetailDialogService);
-
-  readonly text = this.i18nService.text;
-
-  readonly owners = signal<Owner[]>([]);
+  private request?: Subscription;
+  private emptyStateRequest?: Subscription;
+  private selectedRequest?: Subscription;
+  private searchTimer?: ReturnType<typeof setTimeout>;
+  private scrollTimer?: ReturnType<typeof setTimeout>;
+  private requestId = 0;
+  private destroyed = false;
+  readonly text = this.i18n.text;
+  readonly owners = signal<OwnerOverviewItem[]>([]);
   readonly loading = signal(false);
-  readonly error = createLanguageResetError(this.i18nService.language);
-  readonly selectedOwnerId = signal<string | null>(null);
+  readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
-  readonly displayedColumns = ['name', 'primaryPhone', 'secondaryPhone', 'address', 'social'];
-
-  readonly filteredOwners = computed(() =>
-    this.owners().filter((owner) => matchesSearchText([owner.fullName], this.searchText())),
-  );
-
+  readonly globallyEmpty = signal(false);
+  readonly page = signal(0);
+  readonly totalElements = signal(0);
+  readonly pageSize = 10;
+  readonly selectedOwnerId = signal<string | null>(null);
+  readonly selectedOwner = signal<OwnerOverviewItem | null>(null);
   constructor() {
-    const queryParamMap = this.route.snapshot.queryParamMap;
-
-    this.searchText.set(queryParamMap.get('search') ?? '');
-    this.selectedOwnerId.set(queryParamMap.get('selectedOwnerId'));
-
+    inject(DestroyRef).onDestroy(() => {
+      this.destroyed = true;
+      this.requestId++;
+      clearTimeout(this.searchTimer);
+      clearTimeout(this.scrollTimer);
+      this.request?.unsubscribe();
+      this.emptyStateRequest?.unsubscribe();
+      this.selectedRequest?.unsubscribe();
+    });
+    const q = this.route.snapshot.queryParamMap;
+    this.searchText.set(q.get('search') ?? '');
+    this.selectedOwnerId.set(q.get('selectedOwnerId'));
     this.loadOwners();
   }
-
-  loadOwners(): void {
+  loadOwners(page = this.page()): void {
+    if (this.destroyed) return;
+    const id = ++this.requestId;
+    this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
-
-    this.ownerApiService.getOwners().subscribe({
-      next: (owners) => {
-        this.owners.set(owners);
+    const query = this.searchText().trim();
+    this.request = this.api.getOwnerOverview(page, query).subscribe({
+      next: (result) => {
+        if (id !== this.requestId) return;
+        const lastValidPage = Math.max(0, Math.ceil(result.totalElements / this.pageSize) - 1);
+        if (page > lastValidPage) {
+          this.loadOwners(lastValidPage);
+          return;
+        }
+        this.owners.set(result.items);
+        this.page.set(result.page);
+        this.totalElements.set(result.totalElements);
+        if (result.totalElements === 0 && query) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(result.totalElements === 0);
         this.loading.set(false);
-        this.scrollSelectedOwnerIntoView();
+        this.resolveSelectedOwner(result.items);
       },
       error: () => {
-        this.error.set(this.text().owners.overview.errorLoading);
-        this.loading.set(false);
+        if (id === this.requestId) {
+          this.error.set(this.text().owners.overview.errorLoading);
+          this.loading.set(false);
+        }
       },
     });
   }
-
   setSearchText(value: string): void {
+    this.requestId++;
+    this.request?.unsubscribe();
+    this.emptyStateRequest?.unsubscribe();
     this.searchText.set(value);
     this.selectedOwnerId.set(null);
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => {
+      this.searchTimer = undefined;
+      if (this.destroyed) return;
+      this.page.set(0);
+      this.loadOwners(0);
+    }, 300);
   }
-
   clearSearch(): void {
+    clearTimeout(this.searchTimer);
     this.searchText.set('');
     this.selectedOwnerId.set(null);
-
-    this.router.navigate([], {
+    this.page.set(0);
+    void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: {
-        search: null,
-        selectedOwnerId: null,
-      },
+      queryParams: { search: null, selectedOwnerId: null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+    this.loadOwners(0);
   }
-
-  formatOptionalValue(value: string | null): string {
-    return value || this.text().owners.emptyValue;
+  changePage(event: PageEvent): void {
+    this.loadOwners(event.pageIndex);
   }
-
-  getSecondaryPhone(owner: Owner): string {
-    if (!owner.secondaryPhone) {
-      return this.text().owners.emptyValue;
-    }
-
-    if (!owner.secondaryPhoneName) {
-      return owner.secondaryPhone;
-    }
-
-    return `${owner.secondaryPhone} (${owner.secondaryPhoneName})`;
+  catNames(owner: OwnerOverviewItem): string {
+    return owner.cats.map((cat) => cat.name).join(', ') || this.text().owners.emptyValue;
   }
-
-  isSelectedOwner(owner: Owner): boolean {
-    return this.selectedOwnerId() === owner.id;
-  }
-
-  openOwner(owner: Owner): void {
+  openOwner(owner: Pick<OwnerOverviewItem, 'id'>): void {
     this.details
       .open({ entityType: 'owner', entityId: owner.id })
       .subscribe(() => this.loadOwners());
   }
-  activateOwner(event: KeyboardEvent, owner: Owner): void {
+  activateOwner(event: KeyboardEvent, owner: OwnerOverviewItem): void {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       this.openOwner(owner);
     }
   }
-
-  private scrollSelectedOwnerIntoView(): void {
-    const selectedOwnerId = this.selectedOwnerId();
-
-    if (!selectedOwnerId) {
+  isSelectedOwner(owner: OwnerOverviewItem): boolean {
+    return owner.id === this.selectedOwnerId();
+  }
+  private resolveGlobalEmptyState(id: number): void {
+    if (this.destroyed || id !== this.requestId) return;
+    this.emptyStateRequest = this.api.getOwnerOverview(0, '').subscribe({
+      next: (result) => {
+        if (this.destroyed || id !== this.requestId) return;
+        this.globallyEmpty.set(result.totalElements === 0);
+        this.loading.set(false);
+        this.resolveSelectedOwner([]);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().owners.overview.errorLoading);
+          this.loading.set(false);
+        }
+      },
+    });
+  }
+  private resolveSelectedOwner(items: OwnerOverviewItem[]): void {
+    const selectedId = this.selectedOwnerId();
+    this.selectedRequest?.unsubscribe();
+    if (!selectedId || items.some((owner) => owner.id === selectedId)) {
+      this.selectedOwner.set(null);
+      this.scrollSelected();
       return;
     }
-
-    setTimeout(() => {
-      document.getElementById(`owner-${selectedOwnerId}`)?.scrollIntoView({ block: 'center' });
+    this.selectedRequest = this.api.getOwnerLookup(selectedId).subscribe({
+      next: (owner) => {
+        if (this.selectedOwnerId() !== selectedId) return;
+        this.selectedOwner.set({
+          id: owner.id,
+          fullName: owner.fullName,
+          cats: owner.currentCats,
+        });
+        this.scrollSelected();
+      },
+      error: () => this.selectedOwner.set(null),
     });
+  }
+  private scrollSelected(): void {
+    clearTimeout(this.scrollTimer);
+    const id = this.selectedOwnerId();
+    if (id) {
+      this.scrollTimer = setTimeout(() => {
+        this.scrollTimer = undefined;
+        if (!this.destroyed)
+          document.getElementById(`owner-${id}`)?.scrollIntoView({ block: 'center' });
+      });
+    }
   }
 }

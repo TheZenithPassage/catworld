@@ -3,6 +3,26 @@
   gap: 1.25rem;
 }
 
+.overview-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.overview-card {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.overview-card h3,
+.overview-card p {
+  margin: 0;
+}
+.overview-card p {
+  margin-top: 0.35rem;
+}
+
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -65,101 +85,4 @@
     width: 100%;
     margin-top: 0;
   }
-}
-
-.table-wrapper {
-  max-width: 100%;
-  overflow-x: auto;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-soft);
-}
-
-.vets-table {
-  width: 100%;
-  table-layout: auto;
-  overflow: hidden;
-  border: 1px solid rgb(234 216 198 / 0.95);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.vets-table .mat-mdc-header-cell {
-  background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
-  color: #6d5140;
-  font-size: 0.78rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.vets-table .mat-mdc-header-cell,
-.vets-table .mat-mdc-cell {
-  padding: 0.7rem 0.65rem;
-  border-bottom-color: var(--color-border);
-  text-align: left;
-  vertical-align: top;
-  overflow-wrap: normal;
-  word-break: normal;
-}
-
-.vets-table .mat-mdc-cell {
-  color: var(--color-text);
-}
-
-.vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell {
-  background: #fffaf2;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .vets-table .mat-mdc-row:hover .mat-mdc-cell {
-    background: var(--color-secondary-soft);
-  }
-}
-
-@media (max-width: 620px) {
-  .vets-table {
-    min-width: 38rem;
-    font-size: 0.92rem;
-  }
-
-  .vets-table .mat-mdc-header-cell,
-  .vets-table .mat-mdc-cell {
-    padding: 0.6rem 0.5rem;
-  }
-
-  .vets-table .mat-mdc-header-cell.mat-column-name,
-  .vets-table .mat-mdc-cell.mat-column-name {
-    position: sticky;
-    z-index: 2;
-  }
-
-  .vets-table .mat-mdc-header-cell.mat-column-name {
-    z-index: 3;
-    background: linear-gradient(180deg, rgb(255 241 223 / 0.95), rgb(255 249 241 / 0.95));
-  }
-
-  .vets-table .mat-mdc-row .mat-mdc-cell.mat-column-name {
-    background: var(--color-surface);
-  }
-
-  .vets-table .mat-mdc-row:nth-child(even) .mat-mdc-cell.mat-column-name {
-    background: #fffaf2;
-  }
-
-  .vets-table .mat-column-name {
-    left: 0;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .vets-table .mat-mdc-row:hover .mat-mdc-cell.mat-column-name {
-      background: var(--color-secondary-soft);
-    }
-  }
-}
-
-.vets-table tr[mat-row] {
-  cursor: pointer;
-}
-.vets-table tr[mat-row]:focus-visible {
-  outline: 3px solid var(--color-primary);
-  outline-offset: -3px;
 }

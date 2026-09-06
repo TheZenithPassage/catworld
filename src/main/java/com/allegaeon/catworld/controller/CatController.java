@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
+import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.ICatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,13 @@ public class CatController {
     @GetMapping
     public ResponseEntity<List<CatResponseDTO>> getAllCats() {
         return ResponseEntity.ok(catService.getAllCats());
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<OverviewPage<CatOverviewItem>> getCatOverview(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(required = false) String q) {
+        return ResponseEntity.ok(catService.getCatOverview(page, q));
     }
 
     @GetMapping("/{id}")
