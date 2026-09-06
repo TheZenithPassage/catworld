@@ -6,6 +6,12 @@ import { vi } from 'vitest';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayStatusVisibilityPreferencesService } from '../../services/stay-status-visibility-preferences.service';
+import { By } from '@angular/platform-browser';
+import {
+  CatLookupAdapter,
+  OwnerLookupAdapter,
+} from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { StaySearchFiltersComponent } from '../../components/stay-search-filters/stay-search-filters';
 import { StaysOverviewPage } from './stays-overview-page';
 describe('StaysOverviewPage server paging', () => {
   const api = { getStayOverview: vi.fn(), getStayDetail: vi.fn(), getStayById: vi.fn() };
@@ -408,4 +414,55 @@ describe('StaysOverviewPage server paging', () => {
     expect(f.nativeElement.querySelector('.contextual-selection')).toBeNull();
     expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
   });
+  it.each(['cat', 'owner'] as const)(
+    'applies dates without dropping the deep-linked %s when lookup is pending or failed',
+    (kind) => {
+      const pending = new Subject<any>();
+      TestBed.overrideProvider(kind === 'cat' ? CatLookupAdapter : OwnerLookupAdapter, {
+        useValue: { resolve: () => pending, search: () => EMPTY },
+      });
+      queryParams.next(convertToParamMap({ [kind + 'Id']: 'known-id' }));
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const f = TestBed.createComponent(StaysOverviewPage);
+      f.detectChanges();
+      const from = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+      from.value = '2030-01-01';
+      from.dispatchEvent(new Event('input'));
+      f.detectChanges();
+      api.getStayOverview.mockClear();
+      (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(api.getStayOverview.mock.calls[0][1]).toMatchObject({
+        [kind + 'Id']: 'known-id',
+        dateFrom: '2030-01-01',
+      });
+      expect(navigate).toHaveBeenLastCalledWith(
+        [],
+        expect.objectContaining({
+          queryParams: expect.objectContaining({
+            [kind + 'Id']: 'known-id',
+            dateFrom: '2030-01-01',
+          }),
+        }),
+      );
+      pending.error(new Error('lookup failed'));
+      f.detectChanges();
+      const mode = f.nativeElement.querySelector('select') as HTMLSelectElement;
+      mode.value = 'RANGE_WITHIN_STAY';
+      mode.dispatchEvent(new Event('change'));
+      f.detectChanges();
+      api.getStayOverview.mockClear();
+      (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(api.getStayOverview.mock.calls[0][1]).toMatchObject({
+        [kind + 'Id']: 'known-id',
+        dateMatchMode: 'RANGE_WITHIN_STAY',
+      });
+      const child = f.debugElement.query(By.directive(StaySearchFiltersComponent))
+        .componentInstance as StaySearchFiltersComponent;
+      (kind === 'cat' ? child.catSelector() : child.ownerSelector())!.clear();
+      f.componentInstance.applyFilters();
+      expect(f.componentInstance.searchFilters()[kind === 'cat' ? 'catId' : 'ownerId']).toBeNull();
+    },
+  );
 });

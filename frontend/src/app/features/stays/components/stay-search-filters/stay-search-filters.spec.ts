@@ -36,6 +36,7 @@ describe('StaySearchFiltersComponent', () => {
   }> = [];
 
   const catAdapter = {
+    resolve: vi.fn(),
     search: (query: string, page: number): Observable<EntityLookupPage<CatLookup>> => {
       const result = new Subject<EntityLookupPage<CatLookup>>();
       catRequests.push({ query, page, result });
@@ -49,6 +50,7 @@ describe('StaySearchFiltersComponent', () => {
     }),
   };
   const ownerAdapter = {
+    resolve: vi.fn(),
     search: (query: string, page: number): Observable<EntityLookupPage<OwnerLookup>> => {
       const result = new Subject<EntityLookupPage<OwnerLookup>>();
       ownerRequests.push({ query, page, result });
@@ -184,4 +186,54 @@ describe('StaySearchFiltersComponent', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.date-range-error')).toBeNull();
   });
+  it.each(['cat', 'owner'] as const)(
+    'preserves a deep-linked %s through pending/failed label resolution and temporal edits',
+    (kind) => {
+      fixture.destroy();
+      const pending = new Subject<any>();
+      const retry = new Subject<any>();
+      const adapter = kind === 'cat' ? catAdapter : ownerAdapter;
+      const selected = kind === 'cat' ? cat : owner;
+      adapter.resolve.mockReturnValueOnce(pending).mockReturnValueOnce(retry);
+      fixture = TestBed.createComponent(StaySearchFiltersComponent);
+      component = fixture.componentInstance;
+      const expected = {
+        catId: kind === 'cat' ? cat.id : null,
+        ownerId: kind === 'owner' ? owner.id : null,
+      };
+      fixture.componentRef.setInput(
+        kind === 'cat' ? 'initialCatId' : 'initialOwnerId',
+        selected.id,
+      );
+      fixture.componentRef.setInput('dateFilters', { ...expected, dateMatchMode: 'OVERLAPS' });
+      component.filtersChange.subscribe((filters) => emittedFilters.push(filters));
+      fixture.detectChanges();
+      expect(pending.observed).toBe(true);
+      const from = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+      type(from, '2030-01-01');
+      expect(emittedFilters.at(-1)).toMatchObject({ ...expected, dateFrom: '2030-01-01' });
+      pending.error(new Error('label unavailable'));
+      fixture.detectChanges();
+      const mode = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+      mode.value = 'RANGE_WITHIN_STAY';
+      mode.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      expect(emittedFilters.at(-1)).toMatchObject({
+        ...expected,
+        dateMatchMode: 'RANGE_WITHIN_STAY',
+      });
+      const selector = kind === 'cat' ? component.catSelector()! : component.ownerSelector()!;
+      selector.retry();
+      selector.clear();
+      retry.next(selected);
+      expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: null });
+      expect(retry.observed).toBe(false);
+      if (kind === 'cat') component.ownerSelector()!.select(owner);
+      else component.catSelector()!.select(cat);
+      expect(emittedFilters.at(-1)).toMatchObject({
+        catId: kind === 'owner' ? cat.id : null,
+        ownerId: kind === 'cat' ? owner.id : null,
+      });
+    },
+  );
 });

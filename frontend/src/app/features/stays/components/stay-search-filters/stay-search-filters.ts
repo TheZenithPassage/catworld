@@ -62,6 +62,10 @@ export class StaySearchFiltersComponent {
     afterNextRender(() => {
       const catId = this.initialCatId();
       const ownerId = this.initialOwnerId();
+      // The deep link already supplies the filter identity; resolving its label
+      // must not temporarily remove it from date/mode draft changes.
+      this.selectedCatId.set(catId);
+      this.selectedOwnerId.set(catId ? null : ownerId);
       if (catId) this.catSelector()?.resolveKnownId(catId);
       else if (ownerId) this.ownerSelector()?.resolveKnownId(ownerId);
     });
