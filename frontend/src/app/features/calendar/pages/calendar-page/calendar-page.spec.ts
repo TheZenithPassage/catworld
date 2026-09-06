@@ -14,6 +14,7 @@ import { EntityDetailDialogService } from '../../../../shared/entity-detail/enti
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 import { CalendarDailyAggregate } from './calendar-daily-aggregate';
 import { FullCalendarComponent } from '@fullcalendar/angular';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 
 describe('CalendarPage', () => {
   const stay: Stay = {
@@ -559,6 +560,47 @@ describe('CalendarPage', () => {
       }),
     );
   });
+
+  it.each([
+    ['en', 'No stays in the displayed period.'],
+    ['es', 'No hay estancias en el período mostrado.'],
+  ] as const)(
+    'describes an empty bounded view in %s and keeps navigation available',
+    async (language, message) => {
+      TestBed.inject(I18nService).language.set(language);
+      localStorage.setItem(
+        'catworld.calendar.preferences',
+        JSON.stringify({ visibleMonth: '2099-01-01', displayMode: 'daily-labels' }),
+      );
+      stayApiService.getStays.mockImplementation(({ dateFrom }) =>
+        of(dateFrom === '2099-01-01' ? [stay] : []),
+      );
+      createComponent();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).not.toContain(message);
+      const calendar = fixture.debugElement.query(By.directive(FullCalendarComponent))
+        .componentInstance as FullCalendarComponent;
+      calendar.getApi().next();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain(message);
+      expect(fixture.nativeElement.textContent).not.toContain(
+        component.text().calendar.emptyFiltered,
+      );
+      expect(stayApiService.getStays.mock.calls).toEqual([
+        [{ dateFrom: '2099-01-01', dateTo: '2099-01-31', dateMatchMode: 'OVERLAPS' }],
+        [{ dateFrom: '2099-02-01', dateTo: '2099-02-28', dateMatchMode: 'OVERLAPS' }],
+      ]);
+      calendar.getApi().prev();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(component.filteredStays()).toEqual([stay]);
+      expect(fixture.nativeElement.textContent).not.toContain(message);
+    },
+  );
 
   it('keeps draft changes out of visible events until Filter and blocks reversed dates', () => {
     createComponent();
