@@ -80,6 +80,35 @@ import java.util.stream.Collectors;
 public class StayServiceTest {
 
     @Mock
+    private com.allegaeon.catworld.repository.StayLookupReadRepository stayLookupReadRepository;
+
+    @Test
+    void exactStayLookupHydratesOnlyLightweightCurrentContext() {
+        UUID id = UUID.randomUUID();
+        var owner = Owner.builder().id(UUID.randomUUID()).fullName("Owner").build();
+        var stay = Stay.builder().id(id).owner(owner).startAt(LocalDateTime.of(2026,8,10,10,0)).endAt(LocalDateTime.of(2026,8,12,10,0)).build();
+        var cat = Cat.builder().id(UUID.randomUUID()).name("Miso").build();
+        when(stayRepository.findById(id)).thenReturn(Optional.of(stay));
+        when(stayCatRepository.findOverviewCatsByStayIds(List.of(id))).thenReturn(List.of(StayCat.builder().stay(stay).cat(cat).build()));
+        var result = service.getStayLookup(id);
+        assertEquals(id, result.stayId()); assertEquals(stay.getStartAt(), result.startAt());
+        assertEquals(owner.getFullName(), result.owner().fullName()); assertEquals(cat.getId(), result.cats().getFirst().id());
+        verifyNoInteractions(stayMapper, stayPaymentRepository);
+        UUID missing = UUID.randomUUID();
+        assertThrows(ResourceNotFoundException.class, () -> service.getStayLookup(missing));
+    }
+
+    @Test
+    void lookupRejectsMissingConflictingAndReversedCriteriaBeforeReading() {
+        UUID id = UUID.randomUUID(); LocalDate date = LocalDate.of(2026,8,10);
+        assertThrows(BadRequestException.class, () -> service.searchStays(null,null,null,null,0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(id,id,null,null,0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(null,null,date.plusDays(1),date,0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(id,null,null,null,-1));
+        verifyNoInteractions(stayLookupReadRepository);
+    }
+
+    @Mock
     private StayRepository stayRepository;
 
     @Mock

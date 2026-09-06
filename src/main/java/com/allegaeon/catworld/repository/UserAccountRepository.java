@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import jakarta.persistence.LockModeType;
@@ -17,6 +20,9 @@ import java.util.UUID;
 
 @Repository
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> {
+    @Query("select u from UserAccount u where lower(u.username) like lower(concat('%', :query, '%')) escape '!'")
+    Page<UserAccount> searchLookup(@Param("query") String query, Pageable pageable);
+
 
     Optional<UserAccount> findByUsername(String username);
 

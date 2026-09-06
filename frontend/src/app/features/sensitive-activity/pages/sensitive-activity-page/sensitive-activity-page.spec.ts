@@ -1,3 +1,4 @@
+import { ActivityLookupService, StayLookup } from '../../data-access/activity-lookup.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -394,7 +395,7 @@ describe('SensitiveActivityPage', () => {
     expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: {} }));
   });
 
-  it('shows an invalid UUID on its field without replacing loaded results', () => {
+  it('shows invalid identifier feedback without replacing loaded results', () => {
     const component = fixture.componentInstance;
     const requestsBeforeApply = api.getActivity.mock.calls.length;
     component.updateFilter('actorId', '9');
@@ -404,8 +405,7 @@ describe('SensitiveActivityPage', () => {
 
     const root = fixture.nativeElement as HTMLElement;
     expect(component.filterErrors().actorId).toBe('invalidUuid');
-    expect(fieldFor(root, 'actorId').classList.contains('mat-form-field-invalid')).toBe(true);
-    expect(fieldFor(root, 'actorId').querySelector('mat-error')?.textContent).toContain(
+    expect(root.querySelector('.identifier-error')?.textContent).toContain(
       component.text().sensitiveActivity.filters.invalidId,
     );
     expect(router.navigate).not.toHaveBeenCalled();
@@ -440,7 +440,7 @@ describe('SensitiveActivityPage', () => {
     expect(api.getActivity).not.toHaveBeenCalled();
     expect(component.filters().actorId).toBe('9');
     expect(component.filterErrors().actorId).toBe('invalidUuid');
-    expect(fieldFor(root, 'actorId').querySelector('mat-error')?.textContent).toContain(
+    expect(root.querySelector('.identifier-error')?.textContent).toContain(
       component.text().sensitiveActivity.filters.invalidId,
     );
     expect(root.textContent).not.toContain(component.text().sensitiveActivity.retry);
@@ -635,4 +635,224 @@ describe('SensitiveActivityPage', () => {
     if (!(field instanceof HTMLElement)) throw new Error(`Missing field: ${name}`);
     return field;
   }
+  const lookupStay: StayLookup = {
+    stayId: '11111111-1111-1111-1111-111111111111',
+    startAt: '2026-08-10T10:00:00',
+    endAt: '2026-08-12T10:00:00',
+    owner: { id: '22222222-2222-2222-2222-222222222222', fullName: 'Current Owner' },
+    cats: [{ id: '33333333-3333-3333-3333-333333333333', name: 'Current Cat' }],
+  };
+  function button(label: string): HTMLButtonElement {
+    const root = fixture.nativeElement as HTMLElement;
+    const found = Array.from(root.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === label,
+    );
+    if (!found) throw new Error('Missing button: ' + label);
+    return found;
+  }
+  async function dateInput(name: string, value: string) {
+    const input = fixture.nativeElement.querySelector('[name="' + name + '"]') as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('groups filters and disables explicit Stay search until usable dates exist', async () => {
+    const search = vi.spyOn(TestBed.inject(ActivityLookupService), 'searchStays');
+    const root = fixture.nativeElement as HTMLElement;
+    expect(
+      Array.from(root.querySelectorAll('.filter-group h3')).map((h) => h.textContent?.trim()),
+    ).toEqual(['General', 'Affected Stay Context', 'Event Occurred']);
+    expect(root.querySelectorAll('app-remote-entity-selector')).toHaveLength(3);
+    expect(root.querySelector('[name="actorId"]')).toBeNull();
+    expect(button('Find specific stay').disabled).toBe(true);
+    expect(root.textContent).toContain('Choose an Owner, Cat or valid Stay dates');
+    await dateInput('stayFrom', '2026-08-12');
+    expect(button('Find specific stay').disabled).toBe(false);
+    await dateInput('stayTo', '2026-08-10');
+    expect(button('Find specific stay').disabled).toBe(true);
+    expect(root.textContent).toContain('From cannot be after To');
+    button('Apply filters').click();
+    fixture.detectChanges();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('keeps explicit candidate selection, Change, removal and unrelated edits independent from search', async () => {
+    const search = vi
+      .spyOn(TestBed.inject(ActivityLookupService), 'searchStays')
+      .mockReturnValue(of({ items: [lookupStay], page: 0, pageSize: 5, totalElements: 1 }));
+    await dateInput('stayFrom', '2026-08-10');
+    expect(search).not.toHaveBeenCalled();
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('#stay-candidates')?.textContent).toContain('Current Owner');
+    expect(root.querySelector('#stay-candidates strong')?.textContent).toContain('10 Aug 2026');
+    expect(fixture.componentInstance.filters().stayId).toBe('');
+    button('Select').click();
+    fixture.detectChanges();
+    expect(root.querySelector('#stay-candidates')).toBeNull();
+    expect(root.querySelector('.exact-stay')?.textContent).toContain('Current Cat');
+    fixture.componentInstance.updateFilter('eventType', 'PAYMENT_EDITED');
+    fixture.componentInstance.updateFilter('occurredFrom', '2026-08-01T10:00');
+    fixture.detectChanges();
+    button('Change').click();
+    fixture.detectChanges();
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(root.querySelector('#stay-candidates')).not.toBeNull();
+    button('Select').click();
+    fixture.detectChanges();
+    button('Remove exact stay').click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.filters().stayId).toBe('');
+    expect(fixture.componentInstance.filters().stayFrom).toBe('2026-08-10');
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
+  it('contains candidate loading, failure, retry, paging and empty states and rejects stale results', async () => {
+    const response = new Subject<{
+      items: StayLookup[];
+      page: number;
+      pageSize: number;
+      totalElements: number;
+    }>();
+    const search = vi
+      .spyOn(TestBed.inject(ActivityLookupService), 'searchStays')
+      .mockReturnValue(response);
+    await dateInput('stayTo', '2026-08-12');
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('#stay-candidates')?.textContent).toContain('Loading stays');
+    response.error(new Error('offline'));
+    fixture.detectChanges();
+    expect(root.querySelector('#stay-candidates')?.textContent).toContain('Could not load stays');
+    search.mockReturnValue(of({ items: [lookupStay], page: 0, pageSize: 5, totalElements: 6 }));
+    button('Retry').click();
+    fixture.detectChanges();
+    search.mockReturnValue(of({ items: [], page: 1, pageSize: 5, totalElements: 6 }));
+    const next = root.querySelector(
+      '#stay-candidates button[aria-label="Next page"]',
+    ) as HTMLButtonElement;
+    expect(next).not.toBeNull();
+    next.click();
+    fixture.detectChanges();
+    expect(root.querySelector('#stay-candidates')?.textContent).toContain('No matching stays');
+    const late = new Subject<{
+      items: StayLookup[];
+      page: number;
+      pageSize: number;
+      totalElements: number;
+    }>();
+    search.mockReturnValue(late);
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    await dateInput('stayTo', '2026-08-13');
+    late.next({ items: [lookupStay], page: 0, pageSize: 5, totalElements: 1 });
+    fixture.detectChanges();
+    expect(root.querySelector('#stay-candidates')).toBeNull();
+    expect(root.querySelector('.exact-stay')).toBeNull();
+  });
+
+  it('preserves candidates when Apply updates the URL and Refresh uses applied dates', async () => {
+    const search = vi
+      .spyOn(TestBed.inject(ActivityLookupService), 'searchStays')
+      .mockReturnValue(of({ items: [lookupStay], page: 0, pageSize: 5, totalElements: 1 }));
+    await dateInput('stayFrom', '2026-08-10');
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    button('Select').click();
+    fixture.detectChanges();
+    button('Apply filters').click();
+    fixture.detectChanges();
+    const query = router.navigate.mock.calls.at(-1)?.[1].queryParams;
+    expect(query).toMatchObject({ stayFrom: '2026-08-10', stayId: lookupStay.stayId });
+    params.next(convertToParamMap(query));
+    fixture.detectChanges();
+    button('Change').click();
+    fixture.detectChanges();
+    expect(search).toHaveBeenCalledTimes(1);
+    button('Refresh').click();
+    fixture.detectChanges();
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stayFrom: '2026-08-10', stayId: lookupStay.stayId }),
+      0,
+    );
+    button('Clear filters').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#stay-candidates')).toBeNull();
+    expect(router.navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({ queryParams: {} }),
+    );
+  });
+
+  it('resolves URL actor and exact Stay labels without searching or displaying UUIDs', async () => {
+    const lookup = TestBed.inject(ActivityLookupService);
+    vi.spyOn(lookup, 'resolve').mockReturnValue(
+      of({ id: lookupStay.owner.id, username: 'Disabled Actor' }),
+    );
+    vi.spyOn(lookup, 'resolveStay').mockReturnValue(of(lookupStay));
+    const search = vi.spyOn(lookup, 'searchStays');
+    params.next(
+      convertToParamMap({
+        actorId: lookupStay.owner.id,
+        stayId: lookupStay.stayId,
+        stayFrom: '2026-08-10',
+      }),
+    );
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect((root.querySelector('app-remote-entity-selector input') as HTMLInputElement).value).toBe(
+      'Disabled Actor',
+    );
+    expect(root.querySelector('.exact-stay')?.textContent).toContain('Current Owner');
+    expect(root.textContent).not.toContain(lookupStay.stayId);
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('clears the opposite selected entity while typed text contributes no ID or automatic Stay search', async () => {
+    const c = fixture.componentInstance;
+    const search = vi.spyOn(TestBed.inject(ActivityLookupService), 'searchStays');
+    c.ownerSelector()?.select({
+      id: lookupStay.owner.id,
+      fullName: 'Current Owner',
+      currentCats: [],
+    });
+    fixture.detectChanges();
+    expect(c.filters().ownerId).toBe(lookupStay.owner.id);
+    c.catSelector()?.select({
+      id: lookupStay.cats[0].id,
+      name: 'Current Cat',
+      ownerId: lookupStay.owner.id,
+      ownerName: 'Current Owner',
+    });
+    fixture.detectChanges();
+    const inputs = fixture.nativeElement.querySelectorAll(
+      'app-remote-entity-selector input',
+    ) as NodeListOf<HTMLInputElement>;
+    expect(inputs[1].value).toBe('');
+    expect(inputs[2].value).toContain('Current Cat');
+    expect(c.filters().ownerId).toBe('');
+    expect(c.filters().catId).toBe(lookupStay.cats[0].id);
+    inputs[2].value = 'Unselected';
+    inputs[2].dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(c.filters().catId).toBe('');
+    expect(button('Find specific stay').disabled).toBe(true);
+    expect(search).not.toHaveBeenCalled();
+    c.ownerSelector()?.select({
+      id: lookupStay.owner.id,
+      fullName: 'Current Owner',
+      currentCats: [],
+    });
+    fixture.detectChanges();
+    expect(inputs[2].value).toBe('');
+    expect(inputs[1].value).toBe('Current Owner');
+  });
 });

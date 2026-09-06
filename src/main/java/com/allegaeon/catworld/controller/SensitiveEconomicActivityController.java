@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import com.allegaeon.catworld.dto.overview.OverviewPage;
 import java.util.UUID;
@@ -37,7 +38,9 @@ public class SensitiveEconomicActivityController {
             @RequestParam(required = false) SensitiveEconomicEventType eventType,
             @RequestParam(required = false) UUID ownerId,
             @RequestParam(required = false) UUID catId,
-            @RequestParam(required = false) UUID stayId) {
+            @RequestParam(required = false) UUID stayId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stayFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stayTo) {
         return ResponseEntity.ok(activityService.getActivity(
                 new SensitiveEconomicActivityFilter(
                         actorId,
@@ -46,7 +49,7 @@ public class SensitiveEconomicActivityController {
                         eventType,
                         ownerId,
                         catId,
-                        stayId
+                        stayId, stayFrom, stayTo
                 ), page
         ));
     }

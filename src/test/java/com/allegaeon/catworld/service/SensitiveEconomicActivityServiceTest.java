@@ -48,6 +48,14 @@ class SensitiveEconomicActivityServiceTest {
     @InjectMocks SensitiveEconomicActivityService service;
 
     @Test
+    void rejectsReversedStayDatesBeforeRepositoryAccess() {
+        var from = java.time.LocalDate.of(2026,8,12);
+        var filter = new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,from,from.minusDays(1));
+        assertThrows(BadRequestException.class, () -> service.getActivity(filter, 0));
+        verifyNoInteractions(readRepository);
+    }
+
+    @Test
     void authorizesAndDelegatesDefaultFilterToDatabaseQuery() {
         UserAccount admin = user(UserRole.ADMIN);
         SensitiveEconomicActivityProjection projection =
