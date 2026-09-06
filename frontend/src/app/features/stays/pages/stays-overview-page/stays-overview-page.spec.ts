@@ -414,6 +414,60 @@ describe('StaysOverviewPage server paging', () => {
     expect(f.nativeElement.querySelector('.contextual-selection')).toBeNull();
     expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
   });
+  it('serializes applied page-zero criteria even when Filter fails, without leaking drafts or reloading from query sync', async () => {
+    api.getStayOverview.mockReturnValue(
+      of({ items: [], page: 2, pageSize: 10, totalElements: 30 }),
+    );
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockImplementation((_, extras) => {
+      const tree = router.createUrlTree([], { queryParams: extras!.queryParams });
+      queryParams.next(router.parseUrl(router.serializeUrl(tree)).queryParamMap);
+      return Promise.resolve(true);
+    });
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    navigate.mockClear();
+    api.getStayOverview.mockClear();
+    const before = queryParams.value;
+    const draft = {
+      ownerId: 'o',
+      catId: null,
+      dateFrom: '2030-01-01',
+      dateTo: '2030-01-31',
+      dateMatchMode: 'STAY_WITHIN_RANGE' as const,
+    };
+    f.componentInstance.setSearchFilters(draft);
+    f.componentInstance.setStatusVisibility('checked-in', false);
+    f.componentInstance.setOutstandingOnly(true);
+    f.detectChanges();
+    expect(queryParams.value).toBe(before);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+
+    const failed = new Subject<never>();
+    api.getStayOverview.mockReturnValueOnce(failed);
+    (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();
+    failed.error(new Error('overview unavailable'));
+    f.detectChanges();
+    await f.whenStable();
+    expect(f.componentInstance.searchFilters()).toEqual(draft);
+    expect(f.componentInstance.page()).toBe(0);
+    expect(queryParams.value.get('page')).toBeNull();
+    expect(queryParams.value.get('dateFrom')).toBe(draft.dateFrom);
+    expect(queryParams.value.get('dateTo')).toBe(draft.dateTo);
+    expect(queryParams.value.get('dateMatchMode')).toBe(draft.dateMatchMode);
+    expect(queryParams.value.get('ownerId')).toBe('o');
+    expect(queryParams.value.get('statusFilter')).toBe('RESERVED');
+    expect(queryParams.value.get('outstandingOnly')).toBe('true');
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(api.getStayOverview).toHaveBeenCalledTimes(1);
+    expect(api.getStayOverview).toHaveBeenCalledWith(0, expect.objectContaining(draft));
+    expect(f.nativeElement.textContent).toContain(
+      f.componentInstance.text().stays.overview.errorLoading,
+    );
+  });
+
   it.each(['cat', 'owner'] as const)(
     'applies dates without dropping the deep-linked %s when lookup is pending or failed',
     (kind) => {

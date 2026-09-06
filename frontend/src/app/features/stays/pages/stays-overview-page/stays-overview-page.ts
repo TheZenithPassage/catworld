@@ -292,6 +292,7 @@ export class StaysOverviewPage {
     this.searchFilters.set(this.draftSearchFilters());
     this.paymentFilters.set(this.draftPaymentFilters());
     this.page.set(0);
+    this.syncPage();
     this.loadStays(0);
   }
   private syncPage(): void {
