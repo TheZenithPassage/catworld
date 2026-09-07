@@ -327,6 +327,9 @@ export class CalendarPage implements OnDestroy {
     this.draftSearchFilters.set(filters);
   }
 
+  clearFilters(): void {
+    this.searchControls()?.clear();
+  }
   applyFilters(): void {
     if (
       this.searchControls()?.validateDates() === false ||

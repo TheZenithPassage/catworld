@@ -28,9 +28,11 @@ mat-form-field {
   }
   mat-form-field {
     flex: 1 1 0;
+    min-width: 10rem;
   }
   .date-mode-filter {
     flex: 2 1 0;
+    min-width: 0;
   }
 }
 @media (max-width: 520px) {

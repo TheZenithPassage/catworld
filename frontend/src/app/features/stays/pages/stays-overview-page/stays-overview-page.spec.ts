@@ -349,6 +349,78 @@ describe('StaysOverviewPage server paging', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
+  it('clears search and payment drafts while retaining applied criteria, status and route', async () => {
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    const page = f.componentInstance;
+    const applied = page.searchFilters();
+    const payments = page.paymentFilters();
+    const statuses = page.statusVisibility();
+    page.setSearchFilters({
+      catId: 'draft-cat',
+      ownerId: null,
+      dateFrom: '2030-01-01',
+      dateMatchMode: 'STAY_WITHIN_RANGE',
+    });
+    page.setOutstandingOnly(true);
+    page.setPaymentConditionVisibility('NO_PAYMENT', false);
+    f.detectChanges();
+    api.getStayOverview.mockClear();
+    navigate.mockClear();
+    f.nativeElement.querySelector('.clear-filters').click();
+    f.detectChanges();
+    await f.whenStable();
+    expect(page.draftSearchFilters()).toMatchObject({
+      catId: null,
+      ownerId: null,
+      dateFrom: '',
+      dateTo: '',
+      dateMatchMode: 'OVERLAPS',
+    });
+    expect(page.draftPaymentFilters().outstandingOnly).toBe(false);
+    expect(page.draftPaymentFilters().conditionVisibility.NO_PAYMENT).toBe(true);
+    expect(page.searchFilters()).toEqual(applied);
+    expect(page.paymentFilters()).toEqual(payments);
+    expect(page.statusVisibility()).toEqual(statuses);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+  });
+
+  it.each(['1999-12-31', '2201-01-01'])(
+    'does not apply any draft or route change for the out-of-range date %s',
+    async (date) => {
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+      const f = TestBed.createComponent(StaysOverviewPage);
+      f.detectChanges();
+      await f.whenStable();
+      const page = f.componentInstance;
+      const applied = page.searchFilters();
+      const payment = page.paymentFilters();
+      page.setOutstandingOnly(true);
+      const input = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+      input.value = date;
+      input.dispatchEvent(new Event('input'));
+      f.detectChanges();
+      await f.whenStable();
+      const button = f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      expect(f.nativeElement.querySelector('mat-error')).toBeNull();
+      api.getStayOverview.mockClear();
+      navigate.mockClear();
+      button.click();
+      f.detectChanges();
+      await f.whenStable();
+      expect(f.nativeElement.querySelector('mat-error').textContent).toContain('2200');
+      expect(page.searchFilters()).toEqual(applied);
+      expect(page.paymentFilters()).toEqual(payment);
+      expect(navigate).not.toHaveBeenCalled();
+      expect(api.getStayOverview).not.toHaveBeenCalled();
+      expect(button.disabled).toBe(false);
+    },
+  );
+
   it('applies status immediately from page zero without leaking invalid date, entity or payment drafts', async () => {
     api.getStayOverview.mockReturnValue(
       of({ items: [], page: 2, pageSize: 10, totalElements: 30 }),
@@ -552,6 +624,7 @@ describe('StaysOverviewPage server paging', () => {
       const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
       const f = TestBed.createComponent(StaysOverviewPage);
       f.detectChanges();
+      await f.whenStable();
       const from = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
       from.value = '2030-01-01';
       from.dispatchEvent(new Event('input'));

@@ -674,6 +674,66 @@ describe('CalendarPage', () => {
     expect(stayApiService.getStays).not.toHaveBeenCalled();
   });
 
+  it('clears the search draft and date errors without changing applied filters or loading', async () => {
+    createComponent();
+    await fixture.whenStable();
+    const applied = component.searchFilters();
+    const statuses = component.statusVisibility();
+    component.setSearchFilters({
+      catId: null,
+      ownerId: 'draft-owner',
+      dateFrom: '2030-02-01',
+      dateTo: '2030-01-01',
+      dateMatchMode: 'RANGE_WITHIN_STAY',
+    });
+    fixture.detectChanges();
+    component.applyFilters();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    stayApiService.getStays.mockClear();
+    fixture.nativeElement.querySelector('.clear-filters').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.draftSearchFilters()).toMatchObject({
+      catId: null,
+      ownerId: null,
+      dateFrom: '',
+      dateTo: '',
+      dateMatchMode: 'OVERLAPS',
+    });
+    expect(component.searchFilters()).toEqual(applied);
+    expect(component.statusVisibility()).toEqual(statuses);
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    expect(stayApiService.getStays).not.toHaveBeenCalled();
+    expect(component.searchControls()!.validateDates()).toBe(true);
+  });
+
+  it('keeps Filter enabled and retains applied Calendar criteria for out-of-range native dates', async () => {
+    createComponent();
+    await fixture.whenStable();
+    const applied = component.searchFilters();
+    const events = component.calendarEvents();
+    const input = fixture.nativeElement.querySelectorAll(
+      'input[type="date"]',
+    )[1] as HTMLInputElement;
+    input.value = '26026-09-19';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const button = fixture.nativeElement.querySelector('.apply-filters') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    stayApiService.getStays.mockClear();
+    button.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('mat-error').textContent).toContain('2200');
+    expect(component.searchFilters()).toEqual(applied);
+    expect(component.calendarEvents()).toEqual(events);
+    expect(stayApiService.getStays).not.toHaveBeenCalled();
+    expect(button.disabled).toBe(false);
+  });
+
   it('keeps draft changes out of visible events until Filter and blocks reversed dates', () => {
     createComponent();
     const before = component.calendarEvents();

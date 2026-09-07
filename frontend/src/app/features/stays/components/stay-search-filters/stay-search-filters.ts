@@ -44,6 +44,13 @@ export class StaySearchFiltersComponent {
   setDates(dates: StayDateFilters): void {
     this.emitFilters(dates);
   }
+  clear(): void {
+    this.catSelector()?.reset();
+    this.ownerSelector()?.reset();
+    this.selectedCatId.set(null);
+    this.selectedOwnerId.set(null);
+    this.dates()?.clear();
+  }
   readonly initialCatId = input<string | null>(null);
   readonly initialOwnerId = input<string | null>(null);
   readonly catAdapter = inject(CatLookupAdapter);

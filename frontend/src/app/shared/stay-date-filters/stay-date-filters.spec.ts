@@ -27,16 +27,28 @@ describe('shared Stay date interaction without page or entity state', () => {
     await fixture.whenStable();
     const inputs = fixture.nativeElement.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
     let invalid = [false, false];
+    const nativeValidity = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      'validity',
+    )!.get!;
     inputs.forEach((input, i) =>
       Object.defineProperty(input, 'validity', {
         configurable: true,
-        get: () => ({ valid: !invalid[i], badInput: invalid[i] }),
+        get: () => {
+          const validity = nativeValidity.call(input) as ValidityState;
+          return {
+            valid: !invalid[i] && validity.valid,
+            badInput: invalid[i] || validity.badInput,
+            rangeUnderflow: validity.rangeUnderflow,
+            rangeOverflow: validity.rangeOverflow,
+          };
+        },
       }),
     );
-    const enter = async (i: number, value: string, bad = false) => {
+    const enter = async (i: number, value: string, bad = false, eventType = 'input') => {
       invalid[i] = bad;
       inputs[i].value = value;
-      inputs[i].dispatchEvent(new Event('input'));
+      inputs[i].dispatchEvent(new Event(eventType));
       fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
@@ -58,6 +70,34 @@ describe('shared Stay date interaction without page or entity state', () => {
     TestBed.resetTestingModule();
     localStorage.clear();
   });
+
+  it.each([
+    [0, null],
+    [1, null],
+    [0, undefined],
+    [1, undefined],
+  ] as const)(
+    'does not overwrite the first native partial edit in boundary %i initialized as %s',
+    async (index, initial) => {
+      const { fixture, host, inputs } = await setup();
+      host.draft.set({ dateFrom: initial, dateTo: initial, dateMatchMode: 'OVERLAPS' });
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const input = inputs[index];
+      // Native segment edits can change badInput while value stays empty and no input event fires.
+      Object.defineProperty(input, 'validity', {
+        configurable: true,
+        get: () => ({ valid: false, badInput: true, rangeUnderflow: false, rangeOverflow: false }),
+      });
+      const write = vi.spyOn(input, 'value', 'set');
+      input.dispatchEvent(new KeyboardEvent('keyup', { key: '1' }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(host.dates().dateStates()[index === 0 ? 'dateFrom' : 'dateTo']).toBe('EDITING');
+      expect(write).not.toHaveBeenCalled();
+      write.mockRestore();
+    },
+  );
 
   it('implements availability, preserves mode through bad input and reversal, and resets only on intentional clearing', async () => {
     const { fixture, host, enter, select, mode } = await setup();
@@ -118,6 +158,113 @@ describe('shared Stay date interaction without page or entity state', () => {
     await enter(1, '2030-02-02');
     expect(fields[1].querySelector('mat-error')).toBeNull();
   });
+
+  it.each([0, 1])(
+    'distinguishes native partial editing and clearing boundary %i without a normalized input event',
+    async (edited) => {
+      const { fixture, host, enter, inputs, select, mode } = await setup();
+      const field = edited === 0 ? 'dateFrom' : 'dateTo';
+      const fixed = 1 - edited;
+      inputs[edited].focus();
+      expect(host.dates().dateStates()[field]).toBe('EMPTY');
+      await enter(edited, '', true);
+      expect(host.dates().dateStates()[field]).toBe('EDITING');
+      expect(select.disabled).toBe(true);
+      await enter(edited, '', false, 'keyup');
+      await enter(fixed, '2030-01-10');
+      expect(select.disabled).toBe(false);
+      inputs[edited].focus();
+      expect(select.disabled).toBe(false);
+      await mode('RANGE_WITHIN_STAY');
+      await enter(edited, '', true, 'keyup');
+      expect(select.disabled).toBe(true);
+      expect(host.dates().explanations()).toBeNull();
+      expect(host.draft().dateMatchMode).toBe('RANGE_WITHIN_STAY');
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      expect(host.dates().validate()).toBe(false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+      await enter(edited, '', false, 'keyup');
+      expect(host.dates().dateStates()[field]).toBe('EMPTY');
+      expect(select.disabled).toBe(false);
+      expect(select.value).toBe('RANGE_WITHIN_STAY');
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      await enter(edited, '2030-01-10');
+      expect(select.disabled).toBe(false);
+      await enter(edited, '2201-01-01');
+      expect(select.disabled).toBe(true);
+      expect(select.value).toBe('RANGE_WITHIN_STAY');
+      await enter(edited, '2030-01-10');
+      expect(select.disabled).toBe(false);
+      await enter(edited, '');
+      expect(select.disabled).toBe(false);
+      await enter(fixed, '');
+      expect(select.disabled).toBe(true);
+      expect(host.draft().dateMatchMode).toBe('OVERLAPS');
+    },
+  );
+
+  it.each(['1999-12-31', '2000-01-01', '2200-12-31', '2201-01-01', '0002-09-10', '26026-09-19'])(
+    'uses native bounds for %s on both date inputs',
+    async (date) => {
+      const { fixture, host, inputs, enter, select } = await setup();
+      const valid = date === '2000-01-01' || date === '2200-12-31';
+      for (const i of [0, 1]) {
+        host.dates().clear();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(inputs[i].min).toBe('2000-01-01');
+        expect(inputs[i].max).toBe('2200-12-31');
+        await enter(i, date);
+        expect(select.disabled).toBe(!valid);
+        expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+        expect(host.dates().validate()).toBe(valid);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        if (!valid) {
+          expect(fixture.nativeElement.querySelector('mat-error').textContent).toContain('2000');
+          expect(fixture.nativeElement.querySelector('mat-error').textContent).toContain('2200');
+        }
+        await enter(i, '');
+        expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+        expect(host.dates().validate()).toBe(true);
+      }
+    },
+  );
+
+  it.each(['en', 'es'] as const)(
+    'uses dedicated same-day subtitles in %s for every mode',
+    async (language) => {
+      const { host, enter, harness, mode } = await setup(language);
+      await enter(0, '2026-01-01');
+      await enter(1, '2026-01-01');
+      expect(host.dates().validate()).toBe(true);
+      await harness.open();
+      expect(
+        Array.from(document.querySelectorAll('mat-option .date-explanation')).map((e) =>
+          e.textContent!.trim(),
+        ),
+      ).toEqual(
+        language === 'en'
+          ? [
+              'Includes stays present on 1 Jan 2026.',
+              'Includes stays that start and end on 1 Jan 2026.',
+              'Includes stays present on 1 Jan 2026.',
+            ]
+          : [
+              'Incluye estancias presentes el 1 ene 2026.',
+              'Incluye estancias que empiezan y terminan el 1 ene 2026.',
+              'Incluye estancias presentes el 1 ene 2026.',
+            ],
+      );
+      await harness.close();
+      for (const value of DATE_MATCH_MODES) {
+        await mode(value);
+        expect(host.draft().dateMatchMode).toBe(value);
+      }
+    },
+  );
 
   it.each(['en', 'es'] as const)(
     'explains all nine relationships in %s with localized years',

@@ -2,30 +2,48 @@
   <mat-label>{{ text().stays.filters.dateFrom }}</mat-label>
   <input
     #fromInput
+    #fromModel="ngModel"
     matInput
     appNativeBadInput
     type="date"
-    [ngModel]="filters().dateFrom"
+    min="2000-01-01"
+    max="2200-12-31"
+    [ngModel]="filters().dateFrom ?? ''"
     [ngModelOptions]="{ standalone: true }"
     (input)="dateInput('dateFrom', $event)"
+    (keyup)="dateInput('dateFrom', $event)"
+    (change)="dateInput('dateFrom', $event)"
+    (blur)="dateInput('dateFrom', $event)"
     [errorStateMatcher]="fromMatcher"
   />
-  <mat-error>{{ text().stays.filters.invalidDate }}</mat-error>
+  <mat-error>{{
+    outOfRange().dateFrom ? text().stays.filters.dateOutOfRange : text().stays.filters.invalidDate
+  }}</mat-error>
 </mat-form-field>
 <mat-form-field appearance="outline" subscriptSizing="dynamic">
   <mat-label>{{ text().stays.filters.dateTo }}</mat-label>
   <input
     #toInput
+    #toModel="ngModel"
     matInput
     appNativeBadInput
     type="date"
-    [ngModel]="filters().dateTo"
+    min="2000-01-01"
+    max="2200-12-31"
+    [ngModel]="filters().dateTo ?? ''"
     [ngModelOptions]="{ standalone: true }"
     (input)="dateInput('dateTo', $event)"
+    (keyup)="dateInput('dateTo', $event)"
+    (change)="dateInput('dateTo', $event)"
+    (blur)="dateInput('dateTo', $event)"
     [errorStateMatcher]="toMatcher"
   />
   <mat-error>{{
-    reversed() ? text().stays.filters.invalidDateRange : text().stays.filters.invalidDate
+    reversed()
+      ? text().stays.filters.invalidDateRange
+      : outOfRange().dateTo
+        ? text().stays.filters.dateOutOfRange
+        : text().stays.filters.invalidDate
   }}</mat-error>
 </mat-form-field>
 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="date-mode-filter">

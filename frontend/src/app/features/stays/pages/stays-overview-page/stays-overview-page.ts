@@ -287,6 +287,10 @@ export class StaysOverviewPage {
   setOutstandingOnly(v: boolean): void {
     this.draftPaymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
   }
+  clearFilters(): void {
+    this.searchControls()?.clear();
+    this.draftPaymentFilters.set(getDefaultStayPaymentFilters());
+  }
   applyFilters(): void {
     if (
       this.searchControls()?.validateDates() === false ||

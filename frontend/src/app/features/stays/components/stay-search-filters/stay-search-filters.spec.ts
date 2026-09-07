@@ -182,6 +182,7 @@ describe('StaySearchFiltersComponent', () => {
       });
       fixture.detectChanges();
       expect(pending.observed).toBe(true);
+      await fixture.whenStable();
       const from = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
       type(from, '2030-01-01');
       expect(emittedFilters.at(-1)).toMatchObject({ ...expected, dateFrom: '2030-01-01' });

@@ -1125,11 +1125,20 @@ Material errors and localized draft explanations including the year, shown as
 subtitles inside each option. The closed selector keeps the date inputs' height. Its model
 also supplies the existing inclusive date matcher. Owner/Cat and the projected
 Filter action remain in the Stay search composition. At widths of 800px and above,
-From, To, the mode selector and compact Filter share one row. Below 800px,
-Filter occupies its own full-width row.
+From, To, the mode selector, outlined Clear and compact Filter share one row.
+Below 800px, Clear and Filter share equal widths in that order; at 520px and
+below Filter then Clear stack at full width. Clear resets the entity/date draft, date errors
+and Stays payment draft without changing applied filters or immediate status.
+
+Both native date inputs use the frontend-only bounds 2000-01-01 through
+2200-12-31. Native value and validity distinguish empty, partial editing, valid
+and invalid states; keyboard completion, blur/change and rendered model writes
+resynchronize that state even when the normalized value remains empty. Backend
+LocalDate semantics remain unchanged. Same-day intervals use dedicated localized
+single-day explanations for all three modes.
 
 Empty dates disable the mode selector; usable one-sided or ordered two-sided
-dates enable it. Native-invalid input and reversed ranges disable it and hide
+dates enable it. Native-invalid/out-of-range input and reversed ranges disable it and hide
 help without resetting the mode. Clearing both dates resets OVERLAPS. Filter
 stays enabled and validates via the component before applying any draft; native
 bad input uses the existing directive, and reversed-range errors belong to To.

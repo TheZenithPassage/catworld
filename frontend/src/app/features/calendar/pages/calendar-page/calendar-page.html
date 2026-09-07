@@ -35,6 +35,9 @@
     [dateFilters]="draftSearchFilters()"
     (filtersChange)="setSearchFilters($event)"
   >
+    <button mat-stroked-button class="clear-filters" (click)="clearFilters()">
+      {{ text().stays.filters.clear }}
+    </button>
     <button mat-flat-button class="apply-filters" (click)="applyFilters()">
       {{ text().stays.filters.apply }}
     </button>

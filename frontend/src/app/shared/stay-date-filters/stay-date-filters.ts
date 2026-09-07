@@ -1,4 +1,5 @@
 import {
+  afterEveryRender,
   Component,
   ChangeDetectorRef,
   ElementRef,
@@ -9,7 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgModel } from '@angular/forms';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatFormField, MatLabel, MatError } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -25,6 +26,7 @@ import {
 } from './stay-date-filter.model';
 
 type Boundary = 'dateFrom' | 'dateTo';
+type DateInputState = 'EMPTY' | 'EDITING' | 'VALID' | 'INVALID';
 
 @Component({
   selector: 'app-stay-date-filters',
@@ -51,27 +53,36 @@ export class StayDateFiltersComponent {
   readonly modes = DATE_MATCH_MODES;
   private readonly fromInput = viewChild<ElementRef<HTMLInputElement>>('fromInput');
   private readonly toInput = viewChild<ElementRef<HTMLInputElement>>('toInput');
+  private readonly fromModel = viewChild<NgModel>('fromModel');
+  private readonly toModel = viewChild<NgModel>('toModel');
   readonly submitted = signal(false);
-  readonly unusable = signal({ dateFrom: false, dateTo: false });
+  readonly dateStates = signal<Record<Boundary, DateInputState>>({
+    dateFrom: 'EMPTY',
+    dateTo: 'EMPTY',
+  });
+  readonly outOfRange = signal({ dateFrom: false, dateTo: false });
+  constructor() {
+    // Include model/route writes after NgModel has updated the native controls.
+    afterEveryRender(() => this.syncNativeStates());
+  }
   readonly reversed = computed(
     () =>
-      !this.unusable().dateFrom && !this.unusable().dateTo && !isStayDateRangeValid(this.filters()),
+      this.dateStates().dateFrom === 'VALID' &&
+      this.dateStates().dateTo === 'VALID' &&
+      !isStayDateRangeValid(this.filters()),
   );
   readonly modeAvailable = computed(
     () =>
-      !this.unusable().dateFrom &&
-      !this.unusable().dateTo &&
+      !this.isUnusable('dateFrom') &&
+      !this.isUnusable('dateTo') &&
       !this.reversed() &&
-      Boolean(this.filters().dateFrom || this.filters().dateTo),
+      (this.dateStates().dateFrom === 'VALID' || this.dateStates().dateTo === 'VALID'),
   );
   readonly fromMatcher: ErrorStateMatcher = {
-    isErrorState: (control) =>
-      this.submitted() && (this.unusable().dateFrom || Boolean(control?.hasError('badInput'))),
+    isErrorState: () => this.submitted() && this.isUnusable('dateFrom'),
   };
   readonly toMatcher: ErrorStateMatcher = {
-    isErrorState: (control) =>
-      this.submitted() &&
-      (this.unusable().dateTo || Boolean(control?.hasError('badInput')) || this.reversed()),
+    isErrorState: () => this.submitted() && (this.isUnusable('dateTo') || this.reversed()),
   };
   readonly explanations = computed(() => {
     if (!this.modeAvailable()) return null;
@@ -90,6 +101,7 @@ export class StayDateFiltersComponent {
     const to = dateTo ? format(dateTo) : null;
     const describe = (mode: StayDateMatchMode) => {
       const help = this.text().stays.filters.dateHelp[mode];
+      if (dateFrom && dateFrom === dateTo) return help.sameDay(from!);
       return from && to ? help.both(from, to) : from ? help.from(from) : help.to(to!);
     };
     return {
@@ -101,15 +113,34 @@ export class StayDateFiltersComponent {
 
   dateInput(field: Boundary, event: Event): void {
     const element = event.target as HTMLInputElement;
-    this.unusable.update((state) => ({ ...state, [field]: !element.validity.valid }));
+    const previousState = this.dateStates()[field];
+    this.syncNativeStates();
+    if (
+      previousState === this.dateStates()[field] &&
+      element.value === (this.filters()[field] ?? '')
+    )
+      return;
     const next = { ...this.dateDraft(), [field]: element.value };
-    if (!next.dateFrom && !next.dateTo && !this.unusable().dateFrom && !this.unusable().dateTo)
+    if (this.dateStates().dateFrom === 'EMPTY' && this.dateStates().dateTo === 'EMPTY')
       next.dateMatchMode = 'OVERLAPS';
     this.filtersChange.emit(next);
   }
 
   setMode(mode: StayDateMatchMode): void {
     this.filtersChange.emit({ ...this.dateDraft(), dateMatchMode: mode });
+  }
+
+  clear(): void {
+    // Clear native partial edits even when their normalized model value is already empty.
+    for (const input of [this.fromInput(), this.toInput()]) {
+      if (input) input.nativeElement.value = '';
+    }
+    this.fromModel()?.control.reset('', { emitEvent: false });
+    this.toModel()?.control.reset('', { emitEvent: false });
+    this.submitted.set(false);
+    this.syncNativeStates();
+    this.changeDetector.markForCheck();
+    this.filtersChange.emit({ dateFrom: '', dateTo: '', dateMatchMode: 'OVERLAPS' });
   }
 
   private dateDraft(): StayDateFilters {
@@ -120,10 +151,36 @@ export class StayDateFiltersComponent {
   validate(): boolean {
     this.submitted.set(true);
     this.changeDetector.markForCheck();
-    this.unusable.set({
-      dateFrom: !(this.fromInput()?.nativeElement.validity.valid ?? true),
-      dateTo: !(this.toInput()?.nativeElement.validity.valid ?? true),
-    });
-    return !this.unusable().dateFrom && !this.unusable().dateTo && !this.reversed();
+    this.syncNativeStates();
+    return !this.isUnusable('dateFrom') && !this.isUnusable('dateTo') && !this.reversed();
+  }
+
+  private isUnusable(field: Boundary): boolean {
+    return this.dateStates()[field] === 'EDITING' || this.dateStates()[field] === 'INVALID';
+  }
+
+  private syncNativeStates(): void {
+    for (const [field, ref] of [
+      ['dateFrom', this.fromInput()],
+      ['dateTo', this.toInput()],
+    ] as const) {
+      if (!ref) continue;
+      const { value, validity } = ref.nativeElement;
+      // badInput exposes raw, non-empty native segments even when value is ''.
+      const state: DateInputState = value
+        ? validity.valid
+          ? 'VALID'
+          : 'INVALID'
+        : validity.badInput
+          ? 'EDITING'
+          : validity.valid
+            ? 'EMPTY'
+            : 'INVALID';
+      const outside = Boolean(validity.rangeUnderflow || validity.rangeOverflow);
+      if (this.dateStates()[field] !== state)
+        this.dateStates.update((current) => ({ ...current, [field]: state }));
+      if (this.outOfRange()[field] !== outside)
+        this.outOfRange.update((current) => ({ ...current, [field]: outside }));
+    }
   }
 }
