@@ -250,6 +250,39 @@ describe('CalendarPage', () => {
     expect(component.visibleMonth()).toBe('2099-07-01');
   });
 
+  it('toggles sticky month visibility without changing header geometry and cleans up observers', () => {
+    let intersect!: (entries: { boundingClientRect: { bottom: number } }[]) => void;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: typeof intersect) {
+          intersect = callback;
+        }
+        observe = observe;
+        disconnect = disconnect;
+      },
+    );
+    createComponent();
+    const root = fixture.nativeElement as HTMLElement;
+    const month = root.querySelector<HTMLElement>('.calendar-sticky-month')!;
+    const header = month.parentElement!;
+    const initialStyle = header.getAttribute('style');
+    expect(observe).toHaveBeenCalledWith(root.querySelector('.fc-toolbar'));
+    for (const bottom of [-1, 100, -20, 200]) {
+      intersect([{ boundingClientRect: { bottom } }]);
+      expect(month.classList.contains('calendar-sticky-month--visible')).toBe(bottom <= 0);
+      expect(header.getAttribute('style')).toBe(initialStyle);
+    }
+    const removeListener = vi.spyOn(window, 'removeEventListener');
+    component.calendarOptions().viewWillUnmount!({} as never);
+    expect(disconnect).toHaveBeenCalled();
+    expect(removeListener).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(root.querySelector('.calendar-sticky-month')).toBeNull();
+    removeListener.mockRestore();
+  });
+
   it('renders and updates the compact localized month context without changing layout state', async () => {
     localStorage.setItem(
       'catworld.calendar.preferences',
@@ -281,6 +314,152 @@ describe('CalendarPage', () => {
 
     expect(fixture.nativeElement.querySelector('.calendar-sticky-month')).toBeNull();
   });
+
+  it.each(['es', 'en'] as const)(
+    'centers, clamps, compacts and scales the %s title without wrapping',
+    (language) => {
+      TestBed.inject(I18nService).language.set(language);
+      let resize!: () => void;
+      const disconnect = vi.fn();
+      const observe = vi.fn();
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          constructor(callback: () => void) {
+            resize = callback;
+          }
+          observe = observe;
+          unobserve = vi.fn();
+          disconnect = disconnect;
+        },
+      );
+      createComponent();
+      const root = fixture.nativeElement as HTMLElement;
+      const toolbar = root.querySelector<HTMLElement>('.fc-toolbar')!;
+      const navigation = toolbar.querySelector<HTMLElement>('.fc-toolbar-chunk:first-child')!;
+      const title = toolbar.querySelector<HTMLElement>('.fc-toolbar-title')!;
+      toolbar.style.columnGap = '12px';
+      let width = 1000;
+      let navigationWidth = 200;
+      let titleWidth = 200;
+      const fullTitle = fixture.debugElement
+        .query(By.directive(FullCalendarComponent))
+        .componentInstance.getApi().view.title;
+      const originalComputedStyle = getComputedStyle;
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+        if (element === title) return { fontSize: '20px' } as CSSStyleDeclaration;
+        if (element === document.documentElement)
+          return { fontSize: '16px' } as CSSStyleDeclaration;
+        return originalComputedStyle(element);
+      });
+      vi.spyOn(toolbar, 'getBoundingClientRect').mockImplementation(() => ({ width }) as DOMRect);
+      vi.spyOn(navigation, 'getBoundingClientRect').mockImplementation(
+        () => ({ width: navigationWidth }) as DOMRect,
+      );
+      vi.spyOn(title, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            width:
+              title.textContent === fullTitle
+                ? titleWidth
+                : (100 * (parseFloat(title.style.fontSize) || 20)) / 20,
+          }) as DOMRect,
+      );
+      const offset = () => title.style.getPropertyValue('--calendar-title-offset');
+
+      resize();
+      expect(offset()).toBe('188px'); // Title starts at 400: centered across the 1000px toolbar.
+      expect(title.textContent).toBe(fullTitle);
+      width = 550;
+      resize();
+      expect(offset()).toBe('0px'); // Clamp immediately after navigation + gap, without wrapping.
+      expect(title.textContent).toBe(fullTitle);
+      width = 400;
+      resize();
+      expect(offset()).toBe('0px');
+      expect(title.textContent).toBe(component.compactMonthLabel());
+      expect(title.style.fontSize).toBe('');
+      expect(title.getAttribute('aria-label')).toBe(fullTitle);
+      width = 300;
+      resize();
+      expect(parseFloat(title.style.fontSize)).toBeCloseTo(17.6);
+      width = 280;
+      resize();
+      expect(parseFloat(title.style.fontSize)).toBeCloseTo(13.6);
+      component.loading.set(true);
+      fixture.detectChanges();
+      expect(parseFloat(title.style.fontSize)).toBeCloseTo(13.6);
+      component.loading.set(false);
+      fixture.detectChanges();
+      expect(parseFloat(title.style.fontSize)).toBeCloseTo(13.6);
+      width = 400;
+      resize();
+      expect(title.textContent).toBe(component.compactMonthLabel());
+      expect(title.style.fontSize).toBe('');
+      titleWidth = 100;
+      resize();
+      expect(offset()).toBe('0px'); // A shorter localized month fits on the first row again.
+      expect(title.textContent).toBe(fullTitle);
+      navigationWidth = 150;
+      width = 600;
+      resize();
+      expect(offset()).toBe('88px'); // A different localized control width retains global centering.
+      expect(observe).toHaveBeenCalledWith(toolbar);
+      expect(observe).toHaveBeenCalledWith(navigation);
+      expect(observe).toHaveBeenCalledWith(title);
+      fixture.destroy();
+      expect(disconnect).toHaveBeenCalled();
+      vi.restoreAllMocks();
+    },
+  );
+
+  it.each([
+    ['es', 'success'],
+    ['es', 'error'],
+    ['en', 'success'],
+    ['en', 'error'],
+  ] as const)(
+    'keeps Calendar mounted with a stable %s toolbar spinner slot until request %s',
+    async (language, outcome) => {
+      TestBed.inject(I18nService).language.set(language);
+      const response = new Subject<Stay[]>();
+      stayApiService.getStays.mockReturnValue(response);
+      createComponent();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const root = fixture.nativeElement as HTMLElement;
+      const calendar = root.querySelector('full-calendar');
+      const indicator = root.querySelector('.calendar-loading-indicator');
+      expect(calendar).not.toBeNull();
+      expect(root.querySelector('.fc-today-button')?.nextElementSibling).toBe(indicator);
+      expect(root.querySelector('.fc-today-button')?.textContent?.toLowerCase()).toBe(
+        language === 'es' ? 'hoy' : 'today',
+      );
+      expect(indicator?.querySelector('mat-progress-spinner')).not.toBeNull();
+      expect(root.querySelector('.loading, app-ui-state[kind="loading"]')).toBeNull();
+      expect(root.textContent).not.toContain(component.text().calendar.loading);
+
+      if (outcome === 'success') {
+        response.next([]);
+        response.complete();
+      } else {
+        response.error(new Error('load failed'));
+      }
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(root.querySelector('mat-progress-spinner')).toBeNull();
+      expect(root.querySelector('.fc-today-button')?.nextElementSibling).toBe(indicator);
+      expect(root.querySelector('full-calendar')).toBe(calendar);
+      expect(root.textContent).toContain(
+        outcome === 'success'
+          ? component.text().calendar.empty
+          : component.text().calendar.errorLoading,
+      );
+    },
+  );
 
   it('keeps FullCalendar present for loaded stays and keeps error state retry behavior', async () => {
     createComponent();

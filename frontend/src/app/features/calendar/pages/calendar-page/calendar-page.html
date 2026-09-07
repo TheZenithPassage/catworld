@@ -67,16 +67,14 @@
     </mat-radio-group>
   </div>
 
-  @if (loading()) {
-    <app-ui-state kind="loading" [message]="text().calendar.loading"></app-ui-state>
-  } @else if (error()) {
+  @if (!loading() && error()) {
     <app-ui-state
       kind="error"
       [message]="error() ?? ''"
       [actionLabel]="text().calendar.actions.retry"
       (actionTriggered)="loadStays()"
     ></app-ui-state>
-  } @else {
+  } @else if (!loading()) {
     @if (stays().length === 0) {
       <app-ui-state kind="empty" [message]="text().calendar.empty"></app-ui-state>
     } @else if (filteredStays().length === 0) {
@@ -86,8 +84,16 @@
   <div
     [class]="'calendar-wrapper calendar-wrapper--' + displayMode()"
     [style.--calendar-sticky-top.px]="calendarStickyTop()"
-    [style.--calendar-month-reveal.px]="calendarMonthReveal()"
   >
+    <span #loadingIndicator class="calendar-loading-indicator">
+      @if (loading()) {
+        <mat-progress-spinner
+          mode="indeterminate"
+          [diameter]="18"
+          [attr.aria-label]="text().calendar.loading"
+        ></mat-progress-spinner>
+      }
+    </span>
     <full-calendar [options]="calendarOptions()" [events]="calendarEvents()"></full-calendar>
   </div>
 </section>
