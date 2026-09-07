@@ -28,6 +28,10 @@ import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.model.StayStatus;
 import java.util.Set;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
+import com.allegaeon.catworld.dto.StayDateFilter;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
 
 @RequiredArgsConstructor
 @RestController
@@ -37,8 +41,12 @@ public class StayController {
     private final IStayService stayService;
 
     @GetMapping
-    public ResponseEntity<List<StayResponseDTO>> getStays() {
-        return ResponseEntity.ok(stayService.getAllStays());
+    public ResponseEntity<List<StayResponseDTO>> getStays(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) StayDateMatchMode dateMatchMode) {
+        StayDateFilter dates = new StayDateFilter(dateFrom, dateTo, dateMatchMode);
+        return ResponseEntity.ok(dates.active() ? stayService.getAllStays(dates) : stayService.getAllStays());
     }
 
     @GetMapping("/overview")
@@ -48,9 +56,12 @@ public class StayController {
             @RequestParam(required = false) UUID ownerId,
             @RequestParam(required = false) UUID catId,
             @RequestParam(name = "paymentCondition", required = false) Set<PaymentCondition> paymentConditions,
-            @RequestParam(required = false) Boolean outstandingOnly) {
+            @RequestParam(required = false) Boolean outstandingOnly,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) StayDateMatchMode dateMatchMode) {
         return ResponseEntity.ok(stayService.getStayOverview(page, statuses, ownerId, catId,
-                paymentConditions, outstandingOnly));
+                paymentConditions, outstandingOnly, new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
     }
 
     @GetMapping("/{id}")

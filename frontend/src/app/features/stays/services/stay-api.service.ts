@@ -24,7 +24,18 @@ import {
 } from '../models/stay.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
 
-export interface StayOverviewFilters {
+import { StayDateFilters } from '../utils/stay-search-filter.util';
+
+function dateParams(filters: StayDateFilters): Record<string, string> {
+  if (!filters.dateFrom && !filters.dateTo) return {};
+  return {
+    ...(filters.dateFrom ? { dateFrom: filters.dateFrom } : {}),
+    ...(filters.dateTo ? { dateTo: filters.dateTo } : {}),
+    dateMatchMode: filters.dateMatchMode ?? 'OVERLAPS',
+  };
+}
+
+export interface StayOverviewFilters extends StayDateFilters {
   statuses: StayOverviewStatus[];
   ownerId: string | null;
   catId: string | null;
@@ -39,8 +50,8 @@ export class StayApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${API_BASE_URL}/stays`;
 
-  getStays(): Observable<Stay[]> {
-    return this.http.get<Stay[]>(this.baseUrl);
+  getStays(filters: StayDateFilters = {}): Observable<Stay[]> {
+    return this.http.get<Stay[]>(this.baseUrl, { params: dateParams(filters) });
   }
 
   getStayOverview(
@@ -50,6 +61,7 @@ export class StayApiService {
     return this.http.get<OverviewPage<StayOverviewItem>>(`${this.baseUrl}/overview`, {
       params: {
         page,
+        ...dateParams(filters),
         status: filters.statuses,
         paymentCondition: filters.paymentConditions,
         outstandingOnly: filters.outstandingOnly,

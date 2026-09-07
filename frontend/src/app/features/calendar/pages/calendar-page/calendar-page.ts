@@ -1,11 +1,23 @@
-import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
+import {
+  afterEveryRender,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnDestroy,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
 
-import { FullCalendarModule } from '@fullcalendar/angular';
+import { FullCalendarComponent, FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, DatesSetArg, EventContentArg } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import esLocale from '@fullcalendar/core/locales/es';
@@ -21,6 +33,7 @@ import { StaySearchFiltersComponent } from '../../../stays/components/stay-searc
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
   getDefaultStaySearchFilters,
+  isStayDateRangeValid,
   isStayVisibleBySearchFilters,
   StaySearchFilters,
 } from '../../../stays/utils/stay-search-filter.util';
@@ -53,6 +66,7 @@ interface CalendarLocalPreferences {
     MatButton,
     MatCheckbox,
     MatRadioModule,
+    MatProgressSpinner,
     RouterLink,
     StaySearchFiltersComponent,
     UiStateComponent,
@@ -61,6 +75,12 @@ interface CalendarLocalPreferences {
   styleUrl: './calendar-page.scss',
 })
 export class CalendarPage implements OnDestroy {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly loadingIndicator = viewChild<ElementRef<HTMLElement>>('loadingIndicator');
+  private readonly calendar = viewChild(FullCalendarComponent);
+  private toolbarResizeObserver?: ResizeObserver;
+  private toolbarElements: HTMLElement[] = [];
+
   private readonly stayApiService = inject(StayApiService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
@@ -92,7 +112,6 @@ export class CalendarPage implements OnDestroy {
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
   readonly calendarStickyTop = signal(0);
-  readonly calendarMonthReveal = signal(0);
   readonly compactMonthLabel = computed(() => {
     const visibleMonth = this.visibleMonth();
 
@@ -112,6 +131,11 @@ export class CalendarPage implements OnDestroy {
       .toLocaleUpperCase(locale);
   });
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
+  readonly draftSearchFilters = signal(this.searchFilters());
+  readonly searchControls = viewChild(StaySearchFiltersComponent);
+  private viewInterval: { dateFrom: string; dateTo: string } | null = null;
+  private request?: Subscription;
+  private requestId = 0;
   readonly filteredStays = computed(() =>
     this.stays().filter(
       (stay) =>
@@ -126,6 +150,7 @@ export class CalendarPage implements OnDestroy {
   readonly calendarOptions = computed<CalendarOptions>(() => ({
     plugins: [dayGridPlugin],
     initialView: 'dayGridMonth',
+    showNonCurrentDates: false,
     initialDate: this.storedCalendarPreferences.visibleMonth ?? undefined,
     locale: this.language() === 'es' ? esLocale : enGbLocale,
     firstDay: 1,
@@ -143,6 +168,7 @@ export class CalendarPage implements OnDestroy {
     datesSet: (dateInfo: DatesSetArg) => {
       this.visibleMonth.set(this.toDateValue(dateInfo.view.currentStart));
       this.updateStickyMonthLabel();
+      this.setViewInterval(dateInfo);
     },
     viewDidMount: ({ el }) => {
       const stickyHeader = el
@@ -171,15 +197,7 @@ export class CalendarPage implements OnDestroy {
 
       this.entityDetailDialog
         .open({ entityType: 'stay', entityId: stayId })
-        .subscribe((updated) => {
-          if ('entityType' in updated) {
-            this.loadStays();
-            return;
-          }
-          this.stays.update((items) =>
-            items.map((item) => (item.stayId === updated.stayId ? updated : item)),
-          );
-        });
+        .subscribe(() => this.loadStays());
     },
     eventDidMount: ({ el, event }) => {
       if (event.extendedProps['eventKind'] === 'daily-count') {
@@ -247,6 +265,15 @@ export class CalendarPage implements OnDestroy {
   }
 
   constructor() {
+    afterEveryRender(() => {
+      const indicator = this.loadingIndicator()?.nativeElement;
+      const today = this.host.nativeElement.querySelector('.fc-today-button');
+      // FullCalendar owns the toolbar and may recreate it when the locale changes.
+      if (indicator && today && today.nextElementSibling !== indicator) {
+        today.after(indicator);
+      }
+      this.updateToolbarLayout();
+    });
     effect(() => {
       this.storeCalendarPreferences({
         displayMode: this.displayMode(),
@@ -255,28 +282,94 @@ export class CalendarPage implements OnDestroy {
 
       this.stayStatusVisibilityPreferencesService.store(this.statusVisibility());
     });
-
-    this.loadStays();
   }
 
   ngOnDestroy(): void {
+    this.toolbarResizeObserver?.disconnect();
+    this.requestId++;
+    this.request?.unsubscribe();
     this.disconnectStickyMonth();
   }
 
+  private updateToolbarLayout(): void {
+    const toolbar = this.host.nativeElement.querySelector<HTMLElement>('.fc-toolbar');
+    const navigation = toolbar?.querySelector<HTMLElement>('.fc-toolbar-chunk:first-child');
+    const title = toolbar?.querySelector<HTMLElement>('.fc-toolbar-title');
+    if (!toolbar || !navigation || !title) return;
+
+    const elements = [toolbar, navigation, title];
+    if (elements.some((element, index) => element !== this.toolbarElements[index])) {
+      this.toolbarResizeObserver?.disconnect();
+      this.toolbarElements = elements;
+      if (typeof ResizeObserver !== 'undefined') {
+        this.toolbarResizeObserver = new ResizeObserver(() => this.updateToolbarLayout());
+        elements.forEach((element) => this.toolbarResizeObserver!.observe(element));
+      }
+    }
+
+    const width = toolbar.getBoundingClientRect().width;
+    const navigationWidth = navigation.getBoundingClientRect().width;
+    const gap = parseFloat(getComputedStyle(toolbar).columnGap) || 0;
+    const available = Math.max(0, width - navigationWidth - gap);
+    const fullTitle = this.calendar()?.getApi().view.title;
+    if (!fullTitle || width === 0) return;
+
+    // Re-measure normal typography so growth, locale and display-mode changes restore the full title.
+    title.textContent = fullTitle;
+    title.setAttribute('aria-label', fullTitle);
+    title.style.removeProperty('font-size');
+    if (title.getBoundingClientRect().width > available) {
+      title.textContent = this.compactMonthLabel();
+      const compactWidth = title.getBoundingClientRect().width;
+      if (compactWidth > available) {
+        const normalSize = parseFloat(getComputedStyle(title).fontSize);
+        const minimumSize = parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.75;
+        title.style.fontSize = `${Math.max(minimumSize, (normalSize * available) / compactWidth)}px`;
+      }
+    }
+    const titleWidth = title.getBoundingClientRect().width;
+    const offset = Math.max(0, (width - titleWidth) / 2 - navigationWidth - gap);
+    title.style.setProperty('--calendar-title-offset', `${offset}px`);
+  }
+
+  setViewInterval(info: DatesSetArg): void {
+    const lastDay = new Date(info.view.currentEnd);
+    lastDay.setDate(lastDay.getDate() - 1);
+    const interval = {
+      dateFrom: this.toDateValue(info.view.currentStart),
+      dateTo: this.toDateValue(lastDay),
+    };
+    if (
+      this.viewInterval?.dateFrom === interval.dateFrom &&
+      this.viewInterval?.dateTo === interval.dateTo
+    )
+      return;
+    this.viewInterval = interval;
+    this.stays.set([]);
+    this.loadStays();
+  }
+
   loadStays(): void {
+    if (!this.viewInterval) return;
+    const id = ++this.requestId;
+    this.request?.unsubscribe();
     this.loading.set(true);
     this.error.set(null);
 
-    this.stayApiService.getStays().subscribe({
-      next: (stays) => {
-        this.stays.set(stays);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.error.set(this.text().calendar.errorLoading);
-        this.loading.set(false);
-      },
-    });
+    this.request = this.stayApiService
+      .getStays({ ...this.viewInterval, dateMatchMode: 'OVERLAPS' })
+      .subscribe({
+        next: (stays) => {
+          if (id !== this.requestId) return;
+          this.stays.set(stays);
+          this.loading.set(false);
+        },
+        error: () => {
+          if (id !== this.requestId) return;
+          this.error.set(this.text().calendar.errorLoading);
+          this.loading.set(false);
+        },
+      });
   }
 
   isStatusVisible(status: StayStatus): boolean {
@@ -299,7 +392,20 @@ export class CalendarPage implements OnDestroy {
   }
 
   setSearchFilters(filters: StaySearchFilters): void {
-    this.searchFilters.set(filters);
+    this.draftSearchFilters.set(filters);
+  }
+
+  clearFilters(): void {
+    this.searchControls()?.clear();
+  }
+  applyFilters(): void {
+    if (
+      this.searchControls()?.validateDates() === false ||
+      !isStayDateRangeValid(this.draftSearchFilters())
+    )
+      return;
+    this.searchFilters.set(this.draftSearchFilters());
+    // A pending view load remains valid: its bounded population is filtered using the latest applied state.
   }
 
   setDisplayMode(displayMode: CalendarDisplayMode): void {
@@ -380,7 +486,7 @@ export class CalendarPage implements OnDestroy {
     this.disconnectStickyMonth();
 
     const appHeader = document.querySelector<HTMLElement>('.app-header');
-    const stickyHeaderRow = stickyHeader.parentElement;
+    const toolbar = stickyHeader.closest('.fc')?.querySelector<HTMLElement>('.fc-toolbar');
     const stickyMonth = document.createElement('div');
     stickyMonth.className = 'calendar-sticky-month';
     stickyMonth.setAttribute('aria-hidden', 'true');
@@ -388,32 +494,38 @@ export class CalendarPage implements OnDestroy {
     this.stickyMonthElement = stickyMonth;
     this.updateStickyMonthLabel();
 
-    const updateStickyMonthReveal = () => {
-      if (!stickyHeaderRow) {
-        return;
-      }
-
-      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+    let visibilityObserver: IntersectionObserver | undefined;
+    const updateStickyOffset = () => {
       const stickyTop =
         appHeader && getComputedStyle(appHeader).position === 'sticky'
           ? Math.max(0, appHeader.getBoundingClientRect().bottom)
           : 0;
-      const naturalHeaderTop = stickyHeaderRow.getBoundingClientRect().top;
-      const reveal = Math.min(
-        rootFontSize,
-        Math.max(0, stickyTop + rootFontSize - naturalHeaderTop),
-      );
       this.calendarStickyTop.set(stickyTop);
-      this.calendarMonthReveal.set(reveal);
+      visibilityObserver?.disconnect();
+      if (toolbar && typeof IntersectionObserver !== 'undefined') {
+        visibilityObserver = new IntersectionObserver(
+          ([entry]) => {
+            stickyMonth.classList.toggle(
+              'calendar-sticky-month--visible',
+              entry.boundingClientRect.bottom <= stickyTop,
+            );
+          },
+          { rootMargin: `-${stickyTop}px 0px 0px 0px`, threshold: 0 },
+        );
+        visibilityObserver.observe(toolbar);
+      }
     };
 
-    window.addEventListener('scroll', updateStickyMonthReveal, { passive: true });
-    window.addEventListener('resize', updateStickyMonthReveal);
+    const headerObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateStickyOffset) : undefined;
+    if (appHeader) headerObserver?.observe(appHeader);
+    window.addEventListener('resize', updateStickyOffset);
     this.stickyHeaderPositionListener = () => {
-      window.removeEventListener('scroll', updateStickyMonthReveal);
-      window.removeEventListener('resize', updateStickyMonthReveal);
+      window.removeEventListener('resize', updateStickyOffset);
+      headerObserver?.disconnect();
+      visibilityObserver?.disconnect();
     };
-    updateStickyMonthReveal();
+    updateStickyOffset();
   }
 
   private disconnectStickyMonth(): void {
@@ -422,7 +534,6 @@ export class CalendarPage implements OnDestroy {
     this.stickyMonthElement?.remove();
     this.stickyMonthElement = undefined;
     this.calendarStickyTop.set(0);
-    this.calendarMonthReveal.set(0);
   }
 
   private updateStickyMonthLabel(): void {

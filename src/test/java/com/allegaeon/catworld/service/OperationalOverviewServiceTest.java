@@ -93,7 +93,7 @@ class OperationalOverviewServiceTest {
                 .endAt(java.time.LocalDateTime.of(2026, 9, 6, 10, 0)).build();
         var service = mockStayService(fixed);
         when(stayOverviewReadRepository.find(eq(1), eq(10), any(), eq(Set.of(StayStatus.RESERVED)),
-                eq(owner.getId()), isNull(), eq(Set.of(PaymentCondition.NO_PAYMENT)), eq(true)))
+                eq(owner.getId()), isNull(), eq(Set.of(PaymentCondition.NO_PAYMENT)), eq(true), any()))
                 .thenReturn(new PageImpl<>(List.of(stay), org.springframework.data.domain.PageRequest.of(1, 10), 12));
         when(stayCatRepository.findOverviewCatsByStayIds(List.of(stay.getId()))).thenReturn(List.of());
 

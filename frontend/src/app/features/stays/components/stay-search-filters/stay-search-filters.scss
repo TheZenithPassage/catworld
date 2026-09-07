@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .stay-search-filters {
   display: flex;
   flex-wrap: wrap;
@@ -14,11 +19,64 @@
   display: grid;
   gap: 0.35rem;
   min-width: min(100%, 18rem);
-  flex: 1 1 18rem;
+  flex: 1 1 calc(50% - 1rem);
 }
 
 @media (max-width: 520px) {
   .search-filter {
     width: 100%;
+  }
+}
+
+.date-filter-row {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+app-stay-date-filters {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+.filter-actions {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  grid-template-areas: 'clear apply';
+  gap: 1rem;
+  justify-content: end;
+}
+.clear-action {
+  grid-area: clear;
+  display: grid;
+}
+.apply-action {
+  grid-area: apply;
+  display: grid;
+}
+@media (width < 800px) {
+  .filter-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: 'clear apply';
+  }
+}
+@media (max-width: 520px) {
+  .filter-actions {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'apply' 'clear';
+  }
+}
+@media (width >= 800px) {
+  .date-filter-row {
+    flex-wrap: nowrap;
+  }
+  app-stay-date-filters {
+    flex: 1 1 0;
+  }
+  .filter-actions {
+    flex: 0 0 auto;
+    padding-top: 8px;
   }
 }

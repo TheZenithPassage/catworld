@@ -49,6 +49,7 @@ import com.allegaeon.catworld.repository.StayPricingDecisionRepository;
 import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.StayOverviewReadRepository;
+import com.allegaeon.catworld.dto.StayDateFilter;
 import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.lookup.CurrentCatLookupItem;
 import com.allegaeon.catworld.dto.overview.*;
@@ -111,11 +112,11 @@ public class StayService implements IStayService {
     @Override
     @Transactional(readOnly = true)
     public OverviewPage<StayOverviewItem> getStayOverview(int page, Set<com.allegaeon.catworld.model.StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
         if (page < 0) throw new BadRequestException("Page must not be negative");
         LocalDateTime now = LocalDateTime.now(clock);
         Page<Stay> stays = stayOverviewReadRepository.find(page, OverviewPage.PAGE_SIZE,
-                now, statuses, ownerId, catId, paymentConditions, outstandingOnly);
+                now, statuses, ownerId, catId, paymentConditions, outstandingOnly, dates);
         Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
         if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
@@ -134,8 +135,8 @@ public class StayService implements IStayService {
     }
 
     @Override
-    public List<StayResponseDTO> getAllStays() {
-        List<Stay> stays = stayRepository.findAll();
+    public List<StayResponseDTO> getAllStays(StayDateFilter dates) {
+        List<Stay> stays = dates.active() ? stayOverviewReadRepository.findCollection(dates) : stayRepository.findAll();
         if (stays.isEmpty()) {
             return List.of();
         }

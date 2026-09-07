@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -23,6 +23,10 @@ import {
   getDefaultStayPaymentFilters,
   getDefaultStaySearchFilters,
   PAYMENT_CONDITION_FILTER_OPTIONS,
+  DATE_MATCH_MODES,
+  isStayDateRangeValid,
+  isStayVisibleByDateFilters,
+  StayDateMatchMode,
   PaymentConditionVisibility,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
@@ -67,6 +71,10 @@ export class StaysOverviewPage {
   readonly statusVisibility = signal<StayStatusVisibility>(this.preferences.read());
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly paymentFilters = signal(getDefaultStayPaymentFilters());
+  readonly draftSearchFilters = signal(this.searchFilters());
+  readonly draftPaymentFilters = signal(this.paymentFilters());
+  readonly searchControls = viewChild(StaySearchFiltersComponent);
+  private syncingQuery = false;
   readonly stays = signal<StayOverviewItem[]>([]);
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
@@ -85,6 +93,7 @@ export class StaysOverviewPage {
     });
     effect(() => this.preferences.store(this.statusVisibility()));
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((p) => {
+      if (this.syncingQuery) return;
       this.selectedStayId.set(p.get('selectedStayId'));
       const page = Number(p.get('page'));
       if (Number.isInteger(page) && page >= 0) this.page.set(page);
@@ -98,7 +107,15 @@ export class StaysOverviewPage {
           cancelled: statuses.includes('CANCELLED'),
         });
       }
-      this.searchFilters.set({ ownerId: p.get('ownerId'), catId: p.get('catId') });
+      this.searchFilters.set({
+        ownerId: p.get('catId') ? null : p.get('ownerId'),
+        catId: p.get('catId'),
+        dateFrom: p.get('dateFrom'),
+        dateTo: p.get('dateTo'),
+        dateMatchMode: DATE_MATCH_MODES.includes(p.get('dateMatchMode') as StayDateMatchMode)
+          ? (p.get('dateMatchMode') as StayDateMatchMode)
+          : 'OVERLAPS',
+      });
       const paymentState = p.get('paymentFilter');
       const conditions = paymentState === 'none' ? [] : (paymentState?.split(',') ?? []);
       if (paymentState) {
@@ -111,12 +128,15 @@ export class StaysOverviewPage {
           outstandingOnly: p.get('outstandingOnly') === 'true',
         });
       }
+      this.draftSearchFilters.set(this.searchFilters());
+      this.draftPaymentFilters.set(this.paymentFilters());
+      this.loadStays();
     });
-    this.loadStays();
   }
   loadStays(page = this.page()): void {
     if (this.destroyed) return;
     this.selectedStay.set(null);
+    this.selectedRequest?.unsubscribe();
     const id = ++this.requestId;
     this.request?.unsubscribe();
     this.emptyStateRequest?.unsubscribe();
@@ -139,6 +159,7 @@ export class StaysOverviewPage {
     this.request = this.api
       .getStayOverview(page, {
         statuses,
+        ...search,
         ownerId: search.ownerId,
         catId: search.catId,
         paymentConditions,
@@ -241,36 +262,45 @@ export class StaysOverviewPage {
   }
   setStatusVisibility(s: StayStatus, v: boolean): void {
     this.statusVisibility.update((x) => ({ ...x, [s]: v }));
-    this.resetAndLoad();
+    this.page.set(0);
+    this.syncPage();
+    this.loadStays(0);
   }
   toggleStatusFromPill(e: MouseEvent, s: StayStatus): void {
     if (e.target === e.currentTarget) this.setStatusVisibility(s, !this.isStatusVisible(s));
   }
   setSearchFilters(f: StaySearchFilters): void {
-    if (f.catId === this.searchFilters().catId && f.ownerId === this.searchFilters().ownerId)
-      return;
-    this.searchFilters.set(f);
-    this.resetAndLoad();
+    this.draftSearchFilters.set(f);
   }
   isPaymentConditionVisible(c: PaymentCondition): boolean {
-    return this.paymentFilters().conditionVisibility[c];
+    return this.draftPaymentFilters().conditionVisibility[c];
   }
   setPaymentConditionVisibility(c: PaymentCondition, v: boolean): void {
-    this.paymentFilters.update((f) => ({
+    this.draftPaymentFilters.update((f) => ({
       ...f,
       conditionVisibility: {
         ...f.conditionVisibility,
         [c]: v,
       } satisfies PaymentConditionVisibility,
     }));
-    this.resetAndLoad();
   }
   setOutstandingOnly(v: boolean): void {
-    this.paymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
-    this.resetAndLoad();
+    this.draftPaymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
   }
-  private resetAndLoad(): void {
+  clearFilters(): void {
+    this.searchControls()?.clear();
+    this.draftPaymentFilters.set(getDefaultStayPaymentFilters());
+  }
+  applyFilters(): void {
+    if (
+      this.searchControls()?.validateDates() === false ||
+      !isStayDateRangeValid(this.draftSearchFilters())
+    )
+      return;
+    this.searchFilters.set(this.draftSearchFilters());
+    this.paymentFilters.set(this.draftPaymentFilters());
     this.page.set(0);
+    this.syncPage();
     this.loadStays(0);
   }
   private syncPage(): void {
@@ -281,19 +311,27 @@ export class StaysOverviewPage {
     const conditions = Object.entries(this.paymentFilters().conditionVisibility)
       .filter(([, visible]) => visible)
       .map(([condition]) => condition);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        page: this.page() || null,
-        statusFilter: statuses.join(',') || 'none',
-        ownerId: this.searchFilters().ownerId,
-        catId: this.searchFilters().catId,
-        paymentFilter: conditions.join(',') || 'none',
-        outstandingOnly: this.paymentFilters().outstandingOnly || null,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
-    });
+    this.syncingQuery = true;
+    void this.router
+      .navigate([], {
+        relativeTo: this.route,
+        queryParams: {
+          page: this.page() || null,
+          statusFilter: statuses.join(',') || 'none',
+          dateFrom: this.searchFilters().dateFrom || null,
+          dateTo: this.searchFilters().dateTo || null,
+          dateMatchMode: this.searchFilters().dateMatchMode ?? 'OVERLAPS',
+          ownerId: this.searchFilters().ownerId,
+          catId: this.searchFilters().catId,
+          paymentFilter: conditions.join(',') || 'none',
+          outstandingOnly: this.paymentFilters().outstandingOnly || null,
+        },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      })
+      .finally(() => {
+        this.syncingQuery = false;
+      });
   }
   private scrollSelected(): void {
     clearTimeout(this.scrollTimer);
@@ -341,6 +379,7 @@ export class StaysOverviewPage {
       this.statusVisibility()[this.fromBackendStatus(detail.status)] &&
       (!search.ownerId || stay.ownerId === search.ownerId) &&
       (!search.catId || stay.cats.some((cat) => cat.catId === search.catId)) &&
+      isStayVisibleByDateFilters(stay, search) &&
       payment.conditionVisibility[stay.paymentCondition] &&
       (!payment.outstandingOnly || stay.outstandingCollectionEligible)
     );

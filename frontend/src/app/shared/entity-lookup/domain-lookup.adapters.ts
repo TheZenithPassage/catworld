@@ -41,6 +41,11 @@ export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
 @Injectable({ providedIn: 'root' })
 export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
   private readonly api = inject(CatApiService);
+  resolve(id: string) {
+    return this.api
+      .getCatById(id)
+      .pipe(map(({ id, name, ownerId, ownerName }) => ({ id, name, ownerId, ownerName })));
+  }
   search(query: string, page: number) {
     return this.api.searchCats(query, page);
   }

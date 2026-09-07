@@ -16,4 +16,11 @@
       (stateChange)="onOwnerStateChange($event)"
     />
   </div>
+  <div class="date-filter-row">
+    <app-stay-date-filters [filters]="dateFilters()" (filtersChange)="setDates($event)" />
+    <div class="filter-actions">
+      <div class="clear-action"><ng-content select=".clear-filters" /></div>
+      <div class="apply-action"><ng-content select=".apply-filters" /></div>
+    </div>
+  </div>
 </div>
