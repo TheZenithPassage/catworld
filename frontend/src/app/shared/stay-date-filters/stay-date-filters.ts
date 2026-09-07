@@ -63,7 +63,11 @@ export class StayDateFiltersComponent {
   readonly outOfRange = signal({ dateFrom: false, dateTo: false });
   constructor() {
     // Include model/route writes after NgModel has updated the native controls.
-    afterEveryRender(() => this.syncNativeStates());
+    afterEveryRender(() => {
+      this.syncNativeStates();
+      // A resolved failed attempt must not arm errors for the next editing cycle.
+      if (this.submitted() && this.isDraftUsable()) this.submitted.set(false);
+    });
   }
   readonly reversed = computed(
     () =>
@@ -149,9 +153,14 @@ export class StayDateFiltersComponent {
   }
 
   validate(): boolean {
-    this.submitted.set(true);
     this.changeDetector.markForCheck();
     this.syncNativeStates();
+    const valid = this.isDraftUsable();
+    this.submitted.set(!valid);
+    return valid;
+  }
+
+  private isDraftUsable(): boolean {
     return !this.isUnusable('dateFrom') && !this.isUnusable('dateTo') && !this.reversed();
   }
 

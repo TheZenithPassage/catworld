@@ -71,6 +71,59 @@ describe('shared Stay date interaction without page or entity state', () => {
     localStorage.clear();
   });
 
+  it.each(['partial', 'out-of-range', 'reversed'] as const)(
+    'does not arm errors for a new %s edit after successful validation',
+    async (kind) => {
+      const { fixture, host, enter } = await setup();
+      await enter(0, '2030-01-10');
+      await enter(1, '2030-01-20');
+      expect(host.dates().validate()).toBe(true);
+      await enter(
+        1,
+        kind === 'partial' ? '' : kind === 'out-of-range' ? '2201-01-01' : '2030-01-09',
+        kind === 'partial',
+      );
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      expect(host.dates().validate()).toBe(false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+    },
+  );
+
+  it.each(['partial', 'out-of-range', 'reversed'] as const)(
+    'disarms a resolved failed %s cycle before a fresh invalid edit',
+    async (kind) => {
+      const { fixture, host, enter } = await setup();
+      await enter(0, '2030-01-10');
+      const invalidate = () =>
+        enter(
+          1,
+          kind === 'partial' ? '' : kind === 'out-of-range' ? '2201-01-01' : '2030-01-09',
+          kind === 'partial',
+        );
+      await invalidate();
+      expect(host.dates().validate()).toBe(false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+      await invalidate();
+      expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+      await enter(1, '2030-01-20');
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      await invalidate();
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      expect(host.dates().validate()).toBe(false);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+      await enter(1, '');
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+      await invalidate();
+      expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    },
+  );
+
   it.each([
     [0, null],
     [1, null],
