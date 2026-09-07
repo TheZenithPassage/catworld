@@ -34,18 +34,11 @@
   <app-stay-search-filters
     [dateFilters]="draftSearchFilters()"
     (filtersChange)="setSearchFilters($event)"
-  ></app-stay-search-filters>
-
-  <div>
-    <button
-      mat-flat-button
-      class="apply-filters"
-      [disabled]="!validDates(draftSearchFilters())"
-      (click)="applyFilters()"
-    >
+  >
+    <button mat-flat-button class="apply-filters" (click)="applyFilters()">
       {{ text().stays.filters.apply }}
     </button>
-  </div>
+  </app-stay-search-filters>
 
   <div class="calendar-display-options">
     <div class="calendar-display-options-header">

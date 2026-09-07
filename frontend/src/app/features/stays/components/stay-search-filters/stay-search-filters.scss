@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .stay-search-filters {
   display: flex;
   flex-wrap: wrap;
@@ -23,16 +28,38 @@
   }
 }
 
-.date-filter {
-  flex: 0 1 12rem;
+.date-filter-row {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
   min-width: 0;
 }
-.date-mode-filter {
-  flex: 0 1 18rem;
+app-stay-date-filters {
+  flex: 1 1 100%;
   min-width: 0;
 }
-.date-range-error {
-  flex-basis: 100%;
-  margin: 0;
-  color: var(--mat-sys-error);
+.filter-actions {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: max-content;
+  justify-content: end;
+}
+@media (width < 800px) {
+  .filter-actions {
+    grid-template-columns: 1fr;
+  }
+}
+@media (width >= 800px) {
+  .date-filter-row {
+    flex-wrap: nowrap;
+  }
+  app-stay-date-filters {
+    flex: 1 1 0;
+  }
+  .filter-actions {
+    flex: 0 0 auto;
+    padding-top: 8px;
+  }
 }

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
+import { Component, computed, effect, inject, OnDestroy, signal, viewChild } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
@@ -114,9 +114,8 @@ export class CalendarPage implements OnDestroy {
       .toLocaleUpperCase(locale);
   });
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
-  readonly draftStatusVisibility = signal(this.statusVisibility());
   readonly draftSearchFilters = signal(this.searchFilters());
-  readonly validDates = isStayDateRangeValid;
+  readonly searchControls = viewChild(StaySearchFiltersComponent);
   private viewInterval: { dateFrom: string; dateTo: string } | null = null;
   private request?: Subscription;
   private requestId = 0;
@@ -306,11 +305,11 @@ export class CalendarPage implements OnDestroy {
   }
 
   isStatusVisible(status: StayStatus): boolean {
-    return this.draftStatusVisibility()[status];
+    return this.statusVisibility()[status];
   }
 
   setStatusVisibility(status: StayStatus, checked: boolean): void {
-    this.draftStatusVisibility.update((currentVisibility) => ({
+    this.statusVisibility.update((currentVisibility) => ({
       ...currentVisibility,
       [status]: checked,
     }));
@@ -329,8 +328,11 @@ export class CalendarPage implements OnDestroy {
   }
 
   applyFilters(): void {
-    if (!isStayDateRangeValid(this.draftSearchFilters())) return;
-    this.statusVisibility.set(this.draftStatusVisibility());
+    if (
+      this.searchControls()?.validateDates() === false ||
+      !isStayDateRangeValid(this.draftSearchFilters())
+    )
+      return;
     this.searchFilters.set(this.draftSearchFilters());
     // A pending view load remains valid: its bounded population is filtered using the latest applied state.
   }

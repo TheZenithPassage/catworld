@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Observable, Subject } from 'rxjs';
 import { vi } from 'vitest';
@@ -141,7 +143,7 @@ describe('StaySearchFiltersComponent', () => {
   });
 
   it('keeps per-field clear behavior and omits a redundant global clear action', () => {
-    expect(fixture.nativeElement.querySelector('.filter-actions')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.filter-actions button')).toBeNull();
     expect(fixture.nativeElement.textContent).not.toContain('Limpiar');
 
     component.onCatStateChange({ value: cat, selectedId: cat.id, rawContentPresent: true });
@@ -154,41 +156,9 @@ describe('StaySearchFiltersComponent', () => {
     expect(component.ownerSelector()?.query()).toBe('');
     expect(emittedFilters.at(-1)).toMatchObject({ catId: null, ownerId: null });
   });
-  it('renders one default relationship selector, emits all modes and shows reversed-range feedback', async () => {
-    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
-    expect(fixture.nativeElement.querySelectorAll('select')).toHaveLength(1);
-    expect(select.value).toBe('OVERLAPS');
-    expect(Array.from(select.options).map((o) => o.value)).toEqual([
-      'OVERLAPS',
-      'STAY_WITHIN_RANGE',
-      'RANGE_WITHIN_STAY',
-    ]);
-    for (const mode of ['STAY_WITHIN_RANGE', 'RANGE_WITHIN_STAY', 'OVERLAPS']) {
-      select.value = mode;
-      select.dispatchEvent(new Event('change'));
-      fixture.detectChanges();
-      expect(emittedFilters.at(-1)).toMatchObject({ dateMatchMode: mode });
-    }
-    fixture.componentRef.setInput('dateFilters', {
-      dateFrom: '2030-02-01',
-      dateTo: '2030-01-01',
-      dateMatchMode: 'OVERLAPS',
-    });
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('[role="alert"]').textContent).toContain(
-      component.text().stays.filters.invalidDateRange,
-    );
-    fixture.componentRef.setInput('dateFilters', {
-      dateFrom: '2030-01-01',
-      dateTo: '2030-02-01',
-      dateMatchMode: 'OVERLAPS',
-    });
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.date-range-error')).toBeNull();
-  });
   it.each(['cat', 'owner'] as const)(
     'preserves a deep-linked %s through pending/failed label resolution and temporal edits',
-    (kind) => {
+    async (kind) => {
       fixture.destroy();
       const pending = new Subject<any>();
       const retry = new Subject<any>();
@@ -206,7 +176,10 @@ describe('StaySearchFiltersComponent', () => {
         selected.id,
       );
       fixture.componentRef.setInput('dateFilters', { ...expected, dateMatchMode: 'OVERLAPS' });
-      component.filtersChange.subscribe((filters) => emittedFilters.push(filters));
+      component.filtersChange.subscribe((filters) => {
+        emittedFilters.push(filters);
+        fixture.componentRef.setInput('dateFilters', filters);
+      });
       fixture.detectChanges();
       expect(pending.observed).toBe(true);
       const from = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
@@ -214,9 +187,9 @@ describe('StaySearchFiltersComponent', () => {
       expect(emittedFilters.at(-1)).toMatchObject({ ...expected, dateFrom: '2030-01-01' });
       pending.error(new Error('label unavailable'));
       fixture.detectChanges();
-      const mode = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
-      mode.value = 'RANGE_WITHIN_STAY';
-      mode.dispatchEvent(new Event('change'));
+      const mode = await TestbedHarnessEnvironment.loader(fixture).getHarness(MatSelectHarness);
+      await mode.open();
+      await (await mode.getOptions())[2].click();
       fixture.detectChanges();
       expect(emittedFilters.at(-1)).toMatchObject({
         ...expected,

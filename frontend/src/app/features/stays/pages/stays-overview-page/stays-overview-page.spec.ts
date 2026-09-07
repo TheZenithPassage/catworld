@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject, EMPTY, of, Subject } from 'rxjs';
@@ -347,6 +349,79 @@ describe('StaysOverviewPage server paging', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
+  it('applies status immediately from page zero without leaking invalid date, entity or payment drafts', async () => {
+    api.getStayOverview.mockReturnValue(
+      of({ items: [], page: 2, pageSize: 10, totalElements: 30 }),
+    );
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+    await f.whenStable();
+    const c = f.componentInstance;
+    const applied = c.searchFilters();
+    const date = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+    Object.defineProperty(date, 'validity', {
+      configurable: true,
+      value: { valid: false, badInput: true },
+    });
+    date.dispatchEvent(new Event('input'));
+    c.setSearchFilters({
+      ownerId: 'draft-owner',
+      catId: null,
+      dateFrom: '',
+      dateMatchMode: 'RANGE_WITHIN_STAY',
+    });
+    c.setPaymentConditionVisibility('FULL_PAYMENT', false);
+    c.setOutstandingOnly(true);
+    api.getStayOverview.mockReturnValue(EMPTY).mockClear();
+    navigate.mockClear();
+    visibility.store.mockClear();
+    c.setStatusVisibility('checked-in', false);
+    f.detectChanges();
+    await f.whenStable();
+    expect(c.page()).toBe(0);
+    expect(c.isStatusVisible('checked-in')).toBe(false);
+    expect(api.getStayOverview).toHaveBeenCalledExactlyOnceWith(
+      0,
+      expect.objectContaining({
+        ...applied,
+        statuses: ['RESERVED'],
+        paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
+        outstandingOnly: false,
+      }),
+    );
+    expect(navigate).toHaveBeenLastCalledWith(
+      [],
+      expect.objectContaining({
+        queryParams: expect.objectContaining({
+          page: null,
+          statusFilter: 'RESERVED',
+          ownerId: null,
+          dateFrom: null,
+          outstandingOnly: null,
+        }),
+      }),
+    );
+    expect(visibility.store).toHaveBeenLastCalledWith(
+      expect.objectContaining({ 'checked-in': false }),
+    );
+    expect(c.draftSearchFilters().ownerId).toBe('draft-owner');
+    expect(f.nativeElement.querySelector('mat-error')).toBeNull();
+    const button = f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement;
+    expect(button.closest('.stay-search-filters')).not.toBeNull();
+    expect(button.disabled).toBe(false);
+    api.getStayOverview.mockClear();
+    navigate.mockClear();
+    button.click();
+    f.detectChanges();
+    await f.whenStable();
+    expect(c.searchFilters()).toEqual(applied);
+    expect(c.paymentFilters().outstandingOnly).toBe(false);
+    expect(api.getStayOverview).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(f.nativeElement.querySelector('mat-error')).not.toBeNull();
+  });
+
   it('atomically applies draft criteria from page zero and serializes only applied dates', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const f = TestBed.createComponent(StaysOverviewPage);
@@ -356,7 +431,6 @@ describe('StaysOverviewPage server paging', () => {
     navigate.mockClear();
     visibility.store.mockClear();
     const c = f.componentInstance;
-    c.setStatusVisibility('checked-in', false);
     c.setPaymentConditionVisibility('FULL_PAYMENT', false);
     c.setOutstandingOnly(true);
     c.setSearchFilters({
@@ -375,7 +449,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(api.getStayOverview.mock.calls[0]).toEqual([
       0,
       expect.objectContaining({
-        statuses: ['RESERVED'],
+        statuses: ['RESERVED', 'CHECKED_IN'],
         paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'],
         outstandingOnly: true,
         dateFrom: '2099-01-01',
@@ -400,7 +474,7 @@ describe('StaysOverviewPage server paging', () => {
     });
     f.detectChanges();
     expect((f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).disabled).toBe(
-      true,
+      false,
     );
     expect(c.searchFilters().dateFrom).toBe('2099-01-01');
   });
@@ -438,7 +512,6 @@ describe('StaysOverviewPage server paging', () => {
       dateMatchMode: 'STAY_WITHIN_RANGE' as const,
     };
     f.componentInstance.setSearchFilters(draft);
-    f.componentInstance.setStatusVisibility('checked-in', false);
     f.componentInstance.setOutstandingOnly(true);
     f.detectChanges();
     expect(queryParams.value).toBe(before);
@@ -458,7 +531,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(queryParams.value.get('dateTo')).toBe(draft.dateTo);
     expect(queryParams.value.get('dateMatchMode')).toBe(draft.dateMatchMode);
     expect(queryParams.value.get('ownerId')).toBe('o');
-    expect(queryParams.value.get('statusFilter')).toBe('RESERVED');
+    expect(queryParams.value.get('statusFilter')).toBe('RESERVED,CHECKED_IN');
     expect(queryParams.value.get('outstandingOnly')).toBe('true');
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(api.getStayOverview).toHaveBeenCalledTimes(1);
@@ -470,7 +543,7 @@ describe('StaysOverviewPage server paging', () => {
 
   it.each(['cat', 'owner'] as const)(
     'applies dates without dropping the deep-linked %s when lookup is pending or failed',
-    (kind) => {
+    async (kind) => {
       const pending = new Subject<any>();
       TestBed.overrideProvider(kind === 'cat' ? CatLookupAdapter : OwnerLookupAdapter, {
         useValue: { resolve: () => pending, search: () => EMPTY },
@@ -501,9 +574,9 @@ describe('StaysOverviewPage server paging', () => {
       );
       pending.error(new Error('lookup failed'));
       f.detectChanges();
-      const mode = f.nativeElement.querySelector('select') as HTMLSelectElement;
-      mode.value = 'RANGE_WITHIN_STAY';
-      mode.dispatchEvent(new Event('change'));
+      const mode = await TestbedHarnessEnvironment.loader(f).getHarness(MatSelectHarness);
+      await mode.open();
+      await (await mode.getOptions())[2].click();
       f.detectChanges();
       api.getStayOverview.mockClear();
       (f.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).click();

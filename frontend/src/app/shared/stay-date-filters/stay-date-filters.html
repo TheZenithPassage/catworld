@@ -1,0 +1,53 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+  <mat-label>{{ text().stays.filters.dateFrom }}</mat-label>
+  <input
+    #fromInput
+    matInput
+    appNativeBadInput
+    type="date"
+    [ngModel]="filters().dateFrom"
+    [ngModelOptions]="{ standalone: true }"
+    (input)="dateInput('dateFrom', $event)"
+    [errorStateMatcher]="fromMatcher"
+  />
+  <mat-error>{{ text().stays.filters.invalidDate }}</mat-error>
+</mat-form-field>
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+  <mat-label>{{ text().stays.filters.dateTo }}</mat-label>
+  <input
+    #toInput
+    matInput
+    appNativeBadInput
+    type="date"
+    [ngModel]="filters().dateTo"
+    [ngModelOptions]="{ standalone: true }"
+    (input)="dateInput('dateTo', $event)"
+    [errorStateMatcher]="toMatcher"
+  />
+  <mat-error>{{
+    reversed() ? text().stays.filters.invalidDateRange : text().stays.filters.invalidDate
+  }}</mat-error>
+</mat-form-field>
+<mat-form-field appearance="outline" subscriptSizing="dynamic" class="date-mode-filter">
+  <mat-label>{{ text().stays.filters.dateMatchMode }}</mat-label>
+  <mat-select
+    [disabled]="!modeAvailable()"
+    [ngModel]="filters().dateMatchMode ?? 'OVERLAPS'"
+    [ngModelOptions]="{ standalone: true }"
+    (ngModelChange)="setMode($event)"
+  >
+    <mat-select-trigger>
+      {{ text().stays.filters.dateModes[filters().dateMatchMode ?? 'OVERLAPS'] }}
+    </mat-select-trigger>
+    @for (mode of modes; track mode) {
+      <mat-option [value]="mode">
+        <span class="date-option-copy">
+          <span>{{ text().stays.filters.dateModes[mode] }}</span>
+          @if (explanations(); as help) {
+            <span class="date-explanation">{{ help[mode] }}</span>
+          }
+        </span>
+      </mat-option>
+    }
+  </mat-select>
+</mat-form-field>

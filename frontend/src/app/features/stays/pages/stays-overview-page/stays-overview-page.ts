@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -71,10 +71,9 @@ export class StaysOverviewPage {
   readonly statusVisibility = signal<StayStatusVisibility>(this.preferences.read());
   readonly searchFilters = signal<StaySearchFilters>(getDefaultStaySearchFilters());
   readonly paymentFilters = signal(getDefaultStayPaymentFilters());
-  readonly draftStatusVisibility = signal(this.statusVisibility());
   readonly draftSearchFilters = signal(this.searchFilters());
   readonly draftPaymentFilters = signal(this.paymentFilters());
-  readonly validDates = isStayDateRangeValid;
+  readonly searchControls = viewChild(StaySearchFiltersComponent);
   private syncingQuery = false;
   readonly stays = signal<StayOverviewItem[]>([]);
   readonly loading = signal(false);
@@ -129,7 +128,6 @@ export class StaysOverviewPage {
           outstandingOnly: p.get('outstandingOnly') === 'true',
         });
       }
-      this.draftStatusVisibility.set(this.statusVisibility());
       this.draftSearchFilters.set(this.searchFilters());
       this.draftPaymentFilters.set(this.paymentFilters());
       this.loadStays();
@@ -260,10 +258,13 @@ export class StaysOverviewPage {
     return this.selectedStayId() === s.id;
   }
   isStatusVisible(s: StayStatus): boolean {
-    return this.draftStatusVisibility()[s];
+    return this.statusVisibility()[s];
   }
   setStatusVisibility(s: StayStatus, v: boolean): void {
-    this.draftStatusVisibility.update((x) => ({ ...x, [s]: v }));
+    this.statusVisibility.update((x) => ({ ...x, [s]: v }));
+    this.page.set(0);
+    this.syncPage();
+    this.loadStays(0);
   }
   toggleStatusFromPill(e: MouseEvent, s: StayStatus): void {
     if (e.target === e.currentTarget) this.setStatusVisibility(s, !this.isStatusVisible(s));
@@ -287,8 +288,11 @@ export class StaysOverviewPage {
     this.draftPaymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
   }
   applyFilters(): void {
-    if (!isStayDateRangeValid(this.draftSearchFilters())) return;
-    this.statusVisibility.set(this.draftStatusVisibility());
+    if (
+      this.searchControls()?.validateDates() === false ||
+      !isStayDateRangeValid(this.draftSearchFilters())
+    )
+      return;
     this.searchFilters.set(this.draftSearchFilters());
     this.paymentFilters.set(this.draftPaymentFilters());
     this.page.set(0);

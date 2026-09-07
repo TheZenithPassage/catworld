@@ -638,6 +638,42 @@ describe('CalendarPage', () => {
     },
   );
 
+  it('applies status locally with incomplete dates without applying entity/date drafts or loading again', async () => {
+    createComponent();
+    await fixture.whenStable();
+    const applied = component.searchFilters();
+    const date = fixture.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
+    Object.defineProperty(date, 'validity', {
+      configurable: true,
+      value: { valid: false, badInput: true },
+    });
+    date.dispatchEvent(new Event('input'));
+    component.setSearchFilters({
+      ownerId: 'draft-owner',
+      catId: null,
+      dateFrom: '',
+      dateMatchMode: 'RANGE_WITHIN_STAY',
+    });
+    stayApiService.getStays.mockClear();
+    component.setStatusVisibility('reserved', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.filteredStays()).toEqual([]);
+    expect(component.searchFilters()).toEqual(applied);
+    expect(component.draftSearchFilters().ownerId).toBe('draft-owner');
+    expect(stayApiService.getStays).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('mat-error')).toBeNull();
+    const button = fixture.nativeElement.querySelector('.apply-filters') as HTMLButtonElement;
+    expect(button.closest('.stay-search-filters')).not.toBeNull();
+    expect(button.disabled).toBe(false);
+    button.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(component.searchFilters()).toEqual(applied);
+    expect(fixture.nativeElement.querySelector('mat-error')).not.toBeNull();
+    expect(stayApiService.getStays).not.toHaveBeenCalled();
+  });
+
   it('keeps draft changes out of visible events until Filter and blocks reversed dates', () => {
     createComponent();
     const before = component.calendarEvents();
@@ -664,7 +700,7 @@ describe('CalendarPage', () => {
     fixture.detectChanges();
     expect(
       (fixture.nativeElement.querySelector('.apply-filters') as HTMLButtonElement).disabled,
-    ).toBe(true);
+    ).toBe(false);
     component.setDisplayMode('entry-exit-markers');
     expect(component.displayMode()).toBe('entry-exit-markers');
     expect(component.searchFilters().dateTo).toBeUndefined();

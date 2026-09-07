@@ -1119,13 +1119,29 @@ or one-sided date. Query predicates include arrival/departure boundary days
 regardless of stored time and apply before overview count/paging or collection
 response hydration. Unfiltered reads remain compatible; no schema changes occur.
 
-The shared Stay search composition owns optional From/To inputs and one compact
-Material native mode selector, defaulting to OVERLAPS. Both Stays and Calendar
-hold editable drafts apart from applied criteria; Filter validates and applies
-all result-affecting controls atomically. Owner/Cat lookup remains live and
-mutually exclusive. Stays resets to page zero; pagination, contextual selection,
-route criteria and persisted status preferences use applied state only. Legacy
-routes without a date mode initialize OVERLAPS.
+The reusable `shared/stay-date-filters` component owns only optional From/To,
+the compact Material mode selector, native input validity, submit-time
+Material errors and localized draft explanations including the year, shown as
+subtitles inside each option. The closed selector keeps the date inputs' height. Its model
+also supplies the existing inclusive date matcher. Owner/Cat and the projected
+Filter action remain in the Stay search composition. At widths of 800px and above,
+From, To, the mode selector and compact Filter share one row. Below 800px,
+Filter occupies its own full-width row.
+
+Empty dates disable the mode selector; usable one-sided or ordered two-sided
+dates enable it. Native-invalid input and reversed ranges disable it and hide
+help without resetting the mode. Clearing both dates resets OVERLAPS. Filter
+stays enabled and validates via the component before applying any draft; native
+bad input uses the existing directive, and reversed-range errors belong to To.
+Errors appear after submission and disappear when corrected.
+
+Status visibility applies immediately and persists independently of invalid or
+pending non-status drafts. Stays resets page zero, synchronizes its applied route
+and reloads using the applied non-status query. Calendar filters the already
+bounded population without another collection request. Owner/Cat lookup remains
+live and mutually exclusive, but selections, date criteria and Stays payment /
+outstanding criteria stay draft until Filter. Pagination and contextual selection
+use applied criteria. Legacy routes without a mode initialize OVERLAPS.
 
 Calendar waits for FullCalendar's logical currentStart/currentEnd interval and
 converts its exclusive end into the last inclusive local date. Every initial,

@@ -115,6 +115,15 @@ export interface StaysTranslations {
     dateMatchMode: string;
     dateModes: Record<'OVERLAPS' | 'STAY_WITHIN_RANGE' | 'RANGE_WITHIN_STAY', string>;
     invalidDateRange: string;
+    invalidDate: string;
+    dateHelp: Record<
+      'OVERLAPS' | 'STAY_WITHIN_RANGE' | 'RANGE_WITHIN_STAY',
+      {
+        both: (from: string, to: string) => string;
+        from: (from: string) => string;
+        to: (to: string) => string;
+      }
+    >;
     apply: string;
     searchAriaLabel: string;
     paymentAriaLabel: string;
@@ -383,10 +392,30 @@ export const STAYS_TRANSLATIONS = {
       dateMatchMode: 'Relación con el período',
       dateModes: {
         OVERLAPS: 'Coincide con el período',
-        STAY_WITHIN_RANGE: 'Estadía dentro del período',
-        RANGE_WITHIN_STAY: 'Período dentro de la estadía',
+        STAY_WITHIN_RANGE: 'Empieza y termina dentro del período',
+        RANGE_WITHIN_STAY: 'Cubre todo el período',
       },
-      invalidDateRange: 'Desde no puede ser posterior a Hasta.',
+      invalidDateRange: 'Hasta no puede ser anterior a Desde.',
+      invalidDate: 'Introduce una fecha válida y completa.',
+      dateHelp: {
+        OVERLAPS: {
+          both: (from, to) => `Incluye estancias presentes al menos un día entre ${from} y ${to}.`,
+          from: (from) => `Incluye estancias que terminan el ${from} o después.`,
+          to: (to) => `Incluye estancias que empiezan el ${to} o antes.`,
+        },
+        STAY_WITHIN_RANGE: {
+          both: (from, to) =>
+            `Incluye estancias que empiezan el ${from} o después y terminan el ${to} o antes.`,
+          from: (from) => `Incluye estancias que empiezan el ${from} o después.`,
+          to: (to) => `Incluye estancias que terminan el ${to} o antes.`,
+        },
+        RANGE_WITHIN_STAY: {
+          both: (from, to) =>
+            `Incluye estancias que empiezan el ${from} o antes y terminan el ${to} o después.`,
+          from: (from) => `Incluye solo estancias presentes el ${from}.`,
+          to: (to) => `Incluye solo estancias presentes el ${to}.`,
+        },
+      },
       apply: 'Filtrar',
       searchAriaLabel: 'Filtros de búsqueda de estancias',
       paymentAriaLabel: 'Filtros de cobro de estancias',
@@ -657,10 +686,31 @@ export const STAYS_TRANSLATIONS = {
       dateMatchMode: 'Date relationship',
       dateModes: {
         OVERLAPS: 'Overlaps the period',
-        STAY_WITHIN_RANGE: 'Stay within the period',
-        RANGE_WITHIN_STAY: 'Period within the stay',
+        STAY_WITHIN_RANGE: 'Starts and ends within the period',
+        RANGE_WITHIN_STAY: 'Covers the entire period',
       },
-      invalidDateRange: 'From must not be later than To.',
+      invalidDateRange: 'To must not be earlier than From.',
+      invalidDate: 'Enter a complete, valid date.',
+      dateHelp: {
+        OVERLAPS: {
+          both: (from, to) =>
+            `Includes stays present for at least one day between ${from} and ${to}.`,
+          from: (from) => `Includes stays that end on ${from} or later.`,
+          to: (to) => `Includes stays that start on ${to} or earlier.`,
+        },
+        STAY_WITHIN_RANGE: {
+          both: (from, to) =>
+            `Includes stays that start on ${from} or later and end on ${to} or earlier.`,
+          from: (from) => `Includes stays that start on ${from} or later.`,
+          to: (to) => `Includes stays that end on ${to} or earlier.`,
+        },
+        RANGE_WITHIN_STAY: {
+          both: (from, to) =>
+            `Includes stays that start on ${from} or earlier and end on ${to} or later.`,
+          from: (from) => `Includes only stays that are present on ${from}.`,
+          to: (to) => `Includes only stays that are present on ${to}.`,
+        },
+      },
       apply: 'Filter',
       searchAriaLabel: 'Stay search filters',
       paymentAriaLabel: 'Stay payment filters',
