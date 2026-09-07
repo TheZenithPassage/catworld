@@ -187,26 +187,31 @@
   color: var(--color-text);
 }
 
-:host ::ng-deep .fc .fc-toolbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+:host ::ng-deep .fc-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: 0.75rem;
 }
 
-:host ::ng-deep .fc .fc-toolbar-chunk:nth-child(1) {
-  justify-self: start;
+:host ::ng-deep .fc-toolbar-chunk:first-child {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
 }
 
-:host ::ng-deep .fc .fc-toolbar-chunk:nth-child(2) {
-  justify-self: center;
+:host ::ng-deep .fc-toolbar-chunk:nth-child(2) {
+  flex: 1 0 auto;
 }
 
-:host ::ng-deep .fc .fc-toolbar-chunk:nth-child(3) {
-  justify-self: end;
+:host ::ng-deep .fc-toolbar-chunk:empty {
+  display: none;
 }
 
 :host ::ng-deep .fc .fc-toolbar-title {
+  width: max-content;
+  transform: translateX(var(--calendar-title-offset, 0px));
   color: var(--color-text);
   font-size: 1.35rem;
   letter-spacing: -0.02em;
@@ -316,12 +321,6 @@
     margin-inline: -0.25rem;
     padding: 0.65rem;
     border-radius: var(--radius-md);
-  }
-
-  :host ::ng-deep .fc .fc-toolbar {
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   :host ::ng-deep .fc .fc-toolbar-title {
@@ -452,13 +451,11 @@
 }
 
 @media (max-width: 600px), (max-width: 1000px) and (max-height: 600px) {
-  :host ::ng-deep .calendar-wrapper--daily-counts .fc .fc-toolbar {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
   :host ::ng-deep .calendar-wrapper--daily-counts .fc .fc-daygrid-day-frame {
     min-height: 2.6rem;
   }
+}
+.calendar-loading-indicator {
+  display: inline-flex;
+  flex: 0 0 18px;
 }

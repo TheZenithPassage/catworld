@@ -19,12 +19,15 @@ import { EntityLookupState } from '../../../../shared/entity-lookup/entity-looku
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import {
   getDefaultStaySearchFilters,
+  StayDateFilters,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 
+import { StayDateFiltersComponent } from '../../../../shared/stay-date-filters/stay-date-filters';
+
 @Component({
   selector: 'app-stay-search-filters',
-  imports: [RemoteEntitySelector],
+  imports: [RemoteEntitySelector, StayDateFiltersComponent],
   templateUrl: './stay-search-filters.html',
   styleUrl: './stay-search-filters.scss',
 })
@@ -33,6 +36,21 @@ export class StaySearchFiltersComponent {
 
   readonly text = this.i18nService.text;
   readonly filtersChange = output<StaySearchFilters>();
+  readonly dateFilters = input<StayDateFilters>(getDefaultStaySearchFilters());
+  readonly dates = viewChild(StayDateFiltersComponent);
+  validateDates(): boolean {
+    return this.dates()?.validate() ?? true;
+  }
+  setDates(dates: StayDateFilters): void {
+    this.emitFilters(dates);
+  }
+  clear(): void {
+    this.catSelector()?.reset();
+    this.ownerSelector()?.reset();
+    this.selectedCatId.set(null);
+    this.selectedOwnerId.set(null);
+    this.dates()?.clear();
+  }
   readonly initialCatId = input<string | null>(null);
   readonly initialOwnerId = input<string | null>(null);
   readonly catAdapter = inject(CatLookupAdapter);
@@ -46,6 +64,10 @@ export class StaySearchFiltersComponent {
     afterNextRender(() => {
       const catId = this.initialCatId();
       const ownerId = this.initialOwnerId();
+      // The deep link already supplies the filter identity; resolving its label
+      // must not temporarily remove it from date/mode draft changes.
+      this.selectedCatId.set(catId);
+      this.selectedOwnerId.set(catId ? null : ownerId);
       if (catId) this.catSelector()?.resolveKnownId(catId);
       else if (ownerId) this.ownerSelector()?.resolveKnownId(ownerId);
     });
@@ -72,9 +94,11 @@ export class StaySearchFiltersComponent {
     if (changed) this.emitFilters();
   }
 
-  private emitFilters(): void {
+  private emitFilters(change: StayDateFilters = {}): void {
     this.filtersChange.emit({
       ...getDefaultStaySearchFilters(),
+      ...this.dateFilters(),
+      ...change,
       catId: this.selectedCatId(),
       ownerId: this.selectedOwnerId(),
     });

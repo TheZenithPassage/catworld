@@ -1039,7 +1039,8 @@ and a server-fixed size of ten. The envelope deliberately exposes neither
 `totalPages` nor `hasNext`; non-negative pages beyond the current population
 return an empty `items` list and the complete matching total. Their existing
 collection, detail, fixed-five lookup and relationship contracts remain
-unchanged, including the complete Stay collection consumed by Calendar.
+unchanged. Calendar uses the existing Stay collection with a bounded logical
+active-view date interval.
 
 Owner, Cat and Vet default pages are ordered by creation time descending with
 an identifier tie-breaker. Their optional trimmed substring search is applied
@@ -1047,7 +1048,7 @@ by the database using its case- and accent-insensitive comparison behavior and
 orders matching display names followed by identifiers. Owner pages are chosen
 before one bounded current-Cat hydration query. Cat photo presence is resolved
 for only the selected page without loading photo bytes. Stay overview status,
-Owner, Cat, payment-condition and outstanding-only filters are likewise
+Owner, Cat, payment-condition, outstanding-only and inclusive date filters are likewise
 applied before counting and paging; Stay status remains derived from dates and
 cancellation data, and results use start time followed by identifier order.
 
@@ -1131,6 +1132,61 @@ set to the backend rather than filtering or deduplicating sensitive events
 locally. Loading, empty, authorization, malformed-contract and request-failure
 states use localized accessible presentation. This global audit surface remains
 separate from stay details and operational active and annulled payment history.
+
+### Stay Date Filters and Explicit Application
+
+Stay collection and overview reads accept optional calendar dates `dateFrom`,
+`dateTo` and `dateMatchMode`. Temporal requests require an explicit valid mode;
+missing/unsupported modes and reversed ranges return 400. OVERLAPS matches any
+shared local day, STAY_WITHIN_RANGE contains Stay start/end within supplied
+boundaries, and RANGE_WITHIN_STAY requires the Stay to cover the supplied period
+or one-sided date. Query predicates include arrival/departure boundary days
+regardless of stored time and apply before overview count/paging or collection
+response hydration. Unfiltered reads remain compatible; no schema changes occur.
+
+The reusable `shared/stay-date-filters` component owns only optional From/To,
+the compact Material mode selector, native input validity, submit-time
+Material errors and localized draft explanations including the year, shown as
+subtitles inside each option. The closed selector keeps the date inputs' height. Its model
+also supplies the existing inclusive date matcher. Owner/Cat and the projected
+Filter action remain in the Stay search composition. At widths of 800px and above,
+From, To, the mode selector, outlined Clear and compact Filter share one row.
+Below 800px, Clear and Filter share equal widths in that order; at 520px and
+below Filter then Clear stack at full width. Clear resets the entity/date draft, date errors
+and Stays payment draft without changing applied filters or immediate status.
+
+Both native date inputs use the frontend-only bounds 2000-01-01 through
+2200-12-31. Native value and validity distinguish empty, partial editing, valid
+and invalid states; keyboard completion, blur/change and rendered model writes
+resynchronize that state even when the normalized value remains empty. Backend
+LocalDate semantics remain unchanged. Same-day intervals use dedicated localized
+single-day explanations for all three modes.
+
+Empty dates disable the mode selector; usable one-sided or ordered two-sided
+dates enable it. Native-invalid/out-of-range input and reversed ranges disable it and hide
+help without resetting the mode. Clearing both dates resets OVERLAPS. Filter
+stays enabled and validates via the component before applying any draft; native
+bad input uses the existing directive, and reversed-range errors belong to To.
+Errors appear after submission and disappear when corrected.
+
+Status visibility applies immediately and persists independently of invalid or
+pending non-status drafts. Stays resets page zero, synchronizes its applied route
+and reloads using the applied non-status query. Calendar filters the already
+bounded population without another collection request. Owner/Cat lookup remains
+live and mutually exclusive, but selections, date criteria and Stays payment /
+outstanding criteria stay draft until Filter. Pagination and contextual selection
+use applied criteria. Legacy routes without a mode initialize OVERLAPS.
+
+Calendar waits for FullCalendar's logical currentStart/currentEnd interval and
+converts its exclusive end into the last inclusive local date. Every initial,
+retry and navigation collection request supplies both interval dates with
+OVERLAPS. Applied user criteria filter only that bounded population; changing
+views preserves them. Cancellation and request identity prevent previous view
+responses from replacing current data. FullCalendar remains mounted during
+loading and empty states so view navigation stays available. Display mode is
+an immediate independent preference, and event/daily-summary transformation
+uses the applied filtered population. Adjacent-month cells are hidden so dates
+outside the loaded logical interval cannot present incomplete operational results.
 
 ### Component Conventions
 

@@ -1,0 +1,42 @@
+:host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+mat-form-field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.date-mode-filter {
+  flex: 2 1 20rem;
+}
+.date-option-copy {
+  display: grid;
+  gap: 0.25rem;
+  white-space: normal;
+  padding-block: 0.25rem;
+}
+.date-explanation {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+@media (width >= 800px) {
+  :host {
+    flex-wrap: nowrap;
+  }
+  mat-form-field {
+    flex: 1 1 0;
+    min-width: 10rem;
+  }
+  .date-mode-filter {
+    flex: 2 1 0;
+    min-width: 0;
+  }
+}
+@media (max-width: 520px) {
+  mat-form-field {
+    flex-basis: 100%;
+  }
+}
