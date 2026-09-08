@@ -188,14 +188,15 @@ export class SensitiveActivityPage {
     const states = this.stayDates()?.dateStates();
     if (states && Object.values(states).some((state) => state === 'EDITING' || state === 'INVALID'))
       return true;
-    const applied = this.appliedFilters();
+    const from = this.resolveAppliedInstant('occurredFrom');
+    const to = this.resolveAppliedInstant('occurredTo');
+    if (from.error || to.error) return true;
     return (
-      this.filterKey(this.filters()) !==
       this.filterKey({
-        ...applied,
-        occurredFrom: this.toLocalDateTime(applied.occurredFrom),
-        occurredTo: this.toLocalDateTime(applied.occurredTo),
-      })
+        ...this.filters(),
+        occurredFrom: from.instant ?? '',
+        occurredTo: to.instant ?? '',
+      }) !== this.filterKey(this.appliedFilters())
     );
   });
   readonly selectionConflict = signal(false);
@@ -613,8 +614,8 @@ export class SensitiveActivityPage {
       f.catId,
       f.stayId,
       f.eventType,
-      f.occurredFrom,
-      f.occurredTo,
+      f.occurredFrom ? Date.parse(f.occurredFrom) : null,
+      f.occurredTo ? Date.parse(f.occurredTo) : null,
       f.stayFrom || '',
       f.stayTo || '',
       f.stayFrom || f.stayTo ? (f.stayDateMatchMode ?? 'OVERLAPS') : '',

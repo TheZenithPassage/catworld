@@ -243,7 +243,16 @@ describe('SensitiveActivityPage', () => {
     const component = fixture.componentInstance;
     router.navigate.mockClear();
 
+    const root = fixture.nativeElement as HTMLElement;
+    expect(component.pendingChanges()).toBe(false);
+    expect(root.querySelector('.activity-list')).not.toBeNull();
+    component.updateFilter('occurredFrom', '2026-10-25T02:31');
     component.updateFilter('occurredFrom', '2026-10-25T02:30');
+    fixture.detectChanges();
+    expect(component.pendingChanges()).toBe(true);
+    expect(component.filterSummary()).toContain('When applied');
+    expect(root.querySelector('.activity-list')).toBeNull();
+    expect(root.querySelector('#sensitive-activity-state mat-paginator')).toBeNull();
     component.applyFilters();
 
     expect(router.navigate).toHaveBeenCalledWith(
@@ -252,6 +261,17 @@ describe('SensitiveActivityPage', () => {
         queryParams: expect.objectContaining({ occurredFrom: '2026-10-25T00:30:00.000Z' }),
       }),
     );
+    params.next(convertToParamMap({ occurredFrom: '2026-10-25T00:30:00Z' }));
+    fixture.detectChanges();
+    const requests = api.getActivity.mock.calls.length;
+    component.updateFilter('occurredFrom', '2026-10-25T02:31');
+    fixture.detectChanges();
+    component.updateFilter('occurredFrom', '2026-10-25T02:30');
+    fixture.detectChanges();
+    expect(component.pendingChanges()).toBe(false);
+    expect(component.filterSummary()).toContain('Showing');
+    expect(root.querySelector('.activity-list')).not.toBeNull();
+    expect(api.getActivity).toHaveBeenCalledTimes(requests);
   });
 
   it('shows an invalid range only on To and preserves the loaded results', () => {
