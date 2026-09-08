@@ -141,7 +141,14 @@ export class SensitiveActivityPage {
   readonly hasStayPredicate = computed(() => this.stayPredicatePresent(this.filters()));
   readonly eventCompatibilityInvalid = computed(() => this.incompatibleEvent(this.filters()));
   readonly hideStayControls = computed(
-    () => this.filters().eventType === 'NIGHTLY_RATE_CHANGED' && !this.hasStayPredicate(),
+    () =>
+      this.filters().eventType === 'NIGHTLY_RATE_CHANGED' &&
+      !this.hasStayPredicate() &&
+      !this.unresolvedSelectors().ownerId &&
+      !this.unresolvedSelectors().catId &&
+      !Object.values(this.stayDates()?.dateStates() ?? {}).some(
+        (state) => state === 'EDITING' || state === 'INVALID',
+      ),
   );
   readonly advancedStatePresent = computed(() =>
     Boolean(
@@ -197,7 +204,7 @@ export class SensitiveActivityPage {
   private candidateVersion = 0;
   private exactVersion = 0;
   private routeVersion = signal(0);
-  private initializedRoute = -1;
+  private readonly initializedRoute = signal(-1);
   private initializingSelectors = false;
   private candidateCriteria = '';
 
@@ -213,6 +220,10 @@ export class SensitiveActivityPage {
   readonly totalElements = signal(0);
   readonly pageSize = 10;
   readonly loading = signal(true);
+  readonly rejectedRoute = signal(false);
+  readonly invalidFilterDescription = computed(
+    () => ACTIVITY_SUMMARY_TRANSLATIONS[this.i18n.language()].invalid,
+  );
   readonly loadError = signal<LoadError>(null);
   readonly filterErrors = signal<Record<ValidatedFilterKey, FilterError>>({
     actorId: null,
@@ -244,8 +255,8 @@ export class SensitiveActivityPage {
       const actor = this.actorSelector(),
         owner = this.ownerSelector(),
         cat = this.catSelector();
-      if (!actor || !owner || !cat || this.initializedRoute === version) return;
-      this.initializedRoute = version;
+      if (!actor || !owner || !cat || this.initializedRoute() === version) return;
+      this.initializedRoute.set(version);
       this.initializingSelectors = true;
       const draft = this.filters();
       for (const [selector, id] of [
@@ -338,6 +349,7 @@ export class SensitiveActivityPage {
         this.page.set(requestedPage);
         this.load(requestedPage);
       } else {
+        this.rejectedRoute.set(true);
         this.cancelLoad();
         this.loading.set(false);
         this.loadError.set(null);
@@ -559,7 +571,8 @@ export class SensitiveActivityPage {
       if (!id) return undefined;
       const value = selector?.value();
       if (value && selector?.selectedId() === id) return name(value);
-      if (!selector?.error()) preparing = true;
+      if (!selector || this.initializedRoute() !== this.routeVersion() || selector.loading())
+        preparing = true;
       return null;
     };
     const actor = resolve(f.actorId, this.actorSelector(), (value) => value.username);
@@ -814,6 +827,7 @@ export class SensitiveActivityPage {
   }
 
   private load(requestedPage: number): void {
+    this.rejectedRoute.set(false);
     this.cancelLoad();
     const version = this.loadVersion;
     this.loading.set(true);

@@ -1145,4 +1145,101 @@ describe('SensitiveActivityPage', () => {
       );
     },
   );
+  it.each([false, true])(
+    'suppresses normal results for a rejected route (initial=%s)',
+    async (initial) => {
+      const invalid = convertToParamMap({
+        eventType: 'NIGHTLY_RATE_CHANGED',
+        stayFrom: '2026-08-10',
+      });
+      if (initial) {
+        fixture.destroy();
+        params.next(invalid);
+        fixture = TestBed.createComponent(SensitiveActivityPage);
+      } else params.next(invalid);
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.querySelector('.invalid-filter-state')).not.toBeNull();
+      expect(root.querySelector('.activity-list')).toBeNull();
+      expect(root.querySelector('#sensitive-activity-state mat-paginator')).toBeNull();
+      expect(root.querySelector('#sensitive-activity-state')?.textContent).not.toContain(
+        TestBed.inject(I18nService).text().sensitiveActivity.empty,
+      );
+      params.next(convertToParamMap({}));
+      fixture.detectChanges();
+      expect(root.querySelector('.invalid-filter-state')).toBeNull();
+      expect(root.querySelector('.activity-list')).not.toBeNull();
+    },
+  );
+
+  it.each([0, 1])(
+    'keeps unresolved Stay selector %s visible when selecting global events',
+    async (index) => {
+      const c = fixture.componentInstance,
+        root = fixture.nativeElement as HTMLElement;
+      const input = root.querySelectorAll<HTMLInputElement>('.primary-entities input')[index];
+      input.value = 'unfinished';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      c.updateFilter('eventType', 'NIGHTLY_RATE_CHANGED');
+      fixture.detectChanges();
+      c.applyFilters();
+      fixture.detectChanges();
+      expect(root.querySelector<HTMLElement>('.primary-entities')?.hidden).toBe(false);
+      expect(input.value).toBe('unfinished');
+      expect(root.querySelector('.primary-entities mat-error')).not.toBeNull();
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(c.hideStayControls()).toBe(true);
+    },
+  );
+
+  it('keeps partial native Stay dates available for correction with global events', async () => {
+    const c = fixture.componentInstance,
+      root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>('app-stay-date-filters input[type="date"]')!;
+    Object.defineProperty(input, 'validity', {
+      configurable: true,
+      get: () => ({ badInput: true, valid: false }),
+    });
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    c.updateFilter('eventType', 'NIGHTLY_RATE_CHANGED');
+    fixture.detectChanges();
+    c.applyFilters();
+    fixture.detectChanges();
+    expect(root.querySelector<HTMLElement>('.advanced-stay')?.hidden).toBe(false);
+    expect(c.filters().stayFrom).toBeFalsy();
+    expect(c.stayDates()?.dateStates().dateFrom).toBe('EDITING');
+    expect(root.querySelector('app-stay-date-filters mat-error')).not.toBeNull();
+  });
+
+  it.each(['actorId', 'ownerId', 'catId'] as const)(
+    'keeps failed %s narration unavailable across locale changes',
+    async (key) => {
+      const c = fixture.componentInstance;
+      const adapter =
+        key === 'actorId' ? c.accountAdapter : key === 'ownerId' ? c.ownerAdapter : c.catAdapter;
+      const resolve = vi
+        .spyOn(adapter, 'resolve')
+        .mockReturnValue(throwError(() => new Error('missing')));
+      params.next(convertToParamMap({ [key]: lookupStay.owner.id }));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(c.filterSummary()).toContain('unavailable');
+      TestBed.inject(I18nService).language.set('es');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(c.filterSummary()).toContain('no disponible');
+      expect(c.filterSummary()).not.toContain('Preparando');
+      expect(c.filterSummary()).not.toContain(lookupStay.owner.id);
+      expect(resolve).toHaveBeenCalledTimes(1);
+    },
+  );
 });

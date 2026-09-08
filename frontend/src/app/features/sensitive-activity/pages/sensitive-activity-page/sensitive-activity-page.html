@@ -275,7 +275,13 @@
   </div>
 
   <div id="sensitive-activity-state" tabindex="-1" [attr.aria-busy]="loading()">
-    @if (pendingChanges()) {
+    @if (rejectedRoute()) {
+      <app-ui-state
+        class="invalid-filter-state"
+        kind="error"
+        [message]="invalidFilterDescription()"
+      />
+    } @else if (pendingChanges()) {
       <div class="pending-state" role="status">
         <h3>{{ text().sensitiveActivity.filters.pendingTitle }}</h3>
         <p>{{ text().sensitiveActivity.filters.pendingMessage }}</p>
