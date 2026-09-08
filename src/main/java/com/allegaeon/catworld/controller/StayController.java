@@ -1,5 +1,7 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.lookup.LookupPage;
+import com.allegaeon.catworld.dto.lookup.StayLookupItem;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -39,6 +41,22 @@ import com.allegaeon.catworld.dto.StayDateMatchMode;
 public class StayController {
 
     private final IStayService stayService;
+
+    @GetMapping("/search")
+    public LookupPage<StayLookupItem> searchStays(
+            @RequestParam(required = false) UUID ownerId,
+            @RequestParam(required = false) UUID catId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) StayDateMatchMode dateMatchMode,
+            @RequestParam(defaultValue = "0") int page) {
+        return stayService.searchStays(ownerId, catId, new StayDateFilter(dateFrom, dateTo, dateMatchMode), page);
+    }
+
+    @GetMapping("/{id}/lookup")
+    public StayLookupItem getStayLookup(@PathVariable UUID id) {
+        return stayService.getStayLookup(id);
+    }
 
     @GetMapping
     public ResponseEntity<List<StayResponseDTO>> getStays(

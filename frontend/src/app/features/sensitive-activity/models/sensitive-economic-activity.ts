@@ -1,3 +1,4 @@
+import { StayDateMatchMode } from '../../../shared/stay-date-filters/stay-date-filter.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
 
 export const SENSITIVE_EVENT_TYPES = [
@@ -91,6 +92,9 @@ export type SensitiveEconomicActivityEvent =
       });
 
 export interface SensitiveActivityFilters {
+  stayDateMatchMode?: StayDateMatchMode;
+  stayFrom?: string;
+  stayTo?: string;
   actorId: string;
   occurredFrom: string;
   occurredTo: string;
@@ -101,6 +105,8 @@ export interface SensitiveActivityFilters {
 }
 
 export const EMPTY_SENSITIVE_ACTIVITY_FILTERS: SensitiveActivityFilters = {
+  stayFrom: '',
+  stayTo: '',
   actorId: '',
   occurredFrom: '',
   occurredTo: '',
@@ -311,7 +317,7 @@ function localDate(value: unknown): string {
   return candidate;
 }
 
-function localDateTime(value: unknown): string {
+export function localDateTime(value: unknown): string {
   const candidate = text(value);
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?$/.exec(candidate);
   if (

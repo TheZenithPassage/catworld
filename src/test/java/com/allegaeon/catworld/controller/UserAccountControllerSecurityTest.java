@@ -68,6 +68,29 @@ class UserAccountControllerSecurityTest {
     }
 
     @Test
+    void lookupRetainsAdminAuthorizationAndLightweightDisabledResolution() throws Exception {
+        var disabled = saveUser("archived-actor", "password", UserRole.STAFF, false);
+        for (String path : new String[]{"/api/users/search?q=archived", "/api/users/" + disabled.getId() + "/lookup"}) {
+            mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+            mockMvc.perform(get(path).with(httpBasic(STAFF_USERNAME, STAFF_PASSWORD))).andExpect(status().isForbidden());
+        }
+        mockMvc.perform(get("/api/users/search").param("q", "archived").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5))
+                .andExpect(jsonPath("$.items[0].username").value("archived-actor"))
+                .andExpect(jsonPath("$.items[0].passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.items[0].enabled").doesNotExist());
+        mockMvc.perform(get("/api/users/" + disabled.getId() + "/lookup").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(disabled.getId().toString()))
+                .andExpect(jsonPath("$.username").value("archived-actor"));
+        mockMvc.perform(get("/api/users/search").param("q", " ").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/users/search").param("q", "actor").param("page", "-1").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/users/" + UUID.randomUUID() + "/lookup").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void adminCanListUsersWithoutPasswordData() throws Exception {
         mockMvc.perform(get("/api/users").with(httpBasic(ADMIN_USERNAME, ADMIN_PASSWORD)))
                 .andExpect(status().isOk())

@@ -40,6 +40,9 @@ describe('SensitiveEconomicActivityApiService', () => {
           ownerId: 'owner-1',
           catId: 'cat-1',
           stayId: 'stay-1',
+          stayFrom: '2026-08-10',
+          stayTo: '2026-08-12',
+          stayDateMatchMode: 'STAY_WITHIN_RANGE',
         },
         3,
       )
@@ -60,6 +63,9 @@ describe('SensitiveEconomicActivityApiService', () => {
       ownerId: 'owner-1',
       catId: 'cat-1',
       stayId: 'stay-1',
+      stayFrom: '2026-08-10',
+      stayTo: '2026-08-12',
+      stayDateMatchMode: 'STAY_WITHIN_RANGE',
     });
     request.flush({ items: [rateEvent], page: 3, pageSize: 10, totalElements: 31 });
     expect(result).toEqual({
