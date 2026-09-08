@@ -317,7 +317,7 @@ function localDate(value: unknown): string {
   return candidate;
 }
 
-function localDateTime(value: unknown): string {
+export function localDateTime(value: unknown): string {
   const candidate = text(value);
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?$/.exec(candidate);
   if (

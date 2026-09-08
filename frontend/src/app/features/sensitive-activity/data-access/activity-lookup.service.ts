@@ -1,3 +1,4 @@
+import { localDateTime } from '../models/sensitive-economic-activity';
 import { StayDateMatchMode } from '../../../shared/stay-date-filters/stay-date-filter.model';
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
@@ -33,14 +34,25 @@ const id = (v: unknown): v is string =>
 function account(v: unknown): v is AccountLookup {
   return record(v) && id(v['id']) && typeof v['username'] === 'string';
 }
+function lookupDateTime(value: unknown): value is string {
+  try {
+    // Local lookup timestamps may omit zero seconds; keep the original precision for display.
+    localDateTime(
+      typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
+        ? value + ':00'
+        : value,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
 function stay(v: unknown): v is StayLookup {
   return (
     record(v) &&
     id(v['stayId']) &&
-    typeof v['startAt'] === 'string' &&
-    typeof v['endAt'] === 'string' &&
-    /^\d{4}-\d{2}-\d{2}T/.test(v['startAt']) &&
-    /^\d{4}-\d{2}-\d{2}T/.test(v['endAt']) &&
+    lookupDateTime(v['startAt']) &&
+    lookupDateTime(v['endAt']) &&
     record(v['owner']) &&
     id(v['owner']['id']) &&
     typeof v['owner']['fullName'] === 'string' &&

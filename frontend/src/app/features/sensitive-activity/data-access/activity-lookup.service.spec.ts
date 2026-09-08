@@ -1,3 +1,4 @@
+import { Observable } from 'rxjs';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -56,4 +57,69 @@ describe('ActivityLookupService', () => {
     request.flush({ items: [{ stayId: id }], page: 2, pageSize: 5, totalElements: 11 });
     expect(error).toHaveBeenCalled();
   });
+  it.each(['search', 'resolve'] as const)(
+    'routes malformed date-times to %s lookup errors and preserves supported precision',
+    (kind) => {
+      const request = (): Observable<unknown> =>
+        kind === 'search' ? api.searchStays({ ownerId: id }) : api.resolveStay(id);
+      const stay = {
+        stayId: id,
+        startAt: '2026-08-10T10:00:00',
+        endAt: '2026-08-12T10:00:00',
+        owner: { id, fullName: 'Ada' },
+        cats: [{ id, name: 'Miso' }],
+      };
+      for (const field of ['startAt', 'endAt'] as const) {
+        for (const value of [
+          '2026-08-10T',
+          '2026-02-30T10:00:00',
+          '2026-08-10T24:00:00',
+          '2026-08-10T10:60:00',
+          '2026-08-10T10:00:60',
+          '2026-08-10T10:00:00Z',
+        ]) {
+          const next = vi.fn(),
+            error = vi.fn();
+          request().subscribe({
+            next,
+            error,
+          });
+          const payload = { ...stay, [field]: value };
+          http
+            .expectOne((r) => r.url.includes('/stays/'))
+            .flush(
+              kind === 'search'
+                ? { items: [payload], page: 0, pageSize: 5, totalElements: 1 }
+                : payload,
+            );
+          expect(next).not.toHaveBeenCalled();
+          expect(error).toHaveBeenCalledTimes(1);
+        }
+      }
+      for (const value of [
+        '2028-02-29T10:00',
+        '2028-02-29T10:00:00',
+        '2028-02-29T10:00:00.123456789',
+      ]) {
+        const next = vi.fn(),
+          error = vi.fn(),
+          payload = { ...stay, startAt: value, endAt: value };
+        request().subscribe({
+          next,
+          error,
+        });
+        http
+          .expectOne((r) => r.url.includes('/stays/'))
+          .flush(
+            kind === 'search'
+              ? { items: [payload], page: 0, pageSize: 5, totalElements: 1 }
+              : payload,
+          );
+        expect(error).not.toHaveBeenCalled();
+        expect(next).toHaveBeenCalledWith(
+          kind === 'search' ? expect.objectContaining({ items: [payload] }) : payload,
+        );
+      }
+    },
+  );
 });
