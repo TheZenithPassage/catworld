@@ -320,8 +320,22 @@ public class SensitiveEconomicActivityReadRepository {
             SensitiveEconomicActivityFilter filter) {
         if (filter.stayFrom() != null || filter.stayTo() != null) {
             sql.append(" AND EXISTS (SELECT 1 FROM stays current_stay WHERE current_stay.id = activity.stay_id");
-            if (filter.stayFrom() != null) sql.append(" AND CAST(current_stay.end_at AS DATE) >= :stayFrom");
-            if (filter.stayTo() != null) sql.append(" AND CAST(current_stay.start_at AS DATE) <= :stayTo");
+            switch (filter.stayDateMatchMode()) {
+                case OVERLAPS -> {
+                    if (filter.stayFrom() != null) sql.append(" AND CAST(current_stay.end_at AS DATE) >= :stayFrom");
+                    if (filter.stayTo() != null) sql.append(" AND CAST(current_stay.start_at AS DATE) <= :stayTo");
+                }
+                case STAY_WITHIN_RANGE -> {
+                    if (filter.stayFrom() != null) sql.append(" AND CAST(current_stay.start_at AS DATE) >= :stayFrom");
+                    if (filter.stayTo() != null) sql.append(" AND CAST(current_stay.end_at AS DATE) <= :stayTo");
+                }
+                case RANGE_WITHIN_STAY -> {
+                    sql.append(" AND CAST(current_stay.start_at AS DATE) <= :")
+                            .append(filter.stayFrom() != null ? "stayFrom" : "stayTo");
+                    sql.append(" AND CAST(current_stay.end_at AS DATE) >= :")
+                            .append(filter.stayTo() != null ? "stayTo" : "stayFrom");
+                }
+            }
             sql.append(")");
         }
         if (filter.actorId() != null) {

@@ -1,265 +1,286 @@
 <section class="activity-page">
-  <header>
+  <header class="page-header">
     <h2>{{ text().sensitiveActivity.title }}</h2>
     <p>{{ text().sensitiveActivity.description }}</p>
   </header>
 
-  <form
-    #filtersForm="ngForm"
-    class="filters"
-    role="search"
-    [attr.aria-label]="text().sensitiveActivity.filters.label"
-    (ngSubmit)="applyFilters(filtersForm)"
-  >
-    @if (
-      filterErrors().actorId ||
-      filterErrors().ownerId ||
-      filterErrors().catId ||
-      filterErrors().stayId
-    ) {
-      <p role="alert" class="identifier-error">{{ text().sensitiveActivity.filters.invalidId }}</p>
-    }
-    <section class="filter-group" aria-labelledby="general-heading">
-      <h3 id="general-heading">{{ text().sensitiveActivity.filters.general }}</h3>
-      <div class="filter-grid">
-        <app-remote-entity-selector
-          #actorSelector
-          [adapter]="accountAdapter"
-          [label]="text().sensitiveActivity.filters.actorId"
-          (stateChange)="selectorChanged('actorId', $event)"
-        />
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ text().sensitiveActivity.filters.eventType }}</mat-label>
-          <select
-            matNativeControl
-            [ngModel]="filters().eventType"
-            (ngModelChange)="updateFilter('eventType', $event)"
-            name="eventType"
-          >
-            <option value="">{{ text().sensitiveActivity.filters.allTypes }}</option>
-            @for (eventType of eventTypes; track eventType) {
-              <option [value]="eventType">{{ text().sensitiveActivity.events[eventType] }}</option>
-            }
-          </select>
-        </mat-form-field>
-      </div>
-    </section>
-    <section class="filter-group" aria-labelledby="stay-heading">
-      <h3 id="stay-heading">{{ text().sensitiveActivity.filters.affectedStay }}</h3>
-      <div class="filter-grid">
-        <app-remote-entity-selector
-          #ownerSelector
-          [adapter]="ownerAdapter"
-          [label]="text().sensitiveActivity.filters.ownerId"
-          (stateChange)="selectorChanged('ownerId', $event)"
-        /><app-remote-entity-selector
-          #catSelector
-          [adapter]="catAdapter"
-          [label]="text().sensitiveActivity.filters.catId"
-          (stateChange)="selectorChanged('catId', $event)"
-        /><mat-form-field appearance="outline"
-          ><mat-label>{{ text().sensitiveActivity.filters.stayFrom }}</mat-label
-          ><input
-            matInput
-            appNativeBadInput
-            type="date"
-            name="stayFrom"
-            [ngModel]="filters().stayFrom"
-            (ngModelChange)="updateFilter('stayFrom', $event)"
-        /></mat-form-field>
-        <mat-form-field appearance="outline"
-          ><mat-label>{{ text().sensitiveActivity.filters.stayTo }}</mat-label
-          ><input
-            matInput
-            appNativeBadInput
-            type="date"
-            name="stayTo"
-            [ngModel]="filters().stayTo"
-            (ngModelChange)="updateFilter('stayTo', $event)"
-        /></mat-form-field>
-      </div>
-      @if (selectionConflict()) {
-        <p role="alert">{{ text().sensitiveActivity.filters.chooseOneEntity }}</p>
-      }
+  <div class="filter-container">
+    <form
+      #filtersForm="ngForm"
+      class="filters"
+      role="search"
+      [attr.aria-label]="text().sensitiveActivity.filters.label"
+      (input)="captureOccurrenceValidity($event)"
+      (focusout)="captureOccurrenceValidity($event)"
+      (ngSubmit)="applyFilters(filtersForm)"
+    >
       @if (
-        stayDateError() ||
-        filtersForm.controls['stayFrom']?.hasError('badInput') ||
-        filtersForm.controls['stayTo']?.hasError('badInput')
+        filterErrors().actorId ||
+        filterErrors().ownerId ||
+        filterErrors().catId ||
+        filterErrors().stayId
       ) {
-        <p role="alert">{{ text().sensitiveActivity.filters.invalidStayPeriod }}</p>
+        <p role="alert" class="identifier-error">
+          {{ text().sensitiveActivity.filters.invalidId }}
+        </p>
       }
-      <button
-        mat-stroked-button
-        type="button"
-        [disabled]="!canFindStay(filtersForm) || candidateLoading()"
-        [attr.aria-expanded]="candidatesExpanded()"
-        aria-controls="stay-candidates"
-        (click)="findStay(0, filtersForm)"
+      <section class="filter-group primary-entities" [hidden]="hideStayControls()">
+        <div class="filter-grid">
+          <app-remote-entity-selector
+            #ownerSelector
+            [adapter]="ownerAdapter"
+            [label]="text().sensitiveActivity.filters.ownerId"
+            (stateChange)="selectorChanged('ownerId', $event)"
+          /><app-remote-entity-selector
+            #catSelector
+            [adapter]="catAdapter"
+            [label]="text().sensitiveActivity.filters.catId"
+            (stateChange)="selectorChanged('catId', $event)"
+          />
+        </div>
+      </section>
+      <section class="filter-group" aria-labelledby="occurred-heading">
+        <h3 id="occurred-heading">{{ text().sensitiveActivity.filters.eventOccurred }}</h3>
+        <div class="filter-grid">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ text().sensitiveActivity.filters.occurredFrom }}</mat-label>
+            <input
+              id="sensitive-occurred-from"
+              #occurredFromModel="ngModel"
+              appNativeBadInput
+              matInput
+              type="datetime-local"
+              [errorStateMatcher]="filterErrorStateMatchers.occurredFrom"
+              [ngModel]="filters().occurredFrom"
+              (ngModelChange)="updateFilter('occurredFrom', $event)"
+              name="occurredFrom"
+            />
+            <mat-error>
+              @if (filterErrors().occurredFrom === 'nonexistentBusinessTime') {
+                {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
+              } @else if (
+                filterErrors().occurredFrom === 'invalidDateTime' ||
+                occurredFromModel.hasError('badInput')
+              ) {
+                {{ text().sensitiveActivity.filters.invalidDateTime }}
+              }
+            </mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ text().sensitiveActivity.filters.occurredTo }}</mat-label>
+            <input
+              id="sensitive-occurred-to"
+              #occurredToModel="ngModel"
+              appNativeBadInput
+              matInput
+              type="datetime-local"
+              [errorStateMatcher]="filterErrorStateMatchers.occurredTo"
+              [ngModel]="filters().occurredTo"
+              (ngModelChange)="updateFilter('occurredTo', $event)"
+              name="occurredTo"
+            />
+            <mat-error>
+              @if (filterErrors().occurredTo === 'invalidPeriod') {
+                {{ text().sensitiveActivity.filters.invalidPeriod }}
+              } @else if (filterErrors().occurredTo === 'nonexistentBusinessTime') {
+                {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
+              } @else if (
+                filterErrors().occurredTo === 'invalidDateTime' ||
+                occurredToModel.hasError('badInput')
+              ) {
+                {{ text().sensitiveActivity.filters.invalidDateTime }}
+              }
+            </mat-error>
+          </mat-form-field>
+        </div>
+      </section>
+      <section class="filter-group primary-event">
+        <div class="filter-grid">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="event-type-field">
+            <mat-label>{{ text().sensitiveActivity.filters.eventType }}</mat-label>
+            <mat-select
+              [ngModel]="filters().eventType"
+              (ngModelChange)="updateFilter('eventType', $event)"
+              name="eventType"
+              panelClass="activity-event-options"
+            >
+              <mat-select-trigger>{{ selectedEventLabel() }}</mat-select-trigger>
+              <mat-option value="">{{ text().sensitiveActivity.filters.allTypes }}</mat-option>
+              @for (eventType of eventTypes; track eventType) {
+                <mat-option
+                  [value]="eventType"
+                  [disabled]="eventType === 'NIGHTLY_RATE_CHANGED' && hasStayPredicate()"
+                >
+                  <span class="event-option-copy">
+                    <span>{{ text().sensitiveActivity.events[eventType] }}</span>
+                    @if (eventType === 'NIGHTLY_RATE_CHANGED' && hasStayPredicate()) {
+                      <span class="event-option-help">{{
+                        text().sensitiveActivity.filters.incompatibleEvent
+                      }}</span>
+                    } @else if (eventSupportingText(eventType); as help) {
+                      <span class="event-option-help">{{ help }}</span>
+                    }
+                  </span>
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <app-remote-entity-selector
+            #actorSelector
+            [adapter]="accountAdapter"
+            [label]="text().sensitiveActivity.filters.actorId"
+            (stateChange)="selectorChanged('actorId', $event)"
+          />
+        </div>
+        @if (eventCompatibilityInvalid()) {
+          <p class="identifier-error" role="alert">
+            {{ text().sensitiveActivity.filters.incompatibleEvent }}
+          </p>
+        }
+      </section>
+      <details
+        class="advanced-stay filter-group"
+        [open]="advancedExpanded()"
+        (toggle)="advancedToggled($event)"
+        [hidden]="hideStayControls()"
       >
-        {{ text().sensitiveActivity.filters.findStay }}
-      </button>
-      @if (!canFindStay(filtersForm)) {
-        <p class="search-feedback">{{ text().sensitiveActivity.filters.stayCriteriaHelp }}</p>
-      }
-      @if (candidatesExpanded()) {
-        <section
-          id="stay-candidates"
-          class="stay-candidates"
-          [attr.aria-busy]="candidateLoading()"
-          aria-labelledby="candidate-heading"
+        <summary>
+          <span>{{ text().sensitiveActivity.filters.affectedStay }}</span>
+          @if (!advancedExpanded() && advancedStatePresent()) {
+            <span class="active-filters">{{ text().sensitiveActivity.filters.active }}</span>
+          }
+          <span class="stay-subtitle">{{ text().sensitiveActivity.filters.staySubtitle }}</span>
+        </summary>
+        <h3>{{ text().sensitiveActivity.filters.stayPeriod }}</h3>
+        <app-stay-date-filters
+          [filters]="dateFilters()"
+          (filtersChange)="updateStayDates($event)"
+        />
+        @if (selectionConflict()) {
+          <p role="alert">{{ text().sensitiveActivity.filters.chooseOneEntity }}</p>
+        }
+        <button
+          mat-stroked-button
+          type="button"
+          class="find-stay"
+          [disabled]="!canFindStay() || candidateLoading()"
+          [attr.aria-expanded]="candidatesExpanded()"
+          aria-controls="stay-candidates"
+          (click)="findStay(0, filtersForm)"
         >
-          <h4 id="candidate-heading">{{ text().sensitiveActivity.filters.candidates }}</h4>
-          @if (candidateLoading()) {
-            <app-ui-state
-              kind="loading"
-              [message]="text().sensitiveActivity.filters.candidatesLoading"
-            />
-          } @else if (candidateError()) {
-            <app-ui-state
-              kind="error"
-              [message]="text().sensitiveActivity.filters.candidatesError"
-              [actionLabel]="text().sensitiveActivity.retry"
-              (actionTriggered)="findStay(candidatePage(), filtersForm)"
-            />
-          } @else {
-            @if (candidates().length === 0) {
+          {{ text().sensitiveActivity.filters.findStay }}
+        </button>
+        @if (!canFindStay()) {
+          <p class="search-feedback">{{ text().sensitiveActivity.filters.stayCriteriaHelp }}</p>
+        }
+        @if (candidatesExpanded()) {
+          <section
+            id="stay-candidates"
+            class="stay-candidates"
+            [attr.aria-busy]="candidateLoading()"
+            aria-labelledby="candidate-heading"
+          >
+            <h4 id="candidate-heading">{{ text().sensitiveActivity.filters.candidates }}</h4>
+            @if (candidateLoading()) {
               <app-ui-state
-                kind="empty"
-                [message]="text().sensitiveActivity.filters.candidatesEmpty"
+                kind="loading"
+                [message]="text().sensitiveActivity.filters.candidatesLoading"
+              />
+            } @else if (candidateError()) {
+              <app-ui-state
+                kind="error"
+                [message]="text().sensitiveActivity.filters.candidatesError"
+                [actionLabel]="text().sensitiveActivity.retry"
+                (actionTriggered)="findStay(candidatePage(), filtersForm)"
+              />
+            } @else {
+              @if (candidates().length === 0) {
+                <app-ui-state
+                  kind="empty"
+                  [message]="text().sensitiveActivity.filters.candidatesEmpty"
+                />
+              }
+              <ul class="candidate-list">
+                @for (stay of candidates(); track stay.stayId) {
+                  <li>
+                    <div class="stay-description">
+                      <strong
+                        >{{ formatStayDateTime(stay.startAt) }} –
+                        {{ formatStayDateTime(stay.endAt) }}</strong
+                      ><span>{{ stay.owner.fullName }} · {{ catsLabel(stay.cats) }}</span>
+                    </div>
+                    <button mat-stroked-button type="button" (click)="selectStay(stay)">
+                      {{ text().sensitiveActivity.filters.select }}
+                    </button>
+                  </li>
+                }
+              </ul>
+              <mat-paginator
+                [length]="candidateTotal()"
+                [pageIndex]="candidatePage()"
+                [pageSize]="5"
+                [hidePageSize]="true"
+                [attr.aria-label]="text().sensitiveActivity.filters.candidates"
+                (page)="findStay($event.pageIndex, filtersForm)"
               />
             }
-            <ul class="candidate-list">
-              @for (stay of candidates(); track stay.stayId) {
-                <li>
-                  <div class="stay-description">
-                    <strong
-                      >{{ formatStayDateTime(stay.startAt) }} –
-                      {{ formatStayDateTime(stay.endAt) }}</strong
-                    ><span>{{ stay.owner.fullName }} · {{ catsLabel(stay.cats) }}</span>
-                  </div>
-                  <button mat-stroked-button type="button" (click)="selectStay(stay)">
-                    {{ text().sensitiveActivity.filters.select }}
-                  </button>
-                </li>
-              }
-            </ul>
-            <mat-paginator
-              [length]="candidateTotal()"
-              [pageIndex]="candidatePage()"
-              [pageSize]="5"
-              [hidePageSize]="true"
-              [attr.aria-label]="text().sensitiveActivity.filters.candidates"
-              (page)="findStay($event.pageIndex, filtersForm)"
-            />
-          }
-        </section>
-      }
-      @if (filters().stayId && !candidatesExpanded()) {
-        <div class="exact-stay">
-          <h4>{{ text().sensitiveActivity.filters.stayId }}</h4>
-          @if (exactLoading()) {
-            <app-ui-state
-              kind="loading"
-              [message]="text().sensitiveActivity.filters.candidatesLoading"
-            />
-          } @else if (exactError()) {
-            <app-ui-state
-              kind="error"
-              [message]="text().sensitiveActivity.filters.candidatesError"
-              [actionLabel]="text().sensitiveActivity.retry"
-              (actionTriggered)="resolveExactStay()"
-            />
-          } @else if (exactStay(); as stay) {
-            <div class="stay-description">
-              <strong
-                >{{ formatStayDateTime(stay.startAt) }} –
-                {{ formatStayDateTime(stay.endAt) }}</strong
-              ><span>{{ stay.owner.fullName }} · {{ catsLabel(stay.cats) }}</span>
+          </section>
+        }
+        @if (filters().stayId && !candidatesExpanded()) {
+          <div class="exact-stay">
+            <h4>{{ text().sensitiveActivity.filters.stayId }}</h4>
+            @if (exactLoading()) {
+              <app-ui-state
+                kind="loading"
+                [message]="text().sensitiveActivity.filters.candidatesLoading"
+              />
+            } @else if (exactError()) {
+              <app-ui-state
+                kind="error"
+                [message]="text().sensitiveActivity.filters.candidatesError"
+                [actionLabel]="text().sensitiveActivity.retry"
+                (actionTriggered)="resolveExactStay()"
+              />
+            } @else if (exactStay(); as stay) {
+              <div class="stay-description">
+                <strong
+                  >{{ formatStayDateTime(stay.startAt) }} –
+                  {{ formatStayDateTime(stay.endAt) }}</strong
+                ><span>{{ stay.owner.fullName }} · {{ catsLabel(stay.cats) }}</span>
+              </div>
+            }
+            <div class="filter-actions">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="!canChangeStay()"
+                (click)="changeStay()"
+              >
+                {{ text().sensitiveActivity.filters.change }}</button
+              ><button mat-button type="button" (click)="removeExactStay()">
+                {{ text().sensitiveActivity.filters.removeStay }}
+              </button>
             </div>
-          }
-          <div class="filter-actions">
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="!canChangeStay()"
-              (click)="changeStay()"
-            >
-              {{ text().sensitiveActivity.filters.change }}</button
-            ><button mat-button type="button" (click)="removeExactStay()">
-              {{ text().sensitiveActivity.filters.removeStay }}
-            </button>
           </div>
-        </div>
-      }
-    </section>
-    <section class="filter-group" aria-labelledby="occurred-heading">
-      <h3 id="occurred-heading">{{ text().sensitiveActivity.filters.eventOccurred }}</h3>
-      <div class="filter-grid">
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ text().sensitiveActivity.filters.occurredFrom }}</mat-label>
-          <input
-            id="sensitive-occurred-from"
-            #occurredFromModel="ngModel"
-            appNativeBadInput
-            matInput
-            type="datetime-local"
-            [errorStateMatcher]="filterErrorStateMatchers.occurredFrom"
-            [ngModel]="filters().occurredFrom"
-            (ngModelChange)="updateFilter('occurredFrom', $event)"
-            name="occurredFrom"
-          />
-          <mat-error>
-            @if (filterErrors().occurredFrom === 'nonexistentBusinessTime') {
-              {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
-            } @else if (
-              filterErrors().occurredFrom === 'invalidDateTime' ||
-              occurredFromModel.hasError('badInput')
-            ) {
-              {{ text().sensitiveActivity.filters.invalidDateTime }}
-            }
-          </mat-error>
-        </mat-form-field>
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ text().sensitiveActivity.filters.occurredTo }}</mat-label>
-          <input
-            id="sensitive-occurred-to"
-            #occurredToModel="ngModel"
-            appNativeBadInput
-            matInput
-            type="datetime-local"
-            [errorStateMatcher]="filterErrorStateMatchers.occurredTo"
-            [ngModel]="filters().occurredTo"
-            (ngModelChange)="updateFilter('occurredTo', $event)"
-            name="occurredTo"
-          />
-          <mat-error>
-            @if (filterErrors().occurredTo === 'invalidPeriod') {
-              {{ text().sensitiveActivity.filters.invalidPeriod }}
-            } @else if (filterErrors().occurredTo === 'nonexistentBusinessTime') {
-              {{ text().sensitiveActivity.filters.invalidBusinessDateTime }}
-            } @else if (
-              filterErrors().occurredTo === 'invalidDateTime' ||
-              occurredToModel.hasError('badInput')
-            ) {
-              {{ text().sensitiveActivity.filters.invalidDateTime }}
-            }
-          </mat-error>
-        </mat-form-field>
+        }
+      </details>
+      <p class="filter-summary">{{ filterSummary() }}</p>
+      <div class="filter-actions page-actions">
+        <button mat-flat-button type="submit">{{ text().sensitiveActivity.filters.apply }}</button>
+        <button mat-stroked-button type="button" (click)="clearFilters()">
+          {{ text().sensitiveActivity.filters.clear }}
+        </button>
       </div>
-    </section>
-    <div class="filter-actions">
-      <button mat-flat-button type="submit">{{ text().sensitiveActivity.filters.apply }}</button>
-      <button mat-stroked-button type="button" (click)="refresh()">
-        {{ text().sensitiveActivity.filters.refresh }}
-      </button>
-      <button mat-button type="button" (click)="clearFilters()">
-        {{ text().sensitiveActivity.filters.clear }}
-      </button>
-    </div>
-  </form>
+    </form>
+  </div>
 
   <div id="sensitive-activity-state" tabindex="-1" [attr.aria-busy]="loading()">
-    @if (loading()) {
+    @if (pendingChanges()) {
+      <div class="pending-state" role="status">
+        <h3>{{ text().sensitiveActivity.filters.pendingTitle }}</h3>
+        <p>{{ text().sensitiveActivity.filters.pendingMessage }}</p>
+      </div>
+    } @else if (loading()) {
       <app-ui-state kind="loading" [message]="text().sensitiveActivity.loading" />
     } @else if (loadError()) {
       <app-ui-state

@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.StayDateFilter;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
+
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.service.IStayService;
 import org.junit.jupiter.api.Test;
@@ -62,13 +65,13 @@ class StayControllerSecurityTest {
         var item = new com.allegaeon.catworld.dto.lookup.StayLookupItem(id,
                 java.time.LocalDateTime.parse("2026-08-10T10:00:00"), java.time.LocalDateTime.parse("2026-08-12T10:00:00"),
                 new com.allegaeon.catworld.dto.lookup.StayLookupItem.Owner(UUID.randomUUID(), "Owner"), java.util.List.of());
-        when(stayService.searchStays(null, null, java.time.LocalDate.parse("2026-08-10"), null, 0))
+        when(stayService.searchStays(null, null, new StayDateFilter(java.time.LocalDate.parse("2026-08-10"), null, StayDateMatchMode.OVERLAPS), 0))
                 .thenReturn(new com.allegaeon.catworld.dto.lookup.LookupPage<>(java.util.List.of(item), 0, 5, 1));
         when(stayService.getStayLookup(id)).thenReturn(item);
-        mockMvc.perform(get("/api/stays/search?from=2026-08-10")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/stays/search?dateFrom=2026-08-10&dateMatchMode=OVERLAPS")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/stays/" + id + "/lookup")).andExpect(status().isUnauthorized());
         for (String role : new String[]{"ADMIN", "STAFF"}) {
-            mockMvc.perform(get("/api/stays/search?from=2026-08-10").with(user("reader").roles(role)))
+            mockMvc.perform(get("/api/stays/search?dateFrom=2026-08-10&dateMatchMode=OVERLAPS").with(user("reader").roles(role)))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5))
                     .andExpect(jsonPath("$.items[0].stayId").value(id.toString()))
                     .andExpect(jsonPath("$.items[0].owner.fullName").value("Owner"))
@@ -76,6 +79,16 @@ class StayControllerSecurityTest {
             mockMvc.perform(get("/api/stays/" + id + "/lookup").with(user("reader").roles(role)))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.stayId").value(id.toString()));
         }
+    }
+
+    @Test
+    void candidateDatesRequireValidModeAndOrderedRange() throws Exception {
+        for (String query : new String[]{"dateFrom=2026-08-10", "dateTo=2026-08-10&dateMatchMode=UNKNOWN",
+                "dateFrom=2026-08-12&dateTo=2026-08-10&dateMatchMode=OVERLAPS"}) {
+            mockMvc.perform(get("/api/stays/search?" + query).with(user("reader").roles("ADMIN")))
+                    .andExpect(status().isBadRequest());
+        }
+        org.mockito.Mockito.verifyNoInteractions(stayService);
     }
 
     @Test

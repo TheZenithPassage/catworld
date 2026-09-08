@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.StayDateFilter;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
+
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityFilter;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityResponseDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicEventType;
@@ -50,7 +53,15 @@ class SensitiveEconomicActivityServiceTest {
     @Test
     void rejectsReversedStayDatesBeforeRepositoryAccess() {
         var from = java.time.LocalDate.of(2026,8,12);
-        var filter = new SensitiveEconomicActivityFilter(null,null,null,null,null,null,null,from,from.minusDays(1));
+        var filter = new SensitiveEconomicActivityFilter(null, null, null, null, null, null, null, from, from.minusDays(1), StayDateMatchMode.OVERLAPS);
+        assertThrows(BadRequestException.class, () -> service.getActivity(filter, 0));
+        verifyNoInteractions(readRepository);
+    }
+
+    @Test
+    void rejectsActiveStayDatesWithoutModeBeforeRepositoryAccess() {
+        var filter = new SensitiveEconomicActivityFilter(null, null, null, null, null, null, null,
+                java.time.LocalDate.of(2026, 8, 12), null, null);
         assertThrows(BadRequestException.class, () -> service.getActivity(filter, 0));
         verifyNoInteractions(readRepository);
     }
@@ -64,9 +75,7 @@ class SensitiveEconomicActivityServiceTest {
         when(currentUserAccountService.getCurrentUserAccount())
                 .thenReturn(admin);
         when(readRepository.findActivity(
-                new SensitiveEconomicActivityFilter(
-                        null, null, null, null, null, null, null
-                ), 0
+                new SensitiveEconomicActivityFilter(null, null, null, null, null, null, null), 0
         )).thenReturn(new OverviewPage<>(List.of(projection), 0, 1));
         when(mapper.map(projection)).thenReturn(response);
 
@@ -81,15 +90,7 @@ class SensitiveEconomicActivityServiceTest {
     void passesEveryApprovedFilterToRepositoryWithoutJavaFilteringOrSorting() {
         UserAccount admin = user(UserRole.ADMIN);
         SensitiveEconomicActivityFilter filter =
-                new SensitiveEconomicActivityFilter(
-                        UUID.randomUUID(),
-                        Instant.parse("2026-08-02T12:00:00Z"),
-                        Instant.parse("2026-08-02T13:00:00Z"),
-                        SensitiveEconomicEventType.PAYMENT_REMOVED,
-                        UUID.randomUUID(),
-                        UUID.randomUUID(),
-                        UUID.randomUUID()
-                );
+                new SensitiveEconomicActivityFilter(UUID.randomUUID(), Instant.parse("2026-08-02T12:00:00Z"), Instant.parse("2026-08-02T13:00:00Z"), SensitiveEconomicEventType.PAYMENT_REMOVED, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         SensitiveEconomicActivityProjection first =
                 mock(SensitiveEconomicActivityProjection.class);
         SensitiveEconomicActivityProjection second =
@@ -131,14 +132,10 @@ class SensitiveEconomicActivityServiceTest {
         Instant instant = Instant.parse("2026-08-02T12:00:00Z");
 
         assertThrows(BadRequestException.class, () -> service.getActivity(
-                new SensitiveEconomicActivityFilter(
-                        null, instant, instant, null, null, null, null
-                )
+                new SensitiveEconomicActivityFilter(null, instant, instant, null, null, null, null)
         ));
         verify(readRepository, never()).findActivity(
-                new SensitiveEconomicActivityFilter(
-                        null, instant, instant, null, null, null, null
-                )
+                new SensitiveEconomicActivityFilter(null, instant, instant, null, null, null, null)
         );
     }
 

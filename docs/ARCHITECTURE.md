@@ -1103,18 +1103,45 @@ payment context without requiring live operational routes.
 Sensitive Activity replaces raw identifier entry with Actor, Owner and Cat remote
 selectors. Actor lookup uses ADMIN-only `/api/users/search` and
 `/api/users/{id}/lookup`, including disabled persisted accounts. Owner and Cat
-are mutually exclusive and unselected text contributes no identifier. Known
+are mutually exclusive. Unresolved text blocks Apply through the selector's
+field-local submission validation; candidate search validates Owner/Cat only. Known
 URL identifiers resolve to human-readable selection labels.
 
-The single filter form separates General, Affected Stay Context and Event
-Occurred. Optional `stayFrom`/`stayTo` calendar dates filter current operational
-Stays through the event's `stayId`, using inclusive date overlap independently
-of the event occurrence interval. Missing operational Stays do not match active
+The always-visible filter form orders Owner/Cat, Event moment, Event Type/Actor,
+then one advanced Affected Stay Context disclosure, a full-width localized
+summary, and Apply/Clear. Only the advanced disclosure collapses; dates, Exact
+Stay or expanded candidates open it, while manual collapse preserves criteria
+and exposes an active/pending indicator. Owner/Cat alone do not open it.
+Affected Stay Context reuses `StayDateFiltersComponent` for optional
+dates, mode and submit-time native/Material validity. `stayFrom`/`stayTo` plus
+`stayDateMatchMode` filter current operational Stays through the event's `stayId`.
+The three shared inclusive calendar-day modes (`OVERLAPS`, `STAY_WITHIN_RANGE`,
+`RANGE_WITHIN_STAY`) remain independent of the event occurrence interval.
+Backend date requests require a valid explicit mode; legacy date URLs initialize
+to `OVERLAPS` and subsequent requests carry it. Missing operational Stays do not match active
 Stay-date predicates; immutable event context display remains historical.
+
+Event Type uses a compact Material select with optional supporting text for
+pricing overrides and agreed-amount corrections. Global nightly-rate changes
+are disabled with a visible explanation whenever Owner, Cat, dates or Exact Stay
+is effective. A valid global selection hides Stay controls; an incompatible URL
+keeps recovery controls visible and blocks queries/Apply. The service rejects
+the same combination with HTTP 400 before repository access. Actor and event
+occurrence remain compatible; mode alone is not a Stay predicate.
+
+The Sensitive Activity summary consumes typed semantic state and human lookup
+labels, with English and Spanish owning complete sentence grammar. It narrates
+event set, Actor, inclusive/exclusive occurrence bounds, and broad/exact Stay
+predicates in query order. Shared date-description variant selection preserves
+all three date modes and boundary variants. Preparing/unavailable labels never
+expose IDs; transient incomplete edits retain the last valid narrative. Draft
+equality controls Showing versus When applied without replacing the separate
+unapplied-results state.
 
 An explicit Find specific stay action consumes draft Owner/Cat/Stay dates and
 opens compact inline fixed-five candidates. Authenticated `/api/stays/search`
-accepts optional `ownerId`, `catId`, `from`, `to` and `page`; it requires a
+accepts optional `ownerId`, `catId`, `dateFrom`, `dateTo`, `dateMatchMode` and
+`page`, reusing `StayDateFilter` and `StayDatePredicates`; it requires a
 criterion, rejects simultaneous Owner/Cat and reversed ranges, and includes all
 current lifecycle statuses. `/api/stays/{id}/lookup` resolves the same lightweight
 Stay dates, Owner and participating Cats without economics. Candidate paging
@@ -1122,12 +1149,16 @@ orders Stay start time then ID and hydrates Cats only after paging. Selecting a
 candidate collapses results to an Exact Stay summary. Change reopens valid
 results without searching; Remove clears only Exact Stay. Editing Stay criteria
 cancels pending requests and clears stale candidates/selection; unrelated edits
-and Refresh never search candidates. Applied criteria and candidate state are
-separate, and Clear removes both.
+and Apply-as-reload never search candidates. Applied criteria and candidate
+state are separate, and Clear removes both. Changes to dates or mode invalidate
+the exact selection. Apply and Find are explicit shared-date validation points.
 
 Actor, period, event-type, owner, cat and stay filters share one page-owned state
-with supported query parameters. Refinement and refresh preserve active
-criteria, clear removes every criterion, and Angular sends the composed filter
+with supported query parameters. Unapplied draft changes hide retained cards and
+the paginator behind a neutral localized pending state; restoring the applied
+draft reveals retained results without a request. Apply on an unchanged validated
+draft reloads the applied page without candidate search; no Refresh control is
+shown. Clear removes every criterion, and Angular sends the composed filter
 set to the backend rather than filtering or deduplicating sensitive events
 locally. Loading, empty, authorization, malformed-contract and request-failure
 states use localized accessible presentation. This global audit surface remains

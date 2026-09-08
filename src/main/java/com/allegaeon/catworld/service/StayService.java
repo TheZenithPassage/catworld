@@ -114,12 +114,11 @@ public class StayService implements IStayService {
 
     @Override
     @Transactional(readOnly = true)
-    public LookupPage<StayLookupItem> searchStays(UUID ownerId, UUID catId, LocalDate from, LocalDate to, int page) {
+    public LookupPage<StayLookupItem> searchStays(UUID ownerId, UUID catId, StayDateFilter dates, int page) {
         if (page < 0 || page > Integer.MAX_VALUE / 5) throw new BadRequestException("Invalid page");
         if (ownerId != null && catId != null) throw new BadRequestException("Choose Owner or Cat, not both");
-        if (ownerId == null && catId == null && from == null && to == null) throw new BadRequestException("Stay search requires a criterion");
-        if (from != null && to != null && from.isAfter(to)) throw new BadRequestException("from must not be after to");
-        var result = stayLookupReadRepository.find(ownerId, catId, from, to, page);
+        if (ownerId == null && catId == null && !dates.active()) throw new BadRequestException("Stay search requires a criterion");
+        var result = stayLookupReadRepository.find(ownerId, catId, dates, page);
         return new LookupPage<>(lookupStays(result.getContent()), page, 5, result.getTotalElements());
     }
 

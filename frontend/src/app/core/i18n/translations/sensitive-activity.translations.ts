@@ -18,6 +18,12 @@ export interface SensitiveActivityTranslations {
   close: string;
   unavailable: string;
   filters: {
+    stayPeriod: string;
+    incompatibleEvent: string;
+    active: string;
+    staySubtitle: string;
+    pendingTitle: string;
+    pendingMessage: string;
     general: string;
     affectedStay: string;
     eventOccurred: string;
@@ -51,6 +57,7 @@ export interface SensitiveActivityTranslations {
     invalidDateTime: string;
     invalidId: string;
   };
+  eventHelp: Partial<Record<SensitiveEconomicEventType, string>>;
   events: Record<SensitiveEconomicEventType, string>;
   categories: Record<NightlyRateCategory, string>;
   fields: Record<
@@ -109,7 +116,14 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     close: 'Cerrar',
     unavailable: 'No disponible',
     filters: {
+      stayPeriod: 'Período de estancia',
+      incompatibleEvent:
+        'Las tarifas globales no admiten filtros de estancia; elimina esos filtros o cambia el tipo de evento.',
       general: 'General',
+      active: 'Filtros activos',
+      staySubtitle: 'Filtra por fechas de estancia o elige una estancia exacta.',
+      pendingTitle: 'Cambios sin aplicar',
+      pendingMessage: 'Aplica los filtros para actualizar los resultados.',
       affectedStay: 'Contexto de la estancia afectada',
       eventOccurred: 'Momento del evento',
       stayFrom: 'Estancia desde',
@@ -142,6 +156,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       invalidBusinessDateTime: 'La fecha y hora no existe en la zona horaria del negocio.',
       invalidDateTime: 'Introduce una fecha y hora válidas.',
       invalidId: 'El ID debe tener un formato válido.',
+    },
+    eventHelp: {
+      PRICING_OVERRIDE: 'Precio acordado que sustituye la referencia de la estancia.',
+      AGREED_AMOUNT_CORRECTED: 'Corrección del importe acordado de una estancia existente.',
     },
     events: {
       NIGHTLY_RATE_CHANGED: 'Tarifa nocturna cambiada',
@@ -200,9 +218,16 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     close: 'Close',
     unavailable: 'Unavailable',
     filters: {
+      stayPeriod: 'Stay period',
+      incompatibleEvent:
+        'Global nightly-rate changes do not support Stay filters; remove them or choose another event type.',
       general: 'General',
+      active: 'Active filters',
+      staySubtitle: 'Filter by Stay dates or choose one exact Stay.',
+      pendingTitle: 'Unapplied changes',
+      pendingMessage: 'Apply filters to update the results.',
       affectedStay: 'Affected Stay Context',
-      eventOccurred: 'Event Occurred',
+      eventOccurred: 'Event moment',
       stayFrom: 'Stay From',
       stayTo: 'Stay To',
       findStay: 'Find specific stay',
@@ -232,6 +257,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       invalidBusinessDateTime: 'The date and time does not exist in the business timezone.',
       invalidDateTime: 'Enter a valid date and time.',
       invalidId: 'The ID must have a valid format.',
+    },
+    eventHelp: {
+      PRICING_OVERRIDE: 'An agreed price that overrides the Stay reference price.',
+      AGREED_AMOUNT_CORRECTED: 'A correction to an existing Stay’s agreed amount.',
     },
     events: sharedEvents,
     categories: {

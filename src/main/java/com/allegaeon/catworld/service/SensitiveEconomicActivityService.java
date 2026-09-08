@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import com.allegaeon.catworld.dto.StayDateFilter;
 import com.allegaeon.catworld.dto.overview.OverviewPage;
 
 @Service
@@ -44,10 +45,12 @@ public class SensitiveEconomicActivityService
     }
 
     private void validateRange(SensitiveEconomicActivityFilter filter) {
-        if (filter.stayFrom() != null && filter.stayTo() != null
-                && filter.stayFrom().isAfter(filter.stayTo())) {
-            throw new BadRequestException("stayFrom must not be after stayTo");
+        if (filter.eventType() == com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicEventType.NIGHTLY_RATE_CHANGED
+                && (filter.ownerId() != null || filter.catId() != null || filter.stayId() != null
+                || filter.stayFrom() != null || filter.stayTo() != null)) {
+            throw new BadRequestException("Global nightly-rate changes cannot have Stay filters");
         }
+        new StayDateFilter(filter.stayFrom(), filter.stayTo(), filter.stayDateMatchMode());
         if (filter.occurredFrom() != null
                 && filter.occurredTo() != null
                 && !filter.occurredFrom().isBefore(filter.occurredTo())) {

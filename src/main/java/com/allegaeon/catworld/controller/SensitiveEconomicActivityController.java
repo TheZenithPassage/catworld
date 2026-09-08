@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
 import java.util.List;
 import com.allegaeon.catworld.dto.overview.OverviewPage;
 import java.util.UUID;
@@ -40,7 +41,8 @@ public class SensitiveEconomicActivityController {
             @RequestParam(required = false) UUID catId,
             @RequestParam(required = false) UUID stayId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stayFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stayTo) {
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate stayTo,
+            @RequestParam(required = false) StayDateMatchMode stayDateMatchMode) {
         return ResponseEntity.ok(activityService.getActivity(
                 new SensitiveEconomicActivityFilter(
                         actorId,
@@ -49,7 +51,7 @@ public class SensitiveEconomicActivityController {
                         eventType,
                         ownerId,
                         catId,
-                        stayId, stayFrom, stayTo
+                        stayId, stayFrom, stayTo, stayDateMatchMode
                 ), page
         ));
     }

@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.repository;
 
+import com.allegaeon.catworld.dto.StayDateFilter;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
+
 import com.allegaeon.catworld.config.JpaAuditingConfig;
 import com.allegaeon.catworld.model.*;
 import org.junit.jupiter.api.Test;
@@ -49,16 +52,28 @@ class ActivityLookupPersistenceTest {
             links.save(StayCat.builder().stay(stay).cat(cat).build()); links.save(StayCat.builder().stay(stay).cat(otherCat).build()); created.add(stay);
         }
         stays.flush();
-        assertEquals(7, lookup.find(owner.getId(),null,null,null,0).getTotalElements());
-        assertEquals(created.subList(0,5).stream().map(Stay::getId).toList(), lookup.find(null,cat.getId(),null,null,0).map(Stay::getId).getContent());
-        assertEquals(2, lookup.find(owner.getId(),null,null,null,1).getNumberOfElements());
-        assertEquals(7, lookup.find(null,null,first.plusDays(1),null,0).getTotalElements());
-        assertEquals(1, lookup.find(null,null,null,first,0).getTotalElements());
-        assertEquals(2, lookup.find(null,null,first.plusDays(1),first.plusDays(1),0).getTotalElements());
-        assertEquals(2, lookup.find(owner.getId(),null,first.plusDays(1),first.plusDays(1),0).getTotalElements());
-        assertEquals(2, lookup.find(null,cat.getId(),first.plusDays(1),first.plusDays(1),0).getTotalElements());
-        assertEquals(0, lookup.find(null,null,first.plusDays(8),null,0).getTotalElements());
-        assertEquals(7, lookup.find(owner.getId(),null,null,null,9).getTotalElements());
-        assertTrue(lookup.find(owner.getId(),null,null,null,9).isEmpty());
+        // Same boundary days, one-sided modes, and empty matches must agree in rows and count.
+        for (var mode : StayDateMatchMode.values()) {
+            var from = first.plusDays(1); var to = first.plusDays(3);
+            int expectedBoth = mode == StayDateMatchMode.OVERLAPS ? 4 : mode == StayDateMatchMode.STAY_WITHIN_RANGE ? 2 : 0;
+            assertEquals(expectedBoth, lookup.find(null, cat.getId(), new StayDateFilter(from, to, mode), 0).getTotalElements());
+            int expectedFrom = mode == StayDateMatchMode.OVERLAPS ? 7 : mode == StayDateMatchMode.STAY_WITHIN_RANGE ? 6 : 2;
+            assertEquals(expectedFrom, lookup.find(owner.getId(), null, new StayDateFilter(from, null, mode), 0).getTotalElements());
+            int expectedTo = mode == StayDateMatchMode.OVERLAPS ? 4 : mode == StayDateMatchMode.STAY_WITHIN_RANGE ? 3 : 2;
+            assertEquals(expectedTo, lookup.find(null, null, new StayDateFilter(null, to, mode), 0).getTotalElements());
+            assertEquals(mode == StayDateMatchMode.STAY_WITHIN_RANGE ? 0 : 2,
+                    lookup.find(null, null, new StayDateFilter(from, from, mode), 0).getTotalElements());
+        }
+        assertEquals(7, lookup.find(owner.getId(), null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(created.subList(0,5).stream().map(Stay::getId).toList(), lookup.find(null, cat.getId(), new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 0).map(Stay::getId).getContent());
+        assertEquals(2, lookup.find(owner.getId(), null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 1).getNumberOfElements());
+        assertEquals(7, lookup.find(null, null, new StayDateFilter(first.plusDays(1), null, StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(1, lookup.find(null, null, new StayDateFilter(null, first, StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(2, lookup.find(null, null, new StayDateFilter(first.plusDays(1), first.plusDays(1), StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(2, lookup.find(owner.getId(), null, new StayDateFilter(first.plusDays(1), first.plusDays(1), StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(2, lookup.find(null, cat.getId(), new StayDateFilter(first.plusDays(1), first.plusDays(1), StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(0, lookup.find(null, null, new StayDateFilter(first.plusDays(8), null, StayDateMatchMode.OVERLAPS), 0).getTotalElements());
+        assertEquals(7, lookup.find(owner.getId(), null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 9).getTotalElements());
+        assertTrue(lookup.find(owner.getId(), null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 9).isEmpty());
     }
 }

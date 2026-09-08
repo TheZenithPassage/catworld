@@ -30,13 +30,29 @@ describe('ActivityLookupService', () => {
   });
   it('sends only explicit Stay criteria and page and rejects malformed candidates', () => {
     const error = vi.fn();
-    api.searchStays({ catId: id, from: '2026-08-10', to: '2026-08-12' }, 2).subscribe({ error });
+    api
+      .searchStays(
+        {
+          catId: id,
+          dateFrom: '2026-08-10',
+          dateTo: '2026-08-12',
+          dateMatchMode: 'RANGE_WITHIN_STAY',
+        },
+        2,
+      )
+      .subscribe({ error });
     const request = http.expectOne((r) => r.url.endsWith('/stays/search'));
     expect(
       Object.fromEntries(
         request.request.params.keys().map((k) => [k, request.request.params.get(k)]),
       ),
-    ).toEqual({ catId: id, from: '2026-08-10', to: '2026-08-12', page: '2' });
+    ).toEqual({
+      catId: id,
+      dateFrom: '2026-08-10',
+      dateTo: '2026-08-12',
+      dateMatchMode: 'RANGE_WITHIN_STAY',
+      page: '2',
+    });
     request.flush({ items: [{ stayId: id }], page: 2, pageSize: 5, totalElements: 11 });
     expect(error).toHaveBeenCalled();
   });

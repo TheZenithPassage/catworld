@@ -1,5 +1,24 @@
+import { ActivitySummarySnapshot, composeActivitySummary } from '../../models/filter-summary';
+import { ACTIVITY_SUMMARY_TRANSLATIONS } from '../../../../core/i18n/translations/sensitive-activity-summary.translations';
+import { StayDateFiltersComponent } from '../../../../shared/stay-date-filters/stay-date-filters';
+import {
+  DATE_MATCH_MODES,
+  StayDateFilters,
+  StayDateMatchMode,
+} from '../../../../shared/stay-date-filters/stay-date-filter.model';
+import { MatSelect, MatSelectTrigger } from '@angular/material/select';
+import { MatOption } from '@angular/material/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal, viewChild, afterRenderEffect } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  inject,
+  signal,
+  viewChild,
+  afterRenderEffect,
+  computed,
+  effect,
+} from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -68,6 +87,10 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
   imports: [
     FormsModule,
     RemoteEntitySelector,
+    StayDateFiltersComponent,
+    MatSelect,
+    MatSelectTrigger,
+    MatOption,
     MatButton,
     MatCard,
     MatCardContent,
@@ -106,7 +129,68 @@ export class SensitiveActivityPage {
   readonly exactStay = signal<StayLookup | null>(null);
   readonly exactLoading = signal(false);
   readonly exactError = signal(false);
-  readonly stayDateError = signal(false);
+  readonly stayDates = viewChild(StayDateFiltersComponent);
+  readonly nativeOccurrenceInvalid = signal(false);
+  readonly unresolvedSelectors = signal({ actorId: false, ownerId: false, catId: false });
+  readonly dateFilters = computed<StayDateFilters>(() => ({
+    dateFrom: this.filters().stayFrom,
+    dateTo: this.filters().stayTo,
+    dateMatchMode: this.filters().stayDateMatchMode ?? 'OVERLAPS',
+  }));
+  readonly advancedExpanded = signal(false);
+  readonly hasStayPredicate = computed(() => this.stayPredicatePresent(this.filters()));
+  readonly eventCompatibilityInvalid = computed(() => this.incompatibleEvent(this.filters()));
+  readonly hideStayControls = computed(
+    () => this.filters().eventType === 'NIGHTLY_RATE_CHANGED' && !this.hasStayPredicate(),
+  );
+  readonly advancedStatePresent = computed(() =>
+    Boolean(
+      this.filters().stayFrom ||
+      this.filters().stayTo ||
+      this.filters().stayId ||
+      this.candidatesExpanded() ||
+      Object.values(this.stayDates()?.dateStates() ?? {}).some((state) => state !== 'EMPTY'),
+    ),
+  );
+  private readonly lastNarrative = signal<ActivitySummarySnapshot | null>(null);
+  readonly narrative = computed(() => this.narrativeState());
+  readonly filterSummary = computed(() => {
+    const state = this.narrative();
+    const copy = ACTIVITY_SUMMARY_TRANSLATIONS[this.i18n.language()];
+    if (state.kind === 'preparing') return copy.preparing;
+    if (state.kind === 'invalid') return copy.invalid;
+    const snapshot = state.kind === 'ready' ? state.snapshot : this.lastNarrative();
+    return snapshot
+      ? composeActivitySummary(
+          snapshot,
+          copy,
+          (value) => this.formatDate(value),
+          (value) => this.formatStayDateTime(value),
+          (value) => this.formatPaymentDate(value),
+        )
+      : copy.invalid;
+  });
+  readonly hasAppliedFilters = computed(() =>
+    Object.entries(this.appliedFilters()).some(
+      ([key, value]) => key !== 'stayDateMatchMode' && !!value,
+    ),
+  );
+  readonly pendingChanges = computed(() => {
+    if (this.nativeOccurrenceInvalid() || Object.values(this.unresolvedSelectors()).some(Boolean))
+      return true;
+    const states = this.stayDates()?.dateStates();
+    if (states && Object.values(states).some((state) => state === 'EDITING' || state === 'INVALID'))
+      return true;
+    const applied = this.appliedFilters();
+    return (
+      this.filterKey(this.filters()) !==
+      this.filterKey({
+        ...applied,
+        occurredFrom: this.toLocalDateTime(applied.occurredFrom),
+        occurredTo: this.toLocalDateTime(applied.occurredTo),
+      })
+    );
+  });
   readonly selectionConflict = signal(false);
   private candidateRequest: Subscription | null = null;
   private exactRequest: Subscription | null = null;
@@ -151,6 +235,10 @@ export class SensitiveActivityPage {
   private readonly editedTemporalFilters = new Set<'occurredFrom' | 'occurredTo'>();
 
   constructor() {
+    effect(() => {
+      const state = this.narrative();
+      if (state.kind === 'ready') this.lastNarrative.set(state.snapshot);
+    });
     afterRenderEffect(() => {
       const version = this.routeVersion();
       const actor = this.actorSelector(),
@@ -165,12 +253,13 @@ export class SensitiveActivityPage {
         [owner, draft.ownerId],
         [cat, draft.catId],
       ] as const) {
-        if (selector.selectedId() !== (id || null)) {
+        if (selector.selectedId() !== (id || null) || (!id && selector.query().length > 0)) {
           selector.reset();
           if (id && UUID_PATTERN.test(id)) selector.resolveKnownId(id);
         }
       }
       this.initializingSelectors = false;
+      this.unresolvedSelectors.set({ actorId: false, ownerId: false, catId: false });
     });
     this.destroyRef.onDestroy(() => {
       this.candidateRequest?.unsubscribe();
@@ -185,6 +274,10 @@ export class SensitiveActivityPage {
         actorId: params.get('actorId') ?? '',
         stayFrom: params.get('stayFrom') ?? '',
         stayTo: params.get('stayTo') ?? '',
+        stayDateMatchMode:
+          params.get('stayFrom') || params.get('stayTo')
+            ? ((params.get('stayDateMatchMode') ?? 'OVERLAPS') as StayDateMatchMode)
+            : undefined,
         occurredFrom: this.toLocalDateTime(occurredFromInstant),
         occurredTo: this.toLocalDateTime(occurredToInstant),
         eventType: SENSITIVE_EVENT_TYPES.includes(eventTypeValue as never)
@@ -202,7 +295,7 @@ export class SensitiveActivityPage {
       if (this.stayCriteriaKey(routeFilters) !== this.stayCriteriaKey(this.filters()))
         this.invalidateStay();
       this.selectionConflict.set(Boolean(routeFilters.ownerId && routeFilters.catId));
-      this.stayDateError.set(!this.stayDatesValid(routeFilters));
+
       if (!routeFilters.stayId) {
         this.exactVersion++;
         this.exactRequest?.unsubscribe();
@@ -217,6 +310,15 @@ export class SensitiveActivityPage {
       }
       this.routeVersion.update((v) => v + 1);
       this.editedTemporalFilters.clear();
+      this.nativeOccurrenceInvalid.set(false);
+      this.advancedExpanded.set(
+        Boolean(
+          routeFilters.stayFrom ||
+          routeFilters.stayTo ||
+          routeFilters.stayId ||
+          this.candidatesExpanded(),
+        ),
+      );
       this.filters.set(routeFilters);
       this.appliedFilters.set(appliedRouteFilters);
       this.clearFilterErrors();
@@ -229,8 +331,9 @@ export class SensitiveActivityPage {
         idsValid &&
         temporalFiltersValid &&
         periodValid &&
-        !this.stayDateError() &&
-        !this.selectionConflict()
+        this.stayDatesValid(routeFilters) &&
+        !this.selectionConflict() &&
+        !this.incompatibleEvent(routeFilters)
       ) {
         this.page.set(requestedPage);
         this.load(requestedPage);
@@ -242,12 +345,23 @@ export class SensitiveActivityPage {
     });
   }
 
+  captureOccurrenceValidity(event: Event): void {
+    const form = event.currentTarget as HTMLFormElement;
+    this.nativeOccurrenceInvalid.set(
+      Array.from(form.querySelectorAll<HTMLInputElement>('input[type="datetime-local"]')).some(
+        (input) => !input.validity.valid,
+      ),
+    );
+  }
+
   updateFilter(key: keyof SensitiveActivityFilters, value: string): void {
-    if (['ownerId', 'catId', 'stayFrom', 'stayTo'].includes(key) && this.filters()[key] !== value)
+    if (
+      ['ownerId', 'catId', 'stayFrom', 'stayTo', 'stayDateMatchMode'].includes(key) &&
+      this.filters()[key] !== value
+    )
       this.invalidateStay();
     this.filters.update((current) => ({ ...current, [key]: value }));
-    if (key === 'stayFrom' || key === 'stayTo')
-      this.stayDateError.set(!this.stayDatesValid(this.filters()));
+
     this.selectionConflict.set(Boolean(this.filters().ownerId && this.filters().catId));
     if (key === 'occurredFrom' || key === 'occurredTo') {
       this.editedTemporalFilters.add(key);
@@ -259,15 +373,21 @@ export class SensitiveActivityPage {
   }
 
   applyFilters(form?: NgForm): void {
-    this.stayDateError.set(
-      !this.stayDatesValid(this.filters()) ||
-        !!form?.controls['stayFrom']?.hasError('badInput') ||
-        !!form?.controls['stayTo']?.hasError('badInput'),
-    );
-    if (this.stayDateError() || this.selectionConflict()) return;
+    const selectorsValid = [this.actorSelector(), this.ownerSelector(), this.catSelector()]
+      .map((selector) => selector?.markSubmitted() ?? true)
+      .every(Boolean);
+    const datesValid = this.stayDates()?.validate() ?? this.stayDatesValid(this.filters());
+    if (
+      !selectorsValid ||
+      !datesValid ||
+      this.selectionConflict() ||
+      this.eventCompatibilityInvalid()
+    )
+      return;
     const idsValid = this.validateIdFilters(this.filters());
     const occurredFromBadInput = form?.controls['occurredFrom']?.hasError('badInput') ?? false;
     const occurredToBadInput = form?.controls['occurredTo']?.hasError('badInput') ?? false;
+    this.nativeOccurrenceInvalid.set(occurredFromBadInput || occurredToBadInput);
     const occurredFrom = this.resolveAppliedInstant('occurredFrom');
     const occurredTo = this.resolveAppliedInstant('occurredTo');
     const occurredFromError = occurredFromBadInput ? 'invalidDateTime' : occurredFrom.error;
@@ -277,10 +397,18 @@ export class SensitiveActivityPage {
     if (!idsValid || occurredFromError || occurredToError) return;
     const appliedFilters: SensitiveActivityFilters = {
       ...this.filters(),
+      stayDateMatchMode:
+        this.filters().stayFrom || this.filters().stayTo
+          ? (this.filters().stayDateMatchMode ?? 'OVERLAPS')
+          : undefined,
       occurredFrom: occurredFrom.instant ?? '',
       occurredTo: occurredTo.instant ?? '',
     };
     if (!this.validateAppliedPeriod(appliedFilters)) return;
+    if (this.filterKey(appliedFilters) === this.filterKey(this.appliedFilters())) {
+      this.refresh();
+      return;
+    }
     const queryParams = Object.fromEntries(
       Object.entries(appliedFilters).filter(([, value]) => Boolean(value)),
     );
@@ -294,7 +422,8 @@ export class SensitiveActivityPage {
       this.temporalFiltersValid(applied) &&
       !this.periodInvalid(applied) &&
       this.stayDatesValid(applied) &&
-      !(applied.ownerId && applied.catId)
+      !(applied.ownerId && applied.catId) &&
+      !this.incompatibleEvent(applied)
     ) {
       this.load(this.page());
     }
@@ -302,12 +431,16 @@ export class SensitiveActivityPage {
 
   clearFilters(): void {
     this.invalidateStay();
+    this.nativeOccurrenceInvalid.set(false);
+    this.advancedExpanded.set(false);
     this.initializingSelectors = true;
     this.actorSelector()?.reset();
     this.ownerSelector()?.reset();
     this.catSelector()?.reset();
     this.initializingSelectors = false;
-    this.stayDateError.set(false);
+    this.stayDates()?.clear();
+    this.advancedExpanded.set(false);
+    this.unresolvedSelectors.set({ actorId: false, ownerId: false, catId: false });
     this.selectionConflict.set(false);
     this.filters.set({ ...EMPTY_SENSITIVE_ACTIVITY_FILTERS });
     this.clearFilterErrors();
@@ -317,6 +450,10 @@ export class SensitiveActivityPage {
 
   selectorChanged(key: 'actorId' | 'ownerId' | 'catId', state: EntityLookupState<unknown>): void {
     if (this.initializingSelectors) return;
+    this.unresolvedSelectors.update((current) => ({
+      ...current,
+      [key]: state.rawContentPresent && !state.selectedId,
+    }));
     if (state.selectedId && this.filters()[key] === state.selectedId && !this.selectionConflict())
       return;
     if (state.selectedId && key !== 'actorId') {
@@ -334,40 +471,180 @@ export class SensitiveActivityPage {
         !Number.isNaN(Date.parse(value)) &&
         new Date(value).toISOString().slice(0, 10) === value);
     return (
+      (!(filters.stayFrom || filters.stayTo) ||
+        DATE_MATCH_MODES.includes(filters.stayDateMatchMode ?? 'OVERLAPS')) &&
       valid(filters.stayFrom) &&
       valid(filters.stayTo) &&
       !(filters.stayFrom && filters.stayTo && filters.stayFrom > filters.stayTo)
     );
   }
 
-  canFindStay(form?: NgForm): boolean {
+  canFindStay(): boolean {
     const f = this.filters();
-    return (
-      !!(f.ownerId || f.catId || f.stayFrom || f.stayTo) &&
-      !(f.ownerId && f.catId) &&
-      this.stayDatesValid(f) &&
-      !form?.controls['stayFrom']?.hasError('badInput') &&
-      !form?.controls['stayTo']?.hasError('badInput')
+    // Invalid submitted values stay actionable so the shared fields can show their own errors.
+    return !!(
+      f.ownerId ||
+      f.catId ||
+      f.stayFrom ||
+      f.stayTo ||
+      this.unresolvedSelectors().ownerId ||
+      this.unresolvedSelectors().catId ||
+      Object.values(this.stayDates()?.dateStates() ?? {}).some((state) => state !== 'EMPTY')
     );
   }
 
+  updateStayDates(dates: StayDateFilters): void {
+    this.advancedExpanded.set(true);
+    this.invalidateStay();
+    this.filters.update((f) => ({
+      ...f,
+      stayFrom: dates.dateFrom ?? '',
+      stayTo: dates.dateTo ?? '',
+      stayDateMatchMode:
+        dates.dateFrom || dates.dateTo ? (dates.dateMatchMode ?? 'OVERLAPS') : undefined,
+    }));
+  }
+
+  selectedEventLabel(): string {
+    const type = this.filters().eventType;
+    return type
+      ? this.text().sensitiveActivity.events[type]
+      : this.text().sensitiveActivity.filters.allTypes;
+  }
+
+  eventSupportingText(type: SensitiveActivityFilters['eventType']): string | undefined {
+    const help: Partial<Record<SensitiveActivityFilters['eventType'], string>> =
+      this.text().sensitiveActivity.eventHelp;
+    return help[type];
+  }
+
+  advancedToggled(event: Event): void {
+    this.advancedExpanded.set((event.target as HTMLDetailsElement).open);
+  }
+
+  private stayPredicatePresent(f: SensitiveActivityFilters): boolean {
+    return Boolean(f.ownerId || f.catId || f.stayId || f.stayFrom || f.stayTo);
+  }
+
+  private incompatibleEvent(f: SensitiveActivityFilters): boolean {
+    return f.eventType === 'NIGHTLY_RATE_CHANGED' && this.stayPredicatePresent(f);
+  }
+
+  private narrativeState():
+    | { kind: 'ready'; snapshot: ActivitySummarySnapshot }
+    | { kind: 'preparing' | 'transient' | 'invalid' } {
+    const f = this.filters();
+    if (this.incompatibleEvent(f) || this.selectionConflict() || !this.idFiltersValid(f))
+      return { kind: 'invalid' };
+    if (
+      this.nativeOccurrenceInvalid() ||
+      Object.values(this.unresolvedSelectors()).some(Boolean) ||
+      Object.values(this.stayDates()?.dateStates() ?? {}).some(
+        (state) => state === 'EDITING' || state === 'INVALID',
+      )
+    )
+      return { kind: 'transient' };
+    const from = this.resolveAppliedInstant('occurredFrom'),
+      to = this.resolveAppliedInstant('occurredTo');
+    if (from.error || to.error || !this.stayDatesValid(f)) return { kind: 'transient' };
+    const effective = { ...f, occurredFrom: from.instant ?? '', occurredTo: to.instant ?? '' };
+    if (!this.temporalFiltersValid(effective) || this.periodInvalid(effective))
+      return { kind: 'invalid' };
+    let preparing = false;
+    const resolve = <T>(
+      id: string,
+      selector: RemoteEntitySelector<T> | undefined,
+      name: (value: T) => string,
+    ): string | null | undefined => {
+      if (!id) return undefined;
+      const value = selector?.value();
+      if (value && selector?.selectedId() === id) return name(value);
+      if (!selector?.error()) preparing = true;
+      return null;
+    };
+    const actor = resolve(f.actorId, this.actorSelector(), (value) => value.username);
+    const owner = resolve(f.ownerId, this.ownerSelector(), (value) => value.fullName);
+    const cat = resolve(f.catId, this.catSelector(), (value) => value.name);
+    const stay = this.exactStay();
+    if (f.stayId && (!stay || stay.stayId !== f.stayId) && !this.exactError()) preparing = true;
+    if (preparing) return { kind: 'preparing' };
+    return {
+      kind: 'ready',
+      snapshot: {
+        pending: this.filterKey(effective) !== this.filterKey(this.appliedFilters()),
+        eventType: f.eventType,
+        actor,
+        owner,
+        cat,
+        occurredFrom: effective.occurredFrom || undefined,
+        occurredTo: effective.occurredTo || undefined,
+        dates: { dateFrom: f.stayFrom, dateTo: f.stayTo, dateMatchMode: f.stayDateMatchMode },
+        exactStay: f.stayId
+          ? stay && stay.stayId === f.stayId
+            ? {
+                owner: stay.owner.fullName,
+                cats: stay.cats.map((cat) => cat.name),
+                startAt: stay.startAt,
+                endAt: stay.endAt,
+              }
+            : null
+          : undefined,
+      },
+    };
+  }
+
+  private filterKey(f: SensitiveActivityFilters): string {
+    return JSON.stringify([
+      f.actorId,
+      f.ownerId,
+      f.catId,
+      f.stayId,
+      f.eventType,
+      f.occurredFrom,
+      f.occurredTo,
+      f.stayFrom || '',
+      f.stayTo || '',
+      f.stayFrom || f.stayTo ? (f.stayDateMatchMode ?? 'OVERLAPS') : '',
+    ]);
+  }
+
   private stayCriteriaKey(f: SensitiveActivityFilters): string {
-    return JSON.stringify([f.ownerId, f.catId, f.stayFrom || '', f.stayTo || '']);
+    return JSON.stringify([
+      f.ownerId,
+      f.catId,
+      f.stayFrom || '',
+      f.stayTo || '',
+      f.stayDateMatchMode || 'OVERLAPS',
+    ]);
   }
 
   findStay(page = 0, form?: NgForm): void {
-    if (!this.canFindStay(form)) return;
+    const selectorsValid = [this.ownerSelector(), this.catSelector()]
+      .map((selector) => selector?.markSubmitted() ?? true)
+      .every(Boolean);
+    const datesValid = this.stayDates()?.validate() ?? this.stayDatesValid(this.filters());
+    if (!selectorsValid || !datesValid || !this.canFindStay() || this.selectionConflict()) return;
     this.candidateRequest?.unsubscribe();
     const version = ++this.candidateVersion;
     const f = this.filters();
     this.candidateCriteria = this.stayCriteriaKey(f);
+    this.advancedExpanded.set(true);
     this.candidatesExpanded.set(true);
     this.candidates.set([]);
     this.candidatePage.set(page);
     this.candidateLoading.set(true);
     this.candidateError.set(false);
     this.candidateRequest = this.accountAdapter
-      .searchStays({ ownerId: f.ownerId, catId: f.catId, from: f.stayFrom, to: f.stayTo }, page)
+      .searchStays(
+        {
+          ownerId: f.ownerId,
+          catId: f.catId,
+          dateFrom: f.stayFrom,
+          dateTo: f.stayTo,
+          dateMatchMode: f.stayFrom || f.stayTo ? (f.stayDateMatchMode ?? 'OVERLAPS') : undefined,
+        },
+        page,
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
@@ -390,13 +667,16 @@ export class SensitiveActivityPage {
     this.exactLoading.set(false);
     this.exactError.set(false);
     this.exactStay.set(stay);
+    this.advancedExpanded.set(true);
     this.updateFilter('stayId', stay.stayId);
     this.candidatesExpanded.set(false);
   }
 
   changeStay(): void {
-    if (this.candidateCriteria === this.stayCriteriaKey(this.filters()))
+    if (this.canChangeStay()) {
+      this.advancedExpanded.set(true);
       this.candidatesExpanded.set(true);
+    }
   }
 
   canChangeStay(): boolean {

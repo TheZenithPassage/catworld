@@ -1,5 +1,8 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.StayDateFilter;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
+
 import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
@@ -101,10 +104,10 @@ public class StayServiceTest {
     @Test
     void lookupRejectsMissingConflictingAndReversedCriteriaBeforeReading() {
         UUID id = UUID.randomUUID(); LocalDate date = LocalDate.of(2026,8,10);
-        assertThrows(BadRequestException.class, () -> service.searchStays(null,null,null,null,0));
-        assertThrows(BadRequestException.class, () -> service.searchStays(id,id,null,null,0));
-        assertThrows(BadRequestException.class, () -> service.searchStays(null,null,date.plusDays(1),date,0));
-        assertThrows(BadRequestException.class, () -> service.searchStays(id,null,null,null,-1));
+        assertThrows(BadRequestException.class, () -> service.searchStays(null, null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(id, id, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), 0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(null, null, new StayDateFilter(date.plusDays(1), date, StayDateMatchMode.OVERLAPS), 0));
+        assertThrows(BadRequestException.class, () -> service.searchStays(id, null, new StayDateFilter(null, null, StayDateMatchMode.OVERLAPS), -1));
         verifyNoInteractions(stayLookupReadRepository);
     }
 

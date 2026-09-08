@@ -1,3 +1,4 @@
+import { StayDateMatchMode } from '../../../shared/stay-date-filters/stay-date-filter.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
 
 export const SENSITIVE_EVENT_TYPES = [
@@ -91,6 +92,7 @@ export type SensitiveEconomicActivityEvent =
       });
 
 export interface SensitiveActivityFilters {
+  stayDateMatchMode?: StayDateMatchMode;
   stayFrom?: string;
   stayTo?: string;
   actorId: string;

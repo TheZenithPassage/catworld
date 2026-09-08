@@ -2,7 +2,6 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
-import java.time.LocalDate;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -29,7 +28,7 @@ import java.util.Set;
 
 public interface IStayService {
 
-    LookupPage<StayLookupItem> searchStays(UUID ownerId, UUID catId, LocalDate from, LocalDate to, int page);
+    LookupPage<StayLookupItem> searchStays(UUID ownerId, UUID catId, StayDateFilter dates, int page);
     StayLookupItem getStayLookup(UUID id);
 
     default List<StayResponseDTO> getAllStays() {

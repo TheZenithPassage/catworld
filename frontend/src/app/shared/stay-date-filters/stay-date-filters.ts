@@ -1,3 +1,4 @@
+import { describeStayDates } from './stay-date-description';
 import {
   afterEveryRender,
   Component,
@@ -101,13 +102,12 @@ export class StayDateFiltersComponent {
         year: 'numeric',
       }).format(date);
     };
-    const from = dateFrom ? format(dateFrom) : null;
-    const to = dateTo ? format(dateTo) : null;
-    const describe = (mode: StayDateMatchMode) => {
-      const help = this.text().stays.filters.dateHelp[mode];
-      if (dateFrom && dateFrom === dateTo) return help.sameDay(from!);
-      return from && to ? help.both(from, to) : from ? help.from(from) : help.to(to!);
-    };
+    const describe = (mode: StayDateMatchMode) =>
+      describeStayDates(
+        { dateFrom, dateTo, dateMatchMode: mode },
+        this.text().stays.filters.dateHelp,
+        format,
+      );
     return {
       OVERLAPS: describe('OVERLAPS'),
       STAY_WITHIN_RANGE: describe('STAY_WITHIN_RANGE'),

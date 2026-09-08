@@ -1,3 +1,5 @@
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatSelectHarness } from '@angular/material/select/testing';
 import { ActivityLookupService, StayLookup } from '../../data-access/activity-lookup.service';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -271,7 +273,8 @@ describe('SensitiveActivityPage', () => {
     );
     expect(router.navigate).not.toHaveBeenCalled();
     expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply);
-    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(0);
+    expect(fixture.componentInstance.events()).toHaveLength(events.length);
     expect(root.textContent).not.toContain(component.text().sensitiveActivity.retry);
     expect(component.filters()).toEqual(
       expect.objectContaining({
@@ -346,7 +349,8 @@ describe('SensitiveActivityPage', () => {
     expect(component.filters().occurredFrom).toBe('55555-08-09T05:55');
     expect(router.navigate).not.toHaveBeenCalled();
     expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply);
-    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(0);
+    expect(fixture.componentInstance.events()).toHaveLength(events.length);
   });
 
   it('blocks a partial datetime-local rejected on blur without replacing results', () => {
@@ -382,7 +386,8 @@ describe('SensitiveActivityPage', () => {
     );
     expect(router.navigate).not.toHaveBeenCalled();
     expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply);
-    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(0);
+    expect(fixture.componentInstance.events()).toHaveLength(events.length);
 
     badInput = false;
     from.dispatchEvent(new Event('blur'));
@@ -392,7 +397,7 @@ describe('SensitiveActivityPage', () => {
     expect(component.filterErrors().occurredFrom).toBeNull();
     expect(fieldFor(root, 'occurredFrom').classList.contains('mat-form-field-invalid')).toBe(false);
     expect(fieldFor(root, 'occurredFrom').querySelector('mat-error')).toBeNull();
-    expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({ queryParams: {} }));
+    expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply + 1);
   });
 
   it('shows invalid identifier feedback without replacing loaded results', () => {
@@ -410,7 +415,8 @@ describe('SensitiveActivityPage', () => {
     );
     expect(router.navigate).not.toHaveBeenCalled();
     expect(api.getActivity).toHaveBeenCalledTimes(requestsBeforeApply);
-    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(0);
+    expect(fixture.componentInstance.events()).toHaveLength(events.length);
     expect(root.textContent).not.toContain(component.text().sensitiveActivity.retry);
   });
 
@@ -651,7 +657,13 @@ describe('SensitiveActivityPage', () => {
     return found;
   }
   async function dateInput(name: string, value: string) {
-    const input = fixture.nativeElement.querySelector('[name="' + name + '"]') as HTMLInputElement;
+    const input = (
+      name === 'stayFrom' || name === 'stayTo'
+        ? fixture.nativeElement.querySelectorAll('app-stay-date-filters input')[
+            name === 'stayFrom' ? 0 : 1
+          ]
+        : fixture.nativeElement.querySelector('[name="' + name + '"]')
+    ) as HTMLInputElement;
     input.value = value;
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -664,7 +676,7 @@ describe('SensitiveActivityPage', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(
       Array.from(root.querySelectorAll('.filter-group h3')).map((h) => h.textContent?.trim()),
-    ).toEqual(['General', 'Affected Stay Context', 'Event Occurred']);
+    ).toEqual(['Event moment', 'Stay period']);
     expect(root.querySelectorAll('app-remote-entity-selector')).toHaveLength(3);
     expect(root.querySelector('[name="actorId"]')).toBeNull();
     expect(button('Find specific stay').disabled).toBe(true);
@@ -672,8 +684,9 @@ describe('SensitiveActivityPage', () => {
     await dateInput('stayFrom', '2026-08-12');
     expect(button('Find specific stay').disabled).toBe(false);
     await dateInput('stayTo', '2026-08-10');
-    expect(button('Find specific stay').disabled).toBe(true);
-    expect(root.textContent).toContain('From cannot be after To');
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    expect(root.querySelector('app-stay-date-filters mat-error')).not.toBeNull();
     button('Apply filters').click();
     fixture.detectChanges();
     expect(router.navigate).not.toHaveBeenCalled();
@@ -775,7 +788,7 @@ describe('SensitiveActivityPage', () => {
     button('Change').click();
     fixture.detectChanges();
     expect(search).toHaveBeenCalledTimes(1);
-    button('Refresh').click();
+    button('Apply filters').click();
     fixture.detectChanges();
     expect(api.getActivity).toHaveBeenLastCalledWith(
       expect.objectContaining({ stayFrom: '2026-08-10', stayId: lookupStay.stayId }),
@@ -808,9 +821,10 @@ describe('SensitiveActivityPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    expect((root.querySelector('app-remote-entity-selector input') as HTMLInputElement).value).toBe(
-      'Disabled Actor',
-    );
+    expect(
+      (root.querySelector('.primary-event app-remote-entity-selector input') as HTMLInputElement)
+        .value,
+    ).toBe('Disabled Actor');
     expect(root.querySelector('.exact-stay')?.textContent).toContain('Current Owner');
     expect(root.textContent).not.toContain(lookupStay.stayId);
     expect(search).not.toHaveBeenCalled();
@@ -836,15 +850,17 @@ describe('SensitiveActivityPage', () => {
     const inputs = fixture.nativeElement.querySelectorAll(
       'app-remote-entity-selector input',
     ) as NodeListOf<HTMLInputElement>;
-    expect(inputs[1].value).toBe('');
-    expect(inputs[2].value).toContain('Current Cat');
+    expect(inputs[0].value).toBe('');
+    expect(inputs[1].value).toContain('Current Cat');
     expect(c.filters().ownerId).toBe('');
     expect(c.filters().catId).toBe(lookupStay.cats[0].id);
-    inputs[2].value = 'Unselected';
-    inputs[2].dispatchEvent(new Event('input'));
+    inputs[1].value = 'Unselected';
+    inputs[1].dispatchEvent(new Event('input'));
     fixture.detectChanges();
     expect(c.filters().catId).toBe('');
-    expect(button('Find specific stay').disabled).toBe(true);
+    button('Find specific stay').click();
+    fixture.detectChanges();
+    expect(c.catSelector()?.valid()).toBe(false);
     expect(search).not.toHaveBeenCalled();
     c.ownerSelector()?.select({
       id: lookupStay.owner.id,
@@ -852,7 +868,281 @@ describe('SensitiveActivityPage', () => {
       currentCats: [],
     });
     fixture.detectChanges();
-    expect(inputs[2].value).toBe('');
-    expect(inputs[1].value).toBe('Current Owner');
+    expect(inputs[1].value).toBe('');
+    expect(inputs[0].value).toBe('Current Owner');
   });
+  it('keeps advanced Stay controls collapsed and restores retained results when draft edits are undone', async () => {
+    const c = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('details')?.open).toBe(false);
+    expect(root.querySelector('app-stay-date-filters')).not.toBeNull();
+    expect(root.querySelector('mat-select[name="eventType"]')).not.toBeNull();
+    expect(
+      Array.from(root.querySelectorAll('button')).some((b) => b.textContent?.trim() === 'Refresh'),
+    ).toBe(false);
+    const requests = api.getActivity.mock.calls.length;
+    c.updateFilter('eventType', 'PAYMENT_EDITED');
+    fixture.detectChanges();
+    expect(root.querySelector('.activity-list')).toBeNull();
+    expect(root.querySelector('#sensitive-activity-state mat-paginator')).toBeNull();
+    expect(root.querySelector('.pending-state')?.textContent).toContain(
+      'Apply filters to update the results.',
+    );
+    expect(root.querySelector('.pending-state button')).toBeNull();
+    c.updateFilter('eventType', '');
+    fixture.detectChanges();
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(api.getActivity).toHaveBeenCalledTimes(requests);
+    c.applyFilters();
+    expect(api.getActivity).toHaveBeenCalledTimes(requests + 1);
+    expect(router.navigate).not.toHaveBeenCalled();
+  });
+
+  it('restores selector presentation and retained result visibility when URL navigation replaces unresolved text', async () => {
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector('app-remote-entity-selector input') as HTMLInputElement;
+    input.value = 'unresolved actor';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(root.querySelector('.pending-state')).not.toBeNull();
+
+    params.next(convertToParamMap({ eventType: 'PAYMENT_EDITED' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(input.value).toBe('');
+    expect(root.querySelector('.pending-state')).toBeNull();
+    expect(root.querySelectorAll('.activity-list article')).toHaveLength(events.length);
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ eventType: 'PAYMENT_EDITED', actorId: '' }),
+      0,
+    );
+  });
+
+  it('blocks unresolved selector submission but ignores Actor for candidate search', async () => {
+    const c = fixture.componentInstance;
+    const search = vi
+      .spyOn(TestBed.inject(ActivityLookupService), 'searchStays')
+      .mockReturnValue(of({ items: [], page: 0, pageSize: 5, totalElements: 0 }));
+    await dateInput('stayFrom', '2026-08-10');
+    const inputs = fixture.nativeElement.querySelectorAll('app-remote-entity-selector input');
+    inputs[2].value = 'unresolved actor';
+    inputs[2].dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    c.applyFilters();
+    fixture.detectChanges();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(c.actorSelector()?.submitted()).toBe(true);
+    expect(
+      fixture.nativeElement.querySelector('app-remote-entity-selector mat-error'),
+    ).not.toBeNull();
+    c.findStay();
+    expect(search).toHaveBeenCalledTimes(1);
+    inputs[0].value = 'unresolved owner';
+    inputs[0].dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    c.findStay();
+    fixture.detectChanges();
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(c.ownerSelector()?.submitted()).toBe(true);
+  });
+
+  it.each(['OVERLAPS', 'STAY_WITHIN_RANGE', 'RANGE_WITHIN_STAY'] as const)(
+    'applies %s identically to URL activity state and candidate requests',
+    async (mode) => {
+      const c = fixture.componentInstance;
+      const search = vi
+        .spyOn(TestBed.inject(ActivityLookupService), 'searchStays')
+        .mockReturnValue(of({ items: [lookupStay], page: 0, pageSize: 5, totalElements: 1 }));
+      await dateInput('stayFrom', '2026-08-10');
+      c.stayDates()?.setMode(mode);
+      fixture.detectChanges();
+      c.findStay();
+      expect(search).toHaveBeenLastCalledWith(
+        expect.objectContaining({ dateFrom: '2026-08-10', dateMatchMode: mode }),
+        0,
+      );
+      c.applyFilters();
+      const query = router.navigate.mock.calls.at(-1)?.[1].queryParams;
+      expect(query).toMatchObject({ stayFrom: '2026-08-10', stayDateMatchMode: mode });
+      params.next(convertToParamMap(query));
+      fixture.detectChanges();
+      expect(api.getActivity).toHaveBeenLastCalledWith(
+        expect.objectContaining({ stayDateMatchMode: mode }),
+        0,
+      );
+      expect(fixture.nativeElement.querySelector('.filter-summary')).not.toBeNull();
+      c.selectStay(lookupStay);
+      c.stayDates()?.setMode(mode === 'OVERLAPS' ? 'STAY_WITHIN_RANGE' : 'OVERLAPS');
+      fixture.detectChanges();
+      expect(c.filters().stayId).toBe('');
+      expect(c.candidates()).toEqual([]);
+      expect(search).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('normalizes old date URLs to explicit overlap requests and retains submit-only shared date errors', async () => {
+    params.next(convertToParamMap({ stayFrom: '2026-08-10' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(api.getActivity).toHaveBeenLastCalledWith(
+      expect.objectContaining({ stayDateMatchMode: 'OVERLAPS' }),
+      0,
+    );
+    const c = fixture.componentInstance;
+    const input = fixture.nativeElement.querySelector(
+      'app-stay-date-filters input',
+    ) as HTMLInputElement;
+    input.value = '';
+    let partial = true;
+    Object.defineProperty(input, 'validity', {
+      configurable: true,
+      get: () => ({ badInput: partial, valid: !partial }),
+    });
+    expect(() => {
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    }).not.toThrow();
+    expect(fixture.nativeElement.querySelector('app-stay-date-filters mat-error')).toBeNull();
+    const requests = api.getActivity.mock.calls.length;
+    c.applyFilters();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-stay-date-filters mat-error')).not.toBeNull();
+    expect(api.getActivity).toHaveBeenCalledTimes(requests);
+    partial = false;
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    c.clearFilters();
+    fixture.detectChanges();
+    expect(c.stayDates()?.submitted()).toBe(false);
+  });
+  it('preserves invalid global-event URL criteria for recovery without querying', async () => {
+    api.getActivity.mockClear();
+    params.next(convertToParamMap({ eventType: 'NIGHTLY_RATE_CHANGED', stayFrom: '2026-08-10' }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    expect(c.eventCompatibilityInvalid()).toBe(true);
+    expect(c.hideStayControls()).toBe(false);
+    expect(c.filterSummary()).toContain('Review the filters');
+    c.applyFilters();
+    expect(api.getActivity).not.toHaveBeenCalled();
+    expect(c.filters().stayFrom).toBe('2026-08-10');
+    c.updateFilter('eventType', '');
+    fixture.detectChanges();
+    c.applyFilters();
+    params.next(convertToParamMap(router.navigate.mock.calls.at(-1)?.[1].queryParams));
+    fixture.detectChanges();
+    expect(api.getActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps only advanced Stay controls collapsible without altering pending criteria', async () => {
+    const c = fixture.componentInstance,
+      root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelectorAll('details')).toHaveLength(1);
+    expect(root.querySelector('form')?.closest('details')).toBeNull();
+    c.ownerSelector()?.select({
+      id: lookupStay.owner.id,
+      fullName: 'Current Owner',
+      currentCats: [],
+    });
+    fixture.detectChanges();
+    expect(c.advancedExpanded()).toBe(false);
+    await dateInput('stayFrom', '2026-08-10');
+    expect(c.advancedExpanded()).toBe(true);
+    const before = { ...c.filters() },
+      details = root.querySelector('details')!;
+    details.open = false;
+    details.dispatchEvent(new Event('toggle'));
+    fixture.detectChanges();
+    expect(c.filters()).toEqual(before);
+    expect(root.querySelector('.active-filters')).not.toBeNull();
+    c.clearFilters();
+    fixture.detectChanges();
+    expect(c.advancedExpanded()).toBe(false);
+    c.updateFilter('eventType', 'NIGHTLY_RATE_CHANGED');
+    fixture.detectChanges();
+    expect(c.hideStayControls()).toBe(true);
+    expect(root.querySelector<HTMLElement>('.primary-entities')?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('.primary-event')?.hidden).toBe(false);
+  });
+
+  it('retains the last narrative during unresolved text and native partial editing', async () => {
+    const c = fixture.componentInstance;
+    c.updateFilter('eventType', 'PAYMENT_EDITED');
+    fixture.detectChanges();
+    const description = c.filterSummary();
+    expect(description).toBe('When applied, showing payment-amount edits.');
+    const input = fixture.nativeElement.querySelector(
+      '.primary-event app-remote-entity-selector input',
+    ) as HTMLInputElement;
+    input.value = 'unfinished';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(c.filterSummary()).toBe(description);
+    c.actorSelector()?.reset();
+    c.nativeOccurrenceInvalid.set(true);
+    fixture.detectChanges();
+    expect(c.filterSummary()).toBe(description);
+  });
+
+  it('describes resolving and unavailable effective IDs without exposing their UUID', async () => {
+    const response = new Subject<never>();
+    vi.spyOn(TestBed.inject(ActivityLookupService), 'resolve').mockReturnValue(response);
+    params.next(convertToParamMap({ actorId: lookupStay.owner.id }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    expect(c.filterSummary()).toBe('Preparing filter description…');
+    response.error(new Error('unavailable'));
+    fixture.detectChanges();
+    expect(c.filterSummary()).toBe('Showing sensitive economic changes by an unavailable account.');
+    expect(c.filterSummary()).not.toContain(lookupStay.owner.id);
+  });
+  it.each(['en', 'es'] as const)(
+    'renders ordered primary controls and contextual event options in %s',
+    async (language) => {
+      TestBed.inject(I18nService).language.set(language);
+      fixture.detectChanges();
+      const root = fixture.nativeElement as HTMLElement;
+      const controls = Array.from(
+        root.querySelectorAll(
+          'form app-remote-entity-selector input, form input[name="occurredFrom"], form input[name="occurredTo"], form mat-select[name="eventType"]',
+        ),
+      );
+      expect(controls).toHaveLength(6);
+      expect(controls[0].closest('.primary-entities')).not.toBeNull();
+      expect(controls[1].closest('.primary-entities')).not.toBeNull();
+      expect(controls[2].getAttribute('name')).toBe('occurredFrom');
+      expect(controls[3].getAttribute('name')).toBe('occurredTo');
+      expect(controls[4].getAttribute('name')).toBe('eventType');
+      expect(controls[5].closest('.primary-event')).not.toBeNull();
+      const select = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+        MatSelectHarness.with({ selector: '[name="eventType"]' }),
+      );
+      await select.open();
+      expect(document.querySelectorAll('.activity-event-options .event-option-help')).toHaveLength(
+        2,
+      );
+      await select.close();
+      await dateInput('stayFrom', '2026-08-10');
+      await select.open();
+      const options = await select.getOptions();
+      expect(await options[1].isDisabled()).toBe(true);
+      expect(await options[1].getText()).toContain(
+        fixture.componentInstance.text().sensitiveActivity.filters.incompatibleEvent,
+      );
+      expect(document.querySelectorAll('.activity-event-options .event-option-help')).toHaveLength(
+        3,
+      );
+      await select.close();
+      expect(fixture.componentInstance.filters().stayFrom).toBe('2026-08-10');
+      expect(root.querySelector('.filter-summary')?.textContent).toContain(
+        language === 'en' ? 'When applied' : 'Al aplicar',
+      );
+    },
+  );
 });

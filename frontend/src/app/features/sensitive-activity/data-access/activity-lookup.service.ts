@@ -1,3 +1,4 @@
+import { StayDateMatchMode } from '../../../shared/stay-date-filters/stay-date-filter.model';
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map } from 'rxjs';
@@ -21,8 +22,9 @@ export interface StayLookup {
 export interface StayLookupCriteria {
   ownerId?: string;
   catId?: string;
-  from?: string;
-  to?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  dateMatchMode?: StayDateMatchMode;
 }
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const id = (v: unknown): v is string =>
