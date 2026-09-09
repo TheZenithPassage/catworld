@@ -330,4 +330,23 @@ class StayPricingMySqlIntegrationTest {
         } finally { release.countDown(); executor.shutdownNow(); }
         var persisted = stayRepository.findById(created.getStayId()).orElseThrow(); assertFalse(persisted.isArrivalTransferRequired()); assertEquals(0, new BigDecimal("20").compareTo(persisted.getAgreedAmount())); assertEquals(1, jdbcTemplate.queryForObject("select count(*) from stay_pricing_decisions", Integer.class));
     }
+
+    @Test
+    void combinedCurrentNightlyAndTransferPricingSerializesWithoutDeadlock() throws Exception {
+        UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder().username("combined-lock-" + UUID.randomUUID()).passwordHash(passwordEncoder.encode("password")).role(UserRole.ADMIN).enabled(true).build());
+        Owner owner = ownerRepository.saveAndFlush(Owner.builder().fullName("Combined Lock Owner").primaryPhone("555-0175").createdBy(actor).build());
+        LocalDateTime start = LocalDateTime.of(2027, 12, 1, 12, 0);
+        Cat first = catRepository.saveAndFlush(Cat.builder().name("Combined One").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
+        Cat second = catRepository.saveAndFlush(Cat.builder().name("Combined Two").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.MALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 5 where id = 1"); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        Set<UUID> firstId = Set.of(first.getId());
+        var existing = stayService.createStay(StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build()).confirmation(stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).build()).getConfirmation()).build());
+        nightly.setNightlyRate(new BigDecimal("15")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 12 where id = 1");
+        var updatePreview = stayService.previewDateChangePricing(existing.getStayId(), StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).selectedNightlyRate(new BigDecimal("15")).selectedTransferRate(new BigDecimal("12")).build());
+        StayUpdateDTO update = StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("57")).build()).confirmation(updatePreview.getConfirmation()).build();
+        Set<UUID> secondId = Set.of(second.getId()); var createPreview = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(secondId).arrivalTransferRequired(true).build());
+        StayRequestDTO create = StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(secondId).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("42")).build()).confirmation(createPreview.getConfirmation()).build();
+        ExecutorService executor = Executors.newFixedThreadPool(2); try { Future<?> one = executor.submit(() -> stayService.updateStay(existing.getStayId(), update)); Future<?> two = executor.submit(() -> stayService.createStay(create)); one.get(10, TimeUnit.SECONDS); two.get(10, TimeUnit.SECONDS); } finally { executor.shutdownNow(); }
+        assertEquals(2, stayRepository.count());
+    }
 }
