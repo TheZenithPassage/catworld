@@ -175,6 +175,49 @@ class StayPricingMySqlIntegrationTest {
     }
 
     @Test
+    void creationWaitsForCanonicalTransferRateLockAndRejectsStaleTransferBasis()
+            throws Exception {
+        UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
+                .username("transfer-lock-" + UUID.randomUUID()).passwordHash(passwordEncoder.encode("password"))
+                .role(UserRole.ADMIN).enabled(true).build());
+        Owner owner = ownerRepository.saveAndFlush(Owner.builder().fullName("Transfer Lock Owner")
+                .primaryPhone("555-0177").createdBy(actor).build());
+        LocalDateTime startAt = LocalDateTime.of(2027, 10, 1, 12, 0);
+        Cat cat = catRepository.saveAndFlush(Cat.builder().name("Transfer Lock Cat")
+                .birthDate(startAt.minusYears(3).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor)
+                .lastRabiesDate(startAt.plusYears(1).toLocalDate()).lastTripleFelineDate(startAt.plusYears(1).toLocalDate()).build());
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow();
+        nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly);
+        jdbcTemplate.update("update transfer_rates set transfer_rate = 10 where id = 1");
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        Set<UUID> catIds = Set.of(cat.getId());
+        var confirmation = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder()
+                .startAt(startAt).endAt(startAt.plusDays(2)).catIds(catIds).arrivalTransferRequired(true).build()).getConfirmation();
+        StayRequestDTO request = StayRequestDTO.builder().startAt(startAt).endAt(startAt.plusDays(2)).catIds(catIds)
+                .arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("30")).build())
+                .confirmation(confirmation).build();
+        CountDownLatch locked = new CountDownLatch(1), release = new CountDownLatch(1);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> mutation = executor.submit(() -> transaction.execute(status -> {
+                jdbcTemplate.queryForObject("select transfer_rate from transfer_rates where id = 1 for update", BigDecimal.class);
+                jdbcTemplate.update("update transfer_rates set transfer_rate = 20 where id = 1"); locked.countDown();
+                try { assertTrue(release.await(10, TimeUnit.SECONDS)); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException(e); }
+                return null;
+            }));
+            assertTrue(locked.await(10, TimeUnit.SECONDS));
+            Future<?> creation = executor.submit(() -> stayService.createStay(request));
+            Thread.sleep(250); assertFalse(creation.isDone(), "creation must wait for transfer row lock");
+            release.countDown(); mutation.get(10, TimeUnit.SECONDS);
+            ExecutionException failure = org.junit.jupiter.api.Assertions.assertThrows(ExecutionException.class, () -> creation.get(10, TimeUnit.SECONDS));
+            assertInstanceOf(StalePricingConfirmationException.class, failure.getCause());
+        } finally { release.countDown(); executor.shutdownNow(); }
+        assertEquals(0, stayRepository.count());
+        assertEquals(0, new BigDecimal("20").compareTo(jdbcTemplate.queryForObject("select transfer_rate from transfer_rates where id = 1", BigDecimal.class)));
+    }
+
+    @Test
     void updateWaitsForCurrentRateMutationAndPreservesOriginalRate()
             throws Exception {
         UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
