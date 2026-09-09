@@ -350,4 +350,3 @@ class StayPricingMySqlIntegrationTest {
         assertEquals(2, stayRepository.count());
     }
 }
-
