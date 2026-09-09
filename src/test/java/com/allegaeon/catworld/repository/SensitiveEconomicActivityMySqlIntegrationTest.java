@@ -174,7 +174,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         jdbc.update("update transfer_rates set transfer_rate = 99 where id = 1");
         jdbc.update("""
                 update stays set retained_nightly_rate = 1,
-                    retained_transfer_rate = 99,
+                    retained_transfer_rate = null,
                     arrival_transfer_required = false,
                     departure_transfer_required = false,
                     transfer_waived = true
