@@ -15,36 +15,69 @@ from host capability:
 
 ## Projected-local
 
-Before normal workflow execution:
+Before executing any code from the workflow-source checkout, establish this
+bounded trust boundary independently using trusted filesystem and Git
+operations:
 
 1. Require `.catworld-workflow/runtime-manifest.json` and
    `.catworld-workflow/AGENTS.md`.
-2. Parse the manifest and require a valid `sourcePath`, an exact 40-character
-   `sourceSha`, and a `managedFiles` array of unique, safe relative runtime
-   paths.
-3. Require the recorded source checkout to exist and its current HEAD to
-   resolve to the recorded `sourceSha`.
-4. Derive the complete canonical target set from tracked regular files at
-   `sourceSha`: map source `AGENTS.md` to `.catworld-workflow/AGENTS.md`, and map
-   canonical `.agents/skills/**`, `.codex/agents/**`, and `.specify/**` to the
-   same target paths, excluding target-local state such as
-   `.specify/feature.json`. Require `managedFiles` to equal this set exactly;
-   missing, extra, duplicate, or unsafe entries are invalid.
-5. For every canonical managed target, require a regular, non-symlink file
-   whose bytes exactly match its committed Git blob at `sourceSha`. Map
-   `.catworld-workflow/AGENTS.md` to source `AGENTS.md`; map every other target
-   to the same relative source path. Read committed blob bytes, never source
-   working-tree text.
-6. Only after every check succeeds, load and follow the projected authoritative
-   `.catworld-workflow/AGENTS.md` for all routing and workflow behavior.
+2. Read the manifest only after requiring it to be a regular, non-symlink file
+   reached through safe, non-symlink directory components. Require `sourcePath`
+   to be an absolute path and `sourceSha` to be an exact 40-character Git SHA.
+3. Reject path traversal, symlink/junction traversal, and other unsafe source
+   paths before using the source checkout. Require `sourcePath` to resolve to
+   the root of an existing Git checkout whose repository identity is
+   `TheZenithPassage/catworld-workflows`. Require `sourceSha` to directly
+   identify a commit and the source checkout's current `HEAD` to equal it.
+4. Read `scripts/install-catworld-workflow-runtime.ps1` from that exact commit
+   using trusted, read-only Git operations with lazy fetching disabled. Require
+   its committed Git entry to be a regular file. Require the corresponding
+   working-tree verifier to be a regular, non-symlink file reached through
+   safe, non-symlink directory components.
+5. Compare the working-tree verifier's raw bytes with its exact committed blob
+   bytes. Do not apply Git filters, text or encoding conversion, or line-ending
+   normalization. Stop if the entry point cannot be authenticated exactly;
+   its expected path or mere existence does not establish trust.
 
-Any missing, stale, invalid, or mismatched projected runtime is a deliberate
-local bootstrap stop. Report the failing path when applicable, instruct the
-operator to run the external projector and start a fresh Codex session, and
-never fall back to remote authority. Manifest absence inside a real local
-CatWorld checkout is a local bootstrap failure. Never clone, fetch, pull,
-reset, update, or otherwise repair the recorded workflow checkout
-automatically.
+Only after those checks succeed, invoke the authenticated entry point with
+PowerShell 7, using the actual CatWorld checkout root and validated manifest
+SHA:
+
+```powershell
+pwsh -NoProfile -File <authenticated-verifier-path> `
+  -TargetRoot <actual-catworld-checkout-root> `
+  -VerifyOnly `
+  -ExpectedSourceSha <validated-manifest-sourceSha>
+```
+
+Require a successful process exit. The canonical verifier's successful result
+is authoritative for complete runtime validation: the canonical managed-file
+set, manifest/set agreement, committed source blobs, regular non-symlink
+projected targets, and exact projected bytes. Do not reconstruct or repeat
+those complete managed-file/blob/byte checks in the model. Independent checks
+are limited to the bounded source/verifier trust boundary and its stability.
+
+Before loading projected authority, recheck that the safely read manifest,
+resolved source checkout/repository identity, recorded commit and source
+`HEAD`, and authenticated verifier path, regular-file status and raw bytes
+remain consistent with the identities established before invocation. Recheck
+the relevant path components for symlinks/junctions as well. If any identity
+changed across execution, or stability cannot be established, stop; do not
+assume the successful verifier result remains valid.
+
+Only after pre-execution authentication, successful canonical verification,
+and stable source/verifier identity, load and follow the projected authoritative
+`.catworld-workflow/AGENTS.md` for all routing and workflow behavior.
+
+Any missing, stale, unsafe, invalid, unauthenticated, or mismatched runtime or
+workflow source is a deliberate local bootstrap stop. Report the failing
+invariant/path when available; instruct the operator to update/project the
+external workflow runtime as appropriate and start a fresh Codex session.
+Never automatically repair or reproject the runtime, substitute another source
+or SHA, or fall back to remote authority. Manifest absence inside a real local
+CatWorld checkout is a local bootstrap failure. Never mutate, clone, fetch,
+pull, switch, reset, restore, clean, update, or otherwise repair the recorded
+workflow-source checkout automatically.
 
 ## Remote-snapshot
 
