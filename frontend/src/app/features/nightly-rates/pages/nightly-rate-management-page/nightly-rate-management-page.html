@@ -20,6 +20,58 @@
     />
   } @else {
     <div class="rate-grid">
+      <mat-card appearance="outlined" class="rate-card">
+        <mat-card-header
+          ><mat-card-title>{{
+            text().nightlyRates.transfer.title
+          }}</mat-card-title></mat-card-header
+        >
+        <mat-card-content>
+          <p>{{ text().nightlyRates.transfer.description }}</p>
+          <p class="current-rate" [class.unavailable]="transferRate() === null">
+            {{ transferRate() ?? text().nightlyRates.transfer.unavailable }}
+          </p>
+          @if (isAdmin()) {
+            <div class="rate-editor">
+              <mat-form-field appearance="outline"
+                ><mat-label>{{ text().nightlyRates.transfer.rateLabel }}</mat-label
+                ><input
+                  matInput
+                  id="transfer-rate"
+                  name="transferRate"
+                  inputmode="numeric"
+                  [ngModel]="transferEntry()"
+                  (ngModelChange)="transferEntry.set($event)"
+                  [disabled]="transferPending() !== null"
+              /></mat-form-field>
+              <div class="rate-actions">
+                <button
+                  mat-flat-button
+                  type="button"
+                  (click)="saveTransferRate()"
+                  [disabled]="transferPending() !== null"
+                >
+                  {{
+                    transferRate() === null
+                      ? text().nightlyRates.transfer.configure
+                      : text().nightlyRates.transfer.change
+                  }}
+                </button>
+                @if (transferRate() !== null) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="clearTransferRate()"
+                    [disabled]="transferPending() !== null"
+                  >
+                    {{ text().nightlyRates.transfer.clear }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
       @for (category of categories; track category.threshold) {
         <mat-card appearance="outlined" class="rate-card">
           <mat-card-header

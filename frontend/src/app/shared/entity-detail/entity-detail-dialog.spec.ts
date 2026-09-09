@@ -2333,7 +2333,7 @@ describe('Route-free StayEditor migrated coverage', () => {
     expect(component.agreedAmount()).toBe('777');
     expect(
       (fixture.nativeElement as HTMLElement)
-        .querySelector('.pricing-summary > div:nth-child(4) dd')
+        .querySelector('.pricing-summary > div:nth-child(6) dd')
         ?.textContent?.trim(),
     ).toBe('350');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
@@ -2757,8 +2757,8 @@ describe('Route-free StayEditor migrated coverage', () => {
         confirmation: expect.objectContaining({
           previousNumberOfNights: 7,
           numberOfNights: 8,
-          retainedNightlyRate: '60',
-          suggestedAmount: '480',
+          retainedNightlyRate: '50',
+          suggestedAmount: '400',
         }),
       }),
     );

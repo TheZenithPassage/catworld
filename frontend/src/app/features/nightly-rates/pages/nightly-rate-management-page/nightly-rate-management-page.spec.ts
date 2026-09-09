@@ -63,7 +63,7 @@ describe('NightlyRateManagementPage', () => {
   it('keeps STAFF read-only while preserving all categories', async () => {
     await create('STAFF');
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('mat-card').length).toBe(3);
+    expect(root.querySelectorAll('mat-card').length).toBe(4);
     expect(root.querySelector('input')).toBeNull();
     expect(root.querySelector('.rate-actions')).toBeNull();
   });
@@ -71,7 +71,7 @@ describe('NightlyRateManagementPage', () => {
   it('shows ADMIN mutation controls for configured and unavailable categories', async () => {
     await create();
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('input').length).toBe(3);
+    expect(root.querySelectorAll('input').length).toBe(4);
     expect(root.textContent).toContain('Change');
     expect(root.textContent).toContain('Configure');
     expect(root.textContent).toContain('Clear rate');

@@ -109,6 +109,25 @@
       {{ nightCountLabel() }}
     </p>
 
+    <section class="pricing-panel" aria-labelledby="transfer-options-title">
+      <h3 id="transfer-options-title">{{ text().stays.pricing.transfer }}</h3>
+      <mat-checkbox
+        [checked]="arrivalTransferRequired()"
+        (change)="onTransferChange('arrival', $event.checked)"
+        >{{ text().stays.pricing.arrivalTransfer }}</mat-checkbox
+      >
+      <mat-checkbox
+        [checked]="departureTransferRequired()"
+        (change)="onTransferChange('departure', $event.checked)"
+        >{{ text().stays.pricing.departureTransfer }}</mat-checkbox
+      >
+      <mat-checkbox
+        [checked]="transferWaived()"
+        (change)="onTransferChange('waived', $event.checked)"
+        >{{ text().stays.pricing.transferWaived }}</mat-checkbox
+      >
+    </section>
+
     <section class="pricing-panel" aria-live="polite">
       <div class="pricing-panel-heading">
         <h3>{{ text().stays.pricing.title }}</h3>
@@ -134,10 +153,33 @@
             <dd>{{ preview.retainedNightlyRate ?? text().stays.pricing.unavailable }}</dd>
           </div>
           <div>
+            <dt>{{ text().stays.pricing.accommodation }}</dt>
+            <dd>
+              {{
+                preview.retainedNightlyRate === null
+                  ? text().stays.pricing.unavailable
+                  : preview.suggestedAmount
+              }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ text().stays.pricing.transferRate }}</dt>
+            <dd>{{ preview.retainedTransferRate ?? text().stays.pricing.unavailable }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().stays.pricing.transfer }}</dt>
+            <dd>{{ preview.transferSuggestedAmount }}</dd>
+          </div>
+          <div>
             <dt>{{ text().stays.pricing.suggestion }}</dt>
             <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
           </div>
         </dl>
+        @if (preview.transferRateUnavailable) {
+          <p class="pricing-warning" role="status">
+            {{ text().stays.pricing.transferUnavailable }}
+          </p>
+        }
         @if (stalePricing()) {
           <p class="pricing-warning" role="alert">{{ text().stays.pricing.stale }}</p>
         }

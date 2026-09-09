@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -48,6 +49,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
   imports: [
     FormsModule,
     MatButton,
+    MatCheckbox,
     MatError,
     MatFormField,
     MatInput,
@@ -80,6 +82,9 @@ export class StayEditor {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly arrivalTransferRequired = signal(false);
+  readonly departureTransferRequired = signal(false);
+  readonly transferWaived = signal(false);
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
@@ -271,17 +276,14 @@ export class StayEditor {
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
+      ...this.transferInputs(),
       ...(preview.pricingDecisionRequired
         ? {
             pricingDecision: {
               agreedAmount: this.agreedAmount(),
               reason: this.pricingReason().trim() || null,
             },
-            confirmation: {
-              ...preview.confirmation,
-              retainedNightlyRate: this.workingRetainedNightlyRate(),
-              suggestedAmount: this.workingSuggestedAmount(),
-            },
+            confirmation: preview.confirmation,
           }
         : {}),
     };
@@ -368,6 +370,9 @@ export class StayEditor {
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
     this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
+    this.arrivalTransferRequired.set(Boolean(stay.arrivalTransferRequired));
+    this.departureTransferRequired.set(Boolean(stay.departureTransferRequired));
+    this.transferWaived.set(Boolean(stay.transferWaived));
     this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
@@ -386,6 +391,13 @@ export class StayEditor {
     this.clearVaccineOverrideRecovery();
     this.endAt.set(value);
     this.refreshPricingPreview(true);
+  }
+  onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
+    if (kind === 'arrival') this.arrivalTransferRequired.set(value);
+    else if (kind === 'departure') this.departureTransferRequired.set(value);
+    else this.transferWaived.set(value);
+    this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
   }
 
   onPricingDecisionChange(): void {
@@ -463,7 +475,11 @@ export class StayEditor {
     const basis = this.currentPreviewBasis();
     this.previewLoading.set(true);
     this.stayApiService
-      .previewDateChangePricing(this.stayId, { startAt: this.startAt(), endAt: this.endAt() })
+      .previewDateChangePricing(this.stayId, {
+        startAt: this.startAt(),
+        endAt: this.endAt(),
+        ...this.transferInputs(),
+      })
       .subscribe({
         next: (preview) => {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
@@ -501,7 +517,29 @@ export class StayEditor {
   }
 
   private currentPreviewBasis(): string {
-    return JSON.stringify([this.stayId, this.startAt(), this.endAt()]);
+    return JSON.stringify([
+      this.stayId,
+      this.startAt(),
+      this.endAt(),
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+    ]);
+  }
+
+  private transferInputs(): Record<string, boolean> {
+    const stay = this.stay();
+    return {
+      ...(this.arrivalTransferRequired() || stay?.arrivalTransferRequired
+        ? { arrivalTransferRequired: this.arrivalTransferRequired() }
+        : {}),
+      ...(this.departureTransferRequired() || stay?.departureTransferRequired
+        ? { departureTransferRequired: this.departureTransferRequired() }
+        : {}),
+      ...(this.transferWaived() || stay?.transferWaived
+        ? { transferWaived: this.transferWaived() }
+        : {}),
+    };
   }
 
   private clearVaccineOverrideRecovery(): void {

@@ -76,6 +76,9 @@ export class StayCreatePage implements AfterViewInit {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly arrivalTransferRequired = signal(false);
+  readonly departureTransferRequired = signal(false);
+  readonly transferWaived = signal(false);
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<CreationPricingPreview | null>(null);
   readonly previewLoading = signal(false);
@@ -225,6 +228,13 @@ export class StayCreatePage implements AfterViewInit {
     this.endAt.set(value);
     this.refreshPricingPreview();
   }
+  onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
+    if (kind === 'arrival') this.arrivalTransferRequired.set(value);
+    else if (kind === 'departure') this.departureTransferRequired.set(value);
+    else this.transferWaived.set(value);
+    this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
+  }
 
   onPricingDecisionChange(): void {
     this.pricingConfirmed.set(false);
@@ -310,6 +320,7 @@ export class StayCreatePage implements AfterViewInit {
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
+      ...this.transferInputs(),
       pricingDecision: {
         agreedAmount: this.agreedAmount(),
         reason: this.pricingReason().trim() || null,
@@ -442,11 +453,23 @@ export class StayCreatePage implements AfterViewInit {
     }
 
     const catIds = [...this.selectedCatIds()].sort();
-    const basis = JSON.stringify([this.startAt(), this.endAt(), catIds]);
+    const basis = JSON.stringify([
+      this.startAt(),
+      this.endAt(),
+      catIds,
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+    ]);
     this.previewLoading.set(true);
 
     this.stayApiService
-      .previewCreationPricing({ startAt: this.startAt(), endAt: this.endAt(), catIds })
+      .previewCreationPricing({
+        startAt: this.startAt(),
+        endAt: this.endAt(),
+        catIds,
+        ...this.transferInputs(),
+      })
       .subscribe({
         next: (preview) => {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis()) {
@@ -465,7 +488,22 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private currentPreviewBasis(): string {
-    return JSON.stringify([this.startAt(), this.endAt(), [...this.selectedCatIds()].sort()]);
+    return JSON.stringify([
+      this.startAt(),
+      this.endAt(),
+      [...this.selectedCatIds()].sort(),
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+    ]);
+  }
+
+  private transferInputs(): Record<string, boolean> {
+    return {
+      ...(this.arrivalTransferRequired() ? { arrivalTransferRequired: true } : {}),
+      ...(this.departureTransferRequired() ? { departureTransferRequired: true } : {}),
+      ...(this.transferWaived() ? { transferWaived: true } : {}),
+    };
   }
 
   private scrollToSubmit(): void {
@@ -488,6 +526,9 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes(),
       agreedAmount: this.agreedAmount(),
       pricingReason: this.pricingReason(),
+      arrivalTransferRequired: this.arrivalTransferRequired(),
+      departureTransferRequired: this.departureTransferRequired(),
+      transferWaived: this.transferWaived(),
     };
   }
 
@@ -497,6 +538,9 @@ export class StayCreatePage implements AfterViewInit {
     this.notes.set(draft.notes);
     this.agreedAmount.set(draft.agreedAmount);
     this.pricingReason.set(draft.pricingReason);
+    this.arrivalTransferRequired.set(Boolean(draft.arrivalTransferRequired));
+    this.departureTransferRequired.set(Boolean(draft.departureTransferRequired));
+    this.transferWaived.set(Boolean(draft.transferWaived));
     this.pricingReasonContext.set('manual');
     this.clearVaccineOverrideRecovery();
     this.previewRequestSequence++;

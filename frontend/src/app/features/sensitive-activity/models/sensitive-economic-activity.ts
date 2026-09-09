@@ -62,8 +62,14 @@ export type SensitiveEconomicActivityEvent =
     })
   | (StayScopedEventBase & {
       eventType: 'PRICING_OVERRIDE';
-      retainedNightlyRate: string;
+      retainedNightlyRate: string | null;
       numberOfNights: number;
+      arrivalTransferRequired?: boolean;
+      departureTransferRequired?: boolean;
+      transferWaived?: boolean;
+      retainedTransferRate?: string | null;
+      transferSuggestedAmount?: string;
+      suggestedAmount?: string | null;
       agreedAmount: string;
       reason: string;
     })
@@ -163,8 +169,14 @@ function parseEvent(value: unknown): SensitiveEconomicActivityEvent {
         ...common,
         affectedContext: context(item['affectedContext']),
         eventType,
-        retainedNightlyRate: money(item['retainedNightlyRate']),
+        retainedNightlyRate: money(item['retainedNightlyRate'], true),
         numberOfNights: integer(item['numberOfNights']),
+        arrivalTransferRequired: bool(item['arrivalTransferRequired']),
+        departureTransferRequired: bool(item['departureTransferRequired']),
+        transferWaived: bool(item['transferWaived']),
+        retainedTransferRate: money(item['retainedTransferRate'], true),
+        transferSuggestedAmount: money(item['transferSuggestedAmount']),
+        suggestedAmount: money(item['suggestedAmount'], true),
         agreedAmount: money(item['agreedAmount']),
         reason: text(item['reason']),
       };

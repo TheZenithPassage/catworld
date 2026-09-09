@@ -376,7 +376,7 @@ describe('StayCreatePage', () => {
     expect(component.selectedOwnerId()).toBe('owner-1');
     expect(component.selectedCatIds()).toEqual(['cat-1']);
     expect(component.availableCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
-    expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(5);
   });
 
   it('captures the exact Stay frame and uses one flow identity for related creation', () => {
@@ -413,6 +413,9 @@ describe('StayCreatePage', () => {
     expect(TestBed.inject(CreationFlowService).consumeStay(flowId)).toEqual({
       ...stayDraft,
       catIds: ['cat-2'],
+      arrivalTransferRequired: false,
+      departureTransferRequired: false,
+      transferWaived: false,
     });
   });
 

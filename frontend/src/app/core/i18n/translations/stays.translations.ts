@@ -21,6 +21,13 @@ export interface StaysTranslations {
     enterInputs: string;
     nights: string;
     retainedRate: string;
+    accommodation: string;
+    transfer: string;
+    transferRate: string;
+    transferUnavailable: string;
+    arrivalTransfer: string;
+    departureTransfer: string;
+    transferWaived: string;
     suggestion: string;
     agreement: string;
     currentAgreement: string;
@@ -300,6 +307,13 @@ export const STAYS_TRANSLATIONS = {
       enterInputs: 'Selecciona fechas y gatos válidos para obtener la propuesta.',
       nights: 'Noches',
       retainedRate: 'Tarifa retenida',
+      accommodation: 'Alojamiento',
+      transfer: 'Traslado',
+      transferRate: 'Tarifa de traslado retenida',
+      transferUnavailable: 'No hay tarifa de traslado disponible; el traslado aporta 0.',
+      arrivalTransfer: 'Requiere traslado de llegada',
+      departureTransfer: 'Requiere traslado de salida',
+      transferWaived: 'Traslado exento',
       suggestion: 'Importe sugerido',
       agreement: 'Importe acordado',
       currentAgreement: 'Importe acordado actual',
@@ -603,6 +617,13 @@ export const STAYS_TRANSLATIONS = {
       enterInputs: 'Select valid dates and cats to obtain pricing.',
       nights: 'Nights',
       retainedRate: 'Retained rate',
+      accommodation: 'Accommodation',
+      transfer: 'Transfer',
+      transferRate: 'Retained transfer rate',
+      transferUnavailable: 'No transfer rate is available; transfer contributes 0.',
+      arrivalTransfer: 'Arrival transfer required',
+      departureTransfer: 'Departure transfer required',
+      transferWaived: 'Transfer waived',
       suggestion: 'Suggested amount',
       agreement: 'Agreed amount',
       currentAgreement: 'Current agreed amount',

@@ -16,6 +16,7 @@ import {
   NightlyReferenceRate,
   NightlyReferenceRateApiService,
 } from '../../services/nightly-reference-rate-api.service';
+import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 
 interface RateCategory {
   threshold: NightlyRateThreshold;
@@ -45,6 +46,7 @@ export class NightlyRateManagementPage {
   private readonly api = inject(NightlyReferenceRateApiService);
   private readonly auth = inject(AuthSessionService);
   private readonly i18n = inject(I18nService);
+  private readonly transferApi = inject(TransferRateApiService);
   readonly text = this.i18n.text;
   readonly categories: readonly RateCategory[] = [
     { threshold: 1, labelKey: 'one' },
@@ -63,9 +65,51 @@ export class NightlyRateManagementPage {
     null,
   );
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
+  readonly transferRate = signal<string | null>(null);
+  readonly transferEntry = signal('');
+  readonly transferLoading = signal(true);
+  readonly transferPending = signal<PendingAction | null>(null);
 
   constructor() {
     this.loadRates();
+    this.loadTransferRate();
+  }
+  loadTransferRate(): void {
+    this.transferLoading.set(true);
+    this.transferApi.getCurrentRate().subscribe({
+      next: ({ transferRate }) => {
+        this.transferRate.set(transferRate);
+        this.transferEntry.set(transferRate ?? '');
+        this.transferLoading.set(false);
+      },
+      error: () => {
+        this.transferLoading.set(false);
+        this.loadError.set(this.text().nightlyRates.loadError);
+      },
+    });
+  }
+  saveTransferRate(): void {
+    const error = this.validate(this.transferEntry());
+    if (!this.isAdmin() || this.transferPending() || error) return;
+    this.transferPending.set('save');
+    this.transferApi
+      .configureRate(this.transferEntry())
+      .pipe(finalize(() => this.transferPending.set(null)))
+      .subscribe({
+        next: () => this.loadTransferRate(),
+        error: (e: unknown) => this.handleMutationError(e),
+      });
+  }
+  clearTransferRate(): void {
+    if (!this.isAdmin() || this.transferPending()) return;
+    this.transferPending.set('clear');
+    this.transferApi
+      .clearRate()
+      .pipe(finalize(() => this.transferPending.set(null)))
+      .subscribe({
+        next: () => this.loadTransferRate(),
+        error: (e: unknown) => this.handleMutationError(e),
+      });
   }
 
   loadRates(afterMutation: NightlyRateThreshold | null = null): void {
