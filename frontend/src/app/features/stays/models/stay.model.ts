@@ -112,7 +112,7 @@ export interface ExistingStayPricingConfirmation {
 }
 
 export interface CreationPricingPreview extends CreationPricingConfirmation {
-  transferRateUnavailable: boolean;
+  transferRateUnavailable?: boolean;
   confirmation: CreationPricingConfirmation;
 }
 
@@ -127,7 +127,7 @@ interface StayDatePricingPreviewBase {
   transferWaived: boolean;
   retainedTransferRate: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount;
-  transferRateUnavailable: boolean;
+  transferRateUnavailable?: boolean;
 }
 
 export type StayDatePricingPreview =
@@ -269,3 +269,4 @@ function isNonEmptyString(value: unknown): value is string {
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
 }
+
