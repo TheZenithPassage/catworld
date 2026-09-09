@@ -342,7 +342,7 @@ class StayPricingMySqlIntegrationTest {
         Set<UUID> firstId = Set.of(first.getId());
         var existing = stayService.createStay(StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build()).confirmation(stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).build()).getConfirmation()).build());
         nightly.setNightlyRate(new BigDecimal("15")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 12 where id = 1");
-        var updatePreview = stayService.previewDateChangePricing(existing.getStayId(), StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).selectedNightlyRate(new BigDecimal("15")).selectedTransferRate(new BigDecimal("12")).build());
+        TransactionTemplate previewTransaction = new TransactionTemplate(transactionManager); var updatePreview = previewTransaction.execute(status -> stayService.previewDateChangePricing(existing.getStayId(), StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).selectedNightlyRate(new BigDecimal("15")).selectedTransferRate(new BigDecimal("12")).build()));
         StayUpdateDTO update = StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("57")).build()).confirmation(updatePreview.getConfirmation()).build();
         Set<UUID> secondId = Set.of(second.getId()); var createPreview = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(secondId).arrivalTransferRequired(true).build());
         StayRequestDTO create = StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(secondId).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("42")).build()).confirmation(createPreview.getConfirmation()).build();
@@ -350,3 +350,4 @@ class StayPricingMySqlIntegrationTest {
         assertEquals(2, stayRepository.count());
     }
 }
+
