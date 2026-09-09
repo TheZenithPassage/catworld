@@ -1287,6 +1287,21 @@ public class StayServiceTest {
         }
 
         @Test
+        void staffWaivedNoneToAnyCurrentSelectorStaysOperational() {
+            LocalDateTime start = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10")).agreedAmount(new BigDecimal("20")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(transferRateRepository.findById(1L)).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
+            var preview = service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                    .startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).transferWaived(true)
+                    .selectedTransferRate(new BigDecimal("15")).build());
+            assertFalse(preview.isPricingDecisionRequired());
+            assertNull(preview.getConfirmation());
+            assertEquals(new BigDecimal("15"), preview.getRetainedTransferRate());
+        }
+
+        @Test
         void existingPreviewUsesRetainedRateAndStaleBasisRejectsUpdate() {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
             Stay stay = Stay.builder().id(UUID.randomUUID())
@@ -1294,7 +1309,6 @@ public class StayServiceTest {
                     .retainedNightlyRate(new BigDecimal("17"))
                     .agreedAmount(new BigDecimal("34")).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             var preview = service.previewDateChangePricing(
                     stay.getId(), StayDatePricingPreviewRequestDTO.builder()
@@ -1325,7 +1339,6 @@ public class StayServiceTest {
                     .retainedNightlyRate(new BigDecimal("10"))
                     .agreedAmount(new BigDecimal("20")).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             var preview = service.previewDateChangePricing(
                     stay.getId(), StayDatePricingPreviewRequestDTO.builder()
@@ -1359,7 +1372,6 @@ public class StayServiceTest {
                     .retainedNightlyRate(new BigDecimal("17"))
                     .agreedAmount(new BigDecimal("34")).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             var preview = service.previewDateChangePricing(
                     stay.getId(), StayDatePricingPreviewRequestDTO.builder()
@@ -1408,7 +1420,6 @@ public class StayServiceTest {
             );
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayRepository.save(stay)).thenReturn(stay);
             when(stayMapper.toResponseDTO(stay, false))
                     .thenReturn(StayResponseDTO.builder()
@@ -1449,7 +1460,6 @@ public class StayServiceTest {
             );
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             assertThrows(
                     ConflictException.class,
                     () -> service.correctAgreedAmount(stay.getId(), request)
@@ -1471,7 +1481,6 @@ public class StayServiceTest {
             );
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
 
             assertThrows(
@@ -1503,7 +1512,6 @@ public class StayServiceTest {
         void correctionRejectsUnsupportedAmounts(String value) {
             Stay stay = correctionStay("RESERVED", new BigDecimal("20"));
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
             assertThrows(
@@ -1523,7 +1531,6 @@ public class StayServiceTest {
         void realCorrectionRequiresNonBlankReason() {
             Stay stay = correctionStay("RESERVED", new BigDecimal("20"));
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
             assertThrows(
@@ -1549,7 +1556,6 @@ public class StayServiceTest {
             BigDecimal retainedRate = stay.getRetainedNightlyRate();
             UserAccount admin = user(UserRole.ADMIN);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
 
             service.correctAgreedAmount(
@@ -1615,7 +1621,6 @@ public class StayServiceTest {
             StayResponseDTO response = new StayResponseDTO();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
                     .thenAnswer(invocation -> storedPayments.stream()
                             .filter(payment -> !payment.isAnnulled())
@@ -1657,7 +1662,6 @@ public class StayServiceTest {
         void rejectsUnsupportedPaymentAmountsWithoutWrites() {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
             for (BigDecimal amount : Arrays.asList(
@@ -1685,7 +1689,6 @@ public class StayServiceTest {
         void rejectsRegistrationAboveRemainingAmount() {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
                     .thenReturn(new BigDecimal("80"));
@@ -1721,7 +1724,6 @@ public class StayServiceTest {
             assertFalse(actual.isOutstandingCollectionEligible());
             assertTrue(actual.getPayments().isEmpty());
 
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             assertThrows(
                     ConflictException.class,
@@ -1838,7 +1840,6 @@ public class StayServiceTest {
             stay.setStartAt(LocalDateTime.now().minusDays(3));
             stay.setEndAt(LocalDateTime.now().minusDays(1));
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
 
             assertThrows(
@@ -1862,7 +1863,6 @@ public class StayServiceTest {
             UserAccount admin = user(UserRole.ADMIN);
             StayResponseDTO response = new StayResponseDTO();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(),
                     stay.getId())).thenReturn(Optional.of(payment));
@@ -1899,7 +1899,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment payment = payment(stay, "30", false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(),
@@ -1958,7 +1957,6 @@ public class StayServiceTest {
                     .build();
             StayResponseDTO response = new StayResponseDTO();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(),
                     stay.getId())).thenReturn(Optional.of(payment));
@@ -1997,7 +1995,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment payment = payment(stay, "40", false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(),
@@ -2026,7 +2023,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment annulled = payment(stay, "25", true);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.findByIdAndStay_Id(
                     annulled.getId(),
@@ -2065,7 +2061,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), true);
             UserAccount admin = user(UserRole.ADMIN);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
                     .thenReturn(new BigDecimal("60"));
             when(stayMapper.toResponseDTO(stay, false))
@@ -2110,7 +2105,6 @@ public class StayServiceTest {
                             .build())
                     .build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.sumActiveAmountByStayId(stay.getId()))
                     .thenReturn(new BigDecimal("60"));
@@ -2135,7 +2129,6 @@ public class StayServiceTest {
                     .build();
             StayResponseDTO response = new StayResponseDTO();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
             when(sensitiveStayContextFactory.create(stay)).thenReturn(context);
@@ -2179,7 +2172,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment payment = payment(stay, "40", false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
 
             assertThrows(ForbiddenException.class, () -> service.removePayment(
@@ -2187,7 +2179,6 @@ public class StayServiceTest {
                     PaymentRemovalRequestDTO.builder().reason("Valid reason").build()
             ));
 
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
@@ -2215,7 +2206,6 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment payment = payment(stay, "40", false);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayPaymentRepository.findByIdAndStay_Id(
                     payment.getId(), stay.getId())).thenReturn(Optional.of(payment));
@@ -2354,7 +2344,6 @@ public class StayServiceTest {
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             UserAccount actor = user(UserRole.ADMIN);
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
             service.deleteStay(stay.getId());
 
@@ -2376,7 +2365,6 @@ public class StayServiceTest {
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             UserAccount actor = user(UserRole.ADMIN);
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
             doThrow(new ForbiddenException("Forbidden"))
                     .when(deletionAuthorizationPolicy)
                     .authorize(actor, stay.getCreatedBy(), stay.getCreatedAt());
@@ -2397,7 +2385,6 @@ public class StayServiceTest {
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             doThrow(new DataIntegrityViolationException("constraint conflict")).when(stayRepository).flush();
 
@@ -2422,7 +2409,6 @@ public class StayServiceTest {
                 when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             }
             UserAccount actor = user(UserRole.ADMIN);
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
             for (Stay stay : stays) {
                 assertDoesNotThrow(() -> service.deleteStay(stay.getId()));
@@ -2444,7 +2430,6 @@ public class StayServiceTest {
                     LocalDateTime.now().plusDays(5), null);
             UserAccount actor = user(UserRole.ADMIN);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
             when(stayPaymentRepository.existsByStay_Id(stay.getId()))
                     .thenReturn(true);
 
@@ -2466,7 +2451,6 @@ public class StayServiceTest {
             when(stayPaymentRemovalRepository.existsByStayId(stay.getId()))
                     .thenReturn(true);
 
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
             assertThrows(ForbiddenException.class, () -> service.deleteStay(stay.getId()));
             verify(stayRepository, never()).delete(any());
@@ -2474,7 +2458,6 @@ public class StayServiceTest {
             clearInvocations(stayRepository, stayPaymentRepository,
                     stayPaymentRemovalRepository, deletionAuthorizationPolicy);
             UserAccount admin = user(UserRole.ADMIN);
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
             service.deleteStay(stay.getId());
 
             verify(stayRepository).findByIdForUpdate(stay.getId());
@@ -2703,7 +2686,6 @@ public class StayServiceTest {
             linkStayAndCat(stayToModify, cat);
 
             when(stayRepository.findById(stayToModify.getId())).thenReturn(Optional.of(stayToModify));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
 
             confirmDateChange(stayToModify, updateDto);
@@ -2757,7 +2739,6 @@ public class StayServiceTest {
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
@@ -2818,7 +2799,6 @@ public class StayServiceTest {
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayMapper.updateEntity(stay, updateDto)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
@@ -3016,7 +2996,6 @@ public class StayServiceTest {
                     .startAt(startAt)
                     .endAt(endAt)
                     .build());
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
 
             VaccineConflictException exception = assertThrows(
                     VaccineConflictException.class,
@@ -3145,7 +3124,6 @@ public class StayServiceTest {
             StayResponseDTO response = new StayResponseDTO();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
@@ -3189,7 +3167,6 @@ public class StayServiceTest {
             StayResponseDTO response = new StayResponseDTO();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
             when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
@@ -3227,7 +3204,6 @@ public class StayServiceTest {
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
 
             ForbiddenException exception = assertThrows(
                     ForbiddenException.class,
@@ -3261,7 +3237,6 @@ public class StayServiceTest {
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
 
             confirmDateChange(stay, request);
             assertThrows(VaccineConflictException.class, () -> service.updateStay(stay.getId(), request));
@@ -3298,7 +3273,6 @@ public class StayServiceTest {
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(stayMapper.updateEntity(stay, request)).thenReturn(updatedStay);
-            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
             when(stayRepository.save(updatedStay)).thenReturn(updatedStay);
             when(stayMapper.toResponseDTO(updatedStay, false)).thenReturn(response);
 
@@ -3369,7 +3343,6 @@ public class StayServiceTest {
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
                 .build());
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(role));
         request.setConfirmation(
                 service.previewCreationPricing(
                         StayCreationPricingPreviewRequestDTO.builder()
@@ -3431,7 +3404,6 @@ public class StayServiceTest {
                 .orElseThrow();
 
         lenient().when(stayMapper.toEntity(request)).thenReturn(stay);
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
         NightlyReferenceRate configuredRate = NightlyReferenceRate.builder()
                 .category(category)
                 .nightlyRate(nightlyRate)
@@ -3621,3 +3593,4 @@ public class StayServiceTest {
     }
 
 }
+
