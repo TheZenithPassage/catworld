@@ -437,7 +437,7 @@ public class StayService implements IStayService {
             BigDecimal selectedTransferRate = oldTransferLegs == 0 && newTransferLegs > 0
                     ? lockedCurrentTransferRate
                     : (newTransferLegs == 0 ? null : stay.getRetainedTransferRate());
-            if (requestedTransferRate != null && !sameMoney(requestedTransferRate, selectedTransferRate)) {
+            if (requestedTransferRate != null) {
                 if (!sameMoney(requestedTransferRate, lockedCurrentTransferRate)) throw new StalePricingConfirmationException();
                 selectedTransferRate = lockedCurrentTransferRate;
             }
