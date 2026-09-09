@@ -1259,6 +1259,33 @@ public class StayServiceTest {
         }
 
         @Test
+        void waivedTransferBasisAdoptionRequiresAdminPreviewDecision() {
+            LocalDateTime start = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("10"))
+                    .arrivalTransferRequired(true).transferWaived(true).agreedAmount(new BigDecimal("20")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(transferRateRepository.findById(1L)).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                    .startAt(start).endAt(start.plusDays(2)).selectedTransferRate(new BigDecimal("15")).build());
+            assertTrue(preview.isPricingDecisionRequired());
+            assertEquals(new BigDecimal("15"), preview.getConfirmation().getRetainedTransferRate());
+            when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
+            StayUpdateDTO update = StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true)
+                    .pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build())
+                    .confirmation(preview.getConfirmation()).build();
+            when(stayMapper.updateEntity(stay, update)).thenReturn(stay); when(stayRepository.save(stay)).thenReturn(stay); when(stayMapper.toResponseDTO(stay, false)).thenReturn(new StayResponseDTO());
+            service.updateStay(stay.getId(), update);
+            assertEquals(new BigDecimal("15"), stay.getRetainedTransferRate());
+            assertEquals(new BigDecimal("10"), stay.getRetainedNightlyRate());
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
+            doThrow(new ForbiddenException("ADMIN required")).when(stayPricingAuthorizationPolicy).authorizeNightCountChange(any());
+            assertThrows(ForbiddenException.class, () -> service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                    .startAt(start).endAt(start.plusDays(2)).selectedTransferRate(new BigDecimal("15")).build()));
+        }
+
+        @Test
         void existingPreviewUsesRetainedRateAndStaleBasisRejectsUpdate() {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
             Stay stay = Stay.builder().id(UUID.randomUUID())
