@@ -613,13 +613,19 @@ describe('CalendarPage', () => {
       el: compact,
       event: {
         ...event,
-        extendedProps: { ...event.extendedProps, compactMarkerLabel: 'Check-in' },
+        extendedProps: {
+          ...event.extendedProps,
+          compactMarkerLabel: 'Check-in',
+          compactMarkerKind: 'start',
+        },
       },
     } as never);
 
     expect(daily.getAttribute('aria-label')).toContain('Milo');
     expect(compact.getAttribute('aria-label')).toContain('Milo');
-    expect(compact.getAttribute('aria-label')).toContain('Check-in');
+    expect(compact.getAttribute('aria-label')).toContain(
+      component.text().calendar.compactMarkerLabels.start,
+    );
   });
 
   it('rerenders mounted transfer events when the active language changes', async () => {
@@ -648,6 +654,66 @@ describe('CalendarPage', () => {
       'Arrival transfer',
     );
     expect(event.getAttribute('aria-label')).toContain('Arrival transfer');
+  });
+
+  it('relocalizes both mounted compact transfer markers in each language direction', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'entry-exit-markers', visibleMonth: '2099-01-01' }),
+    );
+    stayApiService.getStays.mockReturnValue(
+      of([{ ...stay, arrivalTransferRequired: true, departureTransferRequired: true }]),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const markers = Array.from(
+      fixture.nativeElement.querySelectorAll('.fc-event'),
+    ) as HTMLElement[];
+    expect(markers).toHaveLength(2);
+    expect(markers[0].getAttribute('aria-label')).toContain('Entrada');
+    expect(markers[1].getAttribute('aria-label')).toContain('Salida');
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(markers[0].getAttribute('aria-label')).toContain('Check-in');
+    expect(markers[1].getAttribute('aria-label')).toContain('Check-out');
+
+    TestBed.inject(I18nService).language.set('es');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(markers[0].getAttribute('aria-label')).toContain('Entrada');
+    expect(markers[1].getAttribute('aria-label')).toContain('Salida');
+  });
+
+  it('refreshes a retained event accessible label from same-ID transfer changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain('Milo');
+    expect(event.getAttribute('aria-label')).not.toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+
+    component.stays.set([{ ...stay, arrivalTransferRequired: true }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(event.getAttribute('aria-label')).toContain('Milo');
+    expect(event.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
   });
 
   it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {

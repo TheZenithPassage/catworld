@@ -97,15 +97,7 @@ export class CalendarPage implements OnDestroy {
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
   private stickyHeaderPositionListener: (() => void) | undefined;
   private stickyMonthElement: HTMLElement | undefined;
-  private renderedEventLanguage: string | undefined;
-  private readonly mountedStayEventAccessibility = new Map<
-    HTMLElement,
-    {
-      title: string;
-      compactMarkerLabel: string;
-      transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
-    }
-  >();
+  private readonly mountedStayEventAccessibility = new Map<HTMLElement, { eventId: string }>();
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -220,16 +212,8 @@ export class CalendarPage implements OnDestroy {
         return;
       }
 
-      const details = {
-        title: event.title,
-        compactMarkerLabel:
-          typeof event.extendedProps['compactMarkerLabel'] === 'string'
-            ? event.extendedProps['compactMarkerLabel']
-            : '',
-        transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
-      };
-      this.mountedStayEventAccessibility.set(el, details);
-      this.applyStayEventAccessibleLabel(el, details);
+      this.mountedStayEventAccessibility.set(el, { eventId: event.id });
+      this.applyStayEventAccessibleLabel(el, this.getStayEventAccessibilityDetails(event));
 
       el.style.cursor = 'pointer';
     },
@@ -305,13 +289,7 @@ export class CalendarPage implements OnDestroy {
       if (indicator && today && today.nextElementSibling !== indicator) {
         today.after(indicator);
       }
-      const language = this.language();
-      if (this.renderedEventLanguage !== language) {
-        this.renderedEventLanguage = language;
-        this.mountedStayEventAccessibility.forEach((details, element) =>
-          this.applyStayEventAccessibleLabel(element, details),
-        );
-      }
+      this.refreshMountedStayEventAccessibility();
       this.updateToolbarLayout();
     });
     effect(() => {
@@ -342,11 +320,49 @@ export class CalendarPage implements OnDestroy {
       : null;
   }
 
+  private getCompactMarkerKind(extendedProps: Record<string, unknown>): 'start' | 'end' | null {
+    const kind = extendedProps['compactMarkerKind'];
+
+    return kind === 'start' || kind === 'end' ? kind : null;
+  }
+
+  private getStayEventAccessibilityDetails(event: {
+    title: string;
+    extendedProps: Record<string, unknown>;
+  }): {
+    title: string;
+    compactMarkerKind: 'start' | 'end' | null;
+    transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+  } {
+    return {
+      title: event.title,
+      compactMarkerKind: this.getCompactMarkerKind(event.extendedProps),
+      transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
+    };
+  }
+
+  private refreshMountedStayEventAccessibility(): void {
+    const api = this.calendar()?.getApi();
+
+    if (!api) return;
+
+    this.mountedStayEventAccessibility.forEach(({ eventId }, element) => {
+      const event = api.getEventById(eventId);
+
+      if (!event) {
+        this.mountedStayEventAccessibility.delete(element);
+        return;
+      }
+
+      this.applyStayEventAccessibleLabel(element, this.getStayEventAccessibilityDetails(event));
+    });
+  }
+
   private applyStayEventAccessibleLabel(
     element: HTMLElement,
     details: {
       title: string;
-      compactMarkerLabel: string;
+      compactMarkerKind: 'start' | 'end' | null;
       transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
     },
   ): void {
@@ -358,8 +374,11 @@ export class CalendarPage implements OnDestroy {
           : details.transferIndicatorKind === 'arrival-and-departure'
             ? this.text().calendar.transferIndicators.arrivalAndDeparture
             : '';
-    const eventLabel = details.compactMarkerLabel
-      ? `${details.compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
+    const compactMarkerLabel = details.compactMarkerKind
+      ? this.text().calendar.compactMarkerLabels[details.compactMarkerKind]
+      : '';
+    const eventLabel = compactMarkerLabel
+      ? `${compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
       : this.text().calendar.openStayInList;
     const accessibleLabel = [transferIndicator, details.title, eventLabel]
       .filter(Boolean)
