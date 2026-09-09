@@ -2027,16 +2027,17 @@ describe('Route-free StayEditor migrated coverage', () => {
       afterClosed: () => dialogClosed.asObservable(),
     });
     stayApiService.getStayById.mockReturnValue(of(stay));
-    stayApiService.previewDateChangePricing.mockReturnValue(
-      of({
-        pricingDecisionRequired: false,
-        currentNumberOfNights: 7,
-        currentAgreedAmount: '100',
-        numberOfNights: 7,
-        retainedNightlyRate: '50',
-        suggestedAmount: '100',
-        confirmation: null,
-      }),
+    stayApiService.previewDateChangePricing.mockImplementation(
+      (_id: string, request: { selectedNightlyRate?: string | null }) =>
+        of({
+          pricingDecisionRequired: false,
+          currentNumberOfNights: 7,
+          currentAgreedAmount: '100',
+          numberOfNights: 7,
+          retainedNightlyRate: '50',
+          suggestedAmount: '100',
+          confirmation: null,
+        }),
     );
     nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(of([]));
     window.scrollTo = vi.fn();
@@ -2141,22 +2142,26 @@ describe('Route-free StayEditor migrated coverage', () => {
     nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
       of([{ minimumCatCount: 2, nightlyRate: '60' }]),
     );
-    stayApiService.previewDateChangePricing.mockReturnValue(
-      of({
-        pricingDecisionRequired: true,
-        currentNumberOfNights: 7,
-        currentAgreedAmount: '100',
-        numberOfNights: 8,
-        retainedNightlyRate: '50',
-        suggestedAmount: '400',
-        confirmation: {
-          previousNumberOfNights: 7,
-          previousAgreedAmount: '100',
+    stayApiService.previewDateChangePricing.mockImplementation(
+      (_id: string, request: { selectedNightlyRate?: string | null }) => {
+        const retainedNightlyRate = request.selectedNightlyRate ?? '50';
+        const suggestedAmount = retainedNightlyRate === '60' ? '480' : '400';
+        return of({
+          pricingDecisionRequired: true,
+          currentNumberOfNights: 7,
+          currentAgreedAmount: '100',
           numberOfNights: 8,
-          retainedNightlyRate: '50',
-          suggestedAmount: '400',
-        },
-      }),
+          retainedNightlyRate,
+          suggestedAmount,
+          confirmation: {
+            previousNumberOfNights: 7,
+            previousAgreedAmount: '100',
+            numberOfNights: 8,
+            retainedNightlyRate,
+            suggestedAmount,
+          },
+        });
+      },
     );
     createComponent();
     component.pricingConfirmed.set(true);
@@ -2238,6 +2243,7 @@ describe('Route-free StayEditor migrated coverage', () => {
   it('resets the agreement to the selected-rate suggestion when the night count changes', () => {
     createComponent();
     component.workingRetainedNightlyRate.set('60');
+    component.selectedNightlyRate.set('60');
     component.agreedAmount.set('777');
     component.pricingConfirmed.set(true);
     stayApiService.previewDateChangePricing.mockReturnValue(
@@ -2246,14 +2252,14 @@ describe('Route-free StayEditor migrated coverage', () => {
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
         numberOfNights: 8,
-        retainedNightlyRate: '50',
-        suggestedAmount: '400',
+        retainedNightlyRate: '60',
+        suggestedAmount: '480',
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
           numberOfNights: 8,
-          retainedNightlyRate: '50',
-          suggestedAmount: '400',
+          retainedNightlyRate: '60',
+          suggestedAmount: '480',
         },
       }),
     );
@@ -2333,7 +2339,7 @@ describe('Route-free StayEditor migrated coverage', () => {
     expect(component.agreedAmount()).toBe('777');
     expect(
       (fixture.nativeElement as HTMLElement)
-        .querySelector('.pricing-summary > div:nth-child(6) dd')
+        .querySelector('.pricing-summary > div:nth-child(7) dd')
         ?.textContent?.trim(),
     ).toBe('350');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
@@ -2372,7 +2378,7 @@ describe('Route-free StayEditor migrated coverage', () => {
     component.onEndAtChange('2099-01-10T10:00');
     component.toggleRetainedRate();
     expect(component.workingRetainedNightlyRate()).toBe('60');
-    expect(component.workingSuggestedAmount()).toBe('480');
+    expect(component.workingSuggestedAmount()).toBeNull();
 
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({

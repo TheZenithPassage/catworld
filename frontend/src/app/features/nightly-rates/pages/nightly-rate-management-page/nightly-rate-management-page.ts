@@ -69,6 +69,8 @@ export class NightlyRateManagementPage {
   readonly transferEntry = signal('');
   readonly transferLoading = signal(true);
   readonly transferPending = signal<PendingAction | null>(null);
+  readonly transferValidationError = signal<ValidationErrorCode | null>(null);
+  readonly transferError = createLanguageResetError(this.i18n.language);
 
   constructor() {
     this.loadRates();
@@ -76,6 +78,7 @@ export class NightlyRateManagementPage {
   }
   loadTransferRate(): void {
     this.transferLoading.set(true);
+    this.transferError.set(null);
     this.transferApi.getCurrentRate().subscribe({
       next: ({ transferRate }) => {
         this.transferRate.set(transferRate);
@@ -84,13 +87,18 @@ export class NightlyRateManagementPage {
       },
       error: () => {
         this.transferLoading.set(false);
-        this.loadError.set(this.text().nightlyRates.loadError);
+        this.transferError.set(this.text().nightlyRates.loadError);
       },
     });
   }
   saveTransferRate(): void {
     const error = this.validate(this.transferEntry());
-    if (!this.isAdmin() || this.transferPending() || error) return;
+    if (!this.isAdmin() || this.transferPending()) return;
+    if (error) {
+      this.transferValidationError.set(error);
+      setTimeout(() => document.getElementById('transfer-rate')?.focus());
+      return;
+    }
     this.transferPending.set('save');
     this.transferApi
       .configureRate(this.transferEntry())

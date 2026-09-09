@@ -28,47 +28,63 @@
         >
         <mat-card-content>
           <p>{{ text().nightlyRates.transfer.description }}</p>
-          <p class="current-rate" [class.unavailable]="transferRate() === null">
-            {{ transferRate() ?? text().nightlyRates.transfer.unavailable }}
-          </p>
-          @if (isAdmin()) {
-            <div class="rate-editor">
-              <mat-form-field appearance="outline"
-                ><mat-label>{{ text().nightlyRates.transfer.rateLabel }}</mat-label
-                ><input
-                  matInput
-                  id="transfer-rate"
-                  name="transferRate"
-                  inputmode="numeric"
-                  [ngModel]="transferEntry()"
-                  (ngModelChange)="transferEntry.set($event)"
-                  [disabled]="transferPending() !== null"
-              /></mat-form-field>
-              <div class="rate-actions">
-                <button
-                  mat-flat-button
-                  type="button"
-                  (click)="saveTransferRate()"
-                  [disabled]="transferPending() !== null"
-                >
-                  {{
-                    transferRate() === null
-                      ? text().nightlyRates.transfer.configure
-                      : text().nightlyRates.transfer.change
-                  }}
-                </button>
-                @if (transferRate() !== null) {
+          @if (transferLoading()) {
+            <app-ui-state kind="loading" [message]="text().nightlyRates.loading" />
+          } @else if (transferError()) {
+            <app-ui-state
+              kind="error"
+              [message]="transferError()!"
+              [actionLabel]="text().nightlyRates.retry"
+              (actionTriggered)="loadTransferRate()"
+            />
+          } @else {
+            <p class="current-rate" [class.unavailable]="transferRate() === null">
+              {{ transferRate() ?? text().nightlyRates.transfer.unavailable }}
+            </p>
+            @if (isAdmin()) {
+              <div class="rate-editor">
+                <mat-form-field appearance="outline"
+                  ><mat-label>{{ text().nightlyRates.transfer.rateLabel }}</mat-label
+                  ><input
+                    matInput
+                    id="transfer-rate"
+                    name="transferRate"
+                    inputmode="numeric"
+                    [ngModel]="transferEntry()"
+                    (ngModelChange)="transferEntry.set($event); transferValidationError.set(null)"
+                    [disabled]="transferPending() !== null || transferLoading()"
+                /></mat-form-field>
+                @if (transferValidationError()) {
+                  <p class="field-error" role="alert">
+                    {{ text().nightlyRates.form.errors[transferValidationError()!] }}
+                  </p>
+                }
+                <div class="rate-actions">
                   <button
-                    mat-stroked-button
+                    mat-flat-button
                     type="button"
-                    (click)="clearTransferRate()"
+                    (click)="saveTransferRate()"
                     [disabled]="transferPending() !== null"
                   >
-                    {{ text().nightlyRates.transfer.clear }}
+                    {{
+                      transferRate() === null
+                        ? text().nightlyRates.transfer.configure
+                        : text().nightlyRates.transfer.change
+                    }}
                   </button>
-                }
+                  @if (transferRate() !== null) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="clearTransferRate()"
+                      [disabled]="transferPending() !== null"
+                    >
+                      {{ text().nightlyRates.transfer.clear }}
+                    </button>
+                  }
+                </div>
               </div>
-            </div>
+            }
           }
         </mat-card-content>
       </mat-card>

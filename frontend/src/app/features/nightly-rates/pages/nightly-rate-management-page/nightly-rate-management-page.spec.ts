@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
+import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 import { NightlyRateManagementPage } from './nightly-rate-management-page';
 
 const currentRates = [
@@ -24,6 +25,11 @@ describe('NightlyRateManagementPage', () => {
     clearRate: ReturnType<typeof vi.fn>;
   };
   let auth: AuthSessionService;
+  let transferApi: {
+    getCurrentRate: ReturnType<typeof vi.fn>;
+    configureRate: ReturnType<typeof vi.fn>;
+    clearRate: ReturnType<typeof vi.fn>;
+  };
 
   async function create(role: 'ADMIN' | 'STAFF' = 'ADMIN'): Promise<void> {
     localStorage.setItem('catworld.language', 'en');
@@ -32,11 +38,17 @@ describe('NightlyRateManagementPage', () => {
       configureRate: vi.fn().mockReturnValue(of(currentRates[0])),
       clearRate: vi.fn().mockReturnValue(of(undefined)),
     };
+    transferApi = {
+      getCurrentRate: vi.fn().mockReturnValue(of({ transferRate: null })),
+      configureRate: vi.fn().mockReturnValue(of({ transferRate: '25' })),
+      clearRate: vi.fn().mockReturnValue(of(undefined)),
+    };
     await TestBed.configureTestingModule({
       imports: [NightlyRateManagementPage],
       providers: [
         provideNoopAnimations(),
         { provide: NightlyReferenceRateApiService, useValue: api },
+        { provide: TransferRateApiService, useValue: transferApi },
       ],
     }).compileComponents();
     auth = TestBed.inject(AuthSessionService);

@@ -64,12 +64,12 @@ export type SensitiveEconomicActivityEvent =
       eventType: 'PRICING_OVERRIDE';
       retainedNightlyRate: string | null;
       numberOfNights: number;
-      arrivalTransferRequired?: boolean;
-      departureTransferRequired?: boolean;
-      transferWaived?: boolean;
-      retainedTransferRate?: string | null;
-      transferSuggestedAmount?: string;
-      suggestedAmount?: string | null;
+      arrivalTransferRequired: boolean;
+      departureTransferRequired: boolean;
+      transferWaived: boolean;
+      retainedTransferRate: string | null;
+      transferSuggestedAmount: string;
+      suggestedAmount: string | null;
       agreedAmount: string;
       reason: string;
     })

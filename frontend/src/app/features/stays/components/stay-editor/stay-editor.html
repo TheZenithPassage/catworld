@@ -94,6 +94,12 @@
                   <dd>{{ workingRetainedNightlyRate() ?? text().stays.pricing.unavailable }}</dd>
                 </div>
                 <div>
+                  <dt>{{ text().stays.pricing.accommodation }}</dt>
+                  <dd>
+                    {{ preview.accommodationSuggestedAmount ?? text().stays.pricing.unavailable }}
+                  </dd>
+                </div>
+                <div>
                   <dt>{{ text().stays.pricing.transferRate }}</dt>
                   <dd>{{ preview.retainedTransferRate ?? text().stays.pricing.unavailable }}</dd>
                 </div>

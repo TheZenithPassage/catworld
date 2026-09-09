@@ -154,13 +154,7 @@
           </div>
           <div>
             <dt>{{ text().stays.pricing.accommodation }}</dt>
-            <dd>
-              {{
-                preview.retainedNightlyRate === null
-                  ? text().stays.pricing.unavailable
-                  : preview.suggestedAmount
-              }}
-            </dd>
+            <dd>{{ preview.accommodationSuggestedAmount ?? text().stays.pricing.unavailable }}</dd>
           </div>
           <div>
             <dt>{{ text().stays.pricing.transferRate }}</dt>
