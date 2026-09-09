@@ -10,6 +10,12 @@ type CompactMarkerKind = 'start' | 'end';
 
 export type StayCalendarCompactMarkerLabels = Record<CompactMarkerKind, string>;
 
+export interface StayCalendarTransferIndicatorLabels {
+  arrival: string;
+  departure: string;
+  arrivalAndDeparture: string;
+}
+
 export interface DailyCountEventLabels {
   singular: string;
   plural: string;
@@ -22,12 +28,19 @@ const EMPTY_COMPACT_MARKER_LABELS: StayCalendarCompactMarkerLabels = {
   end: '',
 };
 
+const EMPTY_TRANSFER_INDICATOR_LABELS: StayCalendarTransferIndicatorLabels = {
+  arrival: '',
+  departure: '',
+  arrivalAndDeparture: '',
+};
+
 interface ToStayCalendarEventsParams {
   visibleStays: Stay[];
   dailyAggregates?: CalendarDailyAggregate[];
   colorAssignments: Map<string, StayCalendarColor>;
   displayMode: CalendarDisplayMode;
   compactMarkerLabels?: StayCalendarCompactMarkerLabels;
+  transferIndicatorLabels?: StayCalendarTransferIndicatorLabels;
   dailyCountLabels?: DailyCountEventLabels;
 }
 
@@ -37,6 +50,7 @@ export function toStayCalendarEvents({
   colorAssignments,
   displayMode,
   compactMarkerLabels = EMPTY_COMPACT_MARKER_LABELS,
+  transferIndicatorLabels = EMPTY_TRANSFER_INDICATOR_LABELS,
   dailyCountLabels,
 }: ToStayCalendarEventsParams): EventInput[] {
   if (displayMode === 'daily-counts') {
@@ -49,12 +63,17 @@ export function toStayCalendarEvents({
 
   if (displayMode === 'daily-labels') {
     return visibleStays.flatMap((stay) =>
-      toDailyCalendarEvents(stay, colorAssignments.get(stay.stayId)),
+      toDailyCalendarEvents(stay, colorAssignments.get(stay.stayId), transferIndicatorLabels),
     );
   }
 
   return visibleStays.flatMap((stay) =>
-    toCompactCalendarEvents(stay, colorAssignments.get(stay.stayId), compactMarkerLabels),
+    toCompactCalendarEvents(
+      stay,
+      colorAssignments.get(stay.stayId),
+      compactMarkerLabels,
+      transferIndicatorLabels,
+    ),
   );
 }
 
@@ -150,10 +169,25 @@ function toCompactCalendarEvents(
   stay: Stay,
   color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
+  transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput[] {
   return [
-    toCompactCalendarEvent(stay, new Date(stay.startAt), 'start', color, compactMarkerLabels),
-    toCompactCalendarEvent(stay, new Date(stay.endAt), 'end', color, compactMarkerLabels),
+    toCompactCalendarEvent(
+      stay,
+      new Date(stay.startAt),
+      'start',
+      color,
+      compactMarkerLabels,
+      transferIndicatorLabels,
+    ),
+    toCompactCalendarEvent(
+      stay,
+      new Date(stay.endAt),
+      'end',
+      color,
+      compactMarkerLabels,
+      transferIndicatorLabels,
+    ),
   ];
 }
 
@@ -163,6 +197,7 @@ function toCompactCalendarEvent(
   markerKind: CompactMarkerKind,
   color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
+  transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
@@ -190,11 +225,21 @@ function toCompactCalendarEvent(
       compactMarkerKind: markerKind,
       compactMarkerOrder: getCompactMarkerOrder(markerKind),
       compactMarkerLabel: compactMarkerLabels[markerKind],
+      transferIndicator: getTransferIndicator(
+        stay,
+        markerKind === 'start',
+        markerKind === 'end',
+        transferIndicatorLabels,
+      ),
     },
   };
 }
 
-function toDailyCalendarEvents(stay: Stay, color: StayCalendarColor | undefined): EventInput[] {
+function toDailyCalendarEvents(
+  stay: Stay,
+  color: StayCalendarColor | undefined,
+  transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
+): EventInput[] {
   const startDate = new Date(stay.startAt);
   const endDate = new Date(stay.endAt);
   const events: EventInput[] = [];
@@ -203,7 +248,7 @@ function toDailyCalendarEvents(stay: Stay, color: StayCalendarColor | undefined)
   const lastDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
 
   while (currentDate <= lastDate) {
-    events.push(toCalendarEventForDate(stay, currentDate, color));
+    events.push(toCalendarEventForDate(stay, currentDate, color, transferIndicatorLabels));
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
@@ -214,6 +259,7 @@ function toCalendarEventForDate(
   stay: Stay,
   date: Date,
   color: StayCalendarColor | undefined,
+  transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
@@ -235,8 +281,40 @@ function toCalendarEventForDate(
       stayStartAt: stay.startAt,
       stayCreatedAt: stay.createdAt,
       stayDurationDays: getStayDurationDays(stay),
+      transferIndicator: getTransferIndicator(
+        stay,
+        toDateValue(date) === toDateValue(new Date(stay.startAt)),
+        toDateValue(date) === toDateValue(new Date(stay.endAt)),
+        transferIndicatorLabels,
+      ),
     },
   };
+}
+
+function getTransferIndicator(
+  stay: Stay,
+  isArrivalBoundary: boolean,
+  isDepartureBoundary: boolean,
+  labels: StayCalendarTransferIndicatorLabels,
+): string {
+  if (
+    isArrivalBoundary &&
+    isDepartureBoundary &&
+    stay.arrivalTransferRequired === true &&
+    stay.departureTransferRequired === true
+  ) {
+    return labels.arrivalAndDeparture;
+  }
+
+  if (isArrivalBoundary && stay.arrivalTransferRequired === true) {
+    return labels.arrival;
+  }
+
+  if (isDepartureBoundary && stay.departureTransferRequired === true) {
+    return labels.departure;
+  }
+
+  return '';
 }
 
 function getCatNames(stay: Stay): string {

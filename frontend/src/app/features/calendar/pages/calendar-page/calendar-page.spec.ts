@@ -561,6 +561,35 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('renders a transfer car before the stay label with a localized accessible direction', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: { stayId: 'stay-1', transferIndicator: 'Arrival transfer' },
+      },
+    });
+    const element = document.createElement('a');
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: { stayId: 'stay-1', transferIndicator: 'Arrival transfer' },
+      },
+    } as never);
+
+    expect(content.domNodes[0].textContent).toBe('🚗');
+    expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[1].textContent).toBe('Milo');
+    expect(element.getAttribute('aria-label')).toContain('Arrival transfer');
+    expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
   it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {
     createComponent();
     component.setDisplayMode('daily-counts');

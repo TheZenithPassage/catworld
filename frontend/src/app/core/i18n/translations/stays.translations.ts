@@ -12,6 +12,9 @@ export interface StaysTranslations {
     'checked-out': string;
     cancelled: string;
   };
+  operationalIndicators: {
+    transferAssistance: string;
+  };
   pricing: {
     title: string;
     loading: string;
@@ -287,6 +290,9 @@ export const STAYS_TRANSLATIONS = {
       'checked-in': 'En curso',
       'checked-out': 'Finalizada',
       cancelled: 'Cancelada',
+    },
+    operationalIndicators: {
+      transferAssistance: 'Traslado requerido',
     },
     pricing: {
       title: 'Precio acordado',
@@ -587,6 +593,9 @@ export const STAYS_TRANSLATIONS = {
       'checked-in': 'Checked-in',
       'checked-out': 'Checked-out',
       cancelled: 'Cancelled',
+    },
+    operationalIndicators: {
+      transferAssistance: 'Transfer assistance required',
     },
     pricing: {
       title: 'Agreed pricing',

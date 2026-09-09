@@ -874,7 +874,10 @@ Its owner and participating cats remain read-only relationship targets.
 Calendar and overview stay activation open the route-free dialog and refresh
 or replace the edited stay in their existing collections after a successful
 dialog update. Overview rows are pointer and keyboard activatable and contain
-no separate Actions column. Stay detail obtains the full operational Stay only
+no separate Actions column. A transfer-required Stay shows one decorative car
+indicator in both ordinary and contextual overview rows, while the row's
+accessible name retains its detail label and adds the localized transfer meaning.
+Stay detail obtains the full operational Stay only
 to prove whether a recorded agreement exists before exposing Pricing & Payments;
 the lightweight detail response remains economics-free.
 
@@ -1236,6 +1239,10 @@ loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
 uses the applied filtered population. Adjacent-month cells are hidden so dates
 outside the loaded logical interval cannot present incomplete operational results.
+Daily-label and entry/exit-marker views show a decorative car before a stay
+label only at a required arrival or departure boundary; same-day boundaries
+retain their independent compact markers. The localized accessible event name
+states the required direction, and daily-count aggregation remains unchanged.
 
 ### Component Conventions
 

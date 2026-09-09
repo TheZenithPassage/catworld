@@ -80,7 +80,12 @@
           (keydown)="activateRow($event, stay)"
         >
           <div class="stay-heading">
-            <h3>{{ getCatNames(stay) }}</h3>
+            <h3>
+              @if (hasTransferAssistance(stay)) {
+                <span class="stay-transfer-indicator" aria-hidden="true">🚗</span>
+              }
+              {{ getCatNames(stay) }}
+            </h3>
             <strong>{{ getStayStatus(stay) }}</strong>
           </div>
           <p>{{ stay.ownerName }}</p>
@@ -98,7 +103,12 @@
           (keydown)="activateRow($event, stay)"
         >
           <div class="stay-heading">
-            <h3>{{ getCatNames(stay) }}</h3>
+            <h3>
+              @if (hasTransferAssistance(stay)) {
+                <span class="stay-transfer-indicator" aria-hidden="true">🚗</span>
+              }
+              {{ getCatNames(stay) }}
+            </h3>
             <strong>{{ getStayStatus(stay) }}</strong>
           </div>
           <p>{{ stay.ownerName }}</p>

@@ -208,18 +208,41 @@ export class CalendarPage implements OnDestroy {
       }
 
       const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
+      const transferIndicator = event.extendedProps['transferIndicator'];
       const openStayInList = this.text().calendar.openStayInList;
-
-      el.title =
+      const eventLabel =
         typeof compactMarkerLabel === 'string' && compactMarkerLabel
           ? `${compactMarkerLabel}. ${openStayInList}.`
           : openStayInList;
+
+      const accessibleLabel =
+        typeof transferIndicator === 'string' && transferIndicator
+          ? `${transferIndicator}. ${event.title}. ${eventLabel}`
+          : eventLabel;
+
+      el.title = accessibleLabel;
+      el.setAttribute('aria-label', accessibleLabel);
 
       el.style.cursor = 'pointer';
     },
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
-        return true;
+        const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
+
+        if (typeof transferIndicator !== 'string' || !transferIndicator) {
+          return true;
+        }
+
+        const indicator = document.createElement('span');
+        indicator.className = 'stay-event__transfer-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.textContent = '🚗';
+
+        const label = document.createElement('span');
+        label.className = 'fc-event-title';
+        label.textContent = eventInfo.event.title;
+
+        return { domNodes: [indicator, label] };
       }
 
       const accessibleName = document.createElement('span');
@@ -250,6 +273,7 @@ export class CalendarPage implements OnDestroy {
       colorAssignments,
       displayMode: this.displayMode(),
       compactMarkerLabels: this.text().calendar.compactMarkerLabels,
+      transferIndicatorLabels: this.text().calendar.transferIndicators,
       dailyCountLabels: this.text().calendar.dailyCounts,
     });
   });

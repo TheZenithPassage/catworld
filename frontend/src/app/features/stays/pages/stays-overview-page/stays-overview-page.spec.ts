@@ -191,6 +191,39 @@ describe('StaysOverviewPage server paging', () => {
     );
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
   });
+  it.each([
+    ['arrival', { arrivalTransferRequired: true }],
+    ['departure', { departureTransferRequired: true }],
+    ['both', { arrivalTransferRequired: true, departureTransferRequired: true }],
+  ])('shows one transfer indicator and accessible meaning for a %s transfer', (_kind, transfer) => {
+    api.getStayOverview.mockReturnValue(
+      of({
+        items: [
+          {
+            id: 's',
+            startAt: '2099-01-01T10:00:00',
+            endAt: '2099-01-02T10:00:00',
+            status: 'RESERVED',
+            ownerId: 'o',
+            ownerName: 'Ada',
+            cats: [{ id: 'c', name: 'Milo' }],
+            ...transfer,
+          },
+        ],
+        page: 0,
+        pageSize: 10,
+        totalElements: 1,
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+
+    const card = f.nativeElement.querySelector('.overview-card') as HTMLElement;
+    expect(card.querySelectorAll('.stay-transfer-indicator')).toHaveLength(1);
+    expect(card.getAttribute('aria-label')).toContain(
+      f.componentInstance.text().stays.operationalIndicators.transferAssistance,
+    );
+  });
   it('keeps an off-page selected Stay present and actionable without changing the active page', () => {
     api.getStayOverview.mockReturnValue(
       of({
@@ -222,6 +255,27 @@ describe('StaysOverviewPage server paging', () => {
     const open = vi.spyOn(TestBed.inject(EntityDetailDialogService), 'open');
     contextual.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 's' });
+  });
+  it('shows the transfer indicator for a contextual selected Stay', () => {
+    api.getStayById.mockReturnValue(
+      of({
+        startAt: '2099-01-01T10:00:00',
+        endAt: '2099-01-02T10:00:00',
+        ownerId: 'o',
+        cats: [{ catId: 'c', name: 'Milo' }],
+        paymentCondition: 'NO_PAYMENT',
+        outstandingCollectionEligible: false,
+        arrivalTransferRequired: true,
+      }),
+    );
+    const f = TestBed.createComponent(StaysOverviewPage);
+    f.detectChanges();
+
+    const contextual = f.nativeElement.querySelector('.contextual-selection') as HTMLElement;
+    expect(contextual.querySelectorAll('.stay-transfer-indicator')).toHaveLength(1);
+    expect(contextual.getAttribute('aria-label')).toContain(
+      f.componentInstance.text().stays.operationalIndicators.transferAssistance,
+    );
   });
   it('does not reintroduce an off-page selected Stay hidden by the active status filters', () => {
     api.getStayOverview.mockReturnValue(
