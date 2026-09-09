@@ -3593,4 +3593,3 @@ public class StayServiceTest {
     }
 
 }
-
