@@ -20,5 +20,7 @@ public class StayDatePricingPreviewRequestDTO {
     private Boolean departureTransferRequired;
     private Boolean transferWaived;
     @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private java.math.BigDecimal selectedNightlyRate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private java.math.BigDecimal selectedTransferRate;
 }

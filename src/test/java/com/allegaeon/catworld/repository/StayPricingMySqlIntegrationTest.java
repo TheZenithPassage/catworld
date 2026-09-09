@@ -6,6 +6,7 @@ import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
@@ -85,6 +86,7 @@ class StayPricingMySqlIntegrationTest {
     void resetData() {
         when(clock.instant()).thenReturn(Instant.parse("2027-01-01T00:00:00Z"));
         jdbcTemplate.update("delete from stay_pricing_decisions");
+        jdbcTemplate.update("delete from stay_agreed_amount_corrections");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
         jdbcTemplate.update("delete from stay_cat");
         jdbcTemplate.update("delete from stay_payments");
@@ -307,5 +309,25 @@ class StayPricingMySqlIntegrationTest {
         assertEquals(0, new BigDecimal("10").compareTo(
                 persisted.getRetainedNightlyRate()));
         assertEquals(0, new BigDecimal("20").compareTo(persisted.getAgreedAmount()));
+    }
+
+    @Test
+    void transferAdditionWaitsForLockedCurrentRateAndRequiresFreshDecision() throws Exception {
+        UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder().username("transfer-update-" + UUID.randomUUID()).passwordHash(passwordEncoder.encode("password")).role(UserRole.ADMIN).enabled(true).build());
+        Owner owner = ownerRepository.saveAndFlush(Owner.builder().fullName("Transfer Update Owner").primaryPhone("555-0176").createdBy(actor).build());
+        LocalDateTime start = LocalDateTime.of(2027, 11, 1, 12, 0);
+        Cat cat = catRepository.saveAndFlush(Cat.builder().name("Transfer Update Cat").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly);
+        jdbcTemplate.update("update transfer_rates set transfer_rate = null where id = 1"); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        Set<UUID> cats = Set.of(cat.getId());
+        var created = stayService.createStay(StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(cats).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build()).confirmation(stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(cats).build()).getConfirmation()).build());
+        StayUpdateDTO request = StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).build();
+        CountDownLatch locked = new CountDownLatch(1), release = new CountDownLatch(1); TransactionTemplate transaction = new TransactionTemplate(transactionManager); ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> mutation = executor.submit(() -> transaction.execute(status -> { jdbcTemplate.queryForObject("select transfer_rate from transfer_rates where id = 1 for update", BigDecimal.class); jdbcTemplate.update("update transfer_rates set transfer_rate = 10 where id = 1"); locked.countDown(); try { assertTrue(release.await(10, TimeUnit.SECONDS)); } catch (InterruptedException e) { Thread.currentThread().interrupt(); throw new IllegalStateException(e); } return null; }));
+            assertTrue(locked.await(10, TimeUnit.SECONDS)); Future<?> update = executor.submit(() -> stayService.updateStay(created.getStayId(), request)); Thread.sleep(250); assertFalse(update.isDone(), "transfer addition must wait for canonical transfer row"); release.countDown(); mutation.get(10, TimeUnit.SECONDS);
+            ExecutionException failure = org.junit.jupiter.api.Assertions.assertThrows(ExecutionException.class, () -> update.get(10, TimeUnit.SECONDS)); assertInstanceOf(BadRequestException.class, failure.getCause());
+        } finally { release.countDown(); executor.shutdownNow(); }
+        var persisted = stayRepository.findById(created.getStayId()).orElseThrow(); assertFalse(persisted.isArrivalTransferRequired()); assertEquals(0, new BigDecimal("20").compareTo(persisted.getAgreedAmount())); assertEquals(1, jdbcTemplate.queryForObject("select count(*) from stay_pricing_decisions", Integer.class));
     }
 }

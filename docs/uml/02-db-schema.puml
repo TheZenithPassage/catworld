@@ -315,9 +315,6 @@ Category is one of the three fixed values.
 Previous/new values are null or positive,
 and every row records a real transition.
 The actor FK is restrictive.
-Captured transfer legs, waiver, and rate allow
-historical component reconstruction without
-reading the live Stay or current transfer rate.
 end note
 
 note bottom of stay_pricing_decisions
@@ -325,6 +322,9 @@ Append-only pricing confirmations.
 stay_id deliberately has no foreign key,
 so evidence survives stay deletion.
 The actor FK is restrictive.
+Captured transfer legs, waiver, and rate allow
+historical component reconstruction without
+reading the live Stay or current transfer rate.
 end note
 
 note bottom of stay_agreed_amount_corrections
