@@ -328,10 +328,13 @@ public class StayService implements IStayService {
                 stayRequestDTO.isOverrideVaccineConflicts(),
                 currentUser);
 
+        TransferBasis transfer = transferBasis(stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired(), stay.isTransferWaived(), transferRateRepository::findCurrentForUpdate);
+        // Combined pricing paths always take the canonical transfer row before a
+        // nightly category row. Update follows the same order during its
+        // classification and confirmation validation.
         CreationPricingBasis basis = creationPricingBasis(
                 stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cats.size(),
                 nightlyReferenceRateRepository::findByCategoryForUpdate);
-        TransferBasis transfer = transferBasis(stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired(), stay.isTransferWaived(), transferRateRepository::findCurrentForUpdate);
         BigDecimal retainedNightlyRate = basis.retainedNightlyRate();
         long numberOfNights = basis.numberOfNights();
         stay.setRetainedTransferRate(transfer.retainedRate());

@@ -370,8 +370,10 @@ read-only authoritative creation preview from proposed dates and selected cats.
 affecting date-change preview from the existing stay's retained rate, never a
 current global rate unless the request explicitly selects the applicable
 current nightly or transfer basis. A transfer-only selection cannot change the
-nightly basis. Equal-night previews preserve the existing `STAFF` update
-reachability. Preview monetary values are exact decimal strings and each
+nightly basis. Only equal-night previews that are not pricing-affecting retain
+the existing `STAFF` update reachability; a transfer contribution change or
+explicit basis adoption remains an `ADMIN` pricing action. Preview monetary
+values are exact decimal strings and each
 pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
