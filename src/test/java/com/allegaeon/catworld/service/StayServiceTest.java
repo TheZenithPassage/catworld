@@ -1287,6 +1287,15 @@ public class StayServiceTest {
         }
 
         @Test
+        void staleCurrentSelectorMatchingCapturedRateIsRejectedBeforeWrite() {
+            LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("10")).arrivalTransferRequired(true).agreedAmount(new BigDecimal("30")).build();
+            ExistingStayPricingConfirmationDTO confirmation=ExistingStayPricingConfirmationDTO.builder().previousNumberOfNights(2L).previousAgreedAmount(new BigDecimal("30")).numberOfNights(3L).retainedNightlyRate(new BigDecimal("10")).suggestedAmount(new BigDecimal("40")).arrivalTransferRequired(true).departureTransferRequired(false).transferWaived(false).retainedTransferRate(new BigDecimal("10")).selectedTransferRate(new BigDecimal("10")).transferSuggestedAmount(new BigDecimal("10")).build();
+            StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("40")).build()).confirmation(confirmation).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN)); when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
+            assertThrows(StalePricingConfirmationException.class,()->service.updateStay(stay.getId(),request)); verify(stayRepository,never()).save(any()); verify(stayPricingDecisionRepository,never()).saveAndFlush(any());
+        }
+
+        @Test
         void staffWaivedNoneToAnyCurrentSelectorStaysOperational() {
             LocalDateTime start = LocalDateTime.of(2027, 8, 1, 12, 0);
             Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
