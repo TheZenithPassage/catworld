@@ -479,6 +479,11 @@ public class StayService implements IStayService {
         if (pricingAffecting) {
             stay.setRetainedNightlyRate(selectedRetainedNightlyRate);
             stay.setAgreedAmount(newAgreedAmount);
+        } else if (existingLegsForDecision == 0 && requestedLegsForDecision > 0) {
+            stay.setRetainedTransferRate(transferBasis(requestedArrival, requestedDeparture,
+                    requestedWaived, transferRateRepository::findCurrentForUpdate).retainedRate());
+        } else if (requestedLegsForDecision == 0) {
+            stay.setRetainedTransferRate(null);
         }
 
         Stay savedStay = stayRepository.save(stay);

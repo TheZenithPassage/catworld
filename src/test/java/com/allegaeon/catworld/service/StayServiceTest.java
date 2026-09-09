@@ -732,6 +732,34 @@ public class StayServiceTest {
         }
 
         @Test
+        void oneToBothRetainsCapturedRateWhenCurrentRateChanged() {
+            LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("10")).arrivalTransferRequired(true).agreedAmount(new BigDecimal("30")).build(); StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).departureTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("40")).build()).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN)); when(stayMapper.updateEntity(stay,request)).thenAnswer(x->{stay.setDepartureTransferRequired(true);return stay;}); when(stayRepository.save(stay)).thenReturn(stay); when(stayMapper.toResponseDTO(stay,false)).thenReturn(new StayResponseDTO());
+            confirmDateChange(stay,request); service.updateStay(stay.getId(),request); assertEquals(new BigDecimal("10"),stay.getRetainedTransferRate()); verify(transferRateRepository,never()).findCurrentForUpdate();
+        }
+
+        @Test
+        void capturedNullRateIsRetainedAcrossAnyToAnySwap() {
+            LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).arrivalTransferRequired(true).agreedAmount(new BigDecimal("20")).build(); StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(false).departureTransferRequired(true).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(stayMapper.updateEntity(stay,request)).thenAnswer(x->{stay.setArrivalTransferRequired(false);stay.setDepartureTransferRequired(true);return stay;}); when(stayRepository.save(stay)).thenReturn(stay); when(stayMapper.toResponseDTO(stay,false)).thenReturn(new StayResponseDTO());
+            service.updateStay(stay.getId(),request); assertNull(stay.getRetainedTransferRate()); verify(transferRateRepository,never()).findCurrentForUpdate(); verify(stayPricingDecisionRepository,never()).saveAndFlush(any());
+        }
+
+        @Test
+        void waivedZeroChargeAdditionNeedsNoPricingDecisionButCapturesBasis() {
+            LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).agreedAmount(new BigDecimal("20")).build(); StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).transferWaived(true).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(stayMapper.updateEntity(stay,request)).thenAnswer(x->{stay.setArrivalTransferRequired(true);stay.setTransferWaived(true);return stay;}); when(stayRepository.save(stay)).thenReturn(stay); when(stayMapper.toResponseDTO(stay,false)).thenReturn(new StayResponseDTO()); when(transferRateRepository.findById(1L)).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("10")).build()));
+            service.updateStay(stay.getId(),request); assertEquals(new BigDecimal("10"),stay.getRetainedTransferRate()); verify(stayPricingDecisionRepository,never()).saveAndFlush(any());
+        }
+
+        @Test
+        void staleNullTransferConfirmationIsRejectedWhenCurrentRateAppears() {
+            LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).agreedAmount(new BigDecimal("20")).build(); StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(3)).arrivalTransferRequired(true).transferWaived(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("30")).build()).confirmation(ExistingStayPricingConfirmationDTO.builder().previousNumberOfNights(2L).previousAgreedAmount(new BigDecimal("20")).numberOfNights(3L).retainedNightlyRate(new BigDecimal("10")).suggestedAmount(new BigDecimal("30")).arrivalTransferRequired(true).departureTransferRequired(false).transferWaived(true).retainedTransferRate(null).transferSuggestedAmount(BigDecimal.ZERO).build()).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN)); when(transferRateRepository.findById(1L)).thenReturn(Optional.empty()); when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("10")).build()));
+            assertThrows(StalePricingConfirmationException.class,()->service.updateStay(stay.getId(),request)); verify(stayRepository,never()).save(any());
+        }
+
+        @Test
         void transferOnlyCurrentAdoptionRetainsAccommodationBasis() {
             LocalDateTime start=LocalDateTime.of(2027,8,1,12,0); Stay stay=Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2)).retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("10")).arrivalTransferRequired(true).agreedAmount(new BigDecimal("30")).build(); StayUpdateDTO request=StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("35")).build()).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay)); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN)); when(stayMapper.updateEntity(stay,request)).thenReturn(stay); when(stayRepository.save(stay)).thenReturn(stay); when(stayMapper.toResponseDTO(stay,false)).thenReturn(new StayResponseDTO()); when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
