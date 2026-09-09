@@ -16,6 +16,8 @@ export interface StayCalendarTransferIndicatorLabels {
   arrivalAndDeparture: string;
 }
 
+export type StayCalendarTransferIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
+
 export interface DailyCountEventLabels {
   singular: string;
   plural: string;
@@ -231,6 +233,11 @@ function toCompactCalendarEvent(
         markerKind === 'end',
         transferIndicatorLabels,
       ),
+      transferIndicatorKind: getTransferIndicatorKind(
+        stay,
+        markerKind === 'start',
+        markerKind === 'end',
+      ),
     },
   };
 }
@@ -287,6 +294,11 @@ function toCalendarEventForDate(
         toDateValue(date) === toDateValue(new Date(stay.endAt)),
         transferIndicatorLabels,
       ),
+      transferIndicatorKind: getTransferIndicatorKind(
+        stay,
+        toDateValue(date) === toDateValue(new Date(stay.startAt)),
+        toDateValue(date) === toDateValue(new Date(stay.endAt)),
+      ),
     },
   };
 }
@@ -315,6 +327,27 @@ function getTransferIndicator(
   }
 
   return '';
+}
+
+function getTransferIndicatorKind(
+  stay: Stay,
+  isArrivalBoundary: boolean,
+  isDepartureBoundary: boolean,
+): StayCalendarTransferIndicatorKind | null {
+  if (
+    isArrivalBoundary &&
+    isDepartureBoundary &&
+    stay.arrivalTransferRequired === true &&
+    stay.departureTransferRequired === true
+  ) {
+    return 'arrival-and-departure';
+  }
+
+  if (isArrivalBoundary && stay.arrivalTransferRequired === true) {
+    return 'arrival';
+  }
+
+  return isDepartureBoundary && stay.departureTransferRequired === true ? 'departure' : null;
 }
 
 function getCatNames(stay: Stay): string {

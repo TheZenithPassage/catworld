@@ -28,7 +28,11 @@ import { StayApiService } from '../../../stays/services/stay-api.service';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
-import { compareStayCalendarEvents, toStayCalendarEvents } from './stay-calendar-events';
+import {
+  compareStayCalendarEvents,
+  StayCalendarTransferIndicatorKind,
+  toStayCalendarEvents,
+} from './stay-calendar-events';
 import { StaySearchFiltersComponent } from '../../../stays/components/stay-search-filters/stay-search-filters';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
@@ -93,6 +97,15 @@ export class CalendarPage implements OnDestroy {
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
   private stickyHeaderPositionListener: (() => void) | undefined;
   private stickyMonthElement: HTMLElement | undefined;
+  private renderedEventLanguage: string | undefined;
+  private readonly mountedStayEventAccessibility = new Map<
+    HTMLElement,
+    {
+      title: string;
+      compactMarkerLabel: string;
+      transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+    }
+  >();
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -207,24 +220,20 @@ export class CalendarPage implements OnDestroy {
         return;
       }
 
-      const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
-      const transferIndicator = event.extendedProps['transferIndicator'];
-      const openStayInList = this.text().calendar.openStayInList;
-      const eventLabel =
-        typeof compactMarkerLabel === 'string' && compactMarkerLabel
-          ? `${compactMarkerLabel}. ${openStayInList}.`
-          : openStayInList;
-
-      const accessibleLabel =
-        typeof transferIndicator === 'string' && transferIndicator
-          ? `${transferIndicator}. ${event.title}. ${eventLabel}`
-          : eventLabel;
-
-      el.title = accessibleLabel;
-      el.setAttribute('aria-label', accessibleLabel);
+      const details = {
+        title: event.title,
+        compactMarkerLabel:
+          typeof event.extendedProps['compactMarkerLabel'] === 'string'
+            ? event.extendedProps['compactMarkerLabel']
+            : '',
+        transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
+      };
+      this.mountedStayEventAccessibility.set(el, details);
+      this.applyStayEventAccessibleLabel(el, details);
 
       el.style.cursor = 'pointer';
     },
+    eventWillUnmount: ({ el }) => this.mountedStayEventAccessibility.delete(el),
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
         const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
@@ -296,6 +305,13 @@ export class CalendarPage implements OnDestroy {
       if (indicator && today && today.nextElementSibling !== indicator) {
         today.after(indicator);
       }
+      const language = this.language();
+      if (this.renderedEventLanguage !== language) {
+        this.renderedEventLanguage = language;
+        this.mountedStayEventAccessibility.forEach((details, element) =>
+          this.applyStayEventAccessibleLabel(element, details),
+        );
+      }
       this.updateToolbarLayout();
     });
     effect(() => {
@@ -313,6 +329,44 @@ export class CalendarPage implements OnDestroy {
     this.requestId++;
     this.request?.unsubscribe();
     this.disconnectStickyMonth();
+    this.mountedStayEventAccessibility.clear();
+  }
+
+  private getTransferIndicatorKind(
+    extendedProps: Record<string, unknown>,
+  ): StayCalendarTransferIndicatorKind | null {
+    const kind = extendedProps['transferIndicatorKind'];
+
+    return kind === 'arrival' || kind === 'departure' || kind === 'arrival-and-departure'
+      ? kind
+      : null;
+  }
+
+  private applyStayEventAccessibleLabel(
+    element: HTMLElement,
+    details: {
+      title: string;
+      compactMarkerLabel: string;
+      transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+    },
+  ): void {
+    const transferIndicator =
+      details.transferIndicatorKind === 'arrival'
+        ? this.text().calendar.transferIndicators.arrival
+        : details.transferIndicatorKind === 'departure'
+          ? this.text().calendar.transferIndicators.departure
+          : details.transferIndicatorKind === 'arrival-and-departure'
+            ? this.text().calendar.transferIndicators.arrivalAndDeparture
+            : '';
+    const eventLabel = details.compactMarkerLabel
+      ? `${details.compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
+      : this.text().calendar.openStayInList;
+    const accessibleLabel = [transferIndicator, details.title, eventLabel]
+      .filter(Boolean)
+      .join('. ');
+
+    element.title = accessibleLabel;
+    element.setAttribute('aria-label', accessibleLabel);
   }
 
   private updateToolbarLayout(): void {

@@ -571,7 +571,11 @@ describe('CalendarPage', () => {
     const content = eventContent({
       event: {
         title: 'Milo',
-        extendedProps: { stayId: 'stay-1', transferIndicator: 'Arrival transfer' },
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
       },
     });
     const element = document.createElement('a');
@@ -579,15 +583,71 @@ describe('CalendarPage', () => {
       el: element,
       event: {
         title: 'Milo',
-        extendedProps: { stayId: 'stay-1', transferIndicator: 'Arrival transfer' },
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
       },
     } as never);
 
     expect(content.domNodes[0].textContent).toBe('🚗');
     expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
     expect(content.domNodes[1].textContent).toBe('Milo');
-    expect(element.getAttribute('aria-label')).toContain('Arrival transfer');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
     expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('keeps cat identity in daily and compact event labels without transfer assistance', () => {
+    createComponent();
+
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const daily = document.createElement('a');
+    const compact = document.createElement('a');
+    const event = { title: 'Milo', extendedProps: { stayId: 'stay-1' } };
+
+    eventDidMount({ el: daily, event } as never);
+    eventDidMount({
+      el: compact,
+      event: {
+        ...event,
+        extendedProps: { ...event.extendedProps, compactMarkerLabel: 'Check-in' },
+      },
+    } as never);
+
+    expect(daily.getAttribute('aria-label')).toContain('Milo');
+    expect(compact.getAttribute('aria-label')).toContain('Milo');
+    expect(compact.getAttribute('aria-label')).toContain('Check-in');
+  });
+
+  it('rerenders mounted transfer events when the active language changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    stayApiService.getStays.mockReturnValue(of([{ ...stay, arrivalTransferRequired: true }]));
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const spanishLabel = component.calendarEvents()[0].extendedProps?.['transferIndicator'];
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain(spanishLabel);
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.calendarEvents()[0].extendedProps?.['transferIndicator']).not.toBe(
+      spanishLabel,
+    );
+    expect(component.calendarEvents()[0].extendedProps?.['transferIndicator']).toBe(
+      'Arrival transfer',
+    );
+    expect(event.getAttribute('aria-label')).toContain('Arrival transfer');
   });
 
   it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {
