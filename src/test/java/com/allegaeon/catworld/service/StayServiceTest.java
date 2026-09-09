@@ -1287,6 +1287,21 @@ public class StayServiceTest {
         }
 
         @Test
+        void staffWaivedNoneToAnyCurrentSelectorStaysOperational() {
+            LocalDateTime start = LocalDateTime.of(2027, 8, 1, 12, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10")).agreedAmount(new BigDecimal("20")).build();
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(transferRateRepository.findById(1L)).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("15")).build()));
+            var preview = service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                    .startAt(start).endAt(start.plusDays(2)).arrivalTransferRequired(true).transferWaived(true)
+                    .selectedTransferRate(new BigDecimal("15")).build());
+            assertFalse(preview.isPricingDecisionRequired());
+            assertNull(preview.getConfirmation());
+            assertEquals(new BigDecimal("15"), preview.getRetainedTransferRate());
+        }
+
+        @Test
         void existingPreviewUsesRetainedRateAndStaleBasisRejectsUpdate() {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
             Stay stay = Stay.builder().id(UUID.randomUUID())
