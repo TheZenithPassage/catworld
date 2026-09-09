@@ -971,7 +971,11 @@ public class StayService implements IStayService {
             retainedNightlyRate = currentNightlyRate;
         }
         BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
-        boolean pricingDecisionRequired = previousNights != nights || previousTransfer.compareTo(transferSuggestion) != 0;
+        boolean explicitTransferBasisAdoption = selectedTransferRate != null
+                && !sameMoney(selectedTransferRate, stay.getRetainedTransferRate());
+        boolean pricingDecisionRequired = previousNights != nights
+                || previousTransfer.compareTo(transferSuggestion) != 0
+                || explicitTransferBasisAdoption;
         if (pricingDecisionRequired) {
             UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
