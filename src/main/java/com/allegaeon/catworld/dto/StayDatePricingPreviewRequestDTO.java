@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,4 +19,6 @@ public class StayDatePricingPreviewRequestDTO {
     private Boolean arrivalTransferRequired;
     private Boolean departureTransferRequired;
     private Boolean transferWaived;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private java.math.BigDecimal selectedTransferRate;
 }

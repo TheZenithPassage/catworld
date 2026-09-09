@@ -1,10 +1,14 @@
-CREATE TABLE transfer_rates (id BIGINT NOT NULL, transfer_rate DECIMAL(19,0) NULL, PRIMARY KEY (id), CONSTRAINT chk_transfer_rate CHECK (transfer_rate IS NULL OR transfer_rate > 0));
+CREATE TABLE transfer_rates (id BIGINT NOT NULL, transfer_rate DECIMAL(19,0) NULL, PRIMARY KEY (id), CONSTRAINT chk_transfer_rate_id CHECK (id = 1), CONSTRAINT chk_transfer_rate CHECK (transfer_rate IS NULL OR transfer_rate > 0));
 INSERT INTO transfer_rates (id, transfer_rate) VALUES (1, NULL);
 ALTER TABLE stays ADD COLUMN arrival_transfer_required BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE stays ADD COLUMN departure_transfer_required BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE stays ADD COLUMN retained_transfer_rate DECIMAL(19,0) NULL;
 ALTER TABLE stays ADD COLUMN transfer_waived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE stays ADD CONSTRAINT chk_stays_retained_transfer_rate CHECK (retained_transfer_rate IS NULL OR retained_transfer_rate > 0);
+ALTER TABLE stays ADD CONSTRAINT chk_stays_transfer_basis CHECK (arrival_transfer_required OR departure_transfer_required OR retained_transfer_rate IS NULL);
 ALTER TABLE stay_pricing_decisions ADD COLUMN arrival_transfer_required BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE stay_pricing_decisions ADD COLUMN departure_transfer_required BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE stay_pricing_decisions ADD COLUMN retained_transfer_rate DECIMAL(19,0) NULL;
 ALTER TABLE stay_pricing_decisions ADD COLUMN transfer_waived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE stay_pricing_decisions ADD CONSTRAINT chk_pricing_decisions_retained_transfer_rate CHECK (retained_transfer_rate IS NULL OR retained_transfer_rate > 0);
+ALTER TABLE stay_pricing_decisions ADD CONSTRAINT chk_pricing_decisions_transfer_basis CHECK (arrival_transfer_required OR departure_transfer_required OR retained_transfer_rate IS NULL);

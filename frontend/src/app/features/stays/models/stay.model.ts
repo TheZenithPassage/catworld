@@ -38,7 +38,6 @@ export interface Stay {
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
   retainedTransferRate?: MonetaryAmount | null;
-  selectedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount?: MonetaryAmount;
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
@@ -104,6 +103,12 @@ export interface ExistingStayPricingConfirmation {
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
+  arrivalTransferRequired: boolean;
+  departureTransferRequired: boolean;
+  transferWaived: boolean;
+  retainedTransferRate: MonetaryAmount | null;
+  selectedTransferRate?: MonetaryAmount | null;
+  transferSuggestedAmount: MonetaryAmount;
 }
 
 export interface CreationPricingPreview extends CreationPricingConfirmation {
@@ -116,6 +121,12 @@ interface StayDatePricingPreviewBase {
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
+  arrivalTransferRequired: boolean;
+  departureTransferRequired: boolean;
+  transferWaived: boolean;
+  retainedTransferRate: MonetaryAmount | null;
+  transferSuggestedAmount: MonetaryAmount;
+  transferRateUnavailable: boolean;
 }
 
 export type StayDatePricingPreview =
@@ -132,11 +143,18 @@ export interface CreationPricingPreviewRequest {
   startAt: string;
   endAt: string;
   catIds: string[];
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
 }
 
 export interface StayDatePricingPreviewRequest {
   startAt: string;
   endAt: string;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
+  selectedTransferRate?: MonetaryAmount | null;
 }
 
 export interface CreateStayRequest {

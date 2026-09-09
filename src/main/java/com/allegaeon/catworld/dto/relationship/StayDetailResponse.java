@@ -8,5 +8,7 @@ public record StayDetailResponse(UUID stayId, StayStatus status,
                                  LocalDateTime startAt, LocalDateTime endAt,
                                  long numberOfNights, String notes,
                                  OwnerRelationshipItem owner,
-                                 RelationshipPreview<CatRelationshipItem> cats) {
+                                 RelationshipPreview<CatRelationshipItem> cats,
+                                 boolean arrivalTransferRequired,
+                                 boolean departureTransferRequired) {
 }

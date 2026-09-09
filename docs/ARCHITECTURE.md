@@ -350,7 +350,7 @@ on the `Stay` entity or in the database schema.
 Creation resolves the actual cat count to `ONE_CAT`, `TWO_CATS` or
 `THREE_PLUS_CATS` and snapshots that category's current nullable nightly rate
 onto the stay. Later reference-rate changes never reprice the stay. Responses
-derive `suggestedAmount` as retained rate multiplied by authoritative
+derive `suggestedAmount` as the retained accommodation rate multiplied by authoritative
 `numberOfNights`; the suggestion is null when the retained rate is unavailable
 and is never persisted.
 

@@ -92,7 +92,7 @@ public class StayControllerTest {
             StayDetailResponse detail = new StayDetailResponse(id, StayStatus.RESERVED,
                     LocalDateTime.of(2030, 1, 1, 10, 0), LocalDateTime.of(2030, 1, 3, 10, 0),
                     2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada"),
-                    new RelationshipPreview<>(0, List.of()));
+                    new RelationshipPreview<>(0, List.of()), false, false);
             when(stayService.getStayDetail(id)).thenReturn(detail);
             when(stayService.getStayCats(id, 0)).thenReturn(
                     new RelationshipPage<>(List.of(), 0, 5, 0, 0));

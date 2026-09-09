@@ -47,9 +47,10 @@ public class StayMapper {
                 .transferWaived(stay.isTransferWaived())
                 .retainedTransferRate(stay.getRetainedTransferRate())
                 .transferSuggestedAmount(calculateTransferSuggestedAmount(stay))
-                .suggestedAmount(calculateSuggestedAmount(
+                .suggestedAmount(combineSuggestion(calculateSuggestedAmount(
                         stay.getRetainedNightlyRate(),
-                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())))
+                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())),
+                        calculateTransferSuggestedAmount(stay)))
                 .agreedAmount(stay.getAgreedAmount())
                 .canDelete(canDelete)
                 .build();
@@ -120,6 +121,10 @@ public class StayMapper {
         return retainedNightlyRate == null
                 ? null
                 : retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights));
+    }
+
+    private BigDecimal combineSuggestion(BigDecimal accommodation, BigDecimal transfer) {
+        return accommodation == null ? null : accommodation.add(transfer);
     }
     public BigDecimal calculateTransferSuggestedAmount(Stay stay) { if (stay.isTransferWaived() || stay.getRetainedTransferRate() == null) return BigDecimal.ZERO; long legs = (stay.isArrivalTransferRequired()?1:0) + (stay.isDepartureTransferRequired()?1:0); return stay.getRetainedTransferRate().multiply(BigDecimal.valueOf(legs)); }
 
