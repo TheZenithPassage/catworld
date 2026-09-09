@@ -16,6 +16,8 @@ public class StayDatePricingPreviewResponseDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal retainedNightlyRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private BigDecimal accommodationSuggestedAmount;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal suggestedAmount;
     private boolean arrivalTransferRequired;
     private boolean departureTransferRequired;

@@ -112,6 +112,7 @@ export interface ExistingStayPricingConfirmation {
 }
 
 export interface CreationPricingPreview extends CreationPricingConfirmation {
+  accommodationSuggestedAmount?: MonetaryAmount | null;
   transferRateUnavailable?: boolean;
   confirmation: CreationPricingConfirmation;
 }
@@ -121,6 +122,7 @@ interface StayDatePricingPreviewBase {
   currentAgreedAmount: MonetaryAmount | null;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
+  accommodationSuggestedAmount?: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
   arrivalTransferRequired: boolean;
   departureTransferRequired: boolean;

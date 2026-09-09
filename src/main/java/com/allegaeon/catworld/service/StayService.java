@@ -902,6 +902,7 @@ public class StayService implements IStayService {
         return StayPricingPreviewResponseDTO.builder()
                 .numberOfNights(basis.numberOfNights())
                 .retainedNightlyRate(basis.retainedNightlyRate())
+                .accommodationSuggestedAmount(basis.suggestedAmount())
                 .suggestedAmount(suggestion)
                 .arrivalTransferRequired(transfer.arrivalRequired()).departureTransferRequired(transfer.departureRequired())
                 .transferWaived(transfer.waived()).retainedTransferRate(transfer.retainedRate()).transferSuggestedAmount(transfer.suggestion()).transferRateUnavailable(transfer.unavailable())
@@ -982,8 +983,9 @@ public class StayService implements IStayService {
             UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
         }
-        BigDecimal suggestion = combinedSuggestion(stayMapper.calculateSuggestedAmount(
-                retainedNightlyRate, nights), transferSuggestion);
+        BigDecimal accommodationSuggestion = stayMapper.calculateSuggestedAmount(
+                retainedNightlyRate, nights);
+        BigDecimal suggestion = combinedSuggestion(accommodationSuggestion, transferSuggestion);
         ExistingStayPricingConfirmationDTO confirmation = pricingDecisionRequired
                 ? ExistingStayPricingConfirmationDTO.builder()
                         .previousNumberOfNights(previousNights)
@@ -1000,6 +1002,7 @@ public class StayService implements IStayService {
                 .currentAgreedAmount(stay.getAgreedAmount())
                 .numberOfNights(nights)
                 .retainedNightlyRate(retainedNightlyRate)
+                .accommodationSuggestedAmount(accommodationSuggestion)
                 .suggestedAmount(suggestion)
                 .arrivalTransferRequired(arrival).departureTransferRequired(departure).transferWaived(waived).retainedTransferRate(retainedTransfer).transferSuggestedAmount(transferSuggestion).transferRateUnavailable((arrival || departure) && !waived && retainedTransfer == null)
                 .confirmation(confirmation)

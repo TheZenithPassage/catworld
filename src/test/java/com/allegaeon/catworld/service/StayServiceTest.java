@@ -1186,10 +1186,54 @@ public class StayServiceTest {
             assertEquals(0, new BigDecimal("9999999999999999999")
                     .compareTo(preview.getRetainedNightlyRate()));
             assertEquals(0, new BigDecimal("9999999999999999999")
+                    .compareTo(preview.getAccommodationSuggestedAmount()));
+            assertEquals(0, new BigDecimal("9999999999999999999")
                     .compareTo(preview.getSuggestedAmount()));
             assertNotNull(preview.getConfirmation());
             verify(stayRepository, never()).save(any());
             verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        void creationPreviewExposesDistinctAccommodationTransferAndTotalAmounts() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), new BigDecimal("20"),
+                    PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("50")).build());
+            when(transferRateRepository.findById(1L)).thenReturn(Optional.of(
+                    com.allegaeon.catworld.model.TransferRate.builder()
+                            .id(1L).transferRate(new BigDecimal("10")).build()));
+
+            var preview = service.previewCreationPricing(
+                    StayCreationPricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(2))
+                            .catIds(fixture.request().getCatIds())
+                            .arrivalTransferRequired(true).build());
+
+            assertEquals(new BigDecimal("40"), preview.getAccommodationSuggestedAmount());
+            assertEquals(new BigDecimal("10"), preview.getTransferSuggestedAmount());
+            assertEquals(new BigDecimal("50"), preview.getSuggestedAmount());
+        }
+
+        @Test
+        void creationPreviewReturnsNullAccommodationSubtotalWhenAccommodationIsUnavailable() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), null,
+                    PricingDecisionRequestDTO.builder().agreedAmount(BigDecimal.ZERO).build());
+            when(transferRateRepository.findById(1L)).thenReturn(Optional.of(
+                    com.allegaeon.catworld.model.TransferRate.builder()
+                            .id(1L).transferRate(new BigDecimal("10")).build()));
+
+            var preview = service.previewCreationPricing(
+                    StayCreationPricingPreviewRequestDTO.builder()
+                            .startAt(startAt).endAt(startAt.plusDays(2))
+                            .catIds(fixture.request().getCatIds())
+                            .arrivalTransferRequired(true).build());
+
+            assertNull(preview.getAccommodationSuggestedAmount());
+            assertEquals(new BigDecimal("10"), preview.getTransferSuggestedAmount());
+            assertNull(preview.getSuggestedAmount());
         }
 
         @Test

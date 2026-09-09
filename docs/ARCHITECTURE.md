@@ -349,7 +349,7 @@ on the `Stay` entity or in the database schema.
 Creation resolves the actual cat count to `ONE_CAT`, `TWO_CATS` or
 `THREE_PLUS_CATS` and snapshots that category's current nullable nightly rate
 onto the stay. Later reference-rate changes never reprice the stay. Responses
-derive suggestedAmount from retained accommodation rate times authoritative nights plus captured transfer rate times required legs. Transfer is zero for no legs, a waiver, or unavailable captured rate. The complete suggestion is null when accommodation is unavailable and is never persisted.
+derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
 
 Every new stay requires an explicit nested pricing decision from either
 authenticated role. The agreed amount is a non-negative whole number of at
