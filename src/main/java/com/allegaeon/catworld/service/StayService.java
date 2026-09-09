@@ -411,8 +411,9 @@ public class StayService implements IStayService {
                 ? BigDecimal.ZERO : previewTransferRate.multiply(BigDecimal.valueOf(requestedLegsForDecision));
         boolean pricingAffecting = previousNumberOfNights != newNumberOfNights
                 || !sameMoney(stayMapper.calculateTransferSuggestedAmount(stay), previewTransferContribution)
-                || (stayUpdateDTO.getConfirmation() != null
-                && stayUpdateDTO.getConfirmation().getSelectedTransferRate() != null);
+                || (requestedTransferRate != null && existingLegsForDecision > 0
+                && requestedLegsForDecision > 0
+                && !sameMoney(requestedTransferRate, stay.getRetainedTransferRate()));
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
         BigDecimal newAgreedAmount = null;
         BigDecimal selectedRetainedNightlyRate = stay.getRetainedNightlyRate();
@@ -971,7 +972,8 @@ public class StayService implements IStayService {
             retainedNightlyRate = currentNightlyRate;
         }
         BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
-        boolean explicitTransferBasisAdoption = selectedTransferRate != null
+        boolean explicitTransferBasisAdoption = oldTransferLegs > 0 && newTransferLegs > 0
+                && selectedTransferRate != null
                 && !sameMoney(selectedTransferRate, stay.getRetainedTransferRate());
         boolean pricingDecisionRequired = previousNights != nights
                 || previousTransfer.compareTo(transferSuggestion) != 0
