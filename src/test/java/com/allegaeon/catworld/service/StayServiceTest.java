@@ -1279,6 +1279,7 @@ public class StayServiceTest {
             service.updateStay(stay.getId(), update);
             assertEquals(new BigDecimal("15"), stay.getRetainedTransferRate());
             assertEquals(new BigDecimal("10"), stay.getRetainedNightlyRate());
+            stay.setRetainedTransferRate(new BigDecimal("10"));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
             doThrow(new ForbiddenException("ADMIN required")).when(stayPricingAuthorizationPolicy).authorizeNightCountChange(any());
             assertThrows(ForbiddenException.class, () -> service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder()
