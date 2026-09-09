@@ -1411,6 +1411,19 @@ Current diagrams:
 
 ## Public Repository Notes
 
+## Transfer pricing
+
+Transfer assistance is an independent stay component. `arrivalTransferRequired` and
+`departureTransferRequired` are operational flags; a nullable singleton current
+transfer rate is configured by ADMIN and readable by ADMIN/STAFF at
+`/api/transfer-rate`. A stay captures a nullable per-leg rate when a leg is
+added, preserves it for swaps, and records waiver separately. Transfer
+contribution is the captured rate times required legs, or zero when waived or
+unavailable. It is added once to the accommodation suggestion and never affects
+nightly-rate multiplication. Pricing confirmations and immutable pricing-decision
+audit evidence contain both components, so historic activity never reads live
+configuration.
+
 No real credentials are required to run this project locally.
 
 The committed environment examples use dummy local values. The real `.env` file is ignored by Git.

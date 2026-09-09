@@ -15,6 +15,8 @@ export interface StayOverviewItem {
   ownerId: string;
   ownerName: string;
   cats: Array<{ id: string; name: string }>;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
 }
 
 export interface Stay {
@@ -32,6 +34,12 @@ export interface Stay {
   ownerName: string;
   cats: StayCatSummary[];
   retainedNightlyRate: MonetaryAmount | null;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
+  retainedTransferRate?: MonetaryAmount | null;
+  selectedTransferRate?: MonetaryAmount | null;
+  transferSuggestedAmount?: MonetaryAmount;
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
   totalPaid: MonetaryAmount;
@@ -83,6 +91,11 @@ export interface CreationPricingConfirmation {
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
+  retainedTransferRate?: MonetaryAmount | null;
+  transferSuggestedAmount?: MonetaryAmount;
 }
 
 export interface ExistingStayPricingConfirmation {
@@ -132,6 +145,9 @@ export interface CreateStayRequest {
   endAt: string;
   notes: string | null;
   overrideVaccineConflicts: boolean;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
   pricingDecision: PricingDecision;
   confirmation: CreationPricingConfirmation;
 }
@@ -141,6 +157,9 @@ export interface UpdateStayRequest {
   endAt: string;
   notes: string | null;
   overrideVaccineConflicts: boolean;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
   pricingDecision?: PricingDecision;
   confirmation?: ExistingStayPricingConfirmation;
 }

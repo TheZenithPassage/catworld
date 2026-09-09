@@ -15,4 +15,7 @@ public class StayDatePricingPreviewRequestDTO {
     private LocalDateTime startAt;
     @NotNull(message = "endAt is required")
     private LocalDateTime endAt;
+    private Boolean arrivalTransferRequired;
+    private Boolean departureTransferRequired;
+    private Boolean transferWaived;
 }

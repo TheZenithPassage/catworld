@@ -62,7 +62,9 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL AS registered_by_username,
                     NULL AS registered_at,
                     NULL AS annulled,
-                    NULL AS reason
+                    NULL AS reason,
+                    NULL AS arrival_transfer_required, NULL AS departure_transfer_required,
+                    NULL AS transfer_waived, NULL AS retained_transfer_rate
                 FROM nightly_reference_rate_changes rate_change
                 JOIN user_accounts actor ON actor.id = rate_change.changed_by_id
 
@@ -100,7 +102,9 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL,
                     NULL,
                     NULL,
-                    pricing.reason
+                    pricing.reason,
+                    pricing.arrival_transfer_required, pricing.departure_transfer_required,
+                    pricing.transfer_waived, pricing.retained_transfer_rate
                 FROM stay_pricing_decisions pricing
                 JOIN user_accounts actor ON actor.id = pricing.decided_by_id
                 JOIN sensitive_stay_contexts context
@@ -110,6 +114,13 @@ public class SensitiveEconomicActivityReadRepository {
                   AND CHAR_LENGTH(TRIM(pricing.reason)) > 0
                   AND pricing.retained_nightly_rate
                         * pricing.new_number_of_nights
+                        + CASE
+                            WHEN pricing.transfer_waived
+                                OR pricing.retained_transfer_rate IS NULL THEN 0
+                            ELSE pricing.retained_transfer_rate
+                                * ((CASE WHEN pricing.arrival_transfer_required THEN 1 ELSE 0 END)
+                                   + (CASE WHEN pricing.departure_transfer_required THEN 1 ELSE 0 END))
+                          END
                         <> pricing.new_agreed_amount
 
                 UNION ALL
@@ -146,7 +157,8 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL,
                     NULL,
                     NULL,
-                    correction.reason
+                    correction.reason,
+                    NULL, NULL, NULL, NULL
                 FROM stay_agreed_amount_corrections correction
                 JOIN user_accounts actor ON actor.id = correction.decided_by_id
                 JOIN sensitive_stay_contexts context
@@ -186,7 +198,8 @@ public class SensitiveEconomicActivityReadRepository {
                     registrant.username,
                     payment_edit.registered_at,
                     NULL,
-                    payment_edit.reason
+                    payment_edit.reason,
+                    NULL, NULL, NULL, NULL
                 FROM stay_payment_edits payment_edit
                 JOIN user_accounts actor ON actor.id = payment_edit.edited_by_id
                 JOIN user_accounts registrant
@@ -228,7 +241,8 @@ public class SensitiveEconomicActivityReadRepository {
                     registrant.username,
                     annulment.registered_at,
                     NULL,
-                    annulment.reason
+                    annulment.reason,
+                    NULL, NULL, NULL, NULL
                 FROM stay_payment_annulments annulment
                 JOIN user_accounts actor ON actor.id = annulment.annulled_by_id
                 JOIN user_accounts registrant
@@ -270,7 +284,8 @@ public class SensitiveEconomicActivityReadRepository {
                     registrant.username,
                     removal.registered_at,
                     removal.annulled,
-                    removal.reason
+                    removal.reason,
+                    NULL, NULL, NULL, NULL
                 FROM stay_payment_removals removal
                 JOIN user_accounts actor ON actor.id = removal.removed_by_id
                 JOIN user_accounts registrant
@@ -556,7 +571,9 @@ public class SensitiveEconomicActivityReadRepository {
                     string(row[28]),
                     instant(row[29]),
                     booleanValue(row[30]),
-                    string(row[31])
+                    string(row[31]),
+                    booleanValue(row[32]), booleanValue(row[33]),
+                    booleanValue(row[34]), decimal(row[35])
             );
         }
     }

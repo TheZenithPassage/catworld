@@ -20,4 +20,7 @@ public class StayCreationPricingPreviewRequestDTO {
     private LocalDateTime endAt;
     @NotEmpty(message = "At least one cat id is required")
     private Set<UUID> catIds;
+    private Boolean arrivalTransferRequired;
+    private Boolean departureTransferRequired;
+    private Boolean transferWaived;
 }

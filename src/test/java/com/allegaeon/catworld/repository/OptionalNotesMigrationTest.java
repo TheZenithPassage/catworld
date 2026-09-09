@@ -39,6 +39,7 @@ class OptionalNotesMigrationTest {
                 .dataSource(dataSource)
                 .baselineOnMigrate(true)
                 .baselineVersion(MigrationVersion.fromVersion("10"))
+                .target(MigrationVersion.fromVersion("11"))
                 .load()
                 .migrate();
 

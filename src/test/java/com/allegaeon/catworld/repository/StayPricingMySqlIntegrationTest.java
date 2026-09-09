@@ -30,6 +30,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -82,6 +83,7 @@ class StayPricingMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.instant()).thenReturn(Instant.parse("2027-01-01T00:00:00Z"));
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
         jdbcTemplate.update("delete from stay_cat");

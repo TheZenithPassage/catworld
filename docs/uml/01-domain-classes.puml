@@ -80,6 +80,10 @@ package "catworld.domain" {
     +LocalDateTime cancelledAt
     +String notes
     +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable>>
+    +boolean arrivalTransferRequired  <<NotNull>>
+    +boolean departureTransferRequired  <<NotNull>>
+    +BigDecimal retainedTransferRate  <<Decimal(19,0),Nullable>>
+    +boolean transferWaived  <<NotNull>>
     +BigDecimal agreedAmount  <<Decimal(19,0),Nullable>>
     +StayStatus status  <<Transient/Computed>>
     +UserAccount createdBy  <<NotNull>>
@@ -124,10 +128,19 @@ package "catworld.domain" {
     +Instant changedAt  <<NotNull,Immutable>>
   }
 
+  class TransferRate {
+    +Long id  <<Id,Canonical=1>>
+    +BigDecimal transferRate  <<Decimal(19,0),Nullable>>
+  }
+
   class StayPricingDecision {
     +UUID id
     +UUID stayId  <<NotNull,Immutable>>
     +BigDecimal retainedNightlyRate  <<Decimal(19,0),Nullable,Immutable>>
+    +boolean arrivalTransferRequired  <<NotNull,Immutable>>
+    +boolean departureTransferRequired  <<NotNull,Immutable>>
+    +BigDecimal retainedTransferRate  <<Decimal(19,0),Nullable,Immutable>>
+    +boolean transferWaived  <<NotNull,Immutable>>
     +Long previousNumberOfNights  <<Nullable,Immutable>>
     +long newNumberOfNights  <<NotNull,Immutable>>
     +BigDecimal previousAgreedAmount  <<Decimal(19,0),Nullable,Immutable>>
@@ -263,6 +276,12 @@ Rules:
 - all cats in a stay must belong to the same owner
 - no overlapping stays per cat, ignoring cancelled stays
 - retained rate is null or positive; agreed amount is null or non-negative
+- transfer legs are independent; waived transfer retains its captured rate
+end note
+
+note bottom of TransferRate
+Exactly one canonical current row exists.
+A null value means transfer pricing is unavailable.
 end note
 
 note bottom of StayCat
