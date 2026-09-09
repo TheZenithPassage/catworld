@@ -359,7 +359,7 @@ authenticated role. The agreed amount is a non-negative whole number of at
 most 19 digits, including zero. A non-blank reason is required exactly when an
 available suggestion differs numerically from the agreement.
 
-Only a change to the authoritative night count is pricing-affecting. Such an
+A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
 update requires `ADMIN`, a fresh explicit pricing decision and a selected
 retained rate that is either the locked stay's original nullable value or the
 locked current applicable category rate. The service derives the suggestion

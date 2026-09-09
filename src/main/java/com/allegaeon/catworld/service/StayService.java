@@ -387,10 +387,17 @@ public class StayService implements IStayService {
         boolean requestedDeparture = stayUpdateDTO.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : stayUpdateDTO.getDepartureTransferRequired();
         boolean requestedWaived = stayUpdateDTO.getTransferWaived() == null ? stay.isTransferWaived() : stayUpdateDTO.getTransferWaived();
         boolean transferChanged = requestedArrival != stay.isArrivalTransferRequired() || requestedDeparture != stay.isDepartureTransferRequired() || requestedWaived != stay.isTransferWaived();
-        boolean equalTransferLegCount = ((stay.isArrivalTransferRequired() ? 1 : 0) + (stay.isDepartureTransferRequired() ? 1 : 0))
-                == ((requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0))
-                && requestedWaived == stay.isTransferWaived();
-        boolean pricingAffecting = previousNumberOfNights != newNumberOfNights || (transferChanged && !equalTransferLegCount)
+        int existingLegsForDecision = (stay.isArrivalTransferRequired() ? 1 : 0)
+                + (stay.isDepartureTransferRequired() ? 1 : 0);
+        int requestedLegsForDecision = (requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0);
+        BigDecimal previewTransferRate = existingLegsForDecision == 0 && requestedLegsForDecision > 0
+                ? transferBasis(requestedArrival, requestedDeparture, requestedWaived,
+                        () -> transferRateRepository.findById(1L)).retainedRate()
+                : (requestedLegsForDecision == 0 ? null : stay.getRetainedTransferRate());
+        BigDecimal previewTransferContribution = requestedWaived || previewTransferRate == null
+                ? BigDecimal.ZERO : previewTransferRate.multiply(BigDecimal.valueOf(requestedLegsForDecision));
+        boolean pricingAffecting = previousNumberOfNights != newNumberOfNights
+                || !sameMoney(stayMapper.calculateTransferSuggestedAmount(stay), previewTransferContribution)
                 || (stayUpdateDTO.getConfirmation() != null
                 && stayUpdateDTO.getConfirmation().getSelectedTransferRate() != null);
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
