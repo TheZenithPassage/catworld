@@ -21,6 +21,7 @@ import { createLanguageResetError } from '../../../../core/i18n/language-reset-e
 import { OwnerLookupAdapter } from '../../../../shared/entity-lookup/domain-lookup.adapters';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import {
   VaccineConflictDialog,
@@ -62,6 +63,7 @@ export class StayCreatePage implements AfterViewInit {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly creationFlow = inject(CreationFlowService);
   private readonly dialog = inject(MatDialog);
+  private readonly transferRateApiService = inject(TransferRateApiService);
   private readonly ownerSelector = viewChild.required(RemoteEntitySelector<OwnerLookup>);
 
   readonly text = this.i18nService.text;
@@ -76,12 +78,28 @@ export class StayCreatePage implements AfterViewInit {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly transferAssistanceActive = signal(false);
+  readonly arrivalTransferRequired = signal(false);
+  readonly departureTransferRequired = signal(false);
+  readonly transferWaived = signal(false);
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<CreationPricingPreview | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
   readonly stalePricing = signal(false);
+  readonly currentTransferRate = signal<string | null>(null);
+  readonly displayedTransferRate = computed(() => {
+    const preview = this.pricingPreview();
+
+    if (preview?.retainedTransferRate !== null && preview?.retainedTransferRate !== undefined) {
+      return preview.retainedTransferRate;
+    }
+
+    return !this.arrivalTransferRequired() && !this.departureTransferRequired()
+      ? this.currentTransferRate()
+      : null;
+  });
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -138,6 +156,13 @@ export class StayCreatePage implements AfterViewInit {
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
   private pendingRestoredRelationships: { ownerId: string; catIds: string[] } | null = null;
+
+  constructor() {
+    this.transferRateApiService.getCurrentRate().subscribe({
+      next: ({ transferRate }) => this.currentTransferRate.set(transferRate),
+      error: () => this.currentTransferRate.set(null),
+    });
+  }
 
   ngAfterViewInit(): void {
     const queryParamMap = this.route.snapshot.queryParamMap;
@@ -226,6 +251,31 @@ export class StayCreatePage implements AfterViewInit {
     this.refreshPricingPreview();
   }
 
+  onTransferAssistanceChange(active: boolean): void {
+    this.transferAssistanceActive.set(active);
+
+    if (active) return;
+
+    const transferStateChanged =
+      this.arrivalTransferRequired() || this.departureTransferRequired() || this.transferWaived();
+    this.arrivalTransferRequired.set(false);
+    this.departureTransferRequired.set(false);
+    this.transferWaived.set(false);
+
+    if (transferStateChanged) {
+      this.clearVaccineOverrideRecovery();
+      this.refreshPricingPreview();
+    }
+  }
+
+  onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
+    if (kind === 'arrival') this.arrivalTransferRequired.set(value);
+    else if (kind === 'departure') this.departureTransferRequired.set(value);
+    else this.transferWaived.set(value);
+    this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
+  }
+
   onPricingDecisionChange(): void {
     this.pricingConfirmed.set(false);
   }
@@ -310,6 +360,7 @@ export class StayCreatePage implements AfterViewInit {
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
+      ...this.transferInputs(),
       pricingDecision: {
         agreedAmount: this.agreedAmount(),
         reason: this.pricingReason().trim() || null,
@@ -442,11 +493,23 @@ export class StayCreatePage implements AfterViewInit {
     }
 
     const catIds = [...this.selectedCatIds()].sort();
-    const basis = JSON.stringify([this.startAt(), this.endAt(), catIds]);
+    const basis = JSON.stringify([
+      this.startAt(),
+      this.endAt(),
+      catIds,
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+    ]);
     this.previewLoading.set(true);
 
     this.stayApiService
-      .previewCreationPricing({ startAt: this.startAt(), endAt: this.endAt(), catIds })
+      .previewCreationPricing({
+        startAt: this.startAt(),
+        endAt: this.endAt(),
+        catIds,
+        ...this.transferInputs(),
+      })
       .subscribe({
         next: (preview) => {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis()) {
@@ -465,7 +528,22 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private currentPreviewBasis(): string {
-    return JSON.stringify([this.startAt(), this.endAt(), [...this.selectedCatIds()].sort()]);
+    return JSON.stringify([
+      this.startAt(),
+      this.endAt(),
+      [...this.selectedCatIds()].sort(),
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+    ]);
+  }
+
+  private transferInputs(): Record<string, boolean> {
+    return {
+      ...(this.arrivalTransferRequired() ? { arrivalTransferRequired: true } : {}),
+      ...(this.departureTransferRequired() ? { departureTransferRequired: true } : {}),
+      ...(this.transferWaived() ? { transferWaived: true } : {}),
+    };
   }
 
   private scrollToSubmit(): void {
@@ -488,6 +566,10 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes(),
       agreedAmount: this.agreedAmount(),
       pricingReason: this.pricingReason(),
+      transferAssistanceActive: this.transferAssistanceActive(),
+      arrivalTransferRequired: this.arrivalTransferRequired(),
+      departureTransferRequired: this.departureTransferRequired(),
+      transferWaived: this.transferWaived(),
     };
   }
 
@@ -497,6 +579,13 @@ export class StayCreatePage implements AfterViewInit {
     this.notes.set(draft.notes);
     this.agreedAmount.set(draft.agreedAmount);
     this.pricingReason.set(draft.pricingReason);
+    this.transferAssistanceActive.set(
+      draft.transferAssistanceActive ??
+        Boolean(draft.arrivalTransferRequired || draft.departureTransferRequired),
+    );
+    this.arrivalTransferRequired.set(Boolean(draft.arrivalTransferRequired));
+    this.departureTransferRequired.set(Boolean(draft.departureTransferRequired));
+    this.transferWaived.set(Boolean(draft.transferWaived));
     this.pricingReasonContext.set('manual');
     this.clearVaccineOverrideRecovery();
     this.previewRequestSequence++;

@@ -28,7 +28,11 @@ import { StayApiService } from '../../../stays/services/stay-api.service';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { StayStatusVisibilityPreferencesService } from '../../../stays/services/stay-status-visibility-preferences.service';
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
-import { compareStayCalendarEvents, toStayCalendarEvents } from './stay-calendar-events';
+import {
+  compareStayCalendarEvents,
+  StayCalendarTransferIndicatorKind,
+  toStayCalendarEvents,
+} from './stay-calendar-events';
 import { StaySearchFiltersComponent } from '../../../stays/components/stay-search-filters/stay-search-filters';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
@@ -93,6 +97,7 @@ export class CalendarPage implements OnDestroy {
   private readonly storedCalendarPreferences = this.readStoredCalendarPreferences();
   private stickyHeaderPositionListener: (() => void) | undefined;
   private stickyMonthElement: HTMLElement | undefined;
+  private readonly mountedStayEventAccessibility = new Map<HTMLElement, { eventId: string }>();
 
   readonly text = this.i18nService.text;
   readonly language = this.i18nService.language;
@@ -207,19 +212,30 @@ export class CalendarPage implements OnDestroy {
         return;
       }
 
-      const compactMarkerLabel = event.extendedProps['compactMarkerLabel'];
-      const openStayInList = this.text().calendar.openStayInList;
-
-      el.title =
-        typeof compactMarkerLabel === 'string' && compactMarkerLabel
-          ? `${compactMarkerLabel}. ${openStayInList}.`
-          : openStayInList;
+      this.mountedStayEventAccessibility.set(el, { eventId: event.id });
+      this.applyStayEventAccessibleLabel(el, this.getStayEventAccessibilityDetails(event));
 
       el.style.cursor = 'pointer';
     },
+    eventWillUnmount: ({ el }) => this.mountedStayEventAccessibility.delete(el),
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
-        return true;
+        const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
+
+        if (typeof transferIndicator !== 'string' || !transferIndicator) {
+          return true;
+        }
+
+        const indicator = document.createElement('span');
+        indicator.className = 'stay-event__transfer-indicator';
+        indicator.setAttribute('aria-hidden', 'true');
+        indicator.textContent = '🚗';
+
+        const label = document.createElement('span');
+        label.className = 'fc-event-title';
+        label.textContent = eventInfo.event.title;
+
+        return { domNodes: [indicator, label] };
       }
 
       const accessibleName = document.createElement('span');
@@ -250,6 +266,7 @@ export class CalendarPage implements OnDestroy {
       colorAssignments,
       displayMode: this.displayMode(),
       compactMarkerLabels: this.text().calendar.compactMarkerLabels,
+      transferIndicatorLabels: this.text().calendar.transferIndicators,
       dailyCountLabels: this.text().calendar.dailyCounts,
     });
   });
@@ -272,6 +289,7 @@ export class CalendarPage implements OnDestroy {
       if (indicator && today && today.nextElementSibling !== indicator) {
         today.after(indicator);
       }
+      this.refreshMountedStayEventAccessibility();
       this.updateToolbarLayout();
     });
     effect(() => {
@@ -289,6 +307,85 @@ export class CalendarPage implements OnDestroy {
     this.requestId++;
     this.request?.unsubscribe();
     this.disconnectStickyMonth();
+    this.mountedStayEventAccessibility.clear();
+  }
+
+  private getTransferIndicatorKind(
+    extendedProps: Record<string, unknown>,
+  ): StayCalendarTransferIndicatorKind | null {
+    const kind = extendedProps['transferIndicatorKind'];
+
+    return kind === 'arrival' || kind === 'departure' || kind === 'arrival-and-departure'
+      ? kind
+      : null;
+  }
+
+  private getCompactMarkerKind(extendedProps: Record<string, unknown>): 'start' | 'end' | null {
+    const kind = extendedProps['compactMarkerKind'];
+
+    return kind === 'start' || kind === 'end' ? kind : null;
+  }
+
+  private getStayEventAccessibilityDetails(event: {
+    title: string;
+    extendedProps: Record<string, unknown>;
+  }): {
+    title: string;
+    compactMarkerKind: 'start' | 'end' | null;
+    transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+  } {
+    return {
+      title: event.title,
+      compactMarkerKind: this.getCompactMarkerKind(event.extendedProps),
+      transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
+    };
+  }
+
+  private refreshMountedStayEventAccessibility(): void {
+    const api = this.calendar()?.getApi();
+
+    if (!api) return;
+
+    this.mountedStayEventAccessibility.forEach(({ eventId }, element) => {
+      const event = api.getEventById(eventId);
+
+      if (!event) {
+        this.mountedStayEventAccessibility.delete(element);
+        return;
+      }
+
+      this.applyStayEventAccessibleLabel(element, this.getStayEventAccessibilityDetails(event));
+    });
+  }
+
+  private applyStayEventAccessibleLabel(
+    element: HTMLElement,
+    details: {
+      title: string;
+      compactMarkerKind: 'start' | 'end' | null;
+      transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+    },
+  ): void {
+    const transferIndicator =
+      details.transferIndicatorKind === 'arrival'
+        ? this.text().calendar.transferIndicators.arrival
+        : details.transferIndicatorKind === 'departure'
+          ? this.text().calendar.transferIndicators.departure
+          : details.transferIndicatorKind === 'arrival-and-departure'
+            ? this.text().calendar.transferIndicators.arrivalAndDeparture
+            : '';
+    const compactMarkerLabel = details.compactMarkerKind
+      ? this.text().calendar.compactMarkerLabels[details.compactMarkerKind]
+      : '';
+    const eventLabel = compactMarkerLabel
+      ? `${compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
+      : this.text().calendar.openStayInList;
+    const accessibleLabel = [transferIndicator, details.title, eventLabel]
+      .filter(Boolean)
+      .join('. ');
+
+    element.title = accessibleLabel;
+    element.setAttribute('aria-label', accessibleLabel);
   }
 
   private updateToolbarLayout(): void {

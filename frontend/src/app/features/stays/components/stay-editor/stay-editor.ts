@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
@@ -26,6 +27,7 @@ import {
   NightlyReferenceRateApiService,
   NightlyRateThreshold,
 } from '../../../nightly-rates/services/nightly-reference-rate-api.service';
+import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -41,13 +43,14 @@ import {
 import { StayApiService } from '../../services/stay-api.service';
 import { calculateStayNights } from '../../utils/stay-nights.util';
 import { canModifyStay } from '../../utils/stay-status.util';
-import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
+import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 
 @Component({
   selector: 'app-stay-editor',
   imports: [
     FormsModule,
     MatButton,
+    MatCheckbox,
     MatError,
     MatFormField,
     MatInput,
@@ -61,6 +64,7 @@ import { isValidWholeMoney, multiplyWholeMoney, sameWholeMoney } from '../../uti
 export class StayEditor {
   private readonly stayApiService = inject(StayApiService);
   private readonly nightlyReferenceRateApiService = inject(NightlyReferenceRateApiService);
+  private readonly transferRateApiService = inject(TransferRateApiService);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
@@ -80,10 +84,28 @@ export class StayEditor {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly transferAssistanceActive = signal(false);
+  readonly arrivalTransferRequired = signal(false);
+  readonly departureTransferRequired = signal(false);
+  readonly transferWaived = signal(false);
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
+  readonly currentTransferRate = signal<string | null>(null);
+  readonly displayedTransferRate = computed(() => {
+    const preview = this.pricingPreview();
+
+    if (preview?.retainedTransferRate !== null && preview?.retainedTransferRate !== undefined) {
+      return preview.retainedTransferRate;
+    }
+
+    return !this.arrivalTransferRequired() && !this.departureTransferRequired()
+      ? this.currentTransferRate()
+      : null;
+  });
   readonly workingRetainedNightlyRate = signal<string | null>(null);
+  readonly selectedNightlyRate = signal<string | null>(null);
+  readonly selectedTransferRate = signal<string | null>(null);
   readonly previewLoading = signal(false);
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
@@ -125,7 +147,11 @@ export class StayEditor {
     const preview = this.pricingPreview();
     const catCount = this.stay()?.cats.length ?? 0;
 
-    if (!preview?.pricingDecisionRequired || catCount < 1) {
+    if (
+      !preview?.pricingDecisionRequired ||
+      preview.currentNumberOfNights === preview.numberOfNights ||
+      catCount < 1
+    ) {
       return null;
     }
 
@@ -139,7 +165,6 @@ export class StayEditor {
       currentRate === undefined ||
       !isValidWholeMoney(currentRate) ||
       /^0+$/.test(currentRate) ||
-      multiplyWholeMoney(currentRate, preview.numberOfNights) === null ||
       (this.stay()?.retainedNightlyRate !== null &&
         this.stay()?.retainedNightlyRate !== undefined &&
         sameWholeMoney(currentRate, this.stay()!.retainedNightlyRate!))
@@ -149,10 +174,45 @@ export class StayEditor {
 
     return currentRate;
   });
+  readonly applicableCurrentTransferRate = computed(() => {
+    const preview = this.pricingPreview();
+    const stay = this.stay();
+    const currentRate = this.currentTransferRate();
+
+    if (!preview?.pricingDecisionRequired || stay === null || currentRate === null) {
+      return null;
+    }
+
+    const existingLegs =
+      (stay.arrivalTransferRequired ? 1 : 0) + (stay.departureTransferRequired ? 1 : 0);
+    const requestedLegs =
+      (this.arrivalTransferRequired() ? 1 : 0) + (this.departureTransferRequired() ? 1 : 0);
+    const transferChanged =
+      this.arrivalTransferRequired() !== Boolean(stay.arrivalTransferRequired) ||
+      this.departureTransferRequired() !== Boolean(stay.departureTransferRequired) ||
+      this.transferWaived() !== Boolean(stay.transferWaived);
+    const previousTransferSuggestion = stay.transferSuggestedAmount ?? '0';
+
+    if (
+      existingLegs === 0 ||
+      requestedLegs === 0 ||
+      !transferChanged ||
+      !isValidWholeMoney(currentRate) ||
+      /^0+$/.test(currentRate) ||
+      (stay.retainedTransferRate !== null &&
+        stay.retainedTransferRate !== undefined &&
+        sameWholeMoney(currentRate, stay.retainedTransferRate)) ||
+      (this.selectedTransferRate() === null &&
+        sameWholeMoney(preview.transferSuggestedAmount, previousTransferSuggestion))
+    ) {
+      return null;
+    }
+
+    return currentRate;
+  });
   readonly workingSuggestedAmount = computed(() => {
     const preview = this.pricingPreview();
-    const rate = this.workingRetainedNightlyRate();
-    return preview && rate !== null ? multiplyWholeMoney(rate, preview.numberOfNights) : null;
+    return preview?.suggestedAmount ?? null;
   });
   readonly retainedRateActionLabel = computed(() => {
     const current = this.applicableCurrentRate();
@@ -165,6 +225,13 @@ export class StayEditor {
     return original === null
       ? this.text().stays.pricing.returnWithoutRate
       : this.text().stays.pricing.useOriginalRate;
+  });
+  readonly transferRateActionLabel = computed(() => {
+    const current = this.applicableCurrentTransferRate();
+    if (current === null) return null;
+    return this.selectedTransferRate() !== null
+      ? this.text().stays.pricing.useCapturedTransferRate
+      : this.text().stays.pricing.useCurrentTransferRate;
   });
   readonly reasonRequired = computed(() => {
     const suggestion = this.workingSuggestedAmount();
@@ -199,17 +266,47 @@ export class StayEditor {
 
   constructor() {
     this.loadCurrentNightlyRates();
+    this.loadCurrentTransferRate();
     effect(() => {
       const entity = this.entity();
       untracked(() => this.setFormValues(entity));
     });
   }
 
-  private loadCurrentNightlyRates(): void {
+  private loadCurrentNightlyRates(onSettled?: () => void): void {
     this.nightlyReferenceRateApiService.getCurrentRates().subscribe({
-      next: (rates) => this.currentNightlyRates.set(rates),
-      error: () => this.currentNightlyRates.set([]),
+      next: (rates) => {
+        this.currentNightlyRates.set(rates);
+        onSettled?.();
+      },
+      error: () => {
+        this.currentNightlyRates.set([]);
+        onSettled?.();
+      },
     });
+  }
+
+  private loadCurrentTransferRate(onSettled?: () => void): void {
+    this.transferRateApiService.getCurrentRate().subscribe({
+      next: ({ transferRate }) => {
+        this.currentTransferRate.set(transferRate);
+        onSettled?.();
+      },
+      error: () => {
+        this.currentTransferRate.set(null);
+        onSettled?.();
+      },
+    });
+  }
+
+  private reloadCurrentPricingRates(onSettled: () => void): void {
+    let remaining = 2;
+    const settleOne = (): void => {
+      remaining -= 1;
+      if (remaining === 0) onSettled();
+    };
+    this.loadCurrentNightlyRates(settleOne);
+    this.loadCurrentTransferRate(settleOne);
   }
 
   submit(): void {
@@ -271,17 +368,14 @@ export class StayEditor {
       endAt: this.endAt(),
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
+      ...this.transferInputs(),
       ...(preview.pricingDecisionRequired
         ? {
             pricingDecision: {
               agreedAmount: this.agreedAmount(),
               reason: this.pricingReason().trim() || null,
             },
-            confirmation: {
-              ...preview.confirmation,
-              retainedNightlyRate: this.workingRetainedNightlyRate(),
-              suggestedAmount: this.workingSuggestedAmount(),
-            },
+            confirmation: preview.confirmation,
           }
         : {}),
     };
@@ -305,15 +399,19 @@ export class StayEditor {
       },
       error: (error: unknown) => {
         if (isStalePricingConfirmationError(error)) {
-          this.vaccineOverrideRecoveryBasis = request.overrideVaccineConflicts ? basis : null;
+          const preserveVaccineOverride = request.overrideVaccineConflicts;
           this.setSubmitting(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
           this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+          this.selectedNightlyRate.set(null);
+          this.selectedTransferRate.set(null);
           this.agreedAmountBeforeCurrentRate = null;
-          this.loadCurrentNightlyRates();
+          this.vaccineOverrideRecoveryBasis = preserveVaccineOverride
+            ? this.currentPreviewBasis()
+            : null;
           this.showError(this.text().stays.pricing.errors.stale);
-          this.refreshPricingPreview();
+          this.reloadCurrentPricingRates(() => this.refreshPricingPreview());
           return;
         }
         if (showVaccineConflict && isVaccineConflictError(error)) {
@@ -368,6 +466,14 @@ export class StayEditor {
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
     this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
+    this.selectedNightlyRate.set(null);
+    this.selectedTransferRate.set(null);
+    this.transferAssistanceActive.set(
+      Boolean(stay.arrivalTransferRequired || stay.departureTransferRequired),
+    );
+    this.arrivalTransferRequired.set(Boolean(stay.arrivalTransferRequired));
+    this.departureTransferRequired.set(Boolean(stay.departureTransferRequired));
+    this.transferWaived.set(Boolean(stay.transferWaived));
     this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
@@ -379,13 +485,42 @@ export class StayEditor {
   onStartAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.startAt.set(value);
+    this.clearNightlySelectionWhenAdoptionIsIneligible();
     this.refreshPricingPreview(true);
   }
 
   onEndAtChange(value: string): void {
     this.clearVaccineOverrideRecovery();
     this.endAt.set(value);
+    this.clearNightlySelectionWhenAdoptionIsIneligible();
     this.refreshPricingPreview(true);
+  }
+
+  onTransferAssistanceChange(active: boolean): void {
+    this.transferAssistanceActive.set(active);
+
+    if (active) return;
+
+    const transferStateChanged =
+      this.arrivalTransferRequired() || this.departureTransferRequired() || this.transferWaived();
+    this.arrivalTransferRequired.set(false);
+    this.departureTransferRequired.set(false);
+    this.transferWaived.set(false);
+    this.selectedTransferRate.set(null);
+
+    if (transferStateChanged) {
+      this.clearVaccineOverrideRecovery();
+      this.refreshPricingPreview();
+    }
+  }
+
+  onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
+    if (kind === 'arrival') this.arrivalTransferRequired.set(value);
+    else if (kind === 'departure') this.departureTransferRequired.set(value);
+    else this.transferWaived.set(value);
+    this.selectedTransferRate.set(null);
+    this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
   }
 
   onPricingDecisionChange(): void {
@@ -418,7 +553,8 @@ export class StayEditor {
       this.previewLoading() ||
       !this.isAdmin() ||
       currentRate === null ||
-      !preview?.pricingDecisionRequired
+      !preview?.pricingDecisionRequired ||
+      preview.currentNumberOfNights === preview.numberOfNights
     ) {
       return;
     }
@@ -426,24 +562,37 @@ export class StayEditor {
     const workingRate = this.workingRetainedNightlyRate();
     if (workingRate === null || !sameWholeMoney(workingRate, currentRate)) {
       if (originalRate === null) this.agreedAmountBeforeCurrentRate = this.agreedAmount();
+      this.selectedNightlyRate.set(currentRate);
       this.workingRetainedNightlyRate.set(currentRate);
-      const currentSuggestion = multiplyWholeMoney(currentRate, preview.numberOfNights);
-      if (currentSuggestion === null) return;
-      this.agreedAmount.set(currentSuggestion);
     } else {
+      this.selectedNightlyRate.set(null);
       this.workingRetainedNightlyRate.set(originalRate);
-      const restoredAgreement =
-        originalRate === null
-          ? (this.agreedAmountBeforeCurrentRate ?? this.agreedAmount())
-          : multiplyWholeMoney(originalRate, preview.numberOfNights);
-      if (restoredAgreement !== null) this.agreedAmount.set(restoredAgreement);
     }
     this.pricingReason.set('');
-    this.pricingReasonContext.set('suggested');
-    this.onPricingDecisionChange();
+    this.refreshPricingPreview(false, true);
   }
 
-  private refreshPricingPreview(resetAgreementForNightChange = false): void {
+  toggleTransferRate(): void {
+    const currentRate = this.applicableCurrentTransferRate();
+    const preview = this.pricingPreview();
+    if (
+      this.previewLoading() ||
+      !this.isAdmin() ||
+      currentRate === null ||
+      !preview?.pricingDecisionRequired
+    ) {
+      return;
+    }
+
+    this.selectedTransferRate.set(this.selectedTransferRate() === null ? currentRate : null);
+    this.pricingReason.set('');
+    this.refreshPricingPreview(false, true);
+  }
+
+  private refreshPricingPreview(
+    resetAgreementForNightChange = false,
+    synchronizeHelperAgreement = false,
+  ): void {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.previewError.set(null);
@@ -463,24 +612,52 @@ export class StayEditor {
     const basis = this.currentPreviewBasis();
     this.previewLoading.set(true);
     this.stayApiService
-      .previewDateChangePricing(this.stayId, { startAt: this.startAt(), endAt: this.endAt() })
+      .previewDateChangePricing(this.stayId, {
+        startAt: this.startAt(),
+        endAt: this.endAt(),
+        ...this.transferInputs(),
+        ...(this.selectedNightlyRate() !== null
+          ? { selectedNightlyRate: this.selectedNightlyRate() }
+          : {}),
+        ...(this.selectedTransferRate() !== null
+          ? { selectedTransferRate: this.selectedTransferRate() }
+          : {}),
+      })
       .subscribe({
         next: (preview) => {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
             return;
           this.pricingPreview.set(preview);
+          if (this.selectedNightlyRate() === null) {
+            this.workingRetainedNightlyRate.set(preview.retainedNightlyRate);
+          }
+          if (
+            this.selectedNightlyRate() === null &&
+            this.pricingReasonContext() === 'suggested' &&
+            preview.pricingDecisionRequired
+          ) {
+            this.agreedAmount.set(preview.suggestedAmount ?? preview.currentAgreedAmount ?? '');
+          }
           if (!preview.pricingDecisionRequired) {
+            this.selectedNightlyRate.set(null);
+            this.selectedTransferRate.set(null);
             this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
             this.agreedAmountBeforeCurrentRate = null;
           }
+          if (synchronizeHelperAgreement && preview.pricingDecisionRequired) {
+            const helperAgreement = preview.suggestedAmount ?? this.agreedAmountBeforeCurrentRate;
+            if (helperAgreement !== null) {
+              this.agreedAmount.set(helperAgreement);
+            }
+            this.pricingReasonContext.set(
+              preview.suggestedAmount === null ? 'manual' : 'suggested',
+            );
+          }
           if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
-            const retainedRate = this.workingRetainedNightlyRate();
-            const suggestion =
-              retainedRate === null
-                ? null
-                : multiplyWholeMoney(retainedRate, preview.numberOfNights);
-            this.agreedAmount.set(suggestion ?? preview.currentAgreedAmount ?? '');
-            this.pricingReasonContext.set(suggestion === null ? 'manual' : 'suggested');
+            this.agreedAmount.set(preview.suggestedAmount ?? preview.currentAgreedAmount ?? '');
+            this.pricingReasonContext.set(
+              preview.suggestedAmount === null ? 'manual' : 'suggested',
+            );
             if (this.stay()?.retainedNightlyRate === null) {
               this.agreedAmountBeforeCurrentRate = preview.currentAgreedAmount ?? '';
             }
@@ -501,7 +678,39 @@ export class StayEditor {
   }
 
   private currentPreviewBasis(): string {
-    return JSON.stringify([this.stayId, this.startAt(), this.endAt()]);
+    return JSON.stringify([
+      this.stayId,
+      this.startAt(),
+      this.endAt(),
+      this.arrivalTransferRequired(),
+      this.departureTransferRequired(),
+      this.transferWaived(),
+      this.selectedNightlyRate(),
+      this.selectedTransferRate(),
+    ]);
+  }
+
+  private transferInputs(): Record<string, boolean> {
+    const stay = this.stay();
+    return {
+      ...(this.arrivalTransferRequired() || stay?.arrivalTransferRequired
+        ? { arrivalTransferRequired: this.arrivalTransferRequired() }
+        : {}),
+      ...(this.departureTransferRequired() || stay?.departureTransferRequired
+        ? { departureTransferRequired: this.departureTransferRequired() }
+        : {}),
+      ...(this.transferWaived() || stay?.transferWaived
+        ? { transferWaived: this.transferWaived() }
+        : {}),
+    };
+  }
+
+  private clearNightlySelectionWhenAdoptionIsIneligible(): void {
+    if (this.numberOfNights() === this.stay()?.numberOfNights) {
+      this.selectedNightlyRate.set(null);
+      this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
+      this.agreedAmountBeforeCurrentRate = null;
+    }
   }
 
   private clearVaccineOverrideRecovery(): void {

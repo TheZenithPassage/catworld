@@ -561,6 +561,165 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('renders a transfer car before the stay label with a localized accessible direction', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    });
+    const element = document.createElement('a');
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    } as never);
+
+    expect(content.domNodes[0].textContent).toBe('🚗');
+    expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[0].classList).toContain('stay-event__transfer-indicator');
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(content.domNodes[0]);
+    expect(getComputedStyle(content.domNodes[0]).backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(content.domNodes[0]).borderRadius).toBe('50%');
+    expect(content.domNodes[1].textContent).toBe('Milo');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+    expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('keeps cat identity in daily and compact event labels without transfer assistance', () => {
+    createComponent();
+
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const daily = document.createElement('a');
+    const compact = document.createElement('a');
+    const event = { title: 'Milo', extendedProps: { stayId: 'stay-1' } };
+
+    eventDidMount({ el: daily, event } as never);
+    eventDidMount({
+      el: compact,
+      event: {
+        ...event,
+        extendedProps: {
+          ...event.extendedProps,
+          compactMarkerLabel: 'Check-in',
+          compactMarkerKind: 'start',
+        },
+      },
+    } as never);
+
+    expect(daily.getAttribute('aria-label')).toContain('Milo');
+    expect(compact.getAttribute('aria-label')).toContain('Milo');
+    expect(compact.getAttribute('aria-label')).toContain(
+      component.text().calendar.compactMarkerLabels.start,
+    );
+  });
+
+  it('rerenders mounted transfer events when the active language changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    stayApiService.getStays.mockReturnValue(of([{ ...stay, arrivalTransferRequired: true }]));
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const spanishLabel = component.calendarEvents()[0].extendedProps?.['transferIndicator'];
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain(spanishLabel);
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.calendarEvents()[0].extendedProps?.['transferIndicator']).not.toBe(
+      spanishLabel,
+    );
+    expect(component.calendarEvents()[0].extendedProps?.['transferIndicator']).toBe(
+      'Arrival transfer',
+    );
+    expect(event.getAttribute('aria-label')).toContain('Arrival transfer');
+  });
+
+  it('relocalizes both mounted compact transfer markers in each language direction', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'entry-exit-markers', visibleMonth: '2099-01-01' }),
+    );
+    stayApiService.getStays.mockReturnValue(
+      of([{ ...stay, arrivalTransferRequired: true, departureTransferRequired: true }]),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const markers = Array.from(
+      fixture.nativeElement.querySelectorAll('.fc-event'),
+    ) as HTMLElement[];
+    expect(markers).toHaveLength(2);
+    expect(markers[0].getAttribute('aria-label')).toContain('Entrada');
+    expect(markers[1].getAttribute('aria-label')).toContain('Salida');
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(markers[0].getAttribute('aria-label')).toContain('Check-in');
+    expect(markers[1].getAttribute('aria-label')).toContain('Check-out');
+
+    TestBed.inject(I18nService).language.set('es');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(markers[0].getAttribute('aria-label')).toContain('Entrada');
+    expect(markers[1].getAttribute('aria-label')).toContain('Salida');
+  });
+
+  it('refreshes a retained event accessible label from same-ID transfer changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain('Milo');
+    expect(event.getAttribute('aria-label')).not.toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+
+    component.stays.set([{ ...stay, arrivalTransferRequired: true }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(event.getAttribute('aria-label')).toContain('Milo');
+    expect(event.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+  });
+
   it('rerenders localized accessible and visual count content and dispatches its aggregate without opening Stay details', () => {
     createComponent();
     component.setDisplayMode('daily-counts');

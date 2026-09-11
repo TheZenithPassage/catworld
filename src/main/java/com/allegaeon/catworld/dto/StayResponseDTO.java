@@ -29,6 +29,11 @@ public class StayResponseDTO {
     private Set<StayCatSummaryDTO> cats;
     private long numberOfNights;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedNightlyRate;
+    private boolean arrivalTransferRequired;
+    private boolean departureTransferRequired;
+    private boolean transferWaived;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal suggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal agreedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal totalPaid;

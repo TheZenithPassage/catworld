@@ -42,6 +42,10 @@ public class StayPricingDecision {
     @DecimalMin(value = "0", inclusive = false)
     @Digits(integer = 19, fraction = 0)
     private BigDecimal retainedNightlyRate;
+    @Column(nullable = false, updatable = false) private boolean arrivalTransferRequired;
+    @Column(nullable = false, updatable = false) private boolean departureTransferRequired;
+    @Column(precision = 19, scale = 0, updatable = false) private BigDecimal retainedTransferRate;
+    @Column(nullable = false, updatable = false) private boolean transferWaived;
 
     @Column(updatable = false)
     private Long previousNumberOfNights;

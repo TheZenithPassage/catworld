@@ -50,6 +50,7 @@ public class SensitiveEconomicActivityMapper {
                     WholeMonetaryAmount.canonicalize(
                             projection.retainedNightlyRate()),
                     projection.numberOfNights(),
+                    Boolean.TRUE.equals(projection.arrivalTransferRequired()), Boolean.TRUE.equals(projection.departureTransferRequired()), Boolean.TRUE.equals(projection.transferWaived()), canonicalizeNullable(projection.retainedTransferRate()), transferSuggestion(projection), suggestion(projection),
                     WholeMonetaryAmount.canonicalize(
                             projection.agreedAmount()),
                     projection.reason()
@@ -154,4 +155,6 @@ public class SensitiveEconomicActivityMapper {
                 ? null
                 : WholeMonetaryAmount.canonicalize(amount);
     }
+    private BigDecimal transferSuggestion(SensitiveEconomicActivityProjection p) { long legs=(Boolean.TRUE.equals(p.arrivalTransferRequired())?1:0)+(Boolean.TRUE.equals(p.departureTransferRequired())?1:0); return Boolean.TRUE.equals(p.transferWaived()) || p.retainedTransferRate()==null ? BigDecimal.ZERO : WholeMonetaryAmount.canonicalize(p.retainedTransferRate().multiply(BigDecimal.valueOf(legs))); }
+    private BigDecimal suggestion(SensitiveEconomicActivityProjection p) { return p.retainedNightlyRate()==null ? null : WholeMonetaryAmount.canonicalize(p.retainedNightlyRate().multiply(BigDecimal.valueOf(p.numberOfNights())).add(transferSuggestion(p))); }
 }

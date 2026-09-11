@@ -370,6 +370,15 @@
   width: 100%;
 }
 
+:host ::ng-deep .fc .stay-event__transfer-indicator {
+  display: inline-block;
+  margin-inline-end: 0.25rem;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 0.9em;
+  line-height: 1;
+}
+
 :host ::ng-deep .fc .fc-daygrid-block-event {
   display: block;
 }

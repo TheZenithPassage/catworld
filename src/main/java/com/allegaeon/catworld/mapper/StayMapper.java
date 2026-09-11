@@ -42,9 +42,15 @@ public class StayMapper {
                         stay.getStartAt(),
                         stay.getEndAt()))
                 .retainedNightlyRate(stay.getRetainedNightlyRate())
-                .suggestedAmount(calculateSuggestedAmount(
+                .arrivalTransferRequired(stay.isArrivalTransferRequired())
+                .departureTransferRequired(stay.isDepartureTransferRequired())
+                .transferWaived(stay.isTransferWaived())
+                .retainedTransferRate(stay.getRetainedTransferRate())
+                .transferSuggestedAmount(calculateTransferSuggestedAmount(stay))
+                .suggestedAmount(combineSuggestion(calculateSuggestedAmount(
                         stay.getRetainedNightlyRate(),
-                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())))
+                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())),
+                        calculateTransferSuggestedAmount(stay)))
                 .agreedAmount(stay.getAgreedAmount())
                 .canDelete(canDelete)
                 .build();
@@ -57,6 +63,9 @@ public class StayMapper {
                 .startAt(stayRequestDTO.getStartAt())
                 .endAt(stayRequestDTO.getEndAt())
                 .notes(normalizeOptional(stayRequestDTO.getNotes()))
+                .arrivalTransferRequired(Boolean.TRUE.equals(stayRequestDTO.getArrivalTransferRequired()))
+                .departureTransferRequired(Boolean.TRUE.equals(stayRequestDTO.getDepartureTransferRequired()))
+                .transferWaived(Boolean.TRUE.equals(stayRequestDTO.getTransferWaived()))
                 .build();
 
     }
@@ -66,6 +75,9 @@ public class StayMapper {
         stay.setStartAt(stayUpdateDTO.getStartAt());
         stay.setEndAt(stayUpdateDTO.getEndAt());
         stay.setNotes(normalizeOptional(stayUpdateDTO.getNotes()));
+        if (stayUpdateDTO.getArrivalTransferRequired() != null) stay.setArrivalTransferRequired(stayUpdateDTO.getArrivalTransferRequired());
+        if (stayUpdateDTO.getDepartureTransferRequired() != null) stay.setDepartureTransferRequired(stayUpdateDTO.getDepartureTransferRequired());
+        if (stayUpdateDTO.getTransferWaived() != null) stay.setTransferWaived(stayUpdateDTO.getTransferWaived());
 
         return stay;
 
@@ -110,6 +122,11 @@ public class StayMapper {
                 ? null
                 : retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights));
     }
+
+    private BigDecimal combineSuggestion(BigDecimal accommodation, BigDecimal transfer) {
+        return accommodation == null ? null : accommodation.add(transfer);
+    }
+    public BigDecimal calculateTransferSuggestedAmount(Stay stay) { if (stay.isTransferWaived() || stay.getRetainedTransferRate() == null) return BigDecimal.ZERO; long legs = (stay.isArrivalTransferRequired()?1:0) + (stay.isDepartureTransferRequired()?1:0); return stay.getRetainedTransferRate().multiply(BigDecimal.valueOf(legs)); }
 
     private Set<StayCatSummaryDTO> toCatSummaries(Stay stay) {
 

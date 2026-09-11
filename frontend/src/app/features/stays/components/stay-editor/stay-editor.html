@@ -18,33 +18,67 @@
 
       @if (canEditStay()) {
         <form class="stay-form" (ngSubmit)="submit()">
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.edit.startDateTime }}</mat-label>
-            <input
-              matInput
-              type="datetime-local"
-              name="startAt"
-              required
-              [ngModel]="startAt()"
-              (ngModelChange)="onStartAtChange($event)"
-            />
-          </mat-form-field>
+          <div class="date-transfer-row">
+            <mat-form-field appearance="outline">
+              <mat-label>{{ text().stays.edit.startDateTime }}</mat-label>
+              <input
+                matInput
+                type="datetime-local"
+                name="startAt"
+                required
+                [ngModel]="startAt()"
+                (ngModelChange)="onStartAtChange($event)"
+              />
+            </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
-            <input
-              matInput
-              type="datetime-local"
-              name="endAt"
-              required
-              [ngModel]="endAt()"
-              (ngModelChange)="onEndAtChange($event)"
-            />
-          </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
+              <input
+                matInput
+                type="datetime-local"
+                name="endAt"
+                required
+                [ngModel]="endAt()"
+                (ngModelChange)="onEndAtChange($event)"
+              />
+            </mat-form-field>
+
+            <div class="transfer-assistance-control">
+              <mat-checkbox
+                [checked]="transferAssistanceActive()"
+                (change)="onTransferAssistanceChange($event.checked)"
+                >{{ text().stays.pricing.transferAssistance }}</mat-checkbox
+              >
+            </div>
+          </div>
 
           <p class="night-count" role="status" aria-atomic="true">
             {{ nightCountLabel() }}
           </p>
+
+          @if (transferAssistanceActive()) {
+            <div
+              class="transfer-options"
+              role="group"
+              [attr.aria-label]="text().stays.pricing.transferAssistance"
+            >
+              <mat-checkbox
+                [checked]="arrivalTransferRequired()"
+                (change)="onTransferChange('arrival', $event.checked)"
+                >{{ text().stays.pricing.arrivalTransfer }}</mat-checkbox
+              >
+              <mat-checkbox
+                [checked]="departureTransferRequired()"
+                (change)="onTransferChange('departure', $event.checked)"
+                >{{ text().stays.pricing.departureTransfer }}</mat-checkbox
+              >
+              <mat-checkbox
+                [checked]="transferWaived()"
+                (change)="onTransferChange('waived', $event.checked)"
+                >{{ text().stays.pricing.transferWaived }}</mat-checkbox
+              >
+            </div>
+          }
 
           <section class="pricing-panel" aria-live="polite">
             <div class="pricing-panel-heading">
@@ -75,10 +109,29 @@
                   <dd>{{ workingRetainedNightlyRate() ?? text().stays.pricing.unavailable }}</dd>
                 </div>
                 <div>
+                  <dt>{{ text().stays.pricing.accommodation }}</dt>
+                  <dd>
+                    {{ preview.accommodationSuggestedAmount ?? text().stays.pricing.unavailable }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{{ text().stays.pricing.transferRate }}</dt>
+                  <dd>{{ displayedTransferRate() ?? text().stays.pricing.unavailable }}</dd>
+                </div>
+                <div>
+                  <dt>{{ text().stays.pricing.transfer }}</dt>
+                  <dd>{{ preview.transferSuggestedAmount }}</dd>
+                </div>
+                <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
-                  <dd>{{ workingSuggestedAmount() ?? text().stays.pricing.unavailable }}</dd>
+                  <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
                 </div>
               </dl>
+              @if (preview.transferRateUnavailable) {
+                <p class="pricing-warning" role="status">
+                  {{ text().stays.pricing.transferUnavailable }}
+                </p>
+              }
               @if (!preview.pricingDecisionRequired) {
                 <p>{{ text().stays.pricing.noReconfirmation }}</p>
               } @else if (!isAdmin()) {
@@ -107,6 +160,18 @@
                       mat-stroked-button
                       type="button"
                       (click)="toggleRetainedRate()"
+                      [disabled]="previewLoading()"
+                    >
+                      {{ actionLabel }}
+                    </button>
+                  </div>
+                }
+                @if (transferRateActionLabel(); as actionLabel) {
+                  <div class="pricing-helper-actions">
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="toggleTransferRate()"
                       [disabled]="previewLoading()"
                     >
                       {{ actionLabel }}

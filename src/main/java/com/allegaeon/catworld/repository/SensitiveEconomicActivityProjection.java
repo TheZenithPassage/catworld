@@ -41,7 +41,11 @@ public record SensitiveEconomicActivityProjection(
         String registeredByUsername,
         Instant registeredAt,
         Boolean annulled,
-        String reason) {
+        String reason,
+        Boolean arrivalTransferRequired,
+        Boolean departureTransferRequired,
+        Boolean transferWaived,
+        BigDecimal retainedTransferRate) {
 
     public record CatProjection(UUID id, String name) {
     }

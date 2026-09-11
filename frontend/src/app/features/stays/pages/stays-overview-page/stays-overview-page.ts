@@ -235,12 +235,19 @@ export class StaysOverviewPage {
     return s.cats.map((c) => c.name).join(', ');
   }
   getOpenDetailAriaLabel(s: StayOverviewItem): string {
-    return this.text().stays.overview.openDetailAriaLabel(
+    const label = this.text().stays.overview.openDetailAriaLabel(
       s.cats.map((cat) => cat.name).join(', '),
       s.ownerName,
       this.formatDate(s.startAt),
       this.formatDate(s.endAt),
     );
+
+    return this.hasTransferAssistance(s)
+      ? `${label}. ${this.text().stays.operationalIndicators.transferAssistance}.`
+      : label;
+  }
+  hasTransferAssistance(s: StayOverviewItem): boolean {
+    return s.arrivalTransferRequired === true || s.departureTransferRequired === true;
   }
   openDetail(s: StayOverviewItem): void {
     this.details
@@ -393,6 +400,8 @@ export class StaysOverviewPage {
       ownerId: detail.owner.id,
       ownerName: detail.owner.fullName,
       cats: stay.cats.map((cat) => ({ id: cat.catId, name: cat.name })),
+      arrivalTransferRequired: stay.arrivalTransferRequired,
+      departureTransferRequired: stay.departureTransferRequired,
     };
   }
   private toBackendStatus(s: StayStatus): StayOverviewStatus {

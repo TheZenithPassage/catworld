@@ -34,6 +34,10 @@ export interface StayCreationDraft {
   notes: string;
   agreedAmount: string;
   pricingReason: string;
+  transferAssistanceActive?: boolean;
+  arrivalTransferRequired?: boolean;
+  departureTransferRequired?: boolean;
+  transferWaived?: boolean;
 }
 
 export interface CreationFlowFrames {

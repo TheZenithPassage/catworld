@@ -23,6 +23,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
+import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayCreatePage } from './stay-create-page';
@@ -85,6 +86,10 @@ describe('StayCreatePage', () => {
     previewCreationPricing: vi.fn(),
   };
 
+  const transferRateApiService = {
+    getCurrentRate: vi.fn(),
+  };
+
   const routerEvents = new Subject<NavigationStart>();
   const router = {
     navigate: vi.fn(),
@@ -143,6 +148,7 @@ describe('StayCreatePage', () => {
       of(owners.find((owner) => owner.id === id) ?? owners[0]),
     );
     stayApiService.previewCreationPricing.mockReturnValue(of(pricingPreview));
+    transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: '25' }));
 
     await TestBed.configureTestingModule({
       imports: [StayCreatePage],
@@ -155,6 +161,10 @@ describe('StayCreatePage', () => {
         {
           provide: StayApiService,
           useValue: stayApiService,
+        },
+        {
+          provide: TransferRateApiService,
+          useValue: transferRateApiService,
         },
         {
           provide: ActivatedRoute,
@@ -351,6 +361,100 @@ describe('StayCreatePage', () => {
     expect(catLink.getAttribute('href')).toBe('/cats/new');
   });
 
+  it('uses one aggregate transfer checkbox beside the dates and reveals all three options together', () => {
+    createComponent();
+    const compiled = fixture.nativeElement as HTMLElement;
+    const dateTransferRow = compiled.querySelector('.date-transfer-row')!;
+
+    expect(component.transferAssistanceActive()).toBe(false);
+    expect(dateTransferRow.querySelectorAll('mat-form-field')).toHaveLength(2);
+    expect(
+      dateTransferRow.querySelector('.transfer-assistance-control mat-checkbox'),
+    ).not.toBeNull();
+    expect(compiled.querySelector('.transfer-options')).toBeNull();
+
+    component.onTransferAssistanceChange(true);
+    fixture.detectChanges();
+
+    const options = compiled.querySelector('.transfer-options')!;
+    expect(options.querySelectorAll(':scope > mat-checkbox')).toHaveLength(3);
+    expect(options.querySelector('h3')).toBeNull();
+    expect(options.getAttribute('aria-label')).toBe(
+      component.text().stays.pricing.transferAssistance,
+    );
+
+    component.onTransferChange('arrival', true);
+    component.onTransferChange('waived', true);
+    component.onTransferAssistanceChange(false);
+    fixture.detectChanges();
+
+    expect(component.arrivalTransferRequired()).toBe(false);
+    expect(component.departureTransferRequired()).toBe(false);
+    expect(component.transferWaived()).toBe(false);
+    expect(compiled.querySelector('.transfer-options')).toBeNull();
+  });
+
+  it('shows the configured transfer rate with a zero contribution without submitting a transfer basis', () => {
+    stayApiService.previewCreationPricing.mockReturnValue(
+      of({
+        ...pricingPreview,
+        accommodationSuggestedAmount: '100',
+        retainedTransferRate: null,
+        transferSuggestedAmount: '0',
+        transferRateUnavailable: false,
+      }),
+    );
+    stayApiService.createStay.mockReturnValue(of(createdStay));
+    createComponent();
+    selectOwner();
+    component.onCatToggle('cat-1', true);
+    component.agreedAmount.set('100');
+    component.confirmPricing();
+    fixture.detectChanges();
+
+    const pricingValues = new Map(
+      [...(fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-summary > div')].map(
+        (row) => [
+          row.querySelector('dt')?.textContent?.trim(),
+          row.querySelector('dd')?.textContent?.trim(),
+        ],
+      ),
+    );
+    expect(pricingValues.get(component.text().stays.pricing.transferRate)).toBe('25');
+    expect(pricingValues.get(component.text().stays.pricing.transfer)).toBe('0');
+
+    component.submit();
+
+    const request = stayApiService.createStay.mock.calls[0][0];
+    expect(request).not.toHaveProperty('retainedTransferRate');
+    expect(request).not.toHaveProperty('arrivalTransferRequired');
+    expect(request).not.toHaveProperty('departureTransferRequired');
+    expect(request).not.toHaveProperty('transferWaived');
+    expect(request.confirmation).toBe(pricingPreview.confirmation);
+  });
+
+  it('keeps the unavailable transfer-rate presentation when no rate or leg exists', () => {
+    transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: null }));
+    createComponent();
+    component.pricingPreview.set({
+      ...pricingPreview,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+    });
+    fixture.detectChanges();
+
+    const transferRateRow = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-summary > div'),
+    ].find(
+      (row) =>
+        row.querySelector('dt')?.textContent?.trim() ===
+        component.text().stays.pricing.transferRate,
+    );
+    expect(transferRateRow?.querySelector('dd')?.textContent?.trim()).toBe(
+      component.text().stays.pricing.unavailable,
+    );
+  });
+
   it('shows a localized Material error and does not create for overlong notes', async () => {
     createComponent();
     fixture.detectChanges();
@@ -376,7 +480,8 @@ describe('StayCreatePage', () => {
     expect(component.selectedOwnerId()).toBe('owner-1');
     expect(component.selectedCatIds()).toEqual(['cat-1']);
     expect(component.availableCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
-    expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(3);
+    expect(fixture.nativeElement.querySelector('.transfer-options')).toBeNull();
   });
 
   it('captures the exact Stay frame and uses one flow identity for related creation', () => {
@@ -413,6 +518,10 @@ describe('StayCreatePage', () => {
     expect(TestBed.inject(CreationFlowService).consumeStay(flowId)).toEqual({
       ...stayDraft,
       catIds: ['cat-2'],
+      transferAssistanceActive: false,
+      arrivalTransferRequired: false,
+      departureTransferRequired: false,
+      transferWaived: false,
     });
   });
 

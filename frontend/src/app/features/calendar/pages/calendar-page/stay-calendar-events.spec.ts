@@ -68,6 +68,55 @@ describe('toStayCalendarEvents', () => {
     expect(events[1].extendedProps?.['compactMarkerLabel']).toBe('Salida');
   });
 
+  it.each([
+    [{}, ['', '']],
+    [{ arrivalTransferRequired: true }, ['Arrival transfer', '']],
+    [{ departureTransferRequired: true }, ['', 'Departure transfer']],
+    [
+      { arrivalTransferRequired: true, departureTransferRequired: true },
+      ['Arrival transfer', 'Departure transfer'],
+    ],
+  ])('places transfer indicators on only their compact boundaries', (overrides, indicators) => {
+    const events = toStayCalendarEvents({
+      visibleStays: [createStay(overrides)],
+      colorAssignments: new Map(),
+      displayMode: 'entry-exit-markers',
+      transferIndicatorLabels: transferIndicatorLabels(),
+    });
+
+    expect(events.map((event) => event.extendedProps?.['transferIndicator'])).toEqual(indicators);
+  });
+
+  it('marks both same-day daily-label boundaries and no interior daily label', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-03T10:00:00',
+          endAt: '2099-06-05T10:00:00',
+          arrivalTransferRequired: true,
+          departureTransferRequired: true,
+        }),
+        createStay({
+          stayId: 'same-day',
+          startAt: '2099-06-08T10:00:00',
+          endAt: '2099-06-08T18:00:00',
+          arrivalTransferRequired: true,
+          departureTransferRequired: true,
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'daily-labels',
+      transferIndicatorLabels: transferIndicatorLabels(),
+    });
+
+    expect(events.map((event) => event.extendedProps?.['transferIndicator'])).toEqual([
+      'Arrival transfer',
+      '',
+      'Departure transfer',
+      'Arrival and departure transfers',
+    ]);
+  });
+
   it('creates one positive explicitly discriminated count event with its aggregate identity', () => {
     const aggregate: CalendarDailyAggregate = {
       date: '2099-06-03',
@@ -163,4 +212,12 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
 
 function getClassNames(event: EventInput): string[] {
   return Array.isArray(event.classNames) ? event.classNames : [];
+}
+
+function transferIndicatorLabels() {
+  return {
+    arrival: 'Arrival transfer',
+    departure: 'Departure transfer',
+    arrivalAndDeparture: 'Arrival and departure transfers',
+  };
 }
