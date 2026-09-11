@@ -367,12 +367,14 @@ stay update validates. Equal-night date or time changes do not reconfirm pricing
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
 read-only authoritative creation preview from proposed dates and selected cats.
 `POST /api/stays/{id}/pricing-preview` gives a persisted `ADMIN` a pricing-
-affecting date-change preview from the existing stay's retained rate, never a
-current global rate unless the request explicitly selects the applicable
-current nightly or transfer basis. A transfer-only selection cannot change the
-nightly basis. Only equal-night previews that are not pricing-affecting retain
-the existing `STAFF` update reachability; a transfer contribution change or
-explicit basis adoption remains an `ADMIN` pricing action. Preview monetary
+affecting change preview from the existing stay's retained rate, never a
+current global rate unless the request explicitly selects an eligible current
+nightly or transfer basis. A current transfer basis may be selected only when
+the requested arrival, departure, or waiver change independently changes the
+transfer contribution and requires a pricing decision; the selector cannot
+create that eligibility itself. An eligible transfer-only decision cannot
+change the nightly basis. Only equal-night previews that are not pricing-
+affecting retain the existing `STAFF` update reachability. Preview monetary
 values are exact decimal strings and each
 pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the

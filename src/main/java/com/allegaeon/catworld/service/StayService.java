@@ -398,22 +398,27 @@ public class StayService implements IStayService {
         if (requestedTransferRate != null && requestedLegsForDecision == 0) {
             throw new StalePricingConfirmationException();
         }
-        // The current rate participates in both the decision classification and final
-        // capture.  Read it once under the canonical row lock so a concurrent rate
-        // change cannot turn a no-decision update into a charged transfer.
-        BigDecimal lockedCurrentTransferRate = (existingLegsForDecision == 0 && requestedLegsForDecision > 0)
-                || requestedTransferRate != null
+        // A new transfer captures the current rate before classifying its contribution.
+        // An explicit selector may choose that rate only after the transfer edit itself
+        // has independently established transfer-pricing eligibility.
+        BigDecimal lockedCurrentTransferRate = existingLegsForDecision == 0 && requestedLegsForDecision > 0
                 ? currentTransferRateForUpdate() : null;
         BigDecimal previewTransferRate = existingLegsForDecision == 0 && requestedLegsForDecision > 0
                 ? lockedCurrentTransferRate
                 : (requestedLegsForDecision == 0 ? null : stay.getRetainedTransferRate());
         BigDecimal previewTransferContribution = requestedWaived || previewTransferRate == null
                 ? BigDecimal.ZERO : previewTransferRate.multiply(BigDecimal.valueOf(requestedLegsForDecision));
+        boolean transferPricingDecisionRequired = !sameMoney(
+                stayMapper.calculateTransferSuggestedAmount(stay),
+                previewTransferContribution);
+        if (requestedTransferRate != null && !transferPricingDecisionRequired) {
+            throw new StalePricingConfirmationException();
+        }
+        if (requestedTransferRate != null && lockedCurrentTransferRate == null) {
+            lockedCurrentTransferRate = currentTransferRateForUpdate();
+        }
         boolean pricingAffecting = previousNumberOfNights != newNumberOfNights
-                || !sameMoney(stayMapper.calculateTransferSuggestedAmount(stay), previewTransferContribution)
-                || (requestedTransferRate != null && existingLegsForDecision > 0
-                && requestedLegsForDecision > 0
-                && !sameMoney(requestedTransferRate, stay.getRetainedTransferRate()));
+                || transferPricingDecisionRequired;
         ExistingStayPricingConfirmationDTO submittedConfirmation = stayUpdateDTO.getConfirmation();
         boolean submittedConfirmationMatchesRequestedTransferBasis = submittedConfirmation != null
                 && submittedConfirmation.getNumberOfNights() != null
@@ -960,6 +965,13 @@ public class StayService implements IStayService {
             retainedTransfer = transferBasis(arrival, departure, waived,
                     () -> transferRateRepository.findById(1L)).retainedRate();
         }
+        BigDecimal defaultTransferSuggestion = waived || retainedTransfer == null
+                ? BigDecimal.ZERO
+                : retainedTransfer.multiply(BigDecimal.valueOf(newTransferLegs));
+        boolean transferPricingDecisionRequired = previousTransfer.compareTo(defaultTransferSuggestion) != 0;
+        if (selectedTransferRate != null && !transferPricingDecisionRequired) {
+            throw new StalePricingConfirmationException();
+        }
         if (selectedTransferRate != null) {
             BigDecimal current = transferBasis(arrival, departure, waived,
                     () -> transferRateRepository.findById(1L)).retainedRate();
@@ -983,12 +995,8 @@ public class StayService implements IStayService {
             retainedNightlyRate = currentNightlyRate;
         }
         BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
-        boolean explicitTransferBasisAdoption = oldTransferLegs > 0 && newTransferLegs > 0
-                && selectedTransferRate != null
-                && !sameMoney(selectedTransferRate, stay.getRetainedTransferRate());
         boolean pricingDecisionRequired = previousNights != nights
-                || previousTransfer.compareTo(transferSuggestion) != 0
-                || explicitTransferBasisAdoption;
+                || transferPricingDecisionRequired;
         if (pricingDecisionRequired) {
             UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
