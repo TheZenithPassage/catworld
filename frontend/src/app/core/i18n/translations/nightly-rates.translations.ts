@@ -27,7 +27,6 @@ export interface NightlyRatesTranslations {
   };
   transfer: {
     title: string;
-    description: string;
     rateLabel: string;
     unavailable: string;
     configure: string;
@@ -71,7 +70,6 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
     },
     transfer: {
       title: 'Asistencia de traslado',
-      description: 'Importe por cada trayecto de llegada o salida.',
       rateLabel: 'Precio por trayecto',
       unavailable: 'No disponible',
       configure: 'Configurar',
@@ -113,7 +111,6 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
     },
     transfer: {
       title: 'Transfer assistance',
-      description: 'Amount for each arrival or departure leg.',
       rateLabel: 'Price per leg',
       unavailable: 'Unavailable',
       configure: 'Configure',

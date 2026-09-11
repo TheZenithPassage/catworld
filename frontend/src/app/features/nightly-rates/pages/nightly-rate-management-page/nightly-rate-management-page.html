@@ -27,7 +27,6 @@
           }}</mat-card-title></mat-card-header
         >
         <mat-card-content>
-          <p>{{ text().nightlyRates.transfer.description }}</p>
           @if (transferLoading()) {
             <app-ui-state kind="loading" [message]="text().nightlyRates.loading" />
           } @else if (transferError()) {

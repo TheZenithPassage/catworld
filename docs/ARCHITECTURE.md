@@ -933,7 +933,11 @@ Stay creation and date editing also consume the backend pricing-preview
 contracts. Angular keeps every monetary value as an exact decimal string,
 invalidates confirmation when pricing-relevant inputs change, rejects late
 preview responses for an older input basis and submits pricing only after an
-explicit confirmation. Existing-stay updates follow the backend
+explicit confirmation. A transfer-assistance checkbox beside the responsive
+date controls reveals the three existing transfer inputs without adding domain
+state. Pricing assistance always shows the transfer-rate and contribution lines;
+when no leg is selected, the current configured rate is display-only context and
+the submitted or confirmed Stay basis remains null. Existing-stay updates follow the backend
 `pricingDecisionRequired` result: ordinary edits remain available to both roles,
 while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
@@ -1241,8 +1245,8 @@ loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
 uses the applied filtered population. Adjacent-month cells are hidden so dates
 outside the loaded logical interval cannot present incomplete operational results.
-Daily-label and entry/exit-marker views show a decorative car before a stay
-label only at a required arrival or departure boundary; same-day boundaries
+Daily-label and entry/exit-marker views show a decorative car on a white
+circular background before a stay label only at a required arrival or departure boundary; same-day boundaries
 retain their independent compact markers. The localized accessible event name
 states the required direction, and daily-count aggregation remains unchanged.
 

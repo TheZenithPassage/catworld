@@ -593,6 +593,10 @@ describe('CalendarPage', () => {
 
     expect(content.domNodes[0].textContent).toBe('🚗');
     expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[0].classList).toContain('stay-event__transfer-indicator');
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(content.domNodes[0]);
+    expect(getComputedStyle(content.domNodes[0]).backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(content.domNodes[0]).borderRadius).toBe('50%');
     expect(content.domNodes[1].textContent).toBe('Milo');
     expect(element.getAttribute('aria-label')).toContain(
       component.text().calendar.transferIndicators.arrival,

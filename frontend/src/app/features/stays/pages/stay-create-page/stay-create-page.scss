@@ -17,6 +17,7 @@
   border: 1px solid rgb(234 216 198 / 0.95);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
+  container-type: inline-size;
 }
 
 .stay-form mat-form-field {
@@ -44,11 +45,39 @@
 .stay-form > app-ui-state,
 .stay-form > .field-with-action,
 .stay-form > .cat-group,
+.stay-form > .date-transfer-row,
 .stay-form > .night-count,
+.stay-form > .transfer-options,
 .stay-form > .pricing-panel,
 .stay-form > mat-form-field:has(textarea),
 .stay-form > .form-actions {
   grid-column: 1 / -1;
+}
+
+.date-transfer-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(12rem, auto);
+  gap: 1rem;
+  align-items: start;
+}
+
+.date-transfer-row mat-form-field {
+  width: 100%;
+}
+
+.transfer-assistance-control {
+  display: flex;
+  min-width: 0;
+  min-height: 3.5rem;
+  align-items: center;
+}
+
+.transfer-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  min-width: 0;
+  padding: 0.25rem 0;
 }
 
 .stay-form > app-ui-state {
@@ -191,11 +220,32 @@
   .stay-form > app-ui-state,
   .stay-form > .field-with-action,
   .stay-form > .cat-group,
+  .stay-form > .date-transfer-row,
   .stay-form > .night-count,
+  .stay-form > .transfer-options,
   .stay-form > .pricing-panel,
   .stay-form > mat-form-field:has(textarea),
   .stay-form > .form-actions {
     grid-column: auto;
+  }
+}
+
+@container (max-width: 42rem) {
+  .date-transfer-row {
+    grid-template-columns: 1fr;
+  }
+
+  .transfer-assistance-control,
+  .transfer-assistance-control mat-checkbox {
+    width: 100%;
+  }
+
+  .transfer-assistance-control {
+    min-height: auto;
+  }
+
+  .transfer-options {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -23,6 +23,7 @@ export interface StaysTranslations {
     retainedRate: string;
     accommodation: string;
     transfer: string;
+    transferAssistance: string;
     transferRate: string;
     transferUnavailable: string;
     arrivalTransfer: string;
@@ -311,6 +312,7 @@ export const STAYS_TRANSLATIONS = {
       retainedRate: 'Tarifa retenida',
       accommodation: 'Alojamiento',
       transfer: 'Traslado',
+      transferAssistance: 'Asistencia de traslado',
       transferRate: 'Tarifa de traslado retenida',
       transferUnavailable: 'No hay tarifa de traslado disponible; el traslado aporta 0.',
       arrivalTransfer: 'Requiere traslado de llegada',
@@ -623,6 +625,7 @@ export const STAYS_TRANSLATIONS = {
       retainedRate: 'Retained rate',
       accommodation: 'Accommodation',
       transfer: 'Transfer',
+      transferAssistance: 'Transfer assistance',
       transferRate: 'Retained transfer rate',
       transferUnavailable: 'No transfer rate is available; transfer contributes 0.',
       arrivalTransfer: 'Arrival transfer required',

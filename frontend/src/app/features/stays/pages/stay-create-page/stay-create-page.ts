@@ -21,6 +21,7 @@ import { createLanguageResetError } from '../../../../core/i18n/language-reset-e
 import { OwnerLookupAdapter } from '../../../../shared/entity-lookup/domain-lookup.adapters';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import {
   VaccineConflictDialog,
@@ -62,6 +63,7 @@ export class StayCreatePage implements AfterViewInit {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly creationFlow = inject(CreationFlowService);
   private readonly dialog = inject(MatDialog);
+  private readonly transferRateApiService = inject(TransferRateApiService);
   private readonly ownerSelector = viewChild.required(RemoteEntitySelector<OwnerLookup>);
 
   readonly text = this.i18nService.text;
@@ -76,6 +78,7 @@ export class StayCreatePage implements AfterViewInit {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly transferAssistanceActive = signal(false);
   readonly arrivalTransferRequired = signal(false);
   readonly departureTransferRequired = signal(false);
   readonly transferWaived = signal(false);
@@ -85,6 +88,18 @@ export class StayCreatePage implements AfterViewInit {
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
   readonly stalePricing = signal(false);
+  readonly currentTransferRate = signal<string | null>(null);
+  readonly displayedTransferRate = computed(() => {
+    const preview = this.pricingPreview();
+
+    if (preview?.retainedTransferRate !== null && preview?.retainedTransferRate !== undefined) {
+      return preview.retainedTransferRate;
+    }
+
+    return !this.arrivalTransferRequired() && !this.departureTransferRequired()
+      ? this.currentTransferRate()
+      : null;
+  });
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -141,6 +156,13 @@ export class StayCreatePage implements AfterViewInit {
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
   private pendingRestoredRelationships: { ownerId: string; catIds: string[] } | null = null;
+
+  constructor() {
+    this.transferRateApiService.getCurrentRate().subscribe({
+      next: ({ transferRate }) => this.currentTransferRate.set(transferRate),
+      error: () => this.currentTransferRate.set(null),
+    });
+  }
 
   ngAfterViewInit(): void {
     const queryParamMap = this.route.snapshot.queryParamMap;
@@ -228,6 +250,24 @@ export class StayCreatePage implements AfterViewInit {
     this.endAt.set(value);
     this.refreshPricingPreview();
   }
+
+  onTransferAssistanceChange(active: boolean): void {
+    this.transferAssistanceActive.set(active);
+
+    if (active) return;
+
+    const transferStateChanged =
+      this.arrivalTransferRequired() || this.departureTransferRequired() || this.transferWaived();
+    this.arrivalTransferRequired.set(false);
+    this.departureTransferRequired.set(false);
+    this.transferWaived.set(false);
+
+    if (transferStateChanged) {
+      this.clearVaccineOverrideRecovery();
+      this.refreshPricingPreview();
+    }
+  }
+
   onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
     if (kind === 'arrival') this.arrivalTransferRequired.set(value);
     else if (kind === 'departure') this.departureTransferRequired.set(value);
@@ -526,6 +566,7 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes(),
       agreedAmount: this.agreedAmount(),
       pricingReason: this.pricingReason(),
+      transferAssistanceActive: this.transferAssistanceActive(),
       arrivalTransferRequired: this.arrivalTransferRequired(),
       departureTransferRequired: this.departureTransferRequired(),
       transferWaived: this.transferWaived(),
@@ -538,6 +579,10 @@ export class StayCreatePage implements AfterViewInit {
     this.notes.set(draft.notes);
     this.agreedAmount.set(draft.agreedAmount);
     this.pricingReason.set(draft.pricingReason);
+    this.transferAssistanceActive.set(
+      draft.transferAssistanceActive ??
+        Boolean(draft.arrivalTransferRequired || draft.departureTransferRequired),
+    );
     this.arrivalTransferRequired.set(Boolean(draft.arrivalTransferRequired));
     this.departureTransferRequired.set(Boolean(draft.departureTransferRequired));
     this.transferWaived.set(Boolean(draft.transferWaived));

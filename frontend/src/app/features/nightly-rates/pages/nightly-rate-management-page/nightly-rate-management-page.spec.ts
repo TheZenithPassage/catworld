@@ -70,6 +70,7 @@ describe('NightlyRateManagementPage', () => {
     expect(text).toContain('45');
     expect(text).toContain('Temporarily unavailable');
     expect(text).toContain('not a per-cat amount');
+    expect(text).not.toContain('Amount for each arrival or departure leg.');
   });
 
   it('keeps STAFF read-only while preserving all categories', async () => {

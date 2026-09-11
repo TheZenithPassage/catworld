@@ -84,6 +84,7 @@ export class StayEditor {
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
+  readonly transferAssistanceActive = signal(false);
   readonly arrivalTransferRequired = signal(false);
   readonly departureTransferRequired = signal(false);
   readonly transferWaived = signal(false);
@@ -91,6 +92,17 @@ export class StayEditor {
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
   readonly currentTransferRate = signal<string | null>(null);
+  readonly displayedTransferRate = computed(() => {
+    const preview = this.pricingPreview();
+
+    if (preview?.retainedTransferRate !== null && preview?.retainedTransferRate !== undefined) {
+      return preview.retainedTransferRate;
+    }
+
+    return !this.arrivalTransferRequired() && !this.departureTransferRequired()
+      ? this.currentTransferRate()
+      : null;
+  });
   readonly workingRetainedNightlyRate = signal<string | null>(null);
   readonly selectedNightlyRate = signal<string | null>(null);
   readonly selectedTransferRate = signal<string | null>(null);
@@ -456,6 +468,9 @@ export class StayEditor {
     this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
     this.selectedNightlyRate.set(null);
     this.selectedTransferRate.set(null);
+    this.transferAssistanceActive.set(
+      Boolean(stay.arrivalTransferRequired || stay.departureTransferRequired),
+    );
     this.arrivalTransferRequired.set(Boolean(stay.arrivalTransferRequired));
     this.departureTransferRequired.set(Boolean(stay.departureTransferRequired));
     this.transferWaived.set(Boolean(stay.transferWaived));
@@ -480,6 +495,25 @@ export class StayEditor {
     this.clearNightlySelectionWhenAdoptionIsIneligible();
     this.refreshPricingPreview(true);
   }
+
+  onTransferAssistanceChange(active: boolean): void {
+    this.transferAssistanceActive.set(active);
+
+    if (active) return;
+
+    const transferStateChanged =
+      this.arrivalTransferRequired() || this.departureTransferRequired() || this.transferWaived();
+    this.arrivalTransferRequired.set(false);
+    this.departureTransferRequired.set(false);
+    this.transferWaived.set(false);
+    this.selectedTransferRate.set(null);
+
+    if (transferStateChanged) {
+      this.clearVaccineOverrideRecovery();
+      this.refreshPricingPreview();
+    }
+  }
+
   onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
     if (kind === 'arrival') this.arrivalTransferRequired.set(value);
     else if (kind === 'departure') this.departureTransferRequired.set(value);
