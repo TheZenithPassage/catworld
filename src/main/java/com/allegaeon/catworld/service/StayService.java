@@ -414,6 +414,16 @@ public class StayService implements IStayService {
                 || (requestedTransferRate != null && existingLegsForDecision > 0
                 && requestedLegsForDecision > 0
                 && !sameMoney(requestedTransferRate, stay.getRetainedTransferRate()));
+        ExistingStayPricingConfirmationDTO submittedConfirmation = stayUpdateDTO.getConfirmation();
+        boolean submittedConfirmationMatchesRequestedTransferBasis = submittedConfirmation != null
+                && submittedConfirmation.getNumberOfNights() != null
+                && submittedConfirmation.getNumberOfNights() == newNumberOfNights
+                && java.util.Objects.equals(submittedConfirmation.getArrivalTransferRequired(), requestedArrival)
+                && java.util.Objects.equals(submittedConfirmation.getDepartureTransferRequired(), requestedDeparture)
+                && java.util.Objects.equals(submittedConfirmation.getTransferWaived(), requestedWaived);
+        if (!pricingAffecting && submittedConfirmationMatchesRequestedTransferBasis) {
+            throw new StalePricingConfirmationException();
+        }
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
         BigDecimal newAgreedAmount = null;
         BigDecimal selectedRetainedNightlyRate = stay.getRetainedNightlyRate();

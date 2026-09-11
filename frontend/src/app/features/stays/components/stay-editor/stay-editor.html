@@ -151,6 +151,18 @@
                     </button>
                   </div>
                 }
+                @if (transferRateActionLabel(); as actionLabel) {
+                  <div class="pricing-helper-actions">
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      (click)="toggleTransferRate()"
+                      [disabled]="previewLoading()"
+                    >
+                      {{ actionLabel }}
+                    </button>
+                  </div>
+                }
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
                   <mat-label>{{ text().stays.pricing.reason }}</mat-label>
                   <textarea

@@ -39,6 +39,8 @@ export interface StaysTranslations {
     useCurrentRate: string;
     useOriginalRate: string;
     returnWithoutRate: string;
+    useCurrentTransferRate: string;
+    useCapturedTransferRate: string;
     confirm: string;
     confirmAfterReason: string;
     confirmed: string;
@@ -325,6 +327,8 @@ export const STAYS_TRANSLATIONS = {
       useCurrentRate: 'Usar tarifa actual',
       useOriginalRate: 'Usar tarifa original',
       returnWithoutRate: 'Volver sin tarifa',
+      useCurrentTransferRate: 'Usar tarifa de traslado actual',
+      useCapturedTransferRate: 'Usar tarifa de traslado retenida',
       confirm: 'Confirmar precio',
       confirmAfterReason: 'Añade un motivo para confirmar',
       confirmed: 'Precio confirmado',
@@ -635,6 +639,8 @@ export const STAYS_TRANSLATIONS = {
       useCurrentRate: 'Use current rate',
       useOriginalRate: 'Use original rate',
       returnWithoutRate: 'Return without rate',
+      useCurrentTransferRate: 'Use current transfer rate',
+      useCapturedTransferRate: 'Use retained transfer rate',
       confirm: 'Confirm pricing',
       confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',
