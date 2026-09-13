@@ -595,8 +595,18 @@ describe('CalendarPage', () => {
     expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
     expect(content.domNodes[0].classList).toContain('stay-event__transfer-indicator');
     (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(content.domNodes[0]);
-    expect(getComputedStyle(content.domNodes[0]).backgroundColor).toBe('rgb(255, 255, 255)');
-    expect(getComputedStyle(content.domNodes[0]).borderRadius).toBe('50%');
+    const indicatorStyle = getComputedStyle(content.domNodes[0]);
+    expect(indicatorStyle.display).toBe('inline-grid');
+    expect(indicatorStyle.placeItems).toBe('center');
+    expect(indicatorStyle.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(indicatorStyle.borderRadius).toBe('50%');
+    expect(content.domNodes[0].style.inlineSize).toBe('1.25em');
+    expect(content.domNodes[0].style.height).toBe('1.25em');
+    expect(content.domNodes[0].style.transform).toBe('translateY(0.06em)');
+    const glyph = content.domNodes[0].querySelector('.stay-event__transfer-glyph') as HTMLElement;
+    expect(glyph.style.position).toBe('relative');
+    expect(glyph.style.top).toBe('-0.25em');
+    expect(glyph.style.left).toBe('-0.07em');
     expect(content.domNodes[1].textContent).toBe('Milo');
     expect(element.getAttribute('aria-label')).toContain(
       component.text().calendar.transferIndicators.arrival,

@@ -24,7 +24,7 @@ import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-en
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
-import { Stay } from '../../models/stay.model';
+import { CreationPricingPreview, Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { StayCreatePage } from './stay-create-page';
 
@@ -212,6 +212,13 @@ describe('StayCreatePage', () => {
     fixture.debugElement.query(By.directive(RemoteEntitySelector)).componentInstance.select(owner);
   }
 
+  function pricingValue(label: string): string | undefined {
+    const row = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-summary > div'),
+    ].find((candidate) => candidate.querySelector('dt')?.textContent?.trim() === label);
+    return row?.querySelector('dd')?.textContent?.trim();
+  }
+
   const stayDraft = {
     ownerId: 'owner-1',
     catIds: ['cat-1', 'cat-2'],
@@ -368,20 +375,53 @@ describe('StayCreatePage', () => {
 
     expect(component.transferAssistanceActive()).toBe(false);
     expect(dateTransferRow.querySelectorAll('mat-form-field')).toHaveLength(2);
-    expect(
-      dateTransferRow.querySelector('.transfer-assistance-control mat-checkbox'),
-    ).not.toBeNull();
+    const assistanceOption = dateTransferRow.querySelector(
+      '.transfer-assistance-control mat-checkbox',
+    ) as HTMLElement;
+    expect(assistanceOption).not.toBeNull();
+    expect(assistanceOption.classList).toContain('transfer-option');
+    expect(getComputedStyle(assistanceOption).borderRadius).toBe('999px');
     expect(compiled.querySelector('.transfer-options')).toBeNull();
 
-    component.onTransferAssistanceChange(true);
+    const assistanceChangeSpy = vi.spyOn(component, 'onTransferAssistanceChange');
+    assistanceOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
 
-    const options = compiled.querySelector('.transfer-options')!;
+    expect(assistanceChangeSpy).toHaveBeenCalledOnce();
+    expect(assistanceChangeSpy).toHaveBeenCalledWith(true);
+    expect(component.transferAssistanceActive()).toBe(true);
+    component.toggleTransferAssistanceFromPill({
+      target: document.createElement('span'),
+      currentTarget: assistanceOption,
+    } as unknown as MouseEvent);
+    expect(assistanceChangeSpy).toHaveBeenCalledOnce();
+
+    const container = compiled.querySelector('.transfer-options-container')!;
+    const options = container.querySelector('.transfer-options')!;
+    expect(compiled.querySelector('.night-count')).toBeNull();
     expect(options.querySelectorAll(':scope > mat-checkbox')).toHaveLength(3);
+    expect(options.querySelectorAll(':scope > .transfer-option')).toHaveLength(3);
+    expect(getComputedStyle(options.querySelector('.transfer-option')!).borderRadius).toBe('999px');
     expect(options.querySelector('h3')).toBeNull();
-    expect(options.getAttribute('aria-label')).toBe(
+    expect(container.getAttribute('aria-label')).toBe(
       component.text().stays.pricing.transferAssistance,
     );
+
+    const arrivalOption = options.querySelector('.transfer-option') as HTMLElement;
+    const transferChangeSpy = vi.spyOn(component, 'onTransferChange');
+    arrivalOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(transferChangeSpy).toHaveBeenCalledOnce();
+    expect(transferChangeSpy).toHaveBeenCalledWith('arrival', true);
+    expect(component.arrivalTransferRequired()).toBe(true);
+
+    component.toggleTransferFromPill(
+      {
+        target: document.createElement('span'),
+        currentTarget: arrivalOption,
+      } as unknown as MouseEvent,
+      'arrival',
+    );
+    expect(transferChangeSpy).toHaveBeenCalledOnce();
 
     component.onTransferChange('arrival', true);
     component.onTransferChange('waived', true);
@@ -433,6 +473,68 @@ describe('StayCreatePage', () => {
     expect(request.confirmation).toBe(pricingPreview.confirmation);
   });
 
+  it('keeps the rendered no-transfer snapshot coherent while a transfer preview is pending', () => {
+    const initialPreview: CreationPricingPreview = {
+      ...pricingPreview,
+      accommodationSuggestedAmount: '100',
+      arrivalTransferRequired: false,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+      transferRateUnavailable: false,
+      confirmation: {
+        ...pricingPreview.confirmation,
+        arrivalTransferRequired: false,
+        departureTransferRequired: false,
+        transferWaived: false,
+        retainedTransferRate: null,
+        transferSuggestedAmount: '0',
+      },
+    };
+    const transferPreview: CreationPricingPreview = {
+      ...initialPreview,
+      departureTransferRequired: true,
+      retainedTransferRate: '20',
+      transferSuggestedAmount: '20',
+      suggestedAmount: '120',
+      confirmation: {
+        ...initialPreview.confirmation,
+        departureTransferRequired: true,
+        retainedTransferRate: '20',
+        transferSuggestedAmount: '20',
+        suggestedAmount: '120',
+      },
+    };
+    const pendingPreview = new Subject<CreationPricingPreview>();
+    stayApiService.previewCreationPricing
+      .mockReturnValueOnce(of(initialPreview))
+      .mockReturnValueOnce(pendingPreview.asObservable());
+    createComponent();
+    selectOwner();
+    component.onCatToggle('cat-1', true);
+    fixture.detectChanges();
+
+    component.onTransferChange('departure', true);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(true);
+    expect(component.pricingPreview()).toBe(initialPreview);
+    expect(component.displayedTransferRate()).toBe('25');
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('25');
+    expect(pricingValue(component.text().stays.pricing.transferRate)).not.toBe(
+      component.text().stays.pricing.unavailable,
+    );
+
+    pendingPreview.next(transferPreview);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(false);
+    expect(component.pricingPreview()).toBe(transferPreview);
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('20');
+    expect(pricingValue(component.text().stays.pricing.transfer)).toBe('20');
+  });
+
   it('keeps the unavailable transfer-rate presentation when no rate or leg exists', () => {
     transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: null }));
     createComponent();
@@ -452,6 +554,27 @@ describe('StayCreatePage', () => {
     );
     expect(transferRateRow?.querySelector('dd')?.textContent?.trim()).toBe(
       component.text().stays.pricing.unavailable,
+    );
+  });
+
+  it('preserves a real unavailable rate from a rendered preview that requires a transfer leg', () => {
+    createComponent();
+    component.pricingPreview.set({
+      ...pricingPreview,
+      arrivalTransferRequired: true,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+      transferRateUnavailable: true,
+    });
+    fixture.detectChanges();
+
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe(
+      component.text().stays.pricing.unavailable,
+    );
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain(
+      component.text().stays.pricing.transferUnavailable,
     );
   });
 

@@ -229,7 +229,16 @@ export class CalendarPage implements OnDestroy {
         const indicator = document.createElement('span');
         indicator.className = 'stay-event__transfer-indicator';
         indicator.setAttribute('aria-hidden', 'true');
-        indicator.textContent = '🚗';
+        indicator.style.inlineSize = '1.25em';
+        indicator.style.height = '1.25em';
+        indicator.style.transform = 'translateY(0.06em)';
+        const glyph = document.createElement('span');
+        glyph.className = 'stay-event__transfer-glyph';
+        glyph.style.position = 'relative';
+        glyph.style.top = '-0.25em';
+        glyph.style.left = '-0.07em';
+        glyph.textContent = '🚗';
+        indicator.append(glyph);
 
         const label = document.createElement('span');
         label.className = 'fc-event-title';

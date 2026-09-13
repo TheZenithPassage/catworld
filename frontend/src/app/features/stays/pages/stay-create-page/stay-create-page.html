@@ -108,39 +108,45 @@
 
       <div class="transfer-assistance-control">
         <mat-checkbox
+          class="transfer-option"
           [checked]="transferAssistanceActive()"
+          (click)="toggleTransferAssistanceFromPill($event)"
           (change)="onTransferAssistanceChange($event.checked)"
           >{{ text().stays.pricing.transferAssistance }}</mat-checkbox
         >
       </div>
     </div>
 
-    <p class="night-count" role="status" aria-atomic="true">
-      {{ nightCountLabel() }}
-    </p>
-
     @if (transferAssistanceActive()) {
-      <div
-        class="transfer-options"
+      <section
+        class="transfer-options-container"
         role="group"
         [attr.aria-label]="text().stays.pricing.transferAssistance"
       >
-        <mat-checkbox
-          [checked]="arrivalTransferRequired()"
-          (change)="onTransferChange('arrival', $event.checked)"
-          >{{ text().stays.pricing.arrivalTransfer }}</mat-checkbox
-        >
-        <mat-checkbox
-          [checked]="departureTransferRequired()"
-          (change)="onTransferChange('departure', $event.checked)"
-          >{{ text().stays.pricing.departureTransfer }}</mat-checkbox
-        >
-        <mat-checkbox
-          [checked]="transferWaived()"
-          (change)="onTransferChange('waived', $event.checked)"
-          >{{ text().stays.pricing.transferWaived }}</mat-checkbox
-        >
-      </div>
+        <div class="transfer-options">
+          <mat-checkbox
+            class="transfer-option"
+            [checked]="arrivalTransferRequired()"
+            (click)="toggleTransferFromPill($event, 'arrival')"
+            (change)="onTransferChange('arrival', $event.checked)"
+            >{{ text().stays.pricing.arrivalTransfer }}</mat-checkbox
+          >
+          <mat-checkbox
+            class="transfer-option"
+            [checked]="departureTransferRequired()"
+            (click)="toggleTransferFromPill($event, 'departure')"
+            (change)="onTransferChange('departure', $event.checked)"
+            >{{ text().stays.pricing.departureTransfer }}</mat-checkbox
+          >
+          <mat-checkbox
+            class="transfer-option"
+            [checked]="transferWaived()"
+            (click)="toggleTransferFromPill($event, 'waived')"
+            (change)="onTransferChange('waived', $event.checked)"
+            >{{ text().stays.pricing.transferWaived }}</mat-checkbox
+          >
+        </div>
+      </section>
     }
 
     <section class="pricing-panel" aria-live="polite">

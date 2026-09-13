@@ -219,7 +219,9 @@ describe('StaysOverviewPage server paging', () => {
     f.detectChanges();
 
     const card = f.nativeElement.querySelector('.overview-card') as HTMLElement;
-    expect(card.querySelectorAll('.stay-transfer-indicator')).toHaveLength(1);
+    const indicator = card.querySelector('.stay-transfer-indicator') as HTMLElement;
+    expect(indicator).not.toBeNull();
+    expect(getComputedStyle(indicator).verticalAlign).toBe('0.1em');
     expect(card.getAttribute('aria-label')).toContain(
       f.componentInstance.text().stays.operationalIndicators.transferAssistance,
     );

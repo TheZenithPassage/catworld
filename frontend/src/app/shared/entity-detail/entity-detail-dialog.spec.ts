@@ -2088,6 +2088,13 @@ describe('Route-free StayEditor migrated coverage', () => {
     component = fixture.componentInstance;
   }
 
+  function pricingValue(label: string): string | undefined {
+    const row = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.pricing-summary > div'),
+    ].find((candidate) => candidate.querySelector('dt')?.textContent?.trim() === label);
+    return row?.querySelector('dd')?.textContent?.trim();
+  }
+
   it('does not offer suggested amount adoption in existing-stay repricing', () => {
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({
@@ -2815,15 +2822,36 @@ describe('Route-free StayEditor migrated coverage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(component.transferAssistanceActive()).toBe(true);
-    expect(
-      compiled.querySelector('.date-transfer-row .transfer-assistance-control'),
-    ).not.toBeNull();
+    const assistanceOption = compiled.querySelector(
+      '.date-transfer-row .transfer-assistance-control mat-checkbox',
+    ) as HTMLElement;
+    expect(assistanceOption).not.toBeNull();
+    expect(assistanceOption.classList).toContain('transfer-option');
+    expect(getComputedStyle(assistanceOption).borderRadius).toBe('999px');
+    expect(compiled.querySelector('.night-count')).toBeNull();
+    expect(compiled.querySelector('.transfer-options-container')).not.toBeNull();
     expect(compiled.querySelectorAll('.transfer-options > mat-checkbox')).toHaveLength(3);
+    expect(compiled.querySelectorAll('.transfer-options > .transfer-option')).toHaveLength(3);
+    expect(getComputedStyle(compiled.querySelector('.transfer-option')!).borderRadius).toBe(
+      '999px',
+    );
     expect(compiled.querySelector('.transfer-options h3')).toBeNull();
 
-    component.onTransferAssistanceChange(false);
+    const departureOption = compiled.querySelectorAll(
+      '.transfer-options .transfer-option',
+    )[1] as HTMLElement;
+    const transferChangeSpy = vi.spyOn(component, 'onTransferChange');
+    departureOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(transferChangeSpy).toHaveBeenCalledOnce();
+    expect(transferChangeSpy).toHaveBeenCalledWith('departure', true);
+    expect(component.departureTransferRequired()).toBe(true);
+
+    const assistanceChangeSpy = vi.spyOn(component, 'onTransferAssistanceChange');
+    assistanceOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     fixture.detectChanges();
 
+    expect(assistanceChangeSpy).toHaveBeenCalledOnce();
+    expect(assistanceChangeSpy).toHaveBeenCalledWith(false);
     expect(component.arrivalTransferRequired()).toBe(false);
     expect(component.departureTransferRequired()).toBe(false);
     expect(component.transferWaived()).toBe(false);
@@ -2876,6 +2904,138 @@ describe('Route-free StayEditor migrated coverage', () => {
       startAt: '2099-01-02T10:00',
       endAt: '2099-01-09T10:00',
     });
+  });
+
+  it('keeps the rendered no-transfer edit snapshot coherent while a transfer preview is pending', () => {
+    const initialPreview: StayDatePricingPreview = {
+      pricingDecisionRequired: false,
+      currentNumberOfNights: 7,
+      currentAgreedAmount: '100',
+      numberOfNights: 7,
+      retainedNightlyRate: '50',
+      accommodationSuggestedAmount: '350',
+      suggestedAmount: '350',
+      arrivalTransferRequired: false,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+      transferRateUnavailable: false,
+      confirmation: null,
+    };
+    const transferPreview: StayDatePricingPreview = {
+      ...initialPreview,
+      pricingDecisionRequired: true,
+      arrivalTransferRequired: true,
+      retainedTransferRate: '20',
+      transferSuggestedAmount: '20',
+      suggestedAmount: '370',
+      confirmation: {
+        previousNumberOfNights: 7,
+        previousAgreedAmount: '100',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '370',
+        arrivalTransferRequired: true,
+        departureTransferRequired: false,
+        transferWaived: false,
+        retainedTransferRate: '20',
+        transferSuggestedAmount: '20',
+      },
+    };
+    const pendingPreview = new Subject<StayDatePricingPreview>();
+    transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: '25' }));
+    stayApiService.previewDateChangePricing
+      .mockReturnValueOnce(of(initialPreview))
+      .mockReturnValueOnce(pendingPreview.asObservable());
+    createComponent();
+
+    component.onTransferChange('arrival', true);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(true);
+    expect(component.pricingPreview()).toBe(initialPreview);
+    expect(component.displayedTransferRate()).toBe('25');
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('25');
+
+    pendingPreview.next(transferPreview);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(false);
+    expect(component.pricingPreview()).toBe(transferPreview);
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('20');
+    expect(pricingValue(component.text().stays.pricing.transfer)).toBe('20');
+  });
+
+  it('keeps a retained transfer rate until the pending no-transfer preview replaces its snapshot', () => {
+    const transferStay: Stay = {
+      ...stay,
+      arrivalTransferRequired: true,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: '20',
+      transferSuggestedAmount: '20',
+      suggestedAmount: '120',
+      agreedAmount: '120',
+    };
+    const initialPreview: StayDatePricingPreview = {
+      pricingDecisionRequired: false,
+      currentNumberOfNights: 7,
+      currentAgreedAmount: '120',
+      numberOfNights: 7,
+      retainedNightlyRate: '50',
+      accommodationSuggestedAmount: '350',
+      suggestedAmount: '370',
+      arrivalTransferRequired: true,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: '20',
+      transferSuggestedAmount: '20',
+      transferRateUnavailable: false,
+      confirmation: null,
+    };
+    const noTransferPreview: StayDatePricingPreview = {
+      ...initialPreview,
+      pricingDecisionRequired: true,
+      arrivalTransferRequired: false,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+      suggestedAmount: '350',
+      confirmation: {
+        previousNumberOfNights: 7,
+        previousAgreedAmount: '120',
+        numberOfNights: 7,
+        retainedNightlyRate: '50',
+        suggestedAmount: '350',
+        arrivalTransferRequired: false,
+        departureTransferRequired: false,
+        transferWaived: false,
+        retainedTransferRate: null,
+        transferSuggestedAmount: '0',
+      },
+    };
+    const pendingPreview = new Subject<StayDatePricingPreview>();
+    transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: '25' }));
+    stayApiService.previewDateChangePricing
+      .mockReturnValueOnce(of(initialPreview))
+      .mockReturnValueOnce(pendingPreview.asObservable());
+    createComponent(transferStay);
+
+    component.onTransferChange('arrival', false);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(true);
+    expect(component.pricingPreview()).toBe(initialPreview);
+    expect(component.displayedTransferRate()).toBe('20');
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('20');
+
+    pendingPreview.next(noTransferPreview);
+    fixture.detectChanges();
+
+    expect(component.previewLoading()).toBe(false);
+    expect(component.pricingPreview()).toBe(noTransferPreview);
+    expect(pricingValue(component.text().stays.pricing.transferRate)).toBe('25');
+    expect(pricingValue(component.text().stays.pricing.transfer)).toBe('0');
   });
 
   it('does not update when the end date is not after the start date', () => {

@@ -95,11 +95,13 @@ export class StayEditor {
   readonly displayedTransferRate = computed(() => {
     const preview = this.pricingPreview();
 
-    if (preview?.retainedTransferRate !== null && preview?.retainedTransferRate !== undefined) {
+    if (!preview) return null;
+
+    if (preview.retainedTransferRate !== null && preview.retainedTransferRate !== undefined) {
       return preview.retainedTransferRate;
     }
 
-    return !this.arrivalTransferRequired() && !this.departureTransferRequired()
+    return !preview.arrivalTransferRequired && !preview.departureTransferRequired
       ? this.currentTransferRate()
       : null;
   });
@@ -514,6 +516,12 @@ export class StayEditor {
     }
   }
 
+  toggleTransferAssistanceFromPill(event: MouseEvent): void {
+    if (event.target !== event.currentTarget) return;
+
+    this.onTransferAssistanceChange(!this.transferAssistanceActive());
+  }
+
   onTransferChange(kind: 'arrival' | 'departure' | 'waived', value: boolean): void {
     if (kind === 'arrival') this.arrivalTransferRequired.set(value);
     else if (kind === 'departure') this.departureTransferRequired.set(value);
@@ -521,6 +529,18 @@ export class StayEditor {
     this.selectedTransferRate.set(null);
     this.clearVaccineOverrideRecovery();
     this.refreshPricingPreview();
+  }
+
+  toggleTransferFromPill(event: MouseEvent, kind: 'arrival' | 'departure' | 'waived'): void {
+    if (event.target !== event.currentTarget) return;
+
+    const currentValue =
+      kind === 'arrival'
+        ? this.arrivalTransferRequired()
+        : kind === 'departure'
+          ? this.departureTransferRequired()
+          : this.transferWaived();
+    this.onTransferChange(kind, !currentValue);
   }
 
   onPricingDecisionChange(): void {
