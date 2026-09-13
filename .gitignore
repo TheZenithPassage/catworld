@@ -8,12 +8,6 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-/.agents/
-/.codex/
-/.specify/
-/.catworld-workflow/
-/specs/
-
 ### STS ###
 .apt_generated
 .classpath
