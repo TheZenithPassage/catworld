@@ -22,4 +22,10 @@ public class ExistingStayPricingConfirmationDTO {
     private BigDecimal retainedNightlyRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal suggestedAmount;
+    private Boolean arrivalTransferRequired;
+    private Boolean departureTransferRequired;
+    private Boolean transferWaived;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal selectedTransferRate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
 }

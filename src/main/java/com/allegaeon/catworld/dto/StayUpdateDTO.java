@@ -23,6 +23,9 @@ public class StayUpdateDTO {
     private String notes;
 
     private boolean overrideVaccineConflicts;
+    private Boolean arrivalTransferRequired;
+    private Boolean departureTransferRequired;
+    private Boolean transferWaived;
 
     @Valid
     private PricingDecisionRequestDTO pricingDecision;

@@ -25,6 +25,16 @@ export interface NightlyRatesTranslations {
     mutation: string;
     refresh: string;
   };
+  transfer: {
+    title: string;
+    rateLabel: string;
+    unavailable: string;
+    configure: string;
+    change: string;
+    clear: string;
+    saving: string;
+    clearing: string;
+  };
 }
 
 export const NIGHTLY_RATES_TRANSLATIONS = {
@@ -58,6 +68,16 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       mutation: 'No se pudo guardar el cambio. Inténtalo de nuevo.',
       refresh: 'El cambio se guardó, pero no se pudieron actualizar las tarifas actuales.',
     },
+    transfer: {
+      title: 'Asistencia de traslado',
+      rateLabel: 'Precio por trayecto',
+      unavailable: 'No disponible',
+      configure: 'Configurar',
+      change: 'Cambiar',
+      clear: 'Quitar tarifa',
+      saving: 'Guardando…',
+      clearing: 'Quitando…',
+    },
   },
   en: {
     title: 'Nightly reference rates',
@@ -88,6 +108,16 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       conflict: 'The rate changed at the same time. Try again with the current values.',
       mutation: 'The change could not be saved. Try again.',
       refresh: 'The change was saved, but the current rates could not be refreshed.',
+    },
+    transfer: {
+      title: 'Transfer assistance',
+      rateLabel: 'Price per leg',
+      unavailable: 'Unavailable',
+      configure: 'Configure',
+      change: 'Change',
+      clear: 'Clear rate',
+      saving: 'Saving…',
+      clearing: 'Clearing…',
     },
   },
 } satisfies Record<AppLanguage, NightlyRatesTranslations>;

@@ -7,4 +7,5 @@ import java.util.List;
 import java.util.UUID;
 
 public record StayOverviewItem(UUID id, LocalDateTime startAt, LocalDateTime endAt,
-        StayStatus status, UUID ownerId, String ownerName, List<CurrentCatLookupItem> cats) {}
+        StayStatus status, UUID ownerId, String ownerName, List<CurrentCatLookupItem> cats,
+        boolean arrivalTransferRequired, boolean departureTransferRequired) {}

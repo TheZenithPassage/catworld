@@ -29,6 +29,9 @@ public class StayRequestDTO {
     private Set<UUID> catIds;
 
     private boolean overrideVaccineConflicts;
+    private Boolean arrivalTransferRequired;
+    private Boolean departureTransferRequired;
+    private Boolean transferWaived;
 
     @Valid
     @NotNull(message = "pricingDecision is required")

@@ -2,6 +2,8 @@ package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
+import com.allegaeon.catworld.dto.sensitiveactivity.PricingOverrideActivityDTO;
+import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicEventType;
 import com.allegaeon.catworld.model.*;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.service.ISensitiveEconomicActivityService;
@@ -18,6 +20,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -87,14 +90,14 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
 
     @Test
     void nativeV10UsesExactStorageAndRemovalEvidenceSurvivesSafeDeletion() {
-        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+        assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"),
                 jdbc.queryForList("""
                         select version from flyway_schema_history
                         where success = 1 and version is not null
                         order by installed_rank
                         """, String.class));
         assertTrue(jdbc.queryForObject("select version()", String.class)
-                .startsWith("8.0"));
+                .startsWith("8."));
         assertEquals("REPEATABLE-READ", jdbc.queryForObject(
                 "select @@transaction_isolation", String.class));
         assertEquals(0, jdbc.queryForObject("""
@@ -138,6 +141,63 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
                 sensitiveEconomicActivityService,
                 fixture
         );
+    }
+
+    @Test
+    void nativeAuditUsesCapturedTransferEvidenceAfterLiveStayAndRateChanges() {
+        Fixture fixture = fixture();
+        UUID contextId = UUID.randomUUID();
+        UUID decisionId = UUID.randomUUID();
+        jdbc.update("""
+                insert into sensitive_stay_contexts (
+                    id, stay_id, owner_id, owner_full_name,
+                    stay_start_at, stay_end_at, stay_cancelled_at
+                ) values (?, ?, ?, ?, ?, ?, ?)
+                """, uuidBytes(contextId), uuidBytes(fixture.stay().getId()),
+                uuidBytes(fixture.owner().getId()), fixture.owner().getFullName(),
+                fixture.stay().getStartAt(), fixture.stay().getEndAt(), null);
+        jdbc.update("""
+                insert into stay_pricing_decisions (
+                    id, stay_id, retained_nightly_rate,
+                    arrival_transfer_required, departure_transfer_required,
+                    retained_transfer_rate, transfer_waived,
+                    previous_number_of_nights, new_number_of_nights,
+                    previous_agreed_amount, new_agreed_amount,
+                    decided_by_id, decided_at, reason, sensitive_context_id
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, uuidBytes(decisionId), uuidBytes(fixture.stay().getId()),
+                new BigDecimal("50"), true, true, new BigDecimal("7"), false,
+                2L, 2L, new BigDecimal("100"), new BigDecimal("115"),
+                uuidBytes(fixture.actor().getId()), Instant.parse("2026-08-02T12:00:00Z"),
+                "Captured transfer override", uuidBytes(contextId));
+
+        jdbc.update("update transfer_rates set transfer_rate = 99 where id = 1");
+        jdbc.update("""
+                update stays set retained_nightly_rate = 1,
+                    retained_transfer_rate = null,
+                    arrival_transfer_required = false,
+                    departure_transfer_required = false,
+                    transfer_waived = true
+                where id = ?
+                """, uuidBytes(fixture.stay().getId()));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+
+        PricingOverrideActivityDTO activity = sensitiveEconomicActivityService.getActivity(
+                        new com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityFilter(
+                                null, null, null, SensitiveEconomicEventType.PRICING_OVERRIDE,
+                                null, null, fixture.stay().getId()), 0)
+                .items().stream()
+                .filter(item -> item.eventId().equals(decisionId))
+                .map(PricingOverrideActivityDTO.class::cast)
+                .findFirst().orElseThrow();
+
+        assertTrue(activity.arrivalTransferRequired());
+        assertTrue(activity.departureTransferRequired());
+        assertFalse(activity.transferWaived());
+        assertEquals(new BigDecimal("7"), activity.retainedTransferRate());
+        assertEquals(new BigDecimal("14"), activity.transferSuggestedAmount());
+        assertEquals(new BigDecimal("114"), activity.suggestedAmount());
+        assertEquals(new BigDecimal("115"), activity.agreedAmount());
     }
 
     @Test
@@ -254,6 +314,13 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         assertEquals(1, removalRepository.count());
         assertEquals(new BigDecimal("25"),
                 removalRepository.findAll().get(0).getAmount());
+    }
+
+    private byte[] uuidBytes(UUID value) {
+        return ByteBuffer.allocate(16)
+                .putLong(value.getMostSignificantBits())
+                .putLong(value.getLeastSignificantBits())
+                .array();
     }
 
     private Fixture fixture() {

@@ -144,6 +144,7 @@ A `Stay` contains:
 - `cancelledAt`
 - `notes`
 - nullable retained nightly reference rate
+- independent arrival and departure transfer requirements, a pricing-only waiver, and a nullable captured per-leg transfer rate
 - nullable agreed whole-stay amount
 - `owner`
 - participating cats through `StayCat`
@@ -193,9 +194,7 @@ It records the category, exact previous and new nullable amounts, the
 
 #### StayPricingDecision
 
-Represents one immutable pricing confirmation for a stay. It records the
-selected retained nightly rate, previous and new authoritative night counts, previous
-and new agreed amounts, optional reason, deciding `UserAccount` and
+Represents one immutable pricing confirmation for a stay. It records selected retained nightly and transfer rates, arrival/departure requirements, waiver, previous and new authoritative night counts, previous and new agreed amounts, optional reason, deciding `UserAccount` and
 application-clock timestamp. It stores the stay UUID as audit evidence rather
 than a foreign key so the history survives operational stay deletion.
 
@@ -350,16 +349,14 @@ on the `Stay` entity or in the database schema.
 Creation resolves the actual cat count to `ONE_CAT`, `TWO_CATS` or
 `THREE_PLUS_CATS` and snapshots that category's current nullable nightly rate
 onto the stay. Later reference-rate changes never reprice the stay. Responses
-derive `suggestedAmount` as retained rate multiplied by authoritative
-`numberOfNights`; the suggestion is null when the retained rate is unavailable
-and is never persisted.
+derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
 
 Every new stay requires an explicit nested pricing decision from either
 authenticated role. The agreed amount is a non-negative whole number of at
 most 19 digits, including zero. A non-blank reason is required exactly when an
 available suggestion differs numerically from the agreement.
 
-Only a change to the authoritative night count is pricing-affecting. Such an
+A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
 update requires `ADMIN`, a fresh explicit pricing decision and a selected
 retained rate that is either the locked stay's original nullable value or the
 locked current applicable category rate. The service derives the suggestion
@@ -370,9 +367,15 @@ stay update validates. Equal-night date or time changes do not reconfirm pricing
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
 read-only authoritative creation preview from proposed dates and selected cats.
 `POST /api/stays/{id}/pricing-preview` gives a persisted `ADMIN` a pricing-
-affecting date-change preview from the existing stay's retained rate, never a
-current global rate; equal-night previews preserve the existing `STAFF` update
-reachability. Preview monetary values are exact decimal strings and each
+affecting change preview from the existing stay's retained rate, never a
+current global rate unless the request explicitly selects an eligible current
+nightly or transfer basis. A current transfer basis may be selected only when
+the requested arrival, departure, or waiver change independently changes the
+transfer contribution and requires a pricing decision; the selector cannot
+create that eligibility itself. An eligible transfer-only decision cannot
+change the nightly basis. Only equal-night previews that are not pricing-
+affecting retain the existing `STAFF` update reachability. Preview monetary
+values are exact decimal strings and each
 pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
@@ -524,6 +527,16 @@ Reference-rate changes are prospective guidance only. They do not read,
 reprice, update or backfill existing stays. New stays retain the applicable
 rate value but do not persist the selected category.
 
+## Transfer Rate
+
+`transfer_rates` has one canonical row (`id = 1`) with a nullable positive
+whole per-leg amount. `GET /api/transfer-rate` is available to authenticated
+`ADMIN` and `STAFF`; `PUT` configures and `DELETE` clears it for `ADMIN` only.
+Changes lock that row and never create sensitive-economic activity or reprice
+existing stays. Creation and a none-to-any update capture its locked value,
+including null; existing transfer legs retain their captured value unless an
+explicit confirmed current selection is adopted.
+
 ## Persistence
 
 The application uses MySQL in local development through Docker Compose.
@@ -543,7 +556,9 @@ Important schema points:
   `registration_number VARCHAR(100)` without a uniqueness constraint.
 - `cats` has `owner_id` and optional `vet_id`.
 - `stays` has `owner_id` plus nullable `retained_nightly_rate` and
-  `agreed_amount` `DECIMAL(19,0)` snapshots. Existing rows are not backfilled.
+  `agreed_amount` `DECIMAL(19,0)` snapshots, independent transfer flags,
+  waiver and nullable captured per-leg transfer basis. Existing rows are not
+  backfilled.
 - `stays` does not have `cat_id`.
 - `stay_cat` stores the relationship between stays and cats.
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
@@ -560,10 +575,15 @@ Important schema points:
 - Rate-change actor foreign keys are restrictive; account deletion is blocked
   while a rate-change audit row references the target.
 - `stay_pricing_decisions` stores append-only pricing confirmations with the
-  stay UUID, exact values, night-count transition, reason, actor and
+  stay UUID, exact nightly and transfer component evidence, transfer flags and
+  waiver, night-count transition, reason, actor and
   microsecond timestamp. Its actor foreign key is restrictive, while the stay
   UUID deliberately has no foreign key so audit evidence survives stay
   deletion.
+- `transfer_rates` has exactly the canonical `id = 1` row. Its nullable amount
+  is either unavailable or a positive whole `DECIMAL(19,0)` value. V12 checks
+  also reject retained transfer basis without a required transfer leg on stays
+  and pricing-decision evidence.
 - `stay_agreed_amount_corrections` stores append-only focused administrative
   corrections with indexed scalar stay UUID, nullable exact previous amount,
   required exact new amount, required reason, actor and microsecond timestamp.
@@ -856,7 +876,10 @@ Its owner and participating cats remain read-only relationship targets.
 Calendar and overview stay activation open the route-free dialog and refresh
 or replace the edited stay in their existing collections after a successful
 dialog update. Overview rows are pointer and keyboard activatable and contain
-no separate Actions column. Stay detail obtains the full operational Stay only
+no separate Actions column. A transfer-required Stay shows one decorative car
+indicator in both ordinary and contextual overview rows, while the row's
+accessible name retains its detail label and adds the localized transfer meaning.
+Stay detail obtains the full operational Stay only
 to prove whether a recorded agreement exists before exposing Pricing & Payments;
 the lightweight detail response remains economics-free.
 
@@ -910,7 +933,11 @@ Stay creation and date editing also consume the backend pricing-preview
 contracts. Angular keeps every monetary value as an exact decimal string,
 invalidates confirmation when pricing-relevant inputs change, rejects late
 preview responses for an older input basis and submits pricing only after an
-explicit confirmation. Existing-stay updates follow the backend
+explicit confirmation. A transfer-assistance checkbox beside the responsive
+date controls reveals the three existing transfer inputs without adding domain
+state. Pricing assistance always shows the transfer-rate and contribution lines;
+when no leg is selected, the current configured rate is display-only context and
+the submitted or confirmed Stay basis remains null. Existing-stay updates follow the backend
 `pricingDecisionRequired` result: ordinary edits remain available to both roles,
 while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
@@ -1218,6 +1245,10 @@ loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
 uses the applied filtered population. Adjacent-month cells are hidden so dates
 outside the loaded logical interval cannot present incomplete operational results.
+Daily-label and entry/exit-marker views show a decorative car on a white
+circular background before a stay label only at a required arrival or departure boundary; same-day boundaries
+retain their independent compact markers. The localized accessible event name
+states the required direction, and daily-count aggregation remains unchanged.
 
 ### Component Conventions
 
@@ -1262,6 +1293,11 @@ transition preserves nullable previous/new exact amounts, category, actor and
 change time in `nightly_reference_rate_changes`. These rows have no update
 path, are not a generic event log, and retain their actor through a restrictive
 foreign key and account-deletion pre-check.
+
+Stay pricing history records the immutable nightly and transfer bases,
+operational transfer flags, waiver, and exact component evidence with every
+pricing decision. Audit reads derive historic complete suggestions from that
+row only; they never read the live stay or current transfer configuration.
 
 Stay pricing history is a second focused append-only audit model. Creation and
 each pricing-affecting update preserve exact retained, previous and new values,
@@ -1408,6 +1444,19 @@ Current diagrams:
 - `02-db-schema.puml`
 - `03-components.puml`
 - `04-sequence-create-stay.puml`
+
+## Transfer pricing
+
+Transfer assistance is an independent stay component. `arrivalTransferRequired` and
+`departureTransferRequired` are operational flags; a nullable singleton current
+transfer rate is configured by ADMIN and readable by ADMIN/STAFF at
+`/api/transfer-rate`. A stay captures a nullable per-leg rate when a leg is
+added, preserves it for swaps, and records waiver separately. Transfer
+contribution is the captured rate times required legs, or zero when waived or
+unavailable. It is added once to the accommodation suggestion and never affects
+nightly-rate multiplication. Pricing confirmations and immutable pricing-decision
+audit evidence contain both components, so historic activity never reads live
+configuration.
 
 ## Public Repository Notes
 

@@ -43,6 +43,8 @@ import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
+import com.allegaeon.catworld.repository.TransferRateRepository;
+import com.allegaeon.catworld.model.TransferRate;
 import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
 import com.allegaeon.catworld.repository.StayPaymentEditRepository;
@@ -98,6 +100,7 @@ public class StayService implements IStayService {
     private final StayCatRepository stayCatRepository;
     private final StayOverviewReadRepository stayOverviewReadRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
+    private final TransferRateRepository transferRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
             stayAgreedAmountCorrectionRepository;
@@ -153,7 +156,8 @@ public class StayService implements IStayService {
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
                 stay.getStartAt(), stay.getEndAt(), statusAt(stay, now),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),
-                List.copyOf(cats.getOrDefault(stay.getId(), List.of())))).toList(), page, stays.getTotalElements());
+                List.copyOf(cats.getOrDefault(stay.getId(), List.of())),
+                stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired())).toList(), page, stays.getTotalElements());
     }
 
     private com.allegaeon.catworld.model.StayStatus statusAt(Stay stay, LocalDateTime now) {
@@ -243,7 +247,8 @@ public class StayService implements IStayService {
                 ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
                         stay.getEndAt().toLocalDate()),
                 stay.getNotes(),
-                new OwnerRelationshipItem(owner.getId(), owner.getFullName()), preview);
+                new OwnerRelationshipItem(owner.getId(), owner.getFullName()), preview,
+                stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired());
     }
 
     @Override
@@ -267,7 +272,8 @@ public class StayService implements IStayService {
         CreationPricingBasis basis = creationPricingBasis(
                 request.getStartAt(), request.getEndAt(), cats.size(),
                 nightlyReferenceRateRepository::findById);
-        return creationPreview(basis);
+        TransferBasis transfer = transferBasis(Boolean.TRUE.equals(request.getArrivalTransferRequired()), Boolean.TRUE.equals(request.getDepartureTransferRequired()), Boolean.TRUE.equals(request.getTransferWaived()), () -> transferRateRepository.findById(1L));
+        return creationPreview(basis, transfer);
     }
 
     @Override
@@ -276,7 +282,11 @@ public class StayService implements IStayService {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
         Stay stay = getStayEntity(stayId);
         validateStayCanBeModified(stay);
-        return dateChangePreview(stay, request.getStartAt(), request.getEndAt());
+        boolean arrival = request.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : request.getArrivalTransferRequired();
+        boolean departure = request.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : request.getDepartureTransferRequired();
+        boolean waived = request.getTransferWaived() == null ? stay.isTransferWaived() : request.getTransferWaived();
+        return dateChangePreview(stay, request.getStartAt(), request.getEndAt(), arrival, departure, waived,
+                request.getSelectedNightlyRate(), request.getSelectedTransferRate());
     }
 
     @Override
@@ -318,16 +328,21 @@ public class StayService implements IStayService {
                 stayRequestDTO.isOverrideVaccineConflicts(),
                 currentUser);
 
+        TransferBasis transfer = transferBasis(stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired(), stay.isTransferWaived(), transferRateRepository::findCurrentForUpdate);
+        // Combined pricing paths always take the canonical transfer row before a
+        // nightly category row. Update follows the same order during its
+        // classification and confirmation validation.
         CreationPricingBasis basis = creationPricingBasis(
                 stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cats.size(),
                 nightlyReferenceRateRepository::findByCategoryForUpdate);
         BigDecimal retainedNightlyRate = basis.retainedNightlyRate();
         long numberOfNights = basis.numberOfNights();
-        BigDecimal suggestedAmount = basis.suggestedAmount();
+        stay.setRetainedTransferRate(transfer.retainedRate());
+        BigDecimal suggestedAmount = combinedSuggestion(basis.suggestedAmount(), transfer.suggestion());
         PricingDecisionRequestDTO pricingDecision = stayRequestDTO.getPricingDecision();
         validateCreationConfirmation(
                 stayRequestDTO.getConfirmation(), numberOfNights,
-                retainedNightlyRate, suggestedAmount);
+                retainedNightlyRate, suggestedAmount, transfer);
         BigDecimal agreedAmount = validatePricingDecision(
                 pricingDecision,
                 suggestedAmount
@@ -371,7 +386,49 @@ public class StayService implements IStayService {
                 stayUpdateDTO.getStartAt(),
                 stayUpdateDTO.getEndAt()
         );
-        boolean pricingAffecting = previousNumberOfNights != newNumberOfNights;
+        boolean requestedArrival = stayUpdateDTO.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : stayUpdateDTO.getArrivalTransferRequired();
+        boolean requestedDeparture = stayUpdateDTO.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : stayUpdateDTO.getDepartureTransferRequired();
+        boolean requestedWaived = stayUpdateDTO.getTransferWaived() == null ? stay.isTransferWaived() : stayUpdateDTO.getTransferWaived();
+        boolean transferChanged = requestedArrival != stay.isArrivalTransferRequired() || requestedDeparture != stay.isDepartureTransferRequired() || requestedWaived != stay.isTransferWaived();
+        int existingLegsForDecision = (stay.isArrivalTransferRequired() ? 1 : 0)
+                + (stay.isDepartureTransferRequired() ? 1 : 0);
+        int requestedLegsForDecision = (requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0);
+        BigDecimal requestedTransferRate = stayUpdateDTO.getConfirmation() == null
+                ? null : stayUpdateDTO.getConfirmation().getSelectedTransferRate();
+        if (requestedTransferRate != null && requestedLegsForDecision == 0) {
+            throw new StalePricingConfirmationException();
+        }
+        // A new transfer captures the current rate before classifying its contribution.
+        // An explicit selector may choose that rate only after the transfer edit itself
+        // has independently established transfer-pricing eligibility.
+        BigDecimal lockedCurrentTransferRate = existingLegsForDecision == 0 && requestedLegsForDecision > 0
+                ? currentTransferRateForUpdate() : null;
+        BigDecimal previewTransferRate = existingLegsForDecision == 0 && requestedLegsForDecision > 0
+                ? lockedCurrentTransferRate
+                : (requestedLegsForDecision == 0 ? null : stay.getRetainedTransferRate());
+        BigDecimal previewTransferContribution = requestedWaived || previewTransferRate == null
+                ? BigDecimal.ZERO : previewTransferRate.multiply(BigDecimal.valueOf(requestedLegsForDecision));
+        boolean transferPricingDecisionRequired = !sameMoney(
+                stayMapper.calculateTransferSuggestedAmount(stay),
+                previewTransferContribution);
+        if (requestedTransferRate != null && !transferPricingDecisionRequired) {
+            throw new StalePricingConfirmationException();
+        }
+        if (requestedTransferRate != null && lockedCurrentTransferRate == null) {
+            lockedCurrentTransferRate = currentTransferRateForUpdate();
+        }
+        boolean pricingAffecting = previousNumberOfNights != newNumberOfNights
+                || transferPricingDecisionRequired;
+        ExistingStayPricingConfirmationDTO submittedConfirmation = stayUpdateDTO.getConfirmation();
+        boolean submittedConfirmationMatchesRequestedTransferBasis = submittedConfirmation != null
+                && submittedConfirmation.getNumberOfNights() != null
+                && submittedConfirmation.getNumberOfNights() == newNumberOfNights
+                && java.util.Objects.equals(submittedConfirmation.getArrivalTransferRequired(), requestedArrival)
+                && java.util.Objects.equals(submittedConfirmation.getDepartureTransferRequired(), requestedDeparture)
+                && java.util.Objects.equals(submittedConfirmation.getTransferWaived(), requestedWaived);
+        if (!pricingAffecting && submittedConfirmationMatchesRequestedTransferBasis) {
+            throw new StalePricingConfirmationException();
+        }
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
         BigDecimal newAgreedAmount = null;
         BigDecimal selectedRetainedNightlyRate = stay.getRetainedNightlyRate();
@@ -380,21 +437,55 @@ public class StayService implements IStayService {
         if (pricingAffecting) {
             currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
+            if (previousNumberOfNights == newNumberOfNights
+                    && stayUpdateDTO.getConfirmation() != null
+                    && !sameMoney(stayUpdateDTO.getConfirmation().getRetainedNightlyRate(), stay.getRetainedNightlyRate())) {
+                throw new StalePricingConfirmationException();
+            }
             selectedRetainedNightlyRate = validateDateChangeConfirmation(
                     stayUpdateDTO.getConfirmation(), previousNumberOfNights,
                     previousAgreedAmount, newNumberOfNights,
                     stay);
+            int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
+                    + (stay.isDepartureTransferRequired() ? 1 : 0);
+            int newTransferLegs = (requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0);
+            BigDecimal selectedTransferRate = oldTransferLegs == 0 && newTransferLegs > 0
+                    ? lockedCurrentTransferRate
+                    : (newTransferLegs == 0 ? null : stay.getRetainedTransferRate());
+            if (requestedTransferRate != null) {
+                if (!sameMoney(requestedTransferRate, lockedCurrentTransferRate)) throw new StalePricingConfirmationException();
+                selectedTransferRate = lockedCurrentTransferRate;
+            }
+            BigDecimal transferSuggestion = requestedWaived || selectedTransferRate == null ? BigDecimal.ZERO : selectedTransferRate.multiply(BigDecimal.valueOf((requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0)));
             BigDecimal selectedSuggestion = stayMapper.calculateSuggestedAmount(
                     selectedRetainedNightlyRate, newNumberOfNights);
+            selectedSuggestion = combinedSuggestion(selectedSuggestion, transferSuggestion);
             if (!sameMoney(
                     stayUpdateDTO.getConfirmation().getSuggestedAmount(),
                     selectedSuggestion)) {
+                throw new StalePricingConfirmationException();
+            }
+            if ((stayUpdateDTO.getConfirmation().getArrivalTransferRequired() != null && !java.util.Objects.equals(stayUpdateDTO.getConfirmation().getArrivalTransferRequired(), requestedArrival))
+                    || (stayUpdateDTO.getConfirmation().getDepartureTransferRequired() != null && !java.util.Objects.equals(stayUpdateDTO.getConfirmation().getDepartureTransferRequired(), requestedDeparture))
+                    || (stayUpdateDTO.getConfirmation().getTransferWaived() != null && !java.util.Objects.equals(stayUpdateDTO.getConfirmation().getTransferWaived(), requestedWaived))
+                    || (stayUpdateDTO.getConfirmation().getSelectedTransferRate() == null && !sameMoney(stayUpdateDTO.getConfirmation().getRetainedTransferRate(), selectedTransferRate))
+                    || (stayUpdateDTO.getConfirmation().getTransferSuggestedAmount() != null && !sameMoney(stayUpdateDTO.getConfirmation().getTransferSuggestedAmount(), transferSuggestion))) {
+                throw new StalePricingConfirmationException();
+            }
+            boolean transferSnapshotRequired = existingLegsForDecision > 0 || requestedLegsForDecision > 0 || transferChanged
+                    || stayUpdateDTO.getConfirmation().getSelectedTransferRate() != null;
+            if (transferSnapshotRequired && (stayUpdateDTO.getConfirmation().getArrivalTransferRequired() == null
+                    || stayUpdateDTO.getConfirmation().getDepartureTransferRequired() == null
+                    || stayUpdateDTO.getConfirmation().getTransferWaived() == null
+                    || stayUpdateDTO.getConfirmation().getTransferSuggestedAmount() == null
+                    || !sameMoney(stayUpdateDTO.getConfirmation().getRetainedTransferRate(), selectedTransferRate))) {
                 throw new StalePricingConfirmationException();
             }
             newAgreedAmount = validatePricingDecision(
                     stayUpdateDTO.getPricingDecision(),
                     selectedSuggestion
             );
+            stay.setRetainedTransferRate(selectedTransferRate);
             validateAgreementFloor(stayId, newAgreedAmount);
         }
 
@@ -423,6 +514,10 @@ public class StayService implements IStayService {
         if (pricingAffecting) {
             stay.setRetainedNightlyRate(selectedRetainedNightlyRate);
             stay.setAgreedAmount(newAgreedAmount);
+        } else if (existingLegsForDecision == 0 && requestedLegsForDecision > 0) {
+            stay.setRetainedTransferRate(previewTransferRate);
+        } else if (requestedLegsForDecision == 0) {
+            stay.setRetainedTransferRate(null);
         }
 
         Stay savedStay = stayRepository.save(stay);
@@ -817,15 +912,20 @@ public class StayService implements IStayService {
     }
 
     private StayPricingPreviewResponseDTO creationPreview(
-            CreationPricingBasis basis) {
+            CreationPricingBasis basis, TransferBasis transfer) {
+        BigDecimal suggestion = combinedSuggestion(basis.suggestedAmount(), transfer.suggestion());
         return StayPricingPreviewResponseDTO.builder()
                 .numberOfNights(basis.numberOfNights())
                 .retainedNightlyRate(basis.retainedNightlyRate())
-                .suggestedAmount(basis.suggestedAmount())
+                .accommodationSuggestedAmount(basis.suggestedAmount())
+                .suggestedAmount(suggestion)
+                .arrivalTransferRequired(transfer.arrivalRequired()).departureTransferRequired(transfer.departureRequired())
+                .transferWaived(transfer.waived()).retainedTransferRate(transfer.retainedRate()).transferSuggestedAmount(transfer.suggestion()).transferRateUnavailable(transfer.unavailable())
                 .confirmation(CreationPricingConfirmationDTO.builder()
                         .numberOfNights(basis.numberOfNights())
                         .retainedNightlyRate(basis.retainedNightlyRate())
-                        .suggestedAmount(basis.suggestedAmount())
+                        .suggestedAmount(suggestion)
+                        .arrivalTransferRequired(transfer.arrivalRequired()).departureTransferRequired(transfer.departureRequired()).transferWaived(transfer.waived()).retainedTransferRate(transfer.retainedRate()).transferSuggestedAmount(transfer.suggestion())
                         .build())
                 .build();
     }
@@ -837,25 +937,81 @@ public class StayService implements IStayService {
             BigDecimal suggestedAmount) {
     }
 
+    private TransferBasis transferBasis(boolean arrival, boolean departure, boolean waived, java.util.function.Supplier<Optional<TransferRate>> lookup) {
+        if (!arrival && !departure) return new TransferBasis(false, false, waived, null, BigDecimal.ZERO, false);
+        BigDecimal rate = lookup.get().map(TransferRate::getTransferRate).filter(value -> value.signum() > 0).filter(WholeMonetaryAmount::isSupported).map(WholeMonetaryAmount::canonicalize).orElse(null);
+        long legs = (arrival ? 1 : 0) + (departure ? 1 : 0);
+        return new TransferBasis(arrival, departure, waived, rate, waived || rate == null ? BigDecimal.ZERO : WholeMonetaryAmount.canonicalize(rate.multiply(BigDecimal.valueOf(legs))), !waived && rate == null);
+    }
+    private BigDecimal currentTransferRateForUpdate() {
+        return transferRateRepository.findCurrentForUpdate().map(TransferRate::getTransferRate)
+                .filter(WholeMonetaryAmount::isSupported).map(WholeMonetaryAmount::canonicalize).orElse(null);
+    }
+    private BigDecimal combinedSuggestion(BigDecimal accommodation, BigDecimal transfer) { return accommodation == null ? null : WholeMonetaryAmount.canonicalize(accommodation.add(transfer)); }
+    private record TransferBasis(boolean arrivalRequired, boolean departureRequired, boolean waived, BigDecimal retainedRate, BigDecimal suggestion, boolean unavailable) {}
+
     private StayDatePricingPreviewResponseDTO dateChangePreview(
-            Stay stay, LocalDateTime startAt, LocalDateTime endAt) {
+            Stay stay, LocalDateTime startAt, LocalDateTime endAt, boolean arrival, boolean departure,
+            boolean waived, BigDecimal selectedNightlyRate, BigDecimal selectedTransferRate) {
         long previousNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(), stay.getEndAt());
         long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
-        boolean pricingDecisionRequired = previousNights != nights;
+        BigDecimal previousTransfer = stayMapper.calculateTransferSuggestedAmount(stay);
+        int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
+                + (stay.isDepartureTransferRequired() ? 1 : 0);
+        int newTransferLegs = (arrival ? 1 : 0) + (departure ? 1 : 0);
+        BigDecimal retainedTransfer = newTransferLegs == 0 ? null : stay.getRetainedTransferRate();
+        if (oldTransferLegs == 0 && newTransferLegs > 0) {
+            retainedTransfer = transferBasis(arrival, departure, waived,
+                    () -> transferRateRepository.findById(1L)).retainedRate();
+        }
+        BigDecimal defaultTransferSuggestion = waived || retainedTransfer == null
+                ? BigDecimal.ZERO
+                : retainedTransfer.multiply(BigDecimal.valueOf(newTransferLegs));
+        boolean transferPricingDecisionRequired = previousTransfer.compareTo(defaultTransferSuggestion) != 0;
+        if (selectedTransferRate != null && !transferPricingDecisionRequired) {
+            throw new StalePricingConfirmationException();
+        }
+        if (selectedTransferRate != null) {
+            BigDecimal current = transferBasis(arrival, departure, waived,
+                    () -> transferRateRepository.findById(1L)).retainedRate();
+            if (!sameMoney(selectedTransferRate, current)) {
+                throw new StalePricingConfirmationException();
+            }
+            retainedTransfer = current;
+        }
+        BigDecimal retainedNightlyRate = stay.getRetainedNightlyRate();
+        if (selectedNightlyRate != null && !sameMoney(selectedNightlyRate, retainedNightlyRate)) {
+            if (previousNights == nights) {
+                throw new StalePricingConfirmationException();
+            }
+            NightlyReferenceRateCategory category = categoryFor(stay.getStayCats().size());
+            BigDecimal currentNightlyRate = nightlyReferenceRateRepository.findById(category)
+                    .map(NightlyReferenceRate::getNightlyRate).map(this::validateRetainedNightlyRate)
+                    .orElseThrow(StalePricingConfirmationException::new);
+            if (!sameMoney(selectedNightlyRate, currentNightlyRate)) {
+                throw new StalePricingConfirmationException();
+            }
+            retainedNightlyRate = currentNightlyRate;
+        }
+        BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
+        boolean pricingDecisionRequired = previousNights != nights
+                || transferPricingDecisionRequired;
         if (pricingDecisionRequired) {
             UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
             stayPricingAuthorizationPolicy.authorizeNightCountChange(currentUser);
         }
-        BigDecimal suggestion = stayMapper.calculateSuggestedAmount(
-                stay.getRetainedNightlyRate(), nights);
+        BigDecimal accommodationSuggestion = stayMapper.calculateSuggestedAmount(
+                retainedNightlyRate, nights);
+        BigDecimal suggestion = combinedSuggestion(accommodationSuggestion, transferSuggestion);
         ExistingStayPricingConfirmationDTO confirmation = pricingDecisionRequired
                 ? ExistingStayPricingConfirmationDTO.builder()
                         .previousNumberOfNights(previousNights)
                         .previousAgreedAmount(stay.getAgreedAmount())
                         .numberOfNights(nights)
-                        .retainedNightlyRate(stay.getRetainedNightlyRate())
+                        .retainedNightlyRate(retainedNightlyRate)
                         .suggestedAmount(suggestion)
+                        .arrivalTransferRequired(arrival).departureTransferRequired(departure).transferWaived(waived).retainedTransferRate(retainedTransfer).selectedTransferRate(selectedTransferRate).transferSuggestedAmount(transferSuggestion)
                         .build()
                 : null;
         return StayDatePricingPreviewResponseDTO.builder()
@@ -863,21 +1019,28 @@ public class StayService implements IStayService {
                 .currentNumberOfNights(previousNights)
                 .currentAgreedAmount(stay.getAgreedAmount())
                 .numberOfNights(nights)
-                .retainedNightlyRate(stay.getRetainedNightlyRate())
+                .retainedNightlyRate(retainedNightlyRate)
+                .accommodationSuggestedAmount(accommodationSuggestion)
                 .suggestedAmount(suggestion)
+                .arrivalTransferRequired(arrival).departureTransferRequired(departure).transferWaived(waived).retainedTransferRate(retainedTransfer).transferSuggestedAmount(transferSuggestion).transferRateUnavailable((arrival || departure) && !waived && retainedTransfer == null)
                 .confirmation(confirmation)
                 .build();
     }
 
     private void validateCreationConfirmation(
             CreationPricingConfirmationDTO confirmation, long nights,
-            BigDecimal retainedRate, BigDecimal suggestion) {
+            BigDecimal retainedRate, BigDecimal suggestion, TransferBasis transfer) {
         if (confirmation == null || confirmation.getNumberOfNights() == null) {
             throw new BadRequestException("Pricing confirmation is required");
         }
         if (confirmation.getNumberOfNights() != nights
                 || !sameMoney(confirmation.getRetainedNightlyRate(), retainedRate)
-                || !sameMoney(confirmation.getSuggestedAmount(), suggestion)) {
+                || !sameMoney(confirmation.getSuggestedAmount(), suggestion)
+                || !java.util.Objects.equals(confirmation.getArrivalTransferRequired(), transfer.arrivalRequired())
+                || !java.util.Objects.equals(confirmation.getDepartureTransferRequired(), transfer.departureRequired())
+                || !java.util.Objects.equals(confirmation.getTransferWaived(), transfer.waived())
+                || !sameMoney(confirmation.getRetainedTransferRate(), transfer.retainedRate())
+                || !sameMoney(confirmation.getTransferSuggestedAmount(), transfer.suggestion())) {
             throw new StalePricingConfirmationException();
         }
     }
@@ -1056,6 +1219,10 @@ public class StayService implements IStayService {
                 .retainedNightlyRate(
                         canonicalizeNullable(stay.getRetainedNightlyRate())
                 )
+                .arrivalTransferRequired(stay.isArrivalTransferRequired())
+                .departureTransferRequired(stay.isDepartureTransferRequired())
+                .transferWaived(stay.isTransferWaived())
+                .retainedTransferRate(canonicalizeNullable(stay.getRetainedTransferRate()))
                 .previousNumberOfNights(previousNumberOfNights)
                 .newNumberOfNights(newNumberOfNights)
                 .previousAgreedAmount(
@@ -1067,7 +1234,7 @@ public class StayService implements IStayService {
                 .reason(reason)
                 .sensitiveContext(
                         isPricingOverride(
-                                stay.getRetainedNightlyRate(),
+                                stay.getRetainedNightlyRate(), stay.getRetainedTransferRate(), stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired(), stay.isTransferWaived(),
                                 newNumberOfNights,
                                 newAgreedAmount
                         )
@@ -1078,15 +1245,17 @@ public class StayService implements IStayService {
     }
 
     private boolean isPricingOverride(
-            BigDecimal retainedNightlyRate,
+            BigDecimal retainedNightlyRate, BigDecimal retainedTransferRate, boolean arrivalTransferRequired, boolean departureTransferRequired, boolean transferWaived,
             long numberOfNights,
             BigDecimal agreedAmount) {
         if (retainedNightlyRate == null) {
             return false;
         }
-        BigDecimal suggestion = WholeMonetaryAmount.canonicalize(
+        BigDecimal accommodation = WholeMonetaryAmount.canonicalize(
                 retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights))
         );
+        BigDecimal transfer = transferWaived || retainedTransferRate == null ? BigDecimal.ZERO : retainedTransferRate.multiply(BigDecimal.valueOf((arrivalTransferRequired ? 1 : 0) + (departureTransferRequired ? 1 : 0)));
+        BigDecimal suggestion = WholeMonetaryAmount.canonicalize(accommodation.add(transfer));
         return suggestion.compareTo(agreedAmount) != 0;
     }
 

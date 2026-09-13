@@ -39,6 +39,15 @@ public class Stay extends AuditableEntity {
     @Digits(integer = 19, fraction = 0)
     private BigDecimal retainedNightlyRate;
 
+    @Column(nullable = false)
+    private boolean arrivalTransferRequired;
+    @Column(nullable = false)
+    private boolean departureTransferRequired;
+    @Column(precision = 19, scale = 0)
+    private BigDecimal retainedTransferRate;
+    @Column(nullable = false)
+    private boolean transferWaived;
+
     @Column(precision = 19, scale = 0)
     @DecimalMin("0")
     @Digits(integer = 19, fraction = 0)

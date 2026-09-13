@@ -12,12 +12,23 @@ export interface StaysTranslations {
     'checked-out': string;
     cancelled: string;
   };
+  operationalIndicators: {
+    transferAssistance: string;
+  };
   pricing: {
     title: string;
     loading: string;
     enterInputs: string;
     nights: string;
     retainedRate: string;
+    accommodation: string;
+    transfer: string;
+    transferAssistance: string;
+    transferRate: string;
+    transferUnavailable: string;
+    arrivalTransfer: string;
+    departureTransfer: string;
+    transferWaived: string;
     suggestion: string;
     agreement: string;
     currentAgreement: string;
@@ -29,6 +40,8 @@ export interface StaysTranslations {
     useCurrentRate: string;
     useOriginalRate: string;
     returnWithoutRate: string;
+    useCurrentTransferRate: string;
+    useCapturedTransferRate: string;
     confirm: string;
     confirmAfterReason: string;
     confirmed: string;
@@ -288,12 +301,23 @@ export const STAYS_TRANSLATIONS = {
       'checked-out': 'Finalizada',
       cancelled: 'Cancelada',
     },
+    operationalIndicators: {
+      transferAssistance: 'Traslado requerido',
+    },
     pricing: {
       title: 'Precio acordado',
       loading: 'Calculando la propuesta autoritativa...',
       enterInputs: 'Selecciona fechas y gatos válidos para obtener la propuesta.',
       nights: 'Noches',
       retainedRate: 'Tarifa retenida',
+      accommodation: 'Alojamiento',
+      transfer: 'Traslado',
+      transferAssistance: 'Asistencia de traslado',
+      transferRate: 'Tarifa de traslado retenida',
+      transferUnavailable: 'No hay tarifa de traslado disponible; el traslado aporta 0.',
+      arrivalTransfer: 'Requiere traslado de llegada',
+      departureTransfer: 'Requiere traslado de salida',
+      transferWaived: 'Traslado exento',
       suggestion: 'Importe sugerido',
       agreement: 'Importe acordado',
       currentAgreement: 'Importe acordado actual',
@@ -305,6 +329,8 @@ export const STAYS_TRANSLATIONS = {
       useCurrentRate: 'Usar tarifa actual',
       useOriginalRate: 'Usar tarifa original',
       returnWithoutRate: 'Volver sin tarifa',
+      useCurrentTransferRate: 'Usar tarifa de traslado actual',
+      useCapturedTransferRate: 'Usar tarifa de traslado retenida',
       confirm: 'Confirmar precio',
       confirmAfterReason: 'Añade un motivo para confirmar',
       confirmed: 'Precio confirmado',
@@ -588,12 +614,23 @@ export const STAYS_TRANSLATIONS = {
       'checked-out': 'Checked-out',
       cancelled: 'Cancelled',
     },
+    operationalIndicators: {
+      transferAssistance: 'Transfer assistance required',
+    },
     pricing: {
       title: 'Agreed pricing',
       loading: 'Loading authoritative pricing...',
       enterInputs: 'Select valid dates and cats to obtain pricing.',
       nights: 'Nights',
       retainedRate: 'Retained rate',
+      accommodation: 'Accommodation',
+      transfer: 'Transfer',
+      transferAssistance: 'Transfer assistance',
+      transferRate: 'Retained transfer rate',
+      transferUnavailable: 'No transfer rate is available; transfer contributes 0.',
+      arrivalTransfer: 'Arrival transfer required',
+      departureTransfer: 'Departure transfer required',
+      transferWaived: 'Transfer waived',
       suggestion: 'Suggested amount',
       agreement: 'Agreed amount',
       currentAgreement: 'Current agreed amount',
@@ -605,6 +642,8 @@ export const STAYS_TRANSLATIONS = {
       useCurrentRate: 'Use current rate',
       useOriginalRate: 'Use original rate',
       returnWithoutRate: 'Return without rate',
+      useCurrentTransferRate: 'Use current transfer rate',
+      useCapturedTransferRate: 'Use retained transfer rate',
       confirm: 'Confirm pricing',
       confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',

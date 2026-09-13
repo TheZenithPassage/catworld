@@ -1,5 +1,7 @@
 package com.allegaeon.catworld;
 
+import java.math.BigDecimal;
+
 import com.allegaeon.catworld.dto.StayCatSummaryDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.mapper.StayMapper;
@@ -112,6 +114,13 @@ public class StayMapperTest {
 
         assertEquals(expectedNumberOfNights, response.getNumberOfNights());
 
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false,false,0", "true,false,false,10", "false,true,false,10", "true,true,false,20", "true,true,true,0"})
+    void toResponseDTO_derivesIndependentTransferContribution(boolean arrival, boolean departure, boolean waived, String expected) {
+        Stay stay = Stay.builder().startAt(LocalDateTime.of(2026,7,1,10,0)).endAt(LocalDateTime.of(2026,7,2,10,0)).owner(Owner.builder().id(UUID.randomUUID()).fullName("Owner").build()).stayCats(Set.of()).arrivalTransferRequired(arrival).departureTransferRequired(departure).transferWaived(waived).retainedTransferRate(new BigDecimal("10")).build();
+        assertEquals(new BigDecimal(expected), stayMapper.toResponseDTO(stay).getTransferSuggestedAmount());
     }
 
 }

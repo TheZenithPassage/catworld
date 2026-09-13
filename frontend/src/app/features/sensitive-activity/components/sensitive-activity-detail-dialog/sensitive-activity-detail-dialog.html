@@ -27,7 +27,7 @@
       @case ('PRICING_OVERRIDE') {
         <div>
           <dt>{{ text().sensitiveActivity.fields.retainedRate }}</dt>
-          <dd>{{ event.retainedNightlyRate }}</dd>
+          <dd>{{ display(event.retainedNightlyRate) }}</dd>
         </div>
         <div>
           <dt>{{ text().sensitiveActivity.fields.nights }}</dt>
@@ -36,6 +36,26 @@
         <div>
           <dt>{{ text().sensitiveActivity.fields.suggestedAmount }}</dt>
           <dd>{{ suggestedAmount(event) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.arrivalTransfer }}</dt>
+          <dd>{{ yesNo(event.arrivalTransferRequired) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.departureTransfer }}</dt>
+          <dd>{{ yesNo(event.departureTransferRequired) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.transferWaived }}</dt>
+          <dd>{{ yesNo(event.transferWaived) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.transferRate }}</dt>
+          <dd>{{ display(event.retainedTransferRate) }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().sensitiveActivity.fields.transfer }}</dt>
+          <dd>{{ event.transferSuggestedAmount }}</dd>
         </div>
         <div>
           <dt>{{ text().sensitiveActivity.fields.agreement }}</dt>

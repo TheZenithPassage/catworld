@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
+import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 import { NightlyRateManagementPage } from './nightly-rate-management-page';
 
 const currentRates = [
@@ -24,6 +25,11 @@ describe('NightlyRateManagementPage', () => {
     clearRate: ReturnType<typeof vi.fn>;
   };
   let auth: AuthSessionService;
+  let transferApi: {
+    getCurrentRate: ReturnType<typeof vi.fn>;
+    configureRate: ReturnType<typeof vi.fn>;
+    clearRate: ReturnType<typeof vi.fn>;
+  };
 
   async function create(role: 'ADMIN' | 'STAFF' = 'ADMIN'): Promise<void> {
     localStorage.setItem('catworld.language', 'en');
@@ -32,11 +38,17 @@ describe('NightlyRateManagementPage', () => {
       configureRate: vi.fn().mockReturnValue(of(currentRates[0])),
       clearRate: vi.fn().mockReturnValue(of(undefined)),
     };
+    transferApi = {
+      getCurrentRate: vi.fn().mockReturnValue(of({ transferRate: null })),
+      configureRate: vi.fn().mockReturnValue(of({ transferRate: '25' })),
+      clearRate: vi.fn().mockReturnValue(of(undefined)),
+    };
     await TestBed.configureTestingModule({
       imports: [NightlyRateManagementPage],
       providers: [
         provideNoopAnimations(),
         { provide: NightlyReferenceRateApiService, useValue: api },
+        { provide: TransferRateApiService, useValue: transferApi },
       ],
     }).compileComponents();
     auth = TestBed.inject(AuthSessionService);
@@ -58,12 +70,13 @@ describe('NightlyRateManagementPage', () => {
     expect(text).toContain('45');
     expect(text).toContain('Temporarily unavailable');
     expect(text).toContain('not a per-cat amount');
+    expect(text).not.toContain('Amount for each arrival or departure leg.');
   });
 
   it('keeps STAFF read-only while preserving all categories', async () => {
     await create('STAFF');
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('mat-card').length).toBe(3);
+    expect(root.querySelectorAll('mat-card').length).toBe(4);
     expect(root.querySelector('input')).toBeNull();
     expect(root.querySelector('.rate-actions')).toBeNull();
   });
@@ -71,7 +84,7 @@ describe('NightlyRateManagementPage', () => {
   it('shows ADMIN mutation controls for configured and unavailable categories', async () => {
     await create();
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('input').length).toBe(3);
+    expect(root.querySelectorAll('input').length).toBe(4);
     expect(root.textContent).toContain('Change');
     expect(root.textContent).toContain('Configure');
     expect(root.textContent).toContain('Clear rate');

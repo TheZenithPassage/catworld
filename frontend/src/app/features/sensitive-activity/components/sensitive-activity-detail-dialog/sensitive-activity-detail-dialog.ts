@@ -61,7 +61,11 @@ export class SensitiveActivityDetailDialog {
     return cats.map((cat) => cat.name).join(', ');
   }
 
-  suggestedAmount(event: { retainedNightlyRate: string; numberOfNights: number }): string {
+  suggestedAmount(event: { suggestedAmount?: string | null }): string {
+    return this.display(event.suggestedAmount ?? null);
+  }
+  /* Historical totals are producer-derived immutable evidence; no client arithmetic. */
+  legacySuggestedAmount(event: { retainedNightlyRate: string; numberOfNights: number }): string {
     const negative = event.retainedNightlyRate.startsWith('-');
     const unsigned = negative ? event.retainedNightlyRate.slice(1) : event.retainedNightlyRate;
     const [whole, fraction = ''] = unsigned.split('.');

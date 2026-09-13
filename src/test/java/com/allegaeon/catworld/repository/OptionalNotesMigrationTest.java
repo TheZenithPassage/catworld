@@ -11,8 +11,28 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OptionalNotesMigrationTest {
+
+    @Test
+    void versionTwelveRejectsInvalidTransferSingletonAndCapturedBases() {
+        DataSource dataSource = new SingleConnectionDataSource(
+                "jdbc:h2:mem:transfer_v12_constraints;DB_CLOSE_DELAY=-1;MODE=MySQL", "sa", "", true);
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.execute("create table stays (id binary(16) primary key)");
+        jdbc.execute("create table stay_pricing_decisions (id binary(16) primary key)");
+        Flyway.configure().dataSource(dataSource).baselineOnMigrate(true)
+                .baselineVersion(MigrationVersion.fromVersion("11"))
+                .target(MigrationVersion.fromVersion("12")).load().migrate();
+
+        assertThrows(Exception.class, () -> jdbc.update(
+                "insert into transfer_rates (id, transfer_rate) values (2, 10)"));
+        assertThrows(Exception.class, () -> jdbc.update(
+                "insert into stays (id, arrival_transfer_required, departure_transfer_required, retained_transfer_rate, transfer_waived) values (random_uuid(), false, false, 10, false)"));
+        assertThrows(Exception.class, () -> jdbc.update(
+                "insert into stay_pricing_decisions (id, arrival_transfer_required, departure_transfer_required, retained_transfer_rate, transfer_waived) values (random_uuid(), false, false, -1, false)"));
+    }
 
     @Test
     void versionElevenAddsNullableTextColumnsWithoutRewritingStayNotes() {
@@ -39,6 +59,7 @@ class OptionalNotesMigrationTest {
                 .dataSource(dataSource)
                 .baselineOnMigrate(true)
                 .baselineVersion(MigrationVersion.fromVersion("10"))
+                .target(MigrationVersion.fromVersion("11"))
                 .load()
                 .migrate();
 
