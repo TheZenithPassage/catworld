@@ -135,6 +135,22 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('highlights keyboard-focused status filters independently of hover', () => {
+    createComponent();
+
+    const focusRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.includes('.status-filter') &&
+          rule.selectorText.includes(':focus-visible'),
+      );
+
+    expect(focusRule?.style.borderColor).toBe('var(--color-primary)');
+    expect(focusRule?.style.background).toBe('var(--color-primary-soft)');
+  });
+
   it('offers exactly the three unified modes and keeps mode independent from entity filters', () => {
     createComponent();
 
