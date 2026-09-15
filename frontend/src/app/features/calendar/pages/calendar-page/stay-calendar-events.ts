@@ -18,10 +18,7 @@ export interface StayCalendarTransferIndicatorLabels {
 
 export type StayCalendarTransferIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
 
-export type StayCalendarDirectionIndicatorKind =
-  | 'arrival'
-  | 'departure'
-  | 'arrival-and-departure';
+export type StayCalendarDirectionIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
 
 export interface DailyCountEventLabels {
   singular: string;
@@ -306,11 +303,7 @@ function toCalendarEventForDate(
         isDepartureBoundary,
         transferIndicatorLabels,
       ),
-      transferIndicatorKind: getTransferIndicatorKind(
-        stay,
-        isArrivalBoundary,
-        isDepartureBoundary,
-      ),
+      transferIndicatorKind: getTransferIndicatorKind(stay, isArrivalBoundary, isDepartureBoundary),
     },
   };
 }
