@@ -116,7 +116,7 @@
   cursor: pointer;
 }
 
-:host ::ng-deep :is(.calendar-display-option, .status-filter):has(input:focus-visible) {
+:host ::ng-deep .calendar-display-option:has(input:focus-visible) {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
