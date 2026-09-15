@@ -18,6 +18,8 @@ export interface StayCalendarTransferIndicatorLabels {
 
 export type StayCalendarTransferIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
 
+export type StayCalendarDirectionIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
+
 export interface DailyCountEventLabels {
   singular: string;
   plural: string;
@@ -227,6 +229,10 @@ function toCompactCalendarEvent(
       compactMarkerKind: markerKind,
       compactMarkerOrder: getCompactMarkerOrder(markerKind),
       compactMarkerLabel: compactMarkerLabels[markerKind],
+      directionIndicatorKind: getDirectionIndicatorKind(
+        markerKind === 'start',
+        markerKind === 'end',
+      ),
       transferIndicator: getTransferIndicator(
         stay,
         markerKind === 'start',
@@ -271,6 +277,8 @@ function toCalendarEventForDate(
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
   const dateValue = toDateValue(date);
+  const isArrivalBoundary = dateValue === toDateValue(new Date(stay.startAt));
+  const isDepartureBoundary = dateValue === toDateValue(new Date(stay.endAt));
 
   return {
     id: `${stay.stayId}-${dateValue}`,
@@ -288,19 +296,31 @@ function toCalendarEventForDate(
       stayStartAt: stay.startAt,
       stayCreatedAt: stay.createdAt,
       stayDurationDays: getStayDurationDays(stay),
+      directionIndicatorKind: getDirectionIndicatorKind(isArrivalBoundary, isDepartureBoundary),
       transferIndicator: getTransferIndicator(
         stay,
-        toDateValue(date) === toDateValue(new Date(stay.startAt)),
-        toDateValue(date) === toDateValue(new Date(stay.endAt)),
+        isArrivalBoundary,
+        isDepartureBoundary,
         transferIndicatorLabels,
       ),
-      transferIndicatorKind: getTransferIndicatorKind(
-        stay,
-        toDateValue(date) === toDateValue(new Date(stay.startAt)),
-        toDateValue(date) === toDateValue(new Date(stay.endAt)),
-      ),
+      transferIndicatorKind: getTransferIndicatorKind(stay, isArrivalBoundary, isDepartureBoundary),
     },
   };
+}
+
+function getDirectionIndicatorKind(
+  isArrivalBoundary: boolean,
+  isDepartureBoundary: boolean,
+): StayCalendarDirectionIndicatorKind | null {
+  if (isArrivalBoundary && isDepartureBoundary) {
+    return 'arrival-and-departure';
+  }
+
+  if (isArrivalBoundary) {
+    return 'arrival';
+  }
+
+  return isDepartureBoundary ? 'departure' : null;
 }
 
 function getTransferIndicator(

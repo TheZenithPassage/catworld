@@ -1245,10 +1245,15 @@ loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
 uses the applied filtered population. Adjacent-month cells are hidden so dates
 outside the loaded logical interval cannot present incomplete operational results.
-Daily-label and entry/exit-marker views show a decorative car on a white
-circular background before a stay label only at a required arrival or departure boundary; same-day boundaries
-retain their independent compact markers. The localized accessible event name
-states the required direction, and daily-count aggregation remains unchanged.
+Daily-label and entry/exit-marker views render boundary direction before the
+stay label: arrival uses a green `↗` and departure uses a red `↙`, each on a
+white circular backing so the indicator remains distinguishable from the Stay
+color. A same-day daily label renders both arrows in arrival-then-departure
+order, while same-day entry/exit mode retains independent start and end
+markers. Intermediate daily labels and daily-count aggregation remain
+arrow-free. A required arrival or departure transfer continues to add the
+existing decorative car after the direction indicator(s). Localized accessible
+event names state both boundary direction and any required transfer meaning.
 
 ### Component Conventions
 

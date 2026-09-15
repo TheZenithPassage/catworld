@@ -50,6 +50,59 @@ describe('toStayCalendarEvents', () => {
     );
   });
 
+  it('marks only the arrival and departure daily-label boundaries', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-03T10:00:00',
+          endAt: '2099-06-05T10:00:00',
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'daily-labels',
+    });
+
+    expect(events.map((event) => event.extendedProps?.['directionIndicatorKind'] ?? null)).toEqual([
+      'arrival',
+      null,
+      'departure',
+    ]);
+  });
+
+  it('marks both directions on one same-day daily label', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-08T10:00:00',
+          endAt: '2099-06-08T18:00:00',
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'daily-labels',
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].extendedProps?.['directionIndicatorKind']).toBe('arrival-and-departure');
+  });
+
+  it('keeps entry and exit marker directions independent on the same day', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-08T10:00:00',
+          endAt: '2099-06-08T18:00:00',
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'entry-exit-markers',
+    });
+
+    expect(events.map((event) => event.extendedProps?.['directionIndicatorKind'])).toEqual([
+      'arrival',
+      'departure',
+    ]);
+  });
+
   it('adds translated labels to entry and exit marker events', () => {
     const stay = createStay();
 
@@ -164,6 +217,7 @@ describe('toStayCalendarEvents', () => {
       }),
     );
     expect(events[0].extendedProps?.['dailyAggregate']).toBe(aggregate);
+    expect(events[0].extendedProps).not.toHaveProperty('directionIndicatorKind');
   });
 
   it('does not manufacture zero count events', () => {
