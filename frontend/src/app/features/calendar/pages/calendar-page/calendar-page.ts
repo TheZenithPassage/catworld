@@ -369,18 +369,6 @@ export class CalendarPage implements OnDestroy {
     const indicator = document.createElement('span');
     indicator.className = `stay-event__direction-indicator stay-event__direction-indicator--${kind}`;
     indicator.setAttribute('aria-hidden', 'true');
-    indicator.style.display = 'inline-grid';
-    indicator.style.placeItems = 'center';
-    indicator.style.flex = '0 0 1.15em';
-    indicator.style.inlineSize = '1.15em';
-    indicator.style.blockSize = '1.15em';
-    indicator.style.marginInlineEnd = '0.18rem';
-    indicator.style.borderRadius = '50%';
-    indicator.style.background = '#fff';
-    indicator.style.fontWeight = '900';
-    indicator.style.lineHeight = '1';
-    indicator.style.transform = 'translateY(0.03em)';
-    indicator.style.color = kind === 'arrival' ? '#1b5e20' : '#b71c1c';
     indicator.textContent = kind === 'arrival' ? '↗' : '↙';
     return indicator;
   }
