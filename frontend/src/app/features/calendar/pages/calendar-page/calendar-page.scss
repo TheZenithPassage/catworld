@@ -370,6 +370,28 @@
   width: 100%;
 }
 
+:host ::ng-deep .fc .stay-event__direction-indicator {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 1.15em;
+  inline-size: 1.15em;
+  block-size: 1.15em;
+  margin-inline-end: 0.18rem;
+  border-radius: 50%;
+  background: #fff;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(0.03em);
+}
+
+:host ::ng-deep .fc .stay-event__direction-indicator--arrival {
+  color: #1b5e20;
+}
+
+:host ::ng-deep .fc .stay-event__direction-indicator--departure {
+  color: #b71c1c;
+}
+
 :host ::ng-deep .fc .stay-event__transfer-indicator {
   display: inline-grid;
   place-items: center;

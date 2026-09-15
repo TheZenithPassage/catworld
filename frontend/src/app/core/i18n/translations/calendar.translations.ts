@@ -41,6 +41,11 @@ export interface CalendarTranslations {
     departure: string;
     arrivalAndDeparture: string;
   };
+  directionIndicators: {
+    arrival: string;
+    departure: string;
+    arrivalAndDeparture: string;
+  };
   dailyCounts: {
     singular: string;
     plural: string;
@@ -100,6 +105,11 @@ export const CALENDAR_TRANSLATIONS = {
       departure: 'Traslado de salida',
       arrivalAndDeparture: 'Traslado de llegada y salida',
     },
+    directionIndicators: {
+      arrival: 'Llegada',
+      departure: 'Salida',
+      arrivalAndDeparture: 'Llegada y salida',
+    },
     dailyCounts: {
       singular: '{{count}} gato',
       plural: '{{count}} gatos',
@@ -156,6 +166,11 @@ export const CALENDAR_TRANSLATIONS = {
       arrival: 'Arrival transfer',
       departure: 'Departure transfer',
       arrivalAndDeparture: 'Arrival and departure transfers',
+    },
+    directionIndicators: {
+      arrival: 'Arrival',
+      departure: 'Departure',
+      arrivalAndDeparture: 'Arrival and departure',
     },
     dailyCounts: {
       singular: '{{count}} cat',

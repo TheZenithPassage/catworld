@@ -614,6 +614,124 @@ describe('CalendarPage', () => {
     expect(element.getAttribute('aria-label')).toContain('Milo');
   });
 
+  it('renders arrival direction before transfer assistance and the stay label', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          directionIndicatorKind: 'arrival',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    });
+    const element = document.createElement('a');
+
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          directionIndicatorKind: 'arrival',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    } as never);
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['↗', '🚗', 'Milo']);
+    expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[0].classList).toContain('stay-event__direction-indicator--arrival');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.directionIndicators.arrival,
+    );
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+    expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('renders both same-day directions in arrival-then-departure order and fixed colors', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          directionIndicatorKind: 'arrival-and-departure',
+        },
+      },
+    });
+    const element = document.createElement('a');
+
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          directionIndicatorKind: 'arrival-and-departure',
+        },
+      },
+    } as never);
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['↗', '↙', 'Milo']);
+
+    const arrivalIndicator = content.domNodes[0];
+    const departureIndicator = content.domNodes[1];
+    (fixture.nativeElement as HTMLElement)
+      .querySelector('.fc')
+      ?.append(arrivalIndicator, departureIndicator);
+
+    expect(arrivalIndicator.getAttribute('aria-hidden')).toBe('true');
+    expect(departureIndicator.getAttribute('aria-hidden')).toBe('true');
+    expect(getComputedStyle(arrivalIndicator).backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(arrivalIndicator).color).toBe('rgb(27, 94, 32)');
+    expect(getComputedStyle(departureIndicator).backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(getComputedStyle(departureIndicator).color).toBe('rgb(183, 28, 28)');
+    expect(getComputedStyle(arrivalIndicator).borderRadius).toBe('50%');
+    expect(getComputedStyle(departureIndicator).borderRadius).toBe('50%');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.directionIndicators.arrivalAndDeparture,
+    );
+  });
+
+  it('relocalizes mounted direction accessibility when the language changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const spanishArrival = component.text().calendar.directionIndicators.arrival;
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain(spanishArrival);
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.text().calendar.directionIndicators.arrival).toBe('Arrival');
+    expect(event.getAttribute('aria-label')).not.toContain(spanishArrival);
+    expect(event.getAttribute('aria-label')).toContain('Arrival');
+  });
+
   it('keeps cat identity in daily and compact event labels without transfer assistance', () => {
     createComponent();
 
