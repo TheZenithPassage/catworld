@@ -30,7 +30,7 @@ import { StayStatusVisibilityPreferencesService } from '../../../stays/services/
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
 import {
   compareStayCalendarEvents,
-  StayCalendarDirectionIndicatorKind,
+  StayCalendarBoundaryKind,
   StayCalendarTransferIndicatorKind,
   toStayCalendarEvents,
 } from './stay-calendar-events';
@@ -221,45 +221,28 @@ export class CalendarPage implements OnDestroy {
     eventWillUnmount: ({ el }) => this.mountedStayEventAccessibility.delete(el),
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
-        const directionIndicatorKind = this.getDirectionIndicatorKind(
-          eventInfo.event.extendedProps,
-        );
+        const boundaryKind = this.getBoundaryKind(eventInfo.event.extendedProps);
         const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
         const hasTransferIndicator = typeof transferIndicator === 'string' && !!transferIndicator;
 
-        if (!directionIndicatorKind && !hasTransferIndicator) {
+        if (!boundaryKind && !hasTransferIndicator) {
           return true;
         }
 
         const domNodes: HTMLElement[] = [];
 
-        if (
-          directionIndicatorKind === 'arrival' ||
-          directionIndicatorKind === 'arrival-and-departure'
-        ) {
-          domNodes.push(this.createDirectionIndicator('arrival'));
-        }
-
-        if (
-          directionIndicatorKind === 'departure' ||
-          directionIndicatorKind === 'arrival-and-departure'
-        ) {
-          domNodes.push(this.createDirectionIndicator('departure'));
-        }
-
         if (hasTransferIndicator) {
           const indicator = document.createElement('span');
           indicator.className = 'stay-event__transfer-indicator';
           indicator.setAttribute('aria-hidden', 'true');
-          indicator.style.inlineSize = '1.25em';
-          indicator.style.height = '1.25em';
-          indicator.style.transform = 'translateY(0.06em)';
+          indicator.style.inlineSize = '1.15em';
+          indicator.style.height = '1.15em';
+          indicator.style.transform = 'translateY(0.03em)';
 
           const glyph = document.createElement('span');
           glyph.className = 'stay-event__transfer-glyph';
-          glyph.style.position = 'relative';
-          glyph.style.top = '-0.25em';
-          glyph.style.left = '-0.07em';
+          glyph.style.fontSize = '0.72em';
+          glyph.style.lineHeight = '1';
           glyph.textContent = '🚗';
           indicator.append(glyph);
           domNodes.push(indicator);
@@ -355,22 +338,12 @@ export class CalendarPage implements OnDestroy {
       : null;
   }
 
-  private getDirectionIndicatorKind(
-    extendedProps: Record<string, unknown>,
-  ): StayCalendarDirectionIndicatorKind | null {
-    const kind = extendedProps['directionIndicatorKind'];
+  private getBoundaryKind(extendedProps: Record<string, unknown>): StayCalendarBoundaryKind | null {
+    const kind = extendedProps['boundaryKind'];
 
     return kind === 'arrival' || kind === 'departure' || kind === 'arrival-and-departure'
       ? kind
       : null;
-  }
-
-  private createDirectionIndicator(kind: 'arrival' | 'departure'): HTMLElement {
-    const indicator = document.createElement('span');
-    indicator.className = `stay-event__direction-indicator stay-event__direction-indicator--${kind}`;
-    indicator.setAttribute('aria-hidden', 'true');
-    indicator.textContent = kind === 'arrival' ? '↗' : '↙';
-    return indicator;
   }
 
   private getCompactMarkerKind(extendedProps: Record<string, unknown>): 'start' | 'end' | null {
@@ -385,13 +358,13 @@ export class CalendarPage implements OnDestroy {
   }): {
     title: string;
     compactMarkerKind: 'start' | 'end' | null;
-    directionIndicatorKind: StayCalendarDirectionIndicatorKind | null;
+    boundaryKind: StayCalendarBoundaryKind | null;
     transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
   } {
     return {
       title: event.title,
       compactMarkerKind: this.getCompactMarkerKind(event.extendedProps),
-      directionIndicatorKind: this.getDirectionIndicatorKind(event.extendedProps),
+      boundaryKind: this.getBoundaryKind(event.extendedProps),
       transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
     };
   }
@@ -418,17 +391,17 @@ export class CalendarPage implements OnDestroy {
     details: {
       title: string;
       compactMarkerKind: 'start' | 'end' | null;
-      directionIndicatorKind: StayCalendarDirectionIndicatorKind | null;
+      boundaryKind: StayCalendarBoundaryKind | null;
       transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
     },
   ): void {
-    const directionIndicator =
-      details.directionIndicatorKind === 'arrival'
-        ? this.text().calendar.directionIndicators.arrival
-        : details.directionIndicatorKind === 'departure'
-          ? this.text().calendar.directionIndicators.departure
-          : details.directionIndicatorKind === 'arrival-and-departure'
-            ? this.text().calendar.directionIndicators.arrivalAndDeparture
+    const boundaryLabel =
+      details.boundaryKind === 'arrival'
+        ? this.text().calendar.boundaryLabels.arrival
+        : details.boundaryKind === 'departure'
+          ? this.text().calendar.boundaryLabels.departure
+          : details.boundaryKind === 'arrival-and-departure'
+            ? this.text().calendar.boundaryLabels.arrivalAndDeparture
             : '';
     const transferIndicator =
       details.transferIndicatorKind === 'arrival'
@@ -444,7 +417,7 @@ export class CalendarPage implements OnDestroy {
     const eventLabel = compactMarkerLabel
       ? `${compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
       : this.text().calendar.openStayInList;
-    const accessibleLabel = [directionIndicator, transferIndicator, details.title, eventLabel]
+    const accessibleLabel = [boundaryLabel, transferIndicator, details.title, eventLabel]
       .filter(Boolean)
       .join('. ');
 

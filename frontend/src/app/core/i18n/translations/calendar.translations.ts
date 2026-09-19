@@ -41,7 +41,7 @@ export interface CalendarTranslations {
     departure: string;
     arrivalAndDeparture: string;
   };
-  directionIndicators: {
+  boundaryLabels: {
     arrival: string;
     departure: string;
     arrivalAndDeparture: string;
@@ -105,7 +105,7 @@ export const CALENDAR_TRANSLATIONS = {
       departure: 'Traslado de salida',
       arrivalAndDeparture: 'Traslado de llegada y salida',
     },
-    directionIndicators: {
+    boundaryLabels: {
       arrival: 'Llegada',
       departure: 'Salida',
       arrivalAndDeparture: 'Llegada y salida',
@@ -167,7 +167,7 @@ export const CALENDAR_TRANSLATIONS = {
       departure: 'Departure transfer',
       arrivalAndDeparture: 'Arrival and departure transfers',
     },
-    directionIndicators: {
+    boundaryLabels: {
       arrival: 'Arrival',
       departure: 'Departure',
       arrivalAndDeparture: 'Arrival and departure',

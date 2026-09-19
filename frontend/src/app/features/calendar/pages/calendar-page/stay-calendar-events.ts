@@ -18,7 +18,19 @@ export interface StayCalendarTransferIndicatorLabels {
 
 export type StayCalendarTransferIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
 
-export type StayCalendarDirectionIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
+export type StayCalendarBoundaryKind = 'arrival' | 'departure' | 'arrival-and-departure';
+
+const ARRIVAL_MARKER_COLOR = {
+  backgroundColor: '#15803d',
+  borderColor: '#166534',
+  textColor: '#ffffff',
+};
+
+const DEPARTURE_MARKER_COLOR = {
+  backgroundColor: '#b42318',
+  borderColor: '#912018',
+  textColor: '#ffffff',
+};
 
 export interface DailyCountEventLabels {
   singular: string;
@@ -72,12 +84,7 @@ export function toStayCalendarEvents({
   }
 
   return visibleStays.flatMap((stay) =>
-    toCompactCalendarEvents(
-      stay,
-      colorAssignments.get(stay.stayId),
-      compactMarkerLabels,
-      transferIndicatorLabels,
-    ),
+    toCompactCalendarEvents(stay, compactMarkerLabels, transferIndicatorLabels),
   );
 }
 
@@ -171,7 +178,6 @@ function toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
 
 function toCompactCalendarEvents(
   stay: Stay,
-  color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput[] {
@@ -180,7 +186,6 @@ function toCompactCalendarEvents(
       stay,
       new Date(stay.startAt),
       'start',
-      color,
       compactMarkerLabels,
       transferIndicatorLabels,
     ),
@@ -188,7 +193,6 @@ function toCompactCalendarEvents(
       stay,
       new Date(stay.endAt),
       'end',
-      color,
       compactMarkerLabels,
       transferIndicatorLabels,
     ),
@@ -199,12 +203,11 @@ function toCompactCalendarEvent(
   stay: Stay,
   date: Date,
   markerKind: CompactMarkerKind,
-  color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
   const status = getStayStatus(stay);
-  const eventColor = getEventColor(status, color);
+  const eventColor = markerKind === 'start' ? ARRIVAL_MARKER_COLOR : DEPARTURE_MARKER_COLOR;
   const dateValue = toDateValue(date);
 
   return {
@@ -229,10 +232,7 @@ function toCompactCalendarEvent(
       compactMarkerKind: markerKind,
       compactMarkerOrder: getCompactMarkerOrder(markerKind),
       compactMarkerLabel: compactMarkerLabels[markerKind],
-      directionIndicatorKind: getDirectionIndicatorKind(
-        markerKind === 'start',
-        markerKind === 'end',
-      ),
+      boundaryKind: getBoundaryKind(markerKind === 'start', markerKind === 'end'),
       transferIndicator: getTransferIndicator(
         stay,
         markerKind === 'start',
@@ -296,7 +296,7 @@ function toCalendarEventForDate(
       stayStartAt: stay.startAt,
       stayCreatedAt: stay.createdAt,
       stayDurationDays: getStayDurationDays(stay),
-      directionIndicatorKind: getDirectionIndicatorKind(isArrivalBoundary, isDepartureBoundary),
+      boundaryKind: getBoundaryKind(isArrivalBoundary, isDepartureBoundary),
       transferIndicator: getTransferIndicator(
         stay,
         isArrivalBoundary,
@@ -308,10 +308,10 @@ function toCalendarEventForDate(
   };
 }
 
-function getDirectionIndicatorKind(
+function getBoundaryKind(
   isArrivalBoundary: boolean,
   isDepartureBoundary: boolean,
-): StayCalendarDirectionIndicatorKind | null {
+): StayCalendarBoundaryKind | null {
   if (isArrivalBoundary && isDepartureBoundary) {
     return 'arrival-and-departure';
   }

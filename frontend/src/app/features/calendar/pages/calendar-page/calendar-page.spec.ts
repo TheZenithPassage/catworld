@@ -577,6 +577,35 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('keeps individual stay titles fluid, single-line and clipped without ellipsis', () => {
+    createComponent();
+
+    const calendar = (fixture.nativeElement as HTMLElement).querySelector('.fc')!;
+    const daily = document.createElement('a');
+    daily.className = 'fc-daygrid-event fc-daygrid-block-event stay-event--reserved';
+    const title = document.createElement('span');
+    title.className = 'fc-event-title';
+    title.textContent = 'Chiquita';
+    daily.append(title);
+    calendar.append(daily);
+
+    const titleStyle = getComputedStyle(title);
+    expect(titleStyle.whiteSpace).toBe('nowrap');
+    expect(titleStyle.overflow).toBe('hidden');
+    expect(titleStyle.textOverflow).toBe('clip');
+  });
+
+  it('keeps compact horizontal event padding at wider viewports', () => {
+    createComponent();
+
+    const event = document.createElement('a');
+    event.className = 'fc-daygrid-event stay-event--reserved';
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(event);
+
+    expect(getComputedStyle(event).paddingLeft).toBe('0.04rem');
+    expect(getComputedStyle(event).paddingRight).toBe('0.04rem');
+  });
+
   it('renders a transfer car before the stay label with a localized accessible direction', () => {
     createComponent();
 
@@ -616,13 +645,12 @@ describe('CalendarPage', () => {
     expect(indicatorStyle.placeItems).toBe('center');
     expect(indicatorStyle.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(indicatorStyle.borderRadius).toBe('50%');
-    expect(content.domNodes[0].style.inlineSize).toBe('1.25em');
-    expect(content.domNodes[0].style.height).toBe('1.25em');
-    expect(content.domNodes[0].style.transform).toBe('translateY(0.06em)');
+    expect(content.domNodes[0].style.inlineSize).toBe('1.15em');
+    expect(content.domNodes[0].style.height).toBe('1.15em');
+    expect(content.domNodes[0].style.transform).toBe('translateY(0.03em)');
     const glyph = content.domNodes[0].querySelector('.stay-event__transfer-glyph') as HTMLElement;
-    expect(glyph.style.position).toBe('relative');
-    expect(glyph.style.top).toBe('-0.25em');
-    expect(glyph.style.left).toBe('-0.07em');
+    expect(glyph.style.fontSize).toBe('0.72em');
+    expect(glyph.style.lineHeight).toBe('1');
     expect(content.domNodes[1].textContent).toBe('Milo');
     expect(element.getAttribute('aria-label')).toContain(
       component.text().calendar.transferIndicators.arrival,
@@ -630,7 +658,28 @@ describe('CalendarPage', () => {
     expect(element.getAttribute('aria-label')).toContain('Milo');
   });
 
-  it('renders arrival direction before transfer assistance and the stay label', () => {
+  it('renders no visual direction indicator for a boundary without transfer assistance', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival',
+        },
+      },
+    });
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['Milo']);
+    expect(content.domNodes[0].classList).toContain('fc-event-title');
+    expect(content.domNodes[0].querySelector('.stay-event__direction-indicator')).toBeNull();
+  });
+
+  it('renders only the transfer badge before the title while preserving boundary accessibility', () => {
     createComponent();
 
     const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
@@ -642,7 +691,7 @@ describe('CalendarPage', () => {
         title: 'Milo',
         extendedProps: {
           stayId: 'stay-1',
-          directionIndicatorKind: 'arrival',
+          boundaryKind: 'arrival',
           transferIndicator: 'Arrival transfer',
           transferIndicatorKind: 'arrival',
         },
@@ -656,18 +705,24 @@ describe('CalendarPage', () => {
         title: 'Milo',
         extendedProps: {
           stayId: 'stay-1',
-          directionIndicatorKind: 'arrival',
+          boundaryKind: 'arrival',
           transferIndicator: 'Arrival transfer',
           transferIndicatorKind: 'arrival',
         },
       },
     } as never);
 
-    expect(content.domNodes.map((node) => node.textContent)).toEqual(['↗', '🚗', 'Milo']);
-    expect(content.domNodes[0].getAttribute('aria-hidden')).toBe('true');
-    expect(content.domNodes[0].classList).toContain('stay-event__direction-indicator--arrival');
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['🚗', 'Milo']);
+    const transfer = content.domNodes[0];
+    expect(transfer.classList).toContain('stay-event__transfer-indicator');
+    expect(transfer.getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[1].classList).toContain('fc-event-title');
+    expect(document.querySelector('.stay-event__direction-indicator')).toBeNull();
+    expect(document.querySelector('.stay-event__indicator-stack')).toBeNull();
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(transfer);
+    expect(getComputedStyle(transfer).backgroundColor).toBe('rgb(255, 255, 255)');
     expect(element.getAttribute('aria-label')).toContain(
-      component.text().calendar.directionIndicators.arrival,
+      component.text().calendar.boundaryLabels.arrival,
     );
     expect(element.getAttribute('aria-label')).toContain(
       component.text().calendar.transferIndicators.arrival,
@@ -675,7 +730,7 @@ describe('CalendarPage', () => {
     expect(element.getAttribute('aria-label')).toContain('Milo');
   });
 
-  it('renders both same-day directions in arrival-then-departure order and fixed colors', () => {
+  it('renders no direction DOM for a same-day daily boundary and keeps accessible meaning', () => {
     createComponent();
 
     const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
@@ -687,7 +742,7 @@ describe('CalendarPage', () => {
         title: 'Milo',
         extendedProps: {
           stayId: 'stay-1',
-          directionIndicatorKind: 'arrival-and-departure',
+          boundaryKind: 'arrival-and-departure',
         },
       },
     });
@@ -699,29 +754,15 @@ describe('CalendarPage', () => {
         title: 'Milo',
         extendedProps: {
           stayId: 'stay-1',
-          directionIndicatorKind: 'arrival-and-departure',
+          boundaryKind: 'arrival-and-departure',
         },
       },
     } as never);
 
-    expect(content.domNodes.map((node) => node.textContent)).toEqual(['↗', '↙', 'Milo']);
-
-    const arrivalIndicator = content.domNodes[0];
-    const departureIndicator = content.domNodes[1];
-    (fixture.nativeElement as HTMLElement)
-      .querySelector('.fc')
-      ?.append(arrivalIndicator, departureIndicator);
-
-    expect(arrivalIndicator.getAttribute('aria-hidden')).toBe('true');
-    expect(departureIndicator.getAttribute('aria-hidden')).toBe('true');
-    expect(getComputedStyle(arrivalIndicator).backgroundColor).toBe('rgb(255, 255, 255)');
-    expect(getComputedStyle(arrivalIndicator).color).toBe('rgb(27, 94, 32)');
-    expect(getComputedStyle(departureIndicator).backgroundColor).toBe('rgb(255, 255, 255)');
-    expect(getComputedStyle(departureIndicator).color).toBe('rgb(183, 28, 28)');
-    expect(getComputedStyle(arrivalIndicator).borderRadius).toBe('50%');
-    expect(getComputedStyle(departureIndicator).borderRadius).toBe('50%');
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['Milo']);
+    expect(content.domNodes[0].classList).toContain('fc-event-title');
     expect(element.getAttribute('aria-label')).toContain(
-      component.text().calendar.directionIndicators.arrivalAndDeparture,
+      component.text().calendar.boundaryLabels.arrivalAndDeparture,
     );
   });
 
@@ -734,7 +775,7 @@ describe('CalendarPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const spanishArrival = component.text().calendar.directionIndicators.arrival;
+    const spanishArrival = component.text().calendar.boundaryLabels.arrival;
     const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
     expect(event.getAttribute('aria-label')).toContain(spanishArrival);
 
@@ -743,7 +784,7 @@ describe('CalendarPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(component.text().calendar.directionIndicators.arrival).toBe('Arrival');
+    expect(component.text().calendar.boundaryLabels.arrival).toBe('Arrival');
     expect(event.getAttribute('aria-label')).not.toContain(spanishArrival);
     expect(event.getAttribute('aria-label')).toContain('Arrival');
   });
