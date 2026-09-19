@@ -501,7 +501,22 @@ export class StayEditor {
   onTransferAssistanceChange(active: boolean): void {
     this.transferAssistanceActive.set(active);
 
-    if (active) return;
+    if (active) {
+      const transferStateChanged =
+        !this.arrivalTransferRequired() ||
+        !this.departureTransferRequired() ||
+        this.transferWaived();
+      this.arrivalTransferRequired.set(true);
+      this.departureTransferRequired.set(true);
+      this.transferWaived.set(false);
+      this.selectedTransferRate.set(null);
+
+      if (transferStateChanged) {
+        this.clearVaccineOverrideRecovery();
+        this.refreshPricingPreview();
+      }
+      return;
+    }
 
     const transferStateChanged =
       this.arrivalTransferRequired() || this.departureTransferRequired() || this.transferWaived();

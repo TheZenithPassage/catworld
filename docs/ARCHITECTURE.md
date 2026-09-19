@@ -1461,7 +1461,11 @@ contribution is the captured rate times required legs, or zero when waived or
 unavailable. It is added once to the accommodation suggestion and never affects
 nightly-rate multiplication. Pricing confirmations and immutable pricing-decision
 audit evidence contain both components, so historic activity never reads live
-configuration.
+configuration. Enabling transfer assistance in Stay creation or editing selects
+both arrival and departure legs by default; either leg can then be cleared
+individually. Disabling transfer assistance clears both leg selections and the
+waiver, so none of those controls contributes a required leg, waiver or charge
+to the resulting request or pricing preview.
 
 ## Public Repository Notes
 
