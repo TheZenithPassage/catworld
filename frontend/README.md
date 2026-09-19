@@ -22,19 +22,18 @@ npm install
 npm start
 ```
 
-The development server runs at:
+The development server runs on port 4200 and is available to other devices on
+the same LAN at:
 
 ```text
-http://localhost:4200
+http://<PC_LAN_IP>:4200
 ```
 
-The local backend is expected at:
+The local backend is expected at `http://localhost:8080`. During development,
+the Angular server proxies requests from `/api` to that backend, so LAN clients
+only connect to the Angular server.
 
-```text
-http://localhost:8080/api
-```
-
-The API base URL is configured under:
+The development API base URL is configured under:
 
 ```text
 src/environments/
