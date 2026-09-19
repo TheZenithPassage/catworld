@@ -546,8 +546,7 @@ export class CalendarPage implements OnDestroy {
     this.displayMode.set(displayMode);
   }
 
-  activateDisplayOption(event: MouseEvent, displayMode: CalendarDisplayMode): void {
-    if (event.target !== event.currentTarget) return;
+  activateDisplayOption(displayMode: CalendarDisplayMode): void {
     this.setDisplayMode(displayMode);
   }
 

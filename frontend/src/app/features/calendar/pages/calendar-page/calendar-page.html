@@ -55,7 +55,7 @@
       (change)="setDisplayMode($event.value)"
     >
       @for (displayMode of displayModeOptions; track displayMode) {
-        <div class="calendar-display-option" (click)="activateDisplayOption($event, displayMode)">
+        <div class="calendar-display-option" (click)="activateDisplayOption(displayMode)">
           <mat-radio-button class="calendar-display-control" [value]="displayMode">
             <span class="calendar-display-option-content">
               <strong>{{ text().calendar.displayModes.options[displayMode].label }}</strong>

@@ -167,7 +167,9 @@ describe('CalendarPage', () => {
       component.text().calendar.displayModes.options['daily-labels'].label,
     );
 
-    (displayOptions[1].closest('.calendar-display-option') as HTMLElement).click();
+    (
+      displayOptions[1].querySelector('.calendar-display-option-content small') as HTMLElement
+    ).click();
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('daily-counts');
@@ -191,6 +193,20 @@ describe('CalendarPage', () => {
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('entry-exit-markers');
+  });
+
+  it('activates a display mode when a nested part of its card is clicked', () => {
+    createComponent();
+
+    const card = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+      '.calendar-display-option',
+    )[1];
+    const nestedTarget = document.createElement('span');
+    card.append(nestedTarget);
+
+    nestedTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(component.displayMode()).toBe('daily-counts');
   });
 
   it('updates daily counts and participants for Cat and Owner filters without changing mode', () => {
