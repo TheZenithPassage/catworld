@@ -278,6 +278,7 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StayDatePricingPreviewResponseDTO previewDateChangePricing(
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
@@ -887,19 +888,6 @@ public class StayService implements IStayService {
         return cats;
     }
 
-    private NightlyReferenceRateKey keyForCatCount(int catCount) {
-        if (catCount == 1) {
-            return NightlyReferenceRateKey.ONE_CAT;
-        }
-        if (catCount == 2) {
-            return NightlyReferenceRateKey.TWO_CATS;
-        }
-        if (catCount >= 3) {
-            return NightlyReferenceRateKey.THREE_PLUS_CATS;
-        }
-        throw new BadRequestException("A stay must contain at least one cat");
-    }
-
     private CreationPricingBasis creationPricingBasis(
             LocalDateTime startAt,
             LocalDateTime endAt,
@@ -960,6 +948,11 @@ public class StayService implements IStayService {
         long previousNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(), stay.getEndAt());
         long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        BigDecimal currentApplicableNightlyRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        stay.getStayCats().size(),
+                        nights,
+                        nightlyReferenceRateRepository::findById));
         BigDecimal previousTransfer = stayMapper.calculateTransferSuggestedAmount(stay);
         int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
                 + (stay.isDepartureTransferRequired() ? 1 : 0);
@@ -985,18 +978,13 @@ public class StayService implements IStayService {
             retainedTransfer = current;
         }
         BigDecimal retainedNightlyRate = stay.getRetainedNightlyRate();
-        if (selectedNightlyRate != null && !sameMoney(selectedNightlyRate, retainedNightlyRate)) {
-            if (previousNights == nights) {
+        if (selectedNightlyRate != null) {
+            if (previousNights == nights
+                    || !sameMoney(selectedNightlyRate,
+                    currentApplicableNightlyRate)) {
                 throw new StalePricingConfirmationException();
             }
-            NightlyReferenceRateKey key = keyForCatCount(stay.getStayCats().size());
-            BigDecimal currentNightlyRate = nightlyReferenceRateRepository.findById(key)
-                    .map(NightlyReferenceRate::getNightlyRate).map(this::validateRetainedNightlyRate)
-                    .orElseThrow(StalePricingConfirmationException::new);
-            if (!sameMoney(selectedNightlyRate, currentNightlyRate)) {
-                throw new StalePricingConfirmationException();
-            }
-            retainedNightlyRate = currentNightlyRate;
+            retainedNightlyRate = currentApplicableNightlyRate;
         }
         BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
         boolean pricingDecisionRequired = previousNights != nights
@@ -1023,6 +1011,7 @@ public class StayService implements IStayService {
                 .currentNumberOfNights(previousNights)
                 .currentAgreedAmount(stay.getAgreedAmount())
                 .numberOfNights(nights)
+                .currentApplicableNightlyRate(currentApplicableNightlyRate)
                 .retainedNightlyRate(retainedNightlyRate)
                 .accommodationSuggestedAmount(accommodationSuggestion)
                 .suggestedAmount(suggestion)
@@ -1080,15 +1069,12 @@ public class StayService implements IStayService {
         if (stay.getStayCats().isEmpty()) {
             throw new StalePricingConfirmationException();
         }
-        NightlyReferenceRateKey key = keyForCatCount(stay.getStayCats().size());
-        BigDecimal currentRate = nightlyReferenceRateRepository
-                .findByKeyForUpdate(key)
-                .map(NightlyReferenceRate::getNightlyRate)
-                .filter(rate -> rate.signum() > 0)
-                .filter(WholeMonetaryAmount::isSupported)
-                .map(WholeMonetaryAmount::canonicalize)
-                .orElseThrow(StalePricingConfirmationException::new);
-        if (!sameMoney(selectedRate, currentRate)) {
+        BigDecimal currentRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        stay.getStayCats().size(),
+                        proposedNights,
+                        nightlyReferenceRateRepository::findByKeyForUpdate));
+        if (currentRate == null || !sameMoney(selectedRate, currentRate)) {
             throw new StalePricingConfirmationException();
         }
         return currentRate;
