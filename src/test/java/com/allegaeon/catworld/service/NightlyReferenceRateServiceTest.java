@@ -3,8 +3,8 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.mapper.NightlyReferenceRateMapper;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.NightlyReferenceRateChange;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
@@ -31,7 +31,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -76,50 +75,62 @@ class NightlyReferenceRateServiceTest {
     }
 
     @Test
-    void readsExactlyThreeIndependentCategoriesInMinimumCatCountOrder() {
+    void readsExactlySixSlotsInProductOrder() {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
         when(nightlyReferenceRateRepository.findAll()).thenReturn(List.of(
-                rate(NightlyReferenceRateCategory.THREE_PLUS_CATS, new BigDecimal("30")),
-                rate(NightlyReferenceRateCategory.ONE_CAT, new BigDecimal("12")),
-                rate(NightlyReferenceRateCategory.TWO_CATS, null)
+                rate(NightlyReferenceRateKey.THREE_PLUS_CATS, new BigDecimal("30")),
+                rate(NightlyReferenceRateKey.ONE_CAT_15_TO_29, null),
+                rate(NightlyReferenceRateKey.ONE_CAT, new BigDecimal("12")),
+                rate(NightlyReferenceRateKey.ONE_CAT_30_PLUS, null),
+                rate(NightlyReferenceRateKey.TWO_CATS, null),
+                rate(NightlyReferenceRateKey.ONE_CAT_7_TO_14, new BigDecimal("11"))
         ));
 
         var response = service.getCurrentRates();
 
         assertEquals(
-                List.of(1, 2, 3),
-                response.stream().map(item -> item.getMinimumCatCount()).toList()
+                List.of(
+                        NightlyReferenceRateKey.ONE_CAT,
+                        NightlyReferenceRateKey.ONE_CAT_7_TO_14,
+                        NightlyReferenceRateKey.ONE_CAT_15_TO_29,
+                        NightlyReferenceRateKey.ONE_CAT_30_PLUS,
+                        NightlyReferenceRateKey.TWO_CATS,
+                        NightlyReferenceRateKey.THREE_PLUS_CATS
+                ),
+                response.stream().map(item -> item.getKey()).toList()
         );
         assertEquals(0, response.get(0).getNightlyRate().compareTo(new BigDecimal("12")));
-        assertNull(response.get(1).getNightlyRate());
-        assertEquals(0, response.get(2).getNightlyRate().compareTo(new BigDecimal("30")));
+        assertEquals(0, response.get(1).getNightlyRate().compareTo(new BigDecimal("11")));
+        assertNull(response.get(2).getNightlyRate());
+        assertNull(response.get(3).getNightlyRate());
+        assertNull(response.get(4).getNightlyRate());
+        assertEquals(0, response.get(5).getNightlyRate().compareTo(new BigDecimal("30")));
         verify(authorizationPolicy).authorizeRead(administrator);
         verifyNoInteractions(nightlyReferenceRateChangeRepository);
     }
 
     @ParameterizedTest
-    @EnumSource(NightlyReferenceRateCategory.class)
-    void configuresOnlySelectedCategoryAndCreatesExactAudit(
-            NightlyReferenceRateCategory category) {
+    @EnumSource(NightlyReferenceRateKey.class)
+    void configuresSelectedKeyAndCreatesExactAudit(NightlyReferenceRateKey key) {
         BigDecimal newRate = new BigDecimal("24");
-        NightlyReferenceRate currentRate = rate(category, null);
-        prepareAdminMutation(category, currentRate);
+        NightlyReferenceRate currentRate = rate(key, null);
+        prepareAdminMutation(key, currentRate);
         when(nightlyReferenceRateRepository.saveAndFlush(currentRate)).thenReturn(currentRate);
         when(nightlyReferenceRateChangeRepository.saveAndFlush(any(NightlyReferenceRateChange.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        var response = service.configureRate(category.getMinimumCatCount(), newRate);
+        var response = service.configureRate(key, newRate);
 
-        assertEquals(category.getMinimumCatCount(), response.getMinimumCatCount());
+        assertEquals(key, response.getKey());
         assertEquals(0, newRate.compareTo(response.getNightlyRate()));
-        verify(nightlyReferenceRateRepository).findByCategoryForUpdate(category);
+        verify(nightlyReferenceRateRepository).findByKeyForUpdate(key);
         verify(nightlyReferenceRateRepository).saveAndFlush(currentRate);
 
         ArgumentCaptor<NightlyReferenceRateChange> auditCaptor =
                 ArgumentCaptor.forClass(NightlyReferenceRateChange.class);
         verify(nightlyReferenceRateChangeRepository).saveAndFlush(auditCaptor.capture());
         NightlyReferenceRateChange change = auditCaptor.getValue();
-        assertEquals(category, change.getCategory());
+        assertEquals(key, change.getKey());
         assertNull(change.getPreviousNightlyRate());
         assertEquals(0, newRate.compareTo(change.getNewNightlyRate()));
         assertEquals(administrator, change.getChangedBy());
@@ -130,12 +141,12 @@ class NightlyReferenceRateServiceTest {
     @Test
     void replacesConfiguredValueAndPreservesExactPreviousAndNewAuditValues() {
         NightlyReferenceRate currentRate = rate(
-                NightlyReferenceRateCategory.TWO_CATS,
+                NightlyReferenceRateKey.TWO_CATS,
                 new BigDecimal("19")
         );
-        prepareAdminMutation(NightlyReferenceRateCategory.TWO_CATS, currentRate);
+        prepareAdminMutation(NightlyReferenceRateKey.TWO_CATS, currentRate);
 
-        service.configureRate(2, new BigDecimal("21"));
+        service.configureRate(NightlyReferenceRateKey.TWO_CATS, new BigDecimal("21"));
 
         ArgumentCaptor<NightlyReferenceRateChange> auditCaptor =
                 ArgumentCaptor.forClass(NightlyReferenceRateChange.class);
@@ -153,12 +164,12 @@ class NightlyReferenceRateServiceTest {
     @Test
     void clearsConfiguredCategoryAndAuditsTransitionToUnavailable() {
         NightlyReferenceRate currentRate = rate(
-                NightlyReferenceRateCategory.THREE_PLUS_CATS,
+                NightlyReferenceRateKey.THREE_PLUS_CATS,
                 new BigDecimal("40")
         );
-        prepareAdminMutation(NightlyReferenceRateCategory.THREE_PLUS_CATS, currentRate);
+        prepareAdminMutation(NightlyReferenceRateKey.THREE_PLUS_CATS, currentRate);
 
-        service.clearRate(3);
+        service.clearRate(NightlyReferenceRateKey.THREE_PLUS_CATS);
 
         assertNull(currentRate.getNightlyRate());
         ArgumentCaptor<NightlyReferenceRateChange> auditCaptor =
@@ -174,18 +185,18 @@ class NightlyReferenceRateServiceTest {
     @Test
     void numericReplacementAndAlreadyUnavailableClearAreNoOps() {
         NightlyReferenceRate configured = rate(
-                NightlyReferenceRateCategory.ONE_CAT,
+                NightlyReferenceRateKey.ONE_CAT,
                 new BigDecimal("12")
         );
-        prepareAdminMutation(NightlyReferenceRateCategory.ONE_CAT, configured);
+        prepareAdminMutation(NightlyReferenceRateKey.ONE_CAT, configured);
 
-        service.configureRate(1, new BigDecimal("12.0"));
+        service.configureRate(NightlyReferenceRateKey.ONE_CAT, new BigDecimal("12.0"));
 
-        NightlyReferenceRate unavailable = rate(NightlyReferenceRateCategory.TWO_CATS, null);
-        when(nightlyReferenceRateRepository.findByCategoryForUpdate(
-                NightlyReferenceRateCategory.TWO_CATS
+        NightlyReferenceRate unavailable = rate(NightlyReferenceRateKey.TWO_CATS, null);
+        when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                NightlyReferenceRateKey.TWO_CATS
         )).thenReturn(Optional.of(unavailable));
-        service.clearRate(2);
+        service.clearRate(NightlyReferenceRateKey.TWO_CATS);
 
         verify(nightlyReferenceRateRepository, never()).saveAndFlush(any());
         verifyNoInteractions(nightlyReferenceRateChangeRepository);
@@ -196,7 +207,10 @@ class NightlyReferenceRateServiceTest {
     void rejectsNonPositiveFractionalOrOutOfCapacityValuesWithoutPersistence(String value) {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
 
-        assertThrows(BadRequestException.class, () -> service.configureRate(1, new BigDecimal(value)));
+        assertThrows(BadRequestException.class, () -> service.configureRate(
+                NightlyReferenceRateKey.ONE_CAT,
+                new BigDecimal(value)
+        ));
 
         verify(authorizationPolicy).authorizeMutation(administrator);
         verifyNoInteractions(nightlyReferenceRateRepository, nightlyReferenceRateChangeRepository);
@@ -206,7 +220,10 @@ class NightlyReferenceRateServiceTest {
     void rejectsNullRateWithoutPersistence() {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
 
-        assertThrows(BadRequestException.class, () -> service.configureRate(1, null));
+        assertThrows(BadRequestException.class, () -> service.configureRate(
+                NightlyReferenceRateKey.ONE_CAT,
+                null
+        ));
 
         verify(authorizationPolicy).authorizeMutation(administrator);
         verifyNoInteractions(nightlyReferenceRateRepository, nightlyReferenceRateChangeRepository);
@@ -216,35 +233,15 @@ class NightlyReferenceRateServiceTest {
     @ValueSource(strings = {"1", "9999999999999999999"})
     void acceptsPositiveWholeNumberCapacityBoundaries(String value) {
         BigDecimal nightlyRate = new BigDecimal(value);
-        NightlyReferenceRate currentRate = rate(NightlyReferenceRateCategory.ONE_CAT, null);
-        prepareAdminMutation(NightlyReferenceRateCategory.ONE_CAT, currentRate);
+        NightlyReferenceRate currentRate = rate(NightlyReferenceRateKey.ONE_CAT, null);
+        prepareAdminMutation(NightlyReferenceRateKey.ONE_CAT, currentRate);
 
-        var response = service.configureRate(1, nightlyRate);
+        var response = service.configureRate(NightlyReferenceRateKey.ONE_CAT, nightlyRate);
 
         assertEquals(0, nightlyRate.compareTo(response.getNightlyRate()));
         verify(nightlyReferenceRateRepository).saveAndFlush(currentRate);
         verify(nightlyReferenceRateChangeRepository)
                 .saveAndFlush(any(NightlyReferenceRateChange.class));
-    }
-
-    @Test
-    void minimumCatCountThreeResolvesExactlyToThreePlusCats() {
-        assertEquals(
-                Optional.of(NightlyReferenceRateCategory.THREE_PLUS_CATS),
-                NightlyReferenceRateCategory.fromMinimumCatCount(3)
-        );
-    }
-
-    @Test
-    void rejectsUnsupportedMinimumCatCountThresholdWithoutPersistence() {
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
-
-        assertThrows(
-                BadRequestException.class,
-                () -> service.configureRate(4, new BigDecimal("10"))
-        );
-
-        verifyNoInteractions(nightlyReferenceRateRepository, nightlyReferenceRateChangeRepository);
     }
 
     @Test
@@ -256,25 +253,25 @@ class NightlyReferenceRateServiceTest {
 
         assertThrows(
                 com.allegaeon.catworld.exception.ForbiddenException.class,
-                () -> service.configureRate(1, BigDecimal.ZERO)
+                () -> service.configureRate(NightlyReferenceRateKey.ONE_CAT, BigDecimal.ZERO)
         );
 
         verifyNoInteractions(nightlyReferenceRateRepository, nightlyReferenceRateChangeRepository);
     }
 
     private void prepareAdminMutation(
-            NightlyReferenceRateCategory category,
+            NightlyReferenceRateKey key,
             NightlyReferenceRate currentRate) {
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(administrator);
-        when(nightlyReferenceRateRepository.findByCategoryForUpdate(category))
+        when(nightlyReferenceRateRepository.findByKeyForUpdate(key))
                 .thenReturn(Optional.of(currentRate));
     }
 
     private NightlyReferenceRate rate(
-            NightlyReferenceRateCategory category,
+            NightlyReferenceRateKey key,
             BigDecimal nightlyRate) {
         return NightlyReferenceRate.builder()
-                .category(category)
+                .key(key)
                 .nightlyRate(nightlyRate)
                 .build();
     }

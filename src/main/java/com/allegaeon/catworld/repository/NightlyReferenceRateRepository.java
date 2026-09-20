@@ -1,7 +1,7 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -12,16 +12,16 @@ import java.util.List;
 import java.util.Optional;
 
 public interface NightlyReferenceRateRepository
-        extends Repository<NightlyReferenceRate, NightlyReferenceRateCategory> {
+        extends Repository<NightlyReferenceRate, NightlyReferenceRateKey> {
 
     List<NightlyReferenceRate> findAll();
 
-    Optional<NightlyReferenceRate> findById(NightlyReferenceRateCategory category);
+    Optional<NightlyReferenceRate> findById(NightlyReferenceRateKey key);
 
     <S extends NightlyReferenceRate> S saveAndFlush(S rate);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select rate from NightlyReferenceRate rate where rate.category = :category")
-    Optional<NightlyReferenceRate> findByCategoryForUpdate(
-            @Param("category") NightlyReferenceRateCategory category);
+    @Query("select rate from NightlyReferenceRate rate where rate.key = :key")
+    Optional<NightlyReferenceRate> findByKeyForUpdate(
+            @Param("key") NightlyReferenceRateKey key);
 }

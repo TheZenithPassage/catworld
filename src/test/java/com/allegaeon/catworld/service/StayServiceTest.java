@@ -26,7 +26,7 @@ import com.allegaeon.catworld.exception.VaccineConflictException;
 import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
@@ -184,11 +184,11 @@ public class StayServiceTest {
     void configurePricingDefaults() {
         lenient().when(nightlyReferenceRateRepository.findById(any()))
                 .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                        .category(NightlyReferenceRateCategory.ONE_CAT)
+                        .key(NightlyReferenceRateKey.ONE_CAT)
                         .build()));
-        lenient().when(nightlyReferenceRateRepository.findByCategoryForUpdate(any()))
+        lenient().when(nightlyReferenceRateRepository.findByKeyForUpdate(any()))
                 .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                        .category(NightlyReferenceRateCategory.ONE_CAT)
+                        .key(NightlyReferenceRateKey.ONE_CAT)
                         .build()));
         lenient().when(transferRateRepository.findById(1L)).thenReturn(Optional.empty());
         lenient().when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("10")).build()));
@@ -524,7 +524,7 @@ public class StayServiceTest {
         })
         void creationSelectsActualCatCountCategoryAndRecordsExactInitialDecision(
                 int catCount,
-                NightlyReferenceRateCategory expectedCategory) {
+                NightlyReferenceRateKey expectedKey) {
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             LocalDateTime endAt = LocalDateTime.of(2027, 8, 3, 12, 0);
             CreationFixture fixture = stubPricingCreation(
@@ -540,7 +540,7 @@ public class StayServiceTest {
             service.createStay(fixture.request());
 
             verify(nightlyReferenceRateRepository)
-                    .findByCategoryForUpdate(expectedCategory);
+                    .findByKeyForUpdate(expectedKey);
             assertEquals(new BigDecimal("25"), fixture.stay().getRetainedNightlyRate());
             assertEquals(new BigDecimal("50"), fixture.stay().getAgreedAmount());
             verify(stayPricingDecisionRepository).saveAndFlush(
@@ -1002,10 +1002,10 @@ public class StayServiceTest {
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
-            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
-                    NightlyReferenceRateCategory.ONE_CAT))
+            when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                    NightlyReferenceRateKey.ONE_CAT))
                     .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .key(NightlyReferenceRateKey.ONE_CAT)
                             .nightlyRate(new BigDecimal("12"))
                             .build()));
             when(stayMapper.updateEntity(stay, request)).thenAnswer(invocation -> {
@@ -1057,10 +1057,10 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
-            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
-                    NightlyReferenceRateCategory.ONE_CAT))
+            when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                    NightlyReferenceRateKey.ONE_CAT))
                     .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .key(NightlyReferenceRateKey.ONE_CAT)
                             .nightlyRate(new BigDecimal("13"))
                             .build()));
 
@@ -1103,10 +1103,10 @@ public class StayServiceTest {
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.ADMIN));
-            when(nightlyReferenceRateRepository.findByCategoryForUpdate(
-                    NightlyReferenceRateCategory.ONE_CAT))
+            when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                    NightlyReferenceRateKey.ONE_CAT))
                     .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .key(NightlyReferenceRateKey.ONE_CAT)
                             .nightlyRate(new BigDecimal("12")).build()));
 
             assertThrows(ConflictException.class,
@@ -1306,9 +1306,9 @@ public class StayServiceTest {
                     PricingDecisionRequestDTO.builder()
                             .agreedAmount(new BigDecimal("20")).build());
             when(nightlyReferenceRateRepository
-                    .findByCategoryForUpdate(NightlyReferenceRateCategory.ONE_CAT))
+                    .findByKeyForUpdate(NightlyReferenceRateKey.ONE_CAT))
                     .thenReturn(Optional.of(NightlyReferenceRate.builder()
-                            .category(NightlyReferenceRateCategory.ONE_CAT)
+                            .key(NightlyReferenceRateKey.ONE_CAT)
                             .nightlyRate(new BigDecimal("11")).build()));
 
             assertThrows(StalePricingConfirmationException.class,
@@ -1350,7 +1350,7 @@ public class StayServiceTest {
                     .stayCats(Set.of(StayCat.builder().build())).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
-            when(nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT)).thenReturn(Optional.of(NightlyReferenceRate.builder().category(NightlyReferenceRateCategory.ONE_CAT).nightlyRate(new BigDecimal("15")).build()));
+            when(nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT)).thenReturn(Optional.of(NightlyReferenceRate.builder().key(NightlyReferenceRateKey.ONE_CAT).nightlyRate(new BigDecimal("15")).build()));
             when(transferRateRepository.findById(1L)).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("12")).build()));
             assertEquals(new BigDecimal("35"), service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(3)).build()).getSuggestedAmount());
             assertEquals(new BigDecimal("50"), service.previewDateChangePricing(stay.getId(), StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(3)).selectedNightlyRate(new BigDecimal("15")).build()).getSuggestedAmount());
@@ -3581,19 +3581,21 @@ public class StayServiceTest {
                 .endAt(endAt)
                 .build();
         UserAccount actor = user(UserRole.STAFF);
-        NightlyReferenceRateCategory category = NightlyReferenceRateCategory
-                .fromActualCatCount(catCount)
-                .orElseThrow();
+        NightlyReferenceRateKey key = catCount == 1
+                ? NightlyReferenceRateKey.ONE_CAT
+                : catCount == 2
+                        ? NightlyReferenceRateKey.TWO_CATS
+                        : NightlyReferenceRateKey.THREE_PLUS_CATS;
 
         lenient().when(stayMapper.toEntity(request)).thenReturn(stay);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
         NightlyReferenceRate configuredRate = NightlyReferenceRate.builder()
-                .category(category)
+                .key(key)
                 .nightlyRate(nightlyRate)
                 .build();
-        when(nightlyReferenceRateRepository.findById(category))
+        when(nightlyReferenceRateRepository.findById(key))
                 .thenReturn(Optional.of(configuredRate));
-        lenient().when(nightlyReferenceRateRepository.findByCategoryForUpdate(category))
+        lenient().when(nightlyReferenceRateRepository.findByKeyForUpdate(key))
                 .thenReturn(Optional.of(configuredRate));
         lenient().when(stayRepository.save(stay)).thenAnswer(invocation -> {
             if (stay.getId() == null) {

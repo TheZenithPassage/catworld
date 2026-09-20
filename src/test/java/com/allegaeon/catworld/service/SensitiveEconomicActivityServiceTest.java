@@ -13,7 +13,7 @@ import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.mapper.SensitiveEconomicActivityMapper;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.repository.SensitiveEconomicActivityProjection;
 import com.allegaeon.catworld.repository.SensitiveEconomicActivityReadRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -164,7 +164,7 @@ class SensitiveEconomicActivityServiceTest {
                 Instant.parse("2026-08-02T12:00:00Z"),
                 new SensitiveActorDTO(UUID.randomUUID(), "admin"),
                 null,
-                NightlyReferenceRateCategory.ONE_CAT,
+                NightlyReferenceRateKey.ONE_CAT,
                 new BigDecimal("10"),
                 new BigDecimal("11")
         );

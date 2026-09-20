@@ -9,7 +9,7 @@ public class NightlyReferenceRateMapper {
 
     public NightlyReferenceRateResponseDTO toResponseDTO(NightlyReferenceRate rate) {
         return NightlyReferenceRateResponseDTO.builder()
-                .minimumCatCount(rate.getCategory().getMinimumCatCount())
+                .key(rate.getKey())
                 .nightlyRate(rate.getNightlyRate())
                 .build();
     }

@@ -34,8 +34,8 @@ public class NightlyReferenceRateChange {
     private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, updatable = false, length = 20)
-    private NightlyReferenceRateCategory category;
+    @Column(name = "category", nullable = false, updatable = false, length = 20)
+    private NightlyReferenceRateKey key;
 
     @Column(precision = 19, scale = 0, updatable = false)
     private BigDecimal previousNightlyRate;

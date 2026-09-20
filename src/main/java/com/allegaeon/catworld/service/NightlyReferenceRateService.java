@@ -5,8 +5,8 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.mapper.NightlyReferenceRateMapper;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
 import com.allegaeon.catworld.model.NightlyReferenceRateChange;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.repository.NightlyReferenceRateChangeRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
@@ -18,8 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -40,14 +44,20 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
         authorizationPolicy.authorizeRead(currentUserAccountService.getCurrentUserAccount());
 
         List<NightlyReferenceRate> rates = nightlyReferenceRateRepository.findAll();
-        if (rates.size() != NightlyReferenceRateCategory.values().length) {
+        Map<NightlyReferenceRateKey, NightlyReferenceRate> byKey = rates.stream()
+                .collect(Collectors.toMap(
+                        NightlyReferenceRate::getKey,
+                        Function.identity()
+                ));
+        if (byKey.size() != NightlyReferenceRateKey.values().length) {
             throw new ConflictException("Nightly reference-rate configuration is incomplete");
         }
 
-        return rates.stream()
-                .sorted(Comparator.comparingInt(
-                        rate -> rate.getCategory().getMinimumCatCount()
-                ))
+        return Arrays.stream(NightlyReferenceRateKey.values())
+                .map(key -> Optional.ofNullable(byKey.get(key))
+                        .orElseThrow(() -> new ConflictException(
+                                "Nightly reference-rate configuration is incomplete"
+                        )))
                 .map(nightlyReferenceRateMapper::toResponseDTO)
                 .toList();
     }
@@ -55,15 +65,13 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
     @Override
     @Transactional
     public NightlyReferenceRateResponseDTO configureRate(
-            int minimumCatCount,
+            NightlyReferenceRateKey key,
             BigDecimal nightlyRate) {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         authorizationPolicy.authorizeMutation(currentUser);
         validateNightlyRate(nightlyRate);
 
-        NightlyReferenceRate currentRate = getCurrentRateForUpdate(
-                resolveCategoryFromMinimumCatCount(minimumCatCount)
-        );
+        NightlyReferenceRate currentRate = getCurrentRateForUpdate(key);
         if (sameNumericValue(currentRate.getNightlyRate(), nightlyRate)) {
             return nightlyReferenceRateMapper.toResponseDTO(currentRate);
         }
@@ -74,13 +82,11 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
 
     @Override
     @Transactional
-    public void clearRate(int minimumCatCount) {
+    public void clearRate(NightlyReferenceRateKey key) {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         authorizationPolicy.authorizeMutation(currentUser);
 
-        NightlyReferenceRate currentRate = getCurrentRateForUpdate(
-                resolveCategoryFromMinimumCatCount(minimumCatCount)
-        );
+        NightlyReferenceRate currentRate = getCurrentRateForUpdate(key);
         if (currentRate.getNightlyRate() == null) {
             return;
         }
@@ -98,7 +104,7 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
 
         nightlyReferenceRateChangeRepository.saveAndFlush(
                 NightlyReferenceRateChange.builder()
-                        .category(currentRate.getCategory())
+                        .key(currentRate.getKey())
                         .previousNightlyRate(previousNightlyRate)
                         .newNightlyRate(newNightlyRate)
                         .changedBy(currentUser)
@@ -107,20 +113,10 @@ public class NightlyReferenceRateService implements INightlyReferenceRateService
         );
     }
 
-    private NightlyReferenceRate getCurrentRateForUpdate(NightlyReferenceRateCategory category) {
-        return nightlyReferenceRateRepository.findByCategoryForUpdate(category)
+    private NightlyReferenceRate getCurrentRateForUpdate(NightlyReferenceRateKey key) {
+        return nightlyReferenceRateRepository.findByKeyForUpdate(key)
                 .orElseThrow(() -> new ConflictException(
-                        "Nightly reference-rate category with minimum cat-count threshold "
-                                + category.getMinimumCatCount()
-                                + " is unavailable"
-                ));
-    }
-
-    private NightlyReferenceRateCategory resolveCategoryFromMinimumCatCount(
-            int minimumCatCount) {
-        return NightlyReferenceRateCategory.fromMinimumCatCount(minimumCatCount)
-                .orElseThrow(() -> new BadRequestException(
-                        "Nightly reference-rate minimum cat-count threshold must be 1, 2, or 3"
+                        "Nightly reference-rate key " + key + " is unavailable"
                 ));
     }
 

@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.NightlyReferenceRateRequestDTO;
 import com.allegaeon.catworld.dto.NightlyReferenceRateResponseDTO;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.service.INightlyReferenceRateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,21 +32,21 @@ public class NightlyReferenceRateController {
         return ResponseEntity.ok(nightlyReferenceRateService.getCurrentRates());
     }
 
-    @PutMapping("/{minimumCatCount}")
+    @PutMapping("/{key}")
     public ResponseEntity<NightlyReferenceRateResponseDTO> configureRate(
-            @PathVariable int minimumCatCount,
+            @PathVariable NightlyReferenceRateKey key,
             @Valid @RequestBody NightlyReferenceRateRequestDTO request) {
         return ResponseEntity.ok(
                 nightlyReferenceRateService.configureRate(
-                        minimumCatCount,
+                        key,
                         request.getNightlyRate()
                 )
         );
     }
 
-    @DeleteMapping("/{minimumCatCount}")
+    @DeleteMapping("/{key}")
     @ResponseStatus(NO_CONTENT)
-    public void clearRate(@PathVariable int minimumCatCount) {
-        nightlyReferenceRateService.clearRate(minimumCatCount);
+    public void clearRate(@PathVariable NightlyReferenceRateKey key) {
+        nightlyReferenceRateService.clearRate(key);
     }
 }

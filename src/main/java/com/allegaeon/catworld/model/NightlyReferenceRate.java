@@ -25,8 +25,8 @@ public class NightlyReferenceRate extends AuditableEntity {
 
     @Id
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private NightlyReferenceRateCategory category;
+    @Column(name = "category", nullable = false, length = 20)
+    private NightlyReferenceRateKey key;
 
     @Column(precision = 19, scale = 0)
     private BigDecimal nightlyRate;

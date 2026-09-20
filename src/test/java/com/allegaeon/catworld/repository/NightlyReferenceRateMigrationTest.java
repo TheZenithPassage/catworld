@@ -51,9 +51,9 @@ class NightlyReferenceRateMigrationTest {
     private UserAccountBootstrap userAccountBootstrap;
 
     @Test
-    void latestMigrationSeedsOnlyThreeUnavailableCategoriesAndValidatesMappings() {
+    void latestMigrationSeedsSixSlotsAndValidatesMappings() {
         assertEquals(
-                3,
+                6,
                 migratedJdbcTemplate.queryForObject(
                         "select count(*) from nightly_reference_rates",
                         Integer.class
@@ -62,7 +62,16 @@ class NightlyReferenceRateMigrationTest {
         assertEquals(
                 3,
                 migratedJdbcTemplate.queryForObject(
-                        "select count(*) from nightly_reference_rates where nightly_rate is null",
+                        """
+                        select count(*)
+                        from nightly_reference_rates
+                        where category in (
+                            'ONE_CAT_7_TO_14',
+                            'ONE_CAT_15_TO_29',
+                            'ONE_CAT_30_PLUS'
+                        )
+                          and nightly_rate is null
+                        """,
                         Integer.class
                 )
         );
@@ -74,7 +83,14 @@ class NightlyReferenceRateMigrationTest {
                 )
         );
         assertEquals(
-                Set.of("ONE_CAT", "TWO_CATS", "THREE_PLUS_CATS"),
+                Set.of(
+                        "ONE_CAT",
+                        "ONE_CAT_7_TO_14",
+                        "ONE_CAT_15_TO_29",
+                        "ONE_CAT_30_PLUS",
+                        "TWO_CATS",
+                        "THREE_PLUS_CATS"
+                ),
                 Set.copyOf(migratedJdbcTemplate.queryForList(
                         "select category from nightly_reference_rates",
                         String.class
@@ -167,7 +183,7 @@ class NightlyReferenceRateMigrationTest {
                 )
         );
         assertEquals(
-                3,
+                6,
                 jdbcTemplate.queryForObject(
                         "select count(*) from nightly_reference_rates where nightly_rate is null",
                         Integer.class
@@ -180,6 +196,55 @@ class NightlyReferenceRateMigrationTest {
                         Integer.class
                 )
         );
+    }
+
+    @Test
+    void migrationFromVersionTwelvePreservesConfiguredRateAndAuditHistory() {
+        SingleConnectionDataSource dataSource = new SingleConnectionDataSource(
+                "jdbc:h2:mem:rate_v13_upgrade_context;DB_CLOSE_DELAY=-1;MODE=MySQL",
+                "sa",
+                "",
+                true
+        );
+
+        initializeVersionThreeSchema(dataSource);
+        migrateFromVersionThreeTo(dataSource, "12");
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000021");
+        Timestamp now = Timestamp.from(Instant.parse("2026-09-16T10:00:00Z"));
+
+        jdbc.update(
+                """
+                insert into user_accounts
+                    (id, username, password_hash, role, enabled, created_at, updated_at)
+                values (?, 'rate-admin', 'hash', 'ADMIN', true, ?, ?)
+                """,
+                uuidBytes(actorId), now, now);
+        jdbc.update(
+                "update nightly_reference_rates set nightly_rate = 42 where category = 'ONE_CAT'"
+        );
+        jdbc.update(
+                """
+                insert into nightly_reference_rate_changes
+                    (id, category, previous_nightly_rate, new_nightly_rate,
+                     changed_by_id, changed_at)
+                values (?, 'ONE_CAT', null, 42, ?, ?)
+                """,
+                uuidBytes(UUID.fromString("00000000-0000-0000-0000-000000000022")),
+                uuidBytes(actorId), now);
+
+        migrateFromVersionThree(dataSource);
+
+        assertEquals(new java.math.BigDecimal("42"), jdbc.queryForObject(
+                "select nightly_rate from nightly_reference_rates where category = 'ONE_CAT'",
+                java.math.BigDecimal.class));
+        assertEquals(1, jdbc.queryForObject(
+                """
+                select count(*)
+                from nightly_reference_rate_changes
+                where category = 'ONE_CAT'
+                """,
+                Integer.class));
     }
 
     private byte[] uuidBytes(UUID id) {
@@ -267,6 +332,16 @@ class NightlyReferenceRateMigrationTest {
                 .dataSource(dataSource)
                 .baselineOnMigrate(true)
                 .baselineVersion(MigrationVersion.fromVersion("3"))
+                .load()
+                .migrate();
+    }
+
+    private static void migrateFromVersionThreeTo(DataSource dataSource, String target) {
+        Flyway.configure()
+                .dataSource(dataSource)
+                .baselineOnMigrate(true)
+                .baselineVersion(MigrationVersion.fromVersion("3"))
+                .target(MigrationVersion.fromVersion(target))
                 .load()
                 .migrate();
     }

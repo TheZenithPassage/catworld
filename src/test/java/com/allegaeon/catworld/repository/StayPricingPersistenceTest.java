@@ -9,7 +9,7 @@ import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
@@ -696,7 +696,7 @@ class StayPricingPersistenceTest {
                 .createdBy(actor)
                 .build());
         NightlyReferenceRate rate = nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.ONE_CAT)
+                .findById(NightlyReferenceRateKey.ONE_CAT)
                 .orElseThrow();
         rate.setNightlyRate(new BigDecimal("10"));
         nightlyReferenceRateRepository.saveAndFlush(rate);
