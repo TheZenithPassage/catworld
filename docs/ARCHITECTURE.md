@@ -1245,10 +1245,18 @@ loading and empty states so view navigation stays available. Display mode is
 an immediate independent preference, and event/daily-summary transformation
 uses the applied filtered population. Adjacent-month cells are hidden so dates
 outside the loaded logical interval cannot present incomplete operational results.
-Daily-label and entry/exit-marker views show a decorative car on a white
-circular background before a stay label only at a required arrival or departure boundary; same-day boundaries
-retain their independent compact markers. The localized accessible event name
-states the required direction, and daily-count aggregation remains unchanged.
+Daily labels retain their per-Stay color and use no arrival/departure decoration;
+the beginning and end of the daily sequence communicate those boundaries.
+Entry/exit-marker view instead uses one consistent green treatment for arrival
+markers and one consistent red treatment for departure markers, independent of
+the Stay color assignment, while retaining start/end alignment as a secondary
+cue. Same-day entry/exit mode keeps its independent green arrival and red
+departure markers. A required boundary transfer adds the existing compact white
+car badge. Localized accessible event names continue to state boundary and
+transfer meaning even though decorative direction arrows are not rendered.
+Individual Stay labels use fluid typography and compact horizontal spacing to
+prioritize real cat-name characters; when the supported minimum size is reached,
+overflow is clipped without reserving space for an ellipsis.
 
 ### Component Conventions
 
@@ -1456,7 +1464,11 @@ contribution is the captured rate times required legs, or zero when waived or
 unavailable. It is added once to the accommodation suggestion and never affects
 nightly-rate multiplication. Pricing confirmations and immutable pricing-decision
 audit evidence contain both components, so historic activity never reads live
-configuration.
+configuration. Enabling transfer assistance in Stay creation or editing selects
+both arrival and departure legs by default; either leg can then be cleared
+individually. Disabling transfer assistance clears both leg selections and the
+waiver, so none of those controls contributes a required leg, waiver or charge
+to the resulting request or pricing preview.
 
 ## Public Repository Notes
 

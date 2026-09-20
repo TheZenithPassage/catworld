@@ -390,6 +390,9 @@ describe('StayCreatePage', () => {
     expect(assistanceChangeSpy).toHaveBeenCalledOnce();
     expect(assistanceChangeSpy).toHaveBeenCalledWith(true);
     expect(component.transferAssistanceActive()).toBe(true);
+    expect(component.arrivalTransferRequired()).toBe(true);
+    expect(component.departureTransferRequired()).toBe(true);
+    expect(component.transferWaived()).toBe(false);
     component.toggleTransferAssistanceFromPill({
       target: document.createElement('span'),
       currentTarget: assistanceOption,
@@ -411,8 +414,9 @@ describe('StayCreatePage', () => {
     const transferChangeSpy = vi.spyOn(component, 'onTransferChange');
     arrivalOption.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(transferChangeSpy).toHaveBeenCalledOnce();
-    expect(transferChangeSpy).toHaveBeenCalledWith('arrival', true);
-    expect(component.arrivalTransferRequired()).toBe(true);
+    expect(transferChangeSpy).toHaveBeenCalledWith('arrival', false);
+    expect(component.arrivalTransferRequired()).toBe(false);
+    expect(component.departureTransferRequired()).toBe(true);
 
     component.toggleTransferFromPill(
       {

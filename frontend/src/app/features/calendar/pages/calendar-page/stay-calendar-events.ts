@@ -18,6 +18,20 @@ export interface StayCalendarTransferIndicatorLabels {
 
 export type StayCalendarTransferIndicatorKind = 'arrival' | 'departure' | 'arrival-and-departure';
 
+export type StayCalendarBoundaryKind = 'arrival' | 'departure' | 'arrival-and-departure';
+
+const ARRIVAL_MARKER_COLOR = {
+  backgroundColor: '#15803d',
+  borderColor: '#166534',
+  textColor: '#ffffff',
+};
+
+const DEPARTURE_MARKER_COLOR = {
+  backgroundColor: '#b42318',
+  borderColor: '#912018',
+  textColor: '#ffffff',
+};
+
 export interface DailyCountEventLabels {
   singular: string;
   plural: string;
@@ -70,12 +84,7 @@ export function toStayCalendarEvents({
   }
 
   return visibleStays.flatMap((stay) =>
-    toCompactCalendarEvents(
-      stay,
-      colorAssignments.get(stay.stayId),
-      compactMarkerLabels,
-      transferIndicatorLabels,
-    ),
+    toCompactCalendarEvents(stay, compactMarkerLabels, transferIndicatorLabels),
   );
 }
 
@@ -169,7 +178,6 @@ function toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
 
 function toCompactCalendarEvents(
   stay: Stay,
-  color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput[] {
@@ -178,7 +186,6 @@ function toCompactCalendarEvents(
       stay,
       new Date(stay.startAt),
       'start',
-      color,
       compactMarkerLabels,
       transferIndicatorLabels,
     ),
@@ -186,7 +193,6 @@ function toCompactCalendarEvents(
       stay,
       new Date(stay.endAt),
       'end',
-      color,
       compactMarkerLabels,
       transferIndicatorLabels,
     ),
@@ -197,12 +203,11 @@ function toCompactCalendarEvent(
   stay: Stay,
   date: Date,
   markerKind: CompactMarkerKind,
-  color: StayCalendarColor | undefined,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
   const status = getStayStatus(stay);
-  const eventColor = getEventColor(status, color);
+  const eventColor = markerKind === 'start' ? ARRIVAL_MARKER_COLOR : DEPARTURE_MARKER_COLOR;
   const dateValue = toDateValue(date);
 
   return {
@@ -227,6 +232,7 @@ function toCompactCalendarEvent(
       compactMarkerKind: markerKind,
       compactMarkerOrder: getCompactMarkerOrder(markerKind),
       compactMarkerLabel: compactMarkerLabels[markerKind],
+      boundaryKind: getBoundaryKind(markerKind === 'start', markerKind === 'end'),
       transferIndicator: getTransferIndicator(
         stay,
         markerKind === 'start',
@@ -271,6 +277,8 @@ function toCalendarEventForDate(
   const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
   const dateValue = toDateValue(date);
+  const isArrivalBoundary = dateValue === toDateValue(new Date(stay.startAt));
+  const isDepartureBoundary = dateValue === toDateValue(new Date(stay.endAt));
 
   return {
     id: `${stay.stayId}-${dateValue}`,
@@ -288,19 +296,31 @@ function toCalendarEventForDate(
       stayStartAt: stay.startAt,
       stayCreatedAt: stay.createdAt,
       stayDurationDays: getStayDurationDays(stay),
+      boundaryKind: getBoundaryKind(isArrivalBoundary, isDepartureBoundary),
       transferIndicator: getTransferIndicator(
         stay,
-        toDateValue(date) === toDateValue(new Date(stay.startAt)),
-        toDateValue(date) === toDateValue(new Date(stay.endAt)),
+        isArrivalBoundary,
+        isDepartureBoundary,
         transferIndicatorLabels,
       ),
-      transferIndicatorKind: getTransferIndicatorKind(
-        stay,
-        toDateValue(date) === toDateValue(new Date(stay.startAt)),
-        toDateValue(date) === toDateValue(new Date(stay.endAt)),
-      ),
+      transferIndicatorKind: getTransferIndicatorKind(stay, isArrivalBoundary, isDepartureBoundary),
     },
   };
+}
+
+function getBoundaryKind(
+  isArrivalBoundary: boolean,
+  isDepartureBoundary: boolean,
+): StayCalendarBoundaryKind | null {
+  if (isArrivalBoundary && isDepartureBoundary) {
+    return 'arrival-and-departure';
+  }
+
+  if (isArrivalBoundary) {
+    return 'arrival';
+  }
+
+  return isDepartureBoundary ? 'departure' : null;
 }
 
 function getTransferIndicator(

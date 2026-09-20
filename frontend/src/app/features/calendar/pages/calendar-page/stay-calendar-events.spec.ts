@@ -50,6 +50,106 @@ describe('toStayCalendarEvents', () => {
     );
   });
 
+  it('keeps semantic arrival and departure boundaries on daily labels without changing stay colors', () => {
+    const assignedColor = {
+      backgroundColor: '#123456',
+      borderColor: '#234567',
+      textColor: '#ffffff',
+      mutedBackgroundColor: '#abcdef',
+      mutedBorderColor: '#bcdef0',
+      mutedTextColor: '#123456',
+    };
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-03T10:00:00',
+          endAt: '2099-06-05T10:00:00',
+        }),
+      ],
+      colorAssignments: new Map([['stay-1', assignedColor]]),
+      displayMode: 'daily-labels',
+    });
+
+    expect(events.map((event) => event.extendedProps?.['boundaryKind'] ?? null)).toEqual([
+      'arrival',
+      null,
+      'departure',
+    ]);
+    expect(events.every((event) => event.backgroundColor === assignedColor.backgroundColor)).toBe(
+      true,
+    );
+    expect(events.every((event) => !event.extendedProps?.['directionIndicatorKind'])).toBe(true);
+  });
+
+  it('marks both directions on one same-day daily label', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-08T10:00:00',
+          endAt: '2099-06-08T18:00:00',
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'daily-labels',
+    });
+
+    expect(events).toHaveLength(1);
+    expect(events[0].extendedProps?.['boundaryKind']).toBe('arrival-and-departure');
+  });
+
+  it('keeps entry and exit marker directions independent on the same day', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [
+        createStay({
+          startAt: '2099-06-08T10:00:00',
+          endAt: '2099-06-08T18:00:00',
+        }),
+      ],
+      colorAssignments: new Map(),
+      displayMode: 'entry-exit-markers',
+    });
+
+    expect(events.map((event) => event.extendedProps?.['boundaryKind'])).toEqual([
+      'arrival',
+      'departure',
+    ]);
+  });
+
+  it('uses fixed semantic colors for entry and exit markers instead of stay colors', () => {
+    const events = toStayCalendarEvents({
+      visibleStays: [createStay()],
+      colorAssignments: new Map([
+        [
+          'stay-1',
+          {
+            backgroundColor: '#0000ff',
+            borderColor: '#000099',
+            textColor: '#ffffff',
+            mutedBackgroundColor: '#ccccff',
+            mutedBorderColor: '#aaaaff',
+            mutedTextColor: '#000066',
+          },
+        ],
+      ]),
+      displayMode: 'entry-exit-markers',
+    });
+
+    expect(events[0]).toEqual(
+      expect.objectContaining({
+        backgroundColor: '#15803d',
+        borderColor: '#166534',
+        textColor: '#ffffff',
+      }),
+    );
+    expect(events[1]).toEqual(
+      expect.objectContaining({
+        backgroundColor: '#b42318',
+        borderColor: '#912018',
+        textColor: '#ffffff',
+      }),
+    );
+  });
+
   it('adds translated labels to entry and exit marker events', () => {
     const stay = createStay();
 
@@ -164,6 +264,7 @@ describe('toStayCalendarEvents', () => {
       }),
     );
     expect(events[0].extendedProps?.['dailyAggregate']).toBe(aggregate);
+    expect(events[0].extendedProps).not.toHaveProperty('boundaryKind');
   });
 
   it('does not manufacture zero count events', () => {

@@ -135,6 +135,22 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('highlights keyboard-focused status filters independently of hover', () => {
+    createComponent();
+
+    const focusRule = Array.from(document.styleSheets)
+      .flatMap((styleSheet) => Array.from(styleSheet.cssRules))
+      .find(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule &&
+          rule.selectorText.includes('.status-filter') &&
+          rule.selectorText.includes(':focus-visible'),
+      );
+
+    expect(focusRule?.style.borderColor).toBe('var(--color-primary)');
+    expect(focusRule?.style.background).toBe('var(--color-primary-soft)');
+  });
+
   it('offers exactly the three unified modes and keeps mode independent from entity filters', () => {
     createComponent();
 
@@ -151,7 +167,9 @@ describe('CalendarPage', () => {
       component.text().calendar.displayModes.options['daily-labels'].label,
     );
 
-    (displayOptions[1].closest('.calendar-display-option') as HTMLElement).click();
+    (
+      displayOptions[1].querySelector('.calendar-display-option-content small') as HTMLElement
+    ).click();
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('daily-counts');
@@ -175,6 +193,20 @@ describe('CalendarPage', () => {
     fixture.detectChanges();
 
     expect(component.displayMode()).toBe('entry-exit-markers');
+  });
+
+  it('activates a display mode when a nested part of its card is clicked', () => {
+    createComponent();
+
+    const card = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+      '.calendar-display-option',
+    )[1];
+    const nestedTarget = document.createElement('span');
+    card.append(nestedTarget);
+
+    nestedTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(component.displayMode()).toBe('daily-counts');
   });
 
   it('updates daily counts and participants for Cat and Owner filters without changing mode', () => {
@@ -561,6 +593,35 @@ describe('CalendarPage', () => {
     );
   });
 
+  it('keeps individual stay titles fluid, single-line and clipped without ellipsis', () => {
+    createComponent();
+
+    const calendar = (fixture.nativeElement as HTMLElement).querySelector('.fc')!;
+    const daily = document.createElement('a');
+    daily.className = 'fc-daygrid-event fc-daygrid-block-event stay-event--reserved';
+    const title = document.createElement('span');
+    title.className = 'fc-event-title';
+    title.textContent = 'Chiquita';
+    daily.append(title);
+    calendar.append(daily);
+
+    const titleStyle = getComputedStyle(title);
+    expect(titleStyle.whiteSpace).toBe('nowrap');
+    expect(titleStyle.overflow).toBe('hidden');
+    expect(titleStyle.textOverflow).toBe('clip');
+  });
+
+  it('keeps compact horizontal event padding at wider viewports', () => {
+    createComponent();
+
+    const event = document.createElement('a');
+    event.className = 'fc-daygrid-event stay-event--reserved';
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(event);
+
+    expect(getComputedStyle(event).paddingLeft).toBe('0.04rem');
+    expect(getComputedStyle(event).paddingRight).toBe('0.04rem');
+  });
+
   it('renders a transfer car before the stay label with a localized accessible direction', () => {
     createComponent();
 
@@ -600,18 +661,187 @@ describe('CalendarPage', () => {
     expect(indicatorStyle.placeItems).toBe('center');
     expect(indicatorStyle.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(indicatorStyle.borderRadius).toBe('50%');
-    expect(content.domNodes[0].style.inlineSize).toBe('1.25em');
-    expect(content.domNodes[0].style.height).toBe('1.25em');
-    expect(content.domNodes[0].style.transform).toBe('translateY(0.06em)');
+    expect(content.domNodes[0].style.inlineSize).toBe('1.15em');
+    expect(content.domNodes[0].style.height).toBe('1.15em');
+    expect(content.domNodes[0].style.transform).toBe('translateY(0.03em)');
     const glyph = content.domNodes[0].querySelector('.stay-event__transfer-glyph') as HTMLElement;
-    expect(glyph.style.position).toBe('relative');
-    expect(glyph.style.top).toBe('-0.25em');
-    expect(glyph.style.left).toBe('-0.07em');
+    expect(glyph.style.fontSize).toBe('0.72em');
+    expect(glyph.style.lineHeight).toBe('1');
     expect(content.domNodes[1].textContent).toBe('Milo');
     expect(element.getAttribute('aria-label')).toContain(
       component.text().calendar.transferIndicators.arrival,
     );
     expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('aligns a standard transfer badge like an entry and exit marker', () => {
+    createComponent();
+
+    const calendar = (fixture.nativeElement as HTMLElement).querySelector('.fc')!;
+    const event = document.createElement('a');
+    event.className = 'fc-daygrid-event fc-daygrid-block-event stay-event--reserved';
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    eventDidMount({
+      el: event,
+      event: {
+        id: 'stay-1',
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    } as never);
+    const main = document.createElement('div');
+    main.className = 'fc-event-main';
+    const indicator = document.createElement('span');
+    indicator.className = 'stay-event__transfer-indicator';
+    const title = document.createElement('span');
+    title.className = 'fc-event-title';
+    main.append(indicator, title);
+    event.append(main);
+    calendar.append(event);
+
+    const mainStyle = getComputedStyle(main);
+    expect(event.classList).toContain('stay-event--has-transfer');
+    expect(mainStyle.display).toBe('inline-flex');
+    expect(mainStyle.alignItems).toBe('center');
+    expect(getComputedStyle(event).paddingTop).toBe('0rem');
+
+    event.classList.add('stay-event--compact');
+    expect(getComputedStyle(event).paddingTop).toBe('0.18rem');
+  });
+
+  it('renders no visual direction indicator for a boundary without transfer assistance', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival',
+        },
+      },
+    });
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['Milo']);
+    expect(content.domNodes[0].classList).toContain('fc-event-title');
+    expect(content.domNodes[0].querySelector('.stay-event__direction-indicator')).toBeNull();
+  });
+
+  it('renders only the transfer badge before the title while preserving boundary accessibility', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    });
+    const element = document.createElement('a');
+
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    } as never);
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['🚗', 'Milo']);
+    const transfer = content.domNodes[0];
+    expect(transfer.classList).toContain('stay-event__transfer-indicator');
+    expect(transfer.getAttribute('aria-hidden')).toBe('true');
+    expect(content.domNodes[1].classList).toContain('fc-event-title');
+    expect(document.querySelector('.stay-event__direction-indicator')).toBeNull();
+    expect(document.querySelector('.stay-event__indicator-stack')).toBeNull();
+    (fixture.nativeElement as HTMLElement).querySelector('.fc')?.append(transfer);
+    expect(getComputedStyle(transfer).backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.boundaryLabels.arrival,
+    );
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.transferIndicators.arrival,
+    );
+    expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('renders no direction DOM for a same-day daily boundary and keeps accessible meaning', () => {
+    createComponent();
+
+    const eventContent = component.calendarOptions().eventContent as (eventInfo: unknown) => {
+      domNodes: HTMLElement[];
+    };
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    const content = eventContent({
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival-and-departure',
+        },
+      },
+    });
+    const element = document.createElement('a');
+
+    eventDidMount({
+      el: element,
+      event: {
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          boundaryKind: 'arrival-and-departure',
+        },
+      },
+    } as never);
+
+    expect(content.domNodes.map((node) => node.textContent)).toEqual(['Milo']);
+    expect(content.domNodes[0].classList).toContain('fc-event-title');
+    expect(element.getAttribute('aria-label')).toContain(
+      component.text().calendar.boundaryLabels.arrivalAndDeparture,
+    );
+  });
+
+  it('relocalizes mounted direction accessibility when the language changes', async () => {
+    localStorage.setItem(
+      'catworld.calendar.preferences',
+      JSON.stringify({ displayMode: 'daily-labels', visibleMonth: '2099-01-01' }),
+    );
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const spanishArrival = component.text().calendar.boundaryLabels.arrival;
+    const event = fixture.nativeElement.querySelector('.fc-event') as HTMLElement;
+    expect(event.getAttribute('aria-label')).toContain(spanishArrival);
+
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.text().calendar.boundaryLabels.arrival).toBe('Arrival');
+    expect(event.getAttribute('aria-label')).not.toContain(spanishArrival);
+    expect(event.getAttribute('aria-label')).toContain('Arrival');
   });
 
   it('keeps cat identity in daily and compact event labels without transfer assistance', () => {

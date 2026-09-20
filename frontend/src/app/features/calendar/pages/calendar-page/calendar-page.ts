@@ -30,6 +30,7 @@ import { StayStatusVisibilityPreferencesService } from '../../../stays/services/
 import { getStayColorAssignments } from './stay-calendar-color-assignments';
 import {
   compareStayCalendarEvents,
+  StayCalendarBoundaryKind,
   StayCalendarTransferIndicatorKind,
   toStayCalendarEvents,
 } from './stay-calendar-events';
@@ -212,6 +213,11 @@ export class CalendarPage implements OnDestroy {
         return;
       }
 
+      const transferIndicator = event.extendedProps['transferIndicator'];
+      if (typeof transferIndicator === 'string' && transferIndicator) {
+        el.classList.add('stay-event--has-transfer');
+      }
+
       this.mountedStayEventAccessibility.set(el, { eventId: event.id });
       this.applyStayEventAccessibleLabel(el, this.getStayEventAccessibilityDetails(event));
 
@@ -220,31 +226,39 @@ export class CalendarPage implements OnDestroy {
     eventWillUnmount: ({ el }) => this.mountedStayEventAccessibility.delete(el),
     eventContent: (eventInfo: EventContentArg) => {
       if (eventInfo.event.extendedProps['eventKind'] !== 'daily-count') {
+        const boundaryKind = this.getBoundaryKind(eventInfo.event.extendedProps);
         const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
+        const hasTransferIndicator = typeof transferIndicator === 'string' && !!transferIndicator;
 
-        if (typeof transferIndicator !== 'string' || !transferIndicator) {
+        if (!boundaryKind && !hasTransferIndicator) {
           return true;
         }
 
-        const indicator = document.createElement('span');
-        indicator.className = 'stay-event__transfer-indicator';
-        indicator.setAttribute('aria-hidden', 'true');
-        indicator.style.inlineSize = '1.25em';
-        indicator.style.height = '1.25em';
-        indicator.style.transform = 'translateY(0.06em)';
-        const glyph = document.createElement('span');
-        glyph.className = 'stay-event__transfer-glyph';
-        glyph.style.position = 'relative';
-        glyph.style.top = '-0.25em';
-        glyph.style.left = '-0.07em';
-        glyph.textContent = '🚗';
-        indicator.append(glyph);
+        const domNodes: HTMLElement[] = [];
+
+        if (hasTransferIndicator) {
+          const indicator = document.createElement('span');
+          indicator.className = 'stay-event__transfer-indicator';
+          indicator.setAttribute('aria-hidden', 'true');
+          indicator.style.inlineSize = '1.15em';
+          indicator.style.height = '1.15em';
+          indicator.style.transform = 'translateY(0.03em)';
+
+          const glyph = document.createElement('span');
+          glyph.className = 'stay-event__transfer-glyph';
+          glyph.style.fontSize = '0.72em';
+          glyph.style.lineHeight = '1';
+          glyph.textContent = '🚗';
+          indicator.append(glyph);
+          domNodes.push(indicator);
+        }
 
         const label = document.createElement('span');
         label.className = 'fc-event-title';
         label.textContent = eventInfo.event.title;
+        domNodes.push(label);
 
-        return { domNodes: [indicator, label] };
+        return { domNodes };
       }
 
       const accessibleName = document.createElement('span');
@@ -329,6 +343,14 @@ export class CalendarPage implements OnDestroy {
       : null;
   }
 
+  private getBoundaryKind(extendedProps: Record<string, unknown>): StayCalendarBoundaryKind | null {
+    const kind = extendedProps['boundaryKind'];
+
+    return kind === 'arrival' || kind === 'departure' || kind === 'arrival-and-departure'
+      ? kind
+      : null;
+  }
+
   private getCompactMarkerKind(extendedProps: Record<string, unknown>): 'start' | 'end' | null {
     const kind = extendedProps['compactMarkerKind'];
 
@@ -341,11 +363,13 @@ export class CalendarPage implements OnDestroy {
   }): {
     title: string;
     compactMarkerKind: 'start' | 'end' | null;
+    boundaryKind: StayCalendarBoundaryKind | null;
     transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
   } {
     return {
       title: event.title,
       compactMarkerKind: this.getCompactMarkerKind(event.extendedProps),
+      boundaryKind: this.getBoundaryKind(event.extendedProps),
       transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
     };
   }
@@ -372,9 +396,18 @@ export class CalendarPage implements OnDestroy {
     details: {
       title: string;
       compactMarkerKind: 'start' | 'end' | null;
+      boundaryKind: StayCalendarBoundaryKind | null;
       transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
     },
   ): void {
+    const boundaryLabel =
+      details.boundaryKind === 'arrival'
+        ? this.text().calendar.boundaryLabels.arrival
+        : details.boundaryKind === 'departure'
+          ? this.text().calendar.boundaryLabels.departure
+          : details.boundaryKind === 'arrival-and-departure'
+            ? this.text().calendar.boundaryLabels.arrivalAndDeparture
+            : '';
     const transferIndicator =
       details.transferIndicatorKind === 'arrival'
         ? this.text().calendar.transferIndicators.arrival
@@ -389,7 +422,7 @@ export class CalendarPage implements OnDestroy {
     const eventLabel = compactMarkerLabel
       ? `${compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
       : this.text().calendar.openStayInList;
-    const accessibleLabel = [transferIndicator, details.title, eventLabel]
+    const accessibleLabel = [boundaryLabel, transferIndicator, details.title, eventLabel]
       .filter(Boolean)
       .join('. ');
 
@@ -518,8 +551,7 @@ export class CalendarPage implements OnDestroy {
     this.displayMode.set(displayMode);
   }
 
-  activateDisplayOption(event: MouseEvent, displayMode: CalendarDisplayMode): void {
-    if (event.target !== event.currentTarget) return;
+  activateDisplayOption(displayMode: CalendarDisplayMode): void {
     this.setDisplayMode(displayMode);
   }
 
