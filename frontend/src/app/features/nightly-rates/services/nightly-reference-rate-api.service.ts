@@ -4,14 +4,9 @@ import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import {
-  NightlyReferenceRate as SharedNightlyReferenceRate,
+  NightlyReferenceRate,
   NightlyReferenceRateKey,
 } from '../models/nightly-reference-rate.model';
-
-export type NightlyRateThreshold = 1 | 2 | 3;
-export type NightlyReferenceRate = SharedNightlyReferenceRate & {
-  minimumCatCount?: NightlyRateThreshold;
-};
 
 @Injectable({ providedIn: 'root' })
 export class NightlyReferenceRateApiService {

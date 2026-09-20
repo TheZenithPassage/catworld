@@ -122,6 +122,7 @@ interface StayDatePricingPreviewBase {
   currentAgreedAmount: MonetaryAmount | null;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
+  currentApplicableNightlyRate: MonetaryAmount | null;
   accommodationSuggestedAmount?: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
   arrivalTransferRequired: boolean;
