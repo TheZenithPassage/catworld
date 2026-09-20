@@ -1,5 +1,11 @@
 import { StayDateMatchMode } from '../../../shared/stay-date-filters/stay-date-filter.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
+import {
+  NIGHTLY_REFERENCE_RATE_KEYS,
+  NightlyReferenceRateKey,
+} from '../../nightly-rates/models/nightly-reference-rate.model';
+
+export type NightlyRateCategory = NightlyReferenceRateKey;
 
 export const SENSITIVE_EVENT_TYPES = [
   'NIGHTLY_RATE_CHANGED',
@@ -11,10 +17,6 @@ export const SENSITIVE_EVENT_TYPES = [
 ] as const;
 
 export type SensitiveEconomicEventType = (typeof SENSITIVE_EVENT_TYPES)[number];
-
-export const NIGHTLY_RATE_CATEGORIES = ['ONE_CAT', 'TWO_CATS', 'THREE_PLUS_CATS'] as const;
-
-export type NightlyRateCategory = (typeof NIGHTLY_RATE_CATEGORIES)[number];
 
 export interface SensitiveActor {
   id: string;
@@ -56,7 +58,7 @@ interface PaymentContext {
 export type SensitiveEconomicActivityEvent =
   | (NightlyRateEventBase & {
       eventType: 'NIGHTLY_RATE_CHANGED';
-      category: NightlyRateCategory;
+      category: NightlyReferenceRateKey;
       previousRate: string | null;
       newRate: string | null;
     })
@@ -263,12 +265,12 @@ function absentContext(value: unknown): null {
   return null;
 }
 
-function category(value: unknown): NightlyRateCategory {
+function category(value: unknown): NightlyReferenceRateKey {
   const candidate = text(value);
-  if (!NIGHTLY_RATE_CATEGORIES.includes(candidate as NightlyRateCategory)) {
+  if (!NIGHTLY_REFERENCE_RATE_KEYS.includes(candidate as NightlyReferenceRateKey)) {
     throw new MalformedSensitiveActivityError('Unknown nightly rate category');
   }
-  return candidate as NightlyRateCategory;
+  return candidate as NightlyReferenceRateKey;
 }
 
 function object(value: unknown): Record<string, unknown> {

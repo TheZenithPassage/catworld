@@ -12,16 +12,13 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import {
-  NightlyRateThreshold,
+  NIGHTLY_REFERENCE_RATE_KEYS,
   NightlyReferenceRate,
-  NightlyReferenceRateApiService,
-} from '../../services/nightly-reference-rate-api.service';
+  NightlyReferenceRateKey,
+} from '../../models/nightly-reference-rate.model';
+import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
 import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 
-interface RateCategory {
-  threshold: NightlyRateThreshold;
-  labelKey: 'one' | 'two' | 'threePlus';
-}
 type PendingAction = 'save' | 'clear';
 type ValidationErrorCode = 'required' | 'positiveWhole' | 'tooLong';
 
@@ -48,22 +45,23 @@ export class NightlyRateManagementPage {
   private readonly i18n = inject(I18nService);
   private readonly transferApi = inject(TransferRateApiService);
   readonly text = this.i18n.text;
-  readonly categories: readonly RateCategory[] = [
-    { threshold: 1, labelKey: 'one' },
-    { threshold: 2, labelKey: 'two' },
-    { threshold: 3, labelKey: 'threePlus' },
-  ];
-  readonly rates = signal<Partial<Record<NightlyRateThreshold, string | null>>>({});
-  readonly entries = signal<Record<NightlyRateThreshold, string>>({ 1: '', 2: '', 3: '' });
-  readonly validationErrors = signal<Partial<Record<NightlyRateThreshold, ValidationErrorCode>>>(
+  readonly keys = NIGHTLY_REFERENCE_RATE_KEYS;
+  readonly rates = signal<Partial<Record<NightlyReferenceRateKey, string | null>>>({});
+  readonly entries = signal<Record<NightlyReferenceRateKey, string>>({
+    ONE_CAT: '',
+    ONE_CAT_7_TO_14: '',
+    ONE_CAT_15_TO_29: '',
+    ONE_CAT_30_PLUS: '',
+    TWO_CATS: '',
+    THREE_PLUS_CATS: '',
+  });
+  readonly validationErrors = signal<Partial<Record<NightlyReferenceRateKey, ValidationErrorCode>>>(
     {},
   );
   readonly loading = signal(true);
   readonly loadError = createLanguageResetError(this.i18n.language);
   readonly actionError = createLanguageResetError(this.i18n.language);
-  readonly pending = signal<{ threshold: NightlyRateThreshold; action: PendingAction } | null>(
-    null,
-  );
+  readonly pending = signal<{ key: NightlyReferenceRateKey; action: PendingAction } | null>(null);
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
   readonly transferRate = signal<string | null>(null);
   readonly transferEntry = signal('');
@@ -120,7 +118,7 @@ export class NightlyRateManagementPage {
       });
   }
 
-  loadRates(afterMutation: NightlyRateThreshold | null = null): void {
+  loadRates(afterMutation: NightlyReferenceRateKey | null = null): void {
     this.loading.set(true);
     this.loadError.set(null);
     this.api.getCurrentRates().subscribe({
@@ -129,7 +127,14 @@ export class NightlyRateManagementPage {
         if (!mapped) this.loadError.set(this.text().nightlyRates.loadError);
         else {
           this.rates.set(mapped);
-          this.entries.set({ 1: mapped[1] ?? '', 2: mapped[2] ?? '', 3: mapped[3] ?? '' });
+          this.entries.set({
+            ONE_CAT: mapped.ONE_CAT ?? '',
+            ONE_CAT_7_TO_14: mapped.ONE_CAT_7_TO_14 ?? '',
+            ONE_CAT_15_TO_29: mapped.ONE_CAT_15_TO_29 ?? '',
+            ONE_CAT_30_PLUS: mapped.ONE_CAT_30_PLUS ?? '',
+            TWO_CATS: mapped.TWO_CATS ?? '',
+            THREE_PLUS_CATS: mapped.THREE_PLUS_CATS ?? '',
+          });
         }
         this.loading.set(false);
         if (afterMutation !== null && !mapped) {
@@ -149,53 +154,53 @@ export class NightlyRateManagementPage {
       },
     });
   }
-  entry(threshold: NightlyRateThreshold): string {
-    return this.entries()[threshold];
+  entry(key: NightlyReferenceRateKey): string {
+    return this.entries()[key];
   }
-  setEntry(threshold: NightlyRateThreshold, value: string): void {
-    this.entries.update((entries) => ({ ...entries, [threshold]: value }));
-    this.validationErrors.update((errors) => ({ ...errors, [threshold]: undefined }));
+  setEntry(key: NightlyReferenceRateKey, value: string): void {
+    this.entries.update((entries) => ({ ...entries, [key]: value }));
+    this.validationErrors.update((errors) => ({ ...errors, [key]: undefined }));
     this.actionError.set(null);
   }
-  rate(threshold: NightlyRateThreshold): string | null {
-    return this.rates()[threshold] ?? null;
+  rate(key: NightlyReferenceRateKey): string | null {
+    return this.rates()[key] ?? null;
   }
 
-  save(threshold: NightlyRateThreshold): void {
+  save(key: NightlyReferenceRateKey): void {
     if (!this.isAdmin() || this.pending()) return;
-    const value = this.entry(threshold);
+    const value = this.entry(key);
     const error = this.validate(value);
     if (error) {
-      this.validationErrors.update((errors) => ({ ...errors, [threshold]: error }));
-      this.focusField(threshold);
+      this.validationErrors.update((errors) => ({ ...errors, [key]: error }));
+      this.focusField(key);
       return;
     }
-    this.startMutation(threshold, 'save');
+    this.startMutation(key, 'save');
     this.api
-      .configureRate(threshold, value)
+      .configureRate(key, value)
       .pipe(finalize(() => this.pending.set(null)))
       .subscribe({
-        next: () => this.loadRates(threshold),
+        next: () => this.loadRates(key),
         error: (apiError: unknown) => this.handleMutationError(apiError),
       });
   }
-  clear(threshold: NightlyRateThreshold): void {
+  clear(key: NightlyReferenceRateKey): void {
     if (!this.isAdmin() || this.pending()) return;
-    this.startMutation(threshold, 'clear');
+    this.startMutation(key, 'clear');
     this.api
-      .clearRate(threshold)
+      .clearRate(key)
       .pipe(finalize(() => this.pending.set(null)))
       .subscribe({
-        next: () => this.loadRates(threshold),
+        next: () => this.loadRates(key),
         error: (apiError: unknown) => this.handleMutationError(apiError),
       });
   }
-  isPending(threshold: NightlyRateThreshold, action?: PendingAction): boolean {
+  isPending(key: NightlyReferenceRateKey, action?: PendingAction): boolean {
     const pending = this.pending();
-    return pending?.threshold === threshold && (!action || pending.action === action);
+    return pending?.key === key && (!action || pending.action === action);
   }
-  validationError(threshold: NightlyRateThreshold): string | null {
-    const code = this.validationErrors()[threshold];
+  validationError(key: NightlyReferenceRateKey): string | null {
+    const code = this.validationErrors()[key];
     return code ? this.text().nightlyRates.form.errors[code] : null;
   }
 
@@ -207,18 +212,18 @@ export class NightlyRateManagementPage {
   }
   private mapRates(
     rates: NightlyReferenceRate[],
-  ): Partial<Record<NightlyRateThreshold, string | null>> | null {
-    const mapped: Partial<Record<NightlyRateThreshold, string | null>> = {};
+  ): Partial<Record<NightlyReferenceRateKey, string | null>> | null {
+    const mapped: Partial<Record<NightlyReferenceRateKey, string | null>> = {};
     for (const rate of rates) {
-      if (![1, 2, 3].includes(rate.minimumCatCount) || rate.minimumCatCount in mapped) return null;
-      mapped[rate.minimumCatCount] = rate.nightlyRate;
+      if (!this.keys.includes(rate.key) || rate.key in mapped) return null;
+      mapped[rate.key] = rate.nightlyRate;
     }
-    return this.categories.every(({ threshold }) => threshold in mapped) ? mapped : null;
+    return this.keys.every((key) => key in mapped) ? mapped : null;
   }
-  private startMutation(threshold: NightlyRateThreshold, action: PendingAction): void {
+  private startMutation(key: NightlyReferenceRateKey, action: PendingAction): void {
     this.actionError.set(null);
-    this.validationErrors.update((errors) => ({ ...errors, [threshold]: undefined }));
-    this.pending.set({ threshold, action });
+    this.validationErrors.update((errors) => ({ ...errors, [key]: undefined }));
+    this.pending.set({ key, action });
   }
   private handleMutationError(error: unknown): void {
     const messages = this.text().nightlyRates.errors;
@@ -231,8 +236,8 @@ export class NightlyRateManagementPage {
     this.actionError.set(message);
     this.focusFeedback();
   }
-  private focusField(threshold: NightlyRateThreshold): void {
-    setTimeout(() => document.getElementById(`nightly-rate-${threshold}`)?.focus());
+  private focusField(key: NightlyReferenceRateKey): void {
+    setTimeout(() => document.getElementById(`nightly-rate-${key}`)?.focus());
   }
   private focusFeedback(): void {
     setTimeout(() => document.getElementById('nightly-rate-action-error')?.focus());

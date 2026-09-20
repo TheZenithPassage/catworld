@@ -1,4 +1,5 @@
 import { AppLanguage } from '../app-language';
+import { NightlyReferenceRateKey } from '../../../features/nightly-rates/models/nightly-reference-rate.model';
 
 export interface NightlyRatesTranslations {
   title: string;
@@ -8,7 +9,7 @@ export interface NightlyRatesTranslations {
   loadError: string;
   retry: string;
   unavailable: string;
-  categories: Record<'one' | 'two' | 'threePlus', string>;
+  categories: Record<NightlyReferenceRateKey, string>;
   form: {
     rateLabel: string;
     configure: string;
@@ -47,7 +48,14 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
     loadError: 'No se pudieron cargar las tarifas nocturnas actuales.',
     retry: 'Reintentar',
     unavailable: 'No disponible temporalmente',
-    categories: { one: 'Un gato', two: 'Dos gatos', threePlus: 'Tres o más gatos' },
+    categories: {
+      ONE_CAT: 'Un gato — menos de 7 noches',
+      ONE_CAT_7_TO_14: 'Un gato — 7–14 noches',
+      ONE_CAT_15_TO_29: 'Un gato — 15–29 noches',
+      ONE_CAT_30_PLUS: 'Un gato — 30+ noches',
+      TWO_CATS: 'Dos gatos',
+      THREE_PLUS_CATS: 'Tres o más gatos',
+    },
     form: {
       rateLabel: 'Precio total por noche',
       configure: 'Configurar',
@@ -88,7 +96,14 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
     loadError: 'The current nightly rates could not be loaded.',
     retry: 'Retry',
     unavailable: 'Temporarily unavailable',
-    categories: { one: 'One cat', two: 'Two cats', threePlus: 'Three or more cats' },
+    categories: {
+      ONE_CAT: 'One cat — under 7 nights',
+      ONE_CAT_7_TO_14: 'One cat — 7–14 nights',
+      ONE_CAT_15_TO_29: 'One cat — 15–29 nights',
+      ONE_CAT_30_PLUS: 'One cat — 30+ nights',
+      TWO_CATS: 'Two cats',
+      THREE_PLUS_CATS: 'Three or more cats',
+    },
     form: {
       rateLabel: 'Total price per night',
       configure: 'Configure',

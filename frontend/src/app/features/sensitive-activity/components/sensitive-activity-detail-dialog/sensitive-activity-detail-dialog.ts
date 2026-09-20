@@ -11,8 +11,8 @@ import {
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
+import { NightlyReferenceRateKey } from '../../../nightly-rates/models/nightly-reference-rate.model';
 import {
-  NightlyRateCategory,
   SensitiveEconomicActivityEvent,
   SensitiveStayContext,
 } from '../../models/sensitive-economic-activity';
@@ -33,7 +33,7 @@ export class SensitiveActivityDetailDialog {
     return this.text().sensitiveActivity.events[this.event.eventType];
   }
 
-  categoryLabel(category: NightlyRateCategory): string {
+  categoryLabel(category: NightlyReferenceRateKey): string {
     return this.text().sensitiveActivity.categories[category];
   }
 

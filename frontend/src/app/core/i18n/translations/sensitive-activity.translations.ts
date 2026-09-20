@@ -1,8 +1,6 @@
 import { AppLanguage } from '../app-language';
-import {
-  NightlyRateCategory,
-  SensitiveEconomicEventType,
-} from '../../../features/sensitive-activity/models/sensitive-economic-activity';
+import { NightlyReferenceRateKey } from '../../../features/nightly-rates/models/nightly-reference-rate.model';
+import { SensitiveEconomicEventType } from '../../../features/sensitive-activity/models/sensitive-economic-activity';
 
 export interface SensitiveActivityTranslations {
   title: string;
@@ -59,7 +57,7 @@ export interface SensitiveActivityTranslations {
   };
   eventHelp: Partial<Record<SensitiveEconomicEventType, string>>;
   events: Record<SensitiveEconomicEventType, string>;
-  categories: Record<NightlyRateCategory, string>;
+  categories: Record<NightlyReferenceRateKey, string>;
   fields: Record<
     | 'actor'
     | 'occurredAt'
@@ -175,7 +173,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       PAYMENT_REMOVED: 'Pago eliminado',
     },
     categories: {
-      ONE_CAT: 'Un gato',
+      ONE_CAT: 'Un gato — menos de 7 noches',
+      ONE_CAT_7_TO_14: 'Un gato — 7–14 noches',
+      ONE_CAT_15_TO_29: 'Un gato — 15–29 noches',
+      ONE_CAT_30_PLUS: 'Un gato — 30+ noches',
       TWO_CATS: 'Dos gatos',
       THREE_PLUS_CATS: 'Tres o más gatos',
     },
@@ -274,7 +275,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     },
     events: sharedEvents,
     categories: {
-      ONE_CAT: 'One cat',
+      ONE_CAT: 'One cat — under 7 nights',
+      ONE_CAT_7_TO_14: 'One cat — 7–14 nights',
+      ONE_CAT_15_TO_29: 'One cat — 15–29 nights',
+      ONE_CAT_30_PLUS: 'One cat — 30+ nights',
       TWO_CATS: 'Two cats',
       THREE_PLUS_CATS: 'Three or more cats',
     },

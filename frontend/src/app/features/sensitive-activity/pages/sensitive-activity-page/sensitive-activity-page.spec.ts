@@ -41,11 +41,11 @@ describe('SensitiveActivityPage', () => {
     {
       ...common,
       affectedContext: null,
-      eventId: '1',
+      eventId: 'event-tier',
       eventType: 'NIGHTLY_RATE_CHANGED',
-      category: 'ONE_CAT',
+      category: 'ONE_CAT_30_PLUS',
       previousRate: null,
-      newRate: '9999999999999999999',
+      newRate: '17',
     },
     {
       ...common,
@@ -149,8 +149,8 @@ describe('SensitiveActivityPage', () => {
         'Payment removed',
       ],
     );
-    expect(root.textContent).toContain('9999999999999999999');
-    expect(root.textContent).toContain('One cat');
+    expect(root.textContent).toContain('17');
+    expect(root.textContent).toContain('One cat — 30+ nights');
     expect(root.textContent).toContain('Ada Owner');
     expect(root.textContent).toContain('Miso');
     expect(root.textContent).toContain('1 Aug 2026, 09:00');

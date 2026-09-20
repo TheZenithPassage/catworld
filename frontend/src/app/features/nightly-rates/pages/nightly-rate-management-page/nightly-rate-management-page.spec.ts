@@ -11,10 +11,13 @@ import { TransferRateApiService } from '../../services/transfer-rate-api.service
 import { NightlyRateManagementPage } from './nightly-rate-management-page';
 
 const currentRates = [
-  { minimumCatCount: 1 as const, nightlyRate: '45' },
-  { minimumCatCount: 2 as const, nightlyRate: null },
-  { minimumCatCount: 3 as const, nightlyRate: '9999999999999999999' },
-];
+  { key: 'ONE_CAT', nightlyRate: '45' },
+  { key: 'ONE_CAT_7_TO_14', nightlyRate: null },
+  { key: 'ONE_CAT_15_TO_29', nightlyRate: '40' },
+  { key: 'ONE_CAT_30_PLUS', nightlyRate: null },
+  { key: 'TWO_CATS', nightlyRate: '70' },
+  { key: 'THREE_PLUS_CATS', nightlyRate: '90' },
+] as const;
 
 describe('NightlyRateManagementPage', () => {
   let fixture: ComponentFixture<NightlyRateManagementPage>;
@@ -31,10 +34,13 @@ describe('NightlyRateManagementPage', () => {
     clearRate: ReturnType<typeof vi.fn>;
   };
 
-  async function create(role: 'ADMIN' | 'STAFF' = 'ADMIN'): Promise<void> {
+  async function create(
+    role: 'ADMIN' | 'STAFF' = 'ADMIN',
+    rates: unknown = currentRates,
+  ): Promise<void> {
     localStorage.setItem('catworld.language', 'en');
     api = {
-      getCurrentRates: vi.fn().mockReturnValue(of(currentRates)),
+      getCurrentRates: vi.fn().mockReturnValue(of(rates)),
       configureRate: vi.fn().mockReturnValue(of(currentRates[0])),
       clearRate: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -63,7 +69,10 @@ describe('NightlyRateManagementPage', () => {
   it('renders exact categories, configured values, unavailable state, and whole-stay meaning', async () => {
     await create('STAFF');
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('One cat');
+    expect(text).toContain('One cat — under 7 nights');
+    expect(text).toContain('One cat — 7–14 nights');
+    expect(text).toContain('One cat — 15–29 nights');
+    expect(text).toContain('One cat — 30+ nights');
     expect(text).toContain('Two cats');
     expect(text).toContain('Three or more cats');
     expect(text).not.toContain('Exactly three cats');
@@ -76,7 +85,8 @@ describe('NightlyRateManagementPage', () => {
   it('keeps STAFF read-only while preserving all categories', async () => {
     await create('STAFF');
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('mat-card').length).toBe(4);
+    expect(root.querySelectorAll('mat-card').length).toBe(7);
+    expect(root.textContent).toContain('Transfer assistance');
     expect(root.querySelector('input')).toBeNull();
     expect(root.querySelector('.rate-actions')).toBeNull();
   });
@@ -84,37 +94,49 @@ describe('NightlyRateManagementPage', () => {
   it('shows ADMIN mutation controls for configured and unavailable categories', async () => {
     await create();
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('input').length).toBe(4);
+    expect(root.querySelectorAll('mat-card').length).toBe(7);
+    expect(root.querySelectorAll('input[id^="nightly-rate-"]').length).toBe(6);
+    expect(root.querySelector('#nightly-rate-ONE_CAT_15_TO_29')).not.toBeNull();
+    expect(root.textContent).toContain('Transfer assistance');
     expect(root.textContent).toContain('Change');
     expect(root.textContent).toContain('Configure');
     expect(root.textContent).toContain('Clear rate');
+  });
+
+  it.each([
+    ['an incomplete response', currentRates.slice(0, -1)],
+    ['a response with duplicate keys', [...currentRates, currentRates[0]]],
+  ])('rejects %s', async (_description, rates) => {
+    await create('STAFF', rates);
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('The current nightly rates could not be loaded.');
+    expect(root.querySelector('.rate-grid')).toBeNull();
   });
 
   it.each(['', '0', '-1', '1.5', 'letters', '12345678901234567890'])(
     'blocks invalid entry %s without an API call',
     async (value) => {
       await create();
-      component.setEntry(1, value);
-      component.save(1);
+      component.setEntry('ONE_CAT', value);
+      component.save('ONE_CAT');
       fixture.detectChanges();
       expect(api.configureRate).not.toHaveBeenCalled();
       expect((fixture.nativeElement as HTMLElement).querySelector('.field-error')).not.toBeNull();
     },
   );
 
-  it('renders, preloads, and resubmits a 19-digit response value unchanged', async () => {
+  it('preserves and submits a 19-digit entry unchanged', async () => {
     await create();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('9999999999999999999');
-    expect(component.entry(3)).toBe('9999999999999999999');
-    component.save(3);
-    expect(api.configureRate).toHaveBeenCalledWith(3, '9999999999999999999');
+    component.setEntry('ONE_CAT_15_TO_29', '9999999999999999999');
+    component.save('ONE_CAT_15_TO_29');
+    expect(api.configureRate).toHaveBeenCalledWith('ONE_CAT_15_TO_29', '9999999999999999999');
     expect(api.getCurrentRates).toHaveBeenCalledTimes(2);
   });
 
   it('updates an active field-validation error when the language changes', async () => {
     await create();
-    component.setEntry(1, '0');
-    component.save(1);
+    component.setEntry('ONE_CAT', '0');
+    component.save('ONE_CAT');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
       'The amount must be a positive whole number without decimals.',
@@ -130,8 +152,8 @@ describe('NightlyRateManagementPage', () => {
 
   it('clears one category and reloads the complete set', async () => {
     await create();
-    component.clear(1);
-    expect(api.clearRate).toHaveBeenCalledWith(1);
+    component.clear('ONE_CAT');
+    expect(api.clearRate).toHaveBeenCalledWith('ONE_CAT');
     expect(api.getCurrentRates).toHaveBeenCalledTimes(2);
   });
 
@@ -139,9 +161,9 @@ describe('NightlyRateManagementPage', () => {
     await create();
     const response = new BehaviorSubject(currentRates[0]);
     api.configureRate.mockReturnValue(response);
-    component.setEntry(1, '50');
-    component.save(1);
-    component.save(1);
+    component.setEntry('ONE_CAT', '50');
+    component.save('ONE_CAT');
+    component.save('ONE_CAT');
     expect(api.configureRate).toHaveBeenCalledTimes(1);
   });
 
@@ -153,11 +175,11 @@ describe('NightlyRateManagementPage', () => {
     api.configureRate.mockReturnValue(
       throwError(() => new HttpErrorResponse({ status: Number(status) })),
     );
-    component.setEntry(2, '75');
-    component.save(2);
+    component.setEntry('TWO_CATS', '75');
+    component.save('TWO_CATS');
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(message);
-    expect(component.entry(2)).toBe('75');
+    expect(component.entry('TWO_CATS')).toBe('75');
   });
 
   it('renders load failure and retries', async () => {
