@@ -30,7 +30,7 @@ import com.allegaeon.catworld.mapper.StayMapper;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
@@ -100,6 +100,7 @@ public class StayService implements IStayService {
     private final StayCatRepository stayCatRepository;
     private final StayOverviewReadRepository stayOverviewReadRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
+    private final NightlyReferenceRateResolver nightlyReferenceRateResolver;
     private final TransferRateRepository transferRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
@@ -277,6 +278,7 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StayDatePricingPreviewResponseDTO previewDateChangePricing(
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
@@ -334,7 +336,7 @@ public class StayService implements IStayService {
         // classification and confirmation validation.
         CreationPricingBasis basis = creationPricingBasis(
                 stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cats.size(),
-                nightlyReferenceRateRepository::findByCategoryForUpdate);
+                nightlyReferenceRateRepository::findByKeyForUpdate);
         BigDecimal retainedNightlyRate = basis.retainedNightlyRate();
         long numberOfNights = basis.numberOfNights();
         stay.setRetainedTransferRate(transfer.retainedRate());
@@ -886,29 +888,20 @@ public class StayService implements IStayService {
         return cats;
     }
 
-    private NightlyReferenceRateCategory categoryFor(int catCount) {
-        return NightlyReferenceRateCategory.fromActualCatCount(catCount)
-                .orElseThrow(() -> new BadRequestException(
-                        "A stay must contain at least one cat"));
-    }
-
     private CreationPricingBasis creationPricingBasis(
             LocalDateTime startAt,
             LocalDateTime endAt,
             int catCount,
-            Function<NightlyReferenceRateCategory,
+            Function<NightlyReferenceRateKey,
                     Optional<NightlyReferenceRate>> rateLookup) {
-        NightlyReferenceRateCategory category = categoryFor(catCount);
-        NightlyReferenceRate currentRate = rateLookup.apply(category)
-                .orElseThrow(() -> new ConflictException(
-                        "Nightly reference-rate configuration is incomplete"));
-        BigDecimal retainedRate = validateRetainedNightlyRate(
-                currentRate.getNightlyRate());
         long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        BigDecimal retainedRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        catCount, nights, rateLookup));
         BigDecimal suggestion = stayMapper.calculateSuggestedAmount(
                 retainedRate, nights);
         return new CreationPricingBasis(
-                category, nights, retainedRate, suggestion);
+                nights, retainedRate, suggestion);
     }
 
     private StayPricingPreviewResponseDTO creationPreview(
@@ -931,7 +924,6 @@ public class StayService implements IStayService {
     }
 
     private record CreationPricingBasis(
-            NightlyReferenceRateCategory category,
             long numberOfNights,
             BigDecimal retainedNightlyRate,
             BigDecimal suggestedAmount) {
@@ -956,6 +948,11 @@ public class StayService implements IStayService {
         long previousNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(), stay.getEndAt());
         long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        BigDecimal currentApplicableNightlyRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        stay.getStayCats().size(),
+                        nights,
+                        nightlyReferenceRateRepository::findById));
         BigDecimal previousTransfer = stayMapper.calculateTransferSuggestedAmount(stay);
         int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
                 + (stay.isDepartureTransferRequired() ? 1 : 0);
@@ -981,18 +978,13 @@ public class StayService implements IStayService {
             retainedTransfer = current;
         }
         BigDecimal retainedNightlyRate = stay.getRetainedNightlyRate();
-        if (selectedNightlyRate != null && !sameMoney(selectedNightlyRate, retainedNightlyRate)) {
-            if (previousNights == nights) {
+        if (selectedNightlyRate != null) {
+            if (previousNights == nights
+                    || !sameMoney(selectedNightlyRate,
+                    currentApplicableNightlyRate)) {
                 throw new StalePricingConfirmationException();
             }
-            NightlyReferenceRateCategory category = categoryFor(stay.getStayCats().size());
-            BigDecimal currentNightlyRate = nightlyReferenceRateRepository.findById(category)
-                    .map(NightlyReferenceRate::getNightlyRate).map(this::validateRetainedNightlyRate)
-                    .orElseThrow(StalePricingConfirmationException::new);
-            if (!sameMoney(selectedNightlyRate, currentNightlyRate)) {
-                throw new StalePricingConfirmationException();
-            }
-            retainedNightlyRate = currentNightlyRate;
+            retainedNightlyRate = currentApplicableNightlyRate;
         }
         BigDecimal transferSuggestion = waived || retainedTransfer == null ? BigDecimal.ZERO : retainedTransfer.multiply(BigDecimal.valueOf((arrival ? 1 : 0) + (departure ? 1 : 0)));
         boolean pricingDecisionRequired = previousNights != nights
@@ -1019,6 +1011,7 @@ public class StayService implements IStayService {
                 .currentNumberOfNights(previousNights)
                 .currentAgreedAmount(stay.getAgreedAmount())
                 .numberOfNights(nights)
+                .currentApplicableNightlyRate(currentApplicableNightlyRate)
                 .retainedNightlyRate(retainedNightlyRate)
                 .accommodationSuggestedAmount(accommodationSuggestion)
                 .suggestedAmount(suggestion)
@@ -1073,17 +1066,15 @@ public class StayService implements IStayService {
             return originalRate;
         }
 
-        NightlyReferenceRateCategory category = NightlyReferenceRateCategory
-                .fromActualCatCount(stay.getStayCats().size())
-                .orElseThrow(StalePricingConfirmationException::new);
-        BigDecimal currentRate = nightlyReferenceRateRepository
-                .findByCategoryForUpdate(category)
-                .map(NightlyReferenceRate::getNightlyRate)
-                .filter(rate -> rate.signum() > 0)
-                .filter(WholeMonetaryAmount::isSupported)
-                .map(WholeMonetaryAmount::canonicalize)
-                .orElseThrow(StalePricingConfirmationException::new);
-        if (!sameMoney(selectedRate, currentRate)) {
+        if (stay.getStayCats().isEmpty()) {
+            throw new StalePricingConfirmationException();
+        }
+        BigDecimal currentRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        stay.getStayCats().size(),
+                        proposedNights,
+                        nightlyReferenceRateRepository::findByKeyForUpdate));
+        if (currentRate == null || !sameMoney(selectedRate, currentRate)) {
             throw new StalePricingConfirmationException();
         }
         return currentRate;

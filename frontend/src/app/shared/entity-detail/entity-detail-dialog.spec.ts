@@ -1988,14 +1988,38 @@ describe('Route-free StayEditor migrated coverage', () => {
     endAt: '2020-01-09T10:00:00',
   };
 
+  const currentRatePreview: StayDatePricingPreview = {
+    pricingDecisionRequired: true,
+    currentNumberOfNights: 10,
+    currentAgreedAmount: '200',
+    numberOfNights: 40,
+    retainedNightlyRate: '20',
+    currentApplicableNightlyRate: '17',
+    accommodationSuggestedAmount: '800',
+    suggestedAmount: '800',
+    arrivalTransferRequired: false,
+    departureTransferRequired: false,
+    transferWaived: false,
+    retainedTransferRate: null,
+    transferSuggestedAmount: '0',
+    confirmation: {
+      previousNumberOfNights: 10,
+      previousAgreedAmount: '200',
+      numberOfNights: 40,
+      retainedNightlyRate: '20',
+      suggestedAmount: '800',
+      arrivalTransferRequired: false,
+      departureTransferRequired: false,
+      transferWaived: false,
+      retainedTransferRate: null,
+      transferSuggestedAmount: '0',
+    },
+  };
+
   const stayApiService = {
     getStayById: vi.fn(),
     updateStay: vi.fn(),
     previewDateChangePricing: vi.fn(),
-  };
-
-  const nightlyReferenceRateApiService = {
-    getCurrentRates: vi.fn(),
   };
 
   const transferRateApiService = {
@@ -2040,11 +2064,11 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '100',
           numberOfNights: 7,
           retainedNightlyRate: '50',
+          currentApplicableNightlyRate: null,
           suggestedAmount: '100',
           confirmation: null,
         }),
     );
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(of([]));
     transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: null }));
     window.scrollTo = vi.fn();
 
@@ -2055,10 +2079,6 @@ describe('Route-free StayEditor migrated coverage', () => {
         {
           provide: StayApiService,
           useValue: stayApiService,
-        },
-        {
-          provide: NightlyReferenceRateApiService,
-          useValue: nightlyReferenceRateApiService,
         },
         {
           provide: TransferRateApiService,
@@ -2094,6 +2114,140 @@ describe('Route-free StayEditor migrated coverage', () => {
     ].find((candidate) => candidate.querySelector('dt')?.textContent?.trim() === label);
     return row?.querySelector('dd')?.textContent?.trim();
   }
+
+  it('uses the backend-resolved current nightly rate', () => {
+    stayApiService.previewDateChangePricing.mockReturnValue(of(currentRatePreview));
+    createComponent();
+
+    expect(component.applicableCurrentRate()).toBe('17');
+
+    component.toggleRetainedRate();
+
+    expect(stayApiService.previewDateChangePricing).toHaveBeenLastCalledWith(
+      'stay-1',
+      expect.objectContaining({ selectedNightlyRate: '17' }),
+    );
+  });
+
+  it.each(['18', null])(
+    'clears an adopted nightly rate before previewing another night count with current rate %s',
+    (destinationCurrentRate) => {
+      const twoNightStay: Stay = {
+        ...stay,
+        startAt: '2099-01-02T10:00:00',
+        endAt: '2099-01-04T10:00:00',
+        numberOfNights: 2,
+        retainedNightlyRate: '20',
+        suggestedAmount: '40',
+        agreedAmount: '40',
+        remainingAmount: '40',
+      };
+      stayApiService.previewDateChangePricing.mockImplementation(
+        (_id: string, request: { endAt: string; selectedNightlyRate?: string | null }) => {
+          if (request.endAt === '2099-01-22T10:00') {
+            if (request.selectedNightlyRate != null) {
+              return throwError(() => new HttpErrorResponse({ status: 409 }));
+            }
+            return of({
+              pricingDecisionRequired: true as const,
+              currentNumberOfNights: 2,
+              currentAgreedAmount: '40',
+              numberOfNights: 20,
+              retainedNightlyRate: '20',
+              currentApplicableNightlyRate: destinationCurrentRate,
+              accommodationSuggestedAmount: '400',
+              suggestedAmount: '400',
+              arrivalTransferRequired: false,
+              departureTransferRequired: false,
+              transferWaived: false,
+              retainedTransferRate: null,
+              transferSuggestedAmount: '0',
+              confirmation: {
+                previousNumberOfNights: 2,
+                previousAgreedAmount: '40',
+                numberOfNights: 20,
+                retainedNightlyRate: '20',
+                suggestedAmount: '400',
+                arrivalTransferRequired: false,
+                departureTransferRequired: false,
+                transferWaived: false,
+                retainedTransferRate: null,
+                transferSuggestedAmount: '0',
+              },
+            });
+          }
+
+          if (request.endAt === '2099-01-12T10:00') {
+            const retainedNightlyRate = request.selectedNightlyRate ?? '20';
+            const suggestedAmount = request.selectedNightlyRate === '19' ? '190' : '200';
+            return of({
+              pricingDecisionRequired: true as const,
+              currentNumberOfNights: 2,
+              currentAgreedAmount: '40',
+              numberOfNights: 10,
+              retainedNightlyRate,
+              currentApplicableNightlyRate: '19',
+              accommodationSuggestedAmount: suggestedAmount,
+              suggestedAmount,
+              arrivalTransferRequired: false,
+              departureTransferRequired: false,
+              transferWaived: false,
+              retainedTransferRate: null,
+              transferSuggestedAmount: '0',
+              confirmation: {
+                previousNumberOfNights: 2,
+                previousAgreedAmount: '40',
+                numberOfNights: 10,
+                retainedNightlyRate,
+                suggestedAmount,
+                arrivalTransferRequired: false,
+                departureTransferRequired: false,
+                transferWaived: false,
+                retainedTransferRate: null,
+                transferSuggestedAmount: '0',
+              },
+            });
+          }
+
+          return of({
+            pricingDecisionRequired: false as const,
+            currentNumberOfNights: 2,
+            currentAgreedAmount: '40',
+            numberOfNights: 2,
+            retainedNightlyRate: '20',
+            currentApplicableNightlyRate: '20',
+            accommodationSuggestedAmount: '40',
+            suggestedAmount: '40',
+            arrivalTransferRequired: false,
+            departureTransferRequired: false,
+            transferWaived: false,
+            retainedTransferRate: null,
+            transferSuggestedAmount: '0',
+            confirmation: null,
+          });
+        },
+      );
+      createComponent(twoNightStay);
+
+      component.onEndAtChange('2099-01-12T10:00');
+      expect(component.applicableCurrentRate()).toBe('19');
+      component.toggleRetainedRate();
+      expect(component.selectedNightlyRate()).toBe('19');
+
+      component.onEndAtChange('2099-01-22T10:00');
+
+      expect(component.selectedNightlyRate()).toBeNull();
+      expect(component.pricingPreview()).toEqual(
+        expect.objectContaining({
+          numberOfNights: 20,
+          retainedNightlyRate: '20',
+          currentApplicableNightlyRate: destinationCurrentRate,
+        }),
+      );
+      expect(component.previewError()).toBeNull();
+      expect(component.applicableCurrentRate()).toBe(destinationCurrentRate);
+    },
+  );
 
   it('does not offer suggested amount adoption in existing-stay repricing', () => {
     stayApiService.previewDateChangePricing.mockReturnValue(
@@ -2163,9 +2317,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       transferSuggestedAmount: '5',
       suggestedAmount: '355',
     };
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     stayApiService.previewDateChangePricing.mockImplementation(
       (_id: string, request: { selectedNightlyRate?: string | null }) => {
         const retainedNightlyRate = request.selectedNightlyRate ?? '50';
@@ -2177,6 +2328,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '100',
           numberOfNights: 8,
           retainedNightlyRate,
+          currentApplicableNightlyRate: '60',
           accommodationSuggestedAmount,
           suggestedAmount,
           arrivalTransferRequired: true,
@@ -2233,9 +2385,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       suggestedAmount: null,
       agreedAmount: '123',
     };
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     stayApiService.previewDateChangePricing.mockImplementation(
       (_id: string, request: { selectedNightlyRate?: string | null }) =>
         of({
@@ -2244,6 +2393,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '123',
           numberOfNights: 8,
           retainedNightlyRate: request.selectedNightlyRate ?? null,
+          currentApplicableNightlyRate: '60',
           suggestedAmount: request.selectedNightlyRate ? '480' : null,
           confirmation: {
             previousNumberOfNights: 7,
@@ -2311,9 +2461,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       suggestedAmount: null,
       agreedAmount: '123',
     };
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     createComponent(nullRateStay);
     component.agreedAmount.set('777');
     component.pricingConfirmed.set(true);
@@ -2325,6 +2472,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '123',
           numberOfNights: 8,
           retainedNightlyRate: request.selectedNightlyRate ?? null,
+          currentApplicableNightlyRate: '60',
           suggestedAmount: request.selectedNightlyRate ? '480' : null,
           confirmation: {
             previousNumberOfNights: 7,
@@ -2387,9 +2535,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       suggestedAmount: null,
       agreedAmount: '123',
     };
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     createComponent(nullRateStay);
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({
@@ -2398,6 +2543,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         currentAgreedAmount: '123',
         numberOfNights: 8,
         retainedNightlyRate: null,
+        currentApplicableNightlyRate: '60',
         suggestedAmount: null,
         confirmation: {
           previousNumberOfNights: 7,
@@ -2420,6 +2566,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         currentAgreedAmount: '123',
         numberOfNights: 7,
         retainedNightlyRate: null,
+        currentApplicableNightlyRate: null,
         suggestedAmount: null,
         confirmation: null,
       }),
@@ -2436,9 +2583,6 @@ describe('Route-free StayEditor migrated coverage', () => {
   it.each([null, 'malformed', '0', '50'])(
     'hides the retained-rate action on the visible surface for current rate %s',
     (nightlyRate) => {
-      nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-        of(nightlyRate === null ? [] : [{ minimumCatCount: 2, nightlyRate }]),
-      );
       stayApiService.previewDateChangePricing.mockReturnValue(
         of({
           pricingDecisionRequired: true,
@@ -2446,6 +2590,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '100',
           numberOfNights: 8,
           retainedNightlyRate: '50',
+          currentApplicableNightlyRate: nightlyRate,
           suggestedAmount: '400',
           confirmation: {
             previousNumberOfNights: 7,
@@ -2480,9 +2625,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       transferSuggestedAmount: '10',
       suggestedAmount: '360',
     };
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     transferRateApiService.getCurrentRate.mockReturnValue(of({ transferRate: '15' }));
     stayApiService.previewDateChangePricing.mockImplementation(
       (
@@ -2507,6 +2649,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           currentAgreedAmount: '100',
           numberOfNights: 7,
           retainedNightlyRate: '50',
+          currentApplicableNightlyRate: null,
           accommodationSuggestedAmount: '350',
           suggestedAmount,
           arrivalTransferRequired: true,
@@ -2625,9 +2768,6 @@ describe('Route-free StayEditor migrated coverage', () => {
       retainedTransferRate: '10',
       transferSuggestedAmount: '10',
     };
-    nightlyReferenceRateApiService.getCurrentRates
-      .mockReturnValueOnce(of([{ minimumCatCount: 2, nightlyRate: '60' }]))
-      .mockReturnValueOnce(of([{ minimumCatCount: 2, nightlyRate: '70' }]));
     transferRateApiService.getCurrentRate
       .mockReturnValueOnce(of({ transferRate: '15' }))
       .mockReturnValueOnce(of({ transferRate: null }));
@@ -2643,6 +2783,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '100',
       numberOfNights: 8,
       retainedNightlyRate: '60',
+      currentApplicableNightlyRate: '60',
       accommodationSuggestedAmount: '480',
       suggestedAmount: '510',
       arrivalTransferRequired: true,
@@ -2673,6 +2814,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '100',
       numberOfNights: 8,
       retainedNightlyRate: '50',
+      currentApplicableNightlyRate: '70',
       accommodationSuggestedAmount: '400',
       suggestedAmount: '420',
       arrivalTransferRequired: true,
@@ -2722,9 +2864,6 @@ describe('Route-free StayEditor migrated coverage', () => {
   });
 
   it('ignores a delayed helper preview after the nightly selector becomes ineligible', () => {
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     const delayedPreview = new Subject<StayDatePricingPreview>();
     const initialPreview = {
       pricingDecisionRequired: true as const,
@@ -2732,6 +2871,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '100',
       numberOfNights: 8,
       retainedNightlyRate: '50',
+      currentApplicableNightlyRate: '60',
       suggestedAmount: '400',
       arrivalTransferRequired: false,
       departureTransferRequired: false,
@@ -2757,6 +2897,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '100',
       numberOfNights: 7,
       retainedNightlyRate: '50',
+      currentApplicableNightlyRate: null,
       suggestedAmount: '350',
       arrivalTransferRequired: false,
       departureTransferRequired: false,
@@ -2913,6 +3054,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '100',
       numberOfNights: 7,
       retainedNightlyRate: '50',
+      currentApplicableNightlyRate: null,
       accommodationSuggestedAmount: '350',
       suggestedAmount: '350',
       arrivalTransferRequired: false,
@@ -2984,6 +3126,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       currentAgreedAmount: '120',
       numberOfNights: 7,
       retainedNightlyRate: '50',
+      currentApplicableNightlyRate: null,
       accommodationSuggestedAmount: '350',
       suggestedAmount: '370',
       arrivalTransferRequired: true,
@@ -3308,9 +3451,6 @@ describe('Route-free StayEditor migrated coverage', () => {
   });
 
   it('submits an admin repricing decision only when the backend requires it', () => {
-    nightlyReferenceRateApiService.getCurrentRates.mockReturnValue(
-      of([{ minimumCatCount: 2, nightlyRate: '60' }]),
-    );
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({
         pricingDecisionRequired: true,
@@ -3318,6 +3458,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         currentAgreedAmount: '100',
         numberOfNights: 8,
         retainedNightlyRate: '50',
+        currentApplicableNightlyRate: '60',
         suggestedAmount: '400',
         confirmation: {
           previousNumberOfNights: 7,

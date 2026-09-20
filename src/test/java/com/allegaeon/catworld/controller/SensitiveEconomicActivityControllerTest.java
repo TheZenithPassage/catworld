@@ -39,7 +39,7 @@ class SensitiveEconomicActivityControllerTest {
                         occurred,
                         new SensitiveActorDTO(actorId, "admin"),
                         null,
-                        com.allegaeon.catworld.model.NightlyReferenceRateCategory.ONE_CAT,
+                        com.allegaeon.catworld.model.NightlyReferenceRateKey.ONE_CAT,
                         new BigDecimal("9999999999999999998"),
                         new BigDecimal("9999999999999999999"))), 0, 1));
 

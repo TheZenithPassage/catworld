@@ -9,14 +9,14 @@ describe('SensitiveEconomicActivityApiService', () => {
   let service: SensitiveEconomicActivityApiService;
   let http: HttpTestingController;
   const rateEvent = {
-    eventId: 'event-1',
+    eventId: 'event-tier',
     eventType: 'NIGHTLY_RATE_CHANGED',
-    occurredAt: '2026-08-01T12:00:00Z',
+    occurredAt: '2026-09-17T10:00:00Z',
     actor: { id: 'actor-1', username: 'admin' },
     affectedContext: null,
-    category: 'ONE_CAT',
+    category: 'ONE_CAT_30_PLUS',
     previousRate: null,
-    newRate: '9999999999999999999.123456789',
+    newRate: '17',
   };
 
   beforeEach(() => {
@@ -69,7 +69,13 @@ describe('SensitiveEconomicActivityApiService', () => {
     });
     request.flush({ items: [rateEvent], page: 3, pageSize: 10, totalElements: 31 });
     expect(result).toEqual({
-      items: [expect.objectContaining({ previousRate: null, newRate: rateEvent.newRate })],
+      items: [
+        expect.objectContaining({
+          category: 'ONE_CAT_30_PLUS',
+          previousRate: null,
+          newRate: rateEvent.newRate,
+        }),
+      ],
       page: 3,
       pageSize: 10,
       totalElements: 31,

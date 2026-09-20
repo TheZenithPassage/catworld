@@ -1,7 +1,7 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.exception.ConflictException;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -89,12 +89,18 @@ class NightlyReferenceRatePersistenceTest {
         UserAccount actor = saveAccount("rate-admin");
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
-        nightlyReferenceRateService.configureRate(1, new BigDecimal("12"));
-        nightlyReferenceRateService.configureRate(1, new BigDecimal("14"));
-        nightlyReferenceRateService.clearRate(1);
+        nightlyReferenceRateService.configureRate(
+                NightlyReferenceRateKey.ONE_CAT,
+                new BigDecimal("12")
+        );
+        nightlyReferenceRateService.configureRate(
+                NightlyReferenceRateKey.ONE_CAT,
+                new BigDecimal("14")
+        );
+        nightlyReferenceRateService.clearRate(NightlyReferenceRateKey.ONE_CAT);
 
         assertNull(nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.ONE_CAT)
+                .findById(NightlyReferenceRateKey.ONE_CAT)
                 .orElseThrow()
                 .getNightlyRate());
         assertEquals(3, nightlyReferenceRateChangeRepository.count());
@@ -218,11 +224,14 @@ class NightlyReferenceRatePersistenceTest {
 
         assertThrows(
                 RuntimeException.class,
-                () -> nightlyReferenceRateService.configureRate(2, new BigDecimal("20"))
+                () -> nightlyReferenceRateService.configureRate(
+                        NightlyReferenceRateKey.TWO_CATS,
+                        new BigDecimal("20")
+                )
         );
 
         assertNull(nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.TWO_CATS)
+                .findById(NightlyReferenceRateKey.TWO_CATS)
                 .orElseThrow()
                 .getNightlyRate());
         assertEquals(0, nightlyReferenceRateChangeRepository.count());
@@ -233,7 +242,10 @@ class NightlyReferenceRatePersistenceTest {
         UserAccount actor = saveAccount("attributed-admin");
         UserAccount otherAdmin = saveAccount("other-admin");
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
-        nightlyReferenceRateService.configureRate(3, new BigDecimal("30"));
+        nightlyReferenceRateService.configureRate(
+                NightlyReferenceRateKey.THREE_PLUS_CATS,
+                new BigDecimal("30")
+        );
 
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(otherAdmin);
 

@@ -3,12 +3,10 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
-
-export type NightlyRateThreshold = 1 | 2 | 3;
-export interface NightlyReferenceRate {
-  minimumCatCount: NightlyRateThreshold;
-  nightlyRate: string | null;
-}
+import {
+  NightlyReferenceRate,
+  NightlyReferenceRateKey,
+} from '../models/nightly-reference-rate.model';
 
 @Injectable({ providedIn: 'root' })
 export class NightlyReferenceRateApiService {
@@ -18,14 +16,14 @@ export class NightlyReferenceRateApiService {
     return this.http.get<NightlyReferenceRate[]>(this.baseUrl);
   }
   configureRate(
-    minimumCatCount: NightlyRateThreshold,
+    key: NightlyReferenceRateKey,
     nightlyRate: string,
   ): Observable<NightlyReferenceRate> {
-    return this.http.put<NightlyReferenceRate>(`${this.baseUrl}/${minimumCatCount}`, {
+    return this.http.put<NightlyReferenceRate>(`${this.baseUrl}/${key}`, {
       nightlyRate,
     });
   }
-  clearRate(minimumCatCount: NightlyRateThreshold): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${minimumCatCount}`);
+  clearRate(key: NightlyReferenceRateKey): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${key}`);
   }
 }

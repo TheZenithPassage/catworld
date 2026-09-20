@@ -9,7 +9,7 @@ import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
@@ -212,6 +212,71 @@ class StayPricingPersistenceTest {
         assertEquals(1, stayAgreedAmountCorrectionRepository
                 .findAllByStayId(stayId)
                 .size());
+    }
+
+    @Test
+    void dateChangePreservesRetainedRateByDefaultAndAdoptsExplicitCurrentFallback() {
+        PricingFixture retainedFixture = createPricedStay(
+                new BigDecimal("20"), new BigDecimal("40"));
+        PricingFixture currentFixture = createPricedStay(
+                new BigDecimal("20"), new BigDecimal("40"));
+        NightlyReferenceRate thirtyPlusRate = nightlyReferenceRateRepository
+                .findById(NightlyReferenceRateKey.ONE_CAT_30_PLUS)
+                .orElseThrow();
+        thirtyPlusRate.setNightlyRate(null);
+        nightlyReferenceRateRepository.saveAndFlush(thirtyPlusRate);
+        NightlyReferenceRate fallbackRate = nightlyReferenceRateRepository
+                .findById(NightlyReferenceRateKey.ONE_CAT_15_TO_29)
+                .orElseThrow();
+        fallbackRate.setNightlyRate(new BigDecimal("17"));
+        nightlyReferenceRateRepository.saveAndFlush(fallbackRate);
+
+        var retainedPreview = stayService.previewDateChangePricing(
+                retainedFixture.response().getStayId(),
+                StayDatePricingPreviewRequestDTO.builder()
+                        .startAt(retainedFixture.startAt())
+                        .endAt(retainedFixture.startAt().plusDays(40))
+                        .build());
+        stayService.updateStay(
+                retainedFixture.response().getStayId(),
+                StayUpdateDTO.builder()
+                        .startAt(retainedFixture.startAt())
+                        .endAt(retainedFixture.startAt().plusDays(40))
+                        .pricingDecision(PricingDecisionRequestDTO.builder()
+                                .agreedAmount(new BigDecimal("800"))
+                                .build())
+                        .confirmation(retainedPreview.getConfirmation())
+                        .build());
+
+        Stay retainedStay = stayRepository
+                .findById(retainedFixture.response().getStayId())
+                .orElseThrow();
+        assertEquals(0, retainedStay.getRetainedNightlyRate()
+                .compareTo(new BigDecimal("20")));
+
+        var currentPreview = stayService.previewDateChangePricing(
+                currentFixture.response().getStayId(),
+                StayDatePricingPreviewRequestDTO.builder()
+                        .startAt(currentFixture.startAt())
+                        .endAt(currentFixture.startAt().plusDays(40))
+                        .selectedNightlyRate(new BigDecimal("17"))
+                        .build());
+        stayService.updateStay(
+                currentFixture.response().getStayId(),
+                StayUpdateDTO.builder()
+                        .startAt(currentFixture.startAt())
+                        .endAt(currentFixture.startAt().plusDays(40))
+                        .pricingDecision(PricingDecisionRequestDTO.builder()
+                                .agreedAmount(new BigDecimal("680"))
+                                .build())
+                        .confirmation(currentPreview.getConfirmation())
+                        .build());
+
+        Stay currentStay = stayRepository
+                .findById(currentFixture.response().getStayId())
+                .orElseThrow();
+        assertEquals(0, currentStay.getRetainedNightlyRate()
+                .compareTo(new BigDecimal("17")));
     }
 
     @Test
@@ -673,6 +738,12 @@ class StayPricingPersistenceTest {
     }
 
     private PricingFixture createPricedStay() {
+        return createPricedStay(new BigDecimal("10"), new BigDecimal("20"));
+    }
+
+    private PricingFixture createPricedStay(
+            BigDecimal retainedNightlyRate,
+            BigDecimal agreedAmount) {
         UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
                 .username("pricing-admin-" + UUID.randomUUID())
                 .passwordHash(passwordEncoder.encode("password"))
@@ -696,9 +767,9 @@ class StayPricingPersistenceTest {
                 .createdBy(actor)
                 .build());
         NightlyReferenceRate rate = nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.ONE_CAT)
+                .findById(NightlyReferenceRateKey.ONE_CAT)
                 .orElseThrow();
-        rate.setNightlyRate(new BigDecimal("10"));
+        rate.setNightlyRate(retainedNightlyRate);
         nightlyReferenceRateRepository.saveAndFlush(rate);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
 
@@ -716,7 +787,7 @@ class StayPricingPersistenceTest {
                 .endAt(startAt.plusDays(2))
                 .catIds(catIds)
                 .pricingDecision(PricingDecisionRequestDTO.builder()
-                        .agreedAmount(new BigDecimal("20"))
+                        .agreedAmount(agreedAmount)
                         .build())
                 .confirmation(confirmation)
                 .build());

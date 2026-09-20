@@ -9,7 +9,7 @@ import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.UserAccount;
@@ -116,7 +116,7 @@ class StayPricingMySqlIntegrationTest {
                 .lastTripleFelineDate(startAt.plusYears(1).toLocalDate())
                 .build());
         NightlyReferenceRate rate = nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow();
+                .findById(NightlyReferenceRateKey.ONE_CAT).orElseThrow();
         rate.setNightlyRate(new BigDecimal("10"));
         nightlyReferenceRateRepository.saveAndFlush(rate);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
@@ -172,7 +172,7 @@ class StayPricingMySqlIntegrationTest {
         assertEquals(0, stayRepository.count());
         assertEquals(0, new BigDecimal("20").compareTo(
                 nightlyReferenceRateRepository
-                        .findById(NightlyReferenceRateCategory.ONE_CAT)
+                        .findById(NightlyReferenceRateKey.ONE_CAT)
                         .orElseThrow().getNightlyRate()));
     }
 
@@ -188,7 +188,7 @@ class StayPricingMySqlIntegrationTest {
         Cat cat = catRepository.saveAndFlush(Cat.builder().name("Transfer Lock Cat")
                 .birthDate(startAt.minusYears(3).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor)
                 .lastRabiesDate(startAt.plusYears(1).toLocalDate()).lastTripleFelineDate(startAt.plusYears(1).toLocalDate()).build());
-        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow();
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT).orElseThrow();
         nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly);
         jdbcTemplate.update("update transfer_rates set transfer_rate = 10 where id = 1");
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
@@ -237,7 +237,7 @@ class StayPricingMySqlIntegrationTest {
                 .lastTripleFelineDate(startAt.plusYears(1).toLocalDate())
                 .build());
         NightlyReferenceRate rate = nightlyReferenceRateRepository
-                .findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow();
+                .findById(NightlyReferenceRateKey.ONE_CAT).orElseThrow();
         rate.setNightlyRate(new BigDecimal("10"));
         nightlyReferenceRateRepository.saveAndFlush(rate);
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
@@ -317,7 +317,7 @@ class StayPricingMySqlIntegrationTest {
         Owner owner = ownerRepository.saveAndFlush(Owner.builder().fullName("Transfer Update Owner").primaryPhone("555-0176").createdBy(actor).build());
         LocalDateTime start = LocalDateTime.of(2027, 11, 1, 12, 0);
         Cat cat = catRepository.saveAndFlush(Cat.builder().name("Transfer Update Cat").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
-        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly);
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly);
         jdbcTemplate.update("update transfer_rates set transfer_rate = null where id = 1"); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
         Set<UUID> cats = Set.of(cat.getId());
         var created = stayService.createStay(StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(cats).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build()).confirmation(stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(cats).build()).getConfirmation()).build());
@@ -338,7 +338,7 @@ class StayPricingMySqlIntegrationTest {
         LocalDateTime start = LocalDateTime.of(2027, 12, 1, 12, 0);
         Cat first = catRepository.saveAndFlush(Cat.builder().name("Combined One").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.FEMALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
         Cat second = catRepository.saveAndFlush(Cat.builder().name("Combined Two").birthDate(start.minusYears(2).toLocalDate()).sex(Sex.MALE).owner(owner).createdBy(actor).lastRabiesDate(start.plusYears(1).toLocalDate()).lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
-        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateCategory.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 5 where id = 1"); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        NightlyReferenceRate nightly = nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT).orElseThrow(); nightly.setNightlyRate(new BigDecimal("10")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 5 where id = 1"); when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
         Set<UUID> firstId = Set.of(first.getId());
         var existing = stayService.createStay(StayRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).pricingDecision(PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("20")).build()).confirmation(stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder().startAt(start).endAt(start.plusDays(2)).catIds(firstId).build()).getConfirmation()).build());
         nightly.setNightlyRate(new BigDecimal("15")); nightlyReferenceRateRepository.saveAndFlush(nightly); jdbcTemplate.update("update transfer_rates set transfer_rate = 12 where id = 1");

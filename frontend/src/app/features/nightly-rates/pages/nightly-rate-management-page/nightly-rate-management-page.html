@@ -87,16 +87,16 @@
           }
         </mat-card-content>
       </mat-card>
-      @for (category of categories; track category.threshold) {
+      @for (key of keys; track key) {
         <mat-card appearance="outlined" class="rate-card">
           <mat-card-header
             ><mat-card-title>{{
-              text().nightlyRates.categories[category.labelKey]
+              text().nightlyRates.categories[key]
             }}</mat-card-title></mat-card-header
           >
           <mat-card-content>
-            <p class="current-rate" [class.unavailable]="rate(category.threshold) === null">
-              {{ rate(category.threshold) ?? text().nightlyRates.unavailable }}
+            <p class="current-rate" [class.unavailable]="rate(key) === null">
+              {{ rate(key) ?? text().nightlyRates.unavailable }}
             </p>
             @if (isAdmin()) {
               <div class="rate-editor">
@@ -106,47 +106,43 @@
                     matInput
                     inputmode="numeric"
                     autocomplete="off"
-                    [id]="'nightly-rate-' + category.threshold"
-                    [name]="'nightlyRate-' + category.threshold"
-                    [ngModel]="entry(category.threshold)"
-                    (ngModelChange)="setEntry(category.threshold, $event)"
+                    [id]="'nightly-rate-' + key"
+                    [name]="'nightlyRate-' + key"
+                    [ngModel]="entry(key)"
+                    (ngModelChange)="setEntry(key, $event)"
                     [disabled]="pending() !== null"
-                    [attr.aria-describedby]="'nightly-rate-error-' + category.threshold"
+                    [attr.aria-describedby]="'nightly-rate-error-' + key"
                   />
                 </mat-form-field>
-                @if (validationError(category.threshold)) {
-                  <p
-                    class="field-error"
-                    role="alert"
-                    [id]="'nightly-rate-error-' + category.threshold"
-                  >
-                    {{ validationError(category.threshold) }}
+                @if (validationError(key)) {
+                  <p class="field-error" role="alert" [id]="'nightly-rate-error-' + key">
+                    {{ validationError(key) }}
                   </p>
                 }
                 <div class="rate-actions">
                   <button
                     mat-flat-button
                     type="button"
-                    (click)="save(category.threshold)"
+                    (click)="save(key)"
                     [disabled]="pending() !== null"
                   >
-                    @if (isPending(category.threshold, 'save')) {
+                    @if (isPending(key, 'save')) {
                       {{ text().nightlyRates.form.saving }}
-                    } @else if (rate(category.threshold) === null) {
+                    } @else if (rate(key) === null) {
                       {{ text().nightlyRates.form.configure }}
                     } @else {
                       {{ text().nightlyRates.form.change }}
                     }
                   </button>
-                  @if (rate(category.threshold) !== null) {
+                  @if (rate(key) !== null) {
                     <button
                       mat-stroked-button
                       type="button"
-                      (click)="clear(category.threshold)"
+                      (click)="clear(key)"
                       [disabled]="pending() !== null"
                     >
                       {{
-                        isPending(category.threshold, 'clear')
+                        isPending(key, 'clear')
                           ? text().nightlyRates.form.clearing
                           : text().nightlyRates.form.clear
                       }}

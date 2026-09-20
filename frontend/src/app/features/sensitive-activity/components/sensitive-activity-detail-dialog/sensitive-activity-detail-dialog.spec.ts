@@ -34,11 +34,11 @@ describe('SensitiveActivityDetailDialog', () => {
     {
       ...common,
       affectedContext: null,
-      eventId: 'event-secret',
+      eventId: 'event-tier',
       eventType: 'NIGHTLY_RATE_CHANGED',
-      category: 'ONE_CAT',
+      category: 'ONE_CAT_30_PLUS',
       previousRate: null,
-      newRate: '9999999999999999999.123',
+      newRate: '17',
     },
     {
       ...common,
@@ -102,7 +102,7 @@ describe('SensitiveActivityDetailDialog', () => {
 
   it('renders every semantic variant from the supplied complete event without technical IDs or links', () => {
     const expected = [
-      ['Nightly rate changed', 'One cat', 'Unavailable', '9999999999999999999.123'],
+      ['Nightly rate changed', 'One cat — 30+ nights', 'Unavailable', '17'],
       ['Pricing override', '10.50', '2', '21.00', '19.25', 'Override reason'],
       ['Agreed amount corrected', 'Unavailable', '21.00', 'Correction reason'],
       ['Payment edited', '5.00', '6.25', 'register-user', 'Operational reason'],

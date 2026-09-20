@@ -11,7 +11,7 @@ import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveCatContextDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityResponseDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveOwnerContextDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveStayContextDTO;
-import com.allegaeon.catworld.model.NightlyReferenceRateCategory;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.repository.SensitiveEconomicActivityProjection;
 import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import org.springframework.stereotype.Component;
@@ -36,7 +36,7 @@ public class SensitiveEconomicActivityMapper {
                     projection.occurredAt(),
                     actor,
                     null,
-                    NightlyReferenceRateCategory.valueOf(
+                    NightlyReferenceRateKey.valueOf(
                             projection.rateCategory()),
                     canonicalizeNullable(projection.previousRate()),
                     canonicalizeNullable(projection.newRate())

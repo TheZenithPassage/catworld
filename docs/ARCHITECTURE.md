@@ -33,8 +33,8 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
-- Independently configurable nightly reference rates for one cat, two cats and
-  three or more cats.
+- Six fixed, independently configurable nightly reference-rate slots, including
+  four duration tiers for one-cat stays.
 - Permanent stay deletion for authorized correction of mistaken records.
 - Database-backed HTTP Basic application authentication.
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
@@ -151,11 +151,12 @@ A `Stay` contains:
 - the application account that created it
 
 When an ADMIN changes the authoritative night count, the pricing confirmation
-may retain the stay's original nullable nightly rate or select the current
-applicable `ONE_CAT`/`TWO_CATS`/`THREE_PLUS_CATS` rate. The service locks the
-stay and, for a current-rate selection, the applicable rate row; it rejects
-arbitrary or stale selections, derives the suggestion from the selected rate,
-and changes the stay snapshot only after the complete update validates.
+uses the stay's original nullable retained amount by default. If existing
+eligibility rules allow explicit current-rate adoption, the service resolves
+the effective rate from the requested new number of nights, rejects arbitrary
+or stale selections, derives the suggestion from the selected amount, and
+changes the stay snapshot only after the complete update validates. A `Stay`
+retains only the monetary amount, never the source nightly-rate key.
 
 #### StayCat
 
@@ -180,11 +181,11 @@ is stored only on owner, cat, vet and stay records.
 
 #### NightlyReferenceRate
 
-Represents the current optional whole-stay nightly amount for exactly one fixed
-category: `ONE_CAT`, `TWO_CATS` or `THREE_PLUS_CATS`. Each category is
-identified by its exact minimum cat-count configuration threshold (`1`, `2` or
-`3`). The amount is a positive whole number with at most 19 digits, represented
-in Java by `BigDecimal` and persisted as `DECIMAL(19,0)`.
+Represents the current optional whole-stay nightly amount for exactly one of six
+fixed `NightlyReferenceRateKey` values: `ONE_CAT`, `ONE_CAT_7_TO_14`,
+`ONE_CAT_15_TO_29`, `ONE_CAT_30_PLUS`, `TWO_CATS` or `THREE_PLUS_CATS`. The
+amount is a positive whole number with at most 19 digits, represented in Java
+by `BigDecimal` and persisted as `DECIMAL(19,0)`.
 
 #### NightlyReferenceRateChange
 
@@ -346,9 +347,10 @@ on the `Stay` entity or in the database schema.
 
 ### Stay Pricing Is Retained and Explicitly Confirmed
 
-Creation resolves the actual cat count to `ONE_CAT`, `TWO_CATS` or
-`THREE_PLUS_CATS` and snapshots that category's current nullable nightly rate
-onto the stay. Later reference-rate changes never reprice the stay. Responses
+Creation resolves the effective nullable nightly rate from the actual cat count
+and authoritative number of nights, including one-cat fallback, and snapshots
+that resolved amount onto the stay. It does not retain the key that supplied the
+amount. Later reference-rate changes never reprice the stay. Responses
 derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
 
 Every new stay requires an explicit nested pricing decision from either
@@ -358,11 +360,12 @@ available suggestion differs numerically from the agreement.
 
 A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
 update requires `ADMIN`, a fresh explicit pricing decision and a selected
-retained rate that is either the locked stay's original nullable value or the
-locked current applicable category rate. The service derives the suggestion
-from that selected rate, then changes the retained-rate snapshot and agreement
-and appends its immutable decision in one transaction only after the complete
-stay update validates. Equal-night date or time changes do not reconfirm pricing.
+retained rate that is either the locked stay's original nullable amount or the
+effective current amount resolved for the requested new number of nights. The
+service derives the suggestion from that selected rate, then changes the
+retained-rate snapshot and agreement and appends its immutable decision in one
+transaction only after the complete stay update validates. Equal-night date or
+time changes do not reconfirm pricing.
 
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
 read-only authoritative creation preview from proposed dates and selected cats.
@@ -382,19 +385,26 @@ authoritative basis, compare every snapshot field with numeric monetary and
 exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
 writing. Preview calls persist nothing.
 
+An edit pricing preview also exposes nullable
+`currentApplicableNightlyRate`: backend-resolved preview information for the
+requested Stay configuration. The retained amount remains the default pricing
+basis. This field does not make current-rate adoption eligible; the existing
+night-count and pricing-decision rules determine eligibility independently.
+
 All frontend-consumed stay pricing and payment response amounts, including
 nested operational payments and sensitive economic activity variants, serialize
 as JSON strings when non-null so supported 19-digit values remain exact.
 
-The final pricing decision carries that confirmation. Creation locks and rereads
-the applicable category rate. A pricing-affecting update locks the stay and also
-locks the applicable category row when the client selects the current rate. The
-service authorizes only the original or current selected rate, recalculates the
-complete basis inside the mutation transaction and compares the confirmation
-before any operational or pricing-history write. A missing confirmation is
-invalid, while a stale current rate, arbitrary selected rate, requested pricing
-input, or persisted existing-stay basis returns `409 Conflict` atomically. The
-confirmation is not otherwise client-authoritative and is never persisted.
+The final pricing decision carries that confirmation. Creation re-resolves the
+effective rate through the authoritative mutation lookup. A pricing-affecting
+update locks the stay and performs the same backend resolution when the client
+selects the current rate. The service authorizes only the original or current
+selected amount, recalculates the complete basis inside the mutation transaction
+and compares the confirmation before any operational or pricing-history write.
+A missing confirmation is invalid, while a stale current rate, arbitrary
+selected rate, requested pricing input, or persisted existing-stay basis returns
+`409 Conflict` atomically. The confirmation is not otherwise client-authoritative
+and is never persisted.
 
 ### Agreed Amounts Have a Focused Administrative Correction Path
 
@@ -491,21 +501,34 @@ Current rules:
 
 ## Nightly Reference Rates
 
-The backend maintains exactly three independent current rows identified by the
-minimum cat-count thresholds `1`, `2` and `3`. Those thresholds identify
-`ONE_CAT`, `TWO_CATS` and `THREE_PLUS_CATS`, respectively. A nullable amount
-means that the category is unavailable. Amounts are positive whole-stay nightly
-references with at most 19 digits, represented by `BigDecimal` and persisted as
-exact `DECIMAL(19,0)` values; they are not per-cat prices, and no currency is
-modeled.
+The backend maintains exactly six independent current rows identified by fixed
+`NightlyReferenceRateKey` values. One-cat stays resolve by authoritative number
+of nights through these fixed rules:
+
+- `ONE_CAT`: 0–6 nights; final one-cat fallback.
+- `ONE_CAT_7_TO_14`: 7–14 nights; falls back to `ONE_CAT`.
+- `ONE_CAT_15_TO_29`: 15–29 nights; falls back through the shorter one-cat
+  tiers.
+- `ONE_CAT_30_PLUS`: 30 or more nights; falls back through the shorter one-cat
+  tiers.
+- `TWO_CATS`: duration-independent with no fallback.
+- `THREE_PLUS_CATS`: duration-independent with no fallback.
+
+The backend alone resolves fallback, starting at the applicable one-cat key and
+checking shorter one-cat tiers until it finds the first non-null amount. A
+complete null chain produces no available accommodation suggestion. A nullable
+configured amount is valid; a missing physical row is an incomplete
+configuration. Amounts are positive whole-stay nightly references with at most
+19 digits, represented by `BigDecimal` and persisted as exact `DECIMAL(19,0)`
+values; they are not per-cat prices, and no currency is modeled.
 
 Authenticated `ADMIN` and `STAFF` accounts may read the ordered current set
 through `GET /api/nightly-reference-rates`. Only `ADMIN` may configure or
-replace one category with
-`PUT /api/nightly-reference-rates/{minimumCatCount}` or clear it with
-`DELETE /api/nightly-reference-rates/{minimumCatCount}`. Valid configuration
-thresholds are exactly `1`, `2` and `3`. The service authorizes against the
-persisted current account before request-specific mutation validation.
+replace one slot with `PUT /api/nightly-reference-rates/{key}` or clear it with
+`DELETE /api/nightly-reference-rates/{key}`. The path key is one of the six
+fixed enum names; unknown keys are bad requests, and no numeric compatibility
+endpoint remains. The service authorizes against the persisted current account
+before request-specific mutation validation.
 Nightly amounts are serialized as JSON strings in responses so exact values up
 to 19 digits reach JavaScript clients without numeric precision loss.
 
@@ -515,17 +538,20 @@ transaction; either both flush and commit or both roll back. Numerically equal
 replacement values and clearing an already unavailable category are successful
 no-ops without audit rows.
 
-The authenticated Angular interface exposes the three current categories on a
-dedicated nightly-rate management page to both supported roles. Threshold `3`
-is labeled as three or more cats, unavailable values remain explicit, and the
-page explains that configured values are total whole-stay nightly prices rather
-than per-cat amounts. Only `ADMIN` sees independent configure, change and clear
-controls; every successful mutation reloads the complete current set from the
-backend.
+The authenticated Angular interface exposes all six current slots on a
+dedicated nightly-rate management page to both supported roles. The four
+one-cat labels distinguish their fixed duration tiers, unavailable values
+remain explicit, and the page explains that configured values are total
+whole-stay nightly prices rather than per-cat amounts. It displays configured
+slots, not calculated fallback results. Only `ADMIN` sees independent
+configure, change and clear controls; every successful mutation reloads the
+complete current set from the backend.
 
 Reference-rate changes are prospective guidance only. They do not read,
-reprice, update or backfill existing stays. New stays retain the applicable
-rate value but do not persist the selected category.
+reprice, update or backfill existing stays. New stays retain the effective
+resolved amount but do not persist the source key. Existing stays keep their
+retained amount by default; explicit current-rate adoption resolves against the
+requested new number of nights when the existing eligibility rules allow it.
 
 ## Transfer Rate
 

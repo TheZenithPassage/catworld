@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +17,7 @@ import java.math.BigDecimal;
 @Builder
 public class NightlyReferenceRateResponseDTO {
 
-    private int minimumCatCount;
+    private NightlyReferenceRateKey key;
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal nightlyRate;
 }

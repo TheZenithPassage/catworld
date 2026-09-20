@@ -22,11 +22,6 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import {
-  NightlyReferenceRate,
-  NightlyReferenceRateApiService,
-  NightlyRateThreshold,
-} from '../../../nightly-rates/services/nightly-reference-rate-api.service';
 import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import {
   VaccineConflictDialog,
@@ -63,7 +58,6 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 })
 export class StayEditor {
   private readonly stayApiService = inject(StayApiService);
-  private readonly nightlyReferenceRateApiService = inject(NightlyReferenceRateApiService);
   private readonly transferRateApiService = inject(TransferRateApiService);
   private readonly i18nService = inject(I18nService);
   private readonly authSessionService = inject(AuthSessionService);
@@ -90,7 +84,6 @@ export class StayEditor {
   readonly transferWaived = signal(false);
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
-  readonly currentNightlyRates = signal<NightlyReferenceRate[]>([]);
   readonly currentTransferRate = signal<string | null>(null);
   readonly displayedTransferRate = computed(() => {
     const preview = this.pricingPreview();
@@ -147,28 +140,15 @@ export class StayEditor {
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
   readonly applicableCurrentRate = computed(() => {
     const preview = this.pricingPreview();
-    const catCount = this.stay()?.cats.length ?? 0;
+    const currentRate = preview?.currentApplicableNightlyRate ?? null;
 
     if (
       !preview?.pricingDecisionRequired ||
       preview.currentNumberOfNights === preview.numberOfNights ||
-      catCount < 1
-    ) {
-      return null;
-    }
-
-    const threshold = Math.min(catCount, 3) as NightlyRateThreshold;
-    const currentRate = this.currentNightlyRates().find(
-      (rate) => rate.minimumCatCount === threshold,
-    )?.nightlyRate;
-
-    if (
       currentRate === null ||
-      currentRate === undefined ||
       !isValidWholeMoney(currentRate) ||
       /^0+$/.test(currentRate) ||
-      (this.stay()?.retainedNightlyRate !== null &&
-        this.stay()?.retainedNightlyRate !== undefined &&
+      (this.stay()?.retainedNightlyRate != null &&
         sameWholeMoney(currentRate, this.stay()!.retainedNightlyRate!))
     ) {
       return null;
@@ -267,24 +247,10 @@ export class StayEditor {
   private agreedAmountBeforeCurrentRate: string | null = null;
 
   constructor() {
-    this.loadCurrentNightlyRates();
     this.loadCurrentTransferRate();
     effect(() => {
       const entity = this.entity();
       untracked(() => this.setFormValues(entity));
-    });
-  }
-
-  private loadCurrentNightlyRates(onSettled?: () => void): void {
-    this.nightlyReferenceRateApiService.getCurrentRates().subscribe({
-      next: (rates) => {
-        this.currentNightlyRates.set(rates);
-        onSettled?.();
-      },
-      error: () => {
-        this.currentNightlyRates.set([]);
-        onSettled?.();
-      },
     });
   }
 
@@ -302,13 +268,7 @@ export class StayEditor {
   }
 
   private reloadCurrentPricingRates(onSettled: () => void): void {
-    let remaining = 2;
-    const settleOne = (): void => {
-      remaining -= 1;
-      if (remaining === 0) onSettled();
-    };
-    this.loadCurrentNightlyRates(settleOne);
-    this.loadCurrentTransferRate(settleOne);
+    this.loadCurrentTransferRate(onSettled);
   }
 
   submit(): void {
@@ -741,7 +701,7 @@ export class StayEditor {
   }
 
   private clearNightlySelectionWhenAdoptionIsIneligible(): void {
-    if (this.numberOfNights() === this.stay()?.numberOfNights) {
+    if (this.numberOfNights() !== this.pricingPreview()?.numberOfNights) {
       this.selectedNightlyRate.set(null);
       this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
       this.agreedAmountBeforeCurrentRate = null;
