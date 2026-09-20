@@ -100,6 +100,7 @@ public class StayService implements IStayService {
     private final StayCatRepository stayCatRepository;
     private final StayOverviewReadRepository stayOverviewReadRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
+    private final NightlyReferenceRateResolver nightlyReferenceRateResolver;
     private final TransferRateRepository transferRateRepository;
     private final StayPricingDecisionRepository stayPricingDecisionRepository;
     private final StayAgreedAmountCorrectionRepository
@@ -905,17 +906,14 @@ public class StayService implements IStayService {
             int catCount,
             Function<NightlyReferenceRateKey,
                     Optional<NightlyReferenceRate>> rateLookup) {
-        NightlyReferenceRateKey key = keyForCatCount(catCount);
-        NightlyReferenceRate currentRate = rateLookup.apply(key)
-                .orElseThrow(() -> new ConflictException(
-                        "Nightly reference-rate configuration is incomplete"));
-        BigDecimal retainedRate = validateRetainedNightlyRate(
-                currentRate.getNightlyRate());
         long nights = stayMapper.calculateNumberOfNights(startAt, endAt);
+        BigDecimal retainedRate = validateRetainedNightlyRate(
+                nightlyReferenceRateResolver.resolve(
+                        catCount, nights, rateLookup));
         BigDecimal suggestion = stayMapper.calculateSuggestedAmount(
                 retainedRate, nights);
         return new CreationPricingBasis(
-                key, nights, retainedRate, suggestion);
+                nights, retainedRate, suggestion);
     }
 
     private StayPricingPreviewResponseDTO creationPreview(
@@ -938,7 +936,6 @@ public class StayService implements IStayService {
     }
 
     private record CreationPricingBasis(
-            NightlyReferenceRateKey key,
             long numberOfNights,
             BigDecimal retainedNightlyRate,
             BigDecimal suggestedAmount) {

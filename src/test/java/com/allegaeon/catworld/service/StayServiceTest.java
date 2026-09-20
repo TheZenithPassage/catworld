@@ -126,6 +126,10 @@ public class StayServiceTest {
     @Mock
     private NightlyReferenceRateRepository nightlyReferenceRateRepository;
 
+    @Spy
+    private NightlyReferenceRateResolver nightlyReferenceRateResolver =
+            new NightlyReferenceRateResolver();
+
     @Mock
     private com.allegaeon.catworld.repository.TransferRateRepository transferRateRepository;
 
@@ -1254,6 +1258,118 @@ public class StayServiceTest {
             assertNotNull(preview.getConfirmation());
             verify(stayRepository, never()).save(any());
             verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
+        void creationPreviewFallsBackFromNullThirtyPlusOneCatRate() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Owner owner = Owner.builder().id(UUID.randomUUID()).build();
+            Cat cat = vaccineCat(
+                    "Tiered cat",
+                    owner,
+                    startAt.plusDays(40).toLocalDate(),
+                    startAt.plusDays(40).toLocalDate());
+            when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.STAFF));
+            when(nightlyReferenceRateRepository.findById(
+                    NightlyReferenceRateKey.ONE_CAT_30_PLUS))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_30_PLUS)
+                            .nightlyRate(null)
+                            .build()));
+            when(nightlyReferenceRateRepository.findById(
+                    NightlyReferenceRateKey.ONE_CAT_15_TO_29))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_15_TO_29)
+                            .nightlyRate(new BigDecimal("17"))
+                            .build()));
+
+            StayCreationPricingPreviewRequestDTO request =
+                    StayCreationPricingPreviewRequestDTO.builder()
+                            .startAt(startAt)
+                            .endAt(startAt.plusDays(40))
+                            .catIds(Set.of(cat.getId()))
+                            .build();
+
+            var preview = service.previewCreationPricing(request);
+
+            assertEquals(0, preview.getRetainedNightlyRate()
+                    .compareTo(new BigDecimal("17")));
+            assertEquals(0, preview.getAccommodationSuggestedAmount()
+                    .compareTo(new BigDecimal("680")));
+        }
+
+        @Test
+        void creationCapturesFallbackRateFromLockedTierRows() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Owner owner = Owner.builder().id(UUID.randomUUID()).build();
+            Cat cat = vaccineCat(
+                    "Tiered cat",
+                    owner,
+                    startAt.plusDays(40).toLocalDate(),
+                    startAt.plusDays(40).toLocalDate());
+            UserAccount actor = user(UserRole.STAFF);
+            Stay stay = Stay.builder()
+                    .id(UUID.randomUUID())
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(40))
+                    .build();
+            when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+            when(nightlyReferenceRateRepository.findById(
+                    NightlyReferenceRateKey.ONE_CAT_30_PLUS))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_30_PLUS)
+                            .nightlyRate(null)
+                            .build()));
+            when(nightlyReferenceRateRepository.findById(
+                    NightlyReferenceRateKey.ONE_CAT_15_TO_29))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_15_TO_29)
+                            .nightlyRate(new BigDecimal("17"))
+                            .build()));
+            when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                    NightlyReferenceRateKey.ONE_CAT_30_PLUS))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_30_PLUS)
+                            .nightlyRate(null)
+                            .build()));
+            when(nightlyReferenceRateRepository.findByKeyForUpdate(
+                    NightlyReferenceRateKey.ONE_CAT_15_TO_29))
+                    .thenReturn(Optional.of(NightlyReferenceRate.builder()
+                            .key(NightlyReferenceRateKey.ONE_CAT_15_TO_29)
+                            .nightlyRate(new BigDecimal("17"))
+                            .build()));
+
+            StayCreationPricingPreviewRequestDTO previewRequest =
+                    StayCreationPricingPreviewRequestDTO.builder()
+                            .startAt(startAt)
+                            .endAt(startAt.plusDays(40))
+                            .catIds(Set.of(cat.getId()))
+                            .build();
+            var confirmation = service.previewCreationPricing(previewRequest)
+                    .getConfirmation();
+            StayRequestDTO request = StayRequestDTO.builder()
+                    .startAt(startAt)
+                    .endAt(startAt.plusDays(40))
+                    .catIds(Set.of(cat.getId()))
+                    .pricingDecision(PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("680"))
+                            .reason("Confirmed tier fallback")
+                            .build())
+                    .confirmation(confirmation)
+                    .build();
+            when(stayMapper.toEntity(request)).thenReturn(stay);
+            when(stayRepository.save(stay)).thenReturn(stay);
+            when(stayMapper.toResponseDTO(stay, false))
+                    .thenReturn(new StayResponseDTO());
+
+            service.createStay(request);
+
+            verify(stayRepository).save(stayCaptor.capture());
+            assertEquals(0, stayCaptor.getValue().getRetainedNightlyRate()
+                    .compareTo(new BigDecimal("17")));
         }
 
         @Test
