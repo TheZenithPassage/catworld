@@ -363,6 +363,19 @@
   width: 100%;
 }
 
+:host ::ng-deep .fc .fc-daygrid-block-event .fc-event-main:has(> .stay-event__transfer-indicator) {
+  display: inline-flex;
+  align-items: center;
+}
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--has-transfer {
+  padding-top: 0rem;
+}
+
+:host ::ng-deep .fc .fc-daygrid-block-event.stay-event--compact.stay-event--has-transfer {
+  padding-top: 0.18rem;
+}
+
 :host ::ng-deep .fc .stay-event__transfer-indicator {
   display: inline-grid;
   place-items: center;

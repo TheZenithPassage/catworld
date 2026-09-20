@@ -445,6 +445,74 @@ describe('CalendarPage', () => {
     },
   );
 
+  it('updates FullCalendar after its container width stabilizes and cleans up the observer', () => {
+    const observers: Array<{
+      callback: ResizeObserverCallback;
+      observe: ReturnType<typeof vi.fn>;
+      disconnect: ReturnType<typeof vi.fn>;
+    }> = [];
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        readonly observe = vi.fn();
+        readonly unobserve = vi.fn();
+        readonly disconnect = vi.fn();
+
+        constructor(readonly callback: ResizeObserverCallback) {
+          observers.push(this);
+        }
+      },
+    );
+    let scheduledFrame: FrameRequestCallback | undefined;
+    const requestAnimationFrame = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        scheduledFrame = callback;
+        return 17;
+      });
+    const cancelAnimationFrame = vi.spyOn(window, 'cancelAnimationFrame');
+
+    createComponent();
+
+    const wrapper = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>(
+      '.calendar-wrapper',
+    )!;
+    let width = 320;
+    Object.defineProperty(wrapper, 'clientWidth', { configurable: true, get: () => width });
+    const calendarApi = fixture.debugElement
+      .query(By.directive(FullCalendarComponent))
+      .componentInstance.getApi();
+    const updateSize = vi.spyOn(calendarApi, 'updateSize');
+    const containerObserver = observers.find(({ observe }) =>
+      observe.mock.calls.some(([element]) => element === wrapper),
+    )!;
+    const initialFrameRequests = requestAnimationFrame.mock.calls.length;
+
+    containerObserver.callback([], containerObserver as unknown as ResizeObserver);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(initialFrameRequests + 1);
+    expect(updateSize).not.toHaveBeenCalled();
+
+    const firstResizeFrame = scheduledFrame;
+    width = 360;
+    firstResizeFrame?.(0);
+    expect(updateSize).not.toHaveBeenCalled();
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(initialFrameRequests + 2);
+
+    scheduledFrame?.(0);
+    expect(updateSize).toHaveBeenCalledTimes(1);
+
+    containerObserver.callback([], containerObserver as unknown as ResizeObserver);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(initialFrameRequests + 2);
+
+    width = 400;
+    containerObserver.callback([], containerObserver as unknown as ResizeObserver);
+    expect(requestAnimationFrame).toHaveBeenCalledTimes(initialFrameRequests + 3);
+
+    component.ngOnDestroy();
+    expect(containerObserver.disconnect).toHaveBeenCalledTimes(1);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(17);
+  });
+
   it.each([
     ['es', 'success'],
     ['es', 'error'],
@@ -672,6 +740,45 @@ describe('CalendarPage', () => {
       component.text().calendar.transferIndicators.arrival,
     );
     expect(element.getAttribute('aria-label')).toContain('Milo');
+  });
+
+  it('aligns a standard transfer badge like an entry and exit marker', () => {
+    createComponent();
+
+    const calendar = (fixture.nativeElement as HTMLElement).querySelector('.fc')!;
+    const event = document.createElement('a');
+    event.className = 'fc-daygrid-event fc-daygrid-block-event stay-event--reserved';
+    const eventDidMount = component.calendarOptions().eventDidMount!;
+    eventDidMount({
+      el: event,
+      event: {
+        id: 'stay-1',
+        title: 'Milo',
+        extendedProps: {
+          stayId: 'stay-1',
+          transferIndicator: 'Arrival transfer',
+          transferIndicatorKind: 'arrival',
+        },
+      },
+    } as never);
+    const main = document.createElement('div');
+    main.className = 'fc-event-main';
+    const indicator = document.createElement('span');
+    indicator.className = 'stay-event__transfer-indicator';
+    const title = document.createElement('span');
+    title.className = 'fc-event-title';
+    main.append(indicator, title);
+    event.append(main);
+    calendar.append(event);
+
+    const mainStyle = getComputedStyle(main);
+    expect(event.classList).toContain('stay-event--has-transfer');
+    expect(mainStyle.display).toBe('inline-flex');
+    expect(mainStyle.alignItems).toBe('center');
+    expect(getComputedStyle(event).paddingTop).toBe('0rem');
+
+    event.classList.add('stay-event--compact');
+    expect(getComputedStyle(event).paddingTop).toBe('0.18rem');
   });
 
   it('renders no visual direction indicator for a boundary without transfer assistance', () => {
