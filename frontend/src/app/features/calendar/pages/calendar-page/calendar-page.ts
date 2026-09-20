@@ -85,10 +85,6 @@ export class CalendarPage implements OnDestroy {
   private readonly calendar = viewChild(FullCalendarComponent);
   private toolbarResizeObserver?: ResizeObserver;
   private toolbarElements: HTMLElement[] = [];
-  private calendarResizeObserver?: ResizeObserver;
-  private observedCalendarContainer?: HTMLElement;
-  private calendarResizeFrame?: number;
-  private lastCalendarContainerWidth?: number;
 
   private readonly stayApiService = inject(StayApiService);
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
@@ -317,7 +313,6 @@ export class CalendarPage implements OnDestroy {
         today.after(indicator);
       }
       this.refreshMountedStayEventAccessibility();
-      this.observeCalendarContainer();
       this.updateToolbarLayout();
     });
     effect(() => {
@@ -332,7 +327,6 @@ export class CalendarPage implements OnDestroy {
 
   ngOnDestroy(): void {
     this.toolbarResizeObserver?.disconnect();
-    this.disconnectCalendarResizeObserver();
     this.requestId++;
     this.request?.unsubscribe();
     this.disconnectStickyMonth();
@@ -475,55 +469,6 @@ export class CalendarPage implements OnDestroy {
     const titleWidth = title.getBoundingClientRect().width;
     const offset = Math.max(0, (width - titleWidth) / 2 - navigationWidth - gap);
     title.style.setProperty('--calendar-title-offset', `${offset}px`);
-  }
-
-  private observeCalendarContainer(): void {
-    const container = this.host.nativeElement.querySelector<HTMLElement>('.calendar-wrapper');
-    if (!container || container === this.observedCalendarContainer) return;
-
-    this.disconnectCalendarResizeObserver();
-    this.observedCalendarContainer = container;
-
-    if (typeof ResizeObserver === 'undefined') return;
-
-    this.calendarResizeObserver = new ResizeObserver(() =>
-      this.scheduleCalendarSizeUpdate(container),
-    );
-    this.calendarResizeObserver.observe(container);
-  }
-
-  private scheduleCalendarSizeUpdate(container: HTMLElement): void {
-    if (container !== this.observedCalendarContainer) return;
-
-    const width = container.clientWidth;
-    if (width <= 0 || width === this.lastCalendarContainerWidth) return;
-
-    this.lastCalendarContainerWidth = width;
-    if (this.calendarResizeFrame !== undefined) {
-      window.cancelAnimationFrame(this.calendarResizeFrame);
-    }
-
-    this.calendarResizeFrame = window.requestAnimationFrame(() => {
-      this.calendarResizeFrame = undefined;
-      if (container !== this.observedCalendarContainer) return;
-      if (container.clientWidth !== width) {
-        this.scheduleCalendarSizeUpdate(container);
-        return;
-      }
-
-      this.calendar()?.getApi().updateSize();
-    });
-  }
-
-  private disconnectCalendarResizeObserver(): void {
-    this.calendarResizeObserver?.disconnect();
-    this.calendarResizeObserver = undefined;
-    this.observedCalendarContainer = undefined;
-    this.lastCalendarContainerWidth = undefined;
-    if (this.calendarResizeFrame !== undefined) {
-      window.cancelAnimationFrame(this.calendarResizeFrame);
-      this.calendarResizeFrame = undefined;
-    }
   }
 
   setViewInterval(info: DatesSetArg): void {
