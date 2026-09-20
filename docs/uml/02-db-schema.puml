@@ -303,15 +303,18 @@ cannot be repeated.
 end note
 
 note bottom of nightly_reference_rates
-Seeded categories:
-ONE_CAT, TWO_CATS, THREE_PLUS_CATS.
-nightly_rate is null or a positive
-whole number of at most 19 digits.
+Accepted category strings:
+ONE_CAT, ONE_CAT_7_TO_14,
+ONE_CAT_15_TO_29, ONE_CAT_30_PLUS,
+TWO_CATS, THREE_PLUS_CATS.
+nightly_rate decimal(19,0) is nullable;
+non-null values are positive whole numbers
+of at most 19 digits.
 end note
 
 note bottom of nightly_reference_rate_changes
 Append-only snapshots.
-Category is one of the three fixed values.
+Category is one of the same six fixed strings.
 Previous/new values are null or positive,
 and every row records a real transition.
 The actor FK is restrictive.

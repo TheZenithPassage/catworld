@@ -107,21 +107,23 @@ package "catworld.domain" {
     +boolean enabled  <<NotNull>>
   }
 
-  enum NightlyReferenceRateCategory {
+  enum NightlyReferenceRateKey {
     ONE_CAT
+    ONE_CAT_7_TO_14
+    ONE_CAT_15_TO_29
+    ONE_CAT_30_PLUS
     TWO_CATS
     THREE_PLUS_CATS
-    +int minimumCatCount
   }
 
   class NightlyReferenceRate extends Auditable {
-    +NightlyReferenceRateCategory category  <<Id,NotNull>>
+    +NightlyReferenceRateKey key  <<Id,NotNull>>
     +BigDecimal nightlyRate  <<Decimal(19,0),Nullable>>
   }
 
   class NightlyReferenceRateChange {
     +UUID id
-    +NightlyReferenceRateCategory category  <<NotNull,Immutable>>
+    +NightlyReferenceRateKey key  <<NotNull,Immutable>>
     +BigDecimal previousNightlyRate  <<Decimal(19,0),Nullable,Immutable>>
     +BigDecimal newNightlyRate  <<Decimal(19,0),Nullable,Immutable>>
     +UserAccount changedBy  <<NotNull,Immutable>>
@@ -242,8 +244,8 @@ package "catworld.domain" {
   UserAccount "1" <-- "0..*" Cat : createdBy
   UserAccount "1" <-- "0..*" Vet : createdBy
   UserAccount "1" <-- "0..*" Stay : createdBy
-  NightlyReferenceRateCategory "1" <-- "1" NightlyReferenceRate : category
-  NightlyReferenceRateCategory "1" <-- "0..*" NightlyReferenceRateChange : category
+  NightlyReferenceRateKey "1" <-- "1" NightlyReferenceRate : key
+  NightlyReferenceRateKey "1" <-- "0..*" NightlyReferenceRateChange : key
   UserAccount "1" <-- "0..*" NightlyReferenceRateChange : changedBy
   UserAccount "1" <-- "0..*" StayPricingDecision : decidedBy
   UserAccount "1" <-- "0..*" StayAgreedAmountCorrection : decidedBy
@@ -291,10 +293,12 @@ The logical key is (stay, cat).
 end note
 
 note bottom of NightlyReferenceRate
-Exactly one current row exists for each
-minimum cat-count threshold: 1, 2 or 3.
-Threshold 3 identifies THREE_PLUS_CATS.
-A null rate means unavailable.
+Exactly one current row exists for each fixed key.
+ONE_CAT keys select 0-6, 7-14, 15-29 and
+30+ nights with fallback toward shorter tiers.
+TWO_CATS and THREE_PLUS_CATS ignore duration.
+A null rate means unavailable; Stay retains
+only the resolved amount, not its source key.
 end note
 
 note bottom of NightlyReferenceRateChange
