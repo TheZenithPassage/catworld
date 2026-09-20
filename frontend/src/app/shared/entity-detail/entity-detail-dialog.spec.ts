@@ -2129,6 +2129,126 @@ describe('Route-free StayEditor migrated coverage', () => {
     );
   });
 
+  it.each(['18', null])(
+    'clears an adopted nightly rate before previewing another night count with current rate %s',
+    (destinationCurrentRate) => {
+      const twoNightStay: Stay = {
+        ...stay,
+        startAt: '2099-01-02T10:00:00',
+        endAt: '2099-01-04T10:00:00',
+        numberOfNights: 2,
+        retainedNightlyRate: '20',
+        suggestedAmount: '40',
+        agreedAmount: '40',
+        remainingAmount: '40',
+      };
+      stayApiService.previewDateChangePricing.mockImplementation(
+        (_id: string, request: { endAt: string; selectedNightlyRate?: string | null }) => {
+          if (request.endAt === '2099-01-22T10:00') {
+            if (request.selectedNightlyRate != null) {
+              return throwError(() => new HttpErrorResponse({ status: 409 }));
+            }
+            return of({
+              pricingDecisionRequired: true as const,
+              currentNumberOfNights: 2,
+              currentAgreedAmount: '40',
+              numberOfNights: 20,
+              retainedNightlyRate: '20',
+              currentApplicableNightlyRate: destinationCurrentRate,
+              accommodationSuggestedAmount: '400',
+              suggestedAmount: '400',
+              arrivalTransferRequired: false,
+              departureTransferRequired: false,
+              transferWaived: false,
+              retainedTransferRate: null,
+              transferSuggestedAmount: '0',
+              confirmation: {
+                previousNumberOfNights: 2,
+                previousAgreedAmount: '40',
+                numberOfNights: 20,
+                retainedNightlyRate: '20',
+                suggestedAmount: '400',
+                arrivalTransferRequired: false,
+                departureTransferRequired: false,
+                transferWaived: false,
+                retainedTransferRate: null,
+                transferSuggestedAmount: '0',
+              },
+            });
+          }
+
+          if (request.endAt === '2099-01-12T10:00') {
+            const retainedNightlyRate = request.selectedNightlyRate ?? '20';
+            const suggestedAmount = request.selectedNightlyRate === '19' ? '190' : '200';
+            return of({
+              pricingDecisionRequired: true as const,
+              currentNumberOfNights: 2,
+              currentAgreedAmount: '40',
+              numberOfNights: 10,
+              retainedNightlyRate,
+              currentApplicableNightlyRate: '19',
+              accommodationSuggestedAmount: suggestedAmount,
+              suggestedAmount,
+              arrivalTransferRequired: false,
+              departureTransferRequired: false,
+              transferWaived: false,
+              retainedTransferRate: null,
+              transferSuggestedAmount: '0',
+              confirmation: {
+                previousNumberOfNights: 2,
+                previousAgreedAmount: '40',
+                numberOfNights: 10,
+                retainedNightlyRate,
+                suggestedAmount,
+                arrivalTransferRequired: false,
+                departureTransferRequired: false,
+                transferWaived: false,
+                retainedTransferRate: null,
+                transferSuggestedAmount: '0',
+              },
+            });
+          }
+
+          return of({
+            pricingDecisionRequired: false as const,
+            currentNumberOfNights: 2,
+            currentAgreedAmount: '40',
+            numberOfNights: 2,
+            retainedNightlyRate: '20',
+            currentApplicableNightlyRate: '20',
+            accommodationSuggestedAmount: '40',
+            suggestedAmount: '40',
+            arrivalTransferRequired: false,
+            departureTransferRequired: false,
+            transferWaived: false,
+            retainedTransferRate: null,
+            transferSuggestedAmount: '0',
+            confirmation: null,
+          });
+        },
+      );
+      createComponent(twoNightStay);
+
+      component.onEndAtChange('2099-01-12T10:00');
+      expect(component.applicableCurrentRate()).toBe('19');
+      component.toggleRetainedRate();
+      expect(component.selectedNightlyRate()).toBe('19');
+
+      component.onEndAtChange('2099-01-22T10:00');
+
+      expect(component.selectedNightlyRate()).toBeNull();
+      expect(component.pricingPreview()).toEqual(
+        expect.objectContaining({
+          numberOfNights: 20,
+          retainedNightlyRate: '20',
+          currentApplicableNightlyRate: destinationCurrentRate,
+        }),
+      );
+      expect(component.previewError()).toBeNull();
+      expect(component.applicableCurrentRate()).toBe(destinationCurrentRate);
+    },
+  );
+
   it('does not offer suggested amount adoption in existing-stay repricing', () => {
     stayApiService.previewDateChangePricing.mockReturnValue(
       of({

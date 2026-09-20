@@ -701,7 +701,7 @@ export class StayEditor {
   }
 
   private clearNightlySelectionWhenAdoptionIsIneligible(): void {
-    if (this.numberOfNights() === this.stay()?.numberOfNights) {
+    if (this.numberOfNights() !== this.pricingPreview()?.numberOfNights) {
       this.selectedNightlyRate.set(null);
       this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
       this.agreedAmountBeforeCurrentRate = null;
