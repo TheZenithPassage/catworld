@@ -27,13 +27,18 @@ describe('LoginPage', () => {
   };
 
   const router = {
+    url: '/login',
     navigateByUrl: vi.fn(),
   };
 
   beforeEach(async () => {
     vi.resetAllMocks();
     redirectReason = null;
-    router.navigateByUrl.mockResolvedValue(true);
+    router.url = '/login';
+    router.navigateByUrl.mockImplementation(async (url: string) => {
+      router.url = url;
+      return true;
+    });
 
     await TestBed.configureTestingModule({
       imports: [LoginPage],
@@ -152,7 +157,7 @@ describe('LoginPage', () => {
     expect(component.error()).toBeNull();
   });
 
-  it('stores the session and redirects to the return URL after a successful login', () => {
+  it('stores the session and remains pending while redirecting to the return URL', async () => {
     const user = { username: 'admin', role: 'ADMIN' as const };
     authApiService.login.mockReturnValue(of(user));
 
@@ -160,6 +165,7 @@ describe('LoginPage', () => {
     component.password.set('secret');
 
     component.submit();
+    await fixture.whenStable();
 
     expect(authApiService.login).toHaveBeenCalledWith({
       username: 'admin',
@@ -171,8 +177,80 @@ describe('LoginPage', () => {
     });
     expect(authSessionService.logout).not.toHaveBeenCalled();
     expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
-    expect(component.submitting()).toBe(false);
+    expect(component.submitting()).toBe(true);
+    expect(component.navigating()).toBe(true);
     expect(component.error()).toBeNull();
+  });
+
+  it('shows shared loading and prevents duplicate authentication while navigation is pending', () => {
+    authApiService.login.mockReturnValue(of({ username: 'admin', role: 'ADMIN' as const }));
+    router.navigateByUrl.mockReturnValue(new Promise<boolean>(() => undefined));
+    component.username.set('admin');
+    component.password.set('secret');
+
+    component.submit();
+    component.submit();
+    fixture.detectChanges();
+
+    expect(authApiService.login).toHaveBeenCalledOnce();
+    expect(component.navigating()).toBe(true);
+    expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="status"]')?.textContent).toContain(
+      component.text().auth.login.navigating,
+    );
+    expect(fixture.nativeElement.querySelector('mat-progress-spinner')).not.toBeNull();
+  });
+
+  it('clears the session and restores login when navigation is cancelled', async () => {
+    authApiService.login.mockReturnValue(of({ username: 'admin', role: 'ADMIN' as const }));
+    router.navigateByUrl.mockResolvedValue(false);
+    component.username.set('admin');
+    component.password.set('secret');
+
+    component.submit();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(authSessionService.logout).toHaveBeenCalledOnce();
+    expect(component.submitting()).toBe(false);
+    expect(component.navigating()).toBe(false);
+    expect(fixture.nativeElement.querySelector('form')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().auth.login.errors.loginFailed,
+    );
+  });
+
+  it('clears the session and restores login when navigation rejects', async () => {
+    authApiService.login.mockReturnValue(of({ username: 'admin', role: 'ADMIN' as const }));
+    router.navigateByUrl.mockRejectedValue(new Error('router detail'));
+    component.username.set('admin');
+    component.password.set('secret');
+
+    component.submit();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(authSessionService.logout).toHaveBeenCalledOnce();
+    expect(component.submitting()).toBe(false);
+    expect(component.navigating()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('router detail');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().auth.login.errors.loginFailed,
+    );
+  });
+
+  it('recovers when navigation reports success but the active route remains login', async () => {
+    authApiService.login.mockReturnValue(of({ username: 'admin', role: 'ADMIN' as const }));
+    router.navigateByUrl.mockResolvedValue(true);
+    component.username.set('admin');
+    component.password.set('secret');
+
+    component.submit();
+    await fixture.whenStable();
+
+    expect(router.url).toBe('/login');
+    expect(authSessionService.logout).toHaveBeenCalledOnce();
+    expect(component.submitting()).toBe(false);
   });
 
   it('shows the invalid credentials message when login returns unauthorized', () => {

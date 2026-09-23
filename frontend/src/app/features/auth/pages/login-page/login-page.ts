@@ -40,6 +40,7 @@ export class LoginPage {
   readonly username = signal('');
   readonly password = signal('');
   readonly submitting = signal(false);
+  readonly navigating = signal(false);
   readonly error = createLanguageResetError(this.i18nService.language);
   readonly usernameError = createLanguageResetError(this.i18nService.language);
   readonly passwordError = createLanguageResetError(this.i18nService.language);
@@ -51,6 +52,10 @@ export class LoginPage {
   }
 
   submit(): void {
+    if (this.submitting()) {
+      return;
+    }
+
     this.error.set(null);
     this.clearValidationErrors();
 
@@ -74,8 +79,15 @@ export class LoginPage {
     this.authApiService.login(credentials).subscribe({
       next: (user) => {
         this.authSessionService.login(user, credentials);
-        this.submitting.set(false);
-        this.router.navigateByUrl(this.getReturnUrl());
+        this.navigating.set(true);
+        void this.router
+          .navigateByUrl(this.getReturnUrl())
+          .then((navigated) => {
+            if (!navigated || this.isLoginUrl(this.router.url)) {
+              this.recoverFromNavigationFailure();
+            }
+          })
+          .catch(() => this.recoverFromNavigationFailure());
       },
       error: (error: unknown) => {
         this.authSessionService.logout();
@@ -92,6 +104,17 @@ export class LoginPage {
   private clearValidationErrors(): void {
     this.usernameError.set(null);
     this.passwordError.set(null);
+  }
+
+  private recoverFromNavigationFailure(): void {
+    this.authSessionService.logout();
+    this.error.set(this.text().auth.login.errors.loginFailed);
+    this.navigating.set(false);
+    this.submitting.set(false);
+  }
+
+  private isLoginUrl(url: string): boolean {
+    return url.split(/[?#]/, 1)[0] === '/login';
   }
 
   private getLoginErrorMessage(error: unknown): string {

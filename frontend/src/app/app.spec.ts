@@ -15,6 +15,7 @@ describe('App', () => {
       imports: [App],
       providers: [
         provideRouter([
+          { path: 'login', component: TestRouteComponent },
           { path: 'calendar', component: TestRouteComponent },
           { path: 'stays', component: TestRouteComponent },
         ]),
@@ -75,6 +76,28 @@ describe('App', () => {
     expect(links.some((link) => link.getAttribute('href') === '/accounts')).toBe(false);
     expect(links.some((link) => link.getAttribute('href') === '/nightly-rates')).toBe(true);
     expect(links.some((link) => link.getAttribute('href') === '/sensitive-activity')).toBe(false);
+  });
+
+  it('keeps the public shell while an authenticated session remains on the login route', async () => {
+    const authSessionService = TestBed.inject(AuthSessionService);
+    const router = TestBed.inject(Router);
+    const fixture = TestBed.createComponent(App);
+
+    await router.navigateByUrl('/login?returnUrl=%2Fstays');
+    authSessionService.login(
+      { username: 'staff', role: 'STAFF' },
+      { username: 'staff', password: 'secret' },
+    );
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('mat-toolbar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('main.public-main')).not.toBeNull();
+
+    await router.navigateByUrl('/stays');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('mat-toolbar')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('main.public-main')).toBeNull();
   });
 
   it('derives the Calendar header class from the route without leaking it to other routes', async () => {
