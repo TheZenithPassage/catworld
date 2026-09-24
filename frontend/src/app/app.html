@@ -1,4 +1,4 @@
-@if (authenticated()) {
+@if (authenticatedShell()) {
   <mat-toolbar class="app-header" [class.app-header--calendar-route]="calendarRoute()">
     <h1>
       <a mat-button routerLink="/" class="app-brand">
@@ -90,6 +90,6 @@
   </div>
 }
 
-<main class="app-main" [class.public-main]="!authenticated()">
+<main class="app-main" [class.public-main]="!authenticatedShell()">
   <router-outlet></router-outlet>
 </main>

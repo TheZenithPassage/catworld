@@ -40,6 +40,8 @@ export class App {
   readonly text = this.i18nService.text;
 
   readonly authenticated = this.authSessionService.authenticated;
+  readonly loginRoute = signal(this.isLoginUrl(this.router.url));
+  readonly authenticatedShell = computed(() => !!this.authenticated() && !this.loginRoute());
   readonly calendarRoute = signal(this.isCalendarUrl(this.router.url));
   readonly navigationItems = computed<ShellNavigationItem[]>(() => {
     const nav = this.text().app.nav;
@@ -67,7 +69,10 @@ export class App {
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
         takeUntilDestroyed(),
       )
-      .subscribe((event) => this.calendarRoute.set(this.isCalendarUrl(event.urlAfterRedirects)));
+      .subscribe((event) => {
+        this.loginRoute.set(this.isLoginUrl(event.urlAfterRedirects));
+        this.calendarRoute.set(this.isCalendarUrl(event.urlAfterRedirects));
+      });
   }
 
   logout(): void {
@@ -81,5 +86,9 @@ export class App {
 
   private isCalendarUrl(url: string): boolean {
     return url.split(/[?#]/, 1)[0] === '/calendar';
+  }
+
+  private isLoginUrl(url: string): boolean {
+    return url.split(/[?#]/, 1)[0] === '/login';
   }
 }

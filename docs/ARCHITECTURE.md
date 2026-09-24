@@ -642,6 +642,14 @@ HTTP Basic credentials are authenticated through Spring Security against `user_a
 
 Successful login returns the canonical stored username and its fixed `ADMIN` or `STAFF` role. Angular keeps that identity and role in its in-memory authentication state alongside the HTTP Basic credentials.
 
+The login route remains in the public application shell until Router navigation
+completes away from `/login`, even after the in-memory session becomes
+available. During that post-authentication interval, the login page exposes the
+shared localized Material loading state and prevents another authentication
+request. Failed, cancelled or otherwise incomplete destination navigation clears
+the in-memory session through the normal logout behavior and restores a usable
+login form with generic localized failure feedback.
+
 The `/api/users` endpoints list, create and update application users and are restricted to `ADMIN`. Angular exposes the corresponding Accounts area at `/accounts` only to an authenticated `ADMIN` and protects direct route access with the same role distinction. `STAFF` retains access to all existing operational routes. A `403 Forbidden` from `/api/users` clears the potentially stale frontend session, while forbidden responses from unrelated APIs do not trigger that behavior. When an account DELETE receives that response, the redirect carries a fixed internal reason so the login page can explain the failed removal in the active language without exposing raw backend text.
 
 Nightly reference-rate reads allow authenticated `ADMIN` and `STAFF` roles,

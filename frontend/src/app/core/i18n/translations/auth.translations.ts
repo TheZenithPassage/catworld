@@ -9,6 +9,7 @@ export interface AuthTranslations {
     password: string;
     submit: string;
     submitting: string;
+    navigating: string;
     errors: {
       usernameRequired: string;
       passwordRequired: string;
@@ -29,6 +30,7 @@ export const AUTH_TRANSLATIONS = {
       password: 'Contraseña',
       submit: 'Entrar',
       submitting: 'Entrando...',
+      navigating: 'Abriendo tu espacio de trabajo...',
       errors: {
         usernameRequired: 'El usuario es obligatorio',
         passwordRequired: 'La contraseña es obligatoria',
@@ -48,6 +50,7 @@ export const AUTH_TRANSLATIONS = {
       password: 'Password',
       submit: 'Log in',
       submitting: 'Logging in...',
+      navigating: 'Opening your workspace...',
       errors: {
         usernameRequired: 'Username is required',
         passwordRequired: 'Password is required',
