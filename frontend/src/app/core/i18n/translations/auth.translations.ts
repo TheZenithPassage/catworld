@@ -25,7 +25,7 @@ export const AUTH_TRANSLATIONS = {
     login: {
       logoAlt: 'Logo de CatWorld',
       title: 'Iniciar sesión',
-      description: 'Introduce tus credenciales para continuar.',
+      description: 'Ingresá tus credenciales para continuar.',
       username: 'Usuario',
       password: 'Contraseña',
       submit: 'Entrar',

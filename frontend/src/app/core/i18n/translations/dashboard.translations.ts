@@ -75,7 +75,7 @@ export const DASHBOARD_TRANSLATIONS = {
     links: {
       stays: {
         title: 'Stays',
-        description: 'View reservations, create new stays and manage active ones.',
+        description: 'View stays, create new ones and manage active stays.',
       },
       calendar: {
         title: 'Calendar',

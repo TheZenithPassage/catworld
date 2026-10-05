@@ -36,7 +36,7 @@ export const APP_SHELL_TRANSLATIONS = {
       owners: 'Dueños',
       vets: 'Veterinarios',
       accounts: 'Cuentas',
-      nightlyRates: 'Tarifas nocturnas',
+      nightlyRates: 'Tarifas por noche',
       sensitiveActivity: 'Actividad sensible',
     },
     language: {

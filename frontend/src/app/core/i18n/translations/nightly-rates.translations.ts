@@ -40,12 +40,12 @@ export interface NightlyRatesTranslations {
 
 export const NIGHTLY_RATES_TRANSLATIONS = {
   es: {
-    title: 'Tarifas nocturnas de referencia',
+    title: 'Tarifas por noche de referencia',
     description: 'Consulta y gestiona la orientación de precios según el número de gatos.',
     totalPriceExplanation:
       'Cada valor es el precio total de toda la estadía por noche para esa categoría, no un monto por gato.',
-    loading: 'Cargando las tarifas nocturnas…',
-    loadError: 'No se pudieron cargar las tarifas nocturnas actuales.',
+    loading: 'Cargando las tarifas por noche…',
+    loadError: 'No se pudieron cargar las tarifas por noche actuales.',
     retry: 'Reintentar',
     unavailable: 'No disponible temporalmente',
     categories: {
@@ -70,9 +70,9 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       },
     },
     errors: {
-      validation: 'El servidor rechazó el monto. Revisalo e intentalo de nuevo.',
+      validation: 'El servidor rechazó el monto. Revisalo e intentá de nuevo.',
       forbidden: 'Ya no tienes permiso para cambiar esta tarifa.',
-      conflict: 'La tarifa cambió al mismo tiempo. Vuelve a intentarlo con los valores actuales.',
+      conflict: 'La tarifa cambió al mismo tiempo. Volvé a intentarlo con los valores actuales.',
       mutation: 'No se pudo guardar el cambio. Inténtalo de nuevo.',
       refresh: 'El cambio se guardó, pero no se pudieron actualizar las tarifas actuales.',
     },

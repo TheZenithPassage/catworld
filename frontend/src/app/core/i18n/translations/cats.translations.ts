@@ -163,11 +163,11 @@ export const CATS_TRANSLATIONS = {
       name: 'Nombre',
       birthDate: 'Fecha de nacimiento',
       sex: 'Sexo',
-      selectSex: 'Selecciona sexo',
+      selectSex: 'Seleccioná sexo',
       male: 'Macho',
       female: 'Hembra',
       owner: 'Dueño',
-      selectOwner: 'Selecciona un dueño',
+      selectOwner: 'Seleccioná un dueño',
       createOwner: 'Crear dueño',
       vet: 'Veterinario',
       noVet: 'Sin veterinario',
@@ -198,16 +198,16 @@ export const CATS_TRANSLATIONS = {
       previewUnavailable: 'La vista previa no está disponible; el archivo se enviará al guardar.',
       previewAlt: 'Vista previa completa de la foto de perfil seleccionada',
       errors: {
-        localFileTooLarge: 'Selecciona una foto de 32 MiB o menos.',
-        localUnsupportedFormat: 'Selecciona una foto JPEG, PNG, WebP, HEIC o HEIF.',
-        fileTooLarge: 'La foto supera el límite de 32 MiB. Selecciona un archivo más pequeño.',
+        localFileTooLarge: 'Seleccioná una foto de 32 MiB o menos.',
+        localUnsupportedFormat: 'Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
+        fileTooLarge: 'La foto supera el límite de 32 MiB. Seleccioná un archivo más pequeño.',
         unsupportedFormat:
-          'El formato no es compatible. Selecciona una foto JPEG, PNG, WebP, HEIC o HEIF.',
+          'El formato no es compatible. Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         dimensionsTooLarge:
-          'Las dimensiones de la foto son demasiado grandes. Selecciona una imagen más pequeña.',
-        undecodable: 'No se pudo leer la foto. Selecciona otro archivo de imagen válido.',
+          'Las dimensiones de la foto son demasiado grandes. Seleccioná una imagen más pequeña.',
+        undecodable: 'No se pudo leer la foto. Seleccioná otro archivo de imagen válido.',
         intentConflict:
-          'No se puede reemplazar y eliminar la foto a la vez. Revisa la selección e inténtalo de nuevo.',
+          'No se puede reemplazar y eliminar la foto a la vez. Revisá la selección e intentá de nuevo.',
       },
     },
     create: {

@@ -107,7 +107,7 @@ const sharedEvents = {
 export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
   es: {
     title: 'Actividad económica sensible',
-    description: 'Revisa cambios económicos sensibles y su contexto histórico conservado.',
+    description: 'Revisá cambios económicos sensibles y su contexto histórico conservado.',
     loading: 'Cargando actividad económica sensible…',
     empty: 'No hay actividad sensible que coincida con estos filtros.',
     forbidden: 'Ya no tienes permiso para consultar esta actividad.',
@@ -126,7 +126,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       active: 'Filtros activos',
       staySubtitle: 'Filtrá por fechas de estadía o elegí una estadía exacta.',
       pendingTitle: 'Cambios sin aplicar',
-      pendingMessage: 'Aplica los filtros para actualizar los resultados.',
+      pendingMessage: 'Aplicá los filtros para actualizar los resultados.',
       affectedStay: 'Contexto de la estadía afectada',
       eventOccurred: 'Momento del evento',
       stayFrom: 'Estadía desde',
@@ -134,8 +134,8 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       findStay: 'Buscar estadía específica',
       stayCriteriaHelp: 'Seleccioná un dueño, un gato o fechas válidas para buscar una estadía.',
       invalidStayPeriod:
-        'Introduce fechas válidas; la fecha inicial no puede ser posterior a la final.',
-      chooseOneEntity: 'Selecciona un dueño o un gato, no ambos.',
+        'Ingresá fechas válidas; la fecha inicial no puede ser posterior a la final.',
+      chooseOneEntity: 'Seleccioná un dueño o un gato, no ambos.',
       candidates: 'Estadías coincidentes',
       candidatesLoading: 'Buscando estadías…',
       candidatesEmpty: 'No hay estadías que coincidan.',
@@ -157,7 +157,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       clear: 'Limpiar filtros',
       invalidPeriod: 'La fecha inicial debe ser anterior a la final.',
       invalidBusinessDateTime: 'La fecha y hora no existe en la zona horaria del negocio.',
-      invalidDateTime: 'Introduce una fecha y hora válidas.',
+      invalidDateTime: 'Ingresá una fecha y hora válidas.',
       invalidId: 'El ID debe tener un formato válido.',
     },
     eventHelp: {
@@ -231,10 +231,10 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     filters: {
       stayPeriod: 'Stay period',
       incompatibleEvent:
-        'Global nightly-rate changes do not support Stay filters; remove them or choose another event type.',
+        'Global nightly-rate changes do not support stay filters; remove them or choose another event type.',
       general: 'General',
       active: 'Active filters',
-      staySubtitle: 'Filter by Stay dates or choose one exact Stay.',
+      staySubtitle: 'Filter by stay dates or choose one exact stay.',
       pendingTitle: 'Unapplied changes',
       pendingMessage: 'Apply filters to update the results.',
       affectedStay: 'Affected Stay Context',
@@ -242,9 +242,9 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       stayFrom: 'Stay From',
       stayTo: 'Stay To',
       findStay: 'Find specific stay',
-      stayCriteriaHelp: 'Choose an Owner, Cat or valid Stay dates to search.',
-      invalidStayPeriod: 'Enter valid Stay dates; From cannot be after To.',
-      chooseOneEntity: 'Choose an Owner or Cat, not both.',
+      stayCriteriaHelp: 'Choose an owner, cat or valid stay dates to search.',
+      invalidStayPeriod: 'Enter valid stay dates; From cannot be after To.',
+      chooseOneEntity: 'Choose an owner or cat, not both.',
       candidates: 'Matching stays',
       candidatesLoading: 'Loading stays…',
       candidatesEmpty: 'No matching stays.',
@@ -270,8 +270,8 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       invalidId: 'The ID must have a valid format.',
     },
     eventHelp: {
-      PRICING_OVERRIDE: 'An agreed price that overrides the Stay reference price.',
-      AGREED_AMOUNT_CORRECTED: 'A correction to an existing Stay’s agreed amount.',
+      PRICING_OVERRIDE: 'An agreed price that overrides the stay reference price.',
+      AGREED_AMOUNT_CORRECTED: 'A correction to an existing stay’s agreed amount.',
     },
     events: sharedEvents,
     categories: {

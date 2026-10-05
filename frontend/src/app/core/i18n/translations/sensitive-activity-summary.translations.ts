@@ -64,7 +64,7 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
   },
   es: {
     preparing: 'Preparando la descripción de los filtros…',
-    invalid: 'Revisa los filtros para describir una consulta válida.',
+    invalid: 'Revisá los filtros para describir una consulta válida.',
     unavailable: {
       actor: 'una cuenta no disponible',
       owner: 'un dueño no disponible',

@@ -332,9 +332,9 @@ export const STAYS_TRANSLATIONS = {
       useCurrentTransferRate: 'Usar tarifa de traslado actual',
       useCapturedTransferRate: 'Usar tarifa de traslado aplicada',
       confirm: 'Confirmar precio',
-      confirmAfterReason: 'Añade un motivo para confirmar',
+      confirmAfterReason: 'Agregá un motivo para confirmar',
       confirmed: 'Precio confirmado',
-      stale: 'La base del precio cambió. Revisa la nueva propuesta y vuelve a confirmarla.',
+      stale: 'La base del precio cambió. Revisá la nueva propuesta y volvé a confirmarla.',
       noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
       adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
       economics: 'Economía',
@@ -350,10 +350,10 @@ export const STAYS_TRANSLATIONS = {
       errors: {
         invalidAmount: 'Ingresá un monto entero no negativo de hasta 19 dígitos.',
         reasonRequired: 'Indicá un motivo cuando el monto difiere de la propuesta.',
-        confirmationRequired: 'Revisa y confirma el precio actual antes de continuar.',
+        confirmationRequired: 'Revisá y confirmá el precio actual antes de continuar.',
         previewRequired: 'Es necesaria una propuesta de precio actual.',
         previewFailed: 'No se pudo obtener la propuesta de precio.',
-        stale: 'La confirmación del precio está desactualizada. Confirma la nueva propuesta.',
+        stale: 'La confirmación del precio está desactualizada. Confirmá la nueva propuesta.',
         adminRequired: 'Solo un administrador puede confirmar este nuevo precio.',
         correctionReasonRequired: 'Indicá el motivo de la corrección.',
         correctionFailed: 'No se pudo corregir el monto acordado.',
@@ -411,7 +411,7 @@ export const STAYS_TRANSLATIONS = {
         activeFloor: 'El cambio dejaría el acuerdo por debajo de los pagos activos.',
         permission: 'No tienes permiso para realizar esta acción.',
         missing: 'La estadía o el pago ya no existe.',
-        conflict: 'Los datos cambiaron. Revisa el estado actual e inténtalo de nuevo.',
+        conflict: 'Los datos cambiaron. Revisá el estado actual e intentá de nuevo.',
         generic: 'No se pudo completar la acción de pago.',
       },
     },
@@ -425,9 +425,8 @@ export const STAYS_TRANSLATIONS = {
         RANGE_WITHIN_STAY: 'Cubre todo el período',
       },
       invalidDateRange: 'Hasta no puede ser anterior a Desde.',
-      invalidDate: 'Introduce una fecha válida y completa.',
-      dateOutOfRange:
-        'Introduce una fecha entre el 1 de enero de 2000 y el 31 de diciembre de 2200.',
+      invalidDate: 'Ingresá una fecha válida y completa.',
+      dateOutOfRange: 'Ingresá una fecha entre el 1 de enero de 2000 y el 31 de diciembre de 2200.',
       dateHelp: {
         OVERLAPS: {
           both: (from, to) => `Incluye estadías presentes al menos un día entre ${from} y ${to}.`,
@@ -541,7 +540,7 @@ export const STAYS_TRANSLATIONS = {
       cancel: 'Cancelar',
       loading: 'Cargando datos del formulario...',
       owner: 'Dueño',
-      selectOwner: 'Selecciona un dueño',
+      selectOwner: 'Seleccioná un dueño',
       createOwner: 'Crear dueño',
       catsForOwner: 'Gatos de',
       noCatsForOwner: 'No se encontraron gatos para este dueño.',
@@ -553,7 +552,7 @@ export const STAYS_TRANSLATIONS = {
       submitting: 'Creando...',
       errors: {
         loadFormDataFailed: 'Error al cargar los datos del formulario',
-        selectAtLeastOneCat: 'Selecciona al menos un gato',
+        selectAtLeastOneCat: 'Seleccioná al menos un gato',
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         createFailed: 'Error al crear la estadía',
@@ -619,7 +618,7 @@ export const STAYS_TRANSLATIONS = {
     },
     pricing: {
       title: 'Agreed pricing',
-      loading: 'Loading authoritative pricing...',
+      loading: 'Loading pricing...',
       enterInputs: 'Select valid dates and cats to obtain pricing.',
       nights: 'Nights',
       retainedRate: 'Retained rate',
@@ -682,7 +681,7 @@ export const STAYS_TRANSLATIONS = {
     },
     payments: {
       title: 'Stay payments',
-      description: 'Operational history and authoritative stay economics.',
+      description: 'Operational history and current stay finances.',
       empty: 'No payments registered.',
       amount: 'Amount',
       date: 'Payment date',
@@ -711,7 +710,7 @@ export const STAYS_TRANSLATIONS = {
       dialogTitles: {
         register: 'Register payment',
         edit: 'Edit payment amount',
-        annul: 'Annul payment',
+        annul: 'Void payment',
       },
       errors: {
         amountRequired: 'Enter the amount received.',
