@@ -87,7 +87,7 @@ export const ACCOUNTS_TRANSLATIONS = {
       enabled: 'Estado',
       actions: 'Acciones',
     },
-    you: 'Tú',
+    you: 'Vos',
     roles: {
       admin: 'Administrador',
       staff: 'Estándar',

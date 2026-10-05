@@ -43,7 +43,7 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
     title: 'Tarifas nocturnas de referencia',
     description: 'Consulta y gestiona la orientación de precios según el número de gatos.',
     totalPriceExplanation:
-      'Cada valor es el precio total de toda la estancia por noche para esa categoría, no un importe por gato.',
+      'Cada valor es el precio total de toda la estadía por noche para esa categoría, no un monto por gato.',
     loading: 'Cargando las tarifas nocturnas…',
     loadError: 'No se pudieron cargar las tarifas nocturnas actuales.',
     retry: 'Reintentar',
@@ -64,13 +64,13 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       saving: 'Guardando…',
       clearing: 'Quitando…',
       errors: {
-        required: 'Introduce un importe entero positivo.',
-        positiveWhole: 'El importe debe ser un número entero positivo sin decimales.',
-        tooLong: 'El importe puede tener como máximo 19 dígitos.',
+        required: 'Ingresá un monto entero positivo.',
+        positiveWhole: 'El monto debe ser un número entero positivo sin decimales.',
+        tooLong: 'El monto puede tener como máximo 19 dígitos.',
       },
     },
     errors: {
-      validation: 'El servidor rechazó el importe. Revísalo e inténtalo de nuevo.',
+      validation: 'El servidor rechazó el monto. Revisalo e intentalo de nuevo.',
       forbidden: 'Ya no tienes permiso para cambiar esta tarifa.',
       conflict: 'La tarifa cambió al mismo tiempo. Vuelve a intentarlo con los valores actuales.',
       mutation: 'No se pudo guardar el cambio. Inténtalo de nuevo.',

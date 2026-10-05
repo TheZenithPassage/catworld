@@ -38,15 +38,15 @@ export const DASHBOARD_TRANSLATIONS = {
   es: {
     title: 'Panel de administración',
     description:
-      'Desde aquí puedes gestionar las estancias, dueños o gatos y acceder al calendario.',
+      'Desde aquí podés gestionar las estadías, los dueños y los gatos, y acceder al calendario.',
     links: {
       stays: {
-        title: 'Estancias',
-        description: 'Ver, crear, editar y cancelar estancias.',
+        title: 'Estadías',
+        description: 'Ver, crear, editar y cancelar estadías.',
       },
       calendar: {
         title: 'Calendario',
-        description: 'Revisar estancias en una vista de calendario.',
+        description: 'Revisar estadías en una vista de calendario.',
       },
       cats: {
         title: 'Gatos',
@@ -63,7 +63,7 @@ export const DASHBOARD_TRANSLATIONS = {
     },
     quickActions: {
       title: 'Acciones rápidas',
-      createStay: 'Crear estancia',
+      createStay: 'Crear estadía',
       createOwner: 'Crear dueño',
       createCat: 'Crear gato',
       createVet: 'Crear veterinario',

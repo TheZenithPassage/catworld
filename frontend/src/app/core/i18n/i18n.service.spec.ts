@@ -25,9 +25,9 @@ describe('I18nService', () => {
     TestBed.tick();
 
     expect(service.language()).toBe('es');
-    expect(service.dateLocale()).toBe('es-ES');
+    expect(service.dateLocale()).toBe('es-AR');
     expect(localStorage.getItem(storageKey)).toBe('es');
-    expect(document.documentElement.lang).toBe('es');
+    expect(document.documentElement.lang).toBe('es-AR');
   });
 
   it('reads English from localStorage when stored preference exists', () => {
@@ -48,9 +48,9 @@ describe('I18nService', () => {
     TestBed.tick();
 
     expect(service.language()).toBe('es');
-    expect(service.dateLocale()).toBe('es-ES');
+    expect(service.dateLocale()).toBe('es-AR');
     expect(localStorage.getItem(storageKey)).toBe('es');
-    expect(document.documentElement.lang).toBe('es');
+    expect(document.documentElement.lang).toBe('es-AR');
   });
 
   it('toggles language, persists it and updates the document language', () => {
@@ -69,8 +69,8 @@ describe('I18nService', () => {
     TestBed.tick();
 
     expect(service.language()).toBe('es');
-    expect(service.dateLocale()).toBe('es-ES');
+    expect(service.dateLocale()).toBe('es-AR');
     expect(localStorage.getItem(storageKey)).toBe('es');
-    expect(document.documentElement.lang).toBe('es');
+    expect(document.documentElement.lang).toBe('es-AR');
   });
 });

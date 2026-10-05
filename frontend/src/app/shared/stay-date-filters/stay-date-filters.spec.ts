@@ -306,9 +306,9 @@ describe('shared Stay date interaction without page or entity state', () => {
               'Includes stays present on 1 Jan 2026.',
             ]
           : [
-              'Incluye estancias presentes el 1 ene 2026.',
-              'Incluye estancias que empiezan y terminan el 1 ene 2026.',
-              'Incluye estancias presentes el 1 ene 2026.',
+              'Incluye estadías presentes el 1 de ene de 2026.',
+              'Incluye estadías que empiezan y terminan el 1 de ene de 2026.',
+              'Incluye estadías presentes el 1 de ene de 2026.',
             ],
       );
       await harness.close();
@@ -344,19 +344,19 @@ describe('shared Stay date interaction without page or entity state', () => {
             ]
           : [
               [
-                'Incluye estancias presentes al menos un día entre 10 ene 2030 y 20 ene 2030.',
-                'Incluye estancias que empiezan el 10 ene 2030 o después y terminan el 20 ene 2030 o antes.',
-                'Incluye estancias que empiezan el 10 ene 2030 o antes y terminan el 20 ene 2030 o después.',
+                'Incluye estadías presentes al menos un día entre 10 de ene de 2030 y 20 de ene de 2030.',
+                'Incluye estadías que empiezan el 10 de ene de 2030 o después y terminan el 20 de ene de 2030 o antes.',
+                'Incluye estadías que empiezan el 10 de ene de 2030 o antes y terminan el 20 de ene de 2030 o después.',
               ],
               [
-                'Incluye estancias que terminan el 10 ene 2030 o después.',
-                'Incluye estancias que empiezan el 10 ene 2030 o después.',
-                'Incluye solo estancias presentes el 10 ene 2030.',
+                'Incluye estadías que terminan el 10 de ene de 2030 o después.',
+                'Incluye estadías que empiezan el 10 de ene de 2030 o después.',
+                'Incluye solo estadías presentes el 10 de ene de 2030.',
               ],
               [
-                'Incluye estancias que empiezan el 20 ene 2030 o antes.',
-                'Incluye estancias que terminan el 20 ene 2030 o antes.',
-                'Incluye solo estancias presentes el 20 ene 2030.',
+                'Incluye estadías que empiezan el 20 de ene de 2030 o antes.',
+                'Incluye estadías que terminan el 20 de ene de 2030 o antes.',
+                'Incluye solo estadías presentes el 20 de ene de 2030.',
               ],
             ];
       for (const [row, [from, to]] of [

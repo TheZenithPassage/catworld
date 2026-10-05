@@ -1177,7 +1177,7 @@ describe('CalendarPage', () => {
 
   it.each([
     ['en', 'No stays in the displayed period.'],
-    ['es', 'No hay estancias en el período mostrado.'],
+    ['es', 'No hay estadías en el período mostrado.'],
   ] as const)(
     'describes an empty bounded view in %s and keeps navigation available',
     async (language, message) => {

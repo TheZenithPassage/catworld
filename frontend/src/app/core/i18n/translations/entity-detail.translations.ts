@@ -23,7 +23,7 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
   es: {
     back: 'Atrás',
     cats: 'Gatos',
-    stays: 'Estancias',
+    stays: 'Estadías',
     loading: 'Cargando registros relacionados…',
     empty: 'No hay registros relacionados.',
     loadFailed: 'No se pudieron cargar los registros relacionados.',

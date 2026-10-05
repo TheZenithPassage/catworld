@@ -13,14 +13,14 @@ export class I18nService {
 
   readonly language = signal<AppLanguage>(this.readStoredLanguage());
   readonly text = computed(() => APP_TRANSLATIONS[this.language()]);
-  readonly dateLocale = computed(() => (this.language() === 'es' ? 'es-ES' : 'en-GB'));
+  readonly dateLocale = computed(() => (this.language() === 'es' ? 'es-AR' : 'en-GB'));
 
   constructor() {
     effect(() => {
       const language = this.language();
 
       this.storeLanguage(language);
-      this.document.documentElement.lang = language;
+      this.document.documentElement.lang = language === 'es' ? 'es-AR' : 'en';
     });
   }
 
