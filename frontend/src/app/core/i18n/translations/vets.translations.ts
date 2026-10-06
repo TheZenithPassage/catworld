@@ -123,7 +123,7 @@ export const VETS_TRANSLATIONS = {
     },
     overview: {
       title: 'Veterinarios',
-      description: 'Desde aquí puedes administrar los veterinarios registrados y crear nuevos.',
+      description: 'Desde aquí podés administrar los veterinarios registrados y crear nuevos.',
       create: 'Crear veterinario',
       loading: 'Cargando veterinarios...',
       retry: 'Reintentar',

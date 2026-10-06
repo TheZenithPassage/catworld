@@ -38,10 +38,10 @@ export const DELETION_TRANSLATIONS = {
       },
     },
     errors: {
-      forbidden: 'Ya no tienes permiso para eliminar este registro.',
+      forbidden: 'Ya no tenés permiso para eliminar este registro.',
       notFound: 'Este registro ya no existe.',
       conflict: 'Este registro no se puede eliminar porque está siendo utilizado.',
-      generic: 'No se ha podido eliminar el registro. Inténtalo de nuevo.',
+      generic: 'No se pudo eliminar el registro. Intentá de nuevo.',
     },
   },
   en: {

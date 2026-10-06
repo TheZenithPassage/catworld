@@ -145,7 +145,7 @@ describe('SensitiveActivityPage', () => {
         'Pricing override',
         'Agreed amount corrected',
         'Payment edited',
-        'Payment annulled',
+        'Payment voided',
         'Payment removed',
       ],
     );

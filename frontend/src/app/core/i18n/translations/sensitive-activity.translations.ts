@@ -100,7 +100,7 @@ const sharedEvents = {
   PRICING_OVERRIDE: 'Pricing override',
   AGREED_AMOUNT_CORRECTED: 'Agreed amount corrected',
   PAYMENT_EDITED: 'Payment edited',
-  PAYMENT_ANNULLED: 'Payment annulled',
+  PAYMENT_ANNULLED: 'Payment voided',
   PAYMENT_REMOVED: 'Payment removed',
 } satisfies Record<SensitiveEconomicEventType, string>;
 
@@ -110,7 +110,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
     description: 'Revisá cambios económicos sensibles y su contexto histórico conservado.',
     loading: 'Cargando actividad económica sensible…',
     empty: 'No hay actividad sensible que coincida con estos filtros.',
-    forbidden: 'Ya no tienes permiso para consultar esta actividad.',
+    forbidden: 'Ya no tenés permiso para consultar esta actividad.',
     malformed: 'El servidor devolvió actividad con un formato no reconocido.',
     failure: 'No se pudo cargar la actividad económica sensible.',
     retry: 'Reintentar',
@@ -306,7 +306,7 @@ export const SENSITIVE_ACTIVITY_TRANSLATIONS = {
       note: 'Note',
       registeredBy: 'Registered by',
       registeredAt: 'Registered at',
-      annulled: 'Annulled',
+      annulled: 'Voided',
       reason: 'Reason',
       stay: 'Stay',
       owner: 'Owner',

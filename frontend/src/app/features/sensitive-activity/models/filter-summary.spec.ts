@@ -33,7 +33,7 @@ describe('Sensitive Activity semantic summary', () => {
     expect(
       composeActivitySummary(snapshot, ACTIVITY_SUMMARY_TRANSLATIONS.en, format, format, format),
     ).toBe(
-      'When applied, showing payment annulments by Alex occurring at or after local start and before local end concerning stays for owner Ada starting on or after Monday and ending on or before Tuesday, limited to the exact stay for Miso, Luna with owner Ada, from local start to local end.',
+      'When applied, showing voided payments by Alex occurring at or after local start and before local end concerning stays for owner Ada starting on or after Monday and ending on or before Tuesday, limited to the exact stay for Miso, Luna with owner Ada, from local start to local end.',
     );
     expect(
       composeActivitySummary(snapshot, ACTIVITY_SUMMARY_TRANSLATIONS.es, format, format, format),

@@ -248,7 +248,7 @@ export const CATS_TRANSLATIONS = {
     },
     overview: {
       title: 'Gatos',
-      description: 'Desde aquí puedes administrar los gatos registrados y crear nuevos.',
+      description: 'Desde aquí podés administrar los gatos registrados y crear nuevos.',
       create: 'Crear gato',
       loading: 'Cargando gatos...',
       retry: 'Reintentar',

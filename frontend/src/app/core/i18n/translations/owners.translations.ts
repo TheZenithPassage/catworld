@@ -135,7 +135,7 @@ export const OWNERS_TRANSLATIONS = {
     },
     overview: {
       title: 'Dueños',
-      description: 'Desde aquí puedes administrar los dueños registrados y crear nuevos.',
+      description: 'Desde aquí podés administrar los dueños registrados y crear nuevos.',
       create: 'Crear dueño',
       loading: 'Cargando dueños...',
       retry: 'Reintentar',

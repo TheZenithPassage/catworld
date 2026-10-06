@@ -17,7 +17,7 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
       PRICING_OVERRIDE: 'pricing overrides',
       AGREED_AMOUNT_CORRECTED: 'agreed-amount corrections',
       PAYMENT_EDITED: 'payment-amount edits',
-      PAYMENT_ANNULLED: 'payment annulments',
+      PAYMENT_ANNULLED: 'voided payments',
       PAYMENT_REMOVED: 'payment removals',
     },
     dates: {

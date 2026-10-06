@@ -60,7 +60,7 @@ export interface AccountsTranslations {
 export const ACCOUNTS_TRANSLATIONS = {
   es: {
     title: 'Cuentas de acceso',
-    description: 'Desde aquí puedes administrar las cuentas y su nivel de acceso.',
+    description: 'Desde aquí podés administrar las cuentas y su nivel de acceso.',
     loading: 'Cargando cuentas…',
     errorLoading: 'No se pudieron cargar las cuentas.',
     retry: 'Reintentar',
@@ -76,7 +76,7 @@ export const ACCOUNTS_TRANSLATIONS = {
         usernameRequired: 'El nombre de usuario es obligatorio.',
         passwordRequired: 'La contraseña es obligatoria.',
         invalidUsername: 'El nombre de usuario contiene caracteres inválidos o es demasiado largo.',
-        invalidPassword: 'La contraseña debe contener al menos un caracter válido.',
+        invalidPassword: 'La contraseña debe contener al menos un carácter válido.',
         duplicateUsername: 'Ya existe una cuenta con ese nombre.',
         createFailed: 'No se pudo crear la cuenta.',
       },
@@ -112,7 +112,7 @@ export const ACCOUNTS_TRANSLATIONS = {
       deletionNotFound: 'La cuenta que intentabas eliminar ya no existe.',
       deletionConflict:
         'Esta cuenta no se puede eliminar porque protege registros existentes o porque debe permanecer al menos una cuenta administradora habilitada.',
-      deletionFailed: 'No se pudo eliminar la cuenta. Inténtalo de nuevo.',
+      deletionFailed: 'No se pudo eliminar la cuenta. Intentá de nuevo.',
     },
   },
   en: {
