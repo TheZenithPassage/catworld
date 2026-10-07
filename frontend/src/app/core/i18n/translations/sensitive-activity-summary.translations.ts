@@ -17,7 +17,7 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
       PRICING_OVERRIDE: 'pricing overrides',
       AGREED_AMOUNT_CORRECTED: 'agreed-amount corrections',
       PAYMENT_EDITED: 'payment-amount edits',
-      PAYMENT_ANNULLED: 'payment annulments',
+      PAYMENT_ANNULLED: 'voided payments',
       PAYMENT_REMOVED: 'payment removals',
     },
     dates: {
@@ -64,19 +64,19 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
   },
   es: {
     preparing: 'Preparando la descripción de los filtros…',
-    invalid: 'Revisa los filtros para describir una consulta válida.',
+    invalid: 'Revisá los filtros para describir una consulta válida.',
     unavailable: {
       actor: 'una cuenta no disponible',
-      owner: 'un propietario no disponible',
+      owner: 'un dueño no disponible',
       cat: 'un gato no disponible',
-      stay: 'la estancia exacta no disponible',
+      stay: 'la estadía exacta no disponible',
     },
     events: {
       '': 'cambios económicos sensibles',
       NIGHTLY_RATE_CHANGED: 'cambios de tarifa por noche',
       PRICING_OVERRIDE: 'ajustes de precio',
-      AGREED_AMOUNT_CORRECTED: 'correcciones del importe acordado',
-      PAYMENT_EDITED: 'modificaciones del importe de pagos',
+      AGREED_AMOUNT_CORRECTED: 'correcciones del monto acordado',
+      PAYMENT_EDITED: 'modificaciones del monto de pagos',
       PAYMENT_ANNULLED: 'anulaciones de pagos',
       PAYMENT_REMOVED: 'eliminaciones de pagos',
     },
@@ -101,7 +101,7 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
       },
     },
     exact: (cats, owner, start, end) =>
-      `la estancia exacta de ${cats}, con propietario ${owner}, del ${start} al ${end}`,
+      `la estadía exacta de ${cats}, con dueño ${owner}, del ${start} al ${end}`,
     sentence: (p) => {
       let sentence = `${p.pending ? 'Al aplicar, se mostrarán' : 'Mostrando'} ${p.events}`;
       if (p.actor) sentence += ` con autoría de ${p.actor}`;
@@ -110,11 +110,11 @@ export const ACTIVITY_SUMMARY_TRANSLATIONS: Record<AppLanguage, ActivitySummaryC
       else if (p.occurredFrom) sentence += `, desde ${p.occurredFrom} inclusive`;
       else if (p.occurredTo) sentence += `, antes de ${p.occurredTo}`;
       let broad = p.owner
-        ? `estancias del propietario ${p.owner}`
+        ? `estadías del dueño ${p.owner}`
         : p.cat
-          ? `estancias del gato ${p.cat}`
+          ? `estadías del gato ${p.cat}`
           : p.dates
-            ? 'estancias'
+            ? 'estadías'
             : '';
       if (p.dates) broad += ` ${p.dates}`;
       if (broad && p.exact) sentence += `, en relación con ${broad} y únicamente con ${p.exact}`;

@@ -106,7 +106,7 @@ describe('SensitiveActivityDetailDialog', () => {
       ['Pricing override', '10.50', '2', '21.00', '19.25', 'Override reason'],
       ['Agreed amount corrected', 'Unavailable', '21.00', 'Correction reason'],
       ['Payment edited', '5.00', '6.25', 'register-user', 'Operational reason'],
-      ['Payment annulled', '6.25', 'register-user', 'Operational reason'],
+      ['Payment voided', '6.25', 'register-user', 'Operational reason'],
       ['Payment removed', '6.25', 'Yes', 'register-user', 'Operational reason'],
     ];
 

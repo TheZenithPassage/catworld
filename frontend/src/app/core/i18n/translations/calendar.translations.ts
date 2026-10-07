@@ -66,16 +66,16 @@ export interface CalendarTranslations {
 export const CALENDAR_TRANSLATIONS = {
   es: {
     title: 'Calendario',
-    description: 'Vista gráfica de las estancias registradas.',
+    description: 'Vista gráfica de las estadías registradas.',
     actions: {
-      viewStays: 'Ver estancias',
-      createStay: 'Crear estancia',
+      viewStays: 'Ver estadías',
+      createStay: 'Crear estadía',
       retry: 'Reintentar',
     },
     statusFiltersAriaLabel: 'Filtros de estado del calendario',
     displayModes: {
       title: 'Vista del calendario',
-      description: 'Elige cómo mostrar las estancias.',
+      description: 'Elegí cómo mostrar las estadías.',
       options: {
         'daily-labels': {
           label: 'Estándar',
@@ -87,15 +87,15 @@ export const CALENDAR_TRANSLATIONS = {
         },
         'entry-exit-markers': {
           label: 'Entradas y salidas',
-          description: 'Muestra solo el inicio y el final de cada estancia.',
+          description: 'Muestra solo el inicio y el final de cada estadía.',
         },
       },
     },
     loading: 'Cargando calendario...',
-    empty: 'No hay estancias en el período mostrado.',
-    emptyFiltered: 'Ninguna estancia coincide con los filtros seleccionados.',
+    empty: 'No hay estadías en el período mostrado.',
+    emptyFiltered: 'Ninguna estadía coincide con los filtros seleccionados.',
     errorLoading: 'Error al cargar el calendario',
-    openStayInList: 'Abrir los detalles de la estancia',
+    openStayInList: 'Abrir los detalles de la estadía',
     compactMarkerLabels: {
       start: 'Entrada',
       end: 'Salida',

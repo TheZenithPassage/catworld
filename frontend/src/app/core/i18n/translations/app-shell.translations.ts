@@ -30,13 +30,13 @@ export const APP_SHELL_TRANSLATIONS = {
     navigationMenuLabel: 'Abrir navegación',
     nav: {
       dashboard: 'Panel de administración',
-      stays: 'Estancias',
+      stays: 'Estadías',
       calendar: 'Calendario',
       cats: 'Gatos',
       owners: 'Dueños',
       vets: 'Veterinarios',
       accounts: 'Cuentas',
-      nightlyRates: 'Tarifas nocturnas',
+      nightlyRates: 'Tarifas por noche',
       sensitiveActivity: 'Actividad sensible',
     },
     language: {

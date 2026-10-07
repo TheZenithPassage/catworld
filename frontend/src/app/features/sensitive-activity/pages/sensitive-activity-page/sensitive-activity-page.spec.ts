@@ -145,7 +145,7 @@ describe('SensitiveActivityPage', () => {
         'Pricing override',
         'Agreed amount corrected',
         'Payment edited',
-        'Payment annulled',
+        'Payment voided',
         'Payment removed',
       ],
     );
@@ -706,7 +706,7 @@ describe('SensitiveActivityPage', () => {
     expect(root.querySelectorAll('app-remote-entity-selector')).toHaveLength(3);
     expect(root.querySelector('[name="actorId"]')).toBeNull();
     expect(button('Find specific stay').disabled).toBe(true);
-    expect(root.textContent).toContain('Choose an Owner, Cat or valid Stay dates');
+    expect(root.textContent).toContain('Choose an owner, cat or valid stay dates');
     await dateInput('stayFrom', '2026-08-12');
     expect(button('Find specific stay').disabled).toBe(false);
     await dateInput('stayTo', '2026-08-10');

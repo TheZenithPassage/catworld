@@ -25,7 +25,7 @@ export const AUTH_TRANSLATIONS = {
     login: {
       logoAlt: 'Logo de CatWorld',
       title: 'Iniciar sesión',
-      description: 'Introduce tus credenciales para continuar.',
+      description: 'Ingresá tus credenciales para continuar.',
       username: 'Usuario',
       password: 'Contraseña',
       submit: 'Entrar',
@@ -37,7 +37,7 @@ export const AUTH_TRANSLATIONS = {
         invalidCredentials: 'Usuario o contraseña incorrectos',
         loginFailed: 'Error al iniciar sesión',
         accountDeletionForbidden:
-          'Tu sesión ya no permite eliminar esa cuenta. Inicia sesión de nuevo para continuar.',
+          'Tu sesión ya no permite eliminar esa cuenta. Iniciá sesión de nuevo para continuar.',
       },
     },
   },

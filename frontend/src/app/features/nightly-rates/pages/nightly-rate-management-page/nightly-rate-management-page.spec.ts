@@ -146,7 +146,7 @@ describe('NightlyRateManagementPage', () => {
     fixture.detectChanges();
 
     expect((fixture.nativeElement as HTMLElement).textContent).toContain(
-      'El importe debe ser un número entero positivo sin decimales.',
+      'El monto debe ser un número entero positivo sin decimales.',
     );
   });
 

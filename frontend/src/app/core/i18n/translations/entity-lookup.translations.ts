@@ -18,8 +18,8 @@ export const ENTITY_LOOKUP_TRANSLATIONS = {
     noResults: 'No se encontraron resultados.',
     loadFailed: 'No se pudieron cargar los resultados.',
     retry: 'Reintentar',
-    required: 'Selecciona un resultado.',
-    unresolved: 'Selecciona un resultado o borra el texto.',
+    required: 'Seleccioná un resultado.',
+    unresolved: 'Seleccioná un resultado o borrá el texto.',
     progress: (loaded, total) => `${loaded} de ${total} resultados cargados.`,
   },
   en: {

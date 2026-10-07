@@ -40,12 +40,12 @@ export interface NightlyRatesTranslations {
 
 export const NIGHTLY_RATES_TRANSLATIONS = {
   es: {
-    title: 'Tarifas nocturnas de referencia',
-    description: 'Consulta y gestiona la orientación de precios según el número de gatos.',
+    title: 'Tarifas por noche de referencia',
+    description: 'Consultá y gestioná la orientación de precios según el número de gatos.',
     totalPriceExplanation:
-      'Cada valor es el precio total de toda la estancia por noche para esa categoría, no un importe por gato.',
-    loading: 'Cargando las tarifas nocturnas…',
-    loadError: 'No se pudieron cargar las tarifas nocturnas actuales.',
+      'Cada valor es el precio total de toda la estadía por noche para esa categoría, no un monto por gato.',
+    loading: 'Cargando las tarifas por noche…',
+    loadError: 'No se pudieron cargar las tarifas por noche actuales.',
     retry: 'Reintentar',
     unavailable: 'No disponible temporalmente',
     categories: {
@@ -64,16 +64,16 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       saving: 'Guardando…',
       clearing: 'Quitando…',
       errors: {
-        required: 'Introduce un importe entero positivo.',
-        positiveWhole: 'El importe debe ser un número entero positivo sin decimales.',
-        tooLong: 'El importe puede tener como máximo 19 dígitos.',
+        required: 'Ingresá un monto entero positivo.',
+        positiveWhole: 'El monto debe ser un número entero positivo sin decimales.',
+        tooLong: 'El monto puede tener como máximo 19 dígitos.',
       },
     },
     errors: {
-      validation: 'El servidor rechazó el importe. Revísalo e inténtalo de nuevo.',
-      forbidden: 'Ya no tienes permiso para cambiar esta tarifa.',
-      conflict: 'La tarifa cambió al mismo tiempo. Vuelve a intentarlo con los valores actuales.',
-      mutation: 'No se pudo guardar el cambio. Inténtalo de nuevo.',
+      validation: 'El servidor rechazó el monto. Revisalo e intentá de nuevo.',
+      forbidden: 'Ya no tenés permiso para cambiar esta tarifa.',
+      conflict: 'La tarifa cambió al mismo tiempo. Volvé a intentarlo con los valores actuales.',
+      mutation: 'No se pudo guardar el cambio. Intentá de nuevo.',
       refresh: 'El cambio se guardó, pero no se pudieron actualizar las tarifas actuales.',
     },
     transfer: {
@@ -112,7 +112,7 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       saving: 'Saving…',
       clearing: 'Clearing…',
       errors: {
-        required: 'Enter a positive whole-unit amount.',
+        required: 'Enter a positive whole number.',
         positiveWhole: 'The amount must be a positive whole number without decimals.',
         tooLong: 'The amount can contain at most 19 digits.',
       },

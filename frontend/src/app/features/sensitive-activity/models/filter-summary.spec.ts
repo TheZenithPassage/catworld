@@ -33,12 +33,12 @@ describe('Sensitive Activity semantic summary', () => {
     expect(
       composeActivitySummary(snapshot, ACTIVITY_SUMMARY_TRANSLATIONS.en, format, format, format),
     ).toBe(
-      'When applied, showing payment annulments by Alex occurring at or after local start and before local end concerning stays for owner Ada starting on or after Monday and ending on or before Tuesday, limited to the exact stay for Miso, Luna with owner Ada, from local start to local end.',
+      'When applied, showing voided payments by Alex occurring at or after local start and before local end concerning stays for owner Ada starting on or after Monday and ending on or before Tuesday, limited to the exact stay for Miso, Luna with owner Ada, from local start to local end.',
     );
     expect(
       composeActivitySummary(snapshot, ACTIVITY_SUMMARY_TRANSLATIONS.es, format, format, format),
     ).toBe(
-      'Al aplicar, se mostrarán anulaciones de pagos con autoría de Alex, desde local start inclusive y antes de local end, en relación con estancias del propietario Ada que empiezan el Monday o después y terminan el Tuesday o antes y únicamente con la estancia exacta de Miso, Luna, con propietario Ada, del local start al local end.',
+      'Al aplicar, se mostrarán anulaciones de pagos con autoría de Alex, desde local start inclusive y antes de local end, en relación con estadías del dueño Ada que empiezan el Monday o después y terminan el Tuesday o antes y únicamente con la estadía exacta de Miso, Luna, con dueño Ada, del local start al local end.',
     );
   });
   it.each(['en', 'es'] as const)(
