@@ -1,0 +1,144 @@
+name: Release ARM64 application pair
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: release-pair-${{ github.event.release.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write # Upload the immutable delivery record to the release.
+      packages: write
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_ACTION: ${{ github.event.action }}
+      EVENT_REF: ${{ github.ref }}
+      REPOSITORY: ${{ github.repository }}
+      REPOSITORY_VISIBILITY: ${{ github.event.repository.visibility }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      RELEASE_ID: ${{ github.event.release.id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate release identity and existing selection
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/release_pair.py identity --event "$GITHUB_EVENT_PATH" \
+            --name "$EVENT_NAME" --action "$EVENT_ACTION" --ref "$EVENT_REF" \
+            --repository "$REPOSITORY" --visibility "$REPOSITORY_VISIBILITY" \
+            --output /tmp/release-identity.json
+          source_sha=$(jq -r .source_sha /tmp/release-identity.json)
+          test "$(git rev-parse HEAD)" = "$source_sha"
+          if gh api "repos/$REPOSITORY/releases/$RELEASE_ID/assets" --jq '.[].name' | grep -Fxq catworld-delivery.json; then
+            echo 'This release already has a selected pair; retained record must not be replaced.' >&2
+            exit 1
+          fi
+          test "$(gh api "repos/$REPOSITORY" --jq .visibility)" = public
+          image_base="ghcr.io/$(printf '%s' "$REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "BACKEND_IMAGE=$image_base-backend" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=$image_base-frontend" >> "$GITHUB_ENV"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify backend
+        env:
+          MAVEN_OPTS: --enable-native-access=ALL-UNNAMED
+        run: |
+          chmod +x mvnw
+          ./mvnw verify
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npm run format:check
+          npm run test:ci
+
+      - name: Build and exercise ARM64 images
+        env:
+          SOURCE_SHA: ${{ steps.identity.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          args=(--build-arg "SOURCE_REPOSITORY=$REPOSITORY" --build-arg "SOURCE_SHA=$SOURCE_SHA" --build-arg "RELEASE_TAG=$RELEASE_TAG")
+          docker build --platform linux/arm64 --build-arg VIPS_VERSION=8.18.5 "${args[@]}" -t "$BACKEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" .
+          docker build --platform linux/arm64 --target native-test --build-arg VIPS_VERSION=8.18.5 .
+          docker run --rm --platform linux/arm64 --entrypoint sh "$BACKEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" -c '
+            test "$(vips --version)" = "vips-8.18.5" &&
+            vips black /tmp/source.v 32 24 --bands 4 &&
+            vips copy /tmp/source.v /tmp/photo.jpg &&
+            vips copy /tmp/source.v /tmp/photo.png &&
+            vips copy /tmp/source.v /tmp/photo.webp &&
+            vips copy /tmp/source.v /tmp/photo.heic[compression=hevc] &&
+            cp /tmp/photo.heic /tmp/photo.heif &&
+            for input in /tmp/photo.jpg /tmp/photo.png /tmp/photo.webp /tmp/photo.heic /tmp/photo.heif; do
+              vips thumbnail "$input" /tmp/output.jpg 16;
+            done'
+          docker build --platform linux/arm64 "${args[@]}" -t "$FRONTEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" frontend
+          for image in "$BACKEND_IMAGE" "$FRONTEND_IMAGE"; do
+            test "$(docker image inspect --format '{{.Architecture}}' "$image:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT")" = arm64
+            test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT")" = "$SOURCE_SHA"
+            test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$image:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT")" = "$RELEASE_TAG"
+          done
+
+      - name: Publish and select validated pair
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.identity.outputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/release_pair.py identity --event "$GITHUB_EVENT_PATH" \
+            --name "$EVENT_NAME" --action "$EVENT_ACTION" --ref "$EVENT_REF" \
+            --repository "$REPOSITORY" --visibility "$REPOSITORY_VISIBILITY" \
+            --source "$SOURCE_SHA" --output /tmp/release-identity-final.json
+          test "$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | cut -f1)" = "$SOURCE_SHA" || \
+            test "$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1)" = "$SOURCE_SHA"
+          test "$(gh api "repos/$REPOSITORY" --jq .visibility)" = public
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$BACKEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" | tee /tmp/backend-push.log
+          docker push "$FRONTEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" | tee /tmp/frontend-push.log
+          backend_digest=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' /tmp/backend-push.log | tail -n 1)
+          frontend_digest=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' /tmp/frontend-push.log | tail -n 1)
+          backend_ref="$BACKEND_IMAGE@$backend_digest"
+          frontend_ref="$FRONTEND_IMAGE@$frontend_digest"
+          docker logout ghcr.io
+          anonymous_config=$(mktemp -d)
+          trap 'rm -rf "$anonymous_config"' EXIT
+          DOCKER_CONFIG="$anonymous_config" docker pull --platform linux/arm64 "$backend_ref"
+          DOCKER_CONFIG="$anonymous_config" docker pull --platform linux/arm64 "$frontend_ref"
+          test "$(gh api "repos/$REPOSITORY" --jq .visibility)" = public
+          test "$(git ls-remote origin "refs/tags/$RELEASE_TAG^{}" | cut -f1)" = "$SOURCE_SHA" || \
+            test "$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1)" = "$SOURCE_SHA"
+          python3 scripts/release_pair.py record --event "$GITHUB_EVENT_PATH" \
+            --name "$EVENT_NAME" --action "$EVENT_ACTION" --ref "$EVENT_REF" \
+            --repository "$REPOSITORY" --visibility "$REPOSITORY_VISIBILITY" \
+            --source "$SOURCE_SHA" --backend "$backend_ref" --frontend "$frontend_ref" \
+            --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
+            --output catworld-delivery.json
+          gh release upload "$RELEASE_TAG" catworld-delivery.json --repo "$REPOSITORY"

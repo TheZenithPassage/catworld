@@ -41,3 +41,6 @@ frontend/dist/
 
 ### VS Code ###
 .vscode/
+
+### Release validation scripts ###
+__pycache__/
