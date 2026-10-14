@@ -16,6 +16,12 @@ RUN mkdir -p /tmp/frontend-build \
        fi
 
 FROM nginx:alpine
+ARG SOURCE_REPOSITORY
+ARG SOURCE_SHA
+ARG RELEASE_TAG
+LABEL org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" \
+      org.opencontainers.image.revision="${SOURCE_SHA}" \
+      org.opencontainers.image.version="${RELEASE_TAG}"
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh

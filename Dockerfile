@@ -32,13 +32,21 @@ COPY src src
 RUN ./mvnw clean package -DskipTests
 
 FROM eclipse-temurin:25-jre
+ARG SOURCE_REPOSITORY
+ARG SOURCE_SHA
+ARG RELEASE_TAG
+LABEL org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" \
+      org.opencontainers.image.revision="${SOURCE_SHA}" \
+      org.opencontainers.image.version="${RELEASE_TAG}"
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 libjpeg-turbo8 libpng16-16t64 libwebp7 libwebpmux3 libwebpdemux2 \
     libheif1 libde265-0 libheif-plugin-libde265 libheif-plugin-x265 liblcms2-2 libexif12 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=vips /usr/local /usr/local
-RUN ldconfig && vips --version && heif-convert --help >/dev/null 2>&1 || true
-ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/usr/local/lib
+RUN ldconfig && test "$(vips --version)" = "vips-8.18.5" && \
+    vips list classes | grep -q heifload && \
+    vips list classes | grep -q heifsave
+ENV LD_LIBRARY_PATH=/usr/local/lib/aarch64-linux-gnu:/usr/local/lib/x86_64-linux-gnu:/usr/local/lib
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
