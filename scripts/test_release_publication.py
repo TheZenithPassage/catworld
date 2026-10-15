@@ -157,12 +157,21 @@ class RealPublicationBoundaryTest(unittest.TestCase):
 
     def test_partial_upload_and_access_failures_never_select_a_pair(self):
         for case in ("moved_tag", "backend_push", "frontend_push",
-                     "anonymous_frontend_denied", "already_selected"):
+                     "anonymous_frontend_denied"):
             with self.subTest(case=case):
                 result, entries, selected, record = self.execute(case)
                 self.assertNotEqual(result.returncode, 0, case)
                 self.assertEqual(selected, [], case)
                 self.assertIsNone(record, case)
+
+    def test_existing_delivery_asset_is_rejected_before_the_publish_step(self):
+        identity = workflow_run("Validate release identity and existing selection")
+        workflow = (ROOT / ".github/workflows/release-pair.yml").read_text(encoding="utf-8")
+        self.assertIn("catworld-delivery.json", identity)
+        self.assertIn('releases/$RELEASE_ID/assets', identity)
+        self.assertIn("exit 1", identity)
+        self.assertLess(workflow.index("name: Validate release identity and existing selection"),
+                        workflow.index("name: Publish and select validated pair"))
 
     def test_second_push_interruption_retains_no_selected_record(self):
         result, entries, selected, record = self.execute("frontend_push")
