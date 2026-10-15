@@ -1,0 +1,29 @@
+name: ARM64 image-only smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build candidate images and verify the stack
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          RELEASE_TAG: candidate-${{ github.run_id }}
+          BACKEND_IMAGE: ghcr.io/thezenithpassage/catworld-backend
+          FRONTEND_IMAGE: ghcr.io/thezenithpassage/catworld-frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          args=(--build-arg "SOURCE_REPOSITORY=TheZenithPassage/catworld" --build-arg "SOURCE_SHA=$SOURCE_SHA" --build-arg "RELEASE_TAG=$RELEASE_TAG")
+          docker build --platform linux/arm64 --build-arg VIPS_VERSION=8.18.5 "${args[@]}" -t "$BACKEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" .
+          docker build --platform linux/arm64 --target native-test --build-arg VIPS_VERSION=8.18.5 .
+          docker build --platform linux/arm64 "${args[@]}" -t "$FRONTEND_IMAGE:run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" frontend
+          bash scripts/smoke_arm64.sh
