@@ -25,6 +25,9 @@ jobs:
       - name: Make maven wrapper executable
         run: chmod +x mvnw
 
+      - name: Validate release and production safety fixtures
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
       - name: Run Maven verification
         run: ./mvnw verify
         env:
