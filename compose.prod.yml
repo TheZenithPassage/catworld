@@ -17,7 +17,7 @@ services:
       start_period: 30s
 
   app:
-    build: .
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
@@ -34,11 +34,10 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-4200}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-4200}:80"
     environment:
       BUSINESS_TIME_ZONE: ${BUSINESS_TIME_ZONE:-America/Argentina/Buenos_Aires}
     depends_on:

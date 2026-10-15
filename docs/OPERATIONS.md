@@ -10,136 +10,180 @@ digest. Production runs Java 25 with
 and an HEVC decoder. The production native build also requires Little CMS for
 profile-aware conversion of embedded ICC color profiles to sRGB.
 
-## Current Production Deployment
+## Production delivery
 
-The current production deployment runs from the host machine with `compose.prod.yml`.
+The normal production path does **not** compile on EC2. CatWorld uses the
+backend/frontend ARM64 images from one published GitHub Release and selects
+their immutable GHCR digest references from catworld-delivery.json. The release
+workflow runs the real ARM64 application smoke **before** uploading a usable
+pair. Publishing packages is separate from starting the application.
 
-Only the frontend is exposed to the host. The backend and database stay inside the Docker Compose network, and browser API requests go through the frontend `/api` proxy.
+The first live release, package visibility change, and production exposure
+remain owner-controlled operations. GitHub Release publication triggers the
+package workflow; creating a bare Git tag or editing a draft does not.
 
-External access, if needed, must point only to the frontend URL. Backend and database ports must not be exposed directly.
+Only the frontend is externally routed, through a host-managed HTTPS reverse
+proxy. Docker binds the frontend to 127.0.0.1 only; the backend and database
+remain on the internal Compose network. Do not expose 8080 or 3306.
 
-Real production data must not be mixed with sample or test data.
+### Obtain the exact released files
 
-## Configuration
+After the reviewed CatWorld version has been committed to main and its selected
+GitHub Release publication workflow has succeeded, obtain the delivery record
+for that explicit release tag. Read its full source commit SHA and download
+matching production tooling onto the Linux EC2 host without a source checkout:
 
-Copy the production environment template:
-
-```
-Copy-Item .env.production.example .env.production
-```
-
-Set real values in `.env.production` before starting the stack:
-
-```
-DB_NAME=catworld
-DB_USER=catworld_app
-DB_PASSWORD=replace_with_a_strong_password
-DB_ROOT_PASSWORD=replace_with_a_strong_root_password
-CATWORLD_SECURITY_USERNAME=admin
-CATWORLD_SECURITY_PASSWORD=replace_with_a_strong_admin_password
-CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:4200
-FRONTEND_PORT=4200
-```
-
-On a fresh database, `CATWORLD_SECURITY_USERNAME` and `CATWORLD_SECURITY_PASSWORD` bootstrap the first `ADMIN` account in `user_accounts`. The password is encoded before storage.
-
-When any user already exists, startup does not create, update, re-enable or overwrite accounts. Changing these environment variables after the first bootstrap does not rotate or reset the stored administrator password.
-
-Do not commit real `.env.production` values.
-
-## Start and Stop
-
-Start the production stack:
-
-```
-docker compose --env-file .env.production -f compose.prod.yml up --build -d
+```bash
+mkdir -p /opt/catworld/scripts
+cd /opt/catworld
+# Select the authorized release and obtain its recorded source revision.
+RELEASE_TAG='v1.2.0'
+curl -fL "https://github.com/TheZenithPassage/catworld/releases/download/${RELEASE_TAG}/catworld-delivery.json" -o catworld-delivery.json
+SHA="$(python3 -c 'import json; print(json.load(open("catworld-delivery.json"))["source_sha"])')"
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid release source SHA' >&2; exit 1; }
+curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/compose.prod.yml" -o compose.prod.yml
+curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/scripts/production_pair.py" -o scripts/production_pair.py
+curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/.env.production.example" -o .env.production.example
 ```
 
-Open the app:
+For another release, replace the displayed v1.2.0 asset URL with that exact
+authorized release tag. Never use a floating latest image or a mixed pair.
 
-```
-http://localhost:4200
+### Configure, check and start
+
+On first setup, copy the environment template to the private host file:
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
 ```
 
-Stop the stack without deleting data:
+Edit the **local** .env.production with real unique database credentials,
+initial administrator bootstrap credentials, the HTTPS frontend origin for
+CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS, the intended business time zone, and
+the correct loopback frontend port. Do not commit the file or print its secrets.
 
-```
-docker compose --env-file .env.production -f compose.prod.yml down
+The two image variables must be copied verbatim from the **verified**
+catworld-delivery.json into .env.production as full image@sha256 references.
+This allows later backup/stop/restore operations to use the identical selected
+pair. The selection preflight independently validates those fields against the
+release record and overrides any stale .env image values when starting.
+
+The following validation does not change the host:
+
+```bash
+python3 scripts/production_pair.py --delivery catworld-delivery.json \
+  --tag v1.2.0 --source "$SHA"
 ```
 
-Do not use `down -v` unless the production database volume should be deleted.
+To deploy the selected pair after checking the private configuration, invoke
+the same command with --deploy:
+
+```bash
+python3 scripts/production_pair.py --delivery catworld-delivery.json \
+  --tag v1.2.0 --source "$SHA" --deploy
+```
+
+This preflight checks record/repository/tag/source/digests, validates Compose
+service isolation and loopback ingress, pulls both ARM64 images and confirms
+their OCI source/version/architecture metadata **before** Compose can replace
+running services. It starts using --no-build and --pull never. A failed step
+stops rather than compiling or silently selecting newer images. The preflight
+reuses a locally available `mysql:8.0` image on subsequent application
+deployments and downloads it only when missing on initial setup; it does not
+implicitly upgrade the database image. Treat deliberate MySQL upgrades as
+separate operations requiring database compatibility and backup verification.
+Check running services, frontend, authenticated API and native photo processing
+after startup.
+
+For subsequent operations, use the same Compose project name and selected pair:
+
+```bash
+cd /opt/catworld
+docker compose --project-name catworld-prod --env-file .env.production \
+  -f compose.prod.yml ps
+docker compose --project-name catworld-prod --env-file .env.production \
+  -f compose.prod.yml down
+```
+
+Stopping containers does not delete the MySQL volume. A previous image pair
+may be restarted only when its database/schema compatibility is established;
+image rollback alone is not a database downgrade.
 
 ## Backup
 
 Backups are stored under `backups/` and must not be committed.
 
-Create the backup directory:
+Create the backup directory on Linux:
 
-```
-New-Item -ItemType Directory -Force backups
+```bash
+mkdir -p backups
 ```
 
-Create a timestamp:
+Create a timestamp in Bash:
 
-```
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+```bash
+timestamp="$(date -u +'%Y%m%d_%H%M%S')"
 ```
 
 Create the dump inside the database container:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --hex-blob --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE" > /tmp/catworld-backup.sql'
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --hex-blob --single-transaction --routines --triggers --no-tablespaces "$MYSQL_DATABASE" > /tmp/catworld-backup.sql'
 ```
 
 Copy it to the local backup directory:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml cp db:/tmp/catworld-backup.sql "backups/catworld_$timestamp.sql"
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml cp db:/tmp/catworld-backup.sql "backups/catworld_$timestamp.sql"
 ```
 
 Remove the temporary dump:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/catworld-backup.sql
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/catworld-backup.sql
 ```
 
 ## Restore
 
-Stop the stack and delete the production database volume:
+**Destructive operation — never run this against live data without a verified,
+separately retained backup and an explicit restore decision.** Do not treat a
+container/image restart as a reason to delete the database. Prefer a new
+disposable Compose project for rehearsal.
+
+Stop the stack and delete the selected project's database volume only when
+the explicit restore procedure requires replacing that dataset:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml down -v
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml down -v
 ```
 
 Start only MySQL:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml up -d db
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml up -d db
 ```
 
 Copy the selected backup into the database container:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml cp backups/catworld_YYYYMMDD_HHMMSS.sql db:/tmp/restore.sql
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml cp backups/catworld_YYYYMMDD_HHMMSS.sql db:/tmp/restore.sql
 ```
 
 Restore it:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /tmp/restore.sql'
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /tmp/restore.sql'
 ```
 
 Remove the temporary restore file:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/restore.sql
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml exec -T db rm /tmp/restore.sql
 ```
 
-Start the full stack:
-
-```
-docker compose --env-file .env.production -f compose.prod.yml up --build -d
-```
+Start the exact pinned image pair again through production_pair.py --deploy,
+using the same release record/tag/source. Never add --build as a fallback.
 
 Confirm the app opens and the restored data is visible:
 
@@ -164,7 +208,7 @@ Before deploying the creator-attribution migration from issue #146, confirm the
 production operational tables are empty as expected:
 
 ```
-docker compose --env-file .env.production -f compose.prod.yml exec -T db sh -c "mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\" -e \"SELECT 'owners' AS table_name, COUNT(*) AS rows_count FROM owners UNION ALL SELECT 'cats', COUNT(*) FROM cats UNION ALL SELECT 'vets', COUNT(*) FROM vets UNION ALL SELECT 'stays', COUNT(*) FROM stays;\""
+docker compose --project-name catworld-prod --env-file .env.production -f compose.prod.yml exec -T db sh -c "mysql -u\"\$MYSQL_USER\" -p\"\$MYSQL_PASSWORD\" \"\$MYSQL_DATABASE\" -e \"SELECT 'owners' AS table_name, COUNT(*) AS rows_count FROM owners UNION ALL SELECT 'cats', COUNT(*) FROM cats UNION ALL SELECT 'vets', COUNT(*) FROM vets UNION ALL SELECT 'stays', COUNT(*) FROM stays;\""
 ```
 
 If any of `owners`, `cats`, `vets` or `stays` contains rows, stop deployment
