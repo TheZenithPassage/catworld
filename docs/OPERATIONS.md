@@ -28,20 +28,22 @@ remain on the internal Compose network. Do not expose 8080 or 3306.
 
 ### Obtain the exact released files
 
-After the reviewed CatWorld version has been committed to main and the selected
-GitHub Release publication workflow has succeeded, choose its full 40-character
-source commit SHA from the release. On the Linux EC2 host, download the exact
-release assets and its production tooling without a source checkout:
+After the reviewed CatWorld version has been committed to main and its selected
+GitHub Release publication workflow has succeeded, obtain the delivery record
+for that explicit release tag. Read its full source commit SHA and download
+matching production tooling onto the Linux EC2 host without a source checkout:
 
 ```bash
 mkdir -p /opt/catworld/scripts
 cd /opt/catworld
-# Replace SHA with the actual validated release source commit.
-SHA=<full-40-character-validated-commit>
+# Select the authorized release and obtain its recorded source revision.
+RELEASE_TAG='v1.2.0'
+curl -fL "https://github.com/TheZenithPassage/catworld/releases/download/${RELEASE_TAG}/catworld-delivery.json" -o catworld-delivery.json
+SHA="$(python3 -c 'import json; print(json.load(open("catworld-delivery.json"))["source_sha"])')"
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid release source SHA' >&2; exit 1; }
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/compose.prod.yml" -o compose.prod.yml
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/scripts/production_pair.py" -o scripts/production_pair.py
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/$SHA/.env.production.example" -o .env.production.example
-curl -fL "https://github.com/TheZenithPassage/catworld/releases/download/v1.2.0/catworld-delivery.json" -o catworld-delivery.json
 ```
 
 For another release, replace the displayed v1.2.0 asset URL with that exact
@@ -86,8 +88,13 @@ This preflight checks record/repository/tag/source/digests, validates Compose
 service isolation and loopback ingress, pulls both ARM64 images and confirms
 their OCI source/version/architecture metadata **before** Compose can replace
 running services. It starts using --no-build and --pull never. A failed step
-stops rather than compiling or silently selecting newer images. Check running
-services, frontend, authenticated API and native photo processing after startup.
+stops rather than compiling or silently selecting newer images. The preflight
+reuses a locally available `mysql:8.0` image on subsequent application
+deployments and downloads it only when missing on initial setup; it does not
+implicitly upgrade the database image. Treat deliberate MySQL upgrades as
+separate operations requiring database compatibility and backup verification.
+Check running services, frontend, authenticated API and native photo processing
+after startup.
 
 For subsequent operations, use the same Compose project name and selected pair:
 
@@ -107,16 +114,16 @@ image rollback alone is not a database downgrade.
 
 Backups are stored under `backups/` and must not be committed.
 
-Create the backup directory:
+Create the backup directory on Linux:
 
-```
-New-Item -ItemType Directory -Force backups
+```bash
+mkdir -p backups
 ```
 
-Create a timestamp:
+Create a timestamp in Bash:
 
-```
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+```bash
+timestamp="$(date -u +'%Y%m%d_%H%M%S')"
 ```
 
 Create the dump inside the database container:

@@ -112,6 +112,16 @@ def verify_pulled_image(image, record, *, run_command=run):
             fail("OCI label disagrees with the selected release: " + key)
 
 
+def ensure_database_image(*, run_command=run):
+    """Fetch the MySQL image only on first setup; never refresh it implicitly."""
+    image = "mysql:8.0"
+    result = run_command(
+        ["docker", "image", "ls", "--quiet", "--no-trunc",
+         "--filter", f"reference={image}"], capture=True)
+    if not result.stdout.strip():
+        run_command(["docker", "pull", image])
+
+
 def prepare(args, *, run_command=run):
     data = json.loads(Path(args.delivery).read_text(encoding="utf-8"))
     record = parse_delivery(data, args.tag, args.source)
@@ -125,7 +135,7 @@ def prepare(args, *, run_command=run):
     for image in (record["backend"], record["frontend"]):
         run_command(["docker", "pull", "--platform", "linux/arm64", image])
         verify_pulled_image(image, record, run_command=run_command)
-    run_command(["docker", "pull", "mysql:8.0"])
+    ensure_database_image(run_command=run_command)
     run_command(prefix + ["up", "--no-build", "--pull", "never", "-d", "--wait"],
                 env=variables)
     return record

@@ -1,11 +1,13 @@
 import json
+import re
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from production_pair import parse_delivery, assert_compose, verify_pulled_image, prepare, REPO
+from production_pair import parse_delivery, assert_compose, verify_pulled_image, prepare, ensure_database_image, REPO
 
 
 SOURCE = "a" * 40
@@ -82,6 +84,51 @@ class ReleasePairConsumptionTest(unittest.TestCase):
                 verify_pulled_image(record["backend"], record,
                                     run_command=lambda *a, **kw: SimpleNamespace(
                                         stdout=json.dumps({**details, **change})))
+
+    def test_database_image_is_reused_or_bootstrapped_only_when_missing(self):
+        for existing_id in ("sha256:already-present\\n", ""):
+            with self.subTest(existing=bool(existing_id)):
+                calls = []
+
+                def fake_run(command, **kwargs):
+                    calls.append(command)
+                    if command[:3] == ["docker", "image", "ls"]:
+                        self.assertIn("reference=mysql:8.0", command)
+                        self.assertTrue(kwargs.get("capture"))
+                        return SimpleNamespace(stdout=existing_id)
+                    if command == ["docker", "pull", "mysql:8.0"]:
+                        return SimpleNamespace(stdout="")
+                    self.fail(f"Unexpected Docker call: {command}")
+
+                ensure_database_image(run_command=fake_run)
+                mysql_pulls = [cmd for cmd in calls if cmd == ["docker", "pull", "mysql:8.0"]]
+                self.assertEqual(len(mysql_pulls), 0 if existing_id else 1)
+
+    def test_database_image_inspection_error_never_triggers_a_pull(self):
+        calls = []
+
+        def unavailable_daemon(command, **kwargs):
+            calls.append(command)
+            raise subprocess.CalledProcessError(
+                1, command, stderr="Cannot connect to the Docker daemon")
+
+        with self.assertRaises(subprocess.CalledProcessError):
+            ensure_database_image(run_command=unavailable_daemon)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:3], ["docker", "image", "ls"])
+
+    def test_linux_runbook_shell_examples_are_valid(self):
+        documentation = (Path(__file__).resolve().parents[1] / "docs/OPERATIONS.md").read_text()
+        bash_blocks = re.findall(r"```bash\\n(.*?)```", documentation, re.DOTALL)
+        self.assertGreaterEqual(len(bash_blocks), 5)
+        for index, block in enumerate(bash_blocks):
+            with self.subTest(block=index):
+                validation = subprocess.run(
+                    ["bash", "-n"], input=block, text=True, capture_output=True)
+                self.assertEqual(validation.returncode, 0, validation.stderr)
+        self.assertNotIn("New-Item", documentation)
+        self.assertNotIn("Get-Date", documentation)
+        self.assertIn("catworld-delivery.json", bash_blocks[0])
 
     def test_failed_pull_prevents_compose_up(self):
         record = sample()
