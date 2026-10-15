@@ -24,3 +24,26 @@ uses fresh run/attempt tags and refuses to replace an existing selected asset.
 Partial uploads may remain after interruption, but they have no delivery record.
 The workflow does not change package visibility; both packages must already
 allow anonymous pull before selection can succeed.
+
+
+## One-time first public GHCR package setup
+
+The public CatWorld repository does **not** automatically make its GHCR packages
+public. Publication of a Release may push two new packages that initially
+remain private. The first workflow run can then intentionally stop at the
+anonymous-pull guard without producing catworld-delivery.json.
+
+After the first authorized push, the repository owner must explicitly open the
+package settings for **both** catworld-backend and catworld-frontend under the
+GitHub account Packages area, select public visibility and confirm the
+consequence. Public GHCR visibility is an exposure decision and is not silently
+changed by CI. Confirm that the repository still belongs to the intended public
+distribution posture before doing so.
+
+Then rerun the **same release's** failed GitHub Actions workflow/job; do not
+create a new tag, publish an unrelated Release or bypass the recorded source
+identity. The retry uses its own unique run/attempt image tags and publishes a
+delivery record only after independently authenticated-free pulls by digest of
+**both** packages succeed. A failed or partial push is not a selected release.
+Once published, use the delivery record's exact source SHA and digest pair;
+never deploy image tags or replace an existing record.
