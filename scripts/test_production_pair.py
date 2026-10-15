@@ -119,7 +119,7 @@ class ReleasePairConsumptionTest(unittest.TestCase):
 
     def test_linux_runbook_shell_examples_are_valid(self):
         documentation = (Path(__file__).resolve().parents[1] / "docs/OPERATIONS.md").read_text()
-        bash_blocks = re.findall(r"```bash\\n(.*?)```", documentation, re.DOTALL)
+        bash_blocks = re.findall(r"```bash\n(.*?)```", documentation, re.DOTALL)
         self.assertGreaterEqual(len(bash_blocks), 5)
         for index, block in enumerate(bash_blocks):
             with self.subTest(block=index):
