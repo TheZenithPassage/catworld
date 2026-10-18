@@ -7,6 +7,11 @@ Angular frontend for the CatWorld cat boarding management application.
 - Authenticated application shell.
 - Owner, cat and vet management screens.
 - Stay creation, editing, cancellation and filtering.
+- Stay detail, backend pricing previews, explicit agreement confirmation,
+  individual payment management and derived payment summaries.
+- Cat profile photo upload and authenticated display; ADMIN-only nightly and
+  transfer rate configuration and sensitive economic activity views.
+- Paginated operational overviews and complete record details.
 - Monthly FullCalendar integration.
 - Responsive monthly Calendar foundation with daily-label, daily-count and entry/exit modes; status, Owner and Cat filters preserve the selected representation.
 - English and Spanish interface.
@@ -102,6 +107,11 @@ vendor-owned controls remain a documented integration boundary.
 
 ## Production
 
-The production build is served by Nginx through Docker Compose. Browser requests to `/api` are proxied to the Spring Boot backend.
+The production build is served by Nginx from an immutable ARM64 image through
+Docker Compose. Browser requests to `/api` are proxied to the internal Spring
+Boot service. The frontend binds only to host loopback for the dedicated
+Cloudflare Tunnel; Cloudflare Access protects the admin hostname. See the
+[operations runbook](../docs/OPERATIONS.md) for the release and deployment
+procedure.
 
 See the [root README](../README.md) for the complete project overview and startup instructions.
