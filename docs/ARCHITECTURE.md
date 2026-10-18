@@ -40,6 +40,13 @@ CatWorld currently covers:
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Safe ADMIN-only application account deletion with creator and enabled-admin protection.
 - Lookup of current, future, completed and cancelled stays.
+- Stay pricing previews, explicit agreement confirmation, retained nightly and
+  transfer rates, and immutable pricing decisions and corrections.
+- Individual stay payments, derived balances and payment conditions, with
+  immutable evidence for sensitive economic changes and removals.
+- Optional normalized cat profile photos stored in MySQL.
+- Paginated operational overviews, full entity details and a responsive monthly
+  calendar in the authenticated Angular interface.
 
 ## Stack
 
@@ -82,6 +89,19 @@ Main package responsibilities:
 - `exception`: custom exceptions and global HTTP exception handling.
 
 The project keeps business rules out of controllers. Controllers delegate to services and focus on the HTTP contract.
+
+The production delivery boundary is separate from this application layering:
+GitHub Actions builds and checks backend and frontend ARM64 images from a
+published release's exact source commit. `catworld-delivery.json` selects the
+immutable GHCR digest pair. On EC2, Docker Compose runs those images without
+building source, alongside MySQL with a persistent volume. The Nginx frontend
+binds host loopback only and proxies `/api` to the internal Spring service;
+Spring and MySQL publish no host ports. A dedicated Cloudflare Tunnel routes
+`admin.catworld.com.ar` to that loopback frontend behind Cloudflare Access.
+CatWorld's own HTTP Basic authentication and backend role checks remain a
+separate application boundary. The apex `catworld.com.ar` is reserved for a
+future public website. See [Operations](OPERATIONS.md) for the repeatable
+release, deployment, backup and restore procedures.
 
 ## Domain Model
 

@@ -185,6 +185,7 @@ package "catworld.domain" {
     +String reason  <<NotBlank,Immutable>>
     +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
     +LocalDate paymentDate  <<Nullable,Immutable>>
+    +String paymentNote  <<Nullable,Immutable>>
     +UserAccount registeredBy  <<Nullable,Immutable>>
     +Instant registeredAt  <<Nullable,Immutable>>
   }
@@ -199,6 +200,7 @@ package "catworld.domain" {
     +SensitiveStayContext sensitiveContext  <<Nullable,Immutable>>
     +BigDecimal amount  <<Decimal(19,0),Nullable,Immutable>>
     +LocalDate paymentDate  <<Nullable,Immutable>>
+    +String paymentNote  <<Nullable,Immutable>>
     +UserAccount registeredBy  <<Nullable,Immutable>>
     +Instant registeredAt  <<Nullable,Immutable>>
   }

@@ -1,54 +1,54 @@
 @startuml
-actor Client as client
+actor "Admin / Staff" as client
 participant "StayController" as controller
 participant "StayService" as service
 participant "StayMapper" as mapper
-participant "CatRepository" as catRepo
-participant "StayRepository" as stayRepo
+database "Cat / rate / transfer repositories" as basisRepo
+database "StayRepository" as stayRepo
+database "StayPricingDecisionRepository" as auditRepo
 
-client -> controller: POST /api/stays (catIds, startAt, endAt, notes)
-controller -> controller: Bean Validation (@Valid)
+client -> controller: POST /api/stays/pricing-preview\n(dates, catIds, transfer flags)
+controller -> service: previewCreationPricing(request)
+service -> basisRepo: read cats, nightly and transfer rates
+basisRepo --> service: authoritative preview basis
+service --> controller: nights, retained rates, suggestion, confirmation snapshot
+controller --> client: 200 OK with authoritative preview
+note over client,service
+Preview is read-only. The final mutation re-resolves
+the basis; a preview is not a reservation.
+end note
 
-alt invalid request body
-  controller --> client: 400
-else valid request body
-  controller -> service: createStay(stayRequestDTO)
-  service -> service: validate(endAt > startAt)
+client -> controller: POST /api/stays\n(dates, catIds, transfer flags,\npricingDecision, confirmation)
+controller -> controller: @Valid StayRequestDTO
+alt missing or invalid required fields
+  controller --> client: 400 Bad Request
+else structurally valid request
+  controller -> service: createStay(request) in transaction
+  service -> service: validate endAt > startAt
+  service -> mapper: toEntity(request)
+  mapper --> service: Stay
+  service -> basisRepo: resolve each cat
+  service -> service: require same owner and no active overlap
+  service -> service: authorize persisted user and check vaccine coverage
+  service -> basisRepo: lock current transfer and nightly basis
+  basisRepo --> service: current rates
+  service -> service: derive nights and complete suggestion
+  service -> service: compare all confirmation fields\nwith re-resolved basis
+  service -> service: validate agreed amount and reason
 
-  alt endAt is not after startAt
-    service --> controller: BadRequestException
-    controller --> client: 400
-  else dates are valid
-    service -> mapper: toEntity(stayRequestDTO)
-    mapper --> service: Stay
-
-    loop each catId in request catIds
-      service -> catRepo: findById(catId)
-      catRepo --> service: Optional<Cat>
-
-      alt cat missing
-        service --> controller: ResourceNotFoundException
-        controller --> client: 404
-      else cat found
-        service -> service: set or validate owner
-        service -> service: scan cat.stayCats for active date overlap
-
-        alt overlap found
-          service --> controller: ConflictException
-          controller --> client: 409
-        else no overlap
-          service -> service: build StayCat link for stay and cat
-        end
-      end
-    end
-
-    service -> service: set stay owner and stayCats
-    service -> stayRepo: save(stay)
-    note right of stayRepo
-      Stay.stayCats uses cascade ALL,
-      so saving Stay persists stay_cat rows.
-    end note
+  alt missing cat
+    service --> controller: ResourceNotFoundException
+    controller --> client: 404 Not Found
+  else overlap or stale pricing confirmation
+    service --> controller: ConflictException or StalePricingConfirmationException
+    controller --> client: 409 Conflict
+  else invalid dates, owner, vaccine or pricing decision
+    service --> controller: validation / authorization exception
+    controller --> client: corresponding 400 / 403 / 409 response
+  else valid confirmed stay
+    service -> stayRepo: save Stay and StayCat links
     stayRepo --> service: saved Stay
+    service -> auditRepo: saveAndFlush immutable pricing decision
     service -> mapper: toResponseDTO(saved Stay)
     mapper --> service: StayResponseDTO
     service --> controller: StayResponseDTO

@@ -1,43 +1,51 @@
 @startuml
 skinparam componentStyle rectangle
 
-actor "User" as user
+actor "Admin / Staff" as user
+cloud "Cloudflare Access" as access
+cloud "Dedicated Cloudflare Tunnel" as tunnel
 
-package "CatWorld (Spring Boot Monolith)" {
-  [Spring Security] as sec
-  [REST Controllers] as c
-  [DTO + Mapper] as m
-  [Services] as s
-  [Domain (Entities + Rules)] as d
-  [Repositories (JPA)] as r
-  [libvips 8.18.5 via vips-ffm] as vips
+node "EC2 ARM64 / Docker Compose" {
+  component "Nginx + Angular\nfrontend image" as frontend
+  package "Spring Boot backend image" {
+    [Spring Security] as sec
+    [REST Controllers] as controllers
+    [DTOs and Mappers] as dto
+    [Services / Domain Rules] as services
+    [Repositories (JPA)] as repositories
+    [libvips via vips-ffm] as vips
+  }
+  database "MySQL 8.0\npersistent volume" as db
 }
 
-database "MySQL (Docker)" as db
+user --> access : HTTPS admin.catworld.com.ar
+access --> tunnel
+tunnel --> frontend : HTTP 127.0.0.1:4200
+frontend --> sec : /api on internal network
+sec --> controllers : HTTP Basic / role checks
+sec --> repositories : account lookup
+controllers --> services : validated DTOs
+services --> dto : map requests / responses
+services --> repositories
+services --> vips : normalize cat photos
+repositories --> db
 
-user --> sec
-sec --> c
-sec --> r : user lookup
-c --> s
-s --> m
-s --> d
-s --> r
-s --> vips : normalize before transaction
-r --> db
-
-note right of s
-Relevant business rules:
-- endAt > startAt
-- at least one cat per stay
-- all cats in a stay share the same owner
-- stay owner is consistent with the cats
-- no overlapping stays per cat
+note right of frontend
+Only the frontend publishes a host port,
+bound to loopback. Angular assets are static;
+Nginx proxies API requests internally.
 end note
 
-note left of sec
-HTTP Basic is stateless.
-Credentials are checked against
-user_accounts.
+note right of db
+Backend and MySQL publish no host ports.
+Flyway owns schema evolution. MySQL stores
+operational data and normalized cat photos.
+end note
+
+note bottom of services
+Backend rules own authorization, validation,
+derived status/nights/balances, pricing
+confirmation and durable economic evidence.
 end note
 
 @enduml
