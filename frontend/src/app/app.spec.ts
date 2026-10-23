@@ -5,12 +5,16 @@ import { provideRouter, Router } from '@angular/router';
 
 import { App } from './app';
 import { AuthSessionService } from './core/auth/auth-session.service';
+import { I18nService } from './core/i18n/i18n.service';
+import { ThemeService } from './core/theme/theme.service';
 
 @Component({ template: '' })
 class TestRouteComponent {}
 
 describe('App', () => {
   beforeEach(async () => {
+    localStorage.removeItem('catworld.theme');
+    localStorage.removeItem('catworld.language');
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
@@ -31,7 +35,15 @@ describe('App', () => {
     expect(app).toBeTruthy();
   });
 
-  it('shows only the language action in the public shell', () => {
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    localStorage.removeItem('catworld.theme');
+    localStorage.removeItem('catworld.language');
+    delete document.documentElement.dataset['theme'];
+    document.documentElement.style.colorScheme = '';
+  });
+
+  it('shows language and theme actions in the public shell', () => {
     const fixture = TestBed.createComponent(App);
 
     fixture.detectChanges();
@@ -40,7 +52,63 @@ describe('App', () => {
 
     expect(compiled.querySelector('mat-toolbar')).toBeNull();
     expect(compiled.querySelector('.public-language-action .language-toggle')).not.toBeNull();
+    expect(compiled.querySelector('.public-language-action .theme-toggle')).not.toBeNull();
   });
+
+  it('provides a labeled theme toggle with current state in Spanish and English', () => {
+    TestBed.inject(ThemeService).setTheme('light');
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('.theme-toggle') as HTMLButtonElement;
+
+    expect(button.getAttribute('aria-label')).toBe('Modo oscuro');
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    button.click();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(document.documentElement.dataset['theme']).toBe('dark');
+
+    TestBed.inject(I18nService).toggleLanguage();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-label')).toBe('Dark mode');
+    expect(button.title).toBe('Switch to light mode');
+    button.click();
+    fixture.detectChanges();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(document.documentElement.dataset['theme']).toBe('light');
+  });
+
+  it.each(['ADMIN', 'STAFF'] as const)(
+    'keeps the theme through login, navigation and logout for %s',
+    async (role) => {
+      const service = TestBed.inject(ThemeService);
+      const auth = TestBed.inject(AuthSessionService);
+      const router = TestBed.inject(Router);
+      const fixture = TestBed.createComponent(App);
+      service.setTheme('dark');
+      await router.navigateByUrl('/login');
+      auth.login({ username: 'user', role }, { username: 'user', password: 'secret' });
+      await router.navigateByUrl('/stays');
+      fixture.detectChanges();
+      const button = fixture.nativeElement.querySelector(
+        '.app-actions .theme-toggle',
+      ) as HTMLButtonElement;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      button.click();
+      fixture.detectChanges();
+      expect(router.url).toBe('/stays');
+      expect(auth.authenticated()?.role).toBe(role);
+      expect(service.theme()).toBe('light');
+      fixture.componentInstance.logout();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(
+        fixture.nativeElement.querySelector('.public-language-action .theme-toggle'),
+      ).not.toBeNull();
+      expect(service.theme()).toBe('light');
+      expect(localStorage.getItem('catworld.theme')).toBe('light');
+    },
+  );
 
   it('shows account management navigation to ADMIN', () => {
     const authSessionService = TestBed.inject(AuthSessionService);

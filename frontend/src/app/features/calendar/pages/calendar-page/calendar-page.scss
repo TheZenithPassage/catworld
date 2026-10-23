@@ -45,7 +45,7 @@
 .calendar-wrapper,
 .status-filters,
 .calendar-display-options {
-  border: 1px solid rgb(234 216 198 / 0.95);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
 }
@@ -53,13 +53,13 @@
 .calendar-wrapper {
   width: 100%;
   padding: 1rem;
-  background: rgb(255 253 248 / 0.94);
+  background: var(--color-surface);
 }
 
 .status-filters,
 .calendar-display-options {
   padding: 0.9rem;
-  background: rgb(255 253 248 / 0.92);
+  background: var(--color-surface);
 }
 
 .status-filters {
@@ -97,7 +97,7 @@
   width: min(100%, 36rem);
   padding: 0;
   border-radius: var(--radius-md);
-  background: rgb(255 253 248 / 0.82);
+  background: var(--color-surface);
 }
 
 .calendar-display-control {
@@ -254,7 +254,7 @@
 
 :host ::ng-deep .fc .fc-col-header-cell-cushion {
   padding: 0.55rem 0.25rem;
-  color: #6d5140;
+  color: var(--color-text-heading);
   font-size: 0.8rem;
   font-weight: 850;
   letter-spacing: 0.04em;
@@ -263,7 +263,7 @@
 }
 
 :host ::ng-deep .fc .fc-daygrid-day {
-  background: #fffdf8;
+  background: var(--color-surface);
 }
 
 :host ::ng-deep .fc .fc-daygrid-day-frame {
@@ -277,9 +277,9 @@
   min-width: 1.75rem;
   min-height: 1.75rem;
   padding: 0.25rem;
-  border: 1px solid rgb(215 184 154 / 0.75);
+  border: 1px solid var(--color-border-strong);
   border-radius: 999px;
-  background: rgb(255 253 248 / 0.82);
+  background: var(--color-surface);
   color: var(--color-text-muted);
   font-weight: 750;
   line-height: 1;

@@ -51,6 +51,7 @@
     <span class="toolbar-spacer"></span>
 
     <div class="app-actions">
+      <ng-container [ngTemplateOutlet]="themeToggle" />
       <button
         mat-stroked-button
         type="button"
@@ -73,6 +74,7 @@
   </mat-toolbar>
 } @else {
   <div class="public-language-action">
+    <ng-container [ngTemplateOutlet]="themeToggle" />
     <button
       mat-stroked-button
       type="button"
@@ -93,3 +95,20 @@
 <main class="app-main" [class.public-main]="!authenticatedShell()">
   <router-outlet></router-outlet>
 </main>
+
+<ng-template #themeToggle>
+  <button
+    mat-stroked-button
+    type="button"
+    class="theme-toggle"
+    (click)="toggleTheme()"
+    [attr.aria-label]="text().app.theme.toggleLabel"
+    [attr.aria-pressed]="theme() === 'dark'"
+    [title]="theme() === 'dark' ? text().app.theme.switchToLight : text().app.theme.switchToDark"
+  >
+    <svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" />
+    </svg>
+    <span class="theme-label">{{ text().app.theme.toggleLabel }}</span>
+  </button>
+</ng-template>

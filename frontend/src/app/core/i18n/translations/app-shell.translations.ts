@@ -21,6 +21,11 @@ export interface AppShellTranslations {
     switchToSpanish: string;
   };
   logout: string;
+  theme: {
+    toggleLabel: string;
+    switchToLight: string;
+    switchToDark: string;
+  };
 }
 
 export const APP_SHELL_TRANSLATIONS = {
@@ -45,6 +50,11 @@ export const APP_SHELL_TRANSLATIONS = {
       switchToSpanish: 'Cambiar a español',
     },
     logout: 'Cerrar sesión',
+    theme: {
+      toggleLabel: 'Modo oscuro',
+      switchToLight: 'Cambiar a modo claro',
+      switchToDark: 'Cambiar a modo oscuro',
+    },
   },
   en: {
     brand: 'CatWorld',
@@ -67,5 +77,10 @@ export const APP_SHELL_TRANSLATIONS = {
       switchToSpanish: 'Switch to Spanish',
     },
     logout: 'Log out',
+    theme: {
+      toggleLabel: 'Dark mode',
+      switchToLight: 'Switch to light mode',
+      switchToDark: 'Switch to dark mode',
+    },
   },
 } satisfies Record<AppLanguage, AppShellTranslations>;

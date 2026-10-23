@@ -2,6 +2,32 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
+    <script id="catworld-theme-init">
+      // Keep this first-paint policy aligned with ThemeService (covered by its spec).
+      (() => {
+        let theme;
+        try {
+          theme = localStorage.getItem('catworld.theme');
+        } catch {}
+        if (theme !== 'light' && theme !== 'dark') {
+          try {
+            theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch {
+            theme = 'light';
+          }
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <style>
+      html {
+        background: #fff9f1;
+      }
+      html[data-theme='dark'] {
+        background: #191714;
+      }
+    </style>
     <title>CatWorld</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

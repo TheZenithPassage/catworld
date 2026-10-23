@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
@@ -8,6 +9,7 @@ import { filter } from 'rxjs';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
 import { I18nService } from './core/i18n/i18n.service';
+import { ThemeService } from './core/theme/theme.service';
 
 interface ShellNavigationItem {
   path: string;
@@ -18,6 +20,7 @@ interface ShellNavigationItem {
 @Component({
   selector: 'app-root',
   imports: [
+    NgTemplateOutlet,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -35,9 +38,11 @@ export class App {
   private readonly authSessionService = inject(AuthSessionService);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly themeService = inject(ThemeService);
 
   readonly language = this.i18nService.language;
   readonly text = this.i18nService.text;
+  readonly theme = this.themeService.theme;
 
   readonly authenticated = this.authSessionService.authenticated;
   readonly loginRoute = signal(this.isLoginUrl(this.router.url));
@@ -82,6 +87,10 @@ export class App {
 
   toggleLanguage(): void {
     this.i18nService.toggleLanguage();
+  }
+
+  toggleTheme(): void {
+    this.themeService.setTheme(this.theme() === 'dark' ? 'light' : 'dark');
   }
 
   private isCalendarUrl(url: string): boolean {
