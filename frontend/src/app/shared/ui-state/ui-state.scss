@@ -6,8 +6,8 @@
   width: fit-content;
   max-width: 100%;
   margin: 0;
-  border-color: rgb(234 216 198 / 0.95);
-  background: rgb(255 253 248 / 0.94);
+  border-color: color-mix(in srgb, var(--color-border) 95%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   color: var(--color-text-muted);
   box-shadow: var(--shadow-soft);
 }
@@ -56,7 +56,7 @@
 
 .ui-state--error {
   width: 100%;
-  border-color: rgb(180 35 24 / 0.35);
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
   background: var(--color-danger-soft);
   color: var(--color-danger);
 }

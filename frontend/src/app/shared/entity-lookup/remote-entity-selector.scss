@@ -1,7 +1,7 @@
 @use '@angular/material' as mat;
 
 :host {
-  --lookup-success-background: #edf8ef;
+  --lookup-success-background: var(--color-success-soft);
 
   display: block;
   width: 100%;
@@ -31,15 +31,15 @@ input {
 .lookup-success {
   @include mat.form-field-overrides(
     (
-      outlined-outline-color: #2e7d32,
-      outlined-hover-outline-color: #1b5e20,
-      outlined-focus-outline-color: #2e7d32,
-      outlined-label-text-color: #2e7d32,
-      outlined-hover-label-text-color: #1b5e20,
-      outlined-focus-label-text-color: #1b5e20,
-      outlined-input-text-color: #1f5128,
-      outlined-caret-color: #2e7d32,
-      trailing-icon-color: #2e7d32,
+      outlined-outline-color: var(--color-success),
+      outlined-hover-outline-color: var(--color-success-strong),
+      outlined-focus-outline-color: var(--color-success),
+      outlined-label-text-color: var(--color-success),
+      outlined-hover-label-text-color: var(--color-success-strong),
+      outlined-focus-label-text-color: var(--color-success-strong),
+      outlined-input-text-color: var(--color-success-text),
+      outlined-caret-color: var(--color-success),
+      trailing-icon-color: var(--color-success),
     )
   );
 
@@ -56,7 +56,7 @@ input {
   display: inline-grid;
   width: 1.5rem;
   height: 2.5rem;
-  color: #1b5e20;
+  color: var(--color-success-strong);
   place-items: center;
 }
 
@@ -93,7 +93,7 @@ input {
 }
 
 .lookup-success .clear-button {
-  color: #1b5e20;
+  color: var(--color-success-strong);
 }
 
 .clear-glyph {

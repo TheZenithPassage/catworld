@@ -58,8 +58,12 @@
 .dashboard-card mat-card {
   min-height: 11rem;
   height: 100%;
-  border-color: rgb(234 216 198 / 0.95);
-  background: linear-gradient(145deg, rgb(255 253 248 / 0.98), rgb(255 244 228 / 0.92));
+  border-color: color-mix(in srgb, var(--color-border) 95%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--color-surface) 98%, transparent),
+    color-mix(in srgb, var(--color-surface-container) 92%, transparent)
+  );
   box-shadow: var(--shadow-soft);
 }
 
@@ -123,9 +127,9 @@
   display: grid;
   gap: 0.85rem;
   padding: 1.25rem;
-  border: 1px solid rgb(234 216 198 / 0.95);
+  border: 1px solid color-mix(in srgb, var(--color-border) 95%, transparent);
   border-radius: var(--radius-lg);
-  background: rgb(255 253 248 / 0.94);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-soft);
 }
 

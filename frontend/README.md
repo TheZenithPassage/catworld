@@ -15,6 +15,7 @@ Angular frontend for the CatWorld cat boarding management application.
 - Monthly FullCalendar integration.
 - Responsive monthly Calendar foundation with daily-label, daily-count and entry/exit modes; status, Owner and Cat filters preserve the selected representation.
 - English and Spanish interface.
+- Light/dark mode in the public and authenticated shells, with a local browser preference.
 - Angular Material foundation for interactive UI components and application-wide theming.
 - Responsive component SCSS for layout and product-specific presentation.
 
@@ -104,6 +105,25 @@ select and the short option list does not require the custom `mat-select`
 overlay. Calendar app-owned filters, display options, stays overview status
 filters and shared stay search filters are Material-based. FullCalendar
 vendor-owned controls remain a documented integration boundary.
+
+## Theme preference
+
+Use the **Dark mode / Modo oscuro** toggle beside the language action on login
+or in the authenticated header. Its pressed state indicates dark mode. It works
+for both ADMIN and STAFF and does not change navigation, forms or authentication.
+
+An explicit light/dark selection is stored as `catworld.theme` in this browser
+and survives reload, login and logout. It is not an account setting. Without a
+valid saved choice the app follows the OS, including live changes; unavailable
+OS detection falls back to light. Inferred themes are not saved. Clearing that
+storage key restores OS-following behavior on the next load. When storage fails,
+an explicit choice still applies for the current page.
+
+`src/index.html` resolves the first visible theme synchronously, before Angular.
+`src/app/core/theme/theme.service.ts` maintains the same policy while running.
+`src/styles.scss` defines both Material palettes and application tokens at the
+document root so menus, dialogs and other CDK overlays inherit the active theme.
+Keep local surfaces token-based; FullCalendar owns its event/status color pairs.
 
 ## Production
 

@@ -825,7 +825,23 @@ The theme:
 - Preserves CatWorld's warm, soft administration identity through the existing
   CatWorld colors, typography and density choices.
 - Provides the Material system tokens that future Material components inherit.
-- Does not implement the user-facing dark-mode preference tracked by #126.
+- Supports light and dark palettes through the root `data-theme` attribute,
+  including Material/CDK overlays, native `color-scheme` and FullCalendar surfaces.
+
+The public and authenticated shells expose the same accessible dark-mode toggle
+in English and Spanish. `ThemeService` keeps an explicit `catworld.theme` value
+(`light` or `dark`) in browser local storage, independent of accounts and login.
+Without a valid explicit choice it follows the OS preference, including live
+changes, and falls back to light if detection is unavailable. Inferred values
+are never persisted. Storage failures leave switching and the current page's
+in-memory explicit choice usable.
+
+The synchronous initializer in `frontend/src/index.html` applies the same
+resolution policy before the app renders; the service tests cover agreement
+between that initializer and Angular. Keep both policies and the initial document
+backgrounds aligned when changing theme behavior. Global `--color-*` tokens own
+application surfaces and semantic states; component styles consume those tokens.
+Calendar event/status color pairs and logo artwork retain their existing meaning.
 
 Material customization must use supported theming APIs and public component
 APIs. CatWorld must not rely on private Angular Material selectors, internal

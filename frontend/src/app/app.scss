@@ -7,6 +7,9 @@
 }
 
 .public-language-action {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
   position: absolute;
   top: 1rem;
   right: 1rem;
@@ -23,8 +26,8 @@
   gap: 0.75rem;
   min-height: 6rem;
   padding: 0.75rem 2rem;
-  border-bottom: 1px solid rgb(234 216 198 / 0.85);
-  background: rgb(255 253 248 / 0.9);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
   backdrop-filter: blur(18px);
   color: var(--color-text);
 }
@@ -54,7 +57,7 @@
   width: 5rem;
   height: 5rem;
   padding: 0.16rem;
-  border: 1px solid rgb(234 216 198 / 0.95);
+  border: 1px solid color-mix(in srgb, var(--color-border) 95%, transparent);
   border-radius: 999px;
   background: #fffdf8;
   box-shadow: 0 8px 18px rgb(91 63 38 / 0.14);
@@ -141,8 +144,12 @@
   min-width: 3.25rem;
   min-height: 3rem;
   padding-inline: 0.8rem;
-  border: 1px solid rgb(201 111 47 / 0.82);
-  background: linear-gradient(135deg, #b9dddc 0%, #f4c79f 100%);
+  border: 1px solid color-mix(in srgb, var(--color-primary-hover) 82%, transparent);
+  background: linear-gradient(
+    135deg,
+    var(--color-language-start) 0%,
+    var(--color-language-end) 100%
+  );
   box-shadow: 0 6px 16px rgb(91 63 38 / 0.2);
   color: var(--color-primary-hover);
   font-size: 0.95rem;
@@ -161,9 +168,32 @@
   }
 }
 
-.logout-button {
-  --mdc-filled-button-container-color: var(--color-primary);
-  --mdc-filled-button-label-text-color: #ffffff;
+.theme-toggle {
+  min-width: 2.75rem;
+  padding-inline: 0.65rem;
+  white-space: nowrap;
+}
+
+.theme-toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+}
+
+.theme-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: middle;
+  fill: currentcolor;
+}
+
+.theme-label {
+  margin-inline-start: 0.35rem;
+}
+
+@media (max-width: 600px) {
+  .theme-label {
+    display: none;
+  }
 }
 
 .app-main {
@@ -179,7 +209,7 @@
   width: 100%;
 }
 
-@media (max-width: 1360px) {
+@media (max-width: 1500px) {
   .app-header {
     padding: 0.75rem 1rem;
   }
