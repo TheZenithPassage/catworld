@@ -89,15 +89,17 @@ else:
 
 @unittest.skipUnless(os.name == "posix", "Exercises bash shell only in Linux CI")
 class RealPublicationBoundaryTest(unittest.TestCase):
-    def execute(self, failure_case=""):
+    def execute(self, failure_case="", tag="v1.2.0", ref=None):
         with tempfile.TemporaryDirectory() as folder:
             tmp = Path(folder)
             (tmp / "scripts").mkdir()
             shutil.copy2(ROOT / "scripts/release_pair.py",
                          tmp / "scripts/release_pair.py")
+            shutil.copy2(ROOT / "scripts/release_tags.py",
+                         tmp / "scripts/release_tags.py")
             event = {
                 "repository": {"full_name": REPOSITORY, "private": False},
-                "release": {"id": 100, "tag_name": "v1.2.0",
+                "release": {"id": 100, "tag_name": tag,
                             "draft": False, "prerelease": False},
             }
             (tmp / "event.json").write_text(json.dumps(event), encoding="utf-8")
@@ -115,21 +117,129 @@ class RealPublicationBoundaryTest(unittest.TestCase):
                            "FAILURE_CASE": failure_case,
                            "GITHUB_EVENT_PATH": str(tmp / "event.json"),
                            "EVENT_NAME": "release", "EVENT_ACTION": "published",
-                           "EVENT_REF": "refs/tags/v1.2.0",
+                           "EVENT_REF": ref if ref is not None else "refs/tags/" + tag,
                            "REPOSITORY": REPOSITORY,
                            "REPOSITORY_VISIBILITY": "public",
-                           "RELEASE_TAG": "v1.2.0", "RELEASE_ID": "100",
+                           "RELEASE_TAG": tag, "RELEASE_ID": "100",
                            "BACKEND_IMAGE": "ghcr.io/thezenithpassage/catworld-backend",
                            "FRONTEND_IMAGE": "ghcr.io/thezenithpassage/catworld-frontend",
                            "GITHUB_RUN_ID": "28", "GITHUB_RUN_ATTEMPT": "1",
+                           "GITHUB_ACTOR": "fixture-publisher",
                            "GH_TOKEN": "disposable-fixture-token"}
             result = subprocess.run(["bash", "-e", "-c", workflow_run(
                 "Publish and select validated pair")], cwd=tmp, env=environment,
                 text=True, capture_output=True)
-            entries = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()]
+            entries = [json.loads(line) for line in trace.read_text(encoding="utf-8").splitlines()] if trace.exists() else []
             selected = [e for e in entries if e[:3] == ["gh", "release", "upload"]]
             record = tmp / "catworld-delivery.json"
+            self.assertFalse((tmp / "INJECTED").exists())
             return result, entries, selected, json.loads(record.read_text()) if record.exists() else None
+
+    def test_literal_tag_argv_and_option_termination(self):
+        for tag in ('release/v1.2.3', 'v1.2.3+build', '-release',
+                    "v'\";$(>INJECTED)`>INJECTED`+build"):
+            with self.subTest(tag=tag):
+                result, entries, selected, record = self.execute(tag=tag)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(record['tag'], tag)
+                self.assertEqual(selected, [['gh', 'release', 'upload', '--repo', REPOSITORY,
+                                             '--', tag, 'catworld-delivery.json']])
+                lookups = [e for e in entries if e[:2] == ['git', 'rev-parse']]
+                self.assertTrue(lookups)
+                self.assertTrue(all(e[-1] == 'refs/tags/' + tag + '^{commit}' for e in lookups))
+
+    def test_invalid_identity_or_moved_punctuated_tag_never_uploads(self):
+        for tag, ref, failure in [('v..1', None, ''), ('$(touch INJECTED)', None, ''),
+                                  ('release/v1+build', 'refs/heads/main', ''),
+                                  ('release/v1+build', None, 'moved_tag')]:
+            with self.subTest(tag=tag, failure=failure):
+                result, entries, selected, record = self.execute(failure, tag, ref)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(selected)
+                self.assertIsNone(record)
+                if failure != 'moved_tag':
+                    self.assertEqual(entries, [])
+
+    def test_operator_download_encodes_one_literal_tag_segment(self):
+        from urllib.parse import quote
+        documentation = (ROOT / 'docs/OPERATIONS.md').read_text(encoding='utf-8')
+        lines = documentation.splitlines()
+        assignment = next(line for line in lines if line.startswith('ENCODED_TAG='))
+        download = next(line for line in lines if line.startswith('curl ') and '/releases/download/' in line)
+        for tag in ('release/v1.2.3', 'v1.2.3+build', '-release', "v'\";$()+#%é"):
+            with self.subTest(tag=tag):
+                result = subprocess.run(['bash', '-e', '-c',
+                                         'curl() { printf "%s\\n" "$@"; };\n' + assignment + '\n' + download],
+                                        env={**os.environ, 'RELEASE_TAG': tag}, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.splitlines(), ['-fL',
+                    'https://github.com/TheZenithPassage/catworld/releases/download/' +
+                    quote(tag, safe='') + '/catworld-delivery.json', '-o', 'catworld-delivery.json'])
+
+
+    def test_documented_tag_input_through_lookup_download_and_offline_preflight(self):
+        from test_production_pair import sample
+        from urllib.parse import quote
+        documentation = (ROOT / 'docs/OPERATIONS.md').read_text(encoding='utf-8')
+        acquisition = next(line for line in documentation.splitlines() if line.startswith('IFS= read '))
+        lookup_and_download = documentation.split('TAG_SHA=', 1)[1].split('```', 1)[0]
+        lookup_and_download = 'TAG_SHA=' + lookup_and_download
+        preflight = documentation.split('python3 scripts/production_pair.py', 1)[1].split(
+            'python3 scripts/production_pair.py', 1)[0]
+        preflight = 'python3 scripts/production_pair.py' + preflight
+        shim = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+tool = Path(sys.argv[0]).name
+record = json.loads(os.environ['FAKE_RECORD'])
+with open('trace.jsonl', 'a') as stream:
+    stream.write(json.dumps([tool, *args]) + '\n')
+if tool == 'git':
+    if os.environ.get('FAIL_LOOKUP'):
+        sys.exit(2)
+    print(os.environ['FAKE_TAG_SHA'] + '\trefs/tags/' + record['tag'])
+elif tool == 'curl':
+    if '/releases/download/' in args[1]:
+        Path(args[-1]).write_text(json.dumps(record))
+else:
+    sys.exit(9)
+'''
+        for tag in ('release/v1.2.3+build', '-release', 'v+$(>INJECTED)',
+                    "v'\";`>INJECTED`+$()+#%é"):
+            for failure in ('', 'lookup', 'source'):
+                with self.subTest(tag=tag, failure=failure), tempfile.TemporaryDirectory() as folder:
+                    tmp = Path(folder)
+                    (tmp / 'bin').mkdir()
+                    (tmp / 'scripts').mkdir()
+                    for name in ('git', 'curl'):
+                        executable = tmp / 'bin' / name
+                        executable.write_text(shim, encoding='utf-8')
+                        executable.chmod(0o755)
+                    for name in ('production_pair.py', 'release_tags.py'):
+                        shutil.copy2(ROOT / 'scripts' / name, tmp / 'scripts' / name)
+                    record = {**sample(), 'tag': tag}
+                    environment = {**os.environ, 'PATH': str(tmp / 'bin') + os.pathsep + os.environ['PATH'],
+                        'FAKE_RECORD': json.dumps(record), 'FAKE_TAG_SHA': OTHER if failure == 'source' else record['source_sha'],
+                        'FAIL_LOOKUP': '1' if failure == 'lookup' else ''}
+                    command = acquisition + '\n' + lookup_and_download + '\n' + preflight
+                    command += '\nprintf \'%s\' "$RELEASE_TAG" > observed-tag\n'
+                    result = subprocess.run(['bash', '-euo', 'pipefail', '-c', command],
+                        cwd=tmp, env=environment, input=tag + '\n', text=True, capture_output=True)
+                    trace = [json.loads(line) for line in (tmp / 'trace.jsonl').read_text().splitlines()]
+                    self.assertEqual(trace[0], ['git', 'ls-remote', '--exit-code',
+                        'https://github.com/TheZenithPassage/catworld.git', 'refs/tags/' + tag, 'refs/tags/' + tag + '^{}'])
+                    self.assertFalse((tmp / 'INJECTED').exists())
+                    if failure:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertFalse((tmp / 'observed-tag').exists())
+                        self.assertEqual(len(trace), 1 if failure == 'lookup' else 2)
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual((tmp / 'observed-tag').read_text(), tag)
+                        self.assertEqual(trace[1], ['curl', '-fL',
+                            'https://github.com/TheZenithPassage/catworld/releases/download/' +
+                            quote(tag, safe='') + '/catworld-delivery.json', '-o', 'catworld-delivery.json'])
 
     def test_release_requires_all_producers_before_publishing(self):
         steps = (ROOT / ".github/workflows/release-pair.yml").read_text(encoding="utf-8")
