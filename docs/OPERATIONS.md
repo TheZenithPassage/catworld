@@ -74,14 +74,21 @@ and `FRONTEND_IMAGE` with the verified record's exact digest references for
 ordinary later Compose operations.
 
 From the authorized release, download the delivery asset and the production
-Compose/template/preflight files from the record's full source SHA. Example for
-the selected version (replace the tag only for a separately authorized release):
+Compose/template/preflight files from the record's full source SHA. First run
+this command by itself, then enter the separately authorized release tag at its
+prompt (for example, `v1.2.0`). Enter the tag literally, without shell quotes or
+escaping; do not substitute its text into a shell command:
+
+```bash
+IFS= read -r -p 'Authorized release tag: ' RELEASE_TAG
+```
+
+After entering the tag, run the following in the same Bash session:
 
 ```bash
 set -euo pipefail
 cd /opt/catworld
 mkdir -p scripts
-RELEASE_TAG=v1.2.0
 TAG_SHA="$(git ls-remote --exit-code https://github.com/TheZenithPassage/catworld.git \
   "refs/tags/${RELEASE_TAG}" "refs/tags/${RELEASE_TAG}^{}" | \
   awk '$2 ~ /\^\{\}$/ {peeled=$1} $2 !~ /\^\{\}$/ {tag=$1} END {print peeled ? peeled : tag}')"

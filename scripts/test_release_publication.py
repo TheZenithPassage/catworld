@@ -176,6 +176,71 @@ class RealPublicationBoundaryTest(unittest.TestCase):
                     'https://github.com/TheZenithPassage/catworld/releases/download/' +
                     quote(tag, safe='') + '/catworld-delivery.json', '-o', 'catworld-delivery.json'])
 
+
+    def test_documented_tag_input_through_lookup_download_and_offline_preflight(self):
+        from test_production_pair import sample
+        from urllib.parse import quote
+        documentation = (ROOT / 'docs/OPERATIONS.md').read_text(encoding='utf-8')
+        acquisition = next(line for line in documentation.splitlines() if line.startswith('IFS= read '))
+        lookup_and_download = documentation.split('TAG_SHA=', 1)[1].split('```', 1)[0]
+        lookup_and_download = 'TAG_SHA=' + lookup_and_download
+        preflight = documentation.split('python3 scripts/production_pair.py', 1)[1].split(
+            'python3 scripts/production_pair.py', 1)[0]
+        preflight = 'python3 scripts/production_pair.py' + preflight
+        shim = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+tool = Path(sys.argv[0]).name
+record = json.loads(os.environ['FAKE_RECORD'])
+with open('trace.jsonl', 'a') as stream:
+    stream.write(json.dumps([tool, *args]) + '\n')
+if tool == 'git':
+    if os.environ.get('FAIL_LOOKUP'):
+        sys.exit(2)
+    print(os.environ['FAKE_TAG_SHA'] + '\trefs/tags/' + record['tag'])
+elif tool == 'curl':
+    if '/releases/download/' in args[1]:
+        Path(args[-1]).write_text(json.dumps(record))
+else:
+    sys.exit(9)
+'''
+        for tag in ('release/v1.2.3+build', '-release', 'v+$(>INJECTED)',
+                    "v'\";`>INJECTED`+$()+#%é"):
+            for failure in ('', 'lookup', 'source'):
+                with self.subTest(tag=tag, failure=failure), tempfile.TemporaryDirectory() as folder:
+                    tmp = Path(folder)
+                    (tmp / 'bin').mkdir()
+                    (tmp / 'scripts').mkdir()
+                    for name in ('git', 'curl'):
+                        executable = tmp / 'bin' / name
+                        executable.write_text(shim, encoding='utf-8')
+                        executable.chmod(0o755)
+                    for name in ('production_pair.py', 'release_tags.py'):
+                        shutil.copy2(ROOT / 'scripts' / name, tmp / 'scripts' / name)
+                    record = {**sample(), 'tag': tag}
+                    environment = {**os.environ, 'PATH': str(tmp / 'bin') + os.pathsep + os.environ['PATH'],
+                        'FAKE_RECORD': json.dumps(record), 'FAKE_TAG_SHA': OTHER if failure == 'source' else record['source_sha'],
+                        'FAIL_LOOKUP': '1' if failure == 'lookup' else ''}
+                    command = acquisition + '\n' + lookup_and_download + '\n' + preflight
+                    command += '\nprintf \'%s\' "$RELEASE_TAG" > observed-tag\n'
+                    result = subprocess.run(['bash', '-euo', 'pipefail', '-c', command],
+                        cwd=tmp, env=environment, input=tag + '\n', text=True, capture_output=True)
+                    trace = [json.loads(line) for line in (tmp / 'trace.jsonl').read_text().splitlines()]
+                    self.assertEqual(trace[0], ['git', 'ls-remote', '--exit-code',
+                        'https://github.com/TheZenithPassage/catworld.git', 'refs/tags/' + tag, 'refs/tags/' + tag + '^{}'])
+                    self.assertFalse((tmp / 'INJECTED').exists())
+                    if failure:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertFalse((tmp / 'observed-tag').exists())
+                        self.assertEqual(len(trace), 1 if failure == 'lookup' else 2)
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual((tmp / 'observed-tag').read_text(), tag)
+                        self.assertEqual(trace[1], ['curl', '-fL',
+                            'https://github.com/TheZenithPassage/catworld/releases/download/' +
+                            quote(tag, safe='') + '/catworld-delivery.json', '-o', 'catworld-delivery.json'])
+
     def test_release_requires_all_producers_before_publishing(self):
         steps = (ROOT / ".github/workflows/release-pair.yml").read_text(encoding="utf-8")
         self.assertLess(steps.index("name: Verify backend"),

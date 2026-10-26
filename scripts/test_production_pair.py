@@ -128,7 +128,8 @@ class ReleasePairConsumptionTest(unittest.TestCase):
                 self.assertEqual(validation.returncode, 0, validation.stderr)
         self.assertNotIn("New-Item", documentation)
         self.assertNotIn("Get-Date", documentation)
-        self.assertIn("catworld-delivery.json", bash_blocks[0])
+        self.assertTrue(any("/releases/download/" in block and "catworld-delivery.json" in block
+                            for block in bash_blocks))
 
     def test_failed_pull_prevents_compose_up(self):
         record = sample()
