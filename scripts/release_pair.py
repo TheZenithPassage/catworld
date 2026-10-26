@@ -6,9 +6,10 @@ import re
 import subprocess
 from pathlib import Path
 
+from release_tags import valid_release_tag
+
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
-TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
 def fail(message):
@@ -19,7 +20,7 @@ def event_identity(event, name, action, ref, repository, visibility):
     release = event.get("release") or {}
     tag = release.get("tag_name")
     if (name != "release" or action != "published" or
-            not isinstance(tag, str) or not TAG.fullmatch(tag) or
+            not valid_release_tag(tag) or
             ref != f"refs/tags/{tag}" or release.get("draft") is not False or
             not isinstance(release.get("prerelease"), bool) or
             not isinstance(release.get("id"), int) or release["id"] <= 0 or
@@ -30,8 +31,10 @@ def event_identity(event, name, action, ref, repository, visibility):
 
 
 def resolve_tag(tag):
+    if not valid_release_tag(tag):
+        fail("Invalid release tag")
     # Git peels annotated tags and returns the commit for lightweight tags.
-    result = subprocess.run(["git", "rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}"],
+    result = subprocess.run(["git", "rev-parse", "--verify", "--end-of-options", f"refs/tags/{tag}^{{commit}}"],
                             check=True, capture_output=True, text=True).stdout.strip()
     if not SHA.fullmatch(result):
         fail("Tag did not resolve to a full commit SHA")

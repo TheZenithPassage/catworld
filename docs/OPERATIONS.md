@@ -86,13 +86,20 @@ TAG_SHA="$(git ls-remote --exit-code https://github.com/TheZenithPassage/catworl
   "refs/tags/${RELEASE_TAG}" "refs/tags/${RELEASE_TAG}^{}" | \
   awk '$2 ~ /\^\{\}$/ {peeled=$1} $2 !~ /\^\{\}$/ {tag=$1} END {print peeled ? peeled : tag}')"
 [[ "$TAG_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid release tag commit' >&2; exit 1; }
-curl -fL "https://github.com/TheZenithPassage/catworld/releases/download/${RELEASE_TAG}/catworld-delivery.json" -o catworld-delivery.json
+ENCODED_TAG="$(python3 -c 'import sys; from urllib.parse import quote; print(quote(sys.argv[1], safe=""))' "$RELEASE_TAG")"
+curl -fL "https://github.com/TheZenithPassage/catworld/releases/download/${ENCODED_TAG}/catworld-delivery.json" -o catworld-delivery.json
 SOURCE_SHA="$(python3 -c 'import json; print(json.load(open("catworld-delivery.json"))["source_sha"])')"
 [[ "$SOURCE_SHA" == "$TAG_SHA" ]] || { echo 'Release asset and tag disagree' >&2; exit 1; }
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/${SOURCE_SHA}/compose.prod.yml" -o compose.prod.yml
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/${SOURCE_SHA}/scripts/production_pair.py" -o scripts/production_pair.py
+curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/${SOURCE_SHA}/scripts/release_tags.py" -o scripts/release_tags.py
 curl -fsSL "https://raw.githubusercontent.com/TheZenithPassage/catworld/${SOURCE_SHA}/.env.production.example" -o .env.production.example
 ```
+
+Release tags follow Git ref-name rules, including nested names such as
+`release/v1.2.3` and plus signs such as `v1.2.3+build`. The download URL encodes
+the literal tag as one path segment; the record and OCI labels retain it unchanged.
+Use `--tag="$RELEASE_TAG"` below so a leading hyphen remains argument data.
 
 The tag lookup independently resolves annotated and lightweight tags to their
 commit; the asset must agree before its source revision's script is fetched.
@@ -116,9 +123,9 @@ running services untouched; no step builds application images on EC2.
 
 ```bash
 python3 scripts/production_pair.py --delivery catworld-delivery.json \
-  --tag "$RELEASE_TAG" --source "$SOURCE_SHA"
+  --tag="$RELEASE_TAG" --source "$SOURCE_SHA"
 python3 scripts/production_pair.py --delivery catworld-delivery.json \
-  --tag "$RELEASE_TAG" --source "$SOURCE_SHA" --deploy
+  --tag="$RELEASE_TAG" --source "$SOURCE_SHA" --deploy
 ```
 
 The preflight downloads `mysql:8.0` only if absent and does not implicitly
