@@ -220,6 +220,20 @@ body {
   line-height: 1.5;
 }
 
+@media print {
+  html:has(app-operations-agenda-print-page) {
+    // ThemeService sets color-scheme inline for the screen.
+    color-scheme: light !important;
+
+    &,
+    body {
+      min-height: 0;
+      background: #fff;
+      color: #000;
+    }
+  }
+}
+
 a {
   color: var(--color-primary-hover);
   font-weight: 700;

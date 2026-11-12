@@ -209,6 +209,24 @@
   width: 100%;
 }
 
+@media print {
+  :host:has(app-operations-agenda-print-page) {
+    display: block;
+    min-height: 0;
+
+    > .app-header,
+    > .public-language-action {
+      display: none;
+    }
+
+    > .app-main {
+      display: block;
+      width: 100%;
+      padding: 0;
+    }
+  }
+}
+
 @media (max-width: 1500px) {
   .app-header {
     padding: 0.75rem 1rem;

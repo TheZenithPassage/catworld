@@ -17,6 +17,15 @@
         />
       </mat-form-field>
       <button mat-stroked-button type="button" (click)="showToday()">{{ copy.today }}</button>
+      @if (agenda(); as result) {
+        <a
+          mat-stroked-button
+          routerLink="/operations/agenda/print"
+          [queryParams]="{ date: result.date }"
+        >
+          {{ copy.print.open }}
+        </a>
+      }
     </div>
   </header>
 
