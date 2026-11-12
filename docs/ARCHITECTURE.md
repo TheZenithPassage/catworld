@@ -33,6 +33,7 @@ CatWorld currently covers:
 - Cat management.
 - Reference vet management.
 - Stay booking management.
+- Actual arrival and departure times with operator attribution.
 - Six fixed, independently configurable nightly reference-rate slots, including
   four duration tiers for one-cat stays.
 - Permanent stay deletion for authorized correction of mistaken records.
@@ -353,6 +354,27 @@ Possible statuses:
 - `CANCELLED`
 
 This avoids storing redundant state that can become inconsistent with the dates.
+
+### Actual Arrival and Departure
+
+Each stay can have one actual arrival and one actual departure, independently
+recorded in `stay_actual_movements`. A movement stores a UTC instant and the
+historical account ID and username of the original recorder and latest
+corrector. Those snapshots survive account deletion. Permanent stay deletion
+cascades to the movement rows. Actual times do not change scheduled dates,
+derived stay status, nights, pricing, or boarding membership.
+
+`GET /api/stays/{stayId}/actual-movements` returns the scheduled times,
+cancellation state, and the two optional records with their revisions and
+edit permissions. `PUT /api/stays/{stayId}/actual-movements/{type}` accepts
+`ARRIVAL` or `DEPARTURE` with `{expectedRevision, occurredAt}`. Revision
+`0` requires an absent record and a null `occurredAt` uses the server clock.
+An explicit instant cannot be in the future. When both records exist,
+departure must be at or after arrival. Both operational roles may register
+movements. Staff may correct records they originally registered, and
+administrators may correct any record. Writes lock the same stay row as
+cancellation and reject stale revisions and cancelled stays with HTTP 409.
+Cancelled stays still expose their recorded history.
 
 ### Stay Nights Are Response-Derived
 
@@ -1137,6 +1159,12 @@ movements, boarding stays and seven upcoming days starting the day after the
 selection. Each movement identifies its stay, owner, cats, direction, scheduled
 business-local time and the transfer flag for that direction. The agenda links
 each movement and boarding stay to the existing Stay detail dialog.
+
+Agenda movement rows optionally include the UTC `actualAt` from one batch
+read. The row stays on its scheduled day and shows the actual time in the
+configured business zone, including its date when that differs. The Agenda
+and Stay detail open the same deferred Actual times dialog, which uses
+`BusinessTimeService` to display and enter business-local times.
 
 The backend reads non-cancelled stays for the bounded eight-day window and
 sorts movements by scheduled time, direction and stay ID. Each local movement

@@ -1,0 +1,125 @@
+@let labels = copy();
+
+<h2 mat-dialog-title>{{ labels.title }}</h2>
+<mat-dialog-content [attr.aria-busy]="loading() || saving()">
+  @if (loading()) {
+    <app-ui-state kind="loading" [message]="labels.loading" />
+  } @else if (movements(); as stay) {
+    @if (stay.cancelled) {
+      <p class="cancelled">{{ labels.cancelled }}</p>
+    }
+    <div class="movements">
+      @for (row of rows(); track row.type) {
+        <section class="movement" [class.selected]="row.type === focusType">
+          <h3>{{ labels.direction[row.type] }}</h3>
+          <dl>
+            <div>
+              <dt>{{ labels.scheduled }}</dt>
+              <dd>
+                <time [attr.datetime]="row.scheduledAt">{{
+                  formatScheduled(row.scheduledAt)
+                }}</time>
+              </dd>
+            </div>
+            <div>
+              <dt>{{ labels.actual }}</dt>
+              @if (row.actual; as actual) {
+                <dd>
+                  <time [attr.datetime]="actual.occurredAt">{{
+                    formatActual(actual.occurredAt)
+                  }}</time>
+                  <span class="state">{{ labels.recorded }}</span>
+                </dd>
+              } @else {
+                <dd class="muted">{{ labels.pending }}</dd>
+              }
+            </div>
+            @if (row.actual; as actual) {
+              <div>
+                <dt>{{ labels.recordedBy }}</dt>
+                <dd>{{ actual.recordedBy }}</dd>
+              </div>
+              @if (actual.correctedBy) {
+                <div>
+                  <dt>{{ labels.correctedBy }}</dt>
+                  <dd>{{ actual.correctedBy }}</dd>
+                </div>
+              }
+            }
+          </dl>
+          @if (canEdit(row.actual)) {
+            @if (editing() === row.type) {
+              <form (submit)="$event.preventDefault(); saveLocalTime(row.type, row.actual)">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>{{ labels.localDateTime }}</mat-label>
+                  <input
+                    matInput
+                    type="datetime-local"
+                    min="1000-01-01T00:00"
+                    max="9999-12-31T23:59"
+                    required
+                    [value]="localTime()"
+                    [disabled]="saving() || reloadRequired()"
+                    (input)="localTime.set($any($event.target).value)"
+                  />
+                </mat-form-field>
+                <div class="movement-actions">
+                  <button mat-flat-button type="submit" [disabled]="saving() || reloadRequired()">
+                    {{ labels.save }}
+                  </button>
+                  <button
+                    mat-button
+                    type="button"
+                    [disabled]="saving() || reloadRequired()"
+                    (click)="cancelEdit()"
+                  >
+                    {{ labels.cancel }}
+                  </button>
+                </div>
+              </form>
+            } @else {
+              <div class="movement-actions">
+                @if (!row.actual) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="saving() || reloadRequired()"
+                    (click)="recordNow(row.type)"
+                  >
+                    {{ labels.recordNow }}
+                  </button>
+                }
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="saving() || reloadRequired()"
+                  (click)="startEdit(row.type, row.actual)"
+                >
+                  {{ row.actual ? labels.correct : labels.recordEarlier }}
+                </button>
+              </div>
+            }
+          }
+        </section>
+      }
+    </div>
+    @if (error(); as errorKey) {
+      <p class="error" role="alert">{{ labels[errorKey] }}</p>
+      @if (reloadRequired()) {
+        <button mat-stroked-button type="button" (click)="load()">{{ labels.reload }}</button>
+      }
+    }
+  } @else {
+    <app-ui-state
+      kind="error"
+      [message]="labels.loadFailed"
+      [actionLabel]="labels.retry"
+      (actionTriggered)="load()"
+    />
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [disabled]="saving()" (click)="close()">
+    {{ labels.close }}
+  </button>
+</mat-dialog-actions>

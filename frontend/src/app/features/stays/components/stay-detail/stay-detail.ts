@@ -1,4 +1,5 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import {
   EntityDetailUpdate,
@@ -13,7 +14,7 @@ import { Stay } from '../../models/stay.model';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { MatDialog } from '@angular/material/dialog';
-import { filter } from 'rxjs';
+import { filter, finalize } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import {
@@ -26,6 +27,7 @@ import {
   isPermanentDeletionConfirmed,
 } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
+import { StayActualMovementsDialogService } from '../../services/stay-actual-movements-dialog.service';
 
 @Component({
   selector: 'app-stay-detail',
@@ -42,6 +44,8 @@ export class StayDetail {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly actualMovements = inject(StayActualMovementsDialogService);
+  private readonly destroyRef = inject(DestroyRef);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -72,9 +76,11 @@ export class StayDetail {
   readonly cancellationContextLoading = signal(false);
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
+  readonly movementDialogOpen = signal(false);
+  readonly movementDialogFailed = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
@@ -83,6 +89,7 @@ export class StayDetail {
     });
     effect(() => {
       const id = this.entityId();
+      this.movementDialogFailed.set(false);
       this.invalidateOperational();
       this.invalidateCancellationContext();
       if (this.loadedEntityId !== id) this.detail.set(null);
@@ -139,6 +146,23 @@ export class StayDetail {
   }
   canCancel(detail: StayDetailResponse): boolean {
     return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+  }
+  openActualMovements(stayId: string): void {
+    if (this.movementDialogOpen()) return;
+    this.movementDialogOpen.set(true);
+    this.movementDialogFailed.set(false);
+    this.actualMovements
+      .open({ stayId })
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.movementDialogOpen.set(false)),
+      )
+      .subscribe({
+        next: (changed) => {
+          if (changed) this.updated.emit({ entityType: 'stay', entityId: stayId });
+        },
+        error: () => this.movementDialogFailed.set(true),
+      });
   }
   canDelete(detail: StayDetailResponse): boolean {
     const stay = this.pricingStay();

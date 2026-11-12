@@ -19,6 +19,9 @@
       <button mat-stroked-button type="button" (click)="showToday()">{{ copy.today }}</button>
     </div>
   </header>
+  @if (movementDialogFailed()) {
+    <p class="movement-error" role="alert">{{ text().stays.actualTimesLoadFailed }}</p>
+  }
 
   @if (state().kind === 'loading') {
     <app-ui-state kind="loading" [message]="copy.loading" />
@@ -88,9 +91,21 @@
 <ng-template #movementRows let-movements>
   <ul class="agenda-rows">
     @for (movement of movements; track movement.stay.stayId + movement.type) {
-      <li>
+      <li class="movement-item">
         <button type="button" class="agenda-row movement-row" (click)="openMovement(movement)">
-          <time [attr.datetime]="movement.scheduledAt">{{ formatTime(movement.scheduledAt) }}</time>
+          <span class="movement-times">
+            <time [attr.datetime]="movement.scheduledAt">{{
+              formatTime(movement.scheduledAt)
+            }}</time>
+            @if (movement.actualAt) {
+              <span class="actual-time">
+                {{ copy.actual }}
+                <time [attr.datetime]="movement.actualAt">
+                  {{ formatActualTime(movement.actualAt, movement.scheduledAt) }}
+                </time>
+              </span>
+            }
+          </span>
           <span class="row-label">
             <strong>{{ catNames(movement.stay) || movement.stay.ownerName }}</strong>
             @if (movement.stay.cats.length) {
@@ -105,6 +120,20 @@
               <span class="transfer-required">{{ copy.transfer }}</span>
             }
           </span>
+        </button>
+        <button
+          mat-button
+          type="button"
+          [attr.aria-label]="
+            copy.actualTimesFor(
+              movementLabel(movement.type),
+              catNames(movement.stay) || movement.stay.ownerName
+            )
+          "
+          [attr.aria-disabled]="movementDialogOpen() || null"
+          (click)="openActualMovement(movement)"
+        >
+          {{ copy.actualTimes }}
         </button>
       </li>
     }

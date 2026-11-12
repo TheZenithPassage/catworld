@@ -15,6 +15,9 @@ export interface OperationsAgendaTranslations {
   error: string;
   retry: string;
   movement: { ARRIVAL: string; DEPARTURE: string };
+  actual: string;
+  actualTimes: string;
+  actualTimesFor: (movement: string, name: string) => string;
   transfer: string;
 }
 
@@ -34,6 +37,10 @@ export const OPERATIONS_AGENDA_TRANSLATIONS = {
     error: 'No se pudo cargar la agenda.',
     retry: 'Reintentar',
     movement: { ARRIVAL: 'Entrada', DEPARTURE: 'Salida' },
+    actual: 'Real',
+    actualTimes: 'Hora real',
+    actualTimesFor: (movement: string, name: string) =>
+      `Hora real de ${movement.toLowerCase()} de ${name}`,
     transfer: 'Traslado',
   },
   en: {
@@ -51,6 +58,10 @@ export const OPERATIONS_AGENDA_TRANSLATIONS = {
     error: 'The agenda could not be loaded.',
     retry: 'Retry',
     movement: { ARRIVAL: 'Arrival', DEPARTURE: 'Departure' },
+    actual: 'Actual',
+    actualTimes: 'Actual time',
+    actualTimesFor: (movement: string, name: string) =>
+      `Actual ${movement.toLowerCase()} time for ${name}`,
     transfer: 'Transfer',
   },
 } satisfies Record<AppLanguage, OperationsAgendaTranslations>;

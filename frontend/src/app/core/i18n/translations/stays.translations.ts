@@ -2,6 +2,8 @@ import { AppLanguage } from '../app-language';
 
 export interface StaysTranslations {
   emptyValue: string;
+  actualTimes: string;
+  actualTimesLoadFailed: string;
   nights: {
     singular: string;
     plural: string;
@@ -290,6 +292,8 @@ export interface StaysTranslations {
 
 export const STAYS_TRANSLATIONS = {
   es: {
+    actualTimes: 'Horas reales',
+    actualTimesLoadFailed: 'No se pudieron abrir las horas reales. Volvé a intentarlo.',
     emptyValue: '-',
     nights: {
       singular: 'noche',
@@ -602,6 +606,8 @@ export const STAYS_TRANSLATIONS = {
     },
   },
   en: {
+    actualTimes: 'Actual times',
+    actualTimesLoadFailed: 'The actual times could not be opened. Try again.',
     emptyValue: '-',
     nights: {
       singular: 'night',
