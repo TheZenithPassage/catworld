@@ -42,6 +42,7 @@ export class StayDetail {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -73,8 +74,10 @@ export class StayDetail {
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
+  readonly openingWhatsApp = signal(false);
+  readonly whatsappError = createLanguageResetError(this.i18n.language);
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
@@ -85,7 +88,10 @@ export class StayDetail {
       const id = this.entityId();
       this.invalidateOperational();
       this.invalidateCancellationContext();
-      if (this.loadedEntityId !== id) this.detail.set(null);
+      if (this.loadedEntityId !== id) {
+        this.detail.set(null);
+        this.whatsappError.set(null);
+      }
       this.load(id);
     });
     effect(() => {
@@ -119,6 +125,32 @@ export class StayDetail {
         }
       },
     });
+  }
+
+  async openWhatsApp(stay: StayDetailResponse): Promise<void> {
+    const canOpen = () =>
+      !this.destroyRef.destroyed &&
+      stay.stayId === this.entityId() &&
+      !this.editing() &&
+      !this.deleting() &&
+      this.detail()?.status !== 'CANCELLED';
+    if (!canOpen() || this.openingWhatsApp()) return;
+    this.openingWhatsApp.set(true);
+    this.whatsappError.set(null);
+    try {
+      const { StayWhatsAppDialog } = await import('../stay-whatsapp-dialog/stay-whatsapp-dialog');
+      if (canOpen()) {
+        this.dialog.open(StayWhatsAppDialog, {
+          data: stay.stayId,
+          width: '36rem',
+          maxWidth: 'calc(100vw - 2rem)',
+        });
+      }
+    } catch {
+      if (canOpen()) this.whatsappError.set(this.text().stays.detail.whatsappLoadFailed);
+    } finally {
+      this.openingWhatsApp.set(false);
+    }
   }
   private loadPricingGate(id: string): void {
     const generation = ++this.pricingGeneration;

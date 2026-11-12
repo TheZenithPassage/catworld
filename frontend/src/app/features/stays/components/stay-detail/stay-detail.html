@@ -79,6 +79,9 @@
     @if (deletionError(); as message) {
       <p class="detail-error" role="alert">{{ message }}</p>
     }
+    @if (whatsappError(); as message) {
+      <p class="detail-error" role="alert">{{ message }}</p>
+    }
     @if (stay.cats.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().stays.detail.cats }}</h3>
@@ -129,6 +132,17 @@
         }
       </div>
       <div class="detail-actions-end">
+        @if (stay.status !== 'CANCELLED') {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="deleting()"
+            [attr.aria-disabled]="openingWhatsApp() ? 'true' : null"
+            (click)="openWhatsApp(stay)"
+          >
+            {{ text().stays.detail.whatsapp }}
+          </button>
+        }
         @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
           <button
             mat-stroked-button
