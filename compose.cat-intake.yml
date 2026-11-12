@@ -1,0 +1,9 @@
+# Opt in to the token-protected intake listener. The tunnel owns external HTTPS routing.
+services:
+  app:
+    environment:
+      CATWORLD_INTAKE_URL: ${CATWORLD_INTAKE_URL:-https://fichas.catworld.com.ar/}
+
+  frontend:
+    ports:
+      - "127.0.0.1:${CATWORLD_INTAKE_PORT:-4202}:8082"

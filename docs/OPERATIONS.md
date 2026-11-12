@@ -227,3 +227,18 @@ historical rollout decision, not a standing pre-deployment command. For every
 deployment, let Flyway apply the committed migrations and investigate any
 schema/data incompatibility against the actual source and backup before
 continuing; never invent creator attribution or bypass a failed migration.
+
+
+## Enable private cat intake links
+
+When authorized, add `-f compose.cat-intake.yml` to the production Compose
+invocation and route `fichas.catworld.com.ar` to the intake loopback listener
+(default port 4202). Set `CATWORLD_INTAKE_URL` to the external HTTPS origin
+used in invitations. Keep the administrative listener behind Cloudflare
+Access. The intake listener exposes the standalone form and its two
+token-protected API paths.
+
+Verify that an invitation opens on a phone and that administrative routes
+return 404 from the intake listener. Share real links individually only after
+the domain is verified. Revoke a link from the owner's record if it was shared
+with the wrong recipient.
