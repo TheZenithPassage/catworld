@@ -14,6 +14,7 @@ export interface AppShellTranslations {
     accounts: string;
     nightlyRates: string;
     sensitiveActivity: string;
+    galleryPublications: string;
   };
   language: {
     toggleLabel: string;
@@ -43,6 +44,7 @@ export const APP_SHELL_TRANSLATIONS = {
       accounts: 'Cuentas',
       nightlyRates: 'Tarifas por noche',
       sensitiveActivity: 'Actividad sensible',
+      galleryPublications: 'Galería pública',
     },
     language: {
       toggleLabel: 'Cambiar idioma',
@@ -70,6 +72,7 @@ export const APP_SHELL_TRANSLATIONS = {
       accounts: 'Accounts',
       nightlyRates: 'Nightly rates',
       sensitiveActivity: 'Sensitive activity',
+      galleryPublications: 'Public gallery',
     },
     language: {
       toggleLabel: 'Change language',

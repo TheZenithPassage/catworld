@@ -1,0 +1,157 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <h1>{{ text().title }}</h1>
+      <p>{{ text().intro }}</p>
+    </div>
+    <button mat-flat-button type="button" [disabled]="busy()" (click)="open(null)">
+      {{ text().newDraft }}
+    </button>
+  </header>
+
+  <div class="workspace">
+    <section class="panel" aria-labelledby="entries-title">
+      <h2 id="entries-title">{{ text().entries }}</h2>
+      @if (loading()) {
+        <p role="status">{{ text().loading }}</p>
+      } @else if (loadFailed()) {
+        <p role="alert">{{ text().loadError }}</p>
+        <button mat-stroked-button type="button" (click)="load()">{{ text().retry }}</button>
+      } @else {
+        <ul class="entries">
+          @for (entry of entries(); track entry.id) {
+            <li [class.selected]="selected()?.id === entry.id">
+              <div>
+                <strong>{{ entry.name }}</strong>
+                <span
+                  >{{ text().kinds[entry.kind] }} ·
+                  {{ entry.publishedAt ? text().published : text().draft }}</span
+                >
+              </div>
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="busy()"
+                [attr.aria-label]="text().open + ' ' + entry.name"
+                (click)="open(entry)"
+              >
+                {{ text().open }}
+              </button>
+            </li>
+          } @empty {
+            <li>{{ text().empty }}</li>
+          }
+        </ul>
+      }
+    </section>
+
+    @if (editorOpen()) {
+      <section class="panel" aria-labelledby="editor-title">
+        <h2 id="editor-title">{{ selected() ? text().editor : text().newDraft }}</h2>
+        <form class="editor" (ngSubmit)="save()">
+          <mat-form-field appearance="outline">
+            <mat-label>{{ text().displayName }}</mat-label>
+            <input
+              matInput
+              name="name"
+              required
+              maxlength="100"
+              [disabled]="published() || busy()"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ text().category }}</mat-label>
+            <mat-select
+              name="kind"
+              [disabled]="published() || busy()"
+              [ngModel]="kind()"
+              (ngModelChange)="kind.set($event)"
+            >
+              <mat-option value="RESIDENT">{{ text().kinds.RESIDENT }}</mat-option>
+              <mat-option value="GUEST">{{ text().kinds.GUEST }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>{{ text().description }}</mat-label>
+            <textarea
+              matInput
+              name="description"
+              rows="3"
+              maxlength="320"
+              [disabled]="published() || busy()"
+              [ngModel]="description()"
+              (ngModelChange)="description.set($event)"
+            ></textarea>
+          </mat-form-field>
+
+          @if (!selectedPhoto()) {
+            @if (previewUrl(); as url) {
+              <img
+                class="saved-photo"
+                [src]="url"
+                [alt]="text().previewAlt"
+                (error)="markPreviewFailed(url)"
+              />
+            } @else if (previewFailed()) {
+              <p role="status">{{ text().previewError }}</p>
+            }
+          }
+          @if (!published()) {
+            <app-cat-photo-input
+              [savedHasPhoto]="!!selected()"
+              [disabled]="busy()"
+              [allowSavedRemoval]="false"
+              [photoLabel]="text().photo"
+              [previewAlt]="text().previewAlt"
+            />
+          } @else {
+            <p>{{ text().hideToEdit }}</p>
+          }
+
+          @if (selected() && !published() && kind() === 'GUEST') {
+            <mat-checkbox
+              [checked]="permission()"
+              [disabled]="busy()"
+              (change)="permission.set($event.checked)"
+            >
+              {{ text().permission }}
+            </mat-checkbox>
+          }
+
+          @if (actionError(); as message) {
+            <p class="error" role="alert">{{ message }}</p>
+          }
+          @if (feedback(); as message) {
+            <p role="status">{{ text()[message] }}</p>
+          }
+
+          <div class="actions">
+            @if (published()) {
+              <button mat-flat-button type="button" [disabled]="busy() || stale()" (click)="hide()">
+                {{ text().hide }}
+              </button>
+            } @else {
+              <button mat-stroked-button type="submit" [disabled]="!canSave()">
+                {{ text().save }}
+              </button>
+              @if (selected()) {
+                <button
+                  mat-flat-button
+                  type="button"
+                  [disabled]="!canPublish()"
+                  (click)="publish()"
+                >
+                  {{ text().publish }}
+                </button>
+              }
+            }
+          </div>
+        </form>
+      </section>
+    }
+  </div>
+</main>
