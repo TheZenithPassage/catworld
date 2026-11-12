@@ -1,16 +1,19 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.model.Owner;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface OwnerRepository extends JpaRepository<Owner, UUID> {
@@ -31,6 +34,10 @@ public interface OwnerRepository extends JpaRepository<Owner, UUID> {
                or lower(c.name) like lower(concat('%', :query, '%')) escape '!'
             """)
     Page<Owner> search(@Param("query") String query, Pageable pageable);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select o from Owner o where o.id = :id")
+    Optional<Owner> findByIdForUpdate(@Param("id") UUID id);
 
     boolean existsByCreatedBy_Id(UUID createdById);
 
