@@ -1,10 +1,7 @@
 <section class="dashboard-page">
-  <header class="page-header">
-    <h2>{{ text().dashboard.title }}</h2>
-    <p>{{ text().dashboard.description }}</p>
-  </header>
+  <app-operations-agenda />
 
-  <div class="dashboard-links">
+  <nav class="dashboard-links" [attr.aria-label]="text().dashboard.title">
     <a routerLink="/stays" class="dashboard-card">
       <mat-card appearance="outlined">
         <mat-card-content>
@@ -49,7 +46,7 @@
         </mat-card-content>
       </mat-card>
     </a>
-  </div>
+  </nav>
 
   <section class="quick-actions">
     <h3>{{ text().dashboard.quickActions.title }}</h3>

@@ -1,0 +1,112 @@
+@let copy = text().operationsAgenda;
+
+<section class="operations-agenda" aria-labelledby="operations-agenda-title">
+  <header class="page-header agenda-header">
+    <h2 id="operations-agenda-title">{{ copy.title }}</h2>
+    <div class="date-controls">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ copy.date }}</mat-label>
+        <input
+          #dateInput
+          matInput
+          type="date"
+          min="1000-01-01"
+          max="9999-12-23"
+          [value]="state().date ?? ''"
+          (change)="selectDate(dateInput)"
+        />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="showToday()">{{ copy.today }}</button>
+    </div>
+  </header>
+
+  @if (state().kind === 'loading') {
+    <app-ui-state kind="loading" [message]="copy.loading" />
+  } @else if (state().kind === 'error') {
+    <app-ui-state
+      kind="error"
+      [message]="copy.error"
+      [actionLabel]="copy.retry"
+      (actionTriggered)="reload()"
+    />
+  } @else if (agenda(); as result) {
+    <div class="day-panels">
+      <section class="agenda-panel">
+        <h3>{{ copy.movements }}</h3>
+        @if (result.movements.length) {
+          <ng-container
+            *ngTemplateOutlet="movementRows; context: { $implicit: result.movements }"
+          />
+        } @else {
+          <p class="empty-state">{{ copy.noMovements }}</p>
+        }
+      </section>
+
+      <section class="agenda-panel">
+        <h3>{{ result.date === result.businessDate ? copy.boardingNow : copy.boardingOnDate }}</h3>
+        @if (result.boardingStays.length) {
+          <ul class="agenda-rows">
+            @for (stay of result.boardingStays; track stay.stayId) {
+              <li>
+                <button type="button" class="agenda-row" (click)="openStay(stay.stayId)">
+                  <span class="row-label">
+                    <strong>{{ catNames(stay) }}</strong>
+                    <span>{{ stay.ownerName }}</span>
+                  </span>
+                  <span class="checkout">
+                    {{ copy.scheduledDeparture }}
+                    <time [attr.datetime]="stay.endAt">{{ formatDateTime(stay.endAt) }}</time>
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-state">{{ copy.noBoarding }}</p>
+        }
+      </section>
+    </div>
+
+    <section class="agenda-panel upcoming-days">
+      <h3>{{ copy.upcoming }}</h3>
+      @for (day of result.upcomingDays; track day.date) {
+        <div class="upcoming-day">
+          <h4>
+            <time [attr.datetime]="day.date">{{ formatDay(day.date) }}</time>
+          </h4>
+          @if (day.movements.length) {
+            <ng-container *ngTemplateOutlet="movementRows; context: { $implicit: day.movements }" />
+          } @else {
+            <p class="empty-state">{{ copy.noMovements }}</p>
+          }
+        </div>
+      }
+    </section>
+  }
+</section>
+
+<ng-template #movementRows let-movements>
+  <ul class="agenda-rows">
+    @for (movement of movements; track movement.stay.stayId + movement.type) {
+      <li>
+        <button type="button" class="agenda-row movement-row" (click)="openMovement(movement)">
+          <time [attr.datetime]="movement.scheduledAt">{{ formatTime(movement.scheduledAt) }}</time>
+          <span class="row-label">
+            <strong>{{ catNames(movement.stay) || movement.stay.ownerName }}</strong>
+            @if (movement.stay.cats.length) {
+              <span>{{ movement.stay.ownerName }}</span>
+            }
+          </span>
+          <span class="movement-tags">
+            <span class="movement-type" [class.arrival]="movement.type === 'ARRIVAL'">
+              {{ movementLabel(movement.type) }}
+            </span>
+            @if (movement.transferRequired) {
+              <span class="transfer-required">{{ copy.transfer }}</span>
+            }
+          </span>
+        </button>
+      </li>
+    }
+  </ul>
+</ng-template>

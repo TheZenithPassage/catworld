@@ -3,36 +3,6 @@
   gap: 1.5rem;
 }
 
-.page-header {
-  position: relative;
-  display: grid;
-  gap: 0.4rem;
-  padding: 1.75rem;
-  overflow: hidden;
-}
-
-.page-header::after {
-  content: '';
-  position: absolute;
-  right: 1.5rem;
-  bottom: -1.6rem;
-  width: 8rem;
-  height: 8rem;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 38% 34%, var(--color-primary) 0 9%, transparent 10%),
-    radial-gradient(circle at 62% 34%, var(--color-primary) 0 9%, transparent 10%),
-    radial-gradient(circle at 50% 52%, var(--color-primary) 0 14%, transparent 15%);
-  opacity: 0.13;
-  transform: rotate(-12deg);
-}
-
-.page-header h2,
-.page-header p {
-  position: relative;
-  margin: 0;
-}
-
 .dashboard-links {
   display: grid;
   gap: 1rem;

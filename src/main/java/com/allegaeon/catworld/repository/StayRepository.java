@@ -10,7 +10,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +25,18 @@ public interface StayRepository extends JpaRepository<Stay, UUID> {
     boolean existsByCreatedBy_Id(UUID createdById);
 
     boolean existsByOwner_Id(UUID ownerId);
+
+    @Query("""
+            select s from Stay s
+            join fetch s.owner
+            left join fetch s.stayCats sc
+            left join fetch sc.cat
+            where s.cancelledAt is null
+              and s.startAt < :windowEnd
+              and s.endAt >= :windowStart
+            """)
+    List<Stay> findForOperationsAgenda(@Param("windowStart") LocalDateTime windowStart,
+                                       @Param("windowEnd") LocalDateTime windowEnd);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select stay from Stay stay where stay.id = :stayId")

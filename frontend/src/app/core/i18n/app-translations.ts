@@ -32,10 +32,16 @@ import {
   EntityLookupTranslations,
 } from './translations/entity-lookup.translations';
 
+import {
+  OPERATIONS_AGENDA_TRANSLATIONS,
+  OperationsAgendaTranslations,
+} from './translations/operations-agenda.translations';
+
 export interface AppTranslations {
   app: AppShellTranslations;
   auth: AuthTranslations;
   dashboard: DashboardTranslations;
+  operationsAgenda: OperationsAgendaTranslations;
   deletion: DeletionTranslations;
   calendar: CalendarTranslations;
   cats: CatsTranslations;
@@ -54,6 +60,7 @@ export const APP_TRANSLATIONS = {
     app: APP_SHELL_TRANSLATIONS.es,
     auth: AUTH_TRANSLATIONS.es,
     dashboard: DASHBOARD_TRANSLATIONS.es,
+    operationsAgenda: OPERATIONS_AGENDA_TRANSLATIONS.es,
     deletion: DELETION_TRANSLATIONS.es,
     calendar: CALENDAR_TRANSLATIONS.es,
     cats: CATS_TRANSLATIONS.es,
@@ -70,6 +77,7 @@ export const APP_TRANSLATIONS = {
     app: APP_SHELL_TRANSLATIONS.en,
     auth: AUTH_TRANSLATIONS.en,
     dashboard: DASHBOARD_TRANSLATIONS.en,
+    operationsAgenda: OPERATIONS_AGENDA_TRANSLATIONS.en,
     deletion: DELETION_TRANSLATIONS.en,
     calendar: CALENDAR_TRANSLATIONS.en,
     cats: CATS_TRANSLATIONS.en,
