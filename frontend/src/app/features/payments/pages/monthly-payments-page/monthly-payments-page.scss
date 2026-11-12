@@ -1,0 +1,71 @@
+:host {
+  display: block;
+}
+
+.monthly-payments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.page-header h2,
+.page-header p,
+.monthly-total {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 0.4rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+mat-form-field {
+  justify-self: start;
+}
+
+.monthly-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--mat-sys-surface-container);
+  border-radius: 0.75rem;
+}
+
+.monthly-total strong {
+  font-size: 1.3rem;
+}
+
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.65rem 0.8rem;
+  text-align: start;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+th {
+  background: var(--mat-sys-surface-container);
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.money {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

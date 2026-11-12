@@ -1555,3 +1555,13 @@ The source of truth for architecture and modeling is:
 - `README.md`
 - `docs/ARCHITECTURE.md`
 - `docs/uml/*`
+
+
+## Monthly Payments
+
+The administrator-only Payments page starts on the current business month.
+`GET /api/payments/received?month=YYYY-MM&page=0` lists active payments by their
+recorded payment date, regardless of when the stay starts or the payment was
+entered. Cancelled stays can still have active receipts. Annulled and removed
+payments are excluded. The response includes an exact whole-month total as a
+decimal string, separate from the paginated rows.

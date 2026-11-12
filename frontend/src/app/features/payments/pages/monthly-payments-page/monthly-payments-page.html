@@ -1,0 +1,78 @@
+<section class="monthly-payments">
+  <header class="page-header">
+    <h2>{{ text().title }}</h2>
+    <p>{{ text().receivedDescription }}</p>
+  </header>
+
+  <mat-form-field appearance="outline">
+    <mat-label>{{ text().month }}</mat-label>
+    <input
+      matInput
+      type="month"
+      [value]="month()"
+      #monthInput
+      (change)="selectMonth(monthInput.value, monthInput)"
+    />
+  </mat-form-field>
+
+  @let result = state();
+  @if (result.status === 'loading') {
+    <app-ui-state kind="loading" [message]="text().loading" />
+  } @else if (result.status === 'error') {
+    <app-ui-state
+      kind="error"
+      [message]="text().error"
+      [actionLabel]="text().retry"
+      (actionTriggered)="retry()"
+    />
+  } @else {
+    <p class="monthly-total">
+      <span>{{ text().receivedTotal }}</span>
+      <strong>{{ amount(result.data.totalAmount) }}</strong>
+    </p>
+    @if (!result.data.payments.items.length) {
+      <app-ui-state kind="empty" [message]="text().emptyReceived" />
+    } @else {
+      <div class="table-scroll" role="region" [attr.aria-label]="text().receivedTotal" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ text().paymentDate }}</th>
+              <th scope="col">{{ text().owner }}</th>
+              <th scope="col">{{ text().cats }}</th>
+              <th scope="col" class="money">{{ text().amount }}</th>
+              <th scope="col">{{ text().concept }}</th>
+              <th scope="col">{{ text().stay }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (payment of result.data.payments.items; track payment.id) {
+              <tr>
+                <td>{{ date(payment.paymentDate) }}</td>
+                <td>{{ payment.ownerName }}</td>
+                <td>{{ payment.cats.join(', ') || '—' }}</td>
+                <td class="money">{{ amount(payment.amount) }}</td>
+                <td>{{ payment.note || '—' }}</td>
+                <td>
+                  <a mat-button [routerLink]="['/stays', payment.stayId, 'pricing']">
+                    {{ text().openStay }}
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (result.data.payments.totalElements > result.data.payments.pageSize) {
+        <mat-paginator
+          [length]="result.data.payments.totalElements"
+          [pageIndex]="result.data.payments.page"
+          [pageSize]="result.data.payments.pageSize"
+          [hidePageSize]="true"
+          (page)="selectPage($event)"
+          [attr.aria-label]="text().receivedTotal"
+        />
+      }
+    }
+  }
+</section>

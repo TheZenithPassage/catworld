@@ -1,4 +1,5 @@
 import { AppLanguage } from './app-language';
+import { MONTHLY_PAYMENTS_TRANSLATIONS } from './translations/monthly-payments.translations';
 import {
   APP_SHELL_TRANSLATIONS,
   AppShellTranslations,
@@ -34,6 +35,7 @@ import {
 
 export interface AppTranslations {
   app: AppShellTranslations;
+  monthlyPayments: (typeof MONTHLY_PAYMENTS_TRANSLATIONS)['es' | 'en'];
   auth: AuthTranslations;
   dashboard: DashboardTranslations;
   deletion: DeletionTranslations;
@@ -52,6 +54,7 @@ export interface AppTranslations {
 export const APP_TRANSLATIONS = {
   es: {
     app: APP_SHELL_TRANSLATIONS.es,
+    monthlyPayments: MONTHLY_PAYMENTS_TRANSLATIONS.es,
     auth: AUTH_TRANSLATIONS.es,
     dashboard: DASHBOARD_TRANSLATIONS.es,
     deletion: DELETION_TRANSLATIONS.es,
@@ -68,6 +71,7 @@ export const APP_TRANSLATIONS = {
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
+    monthlyPayments: MONTHLY_PAYMENTS_TRANSLATIONS.en,
     auth: AUTH_TRANSLATIONS.en,
     dashboard: DASHBOARD_TRANSLATIONS.en,
     deletion: DELETION_TRANSLATIONS.en,
