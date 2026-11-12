@@ -12,6 +12,7 @@ import {
 import { Subscription } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
+import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake.translations';
 import { BusinessTimeService } from '../../core/time/business-time.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { CatIntakeApi } from './cat-intake-api';
@@ -59,7 +60,7 @@ export class CatIntakeReview {
   private readonly destroyRef = inject(DestroyRef);
   private detailRequests = new Subscription();
 
-  readonly copy = computed(() => this.i18n.text().catIntake.review);
+  readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
   readonly pending = signal<CatIntakeReviewItem[]>([]);
   readonly groups = computed(() => {
@@ -80,7 +81,7 @@ export class CatIntakeReview {
   readonly detail = signal<CatIntakeReviewDetail | null>(null);
   readonly loadingDetail = signal(false);
   readonly detailFailed = signal(false);
-  readonly notice = signal<'approved' | 'approveFailed' | 'stale' | null>(null);
+  readonly notice = signal<'approved' | 'approveFailed' | 'stale' | 'unavailable' | null>(null);
   readonly approving = signal(false);
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
@@ -149,7 +150,14 @@ export class CatIntakeReview {
           this.loadingDetail.set(false);
           for (const photo of detail.photos) this.loadPhoto(detail.id, photo.id);
         },
-        error: () => {
+        error: (error: unknown) => {
+          if (
+            error instanceof HttpErrorResponse &&
+            (error.status === 404 || error.status === 409)
+          ) {
+            this.closeUnavailable();
+            return;
+          }
           this.detailFailed.set(true);
           this.loadingDetail.set(false);
         },
@@ -262,6 +270,8 @@ export class CatIntakeReview {
           this.approving.set(false);
           if (error instanceof HttpErrorResponse && error.status === 409) {
             this.open(detail.id, true);
+          } else if (error instanceof HttpErrorResponse && error.status === 404) {
+            this.closeUnavailable();
           } else {
             this.notice.set('approveFailed');
           }
@@ -273,6 +283,11 @@ export class CatIntakeReview {
     this.photos.update((photos) =>
       photos.map((photo) => (photo.id === photoId ? { id: photoId, ...state } : photo)),
     );
+  }
+
+  private closeUnavailable(): void {
+    this.back();
+    this.notice.set('unavailable');
   }
 
   private clearDetail(): void {

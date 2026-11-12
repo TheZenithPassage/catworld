@@ -1,7 +1,6 @@
 export const CAT_INTAKE_TRANSLATIONS = {
   es: {
     invite: {
-      open: 'Solicitar ficha de gatos',
       title: 'Enlace de ficha',
       allowNew: 'Permitir el alta de gatos nuevos',
       existing: 'Gatos que pueden actualizarse',
@@ -29,6 +28,7 @@ export const CAT_INTAKE_TRANSLATIONS = {
       empty: 'No hay fichas pendientes.',
       loadFailed: 'No se pudieron cargar las fichas.',
       detailFailed: 'No se pudo abrir la ficha.',
+      unavailable: 'Esta ficha ya no está disponible para revisión.',
       approveFailed: 'No se pudo aprobar la ficha. Revisá los datos e intentá de nuevo.',
       approved: 'Ficha aprobada.',
       stale: 'La ficha de este gato cambió. Revisá la comparación actualizada.',
@@ -64,7 +64,6 @@ export const CAT_INTAKE_TRANSLATIONS = {
   },
   en: {
     invite: {
-      open: 'Request cat information',
       title: 'Cat information link',
       allowNew: 'Allow new cats to be registered',
       existing: 'Cats available to update',
@@ -92,6 +91,7 @@ export const CAT_INTAKE_TRANSLATIONS = {
       empty: 'There are no forms awaiting review.',
       loadFailed: 'The submissions could not be loaded.',
       detailFailed: 'The submission could not be opened.',
+      unavailable: 'This submission is no longer available to review.',
       approveFailed: 'The submission could not be approved. Review the data and try again.',
       approved: 'Submission approved.',
       stale: 'This cat’s details have changed. Review the updated comparison.',

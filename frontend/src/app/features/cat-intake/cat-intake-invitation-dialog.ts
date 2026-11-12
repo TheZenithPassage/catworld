@@ -12,6 +12,7 @@ import {
 import { forkJoin } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
+import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake.translations';
 import { BusinessTimeService } from '../../core/time/business-time.service';
 import { OwnerLookupCat } from '../owners/models/owner.model';
 import { OwnerApiService } from '../owners/services/owner-api.service';
@@ -38,7 +39,7 @@ export class CatIntakeInvitationDialog {
   private readonly ref = inject(MatDialogRef<CatIntakeInvitationDialog>);
 
   readonly data = inject<CatIntakeInvitationDialogData>(MAT_DIALOG_DATA);
-  readonly copy = computed(() => this.i18n.text().catIntake.invite);
+  readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].invite);
   readonly cats = signal<OwnerLookupCat[]>([]);
   readonly catIds = signal<string[]>([]);
   readonly allowNewCats = signal(false);

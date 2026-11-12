@@ -90,6 +90,18 @@ describe('CatIntakeReview', () => {
     });
   });
 
+  it('refreshes the queue if a proposal can no longer be reviewed', () => {
+    api.listReview.mockReturnValue(of([]));
+    api.getReview.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+
+    const page = fixture.componentInstance;
+    expect(page.selectedId()).toBeNull();
+    expect(page.pending()).toEqual([]);
+    expect(page.notice()).toBe('unavailable');
+  });
+
   it('blocks approval until a failed record is explicitly excluded', () => {
     const loading = new Subject<Blob>();
     api.getReview.mockReturnValue(of({ ...conflicting, conflictFields: [] }));

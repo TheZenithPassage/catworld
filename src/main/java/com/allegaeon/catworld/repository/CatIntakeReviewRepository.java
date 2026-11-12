@@ -18,6 +18,9 @@ public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview
                    r.catName as catName, r.submittedAt as submittedAt
             from CatIntakeReview r join r.invitation i join i.owner o
             where r.approvedAt is null
+              and (r.catId is null or exists (
+                  select 1 from Cat c where c.id = r.catId and c.owner.id = o.id
+              ))
             order by o.fullName, o.id, r.submittedAt, r.id
             """)
     List<PendingRow> findPendingRows();

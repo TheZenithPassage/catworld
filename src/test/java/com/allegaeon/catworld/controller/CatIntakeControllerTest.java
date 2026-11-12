@@ -248,6 +248,8 @@ class CatIntakeControllerTest {
         cats.saveAndFlush(movedBeforeApproval);
         approve(row, Map.of("coat", "Curly"), List.of(), detail.get("catUpdatedAt").asString(), 409);
         assertThat(cats.findById(movedBeforeApproval.getId()).orElseThrow().getCoat()).isEqualTo("Short");
+        assertThat(reviewList().valueStream().map(pending -> pending.get("id").asString()))
+                .doesNotContain(row.get("id").asString());
     }
 
     @Test

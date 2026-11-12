@@ -162,7 +162,7 @@ import type { CatIntakeInvitationDialogData } from '../../../cat-intake/cat-inta
                 [disabled]="deleting() || loadingIntake()"
                 (click)="openCatIntake(owner)"
               >
-                {{ text().catIntake.invite.open }}
+                {{ text().owners.detail.requestIntake }}
               </button>
             }
             <button
@@ -246,7 +246,7 @@ export class OwnerDetail {
         maxWidth: '95vw',
       });
     } catch {
-      if (canOpen()) this.intakeError.set(this.text().catIntake.invite.loadFailed);
+      if (canOpen()) this.intakeError.set(this.text().owners.detail.intakeLoadFailed);
     } finally {
       this.loadingIntake.set(false);
     }

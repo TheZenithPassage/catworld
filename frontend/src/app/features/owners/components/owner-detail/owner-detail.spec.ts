@@ -101,7 +101,7 @@ describe('OwnerDetail permanent deletion', () => {
     const element = fixture.nativeElement as HTMLElement;
     const intakeAction = () =>
       Array.from(element.querySelectorAll<HTMLButtonElement>('.detail-actions-end button')).find(
-        (button) => button.textContent?.trim() === component.text().catIntake.invite.open,
+        (button) => button.textContent?.trim() === component.text().owners.detail.requestIntake,
       );
     const credentials = { username: 'operator', password: 'test' };
     auth.login({ username: 'operator', role: 'STAFF' }, credentials);
