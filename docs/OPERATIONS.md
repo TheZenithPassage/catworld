@@ -222,6 +222,10 @@ The cat-photo resource's digest ETag is another check, not a substitute for
 reading the restored bytes. Do not claim a successful restore from a completed
 SQL import alone.
 
+Keep the intake listener disabled for the first startup after a restore.
+Review and revoke restored links that were consumed or revoked after the
+backup before enabling the listener.
+
 The creator-attribution checks once needed for migration #146 were a
 historical rollout decision, not a standing pre-deployment command. For every
 deployment, let Flyway apply the committed migrations and investigate any

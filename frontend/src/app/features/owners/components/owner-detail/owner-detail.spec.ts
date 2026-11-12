@@ -96,7 +96,7 @@ describe('OwnerDetail permanent deletion', () => {
     );
   });
 
-  it('lets an administrator request an intake link from this owner', () => {
+  it('lets an administrator request an intake link from this owner', async () => {
     const auth = TestBed.inject(AuthSessionService);
     const element = fixture.nativeElement as HTMLElement;
     const intakeAction = () =>
@@ -111,9 +111,11 @@ describe('OwnerDetail permanent deletion', () => {
     auth.login({ username: 'operator', role: 'ADMIN' }, credentials);
     fixture.detectChanges();
     intakeAction()?.click();
-    expect(dialog.open).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({ data: { ownerId, ownerName: 'Ana Owner' } }),
+    await vi.waitFor(() =>
+      expect(dialog.open).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ data: { ownerId, ownerName: 'Ana Owner' } }),
+      ),
     );
   });
 

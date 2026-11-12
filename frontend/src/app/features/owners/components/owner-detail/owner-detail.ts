@@ -20,10 +20,7 @@ import {
   isPermanentDeletionConfirmed,
 } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
-import {
-  CatIntakeInvitationDialog,
-  CatIntakeInvitationDialogData,
-} from '../../../cat-intake/cat-intake-invitation-dialog';
+import type { CatIntakeInvitationDialogData } from '../../../cat-intake/cat-intake-invitation-dialog';
 @Component({
   selector: 'app-owner-detail',
   imports: [MatButton, MatProgressSpinner, UiStateComponent, OwnerEditor, StayRelationshipLabel],
@@ -136,6 +133,9 @@ import {
         @if (deletionError(); as message) {
           <p class="detail-error" role="alert">{{ message }}</p>
         }
+        @if (intakeError(); as message) {
+          <p class="detail-error" role="alert">{{ message }}</p>
+        }
         <div class="detail-actions">
           <div class="detail-actions-start">
             @if (owner.canDelete === true) {
@@ -159,7 +159,7 @@ import {
               <button
                 mat-stroked-button
                 type="button"
-                [disabled]="deleting()"
+                [disabled]="deleting() || loadingIntake()"
                 (click)="openCatIntake(owner)"
               >
                 {{ text().catIntake.invite.open }}
@@ -184,6 +184,7 @@ export class OwnerDetail {
   private readonly i18n = inject(I18nService);
   readonly auth = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
   private loadGeneration = 0;
   private deletionGeneration = 0;
   private loadedEntityId: string | null = null;
@@ -204,25 +205,51 @@ export class OwnerDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly loadingIntake = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
+  readonly intakeError = createLanguageResetError(this.i18n.language);
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.loadGeneration++;
       this.deletionGeneration++;
     });
     effect(() => {
       const entityId = this.entityId();
-      if (this.loadedEntityId !== entityId) this.detail.set(null);
+      if (this.loadedEntityId !== entityId) {
+        this.detail.set(null);
+        this.intakeError.set(null);
+      }
       this.load(entityId);
     });
   }
 
-  openCatIntake(owner: Owner): void {
-    if (!this.auth.hasRole('ADMIN') || this.deleting() || owner.id !== this.entityId()) return;
-    this.dialog.open<CatIntakeInvitationDialog, CatIntakeInvitationDialogData>(
-      CatIntakeInvitationDialog,
-      { data: { ownerId: owner.id, ownerName: owner.fullName }, width: '32rem', maxWidth: '95vw' },
-    );
+  async openCatIntake(owner: Owner): Promise<void> {
+    const canOpen = () =>
+      !this.destroyRef.destroyed &&
+      owner.id === this.entityId() &&
+      this.auth.hasRole('ADMIN') &&
+      !this.deleting() &&
+      !this.editing();
+    if (!canOpen() || this.loadingIntake()) return;
+    this.loadingIntake.set(true);
+    this.intakeError.set(null);
+    try {
+      const { CatIntakeInvitationDialog } =
+        await import('../../../cat-intake/cat-intake-invitation-dialog');
+      if (!canOpen()) return;
+      this.dialog.open(CatIntakeInvitationDialog, {
+        data: {
+          ownerId: owner.id,
+          ownerName: owner.fullName,
+        } satisfies CatIntakeInvitationDialogData,
+        width: '32rem',
+        maxWidth: '95vw',
+      });
+    } catch {
+      if (canOpen()) this.intakeError.set(this.text().catIntake.invite.loadFailed);
+    } finally {
+      this.loadingIntake.set(false);
+    }
   }
   confirmPermanentDeletion(owner: Owner): void {
     if (this.deleting() || owner.id !== this.entityId() || owner.canDelete !== true) return;
