@@ -1,8 +1,17 @@
 <section class="monthly-payments">
   <header class="page-header">
     <h2>{{ text().title }}</h2>
-    <p>{{ text().receivedDescription }}</p>
+    <p>{{ view() === 'received' ? text().receivedDescription : text().outstandingDescription }}</p>
   </header>
+
+  <mat-button-toggle-group
+    [value]="view()"
+    (change)="selectView($event.value)"
+    [attr.aria-label]="text().views"
+  >
+    <mat-button-toggle value="received">{{ text().received }}</mat-button-toggle>
+    <mat-button-toggle value="outstanding">{{ text().outstanding }}</mat-button-toggle>
+  </mat-button-toggle-group>
 
   <mat-form-field appearance="outline">
     <mat-label>{{ text().month }}</mat-label>
@@ -25,7 +34,7 @@
       [actionLabel]="text().retry"
       (actionTriggered)="retry()"
     />
-  } @else {
+  } @else if (result.view === 'received') {
     <p class="monthly-total">
       <span>{{ text().receivedTotal }}</span>
       <strong>{{ amount(result.data.totalAmount) }}</strong>
@@ -52,7 +61,7 @@
                 <td>{{ payment.ownerName }}</td>
                 <td>{{ payment.cats.join(', ') || '—' }}</td>
                 <td class="money">{{ amount(payment.amount) }}</td>
-                <td>{{ payment.note || '—' }}</td>
+                <td class="notes">{{ payment.note || '—' }}</td>
                 <td>
                   <a mat-button [routerLink]="['/stays', payment.stayId, 'pricing']">
                     {{ text().openStay }}
@@ -71,6 +80,66 @@
           [hidePageSize]="true"
           (page)="selectPage($event)"
           [attr.aria-label]="text().receivedTotal"
+        />
+      }
+    }
+  } @else {
+    <p class="monthly-total">
+      <span>{{ text().outstandingTotal }}</span>
+      <strong>{{ amount(result.data.knownTotal) }}</strong>
+      @if (result.data.pendingPriceCount > 0) {
+        <span>{{ text().pendingPriceCount(result.data.pendingPriceCount) }}</span>
+      }
+    </p>
+    @if (!result.data.stays.items.length) {
+      <app-ui-state kind="empty" [message]="text().emptyOutstanding" />
+    } @else {
+      <div class="table-scroll" role="region" [attr.aria-label]="text().outstanding" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{{ text().arrival }}</th>
+              <th scope="col">{{ text().owner }}</th>
+              <th scope="col">{{ text().cats }}</th>
+              <th scope="col" class="money">{{ text().agreedAmount }}</th>
+              <th scope="col" class="money">{{ text().paidAmount }}</th>
+              <th scope="col" class="money">{{ text().balance }}</th>
+              <th scope="col">{{ text().stayNotes }}</th>
+              <th scope="col">{{ text().stay }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (stay of result.data.stays.items; track stay.stayId) {
+              <tr>
+                <td>{{ arrival(stay.arrival) }}</td>
+                <td>{{ stay.ownerName }}</td>
+                <td>{{ stay.cats.join(', ') || '—' }}</td>
+                <td class="money">
+                  {{ stay.agreedAmount === null ? text().pendingPrice : amount(stay.agreedAmount) }}
+                </td>
+                <td class="money">{{ amount(stay.paidAmount) }}</td>
+                <td class="money">
+                  {{ stay.remainingAmount === null ? '—' : amount(stay.remainingAmount) }}
+                </td>
+                <td class="notes">{{ stay.notes || '—' }}</td>
+                <td>
+                  <a mat-button [routerLink]="['/stays', stay.stayId, 'pricing']">
+                    {{ text().openStay }}
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (result.data.stays.totalElements > result.data.stays.pageSize) {
+        <mat-paginator
+          [length]="result.data.stays.totalElements"
+          [pageIndex]="result.data.stays.page"
+          [pageSize]="result.data.stays.pageSize"
+          [hidePageSize]="true"
+          (page)="selectPage($event)"
+          [attr.aria-label]="text().outstanding"
         />
       }
     }

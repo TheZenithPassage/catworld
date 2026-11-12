@@ -70,4 +70,57 @@ describe('MonthlyPaymentsPage', () => {
     );
     http.verify({ ignoreCancelled: true });
   });
+  it('shows the known total and marks a pending price without a zero balance', async () => {
+    await TestBed.configureTestingModule({
+      imports: [MonthlyPaymentsPage],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(MonthlyPaymentsPage);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    TestBed.tick();
+    http
+      .expectOne((req) => req.url.endsWith('/payments/received'))
+      .flush({
+        payments: { items: [], page: 0, pageSize: 10, totalElements: 0 },
+        totalAmount: '0',
+      });
+
+    fixture.componentInstance.selectView('outstanding');
+    fixture.detectChanges();
+    TestBed.tick();
+    http
+      .expectOne((req) => req.url.endsWith('/payments/outstanding'))
+      .flush({
+        stays: {
+          items: [
+            {
+              stayId: 'stay-1',
+              arrival: '2026-11-12T15:30:00',
+              ownerName: 'Example Owner',
+              cats: ['Mora'],
+              agreedAmount: null,
+              paidAmount: '30',
+              remainingAmount: null,
+              notes: 'Traslado de llegada',
+            },
+          ],
+          page: 0,
+          pageSize: 10,
+          totalElements: 1,
+        },
+        knownTotal: '0',
+        pendingPriceCount: 1,
+      });
+    fixture.detectChanges();
+
+    const content = fixture.nativeElement as HTMLElement;
+    expect(content.textContent).toContain('1 estadía con precio por definir');
+    expect(content.textContent).toContain('Precio por definir');
+    expect(content.textContent).toContain('15:30');
+    expect(content.textContent).toContain('Traslado de llegada');
+    expect(content.querySelector('tbody tr')?.textContent).toContain('30');
+    expect(content.querySelector('tbody tr')?.textContent).toContain('—');
+    http.verify();
+  });
 });

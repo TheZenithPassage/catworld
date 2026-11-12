@@ -1,6 +1,21 @@
 export const MONTHLY_PAYMENTS_TRANSLATIONS = {
   es: {
     title: 'Pagos',
+    views: 'Vistas de pagos',
+    received: 'Cobrado',
+    outstanding: 'Por cobrar',
+    outstandingDescription:
+      'Consultá el saldo de las estadías que empiezan en el mes seleccionado.',
+    outstandingTotal: 'Total pendiente conocido',
+    pendingPriceCount: (count: number) =>
+      count === 1 ? '1 estadía con precio por definir' : `${count} estadías con precio por definir`,
+    emptyOutstanding: 'No hay estadías con saldo pendiente o precio por definir en este mes.',
+    arrival: 'Llegada',
+    agreedAmount: 'Monto acordado',
+    paidAmount: 'Pagado',
+    balance: 'Saldo',
+    stayNotes: 'Notas de la estadía',
+    pendingPrice: 'Precio por definir',
     receivedDescription: 'Consultá los pagos del mes según la fecha en que se cobraron.',
     month: 'Mes',
     receivedTotal: 'Total cobrado',
@@ -18,6 +33,20 @@ export const MONTHLY_PAYMENTS_TRANSLATIONS = {
   },
   en: {
     title: 'Payments',
+    views: 'Payment views',
+    received: 'Received',
+    outstanding: 'Outstanding',
+    outstandingDescription: 'View the balance for stays arriving in the selected month.',
+    outstandingTotal: 'Known outstanding total',
+    pendingPriceCount: (count: number) =>
+      count === 1 ? '1 stay with price pending' : `${count} stays with price pending`,
+    emptyOutstanding: 'There are no stays with an outstanding balance or pending price this month.',
+    arrival: 'Arrival',
+    agreedAmount: 'Agreed amount',
+    paidAmount: 'Paid',
+    balance: 'Balance',
+    stayNotes: 'Stay notes',
+    pendingPrice: 'Price pending',
     receivedDescription: 'View payments by the date they were received.',
     month: 'Month',
     receivedTotal: 'Total received',

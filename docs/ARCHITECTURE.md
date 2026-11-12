@@ -1574,3 +1574,10 @@ recorded payment date, regardless of when the stay starts or the payment was
 entered. Cancelled stays can still have active receipts. Annulled and removed
 payments are excluded. The response includes an exact whole-month total as a
 decimal string, separate from the paginated rows.
+
+
+The Outstanding view uses `GET /api/payments/outstanding?month=YYYY-MM&page=0`.
+It includes non-cancelled arrivals in the selected month that have a positive
+balance or an explicitly pending price. All active payments reduce the stay
+balance regardless of their payment dates. The totals distinguish the sum of
+known balances from the count of stays with a pending price.
