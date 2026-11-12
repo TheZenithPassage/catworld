@@ -123,6 +123,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'cat-intake',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/cat-intake/cat-intake-review').then((m) => m.CatIntakeReview),
+  },
+  {
     path: 'sensitive-activity',
     canActivate: [adminGuard],
     loadComponent: () =>

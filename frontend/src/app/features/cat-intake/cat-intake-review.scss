@@ -1,0 +1,155 @@
+.review-page {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 1.25rem 0.5rem 2.5rem;
+}
+
+.review-page h2,
+.review-page h3,
+.review-page h4,
+.detail-heading p {
+  margin: 0;
+}
+
+.review-page header p,
+.detail-heading p,
+.notice,
+.owner-group {
+  margin-block: 0.6rem 1.1rem;
+}
+
+.owner-group,
+.review-detail,
+.review-field,
+.proofs {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+}
+
+.owner-group ul,
+.proof-grid {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.owner-group button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.45rem 0.8rem;
+  text-align: start;
+}
+
+.item-name,
+.owner-group small {
+  display: block;
+}
+
+.owner-group small,
+.comparison dt,
+.proofs dt,
+.detail-heading p {
+  color: var(--color-text-muted);
+}
+
+.review-form {
+  display: grid;
+  justify-items: start;
+  width: 100%;
+  min-width: 0;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field-grid,
+.proofs {
+  width: 100%;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 0.8rem;
+}
+
+.review-field {
+  min-width: 0;
+}
+
+.conflicting {
+  border-color: var(--color-primary);
+}
+
+.comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.comparison dd,
+.proofs dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.control,
+.choice {
+  margin-top: 0.6rem;
+}
+
+.control {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.control input,
+.control select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.35rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.proof-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.proof-thumbnail {
+  width: 100%;
+  height: 8rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--mat-sys-surface-container-low);
+  cursor: zoom-in;
+}
+
+.proof-thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.proof-full {
+  display: block;
+  max-width: 100%;
+  margin-inline: auto;
+}

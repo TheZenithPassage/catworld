@@ -1,0 +1,40 @@
+.owner-name,
+legend {
+  font-weight: 700;
+}
+
+fieldset {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  border: 0;
+}
+
+fieldset p {
+  margin: 0;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.private-link {
+  display: grid;
+  gap: 0.25rem;
+  margin-block: 1rem 0.5rem;
+}
+
+.private-link input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}

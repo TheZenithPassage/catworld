@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Ficha de gatos · CatWorld</title>
+    <link rel="stylesheet" href="/intake.css" />
+    <script type="module" src="/intake.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="brand">CatWorld</p>
+        <h1>Ficha de gatos</h1>
+        <p>Completá los datos de tus gatos. El equipo de CatWorld va a revisarlos.</p>
+      </header>
+
+      <p id="status" class="notice" role="status">Cargando la ficha…</p>
+      <button id="retry" type="button" class="secondary" hidden>Reintentar</button>
+      <noscript>Activá JavaScript y volvé a abrir el enlace para completar la ficha.</noscript>
+
+      <form id="intake" autocomplete="off" hidden>
+        <fieldset id="editable">
+          <p id="existing-hint" class="hint" hidden>
+            Para los gatos registrados, los campos que dejes en blanco conservan el dato actual.
+          </p>
+          <div id="cats"></div>
+          <div class="actions">
+            <button id="add-cat" type="button" class="secondary" hidden>Agregar otro gato</button>
+            <button id="submit" type="submit">Enviar ficha</button>
+          </div>
+        </fieldset>
+        <p id="error" class="notice error" role="alert" tabindex="-1" hidden></p>
+      </form>
+    </main>
+  </body>
+</html>

@@ -5,6 +5,7 @@ import {
 } from './translations/app-shell.translations';
 import { AUTH_TRANSLATIONS, AuthTranslations } from './translations/auth.translations';
 import { CALENDAR_TRANSLATIONS, CalendarTranslations } from './translations/calendar.translations';
+import { CAT_INTAKE_TRANSLATIONS } from './translations/cat-intake.translations';
 import { CATS_TRANSLATIONS, CatsTranslations } from './translations/cats.translations';
 import {
   DASHBOARD_TRANSLATIONS,
@@ -38,6 +39,7 @@ export interface AppTranslations {
   dashboard: DashboardTranslations;
   deletion: DeletionTranslations;
   calendar: CalendarTranslations;
+  catIntake: (typeof CAT_INTAKE_TRANSLATIONS)[AppLanguage];
   cats: CatsTranslations;
   owners: OwnersTranslations;
   stays: StaysTranslations;
@@ -56,6 +58,7 @@ export const APP_TRANSLATIONS = {
     dashboard: DASHBOARD_TRANSLATIONS.es,
     deletion: DELETION_TRANSLATIONS.es,
     calendar: CALENDAR_TRANSLATIONS.es,
+    catIntake: CAT_INTAKE_TRANSLATIONS.es,
     cats: CATS_TRANSLATIONS.es,
     owners: OWNERS_TRANSLATIONS.es,
     stays: STAYS_TRANSLATIONS.es,
@@ -72,6 +75,7 @@ export const APP_TRANSLATIONS = {
     dashboard: DASHBOARD_TRANSLATIONS.en,
     deletion: DELETION_TRANSLATIONS.en,
     calendar: CALENDAR_TRANSLATIONS.en,
+    catIntake: CAT_INTAKE_TRANSLATIONS.en,
     cats: CATS_TRANSLATIONS.en,
     owners: OWNERS_TRANSLATIONS.en,
     stays: STAYS_TRANSLATIONS.en,

@@ -5,6 +5,7 @@ import { By } from '@angular/platform-browser';
 import { Observable, of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { OwnerDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { OwnerApiService } from '../../services/owner-api.service';
 import { OwnerDetail } from './owner-detail';
@@ -92,6 +93,27 @@ describe('OwnerDetail permanent deletion', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
       component.text().owners.emptyValue,
+    );
+  });
+
+  it('lets an administrator request an intake link from this owner', () => {
+    const auth = TestBed.inject(AuthSessionService);
+    const element = fixture.nativeElement as HTMLElement;
+    const intakeAction = () =>
+      Array.from(element.querySelectorAll<HTMLButtonElement>('.detail-actions-end button')).find(
+        (button) => button.textContent?.trim() === component.text().catIntake.invite.open,
+      );
+    const credentials = { username: 'operator', password: 'test' };
+    auth.login({ username: 'operator', role: 'STAFF' }, credentials);
+    fixture.detectChanges();
+    expect(intakeAction()).toBeUndefined();
+
+    auth.login({ username: 'operator', role: 'ADMIN' }, credentials);
+    fixture.detectChanges();
+    intakeAction()?.click();
+    expect(dialog.open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: { ownerId, ownerName: 'Ana Owner' } }),
     );
   });
 

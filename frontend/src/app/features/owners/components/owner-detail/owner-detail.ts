@@ -1,5 +1,6 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -19,6 +20,10 @@ import {
   isPermanentDeletionConfirmed,
 } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
+import {
+  CatIntakeInvitationDialog,
+  CatIntakeInvitationDialogData,
+} from '../../../cat-intake/cat-intake-invitation-dialog';
 @Component({
   selector: 'app-owner-detail',
   imports: [MatButton, MatProgressSpinner, UiStateComponent, OwnerEditor, StayRelationshipLabel],
@@ -150,6 +155,16 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
             }
           </div>
           <div class="detail-actions-end">
+            @if (auth.hasRole('ADMIN')) {
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="deleting()"
+                (click)="openCatIntake(owner)"
+              >
+                {{ text().catIntake.invite.open }}
+              </button>
+            }
             <button
               mat-flat-button
               type="button"
@@ -167,6 +182,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
 export class OwnerDetail {
   private readonly api = inject(OwnerApiService);
   private readonly i18n = inject(I18nService);
+  readonly auth = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
   private loadGeneration = 0;
   private deletionGeneration = 0;
@@ -199,6 +215,14 @@ export class OwnerDetail {
       if (this.loadedEntityId !== entityId) this.detail.set(null);
       this.load(entityId);
     });
+  }
+
+  openCatIntake(owner: Owner): void {
+    if (!this.auth.hasRole('ADMIN') || this.deleting() || owner.id !== this.entityId()) return;
+    this.dialog.open<CatIntakeInvitationDialog, CatIntakeInvitationDialogData>(
+      CatIntakeInvitationDialog,
+      { data: { ownerId: owner.id, ownerName: owner.fullName }, width: '32rem', maxWidth: '95vw' },
+    );
   }
   confirmPermanentDeletion(owner: Owner): void {
     if (this.deleting() || owner.id !== this.entityId() || owner.canDelete !== true) return;
