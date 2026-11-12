@@ -1,5 +1,14 @@
 <section class="dashboard-page">
-  <app-operations-agenda />
+  <a
+    mat-flat-button
+    routerLink="/operations/transfers"
+    [queryParams]="{ date: agenda.state().date }"
+    class="transfers-link"
+  >
+    {{ text().dashboard.transfers }}
+  </a>
+
+  <app-operations-agenda #agenda />
 
   <nav class="dashboard-links" [attr.aria-label]="text().dashboard.title">
     <a routerLink="/stays" class="dashboard-card">

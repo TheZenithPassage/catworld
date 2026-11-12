@@ -10,6 +10,7 @@ CatWorld is an administration system for cat boarding. Its Angular interface and
 - Manage owners, cats, reference vets and cat profile photos. Search paginated overviews and open complete record details.
 - Create multi-cat stays for one owner, edit or cancel them, and prevent overlapping active bookings per cat. Stay status and night count are derived from dates and cancellation data.
 - Review daily arrivals, departures, transfer legs, boarding cats and the next seven days in the operations agenda.
+- Open Transfers from the home page to see the selected day's pickups and drop-offs and access owner contact details.
 - Inspect stays in a monthly FullCalendar view with daily counts and labels, entry/exit display modes and independent filters.
 - Configure nightly reference rates and a transfer rate. Preview the authoritative accommodation and transfer suggestion, then explicitly confirm an agreed amount when creating a stay or making a pricing-affecting change.
 - Register, correct and annul individual stay payments; view payment history, derived paid totals, remaining balance and payment condition. Administrators can make the focused corrections and removals permitted by the backend.
@@ -46,6 +47,7 @@ Use synthetic records in a local environment:
 3. Create a stay: select cats belonging to that owner, preview the calculated nights and suggested amount, and submit an explicit agreed amount and matching pricing confirmation. A different agreement needs a reason when a suggestion is available.
 4. Open the stay detail, inspect its pricing and payment summary, register a payment, and observe the derived balance and payment condition.
 5. Find the stay through the overview filters and calendar. On the operations agenda, select its arrival or departure date and open the stay from its movement. Review the sensitive economic activity as `ADMIN` after a permitted economic change.
+6. For a transfer demo, use a synthetic stay with pickup selected and drop-off cleared. Select the arrival date in the home agenda, open Transfers and use View contact to see the synthetic owner's phone and address. Select the departure date to confirm that the same stay has no drop-off.
 
 ## Validation
 
