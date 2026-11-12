@@ -30,3 +30,7 @@ COPY --from=build /tmp/frontend-build /usr/share/nginx/html
 RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 
 EXPOSE 80
+
+COPY nginx-intake.conf /etc/nginx/conf.d/intake.conf
+COPY intake-site/ /usr/share/nginx/intake-site/
+EXPOSE 8082

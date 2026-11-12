@@ -2,16 +2,8 @@ import { Component, computed, inject, input, OnDestroy, signal } from '@angular/
 import { MatButton } from '@angular/material/button';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CatPhotoMutation } from '../../models/cat.model';
+import { CAT_PHOTO_ACCEPT, catPhotoFileError } from '../../utils/cat-photo-file';
 
-const MAX_PHOTO_BYTES = 32 * 1024 * 1024;
-const ACCEPTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']);
-const ACCEPTED_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-]);
 const PREVIEW_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const PREVIEW_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const GENERIC_TYPES = new Set(['', 'application/octet-stream']);
@@ -27,6 +19,7 @@ export class CatPhotoInput implements OnDestroy {
   readonly savedHasPhoto = input(false);
   readonly disabled = input(false);
   readonly text = this.i18n.text;
+  readonly acceptedFormats = CAT_PHOTO_ACCEPT;
   readonly selectedFile = signal<File | null>(null);
   readonly removePhoto = signal(false);
   readonly previewUrl = signal<string | null>(null);
@@ -99,15 +92,8 @@ export class CatPhotoInput implements OnDestroy {
   }
 
   private validate(file: File): string | null {
-    if (file.size > MAX_PHOTO_BYTES) return this.text().cats.photo.errors.localFileTooLarge;
-    const type = file.type.toLowerCase();
-    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
-    const mimeClearlyUnsupported = !GENERIC_TYPES.has(type) && !ACCEPTED_TYPES.has(type);
-    const extensionClearlyUnsupported = extension !== '' && !ACCEPTED_EXTENSIONS.has(extension);
-    if (mimeClearlyUnsupported && extensionClearlyUnsupported) {
-      return this.text().cats.photo.errors.localUnsupportedFormat;
-    }
-    return null;
+    const error = catPhotoFileError(file);
+    return error ? this.text().cats.photo.errors[error] : null;
   }
 
   private canPreview(file: File): boolean {

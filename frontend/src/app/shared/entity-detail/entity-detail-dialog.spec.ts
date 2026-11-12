@@ -99,6 +99,7 @@ describe('EntityDetailDialog', () => {
     updateOwner: vi.fn(() => of(updated)),
   };
   const catApi = {
+    listInformationalPhotos: vi.fn(() => of([])),
     getCatDetail: vi.fn((id: string): any =>
       of({
         cat: { ...cat, id, hasPhoto: false },
@@ -1768,6 +1769,7 @@ describe('EntityDetailDialog cat photo destination', () => {
     const photo = new Subject<Blob>();
     const beforeClosed = new Subject<void>();
     const catApi = {
+      listInformationalPhotos: vi.fn(() => of([])),
       getCatDetail: vi.fn(() =>
         of({
           cat: {

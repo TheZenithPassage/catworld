@@ -135,6 +135,19 @@
         <dd>{{ date(cat.lastRabiesDate) }}</dd>
       </div>
     </dl>
+    <app-cat-informational-photo-gallery
+      [catId]="cat.id"
+      [disabled]="deleting()"
+      (busyChanged)="galleryBusyChanged($event)"
+      (openPhoto)="
+        openPhoto.emit({
+          catId: cat.id,
+          catName: cat.name,
+          ownerName: cat.ownerName,
+          informationalPhotoId: $event,
+        })
+      "
+    />
     @if (detail.stays.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().entityDetail.stays }}</h3>
@@ -166,7 +179,7 @@
             class="permanent-delete-action"
             mat-stroked-button
             type="button"
-            [disabled]="deleting()"
+            [disabled]="deleting() || updatingGallery()"
             (click)="confirmPermanentDeletion(detail)"
           >
             {{
@@ -181,7 +194,7 @@
         <button
           mat-flat-button
           type="button"
-          [disabled]="deleting()"
+          [disabled]="deleting() || updatingGallery()"
           (click)="editRequested.emit()"
         >
           {{ text().cats.detail.edit }}

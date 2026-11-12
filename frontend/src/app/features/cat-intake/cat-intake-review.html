@@ -1,0 +1,227 @@
+<section class="review-page">
+  <header>
+    <h2>{{ copy().title }}</h2>
+    <p>{{ copy().intro }}</p>
+  </header>
+
+  @if (notice(); as message) {
+    <p class="notice" [attr.role]="message === 'approved' ? 'status' : 'alert'">
+      {{ copy()[message] }}
+    </p>
+  }
+
+  @if (selectedId(); as id) {
+    <button mat-button type="button" [disabled]="approving()" (click)="back()">
+      {{ copy().back }}
+    </button>
+    @if (loadingDetail()) {
+      <p role="status">{{ copy().loading }}</p>
+    } @else if (detailFailed()) {
+      <p role="alert">{{ copy().detailFailed }}</p>
+      <button mat-button type="button" (click)="open(id)">{{ copy().retry }}</button>
+    } @else if (detail(); as detail) {
+      <section class="review-detail">
+        <div class="detail-heading">
+          <h3>{{ detail.catName }}</h3>
+          <p>{{ detail.ownerName }} · {{ detail.catId ? copy().update : copy().create }}</p>
+        </div>
+        <form (submit)="approve($event)">
+          <fieldset class="review-form" [disabled]="approving()">
+            @if (photos().length) {
+              <section class="proofs">
+                <h4>{{ copy().images }}</h4>
+                <p>{{ copy().reviewPhotos }}</p>
+                <dl>
+                  <dt>{{ catCopy().form.lastTripleFelineDate }}</dt>
+                  <dd>
+                    {{
+                      displayValue(
+                        'lastTripleFelineDate',
+                        detail.proposed.lastTripleFelineDate ?? detail.current?.lastTripleFelineDate
+                      )
+                    }}
+                  </dd>
+                  <dt>{{ catCopy().form.lastRabiesDate }}</dt>
+                  <dd>
+                    {{
+                      displayValue(
+                        'lastRabiesDate',
+                        detail.proposed.lastRabiesDate ?? detail.current?.lastRabiesDate
+                      )
+                    }}
+                  </dd>
+                </dl>
+                <ul class="proof-grid">
+                  @for (photo of photos(); track photo.id; let index = $index) {
+                    <li>
+                      @if (photo.state === 'loaded') {
+                        <button
+                          type="button"
+                          class="proof-thumbnail"
+                          [attr.aria-label]="copy().zoomPhoto(index + 1)"
+                          (click)="zoom(photoDialog, photo.url, copy().photo(index + 1))"
+                        >
+                          <img [src]="photo.url" alt="" />
+                        </button>
+                        <label class="choice">
+                          <input
+                            type="checkbox"
+                            [name]="'photo-' + photo.id"
+                            [checked]="photo.selected"
+                            (change)="setPhoto(photo.id, $any($event.target).checked)"
+                          />
+                          {{ copy().keepPhoto(index + 1) }}
+                        </label>
+                      } @else if (photo.state === 'loading') {
+                        <p role="status">{{ copy().photoLoading(index + 1) }}</p>
+                      } @else {
+                        @if (photo.state === 'failed') {
+                          <p role="alert">{{ copy().photoFailed(index + 1) }}</p>
+                        } @else {
+                          <p role="status">{{ copy().photoExcluded(index + 1) }}</p>
+                        }
+                        <button mat-button type="button" (click)="loadPhoto(detail.id, photo.id)">
+                          {{ copy().retryPhoto(index + 1) }}
+                        </button>
+                        @if (photo.state === 'failed') {
+                          <button
+                            mat-button
+                            type="button"
+                            data-exclude-photo
+                            (click)="excludePhoto(photo.id)"
+                          >
+                            {{ copy().excludePhoto(index + 1) }}
+                          </button>
+                        }
+                      }
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+
+            <div class="field-grid">
+              @for (row of fields(); track row.field.key) {
+                <div class="review-field" [class.conflicting]="row.conflict">
+                  <h4>{{ catCopy().form[row.field.key] }}</h4>
+                  @if (detail.catId) {
+                    <dl class="comparison">
+                      <div>
+                        <dt>{{ copy().actual }}</dt>
+                        <dd>{{ displayValue(row.field.key, detail.current?.[row.field.key]) }}</dd>
+                      </div>
+                      <div>
+                        <dt>{{ copy().proposed }}</dt>
+                        <dd>{{ displayValue(row.field.key, detail.proposed[row.field.key]) }}</dd>
+                      </div>
+                    </dl>
+                    @if (row.conflict) {
+                      <p class="conflict-note">{{ copy().conflict }}</p>
+                      <label class="control">
+                        {{ copy().decision }}
+                        <select
+                          [name]="'decision-' + row.field.key"
+                          [value]="row.decision"
+                          (change)="setDecision(row.field.key, $any($event.target).value)"
+                        >
+                          <option value="unresolved">{{ copy().choose }}</option>
+                          <option value="keep">{{ copy().keepCurrent }}</option>
+                          <option value="apply">{{ copy().useReviewed }}</option>
+                        </select>
+                      </label>
+                    } @else {
+                      <label class="choice">
+                        <input
+                          type="checkbox"
+                          [name]="'apply-' + row.field.key"
+                          [checked]="row.decision === 'apply'"
+                          (change)="
+                            setDecision(
+                              row.field.key,
+                              $any($event.target).checked ? 'apply' : 'keep'
+                            )
+                          "
+                        />
+                        {{ copy().apply }}
+                      </label>
+                    }
+                  }
+                  <label class="control">
+                    {{ copy().reviewed }}
+                    @if (row.field.kind === 'sex') {
+                      <select
+                        [name]="row.field.key"
+                        [disabled]="row.decision !== 'apply'"
+                        [required]="detail.catId === null"
+                        [value]="row.value"
+                        (change)="setValue(row.field.key, $any($event.target).value)"
+                      >
+                        <option value="">{{ catCopy().form.selectSex }}</option>
+                        <option value="FEMALE">{{ catCopy().form.female }}</option>
+                        <option value="MALE">{{ catCopy().form.male }}</option>
+                      </select>
+                    } @else {
+                      <input
+                        [name]="row.field.key"
+                        [type]="row.field.kind"
+                        [attr.maxlength]="maxLength(row.field)"
+                        [disabled]="row.decision !== 'apply'"
+                        [required]="detail.catId === null && requiredForCreation(row.field)"
+                        [value]="row.value"
+                        (input)="setValue(row.field.key, $any($event.target).value)"
+                      />
+                    }
+                  </label>
+                </div>
+              }
+            </div>
+            <button mat-flat-button type="submit" [disabled]="!canApprove()">
+              {{ approving() ? copy().approving : copy().approve }}
+            </button>
+          </fieldset>
+        </form>
+      </section>
+    }
+  } @else {
+    <h3>{{ copy().pending }}</h3>
+    @if (loading()) {
+      <p role="status">{{ copy().loading }}</p>
+    } @else if (listFailed()) {
+      <p role="alert">{{ copy().loadFailed }}</p>
+      <button mat-button type="button" (click)="loadPending()">{{ copy().retry }}</button>
+    } @else if (groups().length === 0) {
+      <p>{{ copy().empty }}</p>
+    } @else {
+      @for (group of groups(); track group.ownerId) {
+        <section class="owner-group">
+          <h4>{{ group.ownerName }}</h4>
+          <ul>
+            @for (item of group.items; track item.id) {
+              <li>
+                <button mat-stroked-button type="button" data-review-item (click)="open(item.id)">
+                  <span class="item-name">{{ item.catName }}</span>
+                  <small>
+                    {{ item.catId ? copy().update : copy().create }} ·
+                    <time [attr.datetime]="item.submittedAt">{{
+                      displayInstant(item.submittedAt)
+                    }}</time>
+                  </small>
+                </button>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    }
+  }
+</section>
+
+<ng-template #photoDialog let-photo>
+  <h2 mat-dialog-title>{{ photo.label }}</h2>
+  <mat-dialog-content>
+    <img class="proof-full" [src]="photo.source" [alt]="photo.label" />
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>{{ copy().close }}</button>
+  </mat-dialog-actions>
+</ng-template>

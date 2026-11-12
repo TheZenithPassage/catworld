@@ -1,13 +1,18 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.model.Cat;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -30,6 +35,16 @@ public interface CatRepository extends JpaRepository<Cat, UUID> {
     Page<Cat> findByOwner_Id(UUID ownerId, Pageable pageable);
 
     Page<Cat> findByVet_Id(UUID vetId, Pageable pageable);
+
+    long countByOwner_IdAndIdIn(UUID ownerId, Collection<UUID> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Cat c where c.id = :id")
+    Optional<Cat> findByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Cat c where c.id in :ids and c.owner.id = :ownerId order by c.id")
+    List<Cat> findScopedForUpdate(@Param("ids") Collection<UUID> ids, @Param("ownerId") UUID ownerId);
 
     boolean existsByCreatedBy_Id(UUID createdById);
 }

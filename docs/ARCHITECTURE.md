@@ -21,6 +21,35 @@ Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
 to 8-bit and premultiplied while resizing before being flattened onto white.
 Native objects remain inside `Vips.run`.
 
+Cat informational photos are separate attachments for vaccination records and
+other reference images. The cat detail gallery lists attachment IDs and upload
+timestamps from `GET /api/cats/{catId}/informational-photos`. The same
+authenticated collection accepts one multipart `photo` per POST. Individual
+items support JPEG reads with `Cache-Control: no-store` and deletion. Both
+operations match the cat and photo IDs. Uploads use the same formats, size
+limits and JPEG normalization as profile photos. Deleting the cat removes the
+attachments through the database foreign key. Vaccination checks use the
+dates recorded in the cat's fields.
+
+Private cat intake uses separate invitation, review and photo staging tables.
+An administrator issues one active invitation per tutor, with an explicit list
+of existing cats and permission for new cats. The token is generated from 32
+random bytes and only its SHA-256 digest is stored. Links expire after seven
+days and carry the token in the URL fragment. The recipient sends it as a
+Bearer credential to the two intake endpoints. Their allowed browser origin
+is derived from the absolute `CATWORLD_INTAKE_URL` configuration.
+
+A submission can include up to 20 cats with two photos each, up to 8 MiB
+per photo and 32 MiB of images in total. Only normalized JPEGs are staged.
+A transaction locks and consumes the invitation when it saves the review
+items. Validation failures leave the invitation available. The server checks
+that selected cats still belong to the tutor before displaying, accepting or
+approving their proposed data. Reviews compare submitted fields with the
+invitation snapshot and the current cat. Approval requires the current update
+timestamp and applies the selected fields through the ordinary cat mutation
+service. Approved photos move to the authenticated informational gallery.
+Approval removes the staged data and closes the review in the same transaction.
+
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
