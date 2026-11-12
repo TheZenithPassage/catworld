@@ -52,6 +52,7 @@ public class StayMapper {
                         calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())),
                         calculateTransferSuggestedAmount(stay)))
                 .agreedAmount(stay.getAgreedAmount())
+                .pricePending(stay.isPricePending())
                 .canDelete(canDelete)
                 .build();
 

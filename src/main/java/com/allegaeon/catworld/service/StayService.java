@@ -345,29 +345,32 @@ public class StayService implements IStayService {
         validateCreationConfirmation(
                 stayRequestDTO.getConfirmation(), numberOfNights,
                 retainedNightlyRate, suggestedAmount, transfer);
-        BigDecimal agreedAmount = validatePricingDecision(
-                pricingDecision,
-                suggestedAmount
-        );
+        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
+        BigDecimal agreedAmount = pricePending
+                ? validatePendingPrice(pricingDecision)
+                : validatePricingDecision(pricingDecision, suggestedAmount);
 
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
         stay.setCreatedBy(currentUser);
         stay.setRetainedNightlyRate(retainedNightlyRate);
         stay.setAgreedAmount(agreedAmount);
+        stay.setPricePending(pricePending);
 
         Stay savedStay = stayRepository.save(stay);
-        stayPricingDecisionRepository.saveAndFlush(
-                buildPricingDecision(
-                        savedStay,
-                        null,
-                        numberOfNights,
-                        null,
-                        agreedAmount,
-                        pricingDecision.getReason(),
-                        currentUser
-                )
-        );
+        if (!pricePending) {
+            stayPricingDecisionRepository.saveAndFlush(
+                    buildPricingDecision(
+                            savedStay,
+                            null,
+                            numberOfNights,
+                            null,
+                            agreedAmount,
+                            pricingDecision.getReason(),
+                            currentUser
+                    )
+            );
+        }
 
         return toResponseDTO(savedStay);
 
@@ -483,12 +486,16 @@ public class StayService implements IStayService {
                     || !sameMoney(stayUpdateDTO.getConfirmation().getRetainedTransferRate(), selectedTransferRate))) {
                 throw new StalePricingConfirmationException();
             }
-            newAgreedAmount = validatePricingDecision(
-                    stayUpdateDTO.getPricingDecision(),
-                    selectedSuggestion
-            );
+            if (stay.isPricePending()) {
+                if (stayUpdateDTO.getPricingDecision() != null) {
+                    throw new BadRequestException("Confirm a pending price separately");
+                }
+            } else {
+                newAgreedAmount = validatePricingDecision(
+                        stayUpdateDTO.getPricingDecision(), selectedSuggestion);
+                validateAgreementFloor(stayId, newAgreedAmount);
+            }
             stay.setRetainedTransferRate(selectedTransferRate);
-            validateAgreementFloor(stayId, newAgreedAmount);
         }
 
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
@@ -523,7 +530,7 @@ public class StayService implements IStayService {
         }
 
         Stay savedStay = stayRepository.save(stay);
-        if (pricingAffecting) {
+        if (pricingAffecting && !stay.isPricePending()) {
             stayPricingDecisionRepository.saveAndFlush(
                     buildPricingDecision(
                             savedStay,
@@ -551,17 +558,19 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
 
-        if (stay.getAgreedAmount() == null) {
+        if (stay.getAgreedAmount() == null && !stay.isPricePending()) {
             throw new ConflictException(
                     "The stay agreement must exist before it can be corrected"
             );
         }
 
-        BigDecimal newAgreedAmount = validateCorrectionAmount(pricingDecision);
+        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
+        BigDecimal newAgreedAmount = pricePending
+                ? validatePendingPrice(pricingDecision)
+                : validateCorrectionAmount(pricingDecision);
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
 
-        if (previousAgreedAmount != null
-                && previousAgreedAmount.compareTo(newAgreedAmount) == 0) {
+        if (sameMoney(previousAgreedAmount, newAgreedAmount)) {
             return toResponseDTO(stay);
         }
 
@@ -571,9 +580,12 @@ public class StayService implements IStayService {
                     "A non-blank reason is required to correct the agreed amount"
             );
         }
-        validateAgreementFloor(stayId, newAgreedAmount);
+        if (!pricePending) {
+            validateAgreementFloor(stayId, newAgreedAmount);
+        }
 
         stay.setAgreedAmount(newAgreedAmount);
+        stay.setPricePending(pricePending);
         Stay savedStay = stayRepository.save(stay);
         stayAgreedAmountCorrectionRepository.saveAndFlush(
                 StayAgreedAmountCorrection.builder()
@@ -613,11 +625,8 @@ public class StayService implements IStayService {
         }
         BigDecimal agreement = requirePaymentAgreement(stay);
         BigDecimal activeTotal = getActivePaymentTotal(stayId);
-        if (activeTotal.add(amount).compareTo(agreement) > 0) {
-            throw new ConflictException(
-                    "Payment amount exceeds the current remaining amount"
-            );
-        }
+        validatePaymentTotal(agreement, activeTotal.add(amount),
+                "Payment amount exceeds the current remaining amount");
 
         stayPaymentRepository.saveAndFlush(
                 StayPayment.builder()
@@ -643,7 +652,7 @@ public class StayService implements IStayService {
                 currentUser,
                 stay.getStatus()
         );
-        requirePaymentAgreement(stay);
+        BigDecimal agreement = requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         BigDecimal newAmount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -659,15 +668,11 @@ public class StayService implements IStayService {
             );
         }
 
-        BigDecimal agreement = requirePaymentAgreement(stay);
         BigDecimal resultingTotal = getActivePaymentTotal(stayId)
                 .subtract(previousAmount)
                 .add(newAmount);
-        if (resultingTotal.compareTo(agreement) > 0) {
-            throw new ConflictException(
-                    "Edited payment amount would exceed the agreed amount"
-            );
-        }
+        validatePaymentTotal(agreement, resultingTotal,
+                "Edited payment amount would exceed the agreed amount");
 
         payment.changeAmount(newAmount);
         StayPayment savedPayment = stayPaymentRepository.saveAndFlush(payment);
@@ -1085,6 +1090,13 @@ public class StayService implements IStayService {
                 : authoritative != null && clientValue.compareTo(authoritative) == 0;
     }
 
+    private BigDecimal validatePendingPrice(PricingDecisionRequestDTO pricingDecision) {
+        if (pricingDecision.getAgreedAmount() != null) {
+            throw new BadRequestException("Choose either an agreed amount or a pending price");
+        }
+        return null;
+    }
+
     private BigDecimal validatePricingDecision(
             PricingDecisionRequestDTO pricingDecision,
             BigDecimal suggestedAmount) {
@@ -1093,7 +1105,7 @@ public class StayService implements IStayService {
         }
 
         BigDecimal agreedAmount = pricingDecision.getAgreedAmount();
-        if (agreedAmount == null
+        if (pricingDecision.isPricePending() || agreedAmount == null
                 || agreedAmount.signum() < 0
                 || !WholeMonetaryAmount.isSupported(agreedAmount)) {
             throw new BadRequestException(
@@ -1146,12 +1158,24 @@ public class StayService implements IStayService {
     }
 
     private BigDecimal requirePaymentAgreement(Stay stay) {
+        if (stay.isPricePending()) {
+            return null;
+        }
         if (stay.getAgreedAmount() == null) {
             throw new ConflictException(
                     "The stay agreement must be initialized before changing payments"
             );
         }
         return WholeMonetaryAmount.canonicalize(stay.getAgreedAmount());
+    }
+
+    private void validatePaymentTotal(BigDecimal agreement, BigDecimal total, String error) {
+        if (agreement != null && total.compareTo(agreement) > 0) {
+            throw new ConflictException(error);
+        }
+        if (!WholeMonetaryAmount.isSupported(total)) {
+            throw new ConflictException("Payment total exceeds the supported monetary amount");
+        }
     }
 
     private BigDecimal getActivePaymentTotal(UUID stayId) {
@@ -1362,7 +1386,8 @@ public class StayService implements IStayService {
         StayPaymentEconomics economics = StayPaymentEconomics.calculate(
                 stay.getAgreedAmount(),
                 payments,
-                stay.getCancelledAt() != null
+                stay.getCancelledAt() != null,
+                stay.isPricePending()
         );
         response.setTotalPaid(economics.totalPaid());
         response.setRemainingAmount(economics.remainingAmount());

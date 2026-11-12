@@ -146,20 +146,24 @@
                 @if (stalePricing()) {
                   <p class="pricing-warning" role="alert">{{ text().stays.pricing.stale }}</p>
                 }
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
-                  <input
-                    matInput
-                    name="agreedAmount"
-                    inputmode="numeric"
-                    [ngModel]="agreedAmount()"
-                    (ngModelChange)="onAgreedAmountChange($event)"
-                    [disabled]="previewLoading()"
-                  />
-                  @if (agreedAmount() && !amountValid()) {
-                    <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
-                  }
-                </mat-form-field>
+                @if (stay()?.pricePending) {
+                  <p>{{ text().stays.pricing.pricePending }}</p>
+                } @else {
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
+                    <input
+                      matInput
+                      name="agreedAmount"
+                      inputmode="numeric"
+                      [ngModel]="agreedAmount()"
+                      (ngModelChange)="onAgreedAmountChange($event)"
+                      [disabled]="previewLoading()"
+                    />
+                    @if (agreedAmount() && !amountValid()) {
+                      <mat-error>{{ text().stays.pricing.errors.invalidAmount }}</mat-error>
+                    }
+                  </mat-form-field>
+                }
                 @if (retainedRateActionLabel(); as actionLabel) {
                   <div class="pricing-helper-actions">
                     <button
@@ -184,35 +188,37 @@
                     </button>
                   </div>
                 }
-                <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                  <mat-label>{{ text().stays.pricing.reason }}</mat-label>
-                  <textarea
-                    matInput
-                    name="pricingReason"
-                    rows="2"
-                    [placeholder]="pricingReasonPlaceholder()"
-                    [ngModel]="pricingReason()"
-                    (ngModelChange)="pricingReason.set($event); onPricingDecisionChange()"
-                    [disabled]="previewLoading()"
-                  ></textarea>
-                  @if (reasonRequired() && !pricingReason().trim()) {
-                    <mat-error>{{ text().stays.pricing.errors.reasonRequired }}</mat-error>
-                  }
-                </mat-form-field>
-                <button
-                  mat-stroked-button
-                  type="button"
-                  (click)="confirmPricing()"
-                  [disabled]="previewLoading() || !decisionValid() || pricingConfirmed()"
-                >
-                  {{
-                    pricingConfirmed()
-                      ? text().stays.pricing.confirmed
-                      : reasonRequired() && !pricingReason().trim()
-                        ? text().stays.pricing.confirmAfterReason
-                        : text().stays.pricing.confirm
-                  }}
-                </button>
+                @if (!stay()?.pricePending) {
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{ text().stays.pricing.reason }}</mat-label>
+                    <textarea
+                      matInput
+                      name="pricingReason"
+                      rows="2"
+                      [placeholder]="pricingReasonPlaceholder()"
+                      [ngModel]="pricingReason()"
+                      (ngModelChange)="pricingReason.set($event); onPricingDecisionChange()"
+                      [disabled]="previewLoading()"
+                    ></textarea>
+                    @if (reasonRequired() && !pricingReason().trim()) {
+                      <mat-error>{{ text().stays.pricing.errors.reasonRequired }}</mat-error>
+                    }
+                  </mat-form-field>
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="confirmPricing()"
+                    [disabled]="previewLoading() || !decisionValid() || pricingConfirmed()"
+                  >
+                    {{
+                      pricingConfirmed()
+                        ? text().stays.pricing.confirmed
+                        : reasonRequired() && !pricingReason().trim()
+                          ? text().stays.pricing.confirmAfterReason
+                          : text().stays.pricing.confirm
+                    }}
+                  </button>
+                }
               }
             }
           </section>
@@ -240,7 +246,8 @@
               [disabled]="
                 submitting() ||
                 previewLoading() ||
-                (pricingPreview()?.pricingDecisionRequired === true && !pricingConfirmed())
+                (pricingPreview()?.pricingDecisionRequired === true &&
+                  (!isAdmin() || (!stay()?.pricePending && !pricingConfirmed())))
               "
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
