@@ -94,6 +94,9 @@ class StayPaymentMySqlIntegrationTest {
     private StayRepository stayRepository;
 
     @Autowired
+    private StayAgreedAmountCorrectionRepository correctionRepository;
+
+    @Autowired
     private StayPaymentRepository stayPaymentRepository;
 
     @Autowired
@@ -145,9 +148,9 @@ class StayPaymentMySqlIntegrationTest {
         assertTrue(pending.isPricePending());
         assertNull(pending.getRemainingAmount());
         assertEquals(new BigDecimal("30"), pending.getTotalPaid());
-        assertNull(jdbcTemplate.queryForObject(
-                "select new_agreed_amount from stay_agreed_amount_corrections where stay_id = ?",
-                BigDecimal.class, stayId));
+        var corrections = correctionRepository.findAllByStayId(stayId);
+        assertEquals(1, corrections.size());
+        assertNull(corrections.getFirst().getNewAgreedAmount());
         var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
                 .agreedAmount(new BigDecimal("80")).reason("Price confirmed").build());
         assertFalse(confirmed.isPricePending());
