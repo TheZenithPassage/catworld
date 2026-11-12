@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -442,8 +443,8 @@ final class SensitiveEconomicActivityQueryContract {
                 .array();
     }
 
-    private static Timestamp timestamp(Instant instant) {
-        return Timestamp.from(instant);
+    private static LocalDateTime timestamp(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 
     private static BigDecimal amount(String value) {

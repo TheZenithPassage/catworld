@@ -2,7 +2,10 @@ package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRemovalRequestDTO;
+import com.allegaeon.catworld.dto.StayDateMatchMode;
+import com.allegaeon.catworld.dto.sensitiveactivity.PaymentRemovedActivityDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.PricingOverrideActivityDTO;
+import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityFilter;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicEventType;
 import com.allegaeon.catworld.model.*;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
@@ -22,10 +25,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Clock;
-import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -129,6 +132,78 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
                 from sensitive_stay_contexts c
                 join stay_payment_removals r on r.sensitive_context_id = c.id
                 """, String.class));
+    }
+
+    @Test
+    void readsUtcAuditInstantsAndFiltersTheirExactBounds() {
+        Fixture fixture = fixture();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(fixture.stay().getId(), registration("40"));
+        UUID stayId = fixture.stay().getId();
+        UUID paymentId = payments(stayId).getFirst().getId();
+        Instant registeredAt = Instant.parse("2026-08-02T10:15:20.123456Z");
+        Instant removedAt = Instant.parse("2026-08-02T12:34:56.654321Z");
+        jdbc.update("""
+                update stay_payments set created_at = '2026-08-02 10:15:20.123456'
+                where id = ?
+                """, uuidBytes(paymentId));
+        when(clock.instant()).thenReturn(removedAt);
+        stayService.removePayment(stayId, paymentId,
+                PaymentRemovalRequestDTO.builder().reason("Audit timestamp regression").build());
+
+        var unfiltered = sensitiveEconomicActivityService.getActivity(
+                removalFilter(stayId, null, null), 0);
+        var event = assertInstanceOf(PaymentRemovedActivityDTO.class, unfiltered.items().getFirst());
+        assertAll(
+                () -> assertEquals(removedAt, event.occurredAt()),
+                () -> assertEquals(registeredAt, event.registeredAt()),
+                () -> assertEquals(fixture.stay().getStartAt(), event.affectedContext().startAt()),
+                () -> assertEquals(fixture.stay().getEndAt(), event.affectedContext().endAt()),
+                () -> {
+                    var matching = sensitiveEconomicActivityService.getActivity(
+                            removalFilter(stayId, removedAt, removedAt.plusNanos(1_000)), 0);
+                    assertEquals(1, matching.totalElements());
+                    assertEquals(List.of(event), matching.items());
+                },
+                () -> assertEquals(0, sensitiveEconomicActivityService.getActivity(
+                        removalFilter(stayId, null, removedAt), 0).totalElements()),
+                () -> assertEquals(1, sensitiveEconomicActivityService.getActivity(
+                        removalFilter(stayId, null, removedAt.plusNanos(1)), 0).totalElements()),
+                () -> assertEquals(0, sensitiveEconomicActivityService.getActivity(
+                        removalFilter(stayId, removedAt.plusNanos(1), null), 0).totalElements()));
+    }
+
+    private SensitiveEconomicActivityFilter removalFilter(UUID stayId, Instant from, Instant to) {
+        return new SensitiveEconomicActivityFilter(null, from, to,
+                SensitiveEconomicEventType.PAYMENT_REMOVED, null, null, stayId);
+    }
+
+    @Test
+    void filtersByStayWallDatesWhenItsStoredStartFallsOnTheNextDay() {
+        Fixture fixture = fixture();
+        fixture.stay().setStartAt(LocalDateTime.parse("2026-11-30T23:30:00"));
+        fixture.stay().setEndAt(LocalDateTime.parse("2026-12-01T00:30:00"));
+        stayRepository.saveAndFlush(fixture.stay());
+        UUID stayId = fixture.stay().getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(stayId, registration("40"));
+        stayService.removePayment(stayId, payments(stayId).getFirst().getId(),
+                PaymentRemovalRequestDTO.builder().reason("Stay date filter regression").build());
+
+        LocalDate november = LocalDate.parse("2026-11-30");
+        LocalDate december = LocalDate.parse("2026-12-01");
+        assertAll(
+                () -> assertEquals(1, countRemovals(stayId, november, november, StayDateMatchMode.OVERLAPS)),
+                () -> assertEquals(1, countRemovals(stayId, december, december, StayDateMatchMode.OVERLAPS)),
+                () -> assertEquals(0, countRemovals(stayId, december, december, StayDateMatchMode.STAY_WITHIN_RANGE)),
+                () -> assertEquals(1, countRemovals(stayId, november, december, StayDateMatchMode.STAY_WITHIN_RANGE)),
+                () -> assertEquals(1, countRemovals(stayId, november, december, StayDateMatchMode.RANGE_WITHIN_STAY)));
+    }
+
+    private long countRemovals(UUID stayId, LocalDate from, LocalDate to, StayDateMatchMode mode) {
+        return sensitiveEconomicActivityService.getActivity(new SensitiveEconomicActivityFilter(
+                null, null, null, SensitiveEconomicEventType.PAYMENT_REMOVED,
+                null, null, stayId, from, to, mode), 0).totalElements();
     }
 
     @Test
