@@ -78,6 +78,12 @@ class MonthlyPaymentsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalAmount").value("130"))
                 .andExpect(jsonPath("$.payments.items.length()").value(1));
+
+        mvc.perform(get("/api/payments/received").param("month", "2026-10").param("page", "2")
+                        .with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.payments.page").value(1))
+                .andExpect(jsonPath("$.payments.items.length()").value(1));
     }
 
     @Test

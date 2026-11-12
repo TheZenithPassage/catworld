@@ -28,14 +28,16 @@ public class MonthlyPaymentsService {
     @Transactional(readOnly = true)
     public MonthlyReceipts getReceipts(String requestedMonth, int page) {
         YearMonth month = parseMonth(requestedMonth);
-        int offset = offsetFor(page);
+        validatePage(page);
         LocalDate start = month.atDay(1);
         LocalDate end = month.plusMonths(1).atDay(1);
         var totals = monthlyPaymentsRepository.summarizeReceipts(start, end);
-        var payments = monthlyPaymentsRepository.findReceipts(start, end, offset, OverviewPage.PAGE_SIZE);
+        int actualPage = (int) Math.min(page, Math.max(0, totals.count() - 1) / OverviewPage.PAGE_SIZE);
+        var payments = monthlyPaymentsRepository.findReceipts(start, end, actualPage * OverviewPage.PAGE_SIZE,
+                OverviewPage.PAGE_SIZE);
         var cats = catNamesByStay(payments.stream().map(payment -> payment.getStay().getId()).distinct().toList());
         var items = payments.stream().map(payment -> receipt(payment, cats)).toList();
-        return new MonthlyReceipts(new OverviewPage<>(items, page, totals.count()), totals.amount().toPlainString());
+        return new MonthlyReceipts(new OverviewPage<>(items, actualPage, totals.count()), totals.amount().toPlainString());
     }
 
     private MonthlyReceipts.Receipt receipt(StayPayment payment, Map<UUID, List<String>> cats) {
@@ -65,10 +67,9 @@ public class MonthlyPaymentsService {
         }
     }
 
-    private int offsetFor(int page) {
+    private void validatePage(int page) {
         if (page < 0 || page > Integer.MAX_VALUE / OverviewPage.PAGE_SIZE) {
             throw new BadRequestException("Page is outside the supported range");
         }
-        return page * OverviewPage.PAGE_SIZE;
     }
 }
