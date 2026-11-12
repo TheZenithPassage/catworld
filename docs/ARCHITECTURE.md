@@ -1141,7 +1141,8 @@ each movement and boarding stay to the existing Stay detail dialog.
 The agenda opens an authenticated print view at
 `/operations/agenda/print?date=YYYY-MM-DD` for the selected date. The view reads
 the same endpoint and prints that day's scheduled movements with cat and owner
-names and a transfer label where required.
+names and a transfer label where required. Returning from a loaded print view
+restores the selected date on the agenda.
 
 The backend reads non-cancelled stays for the bounded eight-day window and
 sorts movements by scheduled time, direction and stay ID. Each local movement

@@ -3,7 +3,13 @@
 
 <div class="agenda-print-page">
   <div class="print-actions">
-    <a mat-stroked-button routerLink="/">{{ copy.print.back }}</a>
+    <a
+      mat-stroked-button
+      routerLink="/"
+      [queryParams]="result.kind === 'ready' ? { date: result.agenda.date } : null"
+    >
+      {{ copy.print.back }}
+    </a>
     @if (result.kind === 'ready') {
       <button mat-flat-button type="button" (click)="print()">{{ copy.print.action }}</button>
     }

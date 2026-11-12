@@ -44,8 +44,12 @@ describe('Operations agenda print page', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-    localStorage.removeItem('catworld.language');
-    http.verify();
+    try {
+      http.verify();
+    } finally {
+      TestBed.resetTestingModule();
+      localStorage.removeItem('catworld.language');
+    }
   });
 
   function signIn(): void {
@@ -126,11 +130,56 @@ describe('Operations agenda print page', () => {
     http.expectOne(`${apiUrl}?date=${selectedDate}`).flush(emptyAgenda);
   });
 
+  it('returns to the date selected in the dashboard agenda', async () => {
+    signIn();
+    const harness = await RouterTestingHarness.create('/');
+    const router = TestBed.inject(Router);
+    http.expectOne(apiUrl).flush({ ...emptyAgenda, date: emptyAgenda.businessDate });
+    harness.detectChanges();
+
+    const dashboard = harness.routeNativeElement!;
+    const dateInput = dashboard.querySelector<HTMLInputElement>('input[type="date"]')!;
+    dateInput.value = selectedDate;
+    dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+    http.expectOne(`${apiUrl}?date=${selectedDate}`).flush(emptyAgenda);
+    harness.detectChanges();
+
+    dashboard.querySelector<HTMLAnchorElement>(`a[href^="${pageUrl}?"]`)!.click();
+    await harness.fixture.whenStable();
+    expect(router.url).toBe(`${pageUrl}?date=${selectedDate}`);
+    http.expectOne(`${apiUrl}?date=${selectedDate}`).flush(emptyAgenda);
+    harness.detectChanges();
+
+    harness.routeNativeElement!.querySelector<HTMLAnchorElement>('a')!.click();
+    await harness.fixture.whenStable();
+    expect(router.url).toBe(`/?date=${selectedDate}`);
+    http.expectOne(`${apiUrl}?date=${selectedDate}`).flush(emptyAgenda);
+    harness.detectChanges();
+    expect(
+      harness.routeNativeElement!.querySelector<HTMLInputElement>('input[type="date"]')!.value,
+    ).toBe(selectedDate);
+  });
+
+  it.each(['tomorrow', '2030-02-30', '9999-12-24'])(
+    'loads the business date when the dashboard URL date is %s',
+    async (invalidDate) => {
+      signIn();
+      const harness = await RouterTestingHarness.create(`/?date=${invalidDate}`);
+      http.expectOne(apiUrl).flush({ ...emptyAgenda, date: emptyAgenda.businessDate });
+      harness.detectChanges();
+
+      const input =
+        harness.routeNativeElement!.querySelector<HTMLInputElement>('input[type="date"]');
+      expect(input?.value).toBe(emptyAgenda.businessDate);
+    },
+  );
+
   it('requires a date and retries a failed request for the same day', async () => {
     signIn();
     const harness = await RouterTestingHarness.create(pageUrl);
     const page = harness.routeNativeElement!;
     expect(page.textContent).toContain('Select a valid date');
+    expect(page.querySelector('a')?.getAttribute('href')).toBe('/');
     http.expectNone((request) => request.url === apiUrl);
 
     await harness.navigateByUrl(`${pageUrl}?date=${selectedDate}`);
