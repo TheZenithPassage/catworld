@@ -33,12 +33,11 @@ interface ReviewField {
   decision: Decision;
 }
 
-interface ReviewPhoto {
-  id: string;
-  url: string | null;
-  selected: boolean;
-  failed: boolean;
-}
+type ReviewPhotoState =
+  | { state: 'loading' | 'failed' | 'excluded' }
+  | { state: 'loaded'; url: string; selected: boolean };
+
+type ReviewPhoto = { id: string } & ReviewPhotoState;
 
 interface ReviewGroup {
   ownerId: string;
@@ -90,6 +89,7 @@ export class CatIntakeReview {
     return (
       detail !== null &&
       !this.approving() &&
+      this.photos().every(({ state }) => state === 'loaded' || state === 'excluded') &&
       this.fields().every(({ field, conflict, decision, value }) => {
         if (decision === 'unresolved') return false;
         if (conflict && decision === 'apply') return value.trim().length > 0;
@@ -145,9 +145,7 @@ export class CatIntakeReview {
               };
             }),
           );
-          this.photos.set(
-            detail.photos.map(({ id }) => ({ id, url: null, selected: false, failed: false })),
-          );
+          this.photos.set(detail.photos.map(({ id }) => ({ id, state: 'loading' })));
           this.loadingDetail.set(false);
           for (const photo of detail.photos) this.loadPhoto(detail.id, photo.id);
         },
@@ -182,18 +180,28 @@ export class CatIntakeReview {
 
   setPhoto(id: string, selected: boolean): void {
     this.photos.update((photos) =>
-      photos.map((photo) => (photo.id === id ? { ...photo, selected } : photo)),
+      photos.map((photo) =>
+        photo.id === id && photo.state === 'loaded' ? { ...photo, selected } : photo,
+      ),
     );
   }
 
+  excludePhoto(id: string): void {
+    this.updatePhoto(id, { state: 'excluded' });
+  }
+
   loadPhoto(reviewId: string, photoId: string): void {
-    this.updatePhoto(photoId, { failed: false });
+    this.updatePhoto(photoId, { state: 'loading' });
     this.detailRequests.add(
       this.api.getReviewPhoto(reviewId, photoId).subscribe({
         next: (blob) => {
-          this.updatePhoto(photoId, { url: URL.createObjectURL(blob) });
+          this.updatePhoto(photoId, {
+            state: 'loaded',
+            url: URL.createObjectURL(blob),
+            selected: false,
+          });
         },
-        error: () => this.updatePhoto(photoId, { failed: true }),
+        error: () => this.updatePhoto(photoId, { state: 'failed' }),
       }),
     );
   }
@@ -239,7 +247,7 @@ export class CatIntakeReview {
       .approve(detail.id, {
         fields,
         photoIds: this.photos()
-          .filter((photo) => photo.selected && photo.url)
+          .filter((photo) => photo.state === 'loaded' && photo.selected)
           .map((photo) => photo.id),
         expectedCatUpdatedAt: detail.catUpdatedAt,
       })
@@ -261,16 +269,18 @@ export class CatIntakeReview {
       });
   }
 
-  private updatePhoto(photoId: string, update: Partial<ReviewPhoto>): void {
+  private updatePhoto(photoId: string, state: ReviewPhotoState): void {
     this.photos.update((photos) =>
-      photos.map((photo) => (photo.id === photoId ? { ...photo, ...update } : photo)),
+      photos.map((photo) => (photo.id === photoId ? { id: photoId, ...state } : photo)),
     );
   }
 
   private clearDetail(): void {
     this.detailRequests.unsubscribe();
     this.detailRequests = new Subscription();
-    for (const photo of this.photos()) if (photo.url) URL.revokeObjectURL(photo.url);
+    for (const photo of this.photos()) {
+      if (photo.state === 'loaded') URL.revokeObjectURL(photo.url);
+    }
     this.detail.set(null);
     this.photos.set([]);
     this.fields.set([]);

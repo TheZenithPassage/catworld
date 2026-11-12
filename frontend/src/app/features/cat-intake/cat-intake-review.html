@@ -54,14 +54,14 @@
                 <ul class="proof-grid">
                   @for (photo of photos(); track photo.id; let index = $index) {
                     <li>
-                      @if (photo.url; as source) {
+                      @if (photo.state === 'loaded') {
                         <button
                           type="button"
                           class="proof-thumbnail"
                           [attr.aria-label]="copy().zoomPhoto(index + 1)"
-                          (click)="zoom(photoDialog, source, copy().photo(index + 1))"
+                          (click)="zoom(photoDialog, photo.url, copy().photo(index + 1))"
                         >
-                          <img [src]="source" alt="" />
+                          <img [src]="photo.url" alt="" />
                         </button>
                         <label class="choice">
                           <input
@@ -72,13 +72,27 @@
                           />
                           {{ copy().keepPhoto(index + 1) }}
                         </label>
-                      } @else if (photo.failed) {
-                        <p role="alert">{{ copy().photoFailed }}</p>
-                        <button mat-button type="button" (click)="loadPhoto(detail.id, photo.id)">
-                          {{ copy().retry }}
-                        </button>
+                      } @else if (photo.state === 'loading') {
+                        <p role="status">{{ copy().photoLoading(index + 1) }}</p>
                       } @else {
-                        <p role="status">{{ catCopy().detail.photoLoading }}</p>
+                        @if (photo.state === 'failed') {
+                          <p role="alert">{{ copy().photoFailed(index + 1) }}</p>
+                        } @else {
+                          <p role="status">{{ copy().photoExcluded(index + 1) }}</p>
+                        }
+                        <button mat-button type="button" (click)="loadPhoto(detail.id, photo.id)">
+                          {{ copy().retryPhoto(index + 1) }}
+                        </button>
+                        @if (photo.state === 'failed') {
+                          <button
+                            mat-button
+                            type="button"
+                            data-exclude-photo
+                            (click)="excludePhoto(photo.id)"
+                          >
+                            {{ copy().excludePhoto(index + 1) }}
+                          </button>
+                        }
                       }
                     </li>
                   }
