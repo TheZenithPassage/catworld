@@ -1,0 +1,7 @@
+# Opt in to the public gallery listener. The tunnel owns external HTTPS routing.
+services:
+  frontend:
+    ports:
+      - "127.0.0.1:${CATWORLD_GALLERY_PORT:-4201}:8081"
+    environment:
+      CATWORLD_WHATSAPP_PHONE: ${CATWORLD_WHATSAPP_PHONE:-}

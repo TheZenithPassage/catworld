@@ -31,6 +31,20 @@ The production app requires Java native access and libvips 8.18.5 with
 HEIF/HEVC and Little CMS support for photo normalization; these dependencies
 are built into the backend image, not installed by compiling on EC2.
 
+## Enable the public website
+
+The public gallery has an independent frontend listener on loopback. When
+authorized, add `-f compose.public-gallery.yml` to the production Compose
+invocation and map `catworld.com.ar` to that listener in Cloudflare Tunnel
+(default port 4201). Keep the administrative hostname on its original listener
+and behind Cloudflare Access. The gallery listener serves the public page and
+read-only publication resources.
+
+Set `CATWORLD_WHATSAPP_PHONE` in the production environment to the approved
+business number in international format, including the plus sign. The page
+omits the WhatsApp action when the number is missing or invalid. Review the
+public copy and images before making the hostname reachable.
+
 ## Publish and select a release
 
 1. Merge the reviewed product changes, including this documentation, into the
