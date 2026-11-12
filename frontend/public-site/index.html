@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Conocé CatWorld, nuestra guardería felina, y los gatos de nuestra galería."
+    />
+    <title>CatWorld · Guardería felina</title>
+    <link rel="stylesheet" href="/site.css" />
+    <script type="module" src="/site.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Ir al contenido</a>
+    <header class="shell site-header">
+      <a class="brand" href="/" aria-label="CatWorld, inicio">
+        <span aria-hidden="true" class="brand-mark">✦</span>
+        CatWorld
+      </a>
+      <nav aria-label="Principal">
+        <a href="#galeria">Galería</a>
+        <a class="header-contact" data-whatsapp target="_blank" rel="noopener noreferrer" hidden
+          >Consultar por WhatsApp</a
+        >
+      </nav>
+    </header>
+
+    <main id="contenido">
+      <section class="shell hero" aria-labelledby="titulo">
+        <div class="hero-copy">
+          <p class="eyebrow">Guardería felina</p>
+          <h1 id="titulo">Un lugar pensado para gatos.</h1>
+          <p>
+            Conocé CatWorld y descubrí a los gatos de casa y a los huéspedes de nuestra galería.
+          </p>
+          <div class="hero-actions">
+            <a
+              class="button button-primary"
+              data-whatsapp
+              target="_blank"
+              rel="noopener noreferrer"
+              hidden
+              >Consultar por WhatsApp <span aria-hidden="true">↗</span></a
+            >
+            <a class="button button-secondary" href="#galeria">Conocer a los gatos</a>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <span class="art-sparkle art-sparkle-top">✧</span>
+          <span class="art-sparkle art-sparkle-bottom">✦</span>
+          <span class="cat-tail"></span>
+          <span class="cat-body"></span>
+          <span class="cat-head"><i></i></span>
+        </div>
+      </section>
+
+      <section id="galeria" class="gallery" aria-labelledby="galeria-titulo">
+        <div class="shell">
+          <div class="section-intro">
+            <p class="eyebrow">La galería</p>
+            <h2 id="galeria-titulo">Los gatos de CatWorld</h2>
+          </div>
+          <p class="gallery-status" data-gallery-status role="status">Cargando la galería…</p>
+          <section
+            class="gallery-group"
+            data-gallery-group="RESIDENT"
+            aria-labelledby="gatos-de-casa"
+            hidden
+          >
+            <h3 id="gatos-de-casa">Gatos de casa</h3>
+            <div class="gallery-grid" data-gallery-items></div>
+          </section>
+          <section
+            class="gallery-group"
+            data-gallery-group="GUEST"
+            aria-labelledby="gatos-huespedes"
+            hidden
+          >
+            <h3 id="gatos-huespedes">Huéspedes</h3>
+            <div class="gallery-grid" data-gallery-items></div>
+          </section>
+          <noscript>Activá JavaScript para ver las fotos de la galería.</noscript>
+        </div>
+      </section>
+
+      <section class="shell contact" aria-labelledby="contacto-titulo" data-contact-section hidden>
+        <div>
+          <h2 id="contacto-titulo">¿Querés saber más?</h2>
+          <p>Escribinos para conocer la guardería y conversar sobre los cuidados de tu gato.</p>
+        </div>
+        <a
+          class="button button-primary"
+          data-whatsapp
+          target="_blank"
+          rel="noopener noreferrer"
+          hidden
+          >Consultar por WhatsApp <span aria-hidden="true">↗</span></a
+        >
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell"><strong>CatWorld</strong><span>Guardería felina</span></div>
+    </footer>
+  </body>
+</html>

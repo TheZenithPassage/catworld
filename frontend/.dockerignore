@@ -8,6 +8,9 @@
 !src/**
 !public
 !public/**
+!nginx-gallery.conf
+!public-site
+!public-site/**
 !nginx.conf
 !docker-entrypoint.d
 !docker-entrypoint.d/**

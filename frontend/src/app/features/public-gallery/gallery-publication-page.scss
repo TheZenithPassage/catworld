@@ -1,0 +1,105 @@
+.page {
+  width: min(70rem, 100%);
+  margin-inline: auto;
+  padding: 1.25rem;
+  box-sizing: border-box;
+}
+
+.page-header,
+.actions,
+.entries li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header,
+.entries li {
+  justify-content: space-between;
+}
+
+.page-header {
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.page-header h1,
+.page-header p,
+.panel h2,
+.editor p {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 0.35rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.panel h2 {
+  margin-bottom: 1rem;
+}
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entries li {
+  padding: 0.7rem;
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+.entries li.selected {
+  background: var(--color-surface-muted);
+}
+
+.entries span {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.editor {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.saved-photo {
+  width: 100%;
+  height: 14rem;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container);
+}
+
+.actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+@media (max-width: 48rem) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}

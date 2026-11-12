@@ -1540,6 +1540,26 @@ individually. Disabling transfer assistance clears both leg selections and the
 waiver, so none of those controls contributes a required leg, waiver or charge
 to the resulting request or pricing preview.
 
+## Public CatWorld gallery
+
+The Spanish marketing page is built from `frontend/public-site`. It renders the
+published gallery on each load and creates a WhatsApp inquiry link from the
+deployment's configured business number. Gallery publications contain public-facing
+copy and separately stored, normalized JPEGs. They have no foreign keys to cats,
+owners, stays, or private photos.
+
+The administrative editor at `/gallery-publications` and its API under
+`/api/gallery-publications` require `ADMIN`. An administrator saves a draft before
+publishing and confirms permission for each guest publication. A published entry
+must be hidden before editing. Hiding clears the permission confirmation. Publishing
+checks the version that was previewed so a concurrent edit requires a fresh review.
+
+The public catalogue at `GET /api/public-gallery` returns display metadata for
+published entries. `GET /api/public-gallery/{id}/photo` returns the published JPEG
+and responds with 404 for draft or hidden entries. Both responses use
+`Cache-Control: no-store`.
+
+
 ## Public Repository Notes
 
 No real credentials are required to run this project locally.

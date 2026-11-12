@@ -31,6 +31,25 @@ The production app requires Java native access and libvips 8.18.5 with
 HEIF/HEVC and Little CMS support for photo normalization; these dependencies
 are built into the backend image, not installed by compiling on EC2.
 
+## Enable the public website
+
+Select a release with the preceding Flyway migrations before deploying the
+gallery schema (V18). The listener can be enabled independently of the
+private intake listener once the selected image pair is running.
+
+The public gallery has an independent frontend listener on loopback. When
+authorized, download `compose.public-gallery.yml` next to `compose.prod.yml`
+from the same pinned source commit. Add `--enable-listener gallery` to
+`production_pair.py --deploy` on each deployment that should expose the gallery
+listener. Map `catworld.com.ar` to it in Cloudflare Tunnel (default port 4201).
+Keep the administrative hostname on its original listener behind Cloudflare
+Access. The gallery listener serves the public page and read-only publications.
+
+Set `CATWORLD_WHATSAPP_PHONE` in the production environment to the approved
+business number in international format, including the plus sign. The page
+omits the WhatsApp action when the number is missing or invalid. Review the
+public copy and images before making the hostname reachable.
+
 ## Publish and select a release
 
 1. Merge the reviewed product changes, including this documentation, into the
@@ -221,6 +240,11 @@ their SHA-256 digests with `sha256sum`; record a mismatch as a failed restore.
 The cat-photo resource's digest ETag is another check, not a substitute for
 reading the restored bytes. Do not claim a successful restore from a completed
 SQL import alone.
+
+Keep the gallery listener disabled for the first startup after a restore.
+Review restored publications against the current permissions and withdrawals
+before enabling it. Confirm a withdrawn image URL returns 404 through the
+public hostname.
 
 The creator-attribution checks once needed for migration #146 were a
 historical rollout decision, not a standing pre-deployment command. For every
