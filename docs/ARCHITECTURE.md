@@ -1344,6 +1344,30 @@ Typography and density are configured through the Material theme. Local
 typography or density overrides should be limited to documented product
 exceptions on specific components.
 
+## Internal Operations Tasks
+
+The dashboard links to `/operations/tasks` for ADMIN and STAFF. Operators can
+create a task with a short description, an optional due date and an optional
+stay selected through the existing lookup. The stay action opens the standard
+detail dialog.
+
+`GET` and `POST /api/operations/tasks` use a dedicated task contract. The
+server classifies open tasks as overdue, today, upcoming or undated using one
+date from the configured business clock. Resolved tasks have their own group.
+The contract exposes a nullable stay ID and task attribution.
+
+`PUT /api/operations/tasks/{id}/resolution` takes the desired resolution and
+the revision last read by the operator. The service locks the task and appends
+one transition for a real change. Repeating the immediately preceding change
+returns the current revision and attribution. A stale request that would undo
+a later change returns `409 Conflict`. Each transition stores its actor and
+timestamp and the list shows the latest one. Actor IDs and usernames are
+snapshotted for durable attribution.
+
+Flyway V20 creates the task and transition tables. A nullable stay foreign key
+clears the link when an authorized deletion removes the stay. The task and its
+transition history remain available.
+
 ## Auditing
 
 Main entities include:

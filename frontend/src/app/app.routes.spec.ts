@@ -3,6 +3,12 @@ import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 
 describe('application routes', () => {
+  it('loads operations tasks on demand behind the authentication guard', () => {
+    const route = routes.find((candidate) => candidate.path === 'operations/tasks');
+    expect(route?.canActivate).toEqual([authGuard]);
+    expect(route?.loadComponent).toBeDefined();
+  });
+
   it('protects the sensitive activity route with the admin guard', () => {
     const route = routes.find((candidate) => candidate.path === 'sensitive-activity');
     expect(route).toBeDefined();

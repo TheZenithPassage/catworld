@@ -1,0 +1,173 @@
+<section class="operations-tasks">
+  <header class="page-header">
+    <h2>{{ copy().title }}</h2>
+    <button mat-stroked-button type="button" [disabled]="loading()" (click)="loadTasks()">
+      {{ copy().reload }}
+    </button>
+  </header>
+
+  <div class="tasks-layout">
+    <mat-card appearance="outlined" class="create-card">
+      <mat-card-content>
+        <h3>{{ copy().newTask }}</h3>
+        <form #taskForm="ngForm" (ngSubmit)="create(taskForm, dateInput, stayPicker)">
+          <fieldset class="create-fields" [disabled]="saving()">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ copy().description }}</mat-label>
+              <textarea
+                matInput
+                required
+                maxlength="500"
+                rows="3"
+                name="description"
+                #descriptionModel="ngModel"
+                [(ngModel)]="description"
+              ></textarea>
+              <mat-error>{{
+                descriptionModel.hasError('maxlength')
+                  ? copy().descriptionTooLong
+                  : copy().descriptionRequired
+              }}</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>{{ copy().dueDate }}</mat-label>
+              <input
+                #dateInput
+                matInput
+                appNativeBadInput
+                type="date"
+                name="dueDate"
+                min="1000-01-01"
+                max="9999-12-31"
+                [(ngModel)]="dueDate"
+              />
+              <mat-error>{{ copy().invalidDate }}</mat-error>
+            </mat-form-field>
+
+            <details #stayPicker class="stay-picker">
+              <summary>{{ copy().stay }}</summary>
+              <div class="stay-picker-body">
+                <app-remote-entity-selector
+                  #ownerSelector
+                  [adapter]="ownerLookup"
+                  [label]="copy().stayOwner"
+                  (selectedIdChange)="selectOwner($event)"
+                />
+                @if (selectedStay(); as stay) {
+                  <div class="stay-selection">
+                    <span>{{ stayLabel(stay) }}</span>
+                    <button mat-button type="button" (click)="selectStay(null)">
+                      {{ copy().clearStay }}
+                    </button>
+                  </div>
+                } @else if (stayLoading()) {
+                  <app-ui-state kind="loading" [message]="copy().stayLoading" />
+                } @else if (stayError()) {
+                  <app-ui-state
+                    kind="error"
+                    [message]="copy().stayLookupFailed"
+                    [actionLabel]="copy().retry"
+                    (actionTriggered)="retryStays()"
+                  />
+                } @else if (stays(); as results) {
+                  @if (results.items.length) {
+                    <ul class="stay-candidates" [attr.aria-label]="copy().stayResults">
+                      @for (stay of results.items; track stay.stayId) {
+                        <li>
+                          <button mat-stroked-button type="button" (click)="selectStay(stay)">
+                            {{ stayLabel(stay) }}
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                    @if (results.totalElements > results.pageSize) {
+                      <mat-paginator
+                        [length]="results.totalElements"
+                        [pageIndex]="results.page"
+                        [pageSize]="results.pageSize"
+                        [hidePageSize]="true"
+                        [attr.aria-label]="copy().stayResults"
+                        (page)="findStays($event.pageIndex)"
+                      />
+                    }
+                  } @else {
+                    <p class="muted">{{ copy().noStays }}</p>
+                  }
+                }
+              </div>
+            </details>
+
+            @if (createError(); as error) {
+              <p class="field-error" role="alert">{{ copy()[error] }}</p>
+            }
+            <button mat-flat-button type="submit" [disabled]="saving()">{{ copy().create }}</button>
+          </fieldset>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <div class="task-list" [attr.aria-busy]="loading()">
+      @if (resolutionError(); as error) {
+        <p class="field-error" role="alert">{{ copy()[error] }}</p>
+      }
+      @if (loadError()) {
+        <app-ui-state
+          kind="error"
+          [message]="copy().loadFailed"
+          [actionLabel]="copy().retry"
+          (actionTriggered)="loadTasks()"
+        />
+      } @else if (loading() && !tasks().length) {
+        <app-ui-state kind="loading" [message]="copy().loading" />
+      } @else if (!tasks().length) {
+        <app-ui-state kind="empty" [message]="copy().empty" />
+      } @else {
+        @for (group of groups(); track group.bucket) {
+          <section class="task-group" [attr.aria-labelledby]="'task-group-' + group.bucket">
+            <h3 [id]="'task-group-' + group.bucket">{{ copy().buckets[group.bucket] }}</h3>
+            @if (!group.tasks.length) {
+              <p class="muted">{{ copy().emptyGroup }}</p>
+            } @else {
+              <ul class="task-items">
+                @for (task of group.tasks; track task.id) {
+                  @let action = task.bucket === 'RESOLVED' ? copy().reopen : copy().resolve;
+                  <li class="task-item">
+                    <div class="task-copy">
+                      <p class="task-description">{{ task.description }}</p>
+                      @if (task.dueDate; as dueDate) {
+                        <time [attr.datetime]="dueDate">{{ displayDueDate(dueDate) }}</time>
+                      }
+                      <p class="muted">{{ attribution(task) }}</p>
+                    </div>
+                    <div class="task-actions">
+                      @if (task.stayId; as id) {
+                        <button
+                          mat-button
+                          type="button"
+                          (click)="openStay(id)"
+                          [attr.aria-label]="copy().openStay + ' · ' + task.description"
+                        >
+                          {{ copy().openStay }}
+                        </button>
+                      }
+                      <button
+                        mat-stroked-button
+                        type="button"
+                        [disabled]="loading() || changingId() !== null"
+                        [attr.aria-label]="action + ' · ' + task.description"
+                        (click)="toggleResolution(task)"
+                      >
+                        {{ action }}
+                      </button>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        }
+      }
+    </div>
+  </div>
+</section>

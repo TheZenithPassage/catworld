@@ -50,6 +50,8 @@ public class SecurityConfig {
                                 "/api/stays/*/payments/*"
                         ).hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/operations/tasks", "/api/operations/tasks/**")
+                        .hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()
                 )

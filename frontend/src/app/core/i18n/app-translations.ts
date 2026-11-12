@@ -31,6 +31,7 @@ import {
   ENTITY_LOOKUP_TRANSLATIONS,
   EntityLookupTranslations,
 } from './translations/entity-lookup.translations';
+import { OPERATIONS_TASKS_TRANSLATIONS } from './translations/operations-tasks.translations';
 
 export interface AppTranslations {
   app: AppShellTranslations;
@@ -47,6 +48,7 @@ export interface AppTranslations {
   sensitiveActivity: SensitiveActivityTranslations;
   entityDetail: EntityDetailTranslations;
   entityLookup: EntityLookupTranslations;
+  operationsTasks: (typeof OPERATIONS_TASKS_TRANSLATIONS)[AppLanguage];
 }
 
 export const APP_TRANSLATIONS = {
@@ -65,6 +67,7 @@ export const APP_TRANSLATIONS = {
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.es,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.es,
     entityLookup: ENTITY_LOOKUP_TRANSLATIONS.es,
+    operationsTasks: OPERATIONS_TASKS_TRANSLATIONS.es,
   },
   en: {
     app: APP_SHELL_TRANSLATIONS.en,
@@ -81,5 +84,6 @@ export const APP_TRANSLATIONS = {
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.en,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.en,
     entityLookup: ENTITY_LOOKUP_TRANSLATIONS.en,
+    operationsTasks: OPERATIONS_TASKS_TRANSLATIONS.en,
   },
 } satisfies Record<AppLanguage, AppTranslations>;
