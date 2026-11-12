@@ -1,5 +1,17 @@
 export type Sex = 'MALE' | 'FEMALE';
 
+export interface CatInformationalPhoto {
+  id: string;
+  createdAt: string;
+}
+
+export interface CatPhotoViewRequest {
+  catId: string;
+  catName: string;
+  ownerName: string;
+  informationalPhotoId?: string;
+}
+
 export interface Cat {
   id: string;
   canDelete?: boolean;

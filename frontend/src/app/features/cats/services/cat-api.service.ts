@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
 import {
   Cat,
+  CatInformationalPhoto,
   CatLookup,
   CatOverviewItem,
   CreateCatRequest,
@@ -50,6 +51,29 @@ export class CatApiService {
 
   getCatPhoto(catId: string): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob' });
+  }
+
+  listInformationalPhotos(catId: string): Observable<CatInformationalPhoto[]> {
+    return this.http.get<CatInformationalPhoto[]>(`${this.baseUrl}/${catId}/informational-photos`);
+  }
+
+  getInformationalPhoto(catId: string, photoId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${catId}/informational-photos/${photoId}`, {
+      responseType: 'blob',
+    });
+  }
+
+  addInformationalPhoto(catId: string, file: File): Observable<CatInformationalPhoto> {
+    const body = new FormData();
+    body.append('photo', file);
+    return this.http.post<CatInformationalPhoto>(
+      `${this.baseUrl}/${catId}/informational-photos`,
+      body,
+    );
+  }
+
+  deleteInformationalPhoto(catId: string, photoId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${catId}/informational-photos/${photoId}`);
   }
 
   getCatStays(catId: string, page = 0): Observable<StayRelationshipPage> {

@@ -66,6 +66,23 @@ export interface CatsTranslations {
       intentConflict: string;
     };
   };
+  informationalPhotos: {
+    title: string;
+    photo: string;
+    photoAlt: (catName: string) => string;
+    add: string;
+    view: (number: number) => string;
+    remove: string;
+    removeNamed: (number: number) => string;
+    confirmRemove: string;
+    removePrompt: string;
+    empty: string;
+    loading: string;
+    saving: string;
+    loadFailed: string;
+    addFailed: string;
+    removeFailed: string;
+  };
   create: {
     title: string;
     description: string;
@@ -158,6 +175,23 @@ export const CATS_TRANSLATIONS = {
       photoMissing: 'Este gato no tiene foto.',
       photoLoadFailed: 'Error al cargar la foto.',
       photoAlt: (catName) => `Foto de ${catName}`,
+    },
+    informationalPhotos: {
+      title: 'Fotos informativas',
+      photo: 'Foto informativa',
+      photoAlt: (catName) => `Foto informativa de ${catName}`,
+      add: 'Adjuntar foto',
+      view: (number) => `Ver foto ${number}`,
+      remove: 'Quitar',
+      removeNamed: (number) => `Quitar foto ${number}`,
+      confirmRemove: 'Quitar foto',
+      removePrompt: '¿Querés quitar esta foto?',
+      empty: 'Todavía no hay fotos adjuntas.',
+      loading: 'Cargando fotos…',
+      saving: 'Guardando cambios…',
+      loadFailed: 'No se pudieron cargar las fotos.',
+      addFailed: 'No se pudo adjuntar la foto.',
+      removeFailed: 'No se pudo quitar la foto.',
     },
     form: {
       name: 'Nombre',
@@ -300,6 +334,23 @@ export const CATS_TRANSLATIONS = {
       photoMissing: 'This cat has no photo.',
       photoLoadFailed: 'Error loading photo.',
       photoAlt: (catName) => `Photo of ${catName}`,
+    },
+    informationalPhotos: {
+      title: 'Informational photos',
+      photo: 'Informational photo',
+      photoAlt: (catName) => `Informational photo of ${catName}`,
+      add: 'Attach photo',
+      view: (number) => `View photo ${number}`,
+      remove: 'Remove',
+      removeNamed: (number) => `Remove photo ${number}`,
+      confirmRemove: 'Remove photo',
+      removePrompt: 'Remove this photo?',
+      empty: 'No photos attached yet.',
+      loading: 'Loading photos…',
+      saving: 'Saving changes…',
+      loadFailed: 'Could not load the photos.',
+      addFailed: 'Could not attach the photo.',
+      removeFailed: 'Could not remove the photo.',
     },
     form: {
       name: 'Name',

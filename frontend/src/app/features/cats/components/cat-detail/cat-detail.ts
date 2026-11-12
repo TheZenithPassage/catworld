@@ -4,11 +4,12 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
-import { Cat } from '../../models/cat.model';
+import { Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
+import { CatInformationalPhotoGallery } from '../cat-informational-photos/cat-informational-photo-gallery';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
@@ -22,7 +23,14 @@ import {
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
 @Component({
   selector: 'app-cat-detail',
-  imports: [MatButton, MatProgressSpinner, UiStateComponent, CatEditor, StayRelationshipLabel],
+  imports: [
+    MatButton,
+    MatProgressSpinner,
+    UiStateComponent,
+    CatEditor,
+    CatInformationalPhotoGallery,
+    StayRelationshipLabel,
+  ],
   host: {
     '[attr.aria-busy]': 'loading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
@@ -48,13 +56,14 @@ export class CatDetail {
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
-  readonly openPhoto = output<{ catId: string; catName: string; ownerName: string }>();
+  readonly openPhoto = output<CatPhotoViewRequest>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly detail = signal<CatDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly updatingGallery = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -98,8 +107,12 @@ export class CatDetail {
   canDelete(detail: CatDetailResponse): boolean {
     return detail.cat.id === this.entityId() && detail.cat.canDelete === true;
   }
+  galleryBusyChanged(busy: boolean): void {
+    this.updatingGallery.set(busy);
+    this.submittingChanged.emit(busy);
+  }
   confirmPermanentDeletion(detail: CatDetailResponse): void {
-    if (this.deleting() || !this.canDelete(detail)) return;
+    if (this.deleting() || this.updatingGallery() || !this.canDelete(detail)) return;
     const cat = detail.cat;
     this.dialog
       .open<PermanentDeletionConfirmationDialog, PermanentDeletionConfirmationDialogData>(
