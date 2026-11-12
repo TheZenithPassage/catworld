@@ -57,9 +57,10 @@ describe('StayWhatsAppDialog', () => {
     expect(dialog.draft()).toContain('21:30');
     dialog.choose('transfer');
     for (const cat of stay.cats) expect(dialog.draft()).toContain(cat.name);
-    expect(dialog.draft()).toContain('Entrega después de la estadía');
+    expect(dialog.draft()).toContain('Salida prevista:');
+    expect(dialog.draft()).toContain('Coordinemos el horario de entrega.');
     expect(dialog.draft()).toContain('08:05');
-    expect(dialog.draft()).not.toContain('Retiro para el ingreso');
+    expect(dialog.draft()).not.toContain('horario de retiro');
     expect(dialog.draft()).not.toContain(stay.notes);
     expect(dialog.draft()).not.toContain(stay.agreedAmount);
   });

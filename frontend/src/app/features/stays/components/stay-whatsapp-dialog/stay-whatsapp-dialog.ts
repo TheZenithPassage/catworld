@@ -60,9 +60,9 @@ const MESSAGES = {
       when +
       '. ¿Nos confirmás el horario?',
     transfer: (cats: string) => 'Queremos coordinar el traslado de ' + cats + '.',
-    pickup: (when: string) => 'Retiro para el ingreso: ' + when,
-    dropoff: (when: string) => 'Entrega después de la estadía: ' + when,
-    confirmTransfer: '¿Nos confirmás si te queda bien?',
+    pickup: (when: string) => 'Ingreso previsto: ' + when + '. Coordinemos el horario de retiro.',
+    dropoff: (when: string) => 'Salida prevista: ' + when + '. Coordinemos el horario de entrega.',
+    confirmTransfer: '¿Qué horario te queda bien para el traslado?',
     proof: (cats: string, when: string) =>
       '¿Nos podés mandar los comprobantes de vacunación de ' +
       cats +
@@ -99,9 +99,9 @@ const MESSAGES = {
     departure: (cats: string, when: string) =>
       'A reminder that ' + cats + ' will leave CatWorld on ' + when + '. Can you confirm the time?',
     transfer: (cats: string) => 'We would like to arrange transport for ' + cats + '.',
-    pickup: (when: string) => 'Pick-up before the stay: ' + when,
-    dropoff: (when: string) => 'Drop-off after the stay: ' + when,
-    confirmTransfer: 'Can you confirm that works for you?',
+    pickup: (when: string) => 'Scheduled arrival: ' + when + '. Let’s agree on a pick-up time.',
+    dropoff: (when: string) => 'Scheduled departure: ' + when + '. Let’s agree on a drop-off time.',
+    confirmTransfer: 'What time works for you for the transfer?',
     proof: (cats: string, when: string) =>
       'Could you send proof of vaccination for ' +
       cats +
