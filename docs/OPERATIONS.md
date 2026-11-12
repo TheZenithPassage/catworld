@@ -34,11 +34,12 @@ are built into the backend image, not installed by compiling on EC2.
 ## Enable the public website
 
 The public gallery has an independent frontend listener on loopback. When
-authorized, add `-f compose.public-gallery.yml` to the production Compose
-invocation and map `catworld.com.ar` to that listener in Cloudflare Tunnel
-(default port 4201). Keep the administrative hostname on its original listener
-and behind Cloudflare Access. The gallery listener serves the public page and
-read-only publication resources.
+authorized, download `compose.public-gallery.yml` next to `compose.prod.yml`
+from the same pinned source commit. Add `--enable-listener gallery` to
+`production_pair.py --deploy` on each deployment that should expose the gallery
+listener. Map `catworld.com.ar` to it in Cloudflare Tunnel (default port 4201).
+Keep the administrative hostname on its original listener behind Cloudflare
+Access. The gallery listener serves the public page and read-only publications.
 
 Set `CATWORLD_WHATSAPP_PHONE` in the production environment to the approved
 business number in international format, including the plus sign. The page
