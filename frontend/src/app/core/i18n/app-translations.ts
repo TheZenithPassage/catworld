@@ -1,5 +1,8 @@
 import { AppLanguage } from './app-language';
-import { CARE_ENTRY_TRANSLATIONS, CareEntryTranslations } from './translations/care-entry.translations';
+import {
+  CARE_ENTRY_TRANSLATIONS,
+  CareEntryTranslations,
+} from './translations/care-entry.translations';
 import {
   APP_SHELL_TRANSLATIONS,
   AppShellTranslations,
