@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
@@ -46,7 +48,10 @@ describe('CatIntakeReview', () => {
     );
     await TestBed.configureTestingModule({
       imports: [CatIntakeReview],
-      providers: [{ provide: CatIntakeApi, useValue: api }],
+      providers: [
+        provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
+        { provide: CatIntakeApi, useValue: api },
+      ],
     }).compileComponents();
     fixture = TestBed.createComponent(CatIntakeReview);
     fixture.detectChanges();
@@ -55,6 +60,21 @@ describe('CatIntakeReview', () => {
   afterEach(() => {
     fixture.destroy();
     vi.unstubAllGlobals();
+  });
+
+  it('opens a linked proposal directly and clears the link when returning to the queue', async () => {
+    const harness = await RouterTestingHarness.create();
+    const page = await harness.navigateByUrl('/cat-intake?reviewId=proposal-1', CatIntakeReview);
+
+    expect(page.detail()?.id).toBe('proposal-1');
+    expect(
+      harness.routeNativeElement?.querySelector<HTMLInputElement>('[name="foodBrand"]')?.value,
+    ).toBe('Proposed Food');
+    harness.routeNativeElement?.querySelector<HTMLButtonElement>('button')?.click();
+    await harness.fixture.whenStable();
+
+    expect(TestBed.inject(Router).url).toBe('/cat-intake');
+    expect(page.selectedId()).toBeNull();
   });
 
   it('requires resolving conflicting fields and applies only chosen corrections and photos', () => {

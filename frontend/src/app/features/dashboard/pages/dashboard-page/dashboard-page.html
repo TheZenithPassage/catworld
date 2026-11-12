@@ -5,6 +5,15 @@
   </header>
 
   <div class="dashboard-links">
+    <a routerLink="/operations/arrivals" class="dashboard-card">
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <h3>{{ text().dashboard.links.arrivals.title }}</h3>
+          <p>{{ text().dashboard.links.arrivals.description }}</p>
+        </mat-card-content>
+      </mat-card>
+    </a>
+
     <a routerLink="/stays" class="dashboard-card">
       <mat-card appearance="outlined">
         <mat-card-content>

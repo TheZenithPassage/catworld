@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,23 @@ public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview
         String getOwnerName();
         UUID getCatId();
         String getCatName();
+        Instant getSubmittedAt();
+    }
+
+    @Query("""
+            select r.id as id, r.catId as catId, r.submittedAt as submittedAt
+            from CatIntakeReview r
+            where r.approvedAt is null and r.catId in :catIds
+              and exists (
+                  select 1 from Cat c where c.id = r.catId and c.owner.id = r.invitation.owner.id
+              )
+            order by r.submittedAt, r.id
+            """)
+    List<PendingCatReview> findPendingForCats(@Param("catIds") Collection<UUID> catIds);
+
+    interface PendingCatReview {
+        UUID getId();
+        UUID getCatId();
         Instant getSubmittedAt();
     }
 

@@ -4,6 +4,10 @@ export interface DashboardTranslations {
   title: string;
   description: string;
   links: {
+    arrivals: {
+      title: string;
+      description: string;
+    };
     stays: {
       title: string;
       description: string;
@@ -40,6 +44,10 @@ export const DASHBOARD_TRANSLATIONS = {
     description:
       'Desde aquí podés gestionar las estadías, los dueños y los gatos, y acceder al calendario.',
     links: {
+      arrivals: {
+        title: 'Preparar ingresos',
+        description: 'Revisá vacunas, alimento y arena para las próximas reservas.',
+      },
       stays: {
         title: 'Estadías',
         description: 'Ver, crear, editar y cancelar estadías.',
@@ -73,6 +81,10 @@ export const DASHBOARD_TRANSLATIONS = {
     title: 'Dashboard',
     description: 'Here you can manage stays, owners or cats and access the calendar.',
     links: {
+      arrivals: {
+        title: 'Prepare arrivals',
+        description: 'Check vaccinations, food and litter for upcoming bookings.',
+      },
       stays: {
         title: 'Stays',
         description: 'View stays, create new ones and manage active stays.',

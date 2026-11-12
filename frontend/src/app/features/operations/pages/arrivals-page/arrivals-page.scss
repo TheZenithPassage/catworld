@@ -1,0 +1,111 @@
+.arrivals-page,
+.arrival-list,
+.cats,
+.cat {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.arrivals-page,
+.arrival-list {
+  gap: 1rem;
+}
+
+.page-heading,
+.stay-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.page-heading h2,
+.page-heading p,
+.arrival h3,
+.arrival h4,
+.arrival dl,
+.arrival dd,
+.cats,
+.vaccine-warnings {
+  margin: 0;
+}
+
+.page-heading p,
+.arrival dt {
+  color: var(--color-text-muted);
+}
+
+.arrival {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(0.75rem, 3vw, 1.25rem);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+
+.stay-heading > div {
+  min-width: 0;
+}
+
+.dates,
+.care {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1.5rem;
+}
+
+.cats {
+  padding: 0;
+  list-style: none;
+}
+
+.cat {
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-container);
+  gap: 0.25rem;
+}
+
+.unconfirmed {
+  font-style: italic;
+}
+
+.vaccine-warnings {
+  padding: 0.5rem 0.75rem 0.5rem 1.75rem;
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
+}
+
+.detail-link,
+.review-link {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2.75rem;
+  color: inherit;
+  text-decoration: underline;
+  text-align: start;
+}
+
+.detail-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  white-space: normal;
+}
+
+.review-link {
+  padding-block: 0.5rem;
+}
+
+@media (max-width: 32rem) {
+  .dates {
+    grid-template-columns: 1fr;
+  }
+}

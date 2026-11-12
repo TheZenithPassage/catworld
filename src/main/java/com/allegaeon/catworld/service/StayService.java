@@ -2,7 +2,6 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
-import java.time.LocalDate;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
@@ -17,9 +16,7 @@ import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewResponseDTO;
 import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
-import com.allegaeon.catworld.dto.VaccineConflictReason;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
-import com.allegaeon.catworld.dto.VaccineType;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
@@ -76,6 +73,7 @@ import org.springframework.data.domain.PageRequest;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -1269,33 +1267,20 @@ public class StayService implements IStayService {
         List<VaccineConflictViolationDTO> conflicts = new ArrayList<>();
 
         for (Cat cat : cats) {
-            addVaccineConflict(conflicts, cat, VaccineType.RABIES, cat.getLastRabiesDate(), stayEndDate);
-            addVaccineConflict(conflicts, cat, VaccineType.TRIPLE_FELINE, cat.getLastTripleFelineDate(), stayEndDate);
+            for (var conflict : StayVaccineCoverage.findConflicts(
+                    cat.getLastRabiesDate(), cat.getLastTripleFelineDate(), stayEndDate)) {
+                conflicts.add(VaccineConflictViolationDTO.builder()
+                        .catId(cat.getId())
+                        .catName(cat.getName())
+                        .vaccineType(conflict.vaccineType())
+                        .reason(conflict.reason())
+                        .vaccinatedOn(conflict.vaccinatedOn())
+                        .expiresOn(conflict.expiresOn())
+                        .build());
+            }
         }
 
         return conflicts;
-    }
-
-    private void addVaccineConflict(
-            List<VaccineConflictViolationDTO> conflicts,
-            Cat cat,
-            VaccineType vaccineType,
-            LocalDate vaccinatedOn,
-            LocalDate stayEndDate) {
-
-        LocalDate expiresOn = vaccinatedOn == null ? null : vaccinatedOn.plusYears(1);
-        if (expiresOn != null && stayEndDate.isBefore(expiresOn)) {
-            return;
-        }
-
-        conflicts.add(VaccineConflictViolationDTO.builder()
-                .catId(cat.getId())
-                .catName(cat.getName())
-                .vaccineType(vaccineType)
-                .reason(vaccinatedOn == null ? VaccineConflictReason.MISSING : VaccineConflictReason.EXPIRED)
-                .vaccinatedOn(vaccinatedOn)
-                .expiresOn(expiresOn)
-                .build());
     }
 
     private void validateVaccineOverride(
