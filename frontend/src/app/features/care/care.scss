@@ -1,0 +1,126 @@
+.care-page {
+  display: grid;
+  gap: 1rem;
+  max-width: 88rem;
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.care-header,
+.care-toolbar,
+.care-card-summary,
+.care-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  flex-wrap: wrap;
+}
+
+.care-header,
+.care-card-summary {
+  justify-content: space-between;
+}
+
+.care-header h2,
+.care-header p,
+.care-card-header h3,
+.care-card-header p,
+.care-supplies dd,
+.care-page > p {
+  margin: 0;
+}
+
+.care-header h2,
+.care-card-header h3 {
+  margin-block-end: 0.25rem;
+}
+
+.care-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr));
+  align-items: start;
+  gap: 1rem;
+}
+
+.care-card,
+.care-form,
+.care-note {
+  display: grid;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.care-card {
+  padding-block: 1rem;
+}
+
+.care-note {
+  justify-items: start;
+}
+
+.care-note mat-form-field {
+  width: 100%;
+}
+
+.care-form {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.care-supplies {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.care-supplies dt,
+.care-secondary {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.care-error {
+  color: var(--mat-sys-error);
+}
+
+.care-routines,
+.care-entries {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.care-routines > li,
+.care-entries > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 0.625rem;
+  border-block-start: 1px solid var(--mat-sys-outline-variant);
+}
+
+.care-routine-name {
+  font-weight: 500;
+}
+
+.care-card,
+.care-entries {
+  overflow-wrap: anywhere;
+}
+
+.care-entry-copy > * {
+  margin: 0.25rem 0;
+}
+
+.care-entry-note {
+  white-space: pre-wrap;
+}
+
+.care-configuration,
+.care-history {
+  max-width: 54rem;
+  width: 100%;
+}

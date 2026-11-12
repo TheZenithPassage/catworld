@@ -71,6 +71,22 @@ export const routes: Routes = [
     component: OwnerEditPage,
   },
   {
+    path: 'care/stays/:stayId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/care/care-history-page').then((m) => m.CareHistoryPage),
+  },
+  {
+    path: 'care/routines',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/care/care-routines-page').then((m) => m.CareRoutinesPage),
+  },
+  {
+    path: 'care',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/care/care-page').then((m) => m.CarePage),
+  },
+  {
     path: 'cats',
     canActivate: [authGuard],
     loadComponent: () =>

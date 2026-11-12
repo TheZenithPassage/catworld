@@ -1,0 +1,112 @@
+<section class="care-page care-configuration">
+  <header class="page-header care-header">
+    <h2>{{ text().configure }}</h2>
+    <a mat-button routerLink="/care">{{ text().backToCare }}</a>
+  </header>
+
+  @if (loading()) {
+    <app-ui-state kind="loading" [message]="text().loading" />
+  } @else if (loadFailed()) {
+    <app-ui-state
+      kind="error"
+      [message]="text().routinesLoadFailed"
+      [actionLabel]="text().retry"
+      (actionTriggered)="load()"
+    />
+  } @else {
+    <form class="care-form" (ngSubmit)="save()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ text().routineName }}</mat-label>
+        <input
+          matInput
+          #nameField
+          name="name"
+          required
+          maxlength="100"
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
+          [disabled]="saving()"
+        />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ text().mode }}</mat-label>
+        <select
+          matNativeControl
+          name="mode"
+          required
+          [ngModel]="mode()"
+          (ngModelChange)="mode.set($event)"
+          [disabled]="saving()"
+        >
+          @for (option of modes; track option) {
+            <option [value]="option">{{ text().modes[option] }}</option>
+          }
+        </select>
+      </mat-form-field>
+      <div class="care-actions">
+        <button mat-flat-button type="submit" [disabled]="saving() || !name().trim()">
+          {{ editing() ? text().saveRoutine : text().addRoutine }}
+        </button>
+        @if (editing()) {
+          <button mat-button type="button" [disabled]="saving()" (click)="clearForm()">
+            {{ text().cancel }}
+          </button>
+        }
+      </div>
+    </form>
+    @if (saveFailed()) {
+      <p class="care-error" role="alert">{{ text().routineSaveFailed }}</p>
+    }
+
+    <ul class="care-entries">
+      @for (routine of routines(); track routine.id) {
+        <li>
+          <div class="care-entry-copy">
+            <h3>{{ label(routine) }}</h3>
+            <p class="care-secondary">
+              {{ text().modes[routine.mode] }} ·
+              {{ routine.active ? text().active : text().inactive }}
+            </p>
+          </div>
+          @if (routine.active) {
+            @if (confirming() === routine.id) {
+              <div class="care-actions">
+                <span>{{ text().confirmDeactivate }}</span>
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="confirming.set(null)"
+                >
+                  {{ text().cancel }}
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="deactivate(routine)"
+                >
+                  {{ text().deactivate }}
+                </button>
+              </div>
+            } @else {
+              <div class="care-actions">
+                <button mat-button type="button" [disabled]="saving()" (click)="edit(routine)">
+                  {{ text().editRoutine }}
+                </button>
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="confirming.set(routine.id)"
+                >
+                  {{ text().deactivate }}
+                </button>
+              </div>
+            }
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

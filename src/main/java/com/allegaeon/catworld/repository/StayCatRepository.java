@@ -11,6 +11,7 @@ import com.allegaeon.catworld.model.Cat;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +28,16 @@ public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
 
     @Query("select sc.cat from StayCat sc where sc.stay.id = :stayId order by sc.cat.name asc, sc.cat.id asc")
     Page<Cat> findCatsByStayId(@Param("stayId") UUID stayId, Pageable pageable);
+
+    @Query("""
+            select sc
+            from StayCat sc
+            join fetch sc.cat cat
+            join fetch sc.stay stay
+            where stay.cancelledAt is null and stay.startAt < :nextMidnight and stay.endAt > :midnight
+            order by cat.name, cat.id, stay.startAt, stay.id
+            """)
+    List<StayCat> findOnBusinessDay(LocalDateTime midnight, LocalDateTime nextMidnight);
 
     boolean existsByCat_Id(UUID catId);
 

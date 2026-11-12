@@ -1,0 +1,187 @@
+<section class="care-page">
+  <header class="page-header care-header">
+    <div>
+      <h2>{{ text().title }}</h2>
+      @if (day(); as selected) {
+        <p>
+          <time [attr.datetime]="selected.date">{{ displayDate(selected.date) }}</time>
+          @if (selected.date === selected.businessToday) {
+            · {{ text().today }}
+          }
+        </p>
+      }
+    </div>
+    @if (isAdmin()) {
+      <a mat-stroked-button routerLink="/care/routines">{{ text().configure }}</a>
+    }
+  </header>
+
+  <div class="care-toolbar">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ text().date }}</mat-label>
+      <input
+        matInput
+        type="date"
+        #dateInput
+        [value]="day()?.date ?? ''"
+        [disabled]="saving()"
+        (change)="selectDate(dateInput.value)"
+      />
+    </mat-form-field>
+    <button mat-button type="button" [disabled]="saving()" (click)="selectDate('')">
+      {{ text().goToToday }}
+    </button>
+  </div>
+
+  @switch (mutation()) {
+    @case ('saved') {
+      <p role="status">{{ text().saved }}</p>
+    }
+    @case ('failed') {
+      <p class="care-error" role="alert">{{ text().saveFailed }}</p>
+    }
+    @case ('stale') {
+      <p class="care-error" role="alert">{{ text().staleDay }}</p>
+    }
+  }
+
+  @if (loading()) {
+    <app-ui-state kind="loading" [message]="text().loading" />
+  } @else if (loadFailed()) {
+    <app-ui-state
+      kind="error"
+      [message]="text().loadFailed"
+      [actionLabel]="text().retry"
+      (actionTriggered)="reload()"
+    />
+  } @else if (day(); as selected) {
+    @if (selected.date !== selected.businessToday) {
+      <p class="care-secondary">{{ text().readOnlyDay }}</p>
+    }
+    @if (selected.cats.length === 0) {
+      <app-ui-state kind="empty" [message]="text().noCats" />
+    } @else {
+      <div class="care-grid">
+        @for (cat of selected.cats; track cat.stayId + cat.catId) {
+          <mat-card appearance="outlined">
+            <mat-card-content class="care-card">
+              <header class="care-card-header">
+                <h3>{{ cat.catName }}</h3>
+                <p class="care-secondary">
+                  {{ displayStayDate(cat.stayStartAt) }} – {{ displayStayDate(cat.stayEndAt) }}
+                </p>
+              </header>
+              <dl class="care-supplies">
+                <div>
+                  <dt>{{ text().foodBrand }}</dt>
+                  <dd>{{ cat.foodBrand || text().unspecified }}</dd>
+                </div>
+                <div>
+                  <dt>{{ text().litterBrand }}</dt>
+                  <dd>{{ cat.litterBrand || text().unspecified }}</dd>
+                </div>
+              </dl>
+              <div class="care-card-summary">
+                <strong>{{
+                  cat.records.length ? text().recordCount(cat.records.length) : text().noRecords
+                }}</strong>
+                <a
+                  mat-button
+                  [routerLink]="['/care/stays', cat.stayId]"
+                  [queryParams]="{ cat: cat.catId, date: selected.date }"
+                  [attr.aria-label]="text().history + ' · ' + cat.catName"
+                  >{{ text().history }}</a
+                >
+              </div>
+              @if (selected.date === selected.businessToday) {
+                <ul class="care-routines">
+                  @for (routine of selected.routines; track routine.id) {
+                    <li>
+                      <span class="care-routine-name">{{ routineName(routine) }}</span>
+                      @switch (routine.mode) {
+                        @case ('SHIFT') {
+                          <div class="care-actions">
+                            @for (shift of shifts; track shift) {
+                              @let marked = count(cat, routine, shift) > 0;
+                              <button
+                                mat-stroked-button
+                                type="button"
+                                [disabled]="saving() || marked"
+                                [attr.aria-label]="
+                                  routineName(routine) +
+                                  ' · ' +
+                                  text().shifts[shift] +
+                                  ' · ' +
+                                  (marked ? text().marked : text().mark)
+                                "
+                                (click)="mark(cat, routine, shift)"
+                              >
+                                {{ text().shifts[shift] }}{{ marked ? ' · ' + text().marked : '' }}
+                              </button>
+                            }
+                          </div>
+                        }
+                        @case ('DAILY') {
+                          @let marked = count(cat, routine) > 0;
+                          <button
+                            mat-stroked-button
+                            type="button"
+                            [disabled]="saving() || marked"
+                            [attr.aria-label]="
+                              routineName(routine) + ' · ' + (marked ? text().marked : text().mark)
+                            "
+                            (click)="mark(cat, routine)"
+                          >
+                            {{ marked ? text().marked : text().mark }}
+                          </button>
+                        }
+                        @case ('EVENT') {
+                          <div class="care-actions">
+                            <span class="care-secondary">{{
+                              text().recordCount(count(cat, routine))
+                            }}</span>
+                            <button
+                              mat-stroked-button
+                              type="button"
+                              [disabled]="saving()"
+                              [attr.aria-label]="routineName(routine) + ' · ' + text().mark"
+                              (click)="mark(cat, routine)"
+                            >
+                              {{ text().mark }}
+                            </button>
+                          </div>
+                        }
+                      }
+                    </li>
+                  }
+                </ul>
+
+                <form class="care-note" #noteForm="ngForm" (ngSubmit)="saveNote(cat, noteForm)">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{ text().note }}</mat-label>
+                    <textarea
+                      matInput
+                      name="note"
+                      ngModel
+                      #note="ngModel"
+                      maxlength="10000"
+                      rows="2"
+                      [disabled]="saving()"
+                    ></textarea>
+                  </mat-form-field>
+                  <button
+                    mat-stroked-button
+                    type="submit"
+                    [disabled]="saving() || !note.value?.trim() || noteForm.invalid"
+                  >
+                    {{ text().saveNote }}
+                  </button>
+                </form>
+              }
+            </mat-card-content>
+          </mat-card>
+        }
+      </div>
+    }
+  }
+</section>

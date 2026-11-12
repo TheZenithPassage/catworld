@@ -410,6 +410,12 @@ export class EntityDetailDialog {
     this.contentResolved = false;
     this.geometryGeneration++;
   }
+  openCareHistory(): void {
+    if (this.submitting()) return;
+    const stayId = this.reference().entityId;
+    this.dialogRef.close();
+    void this.router.navigate(['/care/stays', stayId]);
+  }
   openStayPricing(): void {
     if (this.submitting()) return;
     const stayId = this.reference().entityId;

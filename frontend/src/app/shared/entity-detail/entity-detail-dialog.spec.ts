@@ -1508,6 +1508,7 @@ describe('EntityDetailDialog', () => {
     ).toEqual([
       fixture.componentInstance.text().stays.cancellation.action,
       fixture.componentInstance.text().deletion.actions.deletePermanently,
+      fixture.componentInstance.text().care.history,
       fixture.componentInstance.text().stays.detail.pricing,
       fixture.componentInstance.text().stays.detail.edit,
     ]);

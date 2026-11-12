@@ -57,6 +57,7 @@ export class StayDetail {
   readonly openCats = output<void>();
   readonly updated = output<EntityDetailUpdate>();
   readonly pricingRequested = output<void>();
+  readonly careHistoryRequested = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();

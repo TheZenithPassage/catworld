@@ -1,0 +1,102 @@
+<section class="care-page care-history">
+  <header class="page-header care-header">
+    <div>
+      <h2>{{ text().history }}</h2>
+      @if (history(); as stay) {
+        <p>{{ displayStayDate(stay.startAt) }} – {{ displayStayDate(stay.endAt) }}</p>
+      }
+    </div>
+    <a mat-button routerLink="/care" [queryParams]="{ date: date() }">{{ text().backToCare }}</a>
+  </header>
+
+  @if (cat()) {
+    <div>
+      <a mat-stroked-button [routerLink]="[]" [queryParams]="{ date: date() }">
+        {{ text().wholeStay }}
+      </a>
+    </div>
+  }
+
+  @if (loading()) {
+    <app-ui-state kind="loading" [message]="text().loading" />
+  } @else if (loadFailed()) {
+    <app-ui-state
+      kind="error"
+      [message]="text().historyLoadFailed"
+      [actionLabel]="text().retry"
+      (actionTriggered)="reload()"
+    />
+  } @else if (!records().length) {
+    <app-ui-state kind="empty" [message]="text().noRecords" />
+  } @else {
+    @if (annulFailed()) {
+      <p class="care-error" role="alert">{{ text().annulFailed }}</p>
+    }
+    <ul class="care-entries">
+      @for (record of records(); track record.id) {
+        <li>
+          <div class="care-entry-copy">
+            <h3>{{ recordName(record) }}</h3>
+            <p>
+              {{ record.catName }}
+              @if (record.mode; as mode) {
+                · {{ text().modes[mode] }}
+              }
+              @if (record.shift; as shift) {
+                · {{ text().shifts[shift] }}
+              }
+            </p>
+            @if (record.note; as note) {
+              <p class="care-entry-note">{{ note }}</p>
+            }
+            <p class="care-secondary">
+              <time [attr.datetime]="record.recordedAt">{{
+                displayInstant(record.recordedAt)
+              }}</time>
+              · {{ record.authorUsername }}
+            </p>
+            @if (record.annulledAt; as annulledAt) {
+              <p class="care-secondary">
+                {{ text().annulled }} ·
+                <time [attr.datetime]="annulledAt">{{ displayInstant(annulledAt) }}</time> ·
+                {{ record.annulledByUsername }}
+              </p>
+            }
+          </div>
+          @if (canAnnul(record)) {
+            @if (confirmedRecord() === record.id) {
+              <div class="care-actions">
+                <span>{{ text().confirmAnnul }}</span>
+                <button
+                  mat-button
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="confirmedRecord.set(null)"
+                >
+                  {{ text().cancel }}
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="annul(record)"
+                >
+                  {{ text().annul }}
+                </button>
+              </div>
+            } @else {
+              <button
+                mat-button
+                type="button"
+                [disabled]="saving()"
+                (click)="confirmedRecord.set(record.id)"
+              >
+                {{ text().annul }}
+              </button>
+            }
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>
