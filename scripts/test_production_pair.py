@@ -68,6 +68,41 @@ class ReleasePairConsumptionTest(unittest.TestCase):
                     assert_compose("compose.prod.yml", ".env.production", "test", record,
                                    run_command=lambda *a, **kw: SimpleNamespace(stdout=json.dumps({"services": alt})))
 
+    def test_compose_accepts_only_explicit_external_listeners_on_loopback(self):
+        record = sample()
+        admin = {"target": 80, "host_ip": "127.0.0.1"}
+        gallery = {"target": 8081, "host_ip": "127.0.0.1", "protocol": "tcp"}
+        intake = {"target": 8082, "host_ip": "127.0.0.1", "protocol": "tcp"}
+        services = {
+            "db": {"volumes": [{"type": "volume"}]},
+            "app": {"image": record["backend"]},
+            "frontend": {"image": record["frontend"]},
+        }
+
+        def run_for(ports):
+            config = {**services, "frontend": {**services["frontend"], "ports": ports}}
+            return lambda *args, **kwargs: SimpleNamespace(stdout=json.dumps({"services": config}))
+
+        prefix, _ = assert_compose(
+            "/opt/catworld/compose.prod.yml", ".env.production", "test", record,
+            enabled_listeners=("gallery", "intake"), run_command=run_for([admin, gallery, intake]),
+        )
+        self.assertEqual(prefix[-4:], [
+            "-f", str(Path("/opt/catworld/compose.public-gallery.yml")),
+            "-f", str(Path("/opt/catworld/compose.cat-intake.yml")),
+        ])
+        for enabled, ports in [
+            ((), [admin, gallery]),
+            (("gallery",), [admin, intake]),
+            (("gallery",), [admin, {**gallery, "host_ip": "0.0.0.0"}]),
+            (("gallery",), [admin, {**gallery, "protocol": "udp"}]),
+            (("gallery",), [admin, gallery, gallery]),
+            (("gallery", "intake"), [admin, gallery]),
+        ]:
+            with self.subTest(enabled=enabled, ports=ports), self.assertRaises(ValueError):
+                assert_compose("compose.prod.yml", ".env.production", "test", record,
+                               enabled_listeners=enabled, run_command=run_for(ports))
+
     def test_image_identity_and_architecture(self):
         record = sample()
         details = {"Architecture": "arm64", "RepoDigests": [record["backend"]],
