@@ -36,6 +36,9 @@ export interface StaysTranslations {
     reasonDifferentPlaceholder: string;
     reasonSuggestedPlaceholder: string;
     unavailable: string;
+    pricePending: string;
+    markPricePending: string;
+    confirmPendingPrice: string;
     useSuggestedAmount: string;
     useCurrentRate: string;
     useOriginalRate: string;
@@ -325,6 +328,9 @@ export const STAYS_TRANSLATIONS = {
       reasonDifferentPlaceholder: 'Indicá el motivo si no se usa el monto sugerido',
       reasonSuggestedPlaceholder: 'Motivo opcional',
       unavailable: 'No disponible',
+      pricePending: 'Precio por definir',
+      markPricePending: 'Marcar el precio como pendiente',
+      confirmPendingPrice: 'Confirmar precio',
       useSuggestedAmount: 'Usar monto sugerido',
       useCurrentRate: 'Usar tarifa actual',
       useOriginalRate: 'Usar tarifa original',
@@ -637,6 +643,9 @@ export const STAYS_TRANSLATIONS = {
       reasonDifferentPlaceholder: 'Explain the reason when not using the suggested amount',
       reasonSuggestedPlaceholder: 'Optional reason',
       unavailable: 'Unavailable',
+      pricePending: 'Price to be determined',
+      markPricePending: 'Mark price as pending',
+      confirmPendingPrice: 'Confirm price',
       useSuggestedAmount: 'Use suggested amount',
       useCurrentRate: 'Use current rate',
       useOriginalRate: 'Use original rate',

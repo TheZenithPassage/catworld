@@ -66,7 +66,7 @@ export class StayPricingPage {
     const stay = this.stay();
     if (
       !stay ||
-      stay.agreedAmount === null ||
+      (stay.agreedAmount === null && !stay.pricePending) ||
       !this.isAdmin() ||
       this.correctionOpen() ||
       this.paymentMutationLocked()

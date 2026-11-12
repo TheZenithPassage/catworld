@@ -94,7 +94,9 @@ public class StayOverviewReadRepository {
         if (paymentConditions != null && !paymentConditions.isEmpty()) {
             List<Predicate> visible = new ArrayList<>();
             if (paymentConditions.contains(PaymentCondition.NO_PAYMENT)) visible.add(cb.equal(activeCount, 0L));
-            if (paymentConditions.contains(PaymentCondition.PARTIAL_PAYMENT)) visible.add(cb.and(cb.greaterThan(activeCount, 0L), cb.greaterThan(stay.get("agreedAmount"), activeSum)));
+            if (paymentConditions.contains(PaymentCondition.PARTIAL_PAYMENT)) visible.add(cb.and(
+                    cb.greaterThan(activeCount, 0L),
+                    cb.or(cb.isTrue(stay.get("pricePending")), cb.greaterThan(stay.get("agreedAmount"), activeSum))));
             if (paymentConditions.contains(PaymentCondition.FULL_PAYMENT)) visible.add(cb.and(cb.greaterThan(activeCount, 0L), cb.equal(stay.get("agreedAmount"), activeSum)));
             result.add(cb.or(visible.toArray(Predicate[]::new)));
         }

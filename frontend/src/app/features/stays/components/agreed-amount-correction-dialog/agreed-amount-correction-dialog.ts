@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
 import {
   MAT_DIALOG_DATA,
@@ -25,6 +26,7 @@ import { sameWholeMoney } from '../../utils/stay-money.util';
   imports: [
     FormsModule,
     MatButton,
+    MatCheckbox,
     MatDialogActions,
     MatDialogClose,
     MatDialogContent,
@@ -44,6 +46,7 @@ export class AgreedAmountCorrectionDialog {
   readonly stay = inject<Stay>(MAT_DIALOG_DATA);
   private readonly i18n = inject(I18nService);
   readonly text = this.i18n.text;
+  readonly pricePending = signal(false);
   readonly amount = signal(this.stay.agreedAmount ?? '');
   readonly reason = signal('');
   readonly attempted = signal(false);
@@ -52,9 +55,10 @@ export class AgreedAmountCorrectionDialog {
   readonly amountValid = computed(() => /^\d{1,19}$/.test(this.amount()));
   readonly changed = computed(
     () =>
-      this.stay.agreedAmount !== null &&
-      this.amountValid() &&
-      !sameWholeMoney(this.amount(), this.stay.agreedAmount),
+      this.pricePending() ||
+      (this.amountValid() &&
+        (this.stay.agreedAmount === null ||
+          !sameWholeMoney(this.amount(), this.stay.agreedAmount))),
   );
   readonly matcher: ErrorStateMatcher = {
     isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
@@ -63,14 +67,17 @@ export class AgreedAmountCorrectionDialog {
     if (this.submitting()) return;
     this.attempted.set(true);
     this.error.set(null);
-    if (!this.amountValid() || (this.changed() && !this.reason().trim())) return;
+    if ((!this.pricePending() && !this.amountValid()) || (this.changed() && !this.reason().trim()))
+      return;
     this.submitting.set(true);
     this.ref.disableClose = true;
     this.api
-      .correctAgreedAmount(this.stay.stayId, {
-        agreedAmount: this.amount(),
-        reason: this.reason().trim() || null,
-      })
+      .correctAgreedAmount(
+        this.stay.stayId,
+        this.pricePending()
+          ? { pricePending: true, reason: this.reason().trim() }
+          : { agreedAmount: this.amount(), reason: this.reason().trim() || null },
+      )
       .subscribe({
         next: (stay) => this.ref.close(stay),
         error: (error) => {

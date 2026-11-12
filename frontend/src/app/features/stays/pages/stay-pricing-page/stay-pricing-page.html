@@ -40,7 +40,7 @@
         <dd>{{ formatDate(currentStay.endAt) }}</dd>
       </div>
     </dl>
-    @if (currentStay.agreedAmount !== null) {
+    @if (currentStay.agreedAmount !== null || currentStay.pricePending) {
       @if (isAdmin()) {
         <button
           mat-stroked-button
@@ -49,7 +49,11 @@
           [disabled]="correctionOpen() || paymentMutationLocked()"
           (click)="correctAgreement($event.currentTarget)"
         >
-          {{ text().stays.pricing.correctAgreement }}
+          {{
+            currentStay.pricePending
+              ? text().stays.pricing.confirmPendingPrice
+              : text().stays.pricing.correctAgreement
+          }}
         </button>
       }
       <app-stay-payments

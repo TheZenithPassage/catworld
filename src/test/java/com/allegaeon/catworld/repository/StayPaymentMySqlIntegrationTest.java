@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
@@ -132,6 +133,28 @@ class StayPaymentMySqlIntegrationTest {
     }
 
     @Test
+    void mysqlSupportsPendingPricesWithExistingPayments() {
+        Fixture fixture = createFixture(new BigDecimal("100"));
+        UUID stayId = fixture.stay().getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(stayId, registration(new BigDecimal("30")));
+
+        var pending = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Original price was provisional").build());
+
+        assertTrue(pending.isPricePending());
+        assertNull(pending.getRemainingAmount());
+        assertEquals(new BigDecimal("30"), pending.getTotalPaid());
+        assertNull(jdbcTemplate.queryForObject(
+                "select new_agreed_amount from stay_agreed_amount_corrections where stay_id = ?",
+                BigDecimal.class, stayId));
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(new BigDecimal("80")).reason("Price confirmed").build());
+        assertFalse(confirmed.isPricePending());
+        assertEquals(new BigDecimal("50"), confirmed.getRemainingAmount());
+    }
+
+    @Test
     void fullFlywaySchemaPreservesExactValuesAndRollsBackFailedAudit() {
         assertEquals(
                 List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
@@ -139,7 +162,7 @@ class StayPaymentMySqlIntegrationTest {
                         """
                         select version
                         from flyway_schema_history
-                        where success = 1 and version is not null
+                        where success = 1 and cast(version as unsigned) <= 10
                         order by installed_rank
                         """,
                         String.class

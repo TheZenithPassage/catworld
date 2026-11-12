@@ -313,7 +313,8 @@ export class StayEditor {
 
     if (
       preview.pricingDecisionRequired &&
-      (!this.isAdmin() || !this.pricingConfirmed() || !this.decisionValid())
+      (!this.isAdmin() ||
+        (!this.stay()?.pricePending && (!this.pricingConfirmed() || !this.decisionValid())))
     ) {
       this.showError(
         this.isAdmin()
@@ -333,10 +334,14 @@ export class StayEditor {
       ...this.transferInputs(),
       ...(preview.pricingDecisionRequired
         ? {
-            pricingDecision: {
-              agreedAmount: this.agreedAmount(),
-              reason: this.pricingReason().trim() || null,
-            },
+            ...(this.stay()?.pricePending
+              ? {}
+              : {
+                  pricingDecision: {
+                    agreedAmount: this.agreedAmount(),
+                    reason: this.pricingReason().trim() || null,
+                  },
+                }),
             confirmation: preview.confirmation,
           }
         : {}),

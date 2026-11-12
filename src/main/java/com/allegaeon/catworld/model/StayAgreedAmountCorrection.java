@@ -13,7 +13,6 @@ import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,8 +43,7 @@ public class StayAgreedAmountCorrection {
     @Digits(integer = 19, fraction = 0)
     private BigDecimal previousAgreedAmount;
 
-    @Column(nullable = false, precision = 19, scale = 0, updatable = false)
-    @NotNull
+    @Column(precision = 19, scale = 0, updatable = false)
     @DecimalMin("0")
     @Digits(integer = 19, fraction = 0)
     private BigDecimal newAgreedAmount;

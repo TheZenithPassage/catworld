@@ -563,6 +563,23 @@ public class StayServiceTest {
         }
 
         @Test
+        void staffCanCreateWithPendingPriceWithoutRecordingAnAgreement() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), new BigDecimal("25"),
+                    PricingDecisionRequestDTO.builder().pricePending(true).build()
+            );
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
+
+            service.createStay(fixture.request());
+
+            assertTrue(fixture.stay().isPricePending());
+            assertNull(fixture.stay().getAgreedAmount());
+            assertEquals(new BigDecimal("25"), fixture.stay().getRetainedNightlyRate());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @Test
         void creationWithoutConfiguredRateAllowsExplicitZeroAgreementForZeroNights() {
             LocalDateTime startAt = LocalDateTime.now().plusDays(2)
                     .withHour(8).withMinute(0).withSecond(0).withNano(0);

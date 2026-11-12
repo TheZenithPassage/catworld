@@ -129,15 +129,17 @@
         }
       </div>
       <div class="detail-actions-end">
-        @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
-          <button
-            mat-stroked-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="pricingRequested.emit()"
-          >
-            {{ text().stays.detail.pricing }}
-          </button>
+        @if (pricingStay(); as pricing) {
+          @if (pricing.agreedAmount !== null || pricing.pricePending) {
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="deleting()"
+              (click)="pricingRequested.emit()"
+            >
+              {{ text().stays.detail.pricing }}
+            </button>
+          }
         }
         @if (canEdit(stay)) {
           <button

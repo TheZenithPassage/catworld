@@ -20,7 +20,13 @@
   <dl class="economics-summary">
     <div>
       <dt>{{ text().stays.pricing.agreement }}</dt>
-      <dd>{{ stay().agreedAmount ?? text().stays.pricing.unavailable }}</dd>
+      <dd>
+        {{
+          stay().pricePending
+            ? text().stays.pricing.pricePending
+            : (stay().agreedAmount ?? text().stays.pricing.unavailable)
+        }}
+      </dd>
     </div>
     <div>
       <dt>{{ text().stays.pricing.totalPaid }}</dt>
