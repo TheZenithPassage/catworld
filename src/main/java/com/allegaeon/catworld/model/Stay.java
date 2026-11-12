@@ -65,11 +65,9 @@ public class Stay extends AuditableEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StayCat> stayCats = new HashSet<>();
 
-    @Transient
-    public StayStatus getStatus() {
+    public StayStatus statusAt(LocalDateTime now) {
         if (cancelledAt != null) return StayStatus.CANCELLED;
 
-        LocalDateTime now = LocalDateTime.now();
 
         if (now.isBefore(startAt)) return StayStatus.RESERVED;
         if (now.isBefore(endAt)) return StayStatus.CHECKED_IN;

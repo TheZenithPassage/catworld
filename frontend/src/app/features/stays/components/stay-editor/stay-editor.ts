@@ -19,6 +19,7 @@ import { MatInput } from '@angular/material/input';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -60,6 +61,7 @@ export class StayEditor {
   private readonly stayApiService = inject(StayApiService);
   private readonly transferRateApiService = inject(TransferRateApiService);
   private readonly i18nService = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
 
@@ -135,7 +137,7 @@ export class StayEditor {
   readonly stay = signal<Stay | null>(null);
   readonly canEditStay = computed(() => {
     const current = this.stay();
-    return current !== null && canModifyStay(current);
+    return current !== null && canModifyStay(current, this.businessTime.currentLocalDateTime());
   });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
   readonly applicableCurrentRate = computed(() => {
@@ -300,7 +302,7 @@ export class StayEditor {
       return;
     }
 
-    if (new Date(this.endAt()) <= new Date(this.startAt())) {
+    if (Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')) {
       this.showError(this.text().stays.edit.errors.endAfterStart);
       return;
     }
@@ -597,7 +599,7 @@ export class StayEditor {
       !this.stayId ||
       !this.startAt() ||
       !this.endAt() ||
-      new Date(this.endAt()) <= new Date(this.startAt())
+      Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')
     ) {
       this.pricingPreview.set(null);
       this.previewLoading.set(false);

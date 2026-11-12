@@ -25,6 +25,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,6 +45,7 @@ public class OwnerService implements IOwnerService {
     private final DeletionAuthorizationPolicy deletionAuthorizationPolicy;
     private final StayRepository stayRepository;
     private final CatRepository catRepository;
+    private final Clock clock;
 
     private static final Sort CAT_ORDER = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
     private static final Sort STAY_ORDER = Sort.by(Sort.Order.desc("startAt"), Sort.Order.asc("id"));
@@ -127,12 +130,13 @@ public class OwnerService implements IOwnerService {
     @Override
     @Transactional(readOnly = true)
     public OwnerDetailResponse getOwnerDetail(UUID id) {
+        LocalDateTime now = LocalDateTime.now(clock);
         Owner owner = getEntity(id);
         Page<Cat> cats = catRepository.findByOwner_Id(id, PageRequest.of(0, 4, CAT_ORDER));
         Page<com.allegaeon.catworld.model.Stay> stays = stayRepository.findByOwner_Id(id, PageRequest.of(0, 4, STAY_ORDER));
         return new OwnerDetailResponse(toResponseDTO(owner),
                 RelationshipResponses.preview(cats, RelationshipResponses::cat),
-                RelationshipResponses.preview(stays, RelationshipResponses::stay));
+                RelationshipResponses.preview(stays, stay -> RelationshipResponses.stay(stay, now)));
     }
 
     @Override
@@ -148,11 +152,12 @@ public class OwnerService implements IOwnerService {
     @Override
     @Transactional(readOnly = true)
     public RelationshipPage<StayRelationshipItem> getOwnerStays(UUID id, int page) {
+        LocalDateTime now = LocalDateTime.now(clock);
         getEntity(id);
         RelationshipResponses.requireValidPage(page);
         return RelationshipResponses.page(
                 stayRepository.findByOwner_Id(id, PageRequest.of(page, RelationshipResponses.PAGE_SIZE, STAY_ORDER)),
-                RelationshipResponses::stay);
+                stay -> RelationshipResponses.stay(stay, now));
     }
 
     @Override

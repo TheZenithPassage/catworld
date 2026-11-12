@@ -25,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -112,6 +113,7 @@ class StayPaymentMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbcTemplate.update("delete from stay_payment_removals");
         jdbcTemplate.update("delete from stay_payment_annulments");
         jdbcTemplate.update("delete from stay_payment_edits");

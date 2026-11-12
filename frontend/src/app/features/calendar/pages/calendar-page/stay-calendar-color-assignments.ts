@@ -59,16 +59,14 @@ function getAvailableColorIndex(
 }
 
 function getStayMonthKeys(stay: Stay): string[] {
-  const startAt = new Date(stay.startAt);
-  const endAt = new Date(stay.endAt);
   const monthKeys: string[] = [];
 
-  const currentMonth = new Date(startAt.getFullYear(), startAt.getMonth(), 1);
-  const lastMonth = new Date(endAt.getFullYear(), endAt.getMonth(), 1);
+  const currentMonth = new Date(stay.startAt.slice(0, 7) + '-01');
+  const lastMonth = new Date(stay.endAt.slice(0, 7) + '-01');
 
   while (currentMonth <= lastMonth) {
-    monthKeys.push(getMonthKey(currentMonth));
-    currentMonth.setMonth(currentMonth.getMonth() + 1);
+    monthKeys.push(currentMonth.toISOString().slice(0, 7));
+    currentMonth.setUTCMonth(currentMonth.getUTCMonth() + 1);
   }
 
   return monthKeys;
@@ -82,8 +80,4 @@ function getPreferredColorIndex(stayId: string): number {
   }
 
   return hash % STAY_COLOR_PALETTE.length;
-}
-
-function getMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${date.getMonth()}`;
 }

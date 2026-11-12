@@ -786,17 +786,15 @@ to make owner, cat or vet deletion succeed.
 
 ## Frontend UI Foundation
 
-Frontend operational time uses `BusinessTimeService` as the single boundary
-between absolute instants and the deployment's business timezone. The timezone
-is loaded at runtime from `frontend/public/runtime-config.json` (currently
-`America/Argentina/Buenos_Aires`), so deployments can replace it without a
-component change or deployment-specific build. `Instant` values are formatted
-and `datetime-local` sensitive-activity filters are interpreted in that IANA
-zone. Stay `LocalDateTime` values retain their wall-clock fields, and payment
-`LocalDate` formatting remains separate from timezone conversion.
-The standard nginx container generates that file at startup from the
-`BUSINESS_TIME_ZONE` environment variable, which accepts an IANA timezone such
-as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
+Compose passes `BUSINESS_TIME_ZONE` to Spring and nginx. It accepts an IANA
+zone such as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
+Spring uses the configured clock for stay status, status filters, status-based
+edit and payment permissions, and new cancellation timestamps. Audit instants
+remain absolute. Nginx writes the zone into the frontend runtime configuration,
+which `BusinessTimeService` uses for the current business day, instant display
+and sensitive activity filters. Stay `LocalDateTime` values keep their stored
+wall-clock fields. Payment `LocalDate` values remain dates without a timezone.
+App-rendered times use 24-hour `HH:mm` while native editors follow the browser.
 The generated runtime config also contains a build ID derived from the SHA-256
 digest of the deployed Angular `index.html`. Angular retains that identity in
 memory and re-fetches the uncached runtime config when a page is shown or a

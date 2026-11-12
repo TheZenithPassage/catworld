@@ -22,6 +22,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -69,6 +70,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbc.update("delete from stay_payment_removals");
         jdbc.update("delete from stay_payment_annulments");
         jdbc.update("delete from stay_payment_edits");
@@ -331,7 +333,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         Owner owner = ownerRepository.saveAndFlush(Owner.builder()
                 .fullName("Native Owner").primaryPhone("555-0144")
                 .createdBy(actor).build());
-        LocalDateTime start = LocalDateTime.now().plusDays(2)
+        LocalDateTime start = LocalDateTime.now(clock).plusDays(2)
                 .withSecond(0).withNano(0);
         Stay stay = stayRepository.saveAndFlush(Stay.builder()
                 .startAt(start).endAt(start.plusDays(2))

@@ -2,14 +2,17 @@ import { Stay } from '../models/stay.model';
 
 export type StayStatus = 'cancelled' | 'checked-out' | 'checked-in' | 'reserved';
 
-export function getStayStatus(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): StayStatus {
+type StayDates = Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>;
+
+export function getStayStatus(stay: StayDates, businessNow: string): StayStatus {
   if (stay.cancelledAt) {
     return 'cancelled';
   }
 
-  const now = new Date();
-  const startAt = new Date(stay.startAt);
-  const endAt = new Date(stay.endAt);
+  // Treat the wall-clock values as UTC solely to compare their calendar fields.
+  const now = Date.parse(businessNow + 'Z');
+  const startAt = Date.parse(stay.startAt + 'Z');
+  const endAt = Date.parse(stay.endAt + 'Z');
 
   if (endAt <= now) {
     return 'checked-out';
@@ -22,14 +25,10 @@ export function getStayStatus(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledA
   return 'reserved';
 }
 
-export function canModifyStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
-  const status = getStayStatus(stay);
+export function canModifyStay(stay: StayDates, businessNow: string): boolean {
+  const status = getStayStatus(stay, businessNow);
 
   return status !== 'cancelled' && status !== 'checked-out';
-}
-
-export function canCancelStay(stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>): boolean {
-  return canModifyStay(stay);
 }
 
 export type StayStatusVisibility = Record<StayStatus, boolean>;
@@ -63,8 +62,9 @@ export function getDefaultStayStatusVisibility(): StayStatusVisibility {
 }
 
 export function isStayVisibleByStatus(
-  stay: Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>,
+  stay: StayDates,
   statusVisibility: StayStatusVisibility,
+  businessNow: string,
 ): boolean {
-  return statusVisibility[getStayStatus(stay)];
+  return statusVisibility[getStayStatus(stay, businessNow)];
 }

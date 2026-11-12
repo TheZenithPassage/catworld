@@ -20,7 +20,8 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -86,13 +87,14 @@ class OperationalOverviewServiceTest {
 
     @Test
     void stayOverviewDelegatesCompleteFiltersBeforeBoundedHydration() {
-        Clock fixed = Clock.fixed(Instant.parse("2026-09-04T12:00:00Z"), ZoneOffset.UTC);
+        Clock fixed = Clock.fixed(Instant.parse("2026-09-05T01:30:00Z"),
+                ZoneId.of("America/Argentina/Buenos_Aires"));
         Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Owner").build();
         Stay stay = Stay.builder().id(UUID.randomUUID()).owner(owner)
-                .startAt(java.time.LocalDateTime.of(2026, 9, 5, 10, 0))
-                .endAt(java.time.LocalDateTime.of(2026, 9, 6, 10, 0)).build();
+                .startAt(LocalDateTime.of(2026, 9, 4, 23, 0))
+                .endAt(LocalDateTime.of(2026, 9, 5, 10, 0)).build();
         var service = mockStayService(fixed);
-        when(stayOverviewReadRepository.find(eq(1), eq(10), any(), eq(Set.of(StayStatus.RESERVED)),
+        when(stayOverviewReadRepository.find(eq(1), eq(10), eq(LocalDateTime.of(2026, 9, 4, 22, 30)), eq(Set.of(StayStatus.RESERVED)),
                 eq(owner.getId()), isNull(), eq(Set.of(PaymentCondition.NO_PAYMENT)), eq(true), any()))
                 .thenReturn(new PageImpl<>(List.of(stay), org.springframework.data.domain.PageRequest.of(1, 10), 12));
         when(stayCatRepository.findOverviewCatsByStayIds(List.of(stay.getId()))).thenReturn(List.of());
