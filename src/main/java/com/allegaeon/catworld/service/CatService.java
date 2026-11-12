@@ -54,7 +54,8 @@ public class CatService implements ICatService{
         Set<UUID> photos = cats.isEmpty() ? Set.of() : emptyIfNull(catPhotoRepository.findPresentCatIds(
                 cats.getContent().stream().map(Cat::getId).toList()));
         return new OverviewPage<>(cats.stream().map(cat -> new CatOverviewItem(cat.getId(), cat.getName(),
-                cat.getOwner().getId(), cat.getOwner().getFullName(), photos.contains(cat.getId()))).toList(),
+                cat.getOwner().getId(), cat.getOwner().getFullName(), cat.isDeceased(),
+                cat.getOwner().isDeceased(), photos.contains(cat.getId()))).toList(),
                 page, cats.getTotalElements());
     }
 
@@ -111,7 +112,8 @@ public class CatService implements ICatService{
         String trimmed = requireLookupInput(query, page);
         Page<Cat> cats = catRepository.search(trimmed, PageRequest.of(page, LOOKUP_PAGE_SIZE, LOOKUP_ORDER));
         return new LookupPage<>(cats.stream().map(cat -> new CatLookupItem(cat.getId(), cat.getName(),
-                        cat.getOwner().getId(), cat.getOwner().getFullName())).toList(),
+                        cat.getOwner().getId(), cat.getOwner().getFullName(), cat.isDeceased(),
+                        cat.getOwner().isDeceased())).toList(),
                 page, LOOKUP_PAGE_SIZE, cats.getTotalElements());
     }
 

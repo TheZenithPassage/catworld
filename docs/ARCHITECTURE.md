@@ -153,6 +153,12 @@ preserved. Owner, Cat and Vet details render the complete value through their
 normal response DTOs. Their overview search, lookup and relationship-summary
 contracts remain notes-free; the existing Stay overview behavior is unchanged.
 
+Cat and Owner records carry a reversible deceased marker. The flag defaults to
+false for existing rows and is updated through the normal edit request.
+Omitting it preserves the recorded value. Details, overviews and lookup
+results expose the marker separately from the stored name. It does not filter
+records or affect stay creation, so operators can enter historical stays.
+
 #### Stay
 
 Represents one boarding stay.

@@ -139,7 +139,7 @@ public class StayService implements IStayService {
         return stays.stream().map(stay -> new StayLookupItem(stay.getId(), stay.getStartAt(), stay.getEndAt(),
                 new StayLookupItem.Owner(stay.getOwner().getId(), stay.getOwner().getFullName()),
                 cats.stream().filter(link -> link.getStay().getId().equals(stay.getId()))
-                        .map(link -> new CurrentCatLookupItem(link.getCat().getId(), link.getCat().getName())).toList())).toList();
+                        .map(link -> new CurrentCatLookupItem(link.getCat().getId(), link.getCat().getName(), link.getCat().isDeceased())).toList())).toList();
     }
 
     @Override
@@ -153,7 +153,7 @@ public class StayService implements IStayService {
         Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
         if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
-                        .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName())));
+                        .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName(), sc.getCat().isDeceased())));
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
                 stay.getStartAt(), stay.getEndAt(), statusAt(stay, now),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),

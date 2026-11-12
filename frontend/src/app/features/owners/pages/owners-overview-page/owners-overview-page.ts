@@ -5,6 +5,7 @@ import { MatInput } from '@angular/material/input';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
@@ -15,6 +16,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
 @Component({
   selector: 'app-owners-overview-page',
   imports: [
+    DeceasedMarker,
     MatButton,
     MatFormField,
     MatInput,
@@ -130,9 +132,6 @@ export class OwnersOverviewPage {
   changePage(event: PageEvent): void {
     this.loadOwners(event.pageIndex);
   }
-  catNames(owner: OwnerOverviewItem): string {
-    return owner.cats.map((cat) => cat.name).join(', ') || this.text().owners.emptyValue;
-  }
   openOwner(owner: Pick<OwnerOverviewItem, 'id'>): void {
     this.details
       .open({ entityType: 'owner', entityId: owner.id })
@@ -178,6 +177,7 @@ export class OwnersOverviewPage {
         this.selectedOwner.set({
           id: owner.id,
           fullName: owner.fullName,
+          deceased: owner.deceased,
           cats: owner.currentCats,
         });
         this.scrollSelected();

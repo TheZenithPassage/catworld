@@ -61,7 +61,7 @@ public class OwnerService implements IOwnerService {
                 : ownerRepository.searchOverview(escapeLookupQuery(trimmed), PageRequest.of(page, OverviewPage.PAGE_SIZE, OVERVIEW_SEARCH_ORDER));
         List<OwnerLookupItem> hydrated = hydrateLookupOwners(owners.getContent());
         return new OverviewPage<>(hydrated.stream()
-                .map(owner -> new OwnerOverviewItem(owner.id(), owner.fullName(), owner.currentCats())).toList(),
+                .map(owner -> new OwnerOverviewItem(owner.id(), owner.fullName(), owner.deceased(), owner.currentCats())).toList(),
                 page, owners.getTotalElements());
     }
 
@@ -209,8 +209,8 @@ public class OwnerService implements IOwnerService {
         Map<UUID, List<CurrentCatLookupItem>> catsByOwner = new java.util.HashMap<>();
         catRepository.findLookupCatsByOwnerIds(owners.stream().map(Owner::getId).toList())
                 .forEach(cat -> catsByOwner.computeIfAbsent(cat.getOwner().getId(), ignored -> new ArrayList<>())
-                        .add(new CurrentCatLookupItem(cat.getId(), cat.getName())));
-        return owners.stream().map(owner -> new OwnerLookupItem(owner.getId(), owner.getFullName(),
+                        .add(new CurrentCatLookupItem(cat.getId(), cat.getName(), cat.isDeceased())));
+        return owners.stream().map(owner -> new OwnerLookupItem(owner.getId(), owner.getFullName(), owner.isDeceased(),
                 List.copyOf(catsByOwner.getOrDefault(owner.getId(), List.of())))).toList();
     }
 

@@ -1,5 +1,6 @@
 package com.allegaeon.catworld;
 
+import com.allegaeon.catworld.dto.OwnerRequestDTO;
 import com.allegaeon.catworld.dto.OwnerResponseDTO;
 import com.allegaeon.catworld.mapper.OwnerMapper;
 import com.allegaeon.catworld.model.Owner;
@@ -18,6 +19,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OwnerMapperTest {
 
     private final OwnerMapper ownerMapper = new OwnerMapper();
+
+    @Test
+    void deceasedMarkerCanBeSetPreservedAndCleared() {
+        Owner owner = Owner.builder().build();
+        assertFalse(ownerMapper.toResponseDTO(owner).isDeceased());
+
+        ownerMapper.updateEntity(owner, OwnerRequestDTO.builder().deceased(true).build());
+        assertTrue(ownerMapper.toResponseDTO(owner).isDeceased());
+
+        ownerMapper.updateEntity(owner, OwnerRequestDTO.builder().build());
+        assertTrue(ownerMapper.toResponseDTO(owner).isDeceased());
+
+        ownerMapper.updateEntity(owner, OwnerRequestDTO.builder().deceased(false).build());
+        assertFalse(ownerMapper.toResponseDTO(owner).isDeceased());
+    }
 
     @Test
     void toResponseDTOMapsBothCanDeleteValuesWithoutInternalDeletionData() {

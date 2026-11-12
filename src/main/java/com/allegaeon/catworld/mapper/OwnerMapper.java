@@ -21,6 +21,7 @@ public class OwnerMapper {
         return OwnerResponseDTO.builder()
                 .id(owner.getId())
                 .fullName(owner.getFullName())
+                .deceased(owner.isDeceased())
                 .address(owner.getAddress())
                 .primaryPhone(owner.getPrimaryPhone())
                 .secondaryPhone(owner.getSecondaryPhone())
@@ -37,6 +38,7 @@ public class OwnerMapper {
 
         return Owner.builder()
                 .fullName(ownerRequestDTO.getFullName())
+                .deceased(Boolean.TRUE.equals(ownerRequestDTO.getDeceased()))
                 .address(ownerRequestDTO.getAddress())
                 .primaryPhone(ownerRequestDTO.getPrimaryPhone())
                 .secondaryPhone(ownerRequestDTO.getSecondaryPhone())
@@ -51,6 +53,9 @@ public class OwnerMapper {
     public Owner updateEntity(Owner owner, OwnerRequestDTO ownerRequestDTO) {
 
         owner.setFullName(ownerRequestDTO.getFullName());
+        if (ownerRequestDTO.getDeceased() != null) {
+            owner.setDeceased(ownerRequestDTO.getDeceased());
+        }
         owner.setAddress(ownerRequestDTO.getAddress());
         owner.setPrimaryPhone(ownerRequestDTO.getPrimaryPhone());
         owner.setSecondaryPhone(ownerRequestDTO.getSecondaryPhone());

@@ -1,6 +1,7 @@
 export interface Owner {
   id: string;
   canDelete?: boolean;
+  deceased?: boolean;
   fullName: string;
   address: string | null;
   primaryPhone: string;
@@ -22,21 +23,26 @@ export interface CreateOwnerRequest {
   notes: string | null;
 }
 
-export type UpdateOwnerRequest = CreateOwnerRequest;
+export interface UpdateOwnerRequest extends CreateOwnerRequest {
+  deceased?: boolean;
+}
 
 export interface OwnerLookupCat {
   id: string;
   name: string;
+  deceased?: boolean;
 }
 
 export interface OwnerLookup {
   id: string;
   fullName: string;
+  deceased?: boolean;
   currentCats: OwnerLookupCat[];
 }
 
 export interface OwnerOverviewItem {
   id: string;
   fullName: string;
+  deceased?: boolean;
   cats: OwnerLookupCat[];
 }

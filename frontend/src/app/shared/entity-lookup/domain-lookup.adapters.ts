@@ -29,6 +29,7 @@ export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
     const currentCats = value.currentCats.map((cat) => cat.name).join(', ');
     return {
       primary: value.fullName,
+      primaryDeceased: value.deceased,
       secondary: currentCats || undefined,
       selected: currentCats ? `${value.fullName} (${currentCats})` : value.fullName,
     };
@@ -51,6 +52,8 @@ export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
         name: value.name,
         ownerId: value.ownerId,
         ownerName: value.ownerName,
+        deceased: value.deceased,
+        ownerDeceased: value.ownerDeceased,
       })),
     );
   }
@@ -60,7 +63,9 @@ export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
   present(value: CatLookup): EntityLookupPresentation {
     return {
       primary: value.name,
+      primaryDeceased: value.deceased,
       secondary: value.ownerName,
+      secondaryDeceased: value.ownerDeceased,
       selected: `${value.name} — ${value.ownerName}`,
     };
   }

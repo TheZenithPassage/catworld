@@ -24,6 +24,9 @@ public class Cat extends AuditableEntity {
     private String name;
 
     @Column(nullable = false)
+    private boolean deceased;
+
+    @Column(nullable = false)
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)

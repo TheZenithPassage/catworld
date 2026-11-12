@@ -28,6 +28,8 @@ export interface CatRelationshipItem {
   name: string;
   ownerId: string;
   ownerName: string;
+  deceased?: boolean;
+  ownerDeceased?: boolean;
 }
 export interface StayRelationshipItem {
   stayId: string;

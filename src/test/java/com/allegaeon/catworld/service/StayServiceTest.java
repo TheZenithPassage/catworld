@@ -303,19 +303,21 @@ public class StayServiceTest {
         }
 
         @Test
-        public void shouldCreateStay_whenReceivingOnlyOneCat() {
+        public void shouldCreateHistoricalStay_whenCatAndOwnerAreMarkedDeceased() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.of(2024, 4, 1, 12, 0);
             LocalDateTime endAt = startAt.plusDays(18);
 
             Owner owner = Owner.builder()
                     .id(UUID.randomUUID())
                     .fullName("Owner")
+                    .deceased(true)
                     .build();
 
             Cat cat = Cat.builder()
                     .id(UUID.randomUUID())
                     .name("Cat")
+                    .deceased(true)
                     .owner(owner)
                     .lastRabiesDate(endAt.toLocalDate())
                     .lastTripleFelineDate(endAt.toLocalDate())

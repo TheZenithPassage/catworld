@@ -3,6 +3,7 @@ export type Sex = 'MALE' | 'FEMALE';
 export interface Cat {
   id: string;
   canDelete?: boolean;
+  deceased?: boolean;
   name: string;
   birthDate: string;
   sex: Sex;
@@ -21,6 +22,7 @@ export interface Cat {
   lastRabiesDate: string | null;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
   vetId: string | null;
   vetName: string | null;
   hasPhoto: boolean;
@@ -47,7 +49,9 @@ export interface CreateCatRequest {
   vetId: string | null;
 }
 
-export type UpdateCatRequest = CreateCatRequest;
+export interface UpdateCatRequest extends CreateCatRequest {
+  deceased?: boolean;
+}
 
 export interface CatPhotoMutation {
   photo: File | null;
@@ -57,14 +61,18 @@ export interface CatPhotoMutation {
 export interface CatLookup {
   id: string;
   name: string;
+  deceased?: boolean;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
 }
 
 export interface CatOverviewItem {
   id: string;
   name: string;
+  deceased?: boolean;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
   hasPhoto: boolean;
 }

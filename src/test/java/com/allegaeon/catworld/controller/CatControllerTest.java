@@ -95,7 +95,7 @@ public class CatControllerTest {
             UUID catId = UUID.randomUUID();
             UUID ownerId = UUID.randomUUID();
             when(catService.searchCats("m", 0)).thenReturn(new LookupPage<>(
-                    List.of(new CatLookupItem(catId, "Milo", ownerId, "Owner")), 0, 5, 1));
+                    List.of(new CatLookupItem(catId, "Milo", ownerId, "Owner", false, false)), 0, 5, 1));
             mockMvc.perform(get("/api/cats/search").param("q", "m"))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].ownerId").value(ownerId.toString()))
                     .andExpect(jsonPath("$.page").value(0)).andExpect(jsonPath("$.pageSize").value(5))

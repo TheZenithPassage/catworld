@@ -11,7 +11,9 @@ export interface EntityLookupPage<T> {
 
 export interface EntityLookupPresentation {
   primary: string;
+  primaryDeceased?: boolean;
   secondary?: string;
+  secondaryDeceased?: boolean;
   selected: string;
 }
 

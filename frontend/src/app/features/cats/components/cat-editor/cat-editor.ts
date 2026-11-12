@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -30,6 +31,7 @@ import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
     FormsModule,
     RouterLink,
     MatButton,
+    MatCheckbox,
     MatError,
     MatFormField,
     MatInput,
@@ -59,6 +61,7 @@ export class CatEditor {
   readonly ownerLookup = inject(OwnerLookupAdapter);
   readonly vetLookup = inject(VetLookupAdapter);
   readonly name = signal('');
+  readonly deceased = signal(false);
   readonly birthDate = signal('');
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
@@ -167,6 +170,7 @@ export class CatEditor {
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
     const request: UpdateCatRequest = {
       name: this.name().trim(),
+      deceased: this.deceased(),
       birthDate: this.birthDate(),
       sex: this.sex() as Sex,
       breed: this.optional(this.breed()),
@@ -223,6 +227,7 @@ export class CatEditor {
     this.initialCat = c;
     this.photoInput?.reset();
     this.name.set(c.name);
+    this.deceased.set(c.deceased ?? false);
     this.birthDate.set(c.birthDate);
     this.sex.set(c.sex);
     this.ownerId.set(c.ownerId);

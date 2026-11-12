@@ -5,6 +5,7 @@ import { MatInput } from '@angular/material/input';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
@@ -14,6 +15,7 @@ import { CatApiService } from '../../services/cat-api.service';
 @Component({
   selector: 'app-cats-overview-page',
   imports: [
+    DeceasedMarker,
     MatButton,
     MatFormField,
     MatInput,
