@@ -13,6 +13,7 @@ import { vi } from 'vitest';
 
 import { API_BASE_URL } from '../../../../core/config/api.config';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayPricingPage } from '../../../stays/pages/stay-pricing-page/stay-pricing-page';
 import { businessMonth, MonthlyPaymentsPage } from './monthly-payments-page';
@@ -89,6 +90,7 @@ describe('MonthlyPaymentsPage', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    TestBed.inject(I18nService).language.set('es');
     router = TestBed.inject(Router);
     location = TestBed.inject(Location);
     router.setUpLocationChangeListener();
