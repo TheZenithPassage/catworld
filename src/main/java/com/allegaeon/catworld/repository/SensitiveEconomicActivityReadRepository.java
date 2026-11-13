@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,17 +29,18 @@ import com.allegaeon.catworld.model.SensitiveStayContextCat;
 @RequiredArgsConstructor
 public class SensitiveEconomicActivityReadRepository {
 
-    private static final DateTimeFormatter AUDIT_DATETIME =
+    private static final DateTimeFormatter DATABASE_DATETIME =
             DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS");
 
-    // Audit DATETIME(6) columns store UTC fields. Read them as text to bypass
-    // JDBC's time-zone conversion, while keeping the stay wall times as before.
+    // Read native DATETIME projections as text so the driver does not interpret them
+    // as timestamps. Event times are UTC, while stay context times are local.
     private static final String UNION_QUERY = """
             SELECT activity.event_id, activity.event_type, activity.event_type_order,
                    CAST(activity.occurred_at AS CHAR(26)), activity.actor_id,
                    activity.actor_username, activity.context_id, activity.stay_id,
-                   activity.owner_id, activity.owner_full_name, activity.stay_start_at,
-                   activity.stay_end_at, activity.stay_cancelled_at, activity.rate_category,
+                   activity.owner_id, activity.owner_full_name,
+                   CAST(activity.stay_start_at AS CHAR(26)), CAST(activity.stay_end_at AS CHAR(26)),
+                   CAST(activity.stay_cancelled_at AS CHAR(26)), activity.rate_category,
                    activity.previous_rate, activity.new_rate, activity.retained_nightly_rate,
                    activity.number_of_nights, activity.agreed_amount,
                    activity.previous_agreed_amount, activity.new_agreed_amount,
@@ -410,7 +410,7 @@ public class SensitiveEconomicActivityReadRepository {
     private static void onOrAfterStayDay(StringBuilder sql, Map<String, LocalDateTime> bounds,
                                         String column, LocalDate date) {
         if (date == null) return;
-        sql.append(" AND current_stay.").append(column).append(" >= :stayLower");
+        sql.append(" AND current_stay.").append(column).append(" >= CAST(:stayLower AS DATETIME(6))");
         bounds.put("stayLower", date.atStartOfDay());
     }
 
@@ -419,10 +419,10 @@ public class SensitiveEconomicActivityReadRepository {
         if (date == null) return;
         sql.append(" AND current_stay.").append(column);
         if (LocalDate.MAX.equals(date)) {
-            sql.append(" <= :stayUpper");
+            sql.append(" <= CAST(:stayUpper AS DATETIME(6))");
             bounds.put("stayUpper", date.atTime(LocalTime.MAX));
         } else {
-            sql.append(" < :stayUpper");
+            sql.append(" < CAST(:stayUpper AS DATETIME(6))");
             bounds.put("stayUpper", date.plusDays(1).atStartOfDay());
         }
     }
@@ -431,7 +431,8 @@ public class SensitiveEconomicActivityReadRepository {
             Query query,
             SensitiveEconomicActivityFilter filter,
             Map<String, LocalDateTime> stayBounds) {
-        stayBounds.forEach(query::setParameter);
+        // Untyped native parameters can still use the driver's timestamp conversion.
+        stayBounds.forEach((name, bound) -> query.setParameter(name, DATABASE_DATETIME.format(bound)));
         if (filter.actorId() != null) {
             query.setParameter("actorId", uuidBytes(filter.actorId()));
         }
@@ -533,23 +534,15 @@ public class SensitiveEconomicActivityReadRepository {
         if (!instant.equals(microsecond)) {
             microsecond = microsecond.plus(1, ChronoUnit.MICROS);
         }
-        return AUDIT_DATETIME.format(LocalDateTime.ofInstant(microsecond, ZoneOffset.UTC));
+        return DATABASE_DATETIME.format(LocalDateTime.ofInstant(microsecond, ZoneOffset.UTC));
     }
 
     private Instant instant(Object value) {
-        return value == null ? null
-                : LocalDateTime.parse(string(value).trim().replace(' ', 'T'))
-                        .toInstant(ZoneOffset.UTC);
+        return value == null ? null : localDateTime(value).toInstant(ZoneOffset.UTC);
     }
 
     private LocalDateTime localDateTime(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime;
-        }
-        return ((Timestamp) value).toLocalDateTime();
+        return value == null ? null : LocalDateTime.parse(string(value).trim().replace(' ', 'T'));
     }
 
     private LocalDate localDate(Object value) {

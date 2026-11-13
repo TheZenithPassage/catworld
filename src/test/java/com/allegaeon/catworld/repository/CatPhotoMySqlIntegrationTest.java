@@ -43,7 +43,7 @@ class CatPhotoMySqlIntegrationTest {
     @Test
     void v10LifecycleBulkPresenceRollbackAndCascadeAreDatabaseAuthoritative() {
         assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), jdbc.queryForList(
-                "select version from flyway_schema_history where success=1 and version is not null order by installed_rank",
+                "select version from flyway_schema_history where success=1 and version is not null order by installed_rank limit 10",
                 String.class));
         UserAccount actor = users.saveAndFlush(UserAccount.builder().username("photo-native")
                 .passwordHash("not-used").role(UserRole.ADMIN).enabled(true).build());
