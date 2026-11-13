@@ -77,6 +77,7 @@ export class StayCreatePage implements AfterViewInit {
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
   readonly notes = signal('');
   readonly agreedAmount = signal('');
+  readonly pricePending = signal(false);
   readonly pricingReason = signal('');
   readonly transferAssistanceActive = signal(false);
   readonly arrivalTransferRequired = signal(false);
@@ -141,6 +142,11 @@ export class StayCreatePage implements AfterViewInit {
     () =>
       isValidWholeMoney(this.agreedAmount()) &&
       (!this.reasonRequired() || this.pricingReason().trim().length > 0),
+  );
+  readonly canSubmitPricing = computed(
+    () =>
+      Boolean(this.pricingPreview()) &&
+      (this.pricePending() || (this.pricingConfirmed() && this.decisionValid())),
   );
   readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
   readonly pricingReasonPlaceholder = computed(() => {
@@ -314,6 +320,11 @@ export class StayCreatePage implements AfterViewInit {
     this.pricingConfirmed.set(false);
   }
 
+  setPricePending(pending: boolean): void {
+    this.pricePending.set(pending);
+    this.onPricingDecisionChange();
+  }
+
   onAgreedAmountChange(value: string): void {
     this.agreedAmount.set(value);
     this.pricingReasonContext.set('manual');
@@ -381,7 +392,7 @@ export class StayCreatePage implements AfterViewInit {
     }
 
     const preview = this.pricingPreview();
-    if (this.previewLoading() || !preview || !this.pricingConfirmed() || !this.decisionValid()) {
+    if (this.previewLoading() || !preview || !this.canSubmitPricing()) {
       this.error.set(this.text().stays.pricing.errors.confirmationRequired);
       return;
     }
@@ -395,10 +406,12 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
       ...this.transferInputs(),
-      pricingDecision: {
-        agreedAmount: this.agreedAmount(),
-        reason: this.pricingReason().trim() || null,
-      },
+      pricingDecision: this.pricePending()
+        ? { pricePending: true }
+        : {
+            agreedAmount: this.agreedAmount(),
+            reason: this.pricingReason().trim() || null,
+          },
       confirmation: preview.confirmation,
     };
 
@@ -599,6 +612,7 @@ export class StayCreatePage implements AfterViewInit {
       endAt: this.endAt(),
       notes: this.notes(),
       agreedAmount: this.agreedAmount(),
+      ...(this.pricePending() ? { pricePending: true } : {}),
       pricingReason: this.pricingReason(),
       transferAssistanceActive: this.transferAssistanceActive(),
       arrivalTransferRequired: this.arrivalTransferRequired(),
@@ -612,6 +626,7 @@ export class StayCreatePage implements AfterViewInit {
     this.endAt.set(draft.endAt);
     this.notes.set(draft.notes);
     this.agreedAmount.set(draft.agreedAmount);
+    this.pricePending.set(draft.pricePending === true);
     this.pricingReason.set(draft.pricingReason);
     this.transferAssistanceActive.set(
       draft.transferAssistanceActive ??

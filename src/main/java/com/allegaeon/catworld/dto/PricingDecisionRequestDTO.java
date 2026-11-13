@@ -4,7 +4,7 @@ import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -20,14 +20,25 @@ import java.math.BigDecimal;
 @Builder
 public class PricingDecisionRequestDTO {
 
-    @NotNull(message = "Agreed amount is required and must be a non-negative whole number")
     @DecimalMin(
             value = "0",
             message = "Agreed amount must be a non-negative whole number"
     )
     private BigDecimal agreedAmount;
 
+    @Getter(AccessLevel.NONE)
+    private Boolean pricePending;
     private String reason;
+
+    public boolean isPricePending() {
+        return Boolean.TRUE.equals(pricePending);
+    }
+
+    @AssertTrue(message = "Choose either an agreed amount or a pending price")
+    @JsonIgnore
+    public boolean isPriceChoiceValid() {
+        return isPricePending() == (agreedAmount == null);
+    }
 
     @AssertTrue(
             message = "Agreed amount must be a non-negative whole number with at most 19 digits"

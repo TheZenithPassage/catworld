@@ -373,10 +373,13 @@ that resolved amount onto the stay. It does not retain the key that supplied the
 amount. Later reference-rate changes never reprice the stay. Responses
 derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
 
-Every new stay requires an explicit nested pricing decision from either
-authenticated role. The agreed amount is a non-negative whole number of at
-most 19 digits, including zero. A non-blank reason is required exactly when an
-available suggestion differs numerically from the agreement.
+Both authenticated roles can create a stay with a confirmed amount or an
+explicit pending price. A confirmed amount is a non-negative whole number of
+at most 19 digits, including zero. A non-blank reason is required when an
+available suggestion differs numerically from the agreement. A pending price
+stores `pricePending: true` and a null agreed amount, while retaining the
+usual rate basis. The creation path does not record an agreement event until
+there is an amount to agree.
 
 A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
 update requires `ADMIN`, a fresh explicit pricing decision and a selected
@@ -384,7 +387,8 @@ retained rate that is either the locked stay's original nullable amount or the
 effective current amount resolved for the requested new number of nights. The
 service derives the suggestion from that selected rate, then changes the
 retained-rate snapshot and agreement and appends its immutable decision in one
-transaction only after the complete stay update validates. Equal-night date or
+transaction only after the complete stay update validates. For a pending price,
+the same preview and rate validation apply and the price remains pending. Equal-night date or
 time changes do not reconfirm pricing.
 
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
@@ -403,7 +407,13 @@ pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
 exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
-writing. Preview calls persist nothing.
+writing. The existing-stay preview includes `currentPricePending` and echoes
+it as `previousPricePending` in a pricing confirmation. An omitted
+`previousPricePending` is accepted for older callers. The editor refreshes
+pricing after a concurrent price-state change and keeps the proposed dates,
+transfer settings and notes. A pending price needs no agreement decision, and
+an existing agreement must be explicitly reconfirmed for a pricing change.
+Preview calls persist nothing.
 
 An edit pricing preview also exposes nullable
 `currentApplicableNightlyRate`: backend-resolved preview information for the
@@ -429,10 +439,10 @@ and is never persisted.
 ### Agreed Amounts Have a Focused Administrative Correction Path
 
 `PATCH /api/stays/{id}/agreed-amount` lets an authenticated persisted `ADMIN`
-correct an existing known agreement independently of the stay lifecycle. An
-inherited stay whose current agreement is null has no recorded economic value
-to correct, so the operation rejects it without changing the stay or appending
-evidence.
+correct an agreement, mark it pending, or confirm a pending price independently
+of the stay lifecycle. Marking it pending uses `pricePending: true` in place of
+an amount. Inherited stays with a null agreement and no pending marker retain
+their historical behavior and reject economic mutations.
 
 The submitted amount follows the normal non-negative whole-unit monetary
 contract of at most 19 digits. Every real correction requires a non-blank
@@ -464,8 +474,12 @@ Inherited stays with a null agreement return zero paid, null remaining,
 mutations and focused agreement corrections are rejected because no recorded
 economic agreement exists to mutate. The overview renders a localized absence
 message instead of economic values and exposes neither payment management nor
-the agreed-amount correction action. Otherwise active payments may never exceed
-the agreement, including an agreement of zero.
+the agreed-amount correction action. Explicitly pending stays accept payments
+and return the active total with no calculable remaining amount. Their payment
+condition is `PARTIAL_PAYMENT` when an active payment exists and `NO_PAYMENT`
+otherwise. Outstanding collection eligibility still requires a known positive
+balance. When an agreement is known, active payments may never exceed it,
+including an agreement of zero.
 
 Registration, amount-only edits, annulments, pricing reconfirmation and focused
 agreement correction all serialize through the existing pessimistic `Stay`
@@ -489,8 +503,8 @@ Current rules:
 - `endAt` must be after `startAt`.
 - A cat cannot have overlapping active stays.
 - Cancelled stays are ignored during overlap validation.
-- Payment amounts are positive whole numbers of at most 19 digits and their
-  active aggregate cannot exceed the current agreed amount.
+- Payment amounts and the active aggregate use at most 19 whole digits.
+  The active aggregate cannot exceed a known agreed amount.
 - Payment edits require a real amount change and a non-blank reason;
   annulments require a non-blank reason and are terminal.
 - Payment removal requires `ADMIN`, a non-blank reason and exact durable
@@ -678,7 +692,8 @@ method-aware matchers enforce this HTTP boundary before the generic
 authenticated API rule, and the application authorization policy repeats the
 authoritative persisted-account decision at the service boundary.
 
-Both authenticated roles may create a stay with an explicit pricing decision.
+Both authenticated roles may create a stay with an explicit agreement or
+pending price.
 Only `ADMIN` may change a stay's authoritative night count and reconfirm its
 price. This contextual decision is enforced at the service boundary after the
 stay is locked; the general authenticated HTTP update route remains available
@@ -950,7 +965,7 @@ no separate Actions column. A transfer-required Stay shows one decorative car
 indicator in both ordinary and contextual overview rows, while the row's
 accessible name retains its detail label and adds the localized transfer meaning.
 Stay detail obtains the full operational Stay only
-to prove whether a recorded agreement exists before exposing Pricing & Payments;
+to check whether an agreement or pending price exists before exposing Pricing & Payments;
 the lightweight detail response remains economics-free.
 
 The reusable Stay editor owns the complete date, notes, pricing preview,
@@ -1161,7 +1176,7 @@ configuration level. Operational pages may consume Material paginator directly;
 the fixed-five relationship contracts retain their existing size and no custom
 paginator wrapper is introduced.
 
-For stays with a known agreement, authenticated `/stays/:id/pricing` is the only
+For stays with an agreement or pending price, authenticated `/stays/:id/pricing` is the only
 post-creation routed economic surface and exposes
 backend-authoritative economics and operational active and annulled payment
 history, including exact string amounts, payment dates, notes and registration
@@ -1170,15 +1185,15 @@ recorded by the existing immutable annulment, so both `ADMIN` and `STAFF` can
 understand ordinary payment history without access to sensitive economic
 activity. The page shows only owner, cats, dynamic status and dates as Stay
 context, never Stay notes, and replaces its displayed full Stay from successful
-payment output. Direct access remains valid for historical stays whose agreement
-is null, but shows an explicit empty economic state and no summary, history or
+payment output. Direct access remains valid for historical stays with neither
+an agreement nor a pending price, but shows an explicit empty economic state and no summary, history or
 economic actions. Pricing Back returns to a captured internal Angular URL,
 including its query string, and otherwise falls back to `/stays`; it does not
 reconstruct a detail dialog or use browser storage. Historical stays expose no
 Pricing & Payments entry in detail. Ordinary stay editing remains limited by
 the existing dynamic status rule and remains available for otherwise-allowed
 non-pricing changes to those historical stays. `ADMIN` receives payment mutation affordances in every
-status for known agreements; `STAFF` receives register, edit and annul
+status for stays with an agreement or pending price; `STAFF` receives register, edit and annul
 affordances only for reserved and checked-in stays and never receives permanent
 removal.
 These affordances are advisory and the backend remains the authorization and

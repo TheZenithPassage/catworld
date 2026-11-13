@@ -607,7 +607,10 @@ describe('StayCreatePage', () => {
     expect(component.selectedOwnerId()).toBe('owner-1');
     expect(component.selectedCatIds()).toEqual(['cat-1']);
     expect(component.availableCats().map((cat) => cat.id)).toEqual(['cat-1', 'cat-2']);
-    expect(fixture.nativeElement.querySelectorAll('mat-checkbox')).toHaveLength(3);
+    expect(fixture.nativeElement.querySelectorAll('.cat-option')).toHaveLength(2);
+    expect(
+      fixture.nativeElement.querySelector('.transfer-assistance-control mat-checkbox'),
+    ).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.transfer-options')).toBeNull();
   });
 
@@ -996,6 +999,23 @@ describe('StayCreatePage', () => {
     );
   });
 
+  it('creates a stay with an explicitly pending price instead of a placeholder amount', () => {
+    createComponent();
+    stayApiService.createStay.mockReturnValue(of(createdStay));
+    selectOwner();
+    component.selectedCatIds.set(['cat-1']);
+    component.startAt.set('2099-01-02T10:00');
+    component.endAt.set('2099-01-09T10:00');
+    prepareConfirmedPricing();
+
+    component.setPricePending(true);
+    component.submit();
+
+    expect(stayApiService.createStay).toHaveBeenCalledWith(
+      expect.objectContaining({ pricingDecision: { pricePending: true } }),
+    );
+  });
+
   it('creates a stay with the current payload shape and returns to stays', () => {
     createComponent();
     const flowId = TestBed.inject(CreationFlowService).start('stay');
@@ -1354,7 +1374,9 @@ describe('StayCreatePage', () => {
     const submitButtons = () =>
       [...fixture.nativeElement.querySelectorAll('button[type="submit"]')] as HTMLButtonElement[];
     expect(submitButtons().every((button) => button.disabled)).toBe(true);
-    component.pricingConfirmed.set(true);
+    selectOwner();
+    component.selectedCatIds.set(['cat-1']);
+    prepareConfirmedPricing();
     fixture.detectChanges();
     expect(submitButtons().every((button) => !button.disabled)).toBe(true);
     component.previewLoading.set(true);

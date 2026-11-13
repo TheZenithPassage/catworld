@@ -36,6 +36,7 @@ public class StayResponseDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal suggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal agreedAmount;
+    private boolean pricePending;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal totalPaid;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal remainingAmount;
     private PaymentCondition paymentCondition;

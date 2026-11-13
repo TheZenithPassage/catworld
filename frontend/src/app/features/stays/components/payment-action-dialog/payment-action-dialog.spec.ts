@@ -129,6 +129,7 @@ describe('PaymentActionDialog', () => {
     [404, undefined, 'missing'],
     [400, {}, 'validation'],
     [409, 'would exceed agreement', 'overpayment'],
+    [409, { message: 'Payment total exceeds the supported monetary amount' }, 'totalLimit'],
     [409, { message: 'below active payment total' }, 'activeFloor'],
     [409, null, 'conflict'],
     [500, null, 'generic'],

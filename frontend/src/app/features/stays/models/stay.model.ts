@@ -41,6 +41,7 @@ export interface Stay {
   transferSuggestedAmount?: MonetaryAmount;
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
+  pricePending?: boolean;
   totalPaid: MonetaryAmount;
   remainingAmount: MonetaryAmount | null;
   paymentCondition: PaymentCondition;
@@ -81,10 +82,9 @@ export interface PaymentReasonRequest {
   reason: string;
 }
 
-export interface PricingDecision {
-  agreedAmount: MonetaryAmount;
-  reason?: string | null;
-}
+export type PricingDecision =
+  | { agreedAmount: MonetaryAmount; pricePending?: false; reason?: string | null }
+  | { agreedAmount?: null; pricePending: true; reason?: string | null };
 
 export interface CreationPricingConfirmation {
   numberOfNights: number;
@@ -100,6 +100,7 @@ export interface CreationPricingConfirmation {
 export interface ExistingStayPricingConfirmation {
   previousNumberOfNights: number;
   previousAgreedAmount: MonetaryAmount | null;
+  previousPricePending: boolean;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
@@ -120,6 +121,7 @@ export interface CreationPricingPreview extends CreationPricingConfirmation {
 interface StayDatePricingPreviewBase {
   currentNumberOfNights: number;
   currentAgreedAmount: MonetaryAmount | null;
+  currentPricePending: boolean;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   currentApplicableNightlyRate: MonetaryAmount | null;

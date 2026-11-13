@@ -36,6 +36,9 @@ export interface StaysTranslations {
     reasonDifferentPlaceholder: string;
     reasonSuggestedPlaceholder: string;
     unavailable: string;
+    pricePending: string;
+    markPricePending: string;
+    confirmPendingPrice: string;
     useSuggestedAmount: string;
     useCurrentRate: string;
     useOriginalRate: string;
@@ -46,6 +49,7 @@ export interface StaysTranslations {
     confirmAfterReason: string;
     confirmed: string;
     stale: string;
+    staleUpdate: string;
     noReconfirmation: string;
     adminRequired: string;
     economics: string;
@@ -115,6 +119,7 @@ export interface StaysTranslations {
       reasonRequired: string;
       validation: string;
       overpayment: string;
+      totalLimit: string;
       activeFloor: string;
       permission: string;
       missing: string;
@@ -325,6 +330,9 @@ export const STAYS_TRANSLATIONS = {
       reasonDifferentPlaceholder: 'Indicá el motivo si no se usa el monto sugerido',
       reasonSuggestedPlaceholder: 'Motivo opcional',
       unavailable: 'No disponible',
+      pricePending: 'Precio por definir',
+      markPricePending: 'Marcar el precio como pendiente',
+      confirmPendingPrice: 'Confirmar precio',
       useSuggestedAmount: 'Usar monto sugerido',
       useCurrentRate: 'Usar tarifa actual',
       useOriginalRate: 'Usar tarifa original',
@@ -335,6 +343,7 @@ export const STAYS_TRANSLATIONS = {
       confirmAfterReason: 'Agregá un motivo para confirmar',
       confirmed: 'Precio confirmado',
       stale: 'La base del precio cambió. Revisá la nueva propuesta y volvé a confirmarla.',
+      staleUpdate: 'La base del precio cambió. Revisá la propuesta actualizada antes de guardar.',
       noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
       adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
       economics: 'Economía',
@@ -408,6 +417,7 @@ export const STAYS_TRANSLATIONS = {
         reasonRequired: 'Indicá un motivo.',
         validation: 'El pago no cumple la validación del servidor.',
         overpayment: 'El pago supera el monto acordado.',
+        totalLimit: 'El total de pagos supera el límite admitido.',
         activeFloor: 'El cambio dejaría el acuerdo por debajo de los pagos activos.',
         permission: 'No tenés permiso para realizar esta acción.',
         missing: 'La estadía o el pago ya no existe.',
@@ -637,6 +647,9 @@ export const STAYS_TRANSLATIONS = {
       reasonDifferentPlaceholder: 'Explain the reason when not using the suggested amount',
       reasonSuggestedPlaceholder: 'Optional reason',
       unavailable: 'Unavailable',
+      pricePending: 'Price to be determined',
+      markPricePending: 'Mark price as pending',
+      confirmPendingPrice: 'Confirm price',
       useSuggestedAmount: 'Use suggested amount',
       useCurrentRate: 'Use current rate',
       useOriginalRate: 'Use original rate',
@@ -647,6 +660,7 @@ export const STAYS_TRANSLATIONS = {
       confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',
       stale: 'The pricing basis changed. Review the fresh preview and confirm it again.',
+      staleUpdate: 'The pricing basis changed. Review the updated preview before saving.',
       noReconfirmation: 'This change does not require pricing reconfirmation.',
       adminRequired: 'Only an administrator can complete a pricing-affecting change.',
       economics: 'Economics',
@@ -720,6 +734,7 @@ export const STAYS_TRANSLATIONS = {
         reasonRequired: 'Provide a reason.',
         validation: 'The payment did not pass server validation.',
         overpayment: 'The payment exceeds the agreed amount.',
+        totalLimit: 'The payment total exceeds the supported limit.',
         activeFloor: 'The change would put the agreement below active payments.',
         permission: 'You do not have permission to perform this action.',
         missing: 'The stay or payment no longer exists.',

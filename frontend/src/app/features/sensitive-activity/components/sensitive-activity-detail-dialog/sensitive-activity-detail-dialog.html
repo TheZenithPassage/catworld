@@ -69,11 +69,11 @@
       @case ('AGREED_AMOUNT_CORRECTED') {
         <div>
           <dt>{{ text().sensitiveActivity.fields.previousAgreement }}</dt>
-          <dd>{{ display(event.previousAgreedAmount) }}</dd>
+          <dd>{{ event.previousAgreedAmount ?? text().stays.pricing.pricePending }}</dd>
         </div>
         <div>
           <dt>{{ text().sensitiveActivity.fields.newAgreement }}</dt>
-          <dd>{{ event.newAgreedAmount }}</dd>
+          <dd>{{ event.newAgreedAmount ?? text().stays.pricing.pricePending }}</dd>
         </div>
         <div class="wide">
           <dt>{{ text().sensitiveActivity.fields.reason }}</dt>
