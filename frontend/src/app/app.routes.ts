@@ -123,6 +123,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'payments',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/payments/pages/monthly-payments-page/monthly-payments-page').then(
+        (m) => m.MonthlyPaymentsPage,
+      ),
+  },
+  {
     path: 'sensitive-activity',
     canActivate: [adminGuard],
     loadComponent: () =>
