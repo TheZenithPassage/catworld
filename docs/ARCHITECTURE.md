@@ -1565,3 +1565,7 @@ recorded payment date, regardless of when the stay starts or the payment was
 entered. Cancelled stays can still have active receipts. Annulled and removed
 payments are excluded. The response includes an exact whole-month total as a
 decimal string, separate from the paginated rows.
+
+The Payments URL records the selected month, tab and zero-based page for
+returning from stay pricing through its Back button or browser history. If the
+requested page has disappeared, the URL records the last available page.
