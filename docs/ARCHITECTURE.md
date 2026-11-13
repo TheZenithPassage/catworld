@@ -10,8 +10,12 @@ JSON. Every normal Cat response includes required `hasPhoto` metadata, with
 collections populated by one bounded presence query.
 
 Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
-`removePhoto=false`). Native normalization finishes before a separate proxied
-service transaction atomically mutates Cat and CatPhoto. The authenticated
+`removePhoto=false`). The PUT `cat` part requires `expectedUpdatedAt` from the
+current cat response. The service checks it under a write lock before updating
+the profile or its photo and returns `409 CAT_EDIT_STALE` for an outdated
+edit. The editor keeps the draft until the operator explicitly reloads it.
+Native normalization finishes before a separate proxied service transaction
+atomically mutates Cat and CatPhoto. The authenticated
 `GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
 `Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
 and returns the same 404 shape for absent cats and absent photos. The native
@@ -33,6 +37,26 @@ dates recorded in the cat's fields.
 
 When the application loses its authenticated session, open entity detail
 dialogs close and release any enlarged photo's object URL.
+
+Private cat intake uses separate invitation, review and photo staging tables.
+An administrator issues one active invitation per tutor, with an explicit list
+of existing cats and permission for new cats. The token is generated from 32
+random bytes and only its SHA-256 digest is stored. Links expire after seven
+days and carry the token in the URL fragment. The recipient sends it as a
+Bearer credential to the two intake endpoints. Their allowed browser origin
+is derived from the absolute `CATWORLD_INTAKE_URL` configuration.
+
+A submission can include up to 20 cats with two photos each, up to 8 MiB
+per photo and 32 MiB of images in total. Only normalized JPEGs are staged.
+A transaction locks and consumes the invitation when it saves the review
+items. Validation failures leave the invitation available. The server checks
+that selected cats still belong to the tutor before displaying, accepting or
+approving their proposed data. Reviews compare submitted fields with the
+invitation snapshot and the current cat. Approval requires the current update
+timestamp and takes the same cat row lock as the internal editor. It applies
+the selected fields through the ordinary cat mutation service. Approved photos
+move to the authenticated informational gallery.
+Approval removes the staged data and closes the review in the same transaction.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 

@@ -20,6 +20,12 @@ FIELDS = frozenset({"schema", "repository", "release_id", "tag", "prerelease",
                     "source_sha", "backend", "frontend", "workflow_run", "workflow_attempt"})
 
 
+EXTERNAL_LISTENERS = {
+    "gallery": ("compose.public-gallery.yml", 8081),
+    "intake": ("compose.cat-intake.yml", 8082),
+}
+
+
 def fail(message):
     raise ValueError(message)
 
@@ -64,11 +70,19 @@ def run(command, *, env=None, capture=False):
                           capture_output=capture)
 
 
-def assert_compose(compose, envfile, project, images, *, run_command=run):
+def assert_compose(compose, envfile, project, images, *, enabled_listeners=(),
+                   run_command=run):
     variables = {**os.environ, "BACKEND_IMAGE": images["backend"],
                  "FRONTEND_IMAGE": images["frontend"]}
     prefix = ["docker", "compose", "--project-name", project,
               "--env-file", str(envfile), "-f", str(compose)]
+    expected_targets = {80}
+    for name in dict.fromkeys(enabled_listeners):
+        if name not in EXTERNAL_LISTENERS:
+            fail("Unknown external listener")
+        filename, target = EXTERNAL_LISTENERS[name]
+        prefix.extend(["-f", str(Path(compose).with_name(filename))])
+        expected_targets.add(target)
     raw = run_command(prefix + ["config", "--format", "json"],
                       env=variables, capture=True).stdout
     config = json.loads(raw)
@@ -85,9 +99,11 @@ def assert_compose(compose, envfile, project, images, *, run_command=run):
         if services[service].get("ports"):
             fail("Database and API must not publish host ports")
     published = services["frontend"].get("ports", [])
-    if len(published) != 1 or published[0].get("target") != 80 or (
-            published[0].get("host_ip") != "127.0.0.1"):
-        fail("Frontend must expose only port 80 on host loopback")
+    if (len(published) != len(expected_targets)
+            or {port.get("target") for port in published} != expected_targets
+            or any(port.get("host_ip") != "127.0.0.1"
+                   or port.get("protocol", "tcp") != "tcp" for port in published)):
+        fail("Frontend must expose exactly the selected TCP listeners on host loopback")
     if not services["db"].get("volumes"):
         fail("Production database needs its persistent volume")
     return prefix, variables
@@ -130,7 +146,8 @@ def prepare(args, *, run_command=run):
     if not Path(args.env_file).is_file():
         fail("Private production environment file is missing")
     prefix, variables = assert_compose(args.compose, args.env_file, args.project,
-                                       record, run_command=run_command)
+                                       record, enabled_listeners=getattr(args, "enable_listener", ()),
+                                       run_command=run_command)
     # Fail before changing any running services, even if one of the pulls fails.
     for image in (record["backend"], record["frontend"]):
         run_command(["docker", "pull", "--platform", "linux/arm64", image])
@@ -149,6 +166,8 @@ def main():
     parser.add_argument("--env-file", default=".env.production")
     parser.add_argument("--compose", default="compose.prod.yml")
     parser.add_argument("--project", default="catworld-prod")
+    parser.add_argument("--enable-listener", choices=EXTERNAL_LISTENERS, action="append",
+                        default=[], help="Opt in to a loopback listener when deploying; repeat for both")
     parser.add_argument("--deploy", action="store_true",
                         help="Pull images and start Compose only after verification")
     args = parser.parse_args()

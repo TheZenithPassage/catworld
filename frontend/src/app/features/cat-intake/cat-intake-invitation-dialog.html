@@ -1,0 +1,71 @@
+<h2 mat-dialog-title>{{ copy().title }}</h2>
+<mat-dialog-content>
+  <p class="owner-name">{{ data.ownerName }}</p>
+  @if (loading()) {
+    <p role="status">{{ copy().loading }}</p>
+  } @else if (feedback() === 'loadFailed') {
+    <p role="alert">{{ copy().loadFailed }}</p>
+    <button mat-button type="button" (click)="load()">{{ copy().retry }}</button>
+  } @else {
+    <fieldset [disabled]="busy()">
+      <label class="choice">
+        <input
+          type="checkbox"
+          [checked]="allowNewCats()"
+          (change)="allowNewCats.set($any($event.target).checked)"
+        />
+        {{ copy().allowNew }}
+      </label>
+    </fieldset>
+    <fieldset [disabled]="busy()">
+      <legend>{{ copy().existing }}</legend>
+      @for (cat of cats(); track cat.id) {
+        <label class="choice">
+          <input
+            type="checkbox"
+            [checked]="catIds().includes(cat.id)"
+            [disabled]="atLimit() && !catIds().includes(cat.id)"
+            (change)="selectCat(cat.id, $any($event.target).checked)"
+          />
+          {{ cat.name }}
+        </label>
+      } @empty {
+        <p>{{ copy().empty }}</p>
+      }
+    </fieldset>
+    @if (active(); as invitation) {
+      <p>
+        {{ copy().active }}
+        <time [attr.datetime]="invitation.expiresAt">
+          {{ displayInstant(invitation.expiresAt) }}
+        </time>
+      </p>
+      <p>{{ copy().replacement }}</p>
+    }
+    @if (link(); as url) {
+      <label class="private-link">
+        {{ copy().link }}
+        <input #linkInput type="text" [value]="url" readonly (focus)="linkInput.select()" />
+      </label>
+      <button mat-stroked-button type="button" (click)="copyLink(linkInput)">
+        {{ copy().copy }}
+      </button>
+    }
+    @if (feedback(); as message) {
+      <p [attr.role]="message === 'copied' ? 'status' : 'alert'">{{ copy()[message] }}</p>
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" [disabled]="busy()" mat-dialog-close>{{ copy().close }}</button>
+  @if (!loading() && feedback() !== 'loadFailed') {
+    @if (active()) {
+      <button mat-button type="button" [disabled]="busy()" (click)="revoke()">
+        {{ copy().revoke }}
+      </button>
+    }
+    <button mat-flat-button type="button" [disabled]="!canIssue()" (click)="issue()">
+      {{ active() ? copy().replace : copy().issue }}
+    </button>
+  }
+</mat-dialog-actions>

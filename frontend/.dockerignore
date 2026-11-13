@@ -11,6 +11,9 @@
 !nginx.conf
 !docker-entrypoint.d
 !docker-entrypoint.d/**
+!nginx-intake.conf
+!intake-site
+!intake-site/**
 
 **/node_modules/**
 **/dist/**

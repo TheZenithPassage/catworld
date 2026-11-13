@@ -222,6 +222,7 @@ function detail(canDelete: boolean | undefined = true): CatDetailResponse {
   return {
     cat: {
       id: 'cat-1',
+      updatedAt: '2026-10-05T13:00:00Z',
       canDelete,
       name: 'Mochi',
       birthDate: '2020-01-01',

@@ -16,6 +16,7 @@
       [entityId]="entityId()"
       [entity]="cat"
       (saved)="saved($event)"
+      (reloaded)="reloaded($event)"
       (cancelled)="cancelRequested.emit()"
       (submittingChanged)="submittingChanged.emit($event)"
     />

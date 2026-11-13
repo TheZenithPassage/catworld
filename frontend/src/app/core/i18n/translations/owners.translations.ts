@@ -12,6 +12,8 @@ export interface OwnersTranslations {
     close: string;
     openDetails: string;
     unsupportedStay: string;
+    requestIntake: string;
+    intakeLoadFailed: string;
   };
   form: {
     fullName: string;
@@ -93,6 +95,8 @@ export const OWNERS_TRANSLATIONS = {
       close: 'Cerrar',
       openDetails: 'Ver detalles',
       unsupportedStay: 'Los detalles de la estadía aún no están disponibles.',
+      requestIntake: 'Solicitar ficha de gatos',
+      intakeLoadFailed: 'No se pudo abrir el diálogo de la ficha.',
     },
     form: {
       fullName: 'Nombre completo',
@@ -172,6 +176,8 @@ export const OWNERS_TRANSLATIONS = {
       close: 'Close',
       openDetails: 'View details',
       unsupportedStay: 'Stay details are not available yet.',
+      requestIntake: 'Request cat information',
+      intakeLoadFailed: 'Could not open the cat information dialog.',
     },
     form: {
       fullName: 'Full name',
