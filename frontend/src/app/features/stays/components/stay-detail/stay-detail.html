@@ -129,6 +129,14 @@
         }
       </div>
       <div class="detail-actions-end">
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="deleting()"
+          (click)="careHistoryRequested.emit()"
+        >
+          {{ text().care.history }}
+        </button>
         @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
           <button
             mat-stroked-button

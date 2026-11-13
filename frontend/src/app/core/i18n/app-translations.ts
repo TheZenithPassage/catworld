@@ -1,5 +1,9 @@
 import { AppLanguage } from './app-language';
 import {
+  CARE_ENTRY_TRANSLATIONS,
+  CareEntryTranslations,
+} from './translations/care-entry.translations';
+import {
   APP_SHELL_TRANSLATIONS,
   AppShellTranslations,
 } from './translations/app-shell.translations';
@@ -39,6 +43,7 @@ export interface AppTranslations {
   deletion: DeletionTranslations;
   calendar: CalendarTranslations;
   cats: CatsTranslations;
+  care: CareEntryTranslations;
   owners: OwnersTranslations;
   stays: StaysTranslations;
   vets: VetsTranslations;
@@ -57,6 +62,7 @@ export const APP_TRANSLATIONS = {
     deletion: DELETION_TRANSLATIONS.es,
     calendar: CALENDAR_TRANSLATIONS.es,
     cats: CATS_TRANSLATIONS.es,
+    care: CARE_ENTRY_TRANSLATIONS.es,
     owners: OWNERS_TRANSLATIONS.es,
     stays: STAYS_TRANSLATIONS.es,
     vets: VETS_TRANSLATIONS.es,
@@ -73,6 +79,7 @@ export const APP_TRANSLATIONS = {
     deletion: DELETION_TRANSLATIONS.en,
     calendar: CALENDAR_TRANSLATIONS.en,
     cats: CATS_TRANSLATIONS.en,
+    care: CARE_ENTRY_TRANSLATIONS.en,
     owners: OWNERS_TRANSLATIONS.en,
     stays: STAYS_TRANSLATIONS.en,
     vets: VETS_TRANSLATIONS.en,

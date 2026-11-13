@@ -184,6 +184,34 @@ Represents the link between a `Stay` and a `Cat`.
 
 The project uses an explicit link entity instead of a plain `@ManyToMany`.
 
+#### Configurable care
+
+The Care workspace lists cats, food and litter by business date. It includes
+non-cancelled stays that overlap the selected day in the configured business
+zone. A stay ending at midnight belongs to the previous day. A cat can appear
+for more than one stay on the same day. ADMIN and STAFF can read other dates
+and log care only for the current business date and a cat linked to the
+selected stay.
+
+ADMIN configures routine names and modes and can deactivate routines. V19
+seeds food as EVENT and water and litter as DAILY. A SHIFT routine has three
+separately selectable slots for morning, afternoon and evening. A DAILY
+routine has one slot and EVENT allows multiple entries. Retries of an active
+daily or shift slot return the existing entry. The stay lock coordinates care
+writes with stay changes, and a unique index guards active slots.
+
+Each entry stores a routine snapshot or a note, the local date, a UTC instant,
+and snapshots of the cat and author identities. A rename or deactivation
+preserves earlier records. The author or an ADMIN can void an entry, which
+keeps the original in history and releases its slot. Corrections use the
+normal recording rules for the replacement. Care is retained through stay
+edits and cancellation and is deleted with a permanently deleted stay. The
+stored cat and actor IDs are scalar, so care adds no restrictions to their
+normal edits and deletions.
+
+The authenticated API exposes the date view at `GET /api/care/day` and
+the stay history at `GET /api/care/stays/{stayId}/records`.
+
 #### UserAccount
 
 Represents an application login account.
