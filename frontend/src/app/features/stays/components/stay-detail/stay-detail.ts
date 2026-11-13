@@ -42,6 +42,7 @@ export class StayDetail {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly summaryDestroyRef = inject(DestroyRef);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -74,6 +75,8 @@ export class StayDetail {
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
+  readonly openingCareSummary = signal(false);
+  readonly careSummaryError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.detailGeneration++;
@@ -86,7 +89,10 @@ export class StayDetail {
       const id = this.entityId();
       this.invalidateOperational();
       this.invalidateCancellationContext();
-      if (this.loadedEntityId !== id) this.detail.set(null);
+      if (this.loadedEntityId !== id) {
+        this.detail.set(null);
+        this.careSummaryError.set(null);
+      }
       this.load(id);
     });
     effect(() => {
@@ -121,6 +127,33 @@ export class StayDetail {
       },
     });
   }
+  async openCareSummary(stay: StayDetailResponse): Promise<void> {
+    const canOpen = () =>
+      !this.summaryDestroyRef.destroyed &&
+      this.detail()?.stayId === stay.stayId &&
+      this.detail()?.status === 'CHECKED_OUT' &&
+      stay.stayId === this.entityId() &&
+      !this.editing() &&
+      !this.deleting();
+    if (!canOpen() || this.openingCareSummary()) return;
+    this.openingCareSummary.set(true);
+    this.careSummaryError.set(null);
+    try {
+      const { StayCareSummary } = await import('../../../care/stay-care-summary/stay-care-summary');
+      if (canOpen()) {
+        this.dialog.open(StayCareSummary, {
+          data: stay.stayId,
+          width: '38rem',
+          maxWidth: 'calc(100vw - 2rem)',
+        });
+      }
+    } catch {
+      if (canOpen()) this.careSummaryError.set(this.text().stays.detail.careSummaryLoadFailed);
+    } finally {
+      this.openingCareSummary.set(false);
+    }
+  }
+
   private loadPricingGate(id: string): void {
     const generation = ++this.pricingGeneration;
     this.pricingStay.set(null);

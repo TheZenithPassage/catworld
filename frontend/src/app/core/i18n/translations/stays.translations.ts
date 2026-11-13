@@ -270,6 +270,8 @@ export interface StaysTranslations {
   };
   detail: {
     title: string;
+    careSummary: string;
+    careSummaryLoadFailed: string;
     close: string;
     edit: string;
     loading: string;
@@ -584,6 +586,8 @@ export const STAYS_TRANSLATIONS = {
     },
     detail: {
       title: 'Detalle de la estadía',
+      careSummary: 'Resumen de cierre',
+      careSummaryLoadFailed: 'No se pudo abrir el resumen de cierre.',
       close: 'Cerrar detalle de la estadía',
       edit: 'Editar',
       loading: 'Cargando detalle de la estadía...',
@@ -896,6 +900,8 @@ export const STAYS_TRANSLATIONS = {
     },
     detail: {
       title: 'Stay details',
+      careSummary: 'Checkout summary',
+      careSummaryLoadFailed: 'Could not open the checkout summary.',
       close: 'Close stay details',
       edit: 'Edit',
       loading: 'Loading stay details...',

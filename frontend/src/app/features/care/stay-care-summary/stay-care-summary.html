@@ -1,0 +1,70 @@
+<h2 mat-dialog-title>{{ copy().title }}</h2>
+<mat-dialog-content>
+  @switch (state()) {
+    @case ('loading') {
+      <p role="status">{{ copy().loading }}</p>
+    }
+    @case ('failed') {
+      <p role="alert">{{ copy().failed }}</p>
+      <button mat-stroked-button type="button" (click)="load()">{{ copy().retry }}</button>
+    }
+    @case ('unavailable') {
+      <p role="status">{{ copy().unavailable }}</p>
+    }
+    @case ('ready') {
+      @if (groups().length) {
+        <p>{{ copy().choose }}</p>
+        <div class="summary-cats">
+          @for (cat of groups(); track cat.id) {
+            <fieldset [disabled]="editingPreview()">
+              <legend>{{ cat.name }}</legend>
+              @for (record of cat.records; track record.id) {
+                <label class="summary-option">
+                  <input
+                    #choice
+                    type="checkbox"
+                    [checked]="isSelected(record.id)"
+                    (change)="choose(record.id, choice.checked)"
+                  />
+                  <span>{{ describe(record) }}</span>
+                </label>
+              }
+            </fieldset>
+          }
+        </div>
+        @if (selectedCount()) {
+          <mat-form-field appearance="outline">
+            <mat-label>{{ copy().preview }}</mat-label>
+            <textarea
+              #previewInput
+              matInput
+              rows="7"
+              [value]="preview()"
+              (input)="edit(previewInput.value)"
+            ></textarea>
+          </mat-form-field>
+        }
+        @if (editingPreview()) {
+          <p>{{ copy().manualEdit }}</p>
+          <button mat-button type="button" (click)="restorePreview()">{{ copy().reset }}</button>
+        }
+        @if (copyStatus(); as status) {
+          <p role="status">{{ copy()[status] }}</p>
+        }
+      } @else {
+        <p role="status">{{ copy().empty }}</p>
+      }
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">{{ copy().close }}</button>
+  <button
+    mat-flat-button
+    type="button"
+    [disabled]="selectedCount() === 0 || !preview().trim()"
+    (click)="copySummary()"
+  >
+    {{ copy().copy }}
+  </button>
+</mat-dialog-actions>
