@@ -1,0 +1,13 @@
+.message-fields {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+mat-form-field {
+  min-width: 0;
+}
+
+textarea {
+  resize: vertical;
+}

@@ -270,6 +270,8 @@ export interface StaysTranslations {
   };
   detail: {
     title: string;
+    whatsapp: string;
+    whatsappLoadFailed: string;
     close: string;
     edit: string;
     loading: string;
@@ -584,6 +586,8 @@ export const STAYS_TRANSLATIONS = {
     },
     detail: {
       title: 'Detalle de la estadía',
+      whatsapp: 'Textos para WhatsApp',
+      whatsappLoadFailed: 'No se pudo abrir el editor del mensaje.',
       close: 'Cerrar detalle de la estadía',
       edit: 'Editar',
       loading: 'Cargando detalle de la estadía...',
@@ -896,6 +900,8 @@ export const STAYS_TRANSLATIONS = {
     },
     detail: {
       title: 'Stay details',
+      whatsapp: 'WhatsApp messages',
+      whatsappLoadFailed: 'Could not open the message editor.',
       close: 'Close stay details',
       edit: 'Edit',
       loading: 'Loading stay details...',

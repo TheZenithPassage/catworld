@@ -1,0 +1,46 @@
+<h2 mat-dialog-title>{{ copy().title }}</h2>
+<mat-dialog-content>
+  @if (loading()) {
+    <p role="status">{{ copy().loading }}</p>
+  } @else if (failed()) {
+    <p role="alert">{{ copy().loadFailed }}</p>
+    <button mat-stroked-button type="button" (click)="load()">{{ copy().retry }}</button>
+  } @else if (stay(); as current) {
+    @if (current.cancelledAt !== null) {
+      <p role="status">{{ copy().canceled }}</p>
+    } @else {
+      <p>{{ copy().description }}</p>
+      <div class="message-fields">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ copy().kind }}</mat-label>
+          <select #kind matNativeControl [value]="selected()" (change)="choose(kind.value)">
+            @for (option of kinds(); track option) {
+              <option [value]="option">{{ copy().choices[option] }}</option>
+            }
+          </select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ copy().draft }}</mat-label>
+          <textarea
+            #draftInput
+            matInput
+            rows="8"
+            [value]="draft()"
+            (input)="edit(draftInput.value)"
+          ></textarea>
+        </mat-form-field>
+      </div>
+      @if (copyStatus(); as status) {
+        <p role="status">{{ copy()[status] }}</p>
+      }
+    }
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close type="button">{{ copy().close }}</button>
+  @if (stay()?.cancelledAt === null) {
+    <button mat-flat-button type="button" [disabled]="!draft().trim()" (click)="copyDraft()">
+      {{ copy().copy }}
+    </button>
+  }
+</mat-dialog-actions>
