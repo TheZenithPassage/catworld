@@ -1,0 +1,89 @@
+@let t = text().cats.informationalPhotos;
+@let controlsDisabled = disabled() || busy();
+<section class="gallery" [attr.aria-label]="t.title" [attr.aria-busy]="loading() || busy()">
+  <header>
+    <h3>{{ t.title }}</h3>
+    <input #fileInput type="file" hidden [accept]="acceptedFormats" (change)="select($event)" />
+    <button
+      #addButton
+      mat-stroked-button
+      type="button"
+      [disabled]="controlsDisabled"
+      (click)="fileInput.click()"
+    >
+      {{ t.add }}
+    </button>
+  </header>
+
+  @if (loading()) {
+    <p role="status">{{ t.loading }}</p>
+  } @else if (loadFailed()) {
+    <p role="alert">{{ t.loadFailed }}</p>
+    <button mat-button type="button" [disabled]="controlsDisabled" (click)="load()">
+      {{ text().cats.detail.retry }}
+    </button>
+  } @else if (photos().length === 0) {
+    <p>{{ t.empty }}</p>
+  } @else {
+    <ul>
+      @for (photo of photos(); track photo.id) {
+        <li>
+          <button
+            class="view-photo"
+            mat-button
+            type="button"
+            [disabled]="controlsDisabled"
+            (click)="openPhoto.emit(photo.id)"
+          >
+            @defer (on viewport) {
+              <app-cat-informational-photo-thumbnail [catId]="catId()" [photoId]="photo.id" />
+            } @placeholder {
+              <span class="thumbnail-placeholder" aria-hidden="true"></span>
+            }
+            {{ t.view($index + 1) }}
+          </button>
+          @if (pendingRemoval() === photo.id) {
+            <p>{{ t.removePrompt }}</p>
+            <div class="confirmation-actions">
+              <button
+                #cancelButton
+                mat-button
+                type="button"
+                [disabled]="controlsDisabled"
+                (click)="cancelRemoval(photo.id)"
+              >
+                {{ text().cats.detail.cancel }}
+              </button>
+              <button
+                mat-flat-button
+                type="button"
+                [disabled]="controlsDisabled"
+                (click)="remove(photo.id)"
+              >
+                {{ t.confirmRemove }}
+              </button>
+            </div>
+          } @else {
+            <button
+              #removeButton
+              mat-button
+              type="button"
+              [attr.aria-label]="t.removeNamed($index + 1)"
+              [attr.data-photo-id]="photo.id"
+              [disabled]="controlsDisabled"
+              (click)="requestRemoval(photo.id)"
+            >
+              {{ t.remove }}
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  }
+  @if (busy()) {
+    <p role="status">{{ t.saving }}</p>
+  }
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+</section>

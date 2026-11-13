@@ -12,7 +12,11 @@ import { CatDetail } from './cat-detail';
 describe('CatDetail permanent deletion', () => {
   let fixture: ComponentFixture<CatDetail>;
   let component: CatDetail;
-  let api: { getCatDetail: ReturnType<typeof vi.fn>; deleteCat: ReturnType<typeof vi.fn> };
+  let api: {
+    getCatDetail: ReturnType<typeof vi.fn>;
+    listInformationalPhotos: ReturnType<typeof vi.fn>;
+    deleteCat: ReturnType<typeof vi.fn>;
+  };
   let dialogResults: Subject<boolean | undefined>[];
   let dialog: { open: ReturnType<typeof vi.fn> };
 
@@ -21,6 +25,7 @@ describe('CatDetail permanent deletion', () => {
     dialogResults = [];
     api = {
       getCatDetail: vi.fn(() => of(detail())),
+      listInformationalPhotos: vi.fn(() => of([])),
       deleteCat: vi.fn(() => of(undefined)),
     };
     dialog = {

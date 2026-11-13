@@ -6,7 +6,7 @@
     type="file"
     hidden
     [disabled]="disabled()"
-    [accept]="'.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'"
+    [accept]="acceptedFormats"
     (change)="select($event)"
   />
 

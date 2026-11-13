@@ -21,6 +21,19 @@ Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
 to 8-bit and premultiplied while resizing before being flattened onto white.
 Native objects remain inside `Vips.run`.
 
+Cat informational photos are separate attachments for vaccination records and
+other reference images. The cat detail gallery lists attachment IDs and upload
+timestamps from `GET /api/cats/{catId}/informational-photos`. The same
+authenticated collection accepts one multipart `photo` per POST. Individual
+items support JPEG reads with `Cache-Control: no-store` and deletion. Both
+operations match the cat and photo IDs. Uploads use the same formats, size
+limits and JPEG normalization as profile photos. Deleting the cat removes the
+attachments through the database foreign key. Vaccination checks use the
+dates recorded in the cat's fields.
+
+When the application loses its authenticated session, open entity detail
+dialogs close and release any enlarged photo's object URL.
+
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
