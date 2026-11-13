@@ -104,7 +104,13 @@
               <dl class="pricing-summary">
                 <div>
                   <dt>{{ text().stays.pricing.currentAgreement }}</dt>
-                  <dd>{{ preview.currentAgreedAmount ?? text().stays.pricing.unavailable }}</dd>
+                  <dd>
+                    {{
+                      preview.currentPricePending
+                        ? text().stays.pricing.pricePending
+                        : (preview.currentAgreedAmount ?? text().stays.pricing.unavailable)
+                    }}
+                  </dd>
                 </div>
                 <div>
                   <dt>{{ text().stays.pricing.nights }}</dt>
@@ -138,17 +144,15 @@
                   {{ text().stays.pricing.transferUnavailable }}
                 </p>
               }
+              @if (stalePricing()) {
+                <p class="pricing-warning" role="alert">{{ text().stays.pricing.staleUpdate }}</p>
+              }
               @if (!preview.pricingDecisionRequired) {
                 <p>{{ text().stays.pricing.noReconfirmation }}</p>
               } @else if (!isAdmin()) {
                 <p class="pricing-warning" role="alert">{{ text().stays.pricing.adminRequired }}</p>
               } @else {
-                @if (stalePricing()) {
-                  <p class="pricing-warning" role="alert">{{ text().stays.pricing.stale }}</p>
-                }
-                @if (stay()?.pricePending) {
-                  <p>{{ text().stays.pricing.pricePending }}</p>
-                } @else {
+                @if (!preview.currentPricePending) {
                   <mat-form-field appearance="outline" subscriptSizing="dynamic">
                     <mat-label>{{ text().stays.pricing.agreement }}</mat-label>
                     <input
@@ -188,7 +192,7 @@
                     </button>
                   </div>
                 }
-                @if (!stay()?.pricePending) {
+                @if (!preview.currentPricePending) {
                   <mat-form-field appearance="outline" subscriptSizing="dynamic">
                     <mat-label>{{ text().stays.pricing.reason }}</mat-label>
                     <textarea
@@ -246,8 +250,8 @@
               [disabled]="
                 submitting() ||
                 previewLoading() ||
-                (pricingPreview()?.pricingDecisionRequired === true &&
-                  (!isAdmin() || (!stay()?.pricePending && !pricingConfirmed())))
+                (pricingPreview()?.pricingDecisionRequired === true && !isAdmin()) ||
+                (pricingConfirmationRequired() && !pricingConfirmed())
               "
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}

@@ -54,7 +54,11 @@
                 <td class="money">{{ amount(payment.amount) }}</td>
                 <td>{{ payment.note || '—' }}</td>
                 <td>
-                  <a mat-button [routerLink]="['/stays', payment.stayId, 'pricing']">
+                  <a
+                    mat-button
+                    [routerLink]="['/stays', payment.stayId, 'pricing']"
+                    [state]="result.pricingState"
+                  >
                     {{ text().openStay }}
                   </a>
                 </td>
