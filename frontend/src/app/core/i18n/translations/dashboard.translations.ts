@@ -2,7 +2,6 @@ import { AppLanguage } from '../app-language';
 
 export interface DashboardTranslations {
   title: string;
-  description: string;
   links: {
     stays: {
       title: string;
@@ -37,8 +36,6 @@ export interface DashboardTranslations {
 export const DASHBOARD_TRANSLATIONS = {
   es: {
     title: 'Panel de administración',
-    description:
-      'Desde aquí podés gestionar las estadías, los dueños y los gatos, y acceder al calendario.',
     links: {
       stays: {
         title: 'Estadías',
@@ -71,7 +68,6 @@ export const DASHBOARD_TRANSLATIONS = {
   },
   en: {
     title: 'Dashboard',
-    description: 'Here you can manage stays, owners or cats and access the calendar.',
     links: {
       stays: {
         title: 'Stays',

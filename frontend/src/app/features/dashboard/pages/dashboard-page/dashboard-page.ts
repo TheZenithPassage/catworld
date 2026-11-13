@@ -4,10 +4,11 @@ import { MatCard, MatCardContent } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { OperationsAgenda } from '../../../operations/components/operations-agenda/operations-agenda';
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [MatButton, MatCard, MatCardContent, RouterLink],
+  imports: [MatButton, MatCard, MatCardContent, OperationsAgenda, RouterLink],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',
 })

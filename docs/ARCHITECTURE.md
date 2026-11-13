@@ -1130,6 +1130,23 @@ controls remain a separate integration boundary. Material inputs, supported
 native selects, checkboxes and buttons do not depend on legacy global
 native-control selectors.
 
+### Operations Agenda
+
+The authenticated home page uses `GET /api/operations/agenda?date=YYYY-MM-DD`
+for `ADMIN` and `STAFF`. The date defaults to the application clock's business
+date. The response contains the selected date, current business date, selected-day
+movements, boarding stays and seven upcoming days starting the day after the
+selection. Each movement identifies its stay, owner, cats, direction, scheduled
+business-local time and the transfer flag for that direction. The agenda links
+each movement and boarding stay to the existing Stay detail dialog.
+
+The backend reads non-cancelled stays for the bounded eight-day window and
+sorts movements by scheduled time, direction and stay ID. Each local movement
+day includes midnight at its start and excludes midnight at its end. For the
+current business date, boarding uses the dynamic Stay status at the time of
+the request. For any other date, boarding includes stays whose
+`[startAt, endAt)` overlaps the selected local day.
+
 ### Operational Overview Pagination
 
 Owner, Cat, Vet and Stay operational overviews use focused server-side reads
