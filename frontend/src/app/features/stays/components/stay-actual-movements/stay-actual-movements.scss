@@ -1,0 +1,77 @@
+mat-dialog-content {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.movements {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.movement {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.movement.selected {
+  border-color: var(--color-primary-hover);
+}
+
+h3,
+dd,
+p {
+  margin: 0;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0;
+  overflow-wrap: anywhere;
+}
+
+dt,
+.muted,
+.cancelled {
+  color: var(--color-text-muted);
+}
+
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+.state {
+  display: inline-block;
+  margin-inline-start: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.5rem;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+  font-size: 0.8em;
+}
+
+form,
+.movement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+form mat-form-field {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+@media (max-width: 460px) {
+  dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

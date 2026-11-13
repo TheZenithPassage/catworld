@@ -7,6 +7,7 @@ import { provideRouter, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { StayActualMovementsDialogService } from '../../../stays/services/stay-actual-movements-dialog.service';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { EntityDetailUpdate } from '../../../../shared/entity-detail/entity-reference';
 import { DashboardPage } from './dashboard-page';
@@ -75,7 +76,9 @@ describe('DashboardPage', () => {
 describe('DashboardPage agenda', () => {
   it('shows the server business date, loads a selected date and opens the stay from its movement', () => {
     const updates = new Subject<EntityDetailUpdate>();
+    const movementUpdates = new Subject<boolean>();
     const open = vi.fn(() => updates);
+    const openActualTimes = vi.fn(() => movementUpdates);
     TestBed.configureTestingModule({
       imports: [DashboardPage],
       providers: [
@@ -83,6 +86,7 @@ describe('DashboardPage agenda', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: EntityDetailDialogService, useValue: { open } },
+        { provide: StayActualMovementsDialogService, useValue: { open: openActualTimes } },
       ],
     });
     TestBed.inject(I18nService).language.set('en');
@@ -104,7 +108,15 @@ describe('DashboardPage agenda', () => {
     const initialAgenda = {
       date: '2030-06-01',
       businessDate: '2030-06-01',
-      movements: [{ type: 'ARRIVAL', scheduledAt: stay.startAt, transferRequired: true, stay }],
+      movements: [
+        {
+          type: 'ARRIVAL',
+          scheduledAt: stay.startAt,
+          actualAt: '2030-06-01T02:30:00Z',
+          transferRequired: true,
+          stay,
+        },
+      ],
       boardingStays: [stay],
       upcomingDays: [
         { date: '2030-06-02', movements: [] },
@@ -131,6 +143,8 @@ describe('DashboardPage agenda', () => {
       button.textContent?.includes('23:00'),
     );
     expect(movement?.textContent).toContain('Alba, Nube');
+    expect(movement?.textContent).toContain('31 May 2030');
+    expect(movement?.textContent).toContain('23:30');
     movement?.click();
     expect(open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'stay-1' });
 
@@ -140,6 +154,15 @@ describe('DashboardPage agenda', () => {
     http.expectOne(url).flush(initialAgenda);
     fixture.detectChanges();
     expect(root.contains(movement ?? null)).toBe(true);
+
+    root
+      .querySelector<HTMLButtonElement>('[aria-label="Actual arrival time for Alba, Nube"]')!
+      .click();
+    expect(openActualTimes).toHaveBeenCalledWith({ stayId: 'stay-1', focusType: 'ARRIVAL' });
+    movementUpdates.next(true);
+    movementUpdates.complete();
+    http.expectOne(url).flush(initialAgenda);
+    fixture.detectChanges();
 
     input.value = '2030-06-02';
     input.dispatchEvent(new Event('change', { bubbles: true }));

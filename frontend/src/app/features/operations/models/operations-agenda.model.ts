@@ -1,6 +1,7 @@
 import type { StayCatSummary } from '../../stays/models/stay.model';
+import type { StayMovementType } from '../../stays/services/stay-actual-movements-dialog.service';
 
-export type AgendaMovementType = 'ARRIVAL' | 'DEPARTURE';
+export type AgendaMovementType = StayMovementType;
 
 export interface AgendaStay {
   stayId: string;
@@ -16,6 +17,7 @@ export interface AgendaMovement {
   scheduledAt: string;
   transferRequired: boolean;
   stay: AgendaStay;
+  actualAt?: string;
 }
 
 export interface AgendaDay {
