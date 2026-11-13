@@ -1,12 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, output, signal, ViewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
-import { of } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
@@ -48,11 +57,13 @@ export class CatEditor {
   private vetSelector?: RemoteEntitySelector<VetLookup>;
   private initialCat: Cat | null = null;
   private readonly api = inject(CatApiService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
   readonly entity = input<Cat | null>(null);
   readonly routed = input(false);
   readonly saved = output<Cat>();
+  readonly reloaded = output<Cat>();
   readonly cancelled = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
@@ -79,6 +90,8 @@ export class CatEditor {
   readonly lastRabiesDate = signal('');
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
+  readonly staleEdit = signal(false);
+  readonly formRevision = signal(0);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly catLoaded = signal(false);
   readonly hasSavedPhoto = signal(false);
@@ -96,8 +109,14 @@ export class CatEditor {
   }
   constructor() {
     effect(() => {
+      const id = this.entityId();
       const entity = this.entity();
-      this.loadData(entity);
+      if (entity?.id === id) {
+        if (entity !== this.initialCat) this.setValues(entity);
+      } else {
+        this.catLoaded.set(false);
+        this.loadCat(id);
+      }
     });
   }
   @ViewChild('ownerSelector')
@@ -116,26 +135,38 @@ export class CatEditor {
       );
     }
   }
-  loadData(entity: Cat | null = this.entity()): void {
+  reloadCat(): void {
+    if (this.staleEdit() && !this.loadingData()) this.loadCat(this.entityId(), true);
+  }
+  private loadCat(id: string, reload = false): void {
     this.error.set(null);
-    this.catLoaded.set(false);
-    if (!this.entityId()) {
+    if (!id) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
       return;
     }
     this.loadingData.set(true);
-    (entity ? of(entity) : this.api.getCatById(this.entityId())).subscribe({
-      next: (cat) => {
-        this.setValues(cat);
-        this.loadingData.set(false);
-      },
-      error: (e) => {
-        this.error.set(this.apiMessage(e, this.text().cats.edit.errors.loadFormDataFailed));
-        this.loadingData.set(false);
-      },
-    });
+    this.api
+      .getCatById(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (cat) => {
+          if (id !== this.entityId()) return;
+          this.setValues(cat);
+          this.loadingData.set(false);
+          if (reload) {
+            this.formRevision.update((revision) => revision + 1);
+            this.reloaded.emit(cat);
+          }
+        },
+        error: (e) => {
+          if (id !== this.entityId()) return;
+          this.error.set(this.apiMessage(e, this.text().cats.edit.errors.loadFormDataFailed));
+          this.loadingData.set(false);
+        },
+      });
   }
   submit(): void {
+    if (this.staleEdit() || this.loadingData()) return;
     this.error.set(null);
     this.nameError.set(null);
     this.birthDateError.set(null);
@@ -144,6 +175,11 @@ export class CatEditor {
     if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
+      return;
+    }
+    const expectedUpdatedAt = this.initialCat?.updatedAt;
+    if (!expectedUpdatedAt) {
+      this.error.set(this.text().cats.edit.errors.dataNotLoaded);
       return;
     }
     if (!this.name().trim()) {
@@ -166,6 +202,7 @@ export class CatEditor {
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
     const request: UpdateCatRequest = {
+      expectedUpdatedAt,
       name: this.name().trim(),
       birthDate: this.birthDate(),
       sex: this.sex() as Sex,
@@ -196,10 +233,18 @@ export class CatEditor {
           this.saved.emit(c);
         },
         error: (e) => {
-          this.error.set(
-            catPhotoErrorMessage(e, this.text().cats.photo.errors) ??
-              this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
-          );
+          if (
+            e instanceof HttpErrorResponse &&
+            e.status === 409 &&
+            e.error?.code === 'CAT_EDIT_STALE'
+          ) {
+            this.staleEdit.set(true);
+          } else {
+            this.error.set(
+              catPhotoErrorMessage(e, this.text().cats.photo.errors) ??
+                this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
+            );
+          }
           this.setSubmitting(false);
         },
       });
@@ -222,6 +267,8 @@ export class CatEditor {
   private setValues(c: Cat): void {
     this.initialCat = c;
     this.photoInput?.reset();
+    this.staleEdit.set(false);
+    this.notesError.set(null);
     this.name.set(c.name);
     this.birthDate.set(c.birthDate);
     this.sex.set(c.sex);

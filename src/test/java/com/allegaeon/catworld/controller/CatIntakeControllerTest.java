@@ -3,11 +3,13 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.exception.CatPhotoException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.CatPhoto;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatInformationalPhotoRepository;
+import com.allegaeon.catworld.repository.CatPhotoRepository;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.OwnerRepository;
 import com.allegaeon.catworld.repository.UserAccountRepository;
@@ -19,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,6 +74,7 @@ class CatIntakeControllerTest {
     @Autowired OwnerRepository owners;
     @Autowired UserAccountRepository users;
     @Autowired CatInformationalPhotoRepository photos;
+    @Autowired CatPhotoRepository profilePhotos;
     @Autowired PasswordEncoder passwordEncoder;
     @MockitoBean Clock clock;
     @MockitoBean LibVipsCatPhotoNormalizer normalizer;
@@ -142,9 +146,8 @@ class CatIntakeControllerTest {
         assertThat(existingReview.get("proposed").has("name")).isFalse();
         assertThat(existingReview.get("proposed").has("foodBrand")).isFalse();
 
-        Cat updated = cats.findById(existing.getId()).orElseThrow();
-        updated.setCoat("Curly");
-        cats.saveAndFlush(updated);
+        mvc.perform(internalCatEdit(existing, "Curly", existingReview.get("catUpdatedAt").asString()))
+                .andExpect(status().isOk());
         approve(existingRow, Map.of("coat", "Soft"), List.of(), existingReview.get("catUpdatedAt").asString(), 409);
         JsonNode conflict = detail(existingRow.get("id").asString());
         assertThat(conflict.get("current").get("coat").asString()).isEqualTo("Curly");
@@ -170,6 +173,50 @@ class CatIntakeControllerTest {
         var savedPhotos = photos.findGallery(approvedNew.getId());
         assertThat(savedPhotos).hasSize(1);
         assertThat(photos.findContent(approvedNew.getId(), savedPhotos.getFirst().id())).contains(JPEG);
+    }
+
+    @Test
+    void approvalRejectsAnOlderInternalDraftAndFreshUpdatesReturnTheStoredTimestamp() throws Exception {
+        Owner owner = owner();
+        Cat existing = cat(owner, "Existing");
+        profilePhotos.saveAndFlush(CatPhoto.builder().catId(existing.getId()).content(JPEG)
+                .width(10).height(10).byteSize(JPEG.length).sha256("a".repeat(64)).build());
+        var invite = issue(owner, List.of(existing.getId()), false);
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "fields", Map.of("coat", "Approved"), "photoKeys", List.of()))))
+                .andExpect(status().isNoContent());
+        JsonNode row = rowFor(reviewList(), owner.getId(), "Existing");
+        String originalTimestamp = detail(row.get("id").asString()).get("catUpdatedAt").asString();
+        approve(row, Map.of("coat", "Approved"), List.of(), originalTimestamp, 204);
+
+        mvc.perform(internalCatEdit(existing, "Outdated", originalTimestamp).param("removePhoto", "true"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_EDIT_STALE"));
+        mvc.perform(get("/api/cats/{id}/detail", existing.getId()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cat.coat").value("Approved"))
+                .andExpect(jsonPath("$.cat.hasPhoto").value(true));
+
+        String reloaded = mvc.perform(get("/api/cats/{id}", existing.getId()).with(admin()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String refreshedTimestamp = json.readTree(reloaded).get("updatedAt").asString();
+        assertThat(refreshedTimestamp).isNotEqualTo(originalTimestamp);
+        String edited = mvc.perform(internalCatEdit(existing, "Fresh edit", refreshedTimestamp))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coat").value("Fresh edit"))
+                .andReturn().getResponse().getContentAsString();
+        String savedTimestamp = json.readTree(edited).get("updatedAt").asString();
+        mvc.perform(get("/api/cats/{id}/detail", existing.getId()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cat.updatedAt").value(savedTimestamp));
+        String photoRemoved = mvc.perform(internalCatEdit(existing, "Fresh edit", savedTimestamp)
+                        .param("removePhoto", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hasPhoto").value(false))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(photoRemoved).get("updatedAt").asString()).isNotEqualTo(savedTimestamp);
+        mvc.perform(internalCatEdit(existing, "Older than photo removal", savedTimestamp))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -314,6 +361,16 @@ class CatIntakeControllerTest {
     private JsonNode detail(String id) throws Exception {
         return json.readTree(mvc.perform(get(REVIEW + "/{id}", id).with(admin())).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
+    }
+
+    private MockMultipartHttpServletRequestBuilder internalCatEdit(Cat cat, String coat, String expectedUpdatedAt) {
+        var body = Map.of(
+                "name", cat.getName(), "birthDate", cat.getBirthDate(), "sex", cat.getSex(),
+                "ownerId", cat.getOwner().getId(), "coat", coat, "foodBrand", cat.getFoodBrand(),
+                "notes", cat.getNotes(), "expectedUpdatedAt", expectedUpdatedAt);
+        return multipart(HttpMethod.PUT, "/api/cats/{id}", cat.getId())
+                .file(new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                        json.writeValueAsBytes(body))).with(admin());
     }
 
     private void approve(JsonNode row, Map<String, String> fields, List<String> photoIds, String updatedAt, int status)

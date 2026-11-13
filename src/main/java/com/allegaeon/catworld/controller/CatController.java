@@ -7,11 +7,13 @@ import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.ICatService;
 import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
@@ -68,7 +70,7 @@ public class CatController {
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> updateCat(@PathVariable UUID id,
-            @Valid @RequestPart("cat") CatRequestDTO catRequestDTO,
+            @Validated({Default.class, CatRequestDTO.Update.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
             @RequestPart(value = "photo", required = false) MultipartFile photo,
             @RequestParam(defaultValue = "false") boolean removePhoto) {
         return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto));

@@ -55,6 +55,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
     }
 
+    @ExceptionHandler(StaleCatEditException.class)
+    public ResponseEntity<Map<String, String>> handleStaleCatEdit(StaleCatEditException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CAT_EDIT_STALE"));
+    }
+
     @ExceptionHandler(StalePricingConfirmationException.class)
     public ResponseEntity<StalePricingConfirmationResponseDTO> handleStalePricingConfirmation(
             StalePricingConfirmationException exception) {
