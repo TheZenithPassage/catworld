@@ -4,6 +4,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BehaviorSubject, catchError, map, of, startWith, switchMap } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -24,7 +25,15 @@ type AgendaState =
 
 @Component({
   selector: 'app-operations-agenda',
-  imports: [MatButton, MatFormField, MatInput, MatLabel, NgTemplateOutlet, UiStateComponent],
+  imports: [
+    MatButton,
+    MatFormField,
+    MatInput,
+    MatLabel,
+    NgTemplateOutlet,
+    RouterLink,
+    UiStateComponent,
+  ],
   templateUrl: './operations-agenda.html',
   styleUrl: './operations-agenda.scss',
 })
@@ -34,7 +43,11 @@ export class OperationsAgenda {
   private readonly details = inject(EntityDetailDialogService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
-  private readonly dateRequests = new BehaviorSubject<{ date?: string; keepResults?: boolean }>({});
+  private readonly route = inject(ActivatedRoute);
+  readonly dateBounds = { min: '1000-01-01', max: '9999-12-23' };
+  private readonly dateRequests = new BehaviorSubject<{ date?: string; keepResults?: boolean }>({
+    date: this.initialDate(),
+  });
   private readonly dayFormatter = computed(
     () =>
       new Intl.DateTimeFormat(this.i18n.dateLocale(), {
@@ -111,5 +124,18 @@ export class OperationsAgenda {
 
   formatDateTime(localDateTime: string): string {
     return this.businessTime.formatLocalDateTime(localDateTime, this.i18n.dateLocale());
+  }
+
+  private initialDate(): string | undefined {
+    const date = this.route.snapshot.queryParamMap.get('date');
+    const { min, max } = this.dateBounds;
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < min || date > max) {
+      return undefined;
+    }
+
+    const parsed = new Date(`${date}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date
+      ? date
+      : undefined;
   }
 }

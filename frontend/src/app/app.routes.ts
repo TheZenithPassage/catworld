@@ -23,6 +23,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'operations/agenda/print',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/operations/pages/operations-agenda-print-page/operations-agenda-print-page').then(
+        (m) => m.OperationsAgendaPrintPage,
+      ),
+  },
+  {
     path: 'stays',
     canActivate: [authGuard],
     loadComponent: () =>

@@ -127,6 +127,7 @@ describe('DashboardPage agenda', () => {
     fixture.detectChanges();
     const input = root.querySelector<HTMLInputElement>('input[type="date"]')!;
     expect(input.value).toBe('2030-06-01');
+    expect(root.querySelector('a[href="/operations/agenda/print?date=2030-06-01"]')).not.toBeNull();
     const movement = [...root.querySelectorAll('button')].find((button) =>
       button.textContent?.includes('23:00'),
     );
@@ -152,6 +153,7 @@ describe('DashboardPage agenda', () => {
     http.expectOne(url + '?date=2030-06-02').flush(otherAgenda);
     fixture.detectChanges();
     expect(input.value).toBe('2030-06-02');
+    expect(root.querySelector('a[href="/operations/agenda/print?date=2030-06-02"]')).not.toBeNull();
     expect(root.textContent).toContain('Cats boarding that day');
     http.verify();
   });

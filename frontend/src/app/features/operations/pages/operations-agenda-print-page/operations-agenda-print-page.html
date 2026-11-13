@@ -1,0 +1,80 @@
+@let copy = text().operationsAgenda;
+@let result = state();
+
+<div class="agenda-print-page">
+  <div class="print-actions">
+    <a
+      mat-stroked-button
+      routerLink="/"
+      [queryParams]="result.kind === 'ready' ? { date: result.agenda.date } : null"
+    >
+      {{ copy.print.back }}
+    </a>
+    @if (result.kind === 'ready') {
+      <button mat-flat-button type="button" (click)="print()">{{ copy.print.action }}</button>
+    }
+  </div>
+
+  <section class="print-sheet" aria-labelledby="agenda-print-title">
+    <h1 id="agenda-print-title">{{ copy.title }}</h1>
+
+    @switch (result.kind) {
+      @case ('loading') {
+        <app-ui-state kind="loading" [message]="copy.loading" />
+      }
+      @case ('invalid-date') {
+        <app-ui-state kind="error" [message]="copy.print.invalidDate" />
+      }
+      @case ('error') {
+        <app-ui-state
+          kind="error"
+          [message]="copy.error"
+          [actionLabel]="copy.retry"
+          (actionTriggered)="retry()"
+        />
+      }
+      @case ('ready') {
+        <p class="sheet-date">
+          <time [attr.datetime]="result.agenda.date">{{ formatDate(result.agenda.date) }}</time>
+        </p>
+
+        @if (result.agenda.movements.length) {
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{{ copy.print.time }}</th>
+                <th scope="col">{{ copy.print.movement }}</th>
+                <th scope="col">{{ copy.print.cats }}</th>
+                <th scope="col">{{ copy.print.owner }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (
+                movement of result.agenda.movements;
+                track movement.stay.stayId + movement.type
+              ) {
+                <tr>
+                  <td>
+                    <time [attr.datetime]="movement.scheduledAt">{{
+                      movement.scheduledAt.slice(11, 16)
+                    }}</time>
+                  </td>
+                  <td>
+                    {{ copy.movement[movement.type] }}
+                    @if (movement.transferRequired) {
+                      <small class="transfer-label">{{ copy.transfer }}</small>
+                    }
+                  </td>
+                  <td>{{ catNames(movement.stay) }}</td>
+                  <td>{{ movement.stay.ownerName }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <p>{{ copy.noMovements }}</p>
+        }
+      }
+    }
+  </section>
+</div>

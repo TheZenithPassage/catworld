@@ -16,6 +16,16 @@ export interface OperationsAgendaTranslations {
   retry: string;
   movement: { ARRIVAL: string; DEPARTURE: string };
   transfer: string;
+  print: {
+    open: string;
+    action: string;
+    back: string;
+    time: string;
+    movement: string;
+    cats: string;
+    owner: string;
+    invalidDate: string;
+  };
 }
 
 export const OPERATIONS_AGENDA_TRANSLATIONS = {
@@ -35,6 +45,16 @@ export const OPERATIONS_AGENDA_TRANSLATIONS = {
     retry: 'Reintentar',
     movement: { ARRIVAL: 'Entrada', DEPARTURE: 'Salida' },
     transfer: 'Traslado',
+    print: {
+      open: 'Hoja imprimible',
+      action: 'Imprimir',
+      back: 'Volver a la agenda',
+      time: 'Hora',
+      movement: 'Movimiento',
+      cats: 'Gatos',
+      owner: 'Tutor',
+      invalidDate: 'Seleccioná una fecha válida en la agenda.',
+    },
   },
   en: {
     title: 'Operations agenda',
@@ -52,5 +72,15 @@ export const OPERATIONS_AGENDA_TRANSLATIONS = {
     retry: 'Retry',
     movement: { ARRIVAL: 'Arrival', DEPARTURE: 'Departure' },
     transfer: 'Transfer',
+    print: {
+      open: 'Printable sheet',
+      action: 'Print',
+      back: 'Back to the agenda',
+      time: 'Time',
+      movement: 'Movement',
+      cats: 'Cats',
+      owner: 'Owner',
+      invalidDate: 'Select a valid date in the agenda.',
+    },
   },
 } satisfies Record<AppLanguage, OperationsAgendaTranslations>;
