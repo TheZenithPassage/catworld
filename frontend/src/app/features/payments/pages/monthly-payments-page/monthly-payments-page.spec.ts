@@ -5,9 +5,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
-import { NavigationEnd, provideRouter, Router } from '@angular/router';
+import { GuardResult, NavigationEnd, provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { filter, firstValueFrom } from 'rxjs';
+import { filter, firstValueFrom, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import { API_BASE_URL } from '../../../../core/config/api.config';
@@ -68,15 +68,21 @@ describe('MonthlyPaymentsPage', () => {
   let http: HttpTestingController;
   let router: Router;
   let location: Location;
+  let canOpenPricing: boolean | Subject<GuardResult>;
 
   beforeEach(() => {
+    canOpenPricing = true;
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([
           { path: 'payments', component: MonthlyPaymentsPage },
-          { path: 'stays/:id/pricing', component: StayPricingPage },
+          {
+            path: 'stays/:id/pricing',
+            component: StayPricingPage,
+            canActivate: [() => canOpenPricing],
+          },
         ]),
         provideLocationMocks(),
       ],
@@ -214,6 +220,23 @@ describe('MonthlyPaymentsPage', () => {
     expect(harness.routeNativeElement!.querySelector('tbody tr')?.textContent).toContain(
       'Luna, Mora',
     );
+  });
+
+  it('normalizes the page if the API responds during a cancelled navigation', async () => {
+    const harness = await RouterTestingHarness.create(
+      '/payments?month=2020-10&tab=received&page=9',
+    );
+    const guard = new Subject<GuardResult>();
+    canOpenPricing = guard;
+    const pendingNavigation = router.navigateByUrl('/stays/stay-1/pricing');
+    await vi.waitFor(() => expect(guard.observed).toBe(true));
+    respondWithOctoberReceipts(9, 1);
+    guard.next(false);
+    expect(await pendingNavigation).toBe(false);
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe('/payments?month=2020-10&tab=received&page=1');
+    http.expectNone((req) => req.url.endsWith('/payments/received'));
   });
 
   it('defaults invalid URL filters to the current business month and first received page', async () => {
