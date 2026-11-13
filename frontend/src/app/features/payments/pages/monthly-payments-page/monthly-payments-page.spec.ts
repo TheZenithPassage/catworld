@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatButtonToggleHarness } from '@angular/material/button-toggle/testing';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
 import { GuardResult, NavigationEnd, provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
@@ -12,6 +13,7 @@ import { vi } from 'vitest';
 
 import { API_BASE_URL } from '../../../../core/config/api.config';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
+import { I18nService } from '../../../../core/i18n/i18n.service';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayPricingPage } from '../../../stays/pages/stay-pricing-page/stay-pricing-page';
 import { businessMonth, MonthlyPaymentsPage } from './monthly-payments-page';
@@ -88,6 +90,7 @@ describe('MonthlyPaymentsPage', () => {
       ],
     });
     http = TestBed.inject(HttpTestingController);
+    TestBed.inject(I18nService).language.set('es');
     router = TestBed.inject(Router);
     location = TestBed.inject(Location);
     router.setUpLocationChangeListener();
@@ -101,10 +104,10 @@ describe('MonthlyPaymentsPage', () => {
     }
   });
 
-  function expectReceipts(month: string, page: number) {
+  function expectPayments(tab: 'received' | 'outstanding', month: string, page: number) {
     return http.expectOne(
       (req) =>
-        req.url === `${API_BASE_URL}/payments/received` &&
+        req.url === `${API_BASE_URL}/payments/${tab}` &&
         req.params.get('month') === month &&
         req.params.get('page') === String(page),
     );
@@ -115,9 +118,36 @@ describe('MonthlyPaymentsPage', () => {
       page === 0
         ? Array.from({ length: 10 }, (_, index) => ({ ...receipt, id: `first-page-${index}` }))
         : [receipt];
-    expectReceipts('2020-10', requestedPage).flush({
+    expectPayments('received', '2020-10', requestedPage).flush({
       payments: { items, page, pageSize: 10, totalElements: 11 },
       totalAmount: '9999999999999999999',
+    });
+  }
+
+  function respondWithOctoberCollections(page: number): void {
+    const pendingStay = {
+      stayId: 'stay-1',
+      arrival: '2020-10-30T15:30:00',
+      ownerName: 'Example Owner',
+      cats: ['Luna', 'Mora'],
+      agreedAmount: null,
+      paidAmount: '30',
+      remainingAmount: null,
+      notes: 'Traslado de llegada',
+    };
+    const items =
+      page === 0
+        ? Array.from({ length: 10 }, (_, index) => ({
+            ...pendingStay,
+            stayId: `first-page-${index}`,
+            agreedAmount: '60',
+            remainingAmount: '30',
+          }))
+        : [pendingStay];
+    expectPayments('outstanding', '2020-10', page).flush({
+      stays: { items, page, pageSize: 10, totalElements: 11 },
+      knownTotal: '300',
+      pendingPriceCount: 1,
     });
   }
 
@@ -140,7 +170,7 @@ describe('MonthlyPaymentsPage', () => {
     const harness = await RouterTestingHarness.create(
       '/payments?month=2020-11&tab=received&page=2',
     );
-    expectReceipts('2020-11', 2).flush({
+    expectPayments('received', '2020-11', 2).flush({
       payments: {
         items: [{ ...receipt, paymentDate: '2020-11-30' }],
         page: 2,
@@ -245,9 +275,9 @@ describe('MonthlyPaymentsPage', () => {
     try {
       TestBed.inject(RuntimeConfigService).businessTimeZone.set('America/Argentina/Buenos_Aires');
       const harness = await RouterTestingHarness.create(
-        '/payments?month=2020-13&tab=outstanding&page=214748365',
+        '/payments?month=2020-13&tab=unknown&page=214748365',
       );
-      expectReceipts('2026-10', 0).flush({
+      expectPayments('received', '2026-10', 0).flush({
         payments: { items: [], page: 0, pageSize: 10, totalElements: 0 },
         totalAmount: '0',
       });
@@ -256,5 +286,80 @@ describe('MonthlyPaymentsPage', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('restores the outstanding tab after pricing and resets the page when switching tabs', async () => {
+    const harness = await RouterTestingHarness.create(
+      '/payments?month=2020-10&tab=received&page=1',
+    );
+    respondWithOctoberReceipts(1);
+    const loader = TestbedHarnessEnvironment.loader(harness.fixture);
+    const outstanding = await loader.getHarness(
+      MatButtonToggleHarness.with({ text: 'Por cobrar' }),
+    );
+    await outstanding.check();
+
+    expect(router.url).toBe('/payments?month=2020-10&tab=outstanding&page=0');
+    expect(router.lastSuccessfulNavigation()?.extras.replaceUrl).toBe(true);
+    respondWithOctoberCollections(0);
+    const paginator = await loader.getHarness(MatPaginatorHarness);
+    await paginator.goToNextPage();
+    respondWithOctoberCollections(1);
+    harness.detectChanges();
+
+    const content = harness.routeNativeElement!;
+    expect(content.textContent).toContain('1 estadía con precio por definir');
+    expect(content.textContent).toContain('Precio por definir');
+    expect(content.textContent).toContain('15:30');
+    expect(content.textContent).toContain('Traslado de llegada');
+    expect(content.querySelector('tbody tr')?.textContent).toContain('30');
+    expect(content.querySelector('tbody tr')?.textContent).toContain('—');
+
+    const selectedUrl = '/payments?month=2020-10&tab=outstanding&page=1';
+    await openPricing(harness);
+    expect(location.getState()).toMatchObject({ stayPricingOrigin: selectedUrl });
+    harness.routeNativeElement!.querySelector<HTMLButtonElement>('.form-back-link')!.click();
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe(selectedUrl);
+    respondWithOctoberCollections(1);
+    expect(
+      await (
+        await loader.getHarness(MatButtonToggleHarness.with({ text: 'Por cobrar' }))
+      ).isChecked(),
+    ).toBe(true);
+  });
+
+  it('ignores an outstanding response received while the operator switches back to Received', async () => {
+    const harness = await RouterTestingHarness.create(
+      '/payments?month=2020-10&tab=received&page=1',
+    );
+    respondWithOctoberReceipts(1);
+    harness.detectChanges();
+    const received = harness.routeNativeElement!.querySelector<HTMLButtonElement>(
+      'mat-button-toggle[value="received"] button',
+    )!;
+    const outstanding = harness.routeNativeElement!.querySelector<HTMLButtonElement>(
+      'mat-button-toggle[value="outstanding"] button',
+    )!;
+
+    outstanding.click();
+    await harness.fixture.whenStable();
+    const slowResponse = expectPayments('outstanding', '2020-10', 0);
+    received.click();
+    slowResponse.flush({
+      stays: { items: [], page: 0, pageSize: 10, totalElements: 0 },
+      knownTotal: '0',
+      pendingPriceCount: 0,
+    });
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe('/payments?month=2020-10&tab=received&page=0');
+    respondWithOctoberReceipts(0);
+    harness.detectChanges();
+    expect(harness.routeNativeElement!.querySelector('tbody tr')?.textContent).toContain(
+      'Luna, Mora',
+    );
+    expect(received.getAttribute('aria-checked')).toBe('true');
   });
 });

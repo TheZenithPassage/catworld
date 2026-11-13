@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
+import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
@@ -34,23 +35,43 @@ interface MonthlyReceipts {
   totalAmount: string;
 }
 
+interface OutstandingStay {
+  stayId: string;
+  arrival: string;
+  ownerName: string;
+  cats: string[];
+  agreedAmount: string | null;
+  paidAmount: string;
+  remainingAmount: string | null;
+  notes: string | null;
+}
+
+interface MonthlyCollections {
+  stays: OverviewPage<OutstandingStay>;
+  knownTotal: string;
+  pendingPriceCount: number;
+}
+
+type PaymentView = 'received' | 'outstanding';
+
 interface PaymentFilters {
   month: string;
-  tab: 'received';
+  tab: PaymentView;
   page: number;
 }
 
 type PaymentQuery = PaymentFilters & { retry: number };
 
-type LoadState =
-  | { status: 'loading' }
-  | {
-      status: 'loaded';
-      data: MonthlyReceipts;
-      query: PaymentQuery;
-      pricingState: { stayPricingOrigin: string };
-    }
-  | { status: 'error' };
+type LoadedPayments = {
+  status: 'loaded';
+  query: PaymentQuery;
+  pricingState: { stayPricingOrigin: string };
+} & (
+  | { view: 'received'; data: MonthlyReceipts }
+  | { view: 'outstanding'; data: MonthlyCollections }
+);
+
+type LoadState = { status: 'loading' } | LoadedPayments | { status: 'error' };
 
 export function businessMonth(now: Date, timeZone: string): string {
   const fields = new Intl.DateTimeFormat('en-GB', {
@@ -69,6 +90,8 @@ export function businessMonth(now: Date, timeZone: string): string {
   selector: 'app-monthly-payments-page',
   imports: [
     MatButton,
+    MatButtonToggle,
+    MatButtonToggleGroup,
     MatFormField,
     MatLabel,
     MatInput,
@@ -96,6 +119,9 @@ export class MonthlyPaymentsPage {
       ? value
       : businessMonth(new Date(), this.config.businessTimeZone());
   });
+  readonly view = computed<PaymentView>(() =>
+    this.params().get('tab') === 'outstanding' ? 'outstanding' : 'received',
+  );
   private readonly page = computed(() => {
     const value = this.params().get('page');
     if (!value || !/^\d+$/.test(value)) return 0;
@@ -104,7 +130,7 @@ export class MonthlyPaymentsPage {
   });
   private readonly query = computed<PaymentQuery>(() => ({
     month: this.month(),
-    tab: 'received',
+    tab: this.view(),
     page: this.page(),
     retry: this.retryCount(),
   }));
@@ -124,20 +150,37 @@ export class MonthlyPaymentsPage {
           return EMPTY;
         }
         this.loadedQuery = null;
-        return this.http
-          .get<MonthlyReceipts>(`${API_BASE_URL}/payments/received`, { params: { month, page } })
-          .pipe(
-            map(
-              (data): LoadState => ({
-                status: 'loaded',
-                data,
-                query,
-                pricingState: this.resolvePage(query, data.payments.page),
-              }),
-            ),
-            startWith({ status: 'loading' } as const),
-            catchError(() => of({ status: 'error' } as const)),
-          );
+        const params = { month, page };
+        const request =
+          tab === 'received'
+            ? this.http.get<MonthlyReceipts>(`${API_BASE_URL}/payments/received`, { params }).pipe(
+                map(
+                  (data): LoadedPayments => ({
+                    status: 'loaded',
+                    view: 'received',
+                    data,
+                    query,
+                    pricingState: this.resolvePage(query, data.payments.page),
+                  }),
+                ),
+              )
+            : this.http
+                .get<MonthlyCollections>(`${API_BASE_URL}/payments/outstanding`, { params })
+                .pipe(
+                  map(
+                    (data): LoadedPayments => ({
+                      status: 'loaded',
+                      view: 'outstanding',
+                      data,
+                      query,
+                      pricingState: this.resolvePage(query, data.stays.page),
+                    }),
+                  ),
+                );
+        return request.pipe(
+          startWith({ status: 'loading' } as const),
+          catchError(() => of({ status: 'error' } as const)),
+        );
       }),
     ),
     { initialValue: { status: 'loading' } as LoadState },
@@ -166,14 +209,20 @@ export class MonthlyPaymentsPage {
       return;
     }
     if (value !== this.month()) {
-      void this.router.navigateByUrl(this.filtersUrl({ month: value, tab: 'received', page: 0 }), {
+      void this.router.navigateByUrl(this.filtersUrl({ month: value, tab: this.view(), page: 0 }), {
         replaceUrl: true,
       });
     }
   }
 
+  selectView(view: PaymentView): void {
+    void this.router.navigateByUrl(this.filtersUrl({ month: this.month(), tab: view, page: 0 }), {
+      replaceUrl: true,
+    });
+  }
+
   selectPage(event: PageEvent): void {
-    const url = this.filtersUrl({ month: this.month(), tab: 'received', page: event.pageIndex });
+    const url = this.filtersUrl({ month: this.month(), tab: this.view(), page: event.pageIndex });
     void this.router.navigateByUrl(url, { replaceUrl: true });
   }
 
@@ -183,6 +232,10 @@ export class MonthlyPaymentsPage {
 
   date(value: string): string {
     return formatLocalDate(value, this.i18n.dateLocale());
+  }
+
+  arrival(value: string): string {
+    return this.date(value.slice(0, 10)) + ' ' + value.slice(11, 16);
   }
 
   amount(value: string): string {

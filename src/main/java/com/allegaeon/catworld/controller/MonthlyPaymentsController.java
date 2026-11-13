@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.controller;
 
+import com.allegaeon.catworld.dto.MonthlyCollections;
 import com.allegaeon.catworld.dto.MonthlyReceipts;
 import com.allegaeon.catworld.service.MonthlyPaymentsService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class MonthlyPaymentsController {
     private final MonthlyPaymentsService monthlyPaymentsService;
+
+
+    @GetMapping("/outstanding")
+    public MonthlyCollections outstanding(@RequestParam String month, @RequestParam(defaultValue = "0") int page) {
+        return monthlyPaymentsService.getCollections(month, page);
+    }
 
     @GetMapping("/received")
     public MonthlyReceipts received(@RequestParam String month, @RequestParam(defaultValue = "0") int page) {
