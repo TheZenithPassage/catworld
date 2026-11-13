@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
@@ -44,7 +44,12 @@ type PaymentQuery = PaymentFilters & { retry: number };
 
 type LoadState =
   | { status: 'loading' }
-  | { status: 'loaded'; data: MonthlyReceipts; pricingState: { stayPricingOrigin: string } }
+  | {
+      status: 'loaded';
+      data: MonthlyReceipts;
+      query: PaymentQuery;
+      pricingState: { stayPricingOrigin: string };
+    }
   | { status: 'error' };
 
 export function businessMonth(now: Date, timeZone: string): string {
@@ -126,6 +131,7 @@ export class MonthlyPaymentsPage {
               (data): LoadState => ({
                 status: 'loaded',
                 data,
+                query,
                 pricingState: this.resolvePage(query, data.payments.page),
               }),
             ),
@@ -136,6 +142,23 @@ export class MonthlyPaymentsPage {
     ),
     { initialValue: { status: 'loading' } as LoadState },
   );
+
+  constructor() {
+    effect(() => {
+      const result = this.state();
+      if (
+        this.router.currentNavigation() ||
+        result.status !== 'loaded' ||
+        result.query !== this.query()
+      ) {
+        return;
+      }
+      const { stayPricingOrigin } = result.pricingState;
+      if (this.router.url !== stayPricingOrigin) {
+        void this.router.navigateByUrl(stayPricingOrigin, { replaceUrl: true });
+      }
+    });
+  }
 
   selectMonth(value: string, field: HTMLInputElement): void {
     if (!MONTH_FORMAT.test(value)) {
@@ -175,15 +198,6 @@ export class MonthlyPaymentsPage {
 
   private resolvePage(query: PaymentQuery, page: number): { stayPricingOrigin: string } {
     this.loadedQuery = { ...query, page };
-    const url = this.filtersUrl(this.loadedQuery);
-    const stayPricingOrigin = this.router.serializeUrl(url);
-    if (
-      this.router.url !== stayPricingOrigin &&
-      this.query() === query &&
-      !this.router.currentNavigation()
-    ) {
-      void this.router.navigateByUrl(url, { replaceUrl: true });
-    }
-    return { stayPricingOrigin };
+    return { stayPricingOrigin: this.router.serializeUrl(this.filtersUrl(this.loadedQuery)) };
   }
 }
