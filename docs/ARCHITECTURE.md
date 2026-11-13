@@ -391,6 +391,21 @@ Possible statuses:
 
 This avoids storing redundant state that can become inconsistent with the dates.
 
+### Arrival Preparation
+
+`GET /api/operations/arrivals` returns one row per reserved stay starting
+strictly after the business clock's current time and before local midnight
+following the seventh day after today. Each row contains the stay dates, its
+owner's name and ID, and each booked cat's name, ID, current food and litter
+brands, and vaccine warnings. The dashboard's **Prepare arrivals** link opens
+this view and uses the existing stay, owner, and cat details.
+
+The warnings apply the same coverage rule as stay creation and extensions
+to the stay's local departure date. The screen marks missing or blank food and
+litter brands as **To confirm**. Only `ADMIN` receives pending profile proposal
+references, limited to booked cats that still belong to the proposal's owner.
+The links open the existing intake review screen.
+
 ### Stay Nights Are Response-Derived
 
 Stay responses expose `numberOfNights` as an authoritative backend calculation.

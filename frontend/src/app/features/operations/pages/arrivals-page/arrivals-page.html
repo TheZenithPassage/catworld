@@ -1,0 +1,121 @@
+<section class="arrivals-page" aria-labelledby="arrivals-title">
+  <header class="page-heading">
+    <div>
+      <h2 id="arrivals-title">{{ copy().title }}</h2>
+      <p>{{ copy().period }}</p>
+    </div>
+    @if (state() === 'ready') {
+      <button mat-stroked-button type="button" (click)="loadArrivals()">
+        {{ copy().refresh }}
+      </button>
+    }
+  </header>
+
+  @if (state() === 'loading') {
+    <app-ui-state kind="loading" [message]="copy().loading" />
+  } @else if (state() === 'error') {
+    <app-ui-state
+      kind="error"
+      [message]="copy().error"
+      [actionLabel]="copy().retry"
+      (actionTriggered)="loadArrivals()"
+    />
+  } @else if (arrivals().length === 0) {
+    <app-ui-state kind="empty" [message]="copy().empty" />
+  } @else {
+    <div class="arrival-list">
+      @for (stay of arrivals(); track stay.id) {
+        <article class="arrival">
+          <div class="stay-heading">
+            <div>
+              <h3>
+                <button
+                  class="detail-link"
+                  type="button"
+                  (click)="openDetail('owner', stay.owner.id)"
+                >
+                  {{ stay.owner.fullName }}
+                </button>
+              </h3>
+              <dl class="dates">
+                <div>
+                  <dt>{{ copy().arrival }}</dt>
+                  <dd>
+                    <time [attr.datetime]="stay.startAt">{{
+                      formatLocalDateTime(stay.startAt)
+                    }}</time>
+                  </dd>
+                </div>
+                <div>
+                  <dt>{{ copy().departure }}</dt>
+                  <dd>
+                    <time [attr.datetime]="stay.endAt">{{ formatLocalDateTime(stay.endAt) }}</time>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              [attr.aria-label]="
+                copy().openStay +
+                ' · ' +
+                stay.owner.fullName +
+                ' · ' +
+                formatLocalDateTime(stay.startAt)
+              "
+              (click)="openDetail('stay', stay.id)"
+            >
+              {{ copy().openStay }}
+            </button>
+          </div>
+
+          <ul class="cats">
+            @for (cat of stay.cats; track cat.id) {
+              <li class="cat">
+                <h4>
+                  <button class="detail-link" type="button" (click)="openDetail('cat', cat.id)">
+                    {{ cat.name }}
+                  </button>
+                </h4>
+                <dl class="care">
+                  <div>
+                    <dt>{{ catForm().foodBrand }}</dt>
+                    <dd [class.unconfirmed]="!cat.foodBrand">
+                      {{ cat.foodBrand ?? copy().toConfirm }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{{ catForm().litterBrand }}</dt>
+                    <dd [class.unconfirmed]="!cat.litterBrand">
+                      {{ cat.litterBrand ?? copy().toConfirm }}
+                    </dd>
+                  </div>
+                </dl>
+                @if (cat.vaccineWarnings.length > 0) {
+                  <ul class="vaccine-warnings">
+                    @for (warning of cat.vaccineWarnings; track warning.vaccineType) {
+                      <li>{{ vaccineWarning(warning) }}</li>
+                    }
+                  </ul>
+                }
+                @for (review of cat.pendingReviews ?? []; track review.id) {
+                  <a
+                    class="review-link"
+                    routerLink="/cat-intake"
+                    [queryParams]="{ reviewId: review.id }"
+                  >
+                    {{ copy().reviewProposal }} ·
+                    <time [attr.datetime]="review.submittedAt">{{
+                      formatInstant(review.submittedAt)
+                    }}</time>
+                  </a>
+                }
+              </li>
+            }
+          </ul>
+        </article>
+      }
+    </div>
+  }
+</section>

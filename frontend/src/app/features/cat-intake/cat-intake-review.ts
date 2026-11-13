@@ -9,7 +9,8 @@ import {
   MatDialogContent,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { Subscription } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { distinctUntilChanged, map, Subscription } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake.translations';
@@ -57,6 +58,8 @@ export class CatIntakeReview {
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly dialog = inject(MatDialog);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private detailRequests = new Subscription();
 
@@ -101,7 +104,17 @@ export class CatIntakeReview {
 
   constructor() {
     this.destroyRef.onDestroy(() => this.clearDetail());
-    this.loadPending();
+    this.route.queryParamMap
+      .pipe(
+        map((params) => params.get('reviewId')),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((id) => {
+        if (id) this.open(id);
+        else if (this.selectedId()) this.back();
+      });
+    if (!this.route.snapshot.queryParamMap.get('reviewId')) this.loadPending();
   }
 
   loadPending(): void {
@@ -171,6 +184,14 @@ export class CatIntakeReview {
     this.selectedId.set(null);
     this.notice.set(null);
     this.loadPending();
+    if (this.route.snapshot.queryParamMap.has('reviewId')) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { reviewId: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
   }
 
   setValue(key: CatIntakeFieldKey, value: string): void {

@@ -21,6 +21,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'operations/arrivals',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/operations/pages/arrivals-page/arrivals-page').then((m) => m.ArrivalsPage),
+  },
+  {
     path: 'stays',
     canActivate: [authGuard],
     loadComponent: () =>
