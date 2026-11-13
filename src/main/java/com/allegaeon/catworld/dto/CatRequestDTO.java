@@ -7,6 +7,7 @@ import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -15,6 +16,11 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class CatRequestDTO {
+
+    public interface Update {}
+
+    @NotNull(groups = Update.class, message = "Expected update timestamp is required")
+    private Instant expectedUpdatedAt;
 
     @NotBlank(message = "Name is required")
     @Size(max = 100, message = "Name must not exceed 100 characters")

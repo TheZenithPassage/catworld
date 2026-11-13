@@ -21,6 +21,7 @@ public class CatMapper {
     public CatResponseDTO toResponseDTO(Cat cat, boolean canDelete, boolean hasPhoto) {
         return CatResponseDTO.builder()
                 .id(cat.getId())
+                .updatedAt(cat.getUpdatedAt())
                 .name(cat.getName())
                 .birthDate(cat.getBirthDate())
                 .sex(cat.getSex())

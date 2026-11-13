@@ -14,6 +14,7 @@ export interface CatPhotoViewRequest {
 
 export interface Cat {
   id: string;
+  updatedAt: string;
   canDelete?: boolean;
   name: string;
   birthDate: string;
@@ -59,7 +60,9 @@ export interface CreateCatRequest {
   vetId: string | null;
 }
 
-export type UpdateCatRequest = CreateCatRequest;
+export interface UpdateCatRequest extends CreateCatRequest {
+  expectedUpdatedAt: string;
+}
 
 export interface CatPhotoMutation {
   photo: File | null;

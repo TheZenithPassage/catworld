@@ -104,6 +104,9 @@ export class CatDetail {
     this.saveCompleted.emit();
     this.load();
   }
+  reloaded(cat: Cat): void {
+    this.detail.update((detail) => detail && { ...detail, cat });
+  }
   canDelete(detail: CatDetailResponse): boolean {
     return detail.cat.id === this.entityId() && detail.cat.canDelete === true;
   }

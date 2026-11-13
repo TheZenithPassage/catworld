@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of, Subject, throwError } from 'rxjs';
+import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
@@ -48,6 +48,7 @@ describe('EntityDetailDialog', () => {
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
   const cat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00Z',
     name: 'Milo',
     birthDate: '2020-01-01',
     sex: 'MALE',
@@ -973,6 +974,59 @@ describe('EntityDetailDialog', () => {
     expect(completed).not.toHaveBeenCalled();
     closed.next();
     expect(completed).toHaveBeenCalledOnce();
+  });
+
+  it('closes the detail dialog and releases an enlarged informational photo on session loss', async () => {
+    const getInformationalPhoto = vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' })));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: { ...catApi, getInformationalPhoto } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: Router, useValue: { url: '/', navigate: vi.fn() } },
+      ],
+    });
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:private-gallery-photo');
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    try {
+      const auth = TestBed.inject(AuthSessionService);
+      auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+      TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+      const dialog = TestBed.inject(MatDialog);
+      const ref = dialog.openDialogs[0];
+      const detail = ref.componentInstance as EntityDetailDialog;
+      const closed = firstValueFrom(ref.afterClosed());
+      detail.openCatPhoto({
+        catId: cat.id,
+        catName: cat.name,
+        ownerName: cat.ownerName,
+        informationalPhotoId: 'photo-1',
+      });
+      TestBed.tick();
+      const image = document.querySelector<HTMLImageElement>(
+        'img[src="blob:private-gallery-photo"]',
+      );
+      expect(image).not.toBeNull();
+      image!.dispatchEvent(new Event('load'));
+      expect(detail.photoState()).toBe('success');
+      expect(getInformationalPhoto).toHaveBeenCalledWith(cat.id, 'photo-1');
+      expect(revokeUrl).not.toHaveBeenCalled();
+
+      auth.logout();
+      TestBed.tick();
+
+      expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:private-gallery-photo');
+      await closed;
+      expect(dialog.openDialogs).toHaveLength(0);
+      expect(document.body.contains(image)).toBe(false);
+    } finally {
+      createUrl.mockRestore();
+      revokeUrl.mockRestore();
+    }
   });
 
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {

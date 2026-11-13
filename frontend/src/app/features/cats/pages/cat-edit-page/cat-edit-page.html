@@ -14,237 +14,242 @@
 
   @if (loadingData()) {
     <app-ui-state kind="loading" [message]="text().cats.edit.loading"></app-ui-state>
-  } @else {
-    @if (error(); as errorMessage) {
-      <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
-    }
+  } @else if (staleEdit()) {
+    <app-ui-state
+      kind="error"
+      [message]="error() ?? text().cats.edit.errors.staleEdit"
+      [actionLabel]="text().cats.edit.reload"
+      (actionTriggered)="reloadCat()"
+    />
+  } @else if (error(); as errorMessage) {
+    <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
+  }
 
-    @if (catLoaded()) {
-      <form class="cat-form" (ngSubmit)="submit()">
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.name }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="name"
-            required
-            appTrimRequired
-            [ngModel]="name()"
-            (ngModelChange)="name.set($event)"
-          />
-          @if (nameError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.birthDate }}</mat-label>
-          <input
-            matInput
-            type="date"
-            name="birthDate"
-            required
-            [ngModel]="birthDate()"
-            (ngModelChange)="birthDate.set($event)"
-          />
-          @if (birthDateError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.sex }}</mat-label>
-          <select
-            matNativeControl
-            name="sex"
-            required
-            [ngModel]="sex()"
-            (ngModelChange)="sex.set($event)"
-          >
-            <option value="">{{ text().cats.form.selectSex }}</option>
-            <option value="MALE">{{ text().cats.form.male }}</option>
-            <option value="FEMALE">{{ text().cats.form.female }}</option>
-          </select>
-          @if (sexError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
-
-        <app-remote-entity-selector
-          #ownerSelector
-          [adapter]="ownerLookup"
-          [label]="text().cats.form.owner"
-          [required]="true"
-          (stateChange)="ownerChanged($event)"
+  @for (revision of catLoaded() ? [formRevision()] : []; track revision) {
+    <form class="cat-form" [attr.inert]="loadingData() ? '' : null" (ngSubmit)="submit()">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.name }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="name"
+          required
+          appTrimRequired
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
         />
+        @if (nameError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-        <app-remote-entity-selector
-          #vetSelector
-          [adapter]="vetLookup"
-          [label]="text().cats.form.vet"
-          (stateChange)="vetChanged($event)"
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.birthDate }}</mat-label>
+        <input
+          matInput
+          type="date"
+          name="birthDate"
+          required
+          [ngModel]="birthDate()"
+          (ngModelChange)="birthDate.set($event)"
         />
+        @if (birthDateError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.breed }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="breed"
-            [ngModel]="breed()"
-            (ngModelChange)="breed.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.sex }}</mat-label>
+        <select
+          matNativeControl
+          name="sex"
+          required
+          [ngModel]="sex()"
+          (ngModelChange)="sex.set($event)"
+        >
+          <option value="">{{ text().cats.form.selectSex }}</option>
+          <option value="MALE">{{ text().cats.form.male }}</option>
+          <option value="FEMALE">{{ text().cats.form.female }}</option>
+        </select>
+        @if (sexError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.coat }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="coat"
-            [ngModel]="coat()"
-            (ngModelChange)="coat.set($event)"
-          />
-        </mat-form-field>
+      <app-remote-entity-selector
+        #ownerSelector
+        [adapter]="ownerLookup"
+        [label]="text().cats.form.owner"
+        [required]="true"
+        (stateChange)="ownerChanged($event)"
+      />
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.color }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="color"
-            [ngModel]="color()"
-            (ngModelChange)="color.set($event)"
-          />
-        </mat-form-field>
+      <app-remote-entity-selector
+        #vetSelector
+        [adapter]="vetLookup"
+        [label]="text().cats.form.vet"
+        (stateChange)="vetChanged($event)"
+      />
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.foodBrand }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="foodBrand"
-            [ngModel]="foodBrand()"
-            (ngModelChange)="foodBrand.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.breed }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="breed"
+          [ngModel]="breed()"
+          (ngModelChange)="breed.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.litterBrand }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="litterBrand"
-            [ngModel]="litterBrand()"
-            (ngModelChange)="litterBrand.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.coat }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="coat"
+          [ngModel]="coat()"
+          (ngModelChange)="coat.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.personality }}</mat-label>
-          <textarea
-            matInput
-            name="personality"
-            rows="4"
-            [ngModel]="personality()"
-            (ngModelChange)="personality.set($event)"
-          ></textarea>
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.color }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="color"
+          [ngModel]="color()"
+          (ngModelChange)="color.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.notes }}</mat-label>
-          <textarea
-            matInput
-            name="notes"
-            rows="5"
-            [errorStateMatcher]="notesErrorStateMatcher"
-            [ngModel]="notes()"
-            (ngModelChange)="updateNotes($event)"
-          ></textarea>
-          @if (notesError(); as message) {
-            <mat-error>{{ message }}</mat-error>
-          }
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.foodBrand }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="foodBrand"
+          [ngModel]="foodBrand()"
+          (ngModelChange)="foodBrand.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastInternalDewormerName }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="lastInternalDewormerName"
-            [ngModel]="lastInternalDewormerName()"
-            (ngModelChange)="lastInternalDewormerName.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.litterBrand }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="litterBrand"
+          [ngModel]="litterBrand()"
+          (ngModelChange)="litterBrand.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastInternalDewormingDate }}</mat-label>
-          <input
-            matInput
-            type="date"
-            name="lastInternalDewormingDate"
-            [ngModel]="lastInternalDewormingDate()"
-            (ngModelChange)="lastInternalDewormingDate.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.personality }}</mat-label>
+        <textarea
+          matInput
+          name="personality"
+          rows="4"
+          [ngModel]="personality()"
+          (ngModelChange)="personality.set($event)"
+        ></textarea>
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastExternalDewormerName }}</mat-label>
-          <input
-            matInput
-            type="text"
-            name="lastExternalDewormerName"
-            [ngModel]="lastExternalDewormerName()"
-            (ngModelChange)="lastExternalDewormerName.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.notes }}</mat-label>
+        <textarea
+          matInput
+          name="notes"
+          rows="5"
+          [errorStateMatcher]="notesErrorStateMatcher"
+          [ngModel]="notes()"
+          (ngModelChange)="updateNotes($event)"
+        ></textarea>
+        @if (notesError(); as message) {
+          <mat-error>{{ message }}</mat-error>
+        }
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastExternalDewormingDate }}</mat-label>
-          <input
-            matInput
-            type="date"
-            name="lastExternalDewormingDate"
-            [ngModel]="lastExternalDewormingDate()"
-            (ngModelChange)="lastExternalDewormingDate.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastInternalDewormerName }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="lastInternalDewormerName"
+          [ngModel]="lastInternalDewormerName()"
+          (ngModelChange)="lastInternalDewormerName.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastTripleFelineDate }}</mat-label>
-          <input
-            matInput
-            type="date"
-            name="lastTripleFelineDate"
-            [ngModel]="lastTripleFelineDate()"
-            (ngModelChange)="lastTripleFelineDate.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastInternalDewormingDate }}</mat-label>
+        <input
+          matInput
+          type="date"
+          name="lastInternalDewormingDate"
+          [ngModel]="lastInternalDewormingDate()"
+          (ngModelChange)="lastInternalDewormingDate.set($event)"
+        />
+      </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label>{{ text().cats.form.lastRabiesDate }}</mat-label>
-          <input
-            matInput
-            type="date"
-            name="lastRabiesDate"
-            [ngModel]="lastRabiesDate()"
-            (ngModelChange)="lastRabiesDate.set($event)"
-          />
-        </mat-form-field>
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastExternalDewormerName }}</mat-label>
+        <input
+          matInput
+          type="text"
+          name="lastExternalDewormerName"
+          [ngModel]="lastExternalDewormerName()"
+          (ngModelChange)="lastExternalDewormerName.set($event)"
+        />
+      </mat-form-field>
 
-        <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [disabled]="submitting()" />
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastExternalDewormingDate }}</mat-label>
+        <input
+          matInput
+          type="date"
+          name="lastExternalDewormingDate"
+          [ngModel]="lastExternalDewormingDate()"
+          (ngModelChange)="lastExternalDewormingDate.set($event)"
+        />
+      </mat-form-field>
 
-        <div class="form-actions">
-          @if (!routed()) {
-            <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
-              {{ text().cats.detail.cancel }}
-            </button>
-          }
-          <button mat-flat-button type="submit" [disabled]="submitting()">
-            {{ submitting() ? text().cats.edit.submitting : text().cats.edit.submit }}
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastTripleFelineDate }}</mat-label>
+        <input
+          matInput
+          type="date"
+          name="lastTripleFelineDate"
+          [ngModel]="lastTripleFelineDate()"
+          (ngModelChange)="lastTripleFelineDate.set($event)"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ text().cats.form.lastRabiesDate }}</mat-label>
+        <input
+          matInput
+          type="date"
+          name="lastRabiesDate"
+          [ngModel]="lastRabiesDate()"
+          (ngModelChange)="lastRabiesDate.set($event)"
+        />
+      </mat-form-field>
+
+      <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [disabled]="submitting()" />
+
+      <div class="form-actions">
+        @if (!routed()) {
+          <button mat-stroked-button type="button" [disabled]="submitting()" (click)="cancel()">
+            {{ text().cats.detail.cancel }}
           </button>
-        </div>
-      </form>
-    }
+        }
+        <button mat-flat-button type="submit" [disabled]="submitting() || staleEdit()">
+          {{ submitting() ? text().cats.edit.submitting : text().cats.edit.submit }}
+        </button>
+      </div>
+    </form>
   }
 </section>

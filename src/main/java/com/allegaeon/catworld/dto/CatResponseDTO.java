@@ -3,6 +3,7 @@ package com.allegaeon.catworld.dto;
 import com.allegaeon.catworld.model.Sex;
 import lombok.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -13,6 +14,7 @@ import java.util.UUID;
 public class CatResponseDTO {
 
     private UUID id;
+    private Instant updatedAt;
     private String name;
     private LocalDate birthDate;
     private Sex sex;

@@ -241,7 +241,7 @@ public class CatIntakeService {
         if (cat == null) {
             cat = catMutations.create(request, null);
         } else if (!accepted.isEmpty()) {
-            cat = catMutations.update(cat.getId(), request, null, false);
+            catMutations.applyProfile(cat, request);
         }
         Cat approvedCat = cat;
         Instant now = clock.instant();
