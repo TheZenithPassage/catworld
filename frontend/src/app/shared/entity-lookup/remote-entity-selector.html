@@ -65,11 +65,20 @@
     (closed)="panelClosed()"
   >
     @for (item of items(); track $index) {
-      <mat-option class="lookup-option" [value]="item">
+      @let result = adapter().present(item);
+      <mat-option class="lookup-option" [value]="item" [attr.aria-label]="optionAriaLabel(result)">
         <span class="result-content">
-          <span class="primary">{{ adapter().present(item).primary }}</span>
-          @if (adapter().present(item).secondary; as secondary) {
-            <span class="secondary">{{ secondary }}</span>
+          <span class="primary">
+            {{ result.primary }}<app-deceased-marker [deceased]="result.primaryDeceased" />
+          </span>
+          @if (result.secondary?.length) {
+            <span class="secondary">
+              @for (secondary of result.secondary; track $index) {
+                {{ secondary.label }}<app-deceased-marker [deceased]="secondary.deceased" />{{
+                  $last ? '' : ', '
+                }}
+              }
+            </span>
           }
         </span>
       </mat-option>

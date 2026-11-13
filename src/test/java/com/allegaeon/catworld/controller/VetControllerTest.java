@@ -63,7 +63,7 @@ public class VetControllerTest {
         void detailAndExplicitCatPageSerializeAndDelegate() throws Exception {
             UUID vetId = UUID.randomUUID();
             UUID ownerId = UUID.randomUUID();
-            var item = new CatRelationshipItem(UUID.randomUUID(), "Milo", ownerId, "Owner");
+            var item = new CatRelationshipItem(UUID.randomUUID(), "Milo", ownerId, "Owner", false, false);
             when(vetService.getVetDetail(vetId)).thenReturn(new VetDetailResponse(
                     VetResponseDTO.builder().id(vetId).name("Vet").build(),
                     new RelationshipPreview<>(1, List.of(item))));

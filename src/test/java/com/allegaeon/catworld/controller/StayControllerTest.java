@@ -91,7 +91,7 @@ public class StayControllerTest {
             UUID id = UUID.randomUUID();
             StayDetailResponse detail = new StayDetailResponse(id, StayStatus.RESERVED,
                     LocalDateTime.of(2030, 1, 1, 10, 0), LocalDateTime.of(2030, 1, 3, 10, 0),
-                    2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada"),
+                    2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada", true),
                     new RelationshipPreview<>(0, List.of()), false, false);
             when(stayService.getStayDetail(id)).thenReturn(detail);
             when(stayService.getStayCats(id, 0)).thenReturn(
@@ -100,6 +100,7 @@ public class StayControllerTest {
                     .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESERVED"))
                     .andExpect(jsonPath("$.numberOfNights").value(2))
                     .andExpect(jsonPath("$.owner.fullName").value("Ada"))
+                    .andExpect(jsonPath("$.owner.deceased").value(true))
                     .andExpect(jsonPath("$.retainedNightlyRate").doesNotExist());
             mockMvc.perform(get("/api/stays/{id}/cats", id))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5));

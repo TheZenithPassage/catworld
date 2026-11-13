@@ -23,7 +23,7 @@
     <dl class="detail-fields">
       <div class="detail-field">
         <dt>{{ text().cats.form.name }}</dt>
-        <dd>{{ cat.name }}</dd>
+        <dd>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.detail.photo }}</dt>
@@ -61,7 +61,7 @@
             [disabled]="deleting()"
             (click)="navigate.emit({ entityType: 'owner', entityId: cat.ownerId })"
           >
-            {{ cat.ownerName }}
+            {{ cat.ownerName }}<app-deceased-marker [deceased]="cat.ownerDeceased" />
           </button>
         </dd>
       </div>

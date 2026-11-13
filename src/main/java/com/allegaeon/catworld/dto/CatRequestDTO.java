@@ -20,6 +20,8 @@ public class CatRequestDTO {
     @Size(max = 100, message = "Name must not exceed 100 characters")
     private String name;
 
+    private Boolean deceased;
+
     @NotNull(message = "Birth date is required")
     @PastOrPresent(message = "Birth date cannot be in the future")
     private LocalDate birthDate;

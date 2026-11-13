@@ -151,6 +151,14 @@
           ></textarea>
         </mat-form-field>
 
+        <mat-checkbox
+          name="deceased"
+          [checked]="deceased()"
+          (change)="deceased.set($event.checked)"
+        >
+          {{ text().entityDetail.deceased }}
+        </mat-checkbox>
+
         <mat-form-field appearance="outline">
           <mat-label>{{ text().cats.form.notes }}</mat-label>
           <textarea

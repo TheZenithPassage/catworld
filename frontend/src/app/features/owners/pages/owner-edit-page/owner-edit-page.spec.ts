@@ -158,7 +158,7 @@ describe('OwnerEditor', () => {
     expect(component.error()).toBeNull();
   });
 
-  it('updates an owner with the current payload shape and emits the authoritative result', () => {
+  it('marks an owner as deceased and emits the authoritative result', () => {
     createComponent();
     ownerApiService.updateOwner.mockReturnValue(of(owner));
     const saved = vi.fn();
@@ -173,9 +173,13 @@ describe('OwnerEditor', () => {
     component.facebook.set('');
     component.notes.set('  first line\n  second line  ');
 
+    (
+      fixture.nativeElement.querySelector('mat-checkbox[name="deceased"] input') as HTMLInputElement
+    ).click();
     component.submit();
 
     expect(ownerApiService.updateOwner).toHaveBeenCalledWith('owner-1', {
+      deceased: true,
       fullName: 'Ada Lovelace',
       address: null,
       primaryPhone: '555-1111',

@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
+import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -19,6 +20,7 @@ import { OwnerApiService } from '../../services/owner-api.service';
     FormsModule,
     RouterLink,
     MatButton,
+    MatCheckbox,
     MatError,
     MatFormField,
     MatInput,
@@ -40,6 +42,7 @@ export class OwnerEditor {
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
   readonly fullName = signal('');
+  readonly deceased = signal(false);
   readonly address = signal('');
   readonly primaryPhone = signal('');
   readonly secondaryPhone = signal('');
@@ -110,6 +113,7 @@ export class OwnerEditor {
     }
     const request: UpdateOwnerRequest = {
       fullName: this.fullName().trim(),
+      deceased: this.deceased(),
       address: this.optional(this.address()),
       primaryPhone: this.primaryPhone().trim(),
       secondaryPhone: this.optional(this.secondaryPhone()),
@@ -136,6 +140,7 @@ export class OwnerEditor {
   }
   private setValues(o: Owner): void {
     this.fullName.set(o.fullName);
+    this.deceased.set(o.deceased ?? false);
     this.address.set(o.address ?? '');
     this.primaryPhone.set(o.primaryPhone);
     this.secondaryPhone.set(o.secondaryPhone ?? '');
