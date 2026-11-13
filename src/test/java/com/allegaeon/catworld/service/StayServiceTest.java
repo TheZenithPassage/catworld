@@ -1700,6 +1700,40 @@ public class StayServiceTest {
         }
 
         @ParameterizedTest
+        @ValueSource(booleans = {false, true})
+        void dateChangeRejectsDifferentPriceStateEvenWhenBothAmountsAreNull(boolean wasPending) {
+            LocalDateTime start = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(start).endAt(start.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .pricePending(wasPending).build();
+            withPricingCat(stay);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(
+                    stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                            .startAt(start).endAt(start.plusDays(3)).build());
+            assertEquals(wasPending, preview.isCurrentPricePending());
+            assertNull(preview.getCurrentAgreedAmount());
+            assertEquals(Boolean.valueOf(wasPending), preview.getConfirmation().getPreviousPricePending());
+            assertNull(preview.getConfirmation().getPreviousAgreedAmount());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(start).endAt(start.plusDays(3))
+                    .pricingDecision(wasPending ? null : PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("30")).build())
+                    .confirmation(preview.getConfirmation()).build();
+
+            stay.setPricePending(!wasPending);
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+            verify(stayRepository).findByIdForUpdate(stay.getId());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @ParameterizedTest
         @ValueSource(strings = {
                 "previousNumberOfNights", "previousAgreedAmount",
                 "numberOfNights", "retainedNightlyRate", "suggestedAmount"

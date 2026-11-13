@@ -105,6 +105,10 @@ export class StayEditor {
   readonly previewError = createLanguageResetError(this.i18nService.language);
   readonly pricingConfirmed = signal(false);
   readonly stalePricing = signal(false);
+  readonly pricingConfirmationRequired = computed(() => {
+    const preview = this.pricingPreview();
+    return preview?.pricingDecisionRequired === true && !preview.currentPricePending;
+  });
   readonly numberOfNights = computed(() => calculateStayNights(this.startAt(), this.endAt()));
   readonly nightCountLabel = computed(() => {
     const numberOfNights = this.numberOfNights();
@@ -245,6 +249,7 @@ export class StayEditor {
   private previewRequestSequence = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private agreedAmountBeforeCurrentRate: string | null = null;
+  private lastKnownPricePending = false;
 
   constructor() {
     this.loadCurrentTransferRate();
@@ -311,16 +316,13 @@ export class StayEditor {
       return;
     }
 
-    if (
-      preview.pricingDecisionRequired &&
-      (!this.isAdmin() ||
-        (!this.stay()?.pricePending && (!this.pricingConfirmed() || !this.decisionValid())))
-    ) {
-      this.showError(
-        this.isAdmin()
-          ? this.text().stays.pricing.errors.confirmationRequired
-          : this.text().stays.pricing.errors.adminRequired,
-      );
+    if (preview.pricingDecisionRequired && !this.isAdmin()) {
+      this.showError(this.text().stays.pricing.errors.adminRequired);
+      return;
+    }
+
+    if (this.pricingConfirmationRequired() && (!this.pricingConfirmed() || !this.decisionValid())) {
+      this.showError(this.text().stays.pricing.errors.confirmationRequired);
       return;
     }
 
@@ -334,7 +336,7 @@ export class StayEditor {
       ...this.transferInputs(),
       ...(preview.pricingDecisionRequired
         ? {
-            ...(this.stay()?.pricePending
+            ...(preview.currentPricePending
               ? {}
               : {
                   pricingDecision: {
@@ -367,6 +369,7 @@ export class StayEditor {
       error: (error: unknown) => {
         if (isStalePricingConfirmationError(error)) {
           const preserveVaccineOverride = request.overrideVaccineConflicts;
+          this.previewLoading.set(true);
           this.setSubmitting(false);
           this.stalePricing.set(true);
           this.pricingConfirmed.set(false);
@@ -377,7 +380,6 @@ export class StayEditor {
           this.vaccineOverrideRecoveryBasis = preserveVaccineOverride
             ? this.currentPreviewBasis()
             : null;
-          this.showError(this.text().stays.pricing.errors.stale);
           this.reloadCurrentPricingRates(() => this.refreshPricingPreview());
           return;
         }
@@ -432,6 +434,7 @@ export class StayEditor {
     this.endAt.set(this.toDateTimeLocalValue(stay.endAt));
     this.notes.set(stay.notes ?? '');
     this.agreedAmount.set(stay.agreedAmount ?? '');
+    this.lastKnownPricePending = stay.pricePending === true;
     this.workingRetainedNightlyRate.set(stay.retainedNightlyRate);
     this.selectedNightlyRate.set(null);
     this.selectedTransferRate.set(null);
@@ -537,7 +540,7 @@ export class StayEditor {
     if (
       !this.previewLoading() &&
       this.isAdmin() &&
-      this.pricingPreview()?.pricingDecisionRequired &&
+      this.pricingConfirmationRequired() &&
       this.decisionValid()
     ) {
       this.pricingConfirmed.set(true);
@@ -627,14 +630,26 @@ export class StayEditor {
         next: (preview) => {
           if (sequence !== this.previewRequestSequence || basis !== this.currentPreviewBasis())
             return;
+          const priceStateChanged = preview.currentPricePending !== this.lastKnownPricePending;
+          if (priceStateChanged) {
+            this.lastKnownPricePending = preview.currentPricePending;
+            this.agreedAmount.set(preview.currentAgreedAmount ?? '');
+            this.pricingReason.set('');
+            this.pricingReasonContext.set('untouched');
+            this.agreedAmountBeforeCurrentRate = null;
+            this.stalePricing.set(true);
+          }
+
           this.pricingPreview.set(preview);
           if (this.selectedNightlyRate() === null) {
             this.workingRetainedNightlyRate.set(preview.retainedNightlyRate);
           }
+          const canAdjustAgreement =
+            preview.pricingDecisionRequired && !preview.currentPricePending && !priceStateChanged;
           if (
             this.selectedNightlyRate() === null &&
             this.pricingReasonContext() === 'suggested' &&
-            preview.pricingDecisionRequired
+            canAdjustAgreement
           ) {
             this.agreedAmount.set(preview.suggestedAmount ?? preview.currentAgreedAmount ?? '');
           }
@@ -644,7 +659,7 @@ export class StayEditor {
             this.workingRetainedNightlyRate.set(this.stay()?.retainedNightlyRate ?? null);
             this.agreedAmountBeforeCurrentRate = null;
           }
-          if (synchronizeHelperAgreement && preview.pricingDecisionRequired) {
+          if (synchronizeHelperAgreement && canAdjustAgreement) {
             const helperAgreement = preview.suggestedAmount ?? this.agreedAmountBeforeCurrentRate;
             if (helperAgreement !== null) {
               this.agreedAmount.set(helperAgreement);
@@ -653,7 +668,7 @@ export class StayEditor {
               preview.suggestedAmount === null ? 'manual' : 'suggested',
             );
           }
-          if (resetAgreementForNightChange && preview.pricingDecisionRequired) {
+          if (resetAgreementForNightChange && canAdjustAgreement) {
             this.agreedAmount.set(preview.suggestedAmount ?? preview.currentAgreedAmount ?? '');
             this.pricingReasonContext.set(
               preview.suggestedAmount === null ? 'manual' : 'suggested',

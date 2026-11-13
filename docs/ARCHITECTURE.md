@@ -407,7 +407,13 @@ pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
 exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
-writing. Preview calls persist nothing.
+writing. The existing-stay preview includes `currentPricePending` and echoes
+it as `previousPricePending` in a pricing confirmation. An omitted
+`previousPricePending` is accepted for older callers. The editor refreshes
+pricing after a concurrent price-state change and keeps the proposed dates,
+transfer settings and notes. A pending price needs no agreement decision, and
+an existing agreement must be explicitly reconfirmed for a pricing change.
+Preview calls persist nothing.
 
 An edit pricing preview also exposes nullable
 `currentApplicableNightlyRate`: backend-resolved preview information for the

@@ -7,6 +7,7 @@ import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
@@ -277,6 +278,31 @@ class StayPricingPersistenceTest {
                 .orElseThrow();
         assertEquals(0, currentStay.getRetainedNightlyRate()
                 .compareTo(new BigDecimal("17")));
+    }
+
+    @Test
+    void refreshedDateChangeKeepsTheNewlyPendingPrice() {
+        PricingFixture fixture = createPricedStay();
+        UUID stayId = fixture.response().getStayId();
+        LocalDateTime start = fixture.startAt();
+        LocalDateTime proposedEnd = start.plusDays(3);
+        var originalUpdate = updateRequest(stayId, start, 3, new BigDecimal("30"), null);
+        stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Agreement is provisional").build());
+
+        assertThrows(StalePricingConfirmationException.class,
+                () -> stayService.updateStay(stayId, originalUpdate));
+        assertEquals(start.plusDays(2), stayRepository.findById(stayId).orElseThrow().getEndAt());
+
+        var preview = stayService.previewDateChangePricing(stayId,
+                StayDatePricingPreviewRequestDTO.builder().startAt(start).endAt(proposedEnd).build());
+        var updated = stayService.updateStay(stayId, StayUpdateDTO.builder()
+                .startAt(start).endAt(proposedEnd).confirmation(preview.getConfirmation()).build());
+
+        assertEquals(proposedEnd, updated.getEndAt());
+        assertTrue(updated.isPricePending());
+        assertNull(updated.getAgreedAmount());
+        assertEquals(1, stayPricingDecisionRepository.findAllByStayIdOrderByDecidedAtAsc(stayId).size());
     }
 
     @Test
