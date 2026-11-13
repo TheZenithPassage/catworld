@@ -407,7 +407,13 @@ pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
 exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
-writing. Preview calls persist nothing.
+writing. The existing-stay preview includes `currentPricePending` and echoes
+it as `previousPricePending` in a pricing confirmation. An omitted
+`previousPricePending` is accepted for older callers. The editor refreshes
+pricing after a concurrent price-state change and keeps the proposed dates,
+transfer settings and notes. A pending price needs no agreement decision, and
+an existing agreement must be explicitly reconfirmed for a pricing change.
+Preview calls persist nothing.
 
 An edit pricing preview also exposes nullable
 `currentApplicableNightlyRate`: backend-resolved preview information for the
@@ -1575,6 +1581,9 @@ entered. Cancelled stays can still have active receipts. Annulled and removed
 payments are excluded. The response includes an exact whole-month total as a
 decimal string, separate from the paginated rows.
 
+The Payments URL records the selected month, tab and zero-based page for
+returning from stay pricing through its Back button or browser history. If the
+requested page has disappeared, the URL records the last available page.
 
 The Outstanding view uses `GET /api/payments/outstanding?month=YYYY-MM&page=0`.
 It includes non-cancelled arrivals in the selected month that have a positive

@@ -182,6 +182,7 @@ describe('EntityDetailDialog', () => {
         pricingDecisionRequired: false,
         currentNumberOfNights: 2,
         currentAgreedAmount: null,
+        currentPricePending: false,
         numberOfNights: 2,
         retainedNightlyRate: null,
         suggestedAmount: null,
@@ -1992,6 +1993,7 @@ describe('Route-free StayEditor migrated coverage', () => {
     pricingDecisionRequired: true,
     currentNumberOfNights: 10,
     currentAgreedAmount: '200',
+    currentPricePending: false,
     numberOfNights: 40,
     retainedNightlyRate: '20',
     currentApplicableNightlyRate: '17',
@@ -2005,6 +2007,7 @@ describe('Route-free StayEditor migrated coverage', () => {
     confirmation: {
       previousNumberOfNights: 10,
       previousAgreedAmount: '200',
+      previousPricePending: false,
       numberOfNights: 40,
       retainedNightlyRate: '20',
       suggestedAmount: '800',
@@ -2062,6 +2065,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: false,
           currentNumberOfNights: 7,
           currentAgreedAmount: '100',
+          currentPricePending: false,
           numberOfNights: 7,
           retainedNightlyRate: '50',
           currentApplicableNightlyRate: null,
@@ -2152,6 +2156,7 @@ describe('Route-free StayEditor migrated coverage', () => {
               pricingDecisionRequired: true as const,
               currentNumberOfNights: 2,
               currentAgreedAmount: '40',
+              currentPricePending: false,
               numberOfNights: 20,
               retainedNightlyRate: '20',
               currentApplicableNightlyRate: destinationCurrentRate,
@@ -2165,6 +2170,7 @@ describe('Route-free StayEditor migrated coverage', () => {
               confirmation: {
                 previousNumberOfNights: 2,
                 previousAgreedAmount: '40',
+                previousPricePending: false,
                 numberOfNights: 20,
                 retainedNightlyRate: '20',
                 suggestedAmount: '400',
@@ -2184,6 +2190,7 @@ describe('Route-free StayEditor migrated coverage', () => {
               pricingDecisionRequired: true as const,
               currentNumberOfNights: 2,
               currentAgreedAmount: '40',
+              currentPricePending: false,
               numberOfNights: 10,
               retainedNightlyRate,
               currentApplicableNightlyRate: '19',
@@ -2197,6 +2204,7 @@ describe('Route-free StayEditor migrated coverage', () => {
               confirmation: {
                 previousNumberOfNights: 2,
                 previousAgreedAmount: '40',
+                previousPricePending: false,
                 numberOfNights: 10,
                 retainedNightlyRate,
                 suggestedAmount,
@@ -2213,6 +2221,7 @@ describe('Route-free StayEditor migrated coverage', () => {
             pricingDecisionRequired: false as const,
             currentNumberOfNights: 2,
             currentAgreedAmount: '40',
+            currentPricePending: false,
             numberOfNights: 2,
             retainedNightlyRate: '20',
             currentApplicableNightlyRate: '20',
@@ -2255,12 +2264,14 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '50',
         suggestedAmount: '400',
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
+          previousPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: '50',
           suggestedAmount: '400',
@@ -2285,12 +2296,14 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: null,
         suggestedAmount: null,
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
+          previousPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: null,
           suggestedAmount: null,
@@ -2326,6 +2339,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: true,
           currentNumberOfNights: 7,
           currentAgreedAmount: '100',
+          currentPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate,
           currentApplicableNightlyRate: '60',
@@ -2339,6 +2353,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           confirmation: {
             previousNumberOfNights: 7,
             previousAgreedAmount: '100',
+            previousPricePending: false,
             numberOfNights: 8,
             retainedNightlyRate,
             suggestedAmount,
@@ -2391,6 +2406,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: true,
           currentNumberOfNights: 7,
           currentAgreedAmount: '123',
+          currentPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: request.selectedNightlyRate ?? null,
           currentApplicableNightlyRate: '60',
@@ -2398,6 +2414,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           confirmation: {
             previousNumberOfNights: 7,
             previousAgreedAmount: '123',
+            previousPricePending: false,
             numberOfNights: 8,
             retainedNightlyRate: request.selectedNightlyRate ?? null,
             suggestedAmount: request.selectedNightlyRate ? '480' : null,
@@ -2433,12 +2450,14 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '60',
         suggestedAmount: '480',
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
+          previousPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: '60',
           suggestedAmount: '480',
@@ -2470,6 +2489,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: true,
           currentNumberOfNights: 7,
           currentAgreedAmount: '123',
+          currentPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: request.selectedNightlyRate ?? null,
           currentApplicableNightlyRate: '60',
@@ -2477,6 +2497,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           confirmation: {
             previousNumberOfNights: 7,
             previousAgreedAmount: '123',
+            previousPricePending: false,
             numberOfNights: 8,
             retainedNightlyRate: request.selectedNightlyRate ?? null,
             suggestedAmount: request.selectedNightlyRate ? '480' : null,
@@ -2505,6 +2526,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: false,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: '50',
         suggestedAmount: '350',
@@ -2541,6 +2563,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '123',
+        currentPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: null,
         currentApplicableNightlyRate: '60',
@@ -2548,6 +2571,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '123',
+          previousPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: null,
           suggestedAmount: null,
@@ -2564,6 +2588,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: false,
         currentNumberOfNights: 7,
         currentAgreedAmount: '123',
+        currentPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: null,
         currentApplicableNightlyRate: null,
@@ -2588,6 +2613,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: true,
           currentNumberOfNights: 7,
           currentAgreedAmount: '100',
+          currentPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: '50',
           currentApplicableNightlyRate: nightlyRate,
@@ -2595,6 +2621,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           confirmation: {
             previousNumberOfNights: 7,
             previousAgreedAmount: '100',
+            previousPricePending: false,
             numberOfNights: 8,
             retainedNightlyRate: '50',
             suggestedAmount: '400',
@@ -2647,6 +2674,7 @@ describe('Route-free StayEditor migrated coverage', () => {
           pricingDecisionRequired: bothLegs,
           currentNumberOfNights: 7,
           currentAgreedAmount: '100',
+          currentPricePending: false,
           numberOfNights: 7,
           retainedNightlyRate: '50',
           currentApplicableNightlyRate: null,
@@ -2662,6 +2690,7 @@ describe('Route-free StayEditor migrated coverage', () => {
             ? {
                 previousNumberOfNights: 7,
                 previousAgreedAmount: '100',
+                previousPricePending: false,
                 numberOfNights: 7,
                 retainedNightlyRate: '50',
                 suggestedAmount,
@@ -2727,6 +2756,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: '50',
         accommodationSuggestedAmount: '350',
@@ -2740,6 +2770,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
+          previousPricePending: false,
           numberOfNights: 7,
           retainedNightlyRate: '50',
           suggestedAmount: '370',
@@ -2781,6 +2812,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: true,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 8,
       retainedNightlyRate: '60',
       currentApplicableNightlyRate: '60',
@@ -2794,6 +2826,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '100',
+        previousPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '60',
         suggestedAmount: '510',
@@ -2812,6 +2845,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: true as const,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 8,
       retainedNightlyRate: '50',
       currentApplicableNightlyRate: '70',
@@ -2825,6 +2859,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '100',
+        previousPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '50',
         suggestedAmount: '420',
@@ -2869,6 +2904,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: true as const,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 8,
       retainedNightlyRate: '50',
       currentApplicableNightlyRate: '60',
@@ -2881,6 +2917,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '100',
+        previousPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '50',
         suggestedAmount: '400',
@@ -2895,6 +2932,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: false as const,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 7,
       retainedNightlyRate: '50',
       currentApplicableNightlyRate: null,
@@ -3013,6 +3051,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: false,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: '50',
         accommodationSuggestedAmount: '350',
@@ -3052,6 +3091,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: false,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 7,
       retainedNightlyRate: '50',
       currentApplicableNightlyRate: null,
@@ -3075,6 +3115,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '100',
+        previousPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: '50',
         suggestedAmount: '370',
@@ -3124,6 +3165,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: false,
       currentNumberOfNights: 7,
       currentAgreedAmount: '120',
+      currentPricePending: false,
       numberOfNights: 7,
       retainedNightlyRate: '50',
       currentApplicableNightlyRate: null,
@@ -3147,6 +3189,7 @@ describe('Route-free StayEditor migrated coverage', () => {
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '120',
+        previousPricePending: false,
         numberOfNights: 7,
         retainedNightlyRate: '50',
         suggestedAmount: '350',
@@ -3456,6 +3499,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         pricingDecisionRequired: true,
         currentNumberOfNights: 7,
         currentAgreedAmount: '100',
+        currentPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '50',
         currentApplicableNightlyRate: '60',
@@ -3463,6 +3507,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         confirmation: {
           previousNumberOfNights: 7,
           previousAgreedAmount: '100',
+          previousPricePending: false,
           numberOfNights: 8,
           retainedNightlyRate: '50',
           suggestedAmount: '400',
@@ -3500,12 +3545,14 @@ describe('Route-free StayEditor migrated coverage', () => {
       pricingDecisionRequired: true,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 8,
       retainedNightlyRate: '50',
       suggestedAmount: '400',
       confirmation: {
         previousNumberOfNights: 7,
         previousAgreedAmount: '100',
+        previousPricePending: false,
         numberOfNights: 8,
         retainedNightlyRate: '50',
         suggestedAmount: '400',
@@ -3543,6 +3590,96 @@ describe('Route-free StayEditor migrated coverage', () => {
     expect(component.pricingConfirmed()).toBe(false);
     expect(component.stalePricing()).toBe(true);
   });
+
+  it.each([false, true])(
+    'uses the refreshed price state after a rejected save (previously pending: %s)',
+    (wasPending) => {
+      const currentAgreedAmount = wasPending ? null : '100';
+      const refreshedAgreedAmount = wasPending ? '0' : null;
+      const initialPreview = {
+        ...currentRatePreview,
+        currentAgreedAmount,
+        currentPricePending: wasPending,
+        confirmation: {
+          ...currentRatePreview.confirmation,
+          previousAgreedAmount: currentAgreedAmount,
+          previousPricePending: wasPending,
+        },
+      };
+      const refreshedPreview = {
+        ...initialPreview,
+        currentAgreedAmount: refreshedAgreedAmount,
+        currentPricePending: !wasPending,
+        suggestedAmount: null,
+        confirmation: {
+          ...initialPreview.confirmation,
+          previousAgreedAmount: refreshedAgreedAmount,
+          previousPricePending: !wasPending,
+          suggestedAmount: null,
+        },
+      };
+      stayApiService.previewDateChangePricing.mockReturnValue(of(initialPreview));
+      stayApiService.updateStay
+        .mockReturnValueOnce(
+          throwError(
+            () =>
+              new HttpErrorResponse({
+                status: 409,
+                error: { code: 'STALE_PRICING_CONFIRMATION' },
+              }),
+          ),
+        )
+        .mockReturnValueOnce(of(stay));
+      createComponent({ ...stay, pricePending: wasPending, agreedAmount: currentAgreedAmount });
+      component.onStartAtChange('2099-01-01T10:00');
+      component.onEndAtChange('2099-02-10T10:00');
+      component.onTransferAssistanceChange(true);
+      component.onTransferChange('departure', false);
+      component.onTransferChange('waived', true);
+      component.updateNotes('Keep the draft notes');
+      if (!wasPending) {
+        component.onAgreedAmountChange('125');
+        component.pricingReason.set('Draft reason');
+        component.confirmPricing();
+      }
+      stayApiService.previewDateChangePricing.mockReturnValue(of(refreshedPreview));
+
+      component.submit();
+      fixture.detectChanges();
+
+      const draft = {
+        startAt: '2099-01-01T10:00',
+        endAt: '2099-02-10T10:00',
+        arrivalTransferRequired: true,
+        transferWaived: true,
+      };
+      expect(stayApiService.previewDateChangePricing).toHaveBeenLastCalledWith('stay-1', draft);
+      const editor = fixture.nativeElement as HTMLElement;
+      const pricing = component.text().stays.pricing;
+      expect(pricingValue(pricing.currentAgreement)).toBe(wasPending ? '0' : pricing.pricePending);
+      expect(component.pricingConfirmed()).toBe(false);
+      expect(component.pricingReason()).toBe('');
+      const agreementInput = editor.querySelector<HTMLInputElement>('input[name="agreedAmount"]');
+      if (wasPending) {
+        expect(agreementInput).not.toBeNull();
+        expect(component.agreedAmount()).toBe('0');
+        component.submit();
+        expect(stayApiService.updateStay).toHaveBeenCalledTimes(1);
+        component.confirmPricing();
+      } else {
+        expect(agreementInput).toBeNull();
+      }
+      component.submit();
+
+      expect(stayApiService.updateStay).toHaveBeenNthCalledWith(2, 'stay-1', {
+        ...draft,
+        notes: 'Keep the draft notes',
+        overrideVaccineConflicts: false,
+        confirmation: refreshedPreview.confirmation,
+        ...(wasPending ? { pricingDecision: { agreedAmount: '0', reason: null } } : {}),
+      });
+    },
+  );
 
   it('presents the administrator-required state for a rejected staff pricing preview', () => {
     authSessionService.hasRole.mockReturnValue(false);

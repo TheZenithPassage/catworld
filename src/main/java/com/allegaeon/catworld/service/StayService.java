@@ -449,8 +449,7 @@ public class StayService implements IStayService {
             }
             selectedRetainedNightlyRate = validateDateChangeConfirmation(
                     stayUpdateDTO.getConfirmation(), previousNumberOfNights,
-                    previousAgreedAmount, newNumberOfNights,
-                    stay);
+                    newNumberOfNights, stay);
             int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
                     + (stay.isDepartureTransferRequired() ? 1 : 0);
             int newTransferLegs = (requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0);
@@ -1005,6 +1004,7 @@ public class StayService implements IStayService {
                 ? ExistingStayPricingConfirmationDTO.builder()
                         .previousNumberOfNights(previousNights)
                         .previousAgreedAmount(stay.getAgreedAmount())
+                        .previousPricePending(stay.isPricePending())
                         .numberOfNights(nights)
                         .retainedNightlyRate(retainedNightlyRate)
                         .suggestedAmount(suggestion)
@@ -1015,6 +1015,7 @@ public class StayService implements IStayService {
                 .pricingDecisionRequired(pricingDecisionRequired)
                 .currentNumberOfNights(previousNights)
                 .currentAgreedAmount(stay.getAgreedAmount())
+                .currentPricePending(stay.isPricePending())
                 .numberOfNights(nights)
                 .currentApplicableNightlyRate(currentApplicableNightlyRate)
                 .retainedNightlyRate(retainedNightlyRate)
@@ -1045,15 +1046,16 @@ public class StayService implements IStayService {
 
     private BigDecimal validateDateChangeConfirmation(
             ExistingStayPricingConfirmationDTO confirmation,
-            long previousNights, BigDecimal previousAgreement,
-            long proposedNights, Stay stay) {
+            long previousNights, long proposedNights, Stay stay) {
         if (confirmation == null
                 || confirmation.getPreviousNumberOfNights() == null
                 || confirmation.getNumberOfNights() == null) {
             throw new BadRequestException("Pricing confirmation is required");
         }
+        Boolean previousPricePending = confirmation.getPreviousPricePending();
         if (confirmation.getPreviousNumberOfNights() != previousNights
-                || !sameMoney(confirmation.getPreviousAgreedAmount(), previousAgreement)
+                || !sameMoney(confirmation.getPreviousAgreedAmount(), stay.getAgreedAmount())
+                || (previousPricePending != null && previousPricePending != stay.isPricePending())
                 || confirmation.getNumberOfNights() != proposedNights) {
             throw new StalePricingConfirmationException();
         }

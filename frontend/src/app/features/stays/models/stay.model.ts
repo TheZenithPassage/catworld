@@ -100,6 +100,7 @@ export interface CreationPricingConfirmation {
 export interface ExistingStayPricingConfirmation {
   previousNumberOfNights: number;
   previousAgreedAmount: MonetaryAmount | null;
+  previousPricePending: boolean;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   suggestedAmount: MonetaryAmount | null;
@@ -120,6 +121,7 @@ export interface CreationPricingPreview extends CreationPricingConfirmation {
 interface StayDatePricingPreviewBase {
   currentNumberOfNights: number;
   currentAgreedAmount: MonetaryAmount | null;
+  currentPricePending: boolean;
   numberOfNights: number;
   retainedNightlyRate: MonetaryAmount | null;
   currentApplicableNightlyRate: MonetaryAmount | null;

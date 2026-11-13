@@ -49,6 +49,7 @@ export interface StaysTranslations {
     confirmAfterReason: string;
     confirmed: string;
     stale: string;
+    staleUpdate: string;
     noReconfirmation: string;
     adminRequired: string;
     economics: string;
@@ -342,6 +343,7 @@ export const STAYS_TRANSLATIONS = {
       confirmAfterReason: 'Agregá un motivo para confirmar',
       confirmed: 'Precio confirmado',
       stale: 'La base del precio cambió. Revisá la nueva propuesta y volvé a confirmarla.',
+      staleUpdate: 'La base del precio cambió. Revisá la propuesta actualizada antes de guardar.',
       noReconfirmation: 'Este cambio no requiere volver a confirmar el precio.',
       adminRequired: 'Solo un administrador puede completar un cambio que modifica el precio.',
       economics: 'Economía',
@@ -658,6 +660,7 @@ export const STAYS_TRANSLATIONS = {
       confirmAfterReason: 'Add a reason to confirm',
       confirmed: 'Pricing confirmed',
       stale: 'The pricing basis changed. Review the fresh preview and confirm it again.',
+      staleUpdate: 'The pricing basis changed. Review the updated preview before saving.',
       noReconfirmation: 'This change does not require pricing reconfirmation.',
       adminRequired: 'Only an administrator can complete a pricing-affecting change.',
       economics: 'Economics',

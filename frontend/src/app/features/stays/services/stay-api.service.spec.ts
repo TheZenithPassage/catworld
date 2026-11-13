@@ -98,6 +98,7 @@ describe('StayApiService', () => {
       pricingDecisionRequired: false,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 7,
       retainedNightlyRate: '50',
       suggestedAmount: '100',
