@@ -2,9 +2,9 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.OperationsArrival;
 import com.allegaeon.catworld.dto.OperationsArrival.ArrivalCat;
+import com.allegaeon.catworld.dto.OperationsArrival.ArrivalOwner;
 import com.allegaeon.catworld.dto.OperationsArrival.PendingReview;
 import com.allegaeon.catworld.dto.OperationsArrival.VaccineWarning;
-import com.allegaeon.catworld.dto.relationship.OwnerRelationshipItem;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatIntakeReviewRepository;
 import com.allegaeon.catworld.repository.CatIntakeReviewRepository.PendingCatReview;
@@ -57,7 +57,7 @@ public class OperationsArrivalsService {
                     .map(row -> toArrivalCat(row, includeReviews ? pendingReviews.getOrDefault(row.getCatId(), List.of()) : null))
                     .toList();
             return new OperationsArrival(stay.getStayId(), stay.getStartAt(), stay.getEndAt(),
-                    new OwnerRelationshipItem(stay.getOwnerId(), stay.getOwnerName()), cats);
+                    new ArrivalOwner(stay.getOwnerId(), stay.getOwnerName()), cats);
         }).toList();
     }
 

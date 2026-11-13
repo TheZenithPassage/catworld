@@ -1,6 +1,5 @@
 package com.allegaeon.catworld.dto;
 
-import com.allegaeon.catworld.dto.relationship.OwnerRelationshipItem;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -9,7 +8,9 @@ import java.util.List;
 import java.util.UUID;
 
 public record OperationsArrival(UUID id, LocalDateTime startAt, LocalDateTime endAt,
-                                OwnerRelationshipItem owner, List<ArrivalCat> cats) {
+                                ArrivalOwner owner, List<ArrivalCat> cats) {
+    public record ArrivalOwner(UUID id, String fullName) {}
+
     public record ArrivalCat(UUID id, String name, String foodBrand, String litterBrand,
                              List<VaccineWarning> vaccineWarnings,
                              @JsonInclude(JsonInclude.Include.NON_NULL) List<PendingReview> pendingReviews) {}

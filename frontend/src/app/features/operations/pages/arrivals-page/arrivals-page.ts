@@ -11,7 +11,6 @@ import { OPERATIONS_ARRIVALS_TRANSLATIONS } from '../../../../core/i18n/translat
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import type { EntityType } from '../../../../shared/entity-detail/entity-reference';
-import type { OwnerRelationshipItem } from '../../../../shared/entity-detail/relationship.models';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import type { VaccineConflictReason, VaccineType } from '../../../stays/models/stay.model';
 
@@ -33,7 +32,7 @@ interface Arrival {
   id: string;
   startAt: string;
   endAt: string;
-  owner: OwnerRelationshipItem;
+  owner: { id: string; fullName: string };
   cats: ArrivalCat[];
 }
 
