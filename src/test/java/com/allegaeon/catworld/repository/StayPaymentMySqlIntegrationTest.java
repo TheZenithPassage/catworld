@@ -143,6 +143,7 @@ class StayPaymentMySqlIntegrationTest {
                         from flyway_schema_history
                         where success = 1 and version is not null
                         order by installed_rank
+                        limit 10
                         """,
                         String.class
                 )

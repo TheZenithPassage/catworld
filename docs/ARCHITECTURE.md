@@ -789,9 +789,11 @@ to make owner, cat or vet deletion succeed.
 Compose passes `BUSINESS_TIME_ZONE` to Spring and nginx. It accepts an IANA
 zone such as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
 Spring uses the configured clock for stay status, status filters, status-based
-edit and payment permissions, and new cancellation timestamps. Audit instants
-are read and filtered as UTC independently of the JDBC connection zone. Audit
-stay date filters use the same wall-time day boundaries as operational reads.
+edit and payment permissions, and new cancellation timestamps. JDBC binds and
+reads stay wall times as `LocalDateTime` without a time zone. Native audit
+projections preserve those same local fields, and their stay date filters use
+the same day boundaries as operational reads. Audit instants are stored, read
+and filtered as UTC.
 Nginx writes the zone into the frontend runtime configuration,
 which `BusinessTimeService` uses for the current business day, instant display
 and sensitive activity filters. Stay `LocalDateTime` values keep their stored
