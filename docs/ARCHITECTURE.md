@@ -31,6 +31,9 @@ limits and JPEG normalization as profile photos. Deleting the cat removes the
 attachments through the database foreign key. Vaccination checks use the
 dates recorded in the cat's fields.
 
+When the application loses its authenticated session, open entity detail
+dialogs close and release any enlarged photo's object URL.
+
 Private cat intake uses separate invitation, review and photo staging tables.
 An administrator issues one active invitation per tutor, with an explicit list
 of existing cats and permission for new cats. The token is generated from 32
