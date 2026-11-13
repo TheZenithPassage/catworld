@@ -31,6 +31,9 @@ limits and JPEG normalization as profile photos. Deleting the cat removes the
 attachments through the database foreign key. Vaccination checks use the
 dates recorded in the cat's fields.
 
+When the application loses its authenticated session, open entity detail
+dialogs close and release any enlarged photo's object URL.
+
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
 This document focuses on the backend architecture, domain model, persistence decisions and testing strategy.
