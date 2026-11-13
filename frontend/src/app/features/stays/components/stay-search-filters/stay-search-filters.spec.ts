@@ -47,7 +47,7 @@ describe('StaySearchFiltersComponent', () => {
     id: (value: CatLookup) => value.id,
     present: (value: CatLookup) => ({
       primary: value.name,
-      secondary: value.ownerName,
+      secondary: [{ label: value.ownerName }],
       selected: `${value.name} — ${value.ownerName}`,
     }),
   };

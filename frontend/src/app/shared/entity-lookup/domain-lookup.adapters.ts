@@ -26,12 +26,12 @@ export class OwnerLookupAdapter implements EntityLookupAdapter<OwnerLookup> {
     return value.id;
   }
   present(value: OwnerLookup): EntityLookupPresentation {
-    const currentCats = value.currentCats.map((cat) => cat.name).join(', ');
+    const catNames = value.currentCats.map((cat) => cat.name).join(', ');
     return {
       primary: value.fullName,
       primaryDeceased: value.deceased,
-      secondary: currentCats || undefined,
-      selected: currentCats ? `${value.fullName} (${currentCats})` : value.fullName,
+      secondary: value.currentCats.map((cat) => ({ label: cat.name, deceased: cat.deceased })),
+      selected: catNames ? `${value.fullName} (${catNames})` : value.fullName,
     };
   }
   fromCrud(value: Owner): EntityLookupInitialSelection {
@@ -64,8 +64,7 @@ export class CatLookupAdapter implements EntityLookupAdapter<CatLookup> {
     return {
       primary: value.name,
       primaryDeceased: value.deceased,
-      secondary: value.ownerName,
-      secondaryDeceased: value.ownerDeceased,
+      secondary: [{ label: value.ownerName, deceased: value.ownerDeceased }],
       selected: `${value.name} — ${value.ownerName}`,
     };
   }

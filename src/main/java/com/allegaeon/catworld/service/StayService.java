@@ -248,7 +248,7 @@ public class StayService implements IStayService {
                 ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
                         stay.getEndAt().toLocalDate()),
                 stay.getNotes(),
-                new OwnerRelationshipItem(owner.getId(), owner.getFullName()), preview,
+                new OwnerRelationshipItem(owner.getId(), owner.getFullName(), owner.isDeceased()), preview,
                 stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired());
     }
 

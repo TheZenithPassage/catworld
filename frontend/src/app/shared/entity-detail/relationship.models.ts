@@ -18,6 +18,7 @@ export interface RelationshipPage<T> {
 export interface OwnerRelationshipItem {
   id: string;
   fullName: string;
+  deceased?: boolean;
 }
 export interface VetRelationshipItem {
   id: string;

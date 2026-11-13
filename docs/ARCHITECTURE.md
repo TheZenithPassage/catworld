@@ -947,7 +947,9 @@ includes items only when the total is one through three; larger relationships
 are loaded on demand in server-fixed pages of five. Cats use `name ASC, id ASC`
 and stays use `startAt DESC, id ASC`. Stay detail derives status and night count
 at read time and intentionally excludes economics, payments and deletion hints.
-Its owner and participating cats remain read-only relationship targets.
+Its owner and participating cats remain read-only relationship targets. The
+detail response includes the owner's deceased flag and the cats' relationship
+entries include both the cat and current owner flags for display beside names.
 
 Calendar and overview stay activation open the route-free dialog and refresh
 or replace the edited stay in their existing collections after a successful
@@ -1034,22 +1036,25 @@ selection. `GET /api/owners/search`, `GET /api/cats/search` and
 whose default is zero. They return `{ items, page, pageSize, totalElements }`
 with a server-fixed page size of five; the envelope deliberately exposes
 neither `totalPages` nor `hasNext`. Search uses MySQL's case- and
-accent-insensitive comparison behavior for partial matching over owner full
-name, cat name or vet name respectively. A cat's current owner name is display
-context, not a cat search term. Stable ordering uses the display name followed
-by identifier. Angular uses `totalElements` to decide whether another fixed-five
-page remains and accepts transient empty pages without clamp/reload recovery.
+accent-insensitive comparison behavior for partial matches. Owner search
+matches the owner's full name or a current cat's name. Cat and vet searches
+match the cat's or vet's own name. Cat results show the current owner as
+context. Stable ordering uses the display name followed by identifier. Angular
+uses `totalElements` to decide whether another fixed-five page remains and
+accepts transient empty pages without clamp/reload recovery.
 
-Owner lookup items contain `id`, `fullName` and every current cat as an
-`id`/`name` pair. Focused `GET /api/owners/{id}/lookup` returns that same
-complete shape so known Stay owner identifiers can be resolved without a broad
-list. Cat lookup items contain `id`, `name`, `ownerId` and `ownerName`; vet
-lookup items contain `id` and `name`. Current owner/cat relationships are
-discovery and display context only: selection never mutates a relationship,
-and the owning consumer remains responsible for mutations, historical filters
-and business resets. The focused reads use existing owner, cat and vet storage
-and relationships; leading-wildcard normalized name matching does not rely on a
-name index. They add no persistence model or cache.
+Owner lookup items contain `id`, `fullName`, `deceased` and every current cat
+with its `id`, `name` and `deceased` flag. Owner results display each marked
+cat's marker beside its name. Focused `GET /api/owners/{id}/lookup` returns that
+same complete shape so known Stay owner identifiers can be resolved without a
+broad list. Cat lookup items contain `id`, `name`, `ownerId`, `ownerName`,
+`deceased` and `ownerDeceased`. Vet lookup items contain `id` and `name`.
+Current owner/cat relationships are discovery and display context only:
+selection never mutates a relationship, and the owning consumer remains
+responsible for mutations, historical filters and business resets. The
+focused reads use existing owner, cat and vet storage and relationships.
+Leading-wildcard normalized name matching does not rely on a name index.
+They add no persistence model or cache.
 
 Angular provides one API- and domain-agnostic Material autocomplete remote
 single-selector under `shared/entity-lookup`, plus focused Owner, Cat and Vet

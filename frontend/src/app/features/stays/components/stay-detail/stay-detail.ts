@@ -1,5 +1,6 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import {
   EntityDetailUpdate,
   EntityReference,
@@ -29,7 +30,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  imports: [DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
   host: {
     '[attr.aria-busy]': 'loading() || operationalLoading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
