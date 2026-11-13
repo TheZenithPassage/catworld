@@ -1,0 +1,71 @@
+.transfers-page,
+.transfers-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.transfers-header,
+.date-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.transfers-header {
+  justify-content: space-between;
+}
+
+.transfers-header h2,
+.transfers-list {
+  margin: 0;
+}
+
+.date-controls mat-form-field {
+  width: 11.5rem;
+  max-width: 100%;
+}
+
+.transfers-list {
+  padding: 0;
+  list-style: none;
+}
+
+.transfer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.transfer-schedule,
+.transfer-party {
+  display: grid;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.transfer-schedule span,
+.transfer-party span {
+  color: var(--color-text-muted);
+}
+
+.scheduled-time time {
+  color: var(--color-text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .transfer-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transfer-row button {
+    justify-self: start;
+  }
+}

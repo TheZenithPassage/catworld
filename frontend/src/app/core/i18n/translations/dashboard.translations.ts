@@ -2,6 +2,7 @@ import { AppLanguage } from '../app-language';
 
 export interface DashboardTranslations {
   title: string;
+  transfers: string;
   links: {
     stays: {
       title: string;
@@ -36,6 +37,7 @@ export interface DashboardTranslations {
 export const DASHBOARD_TRANSLATIONS = {
   es: {
     title: 'Panel de administración',
+    transfers: 'Traslados',
     links: {
       stays: {
         title: 'Estadías',
@@ -68,6 +70,7 @@ export const DASHBOARD_TRANSLATIONS = {
   },
   en: {
     title: 'Dashboard',
+    transfers: 'Transfers',
     links: {
       stays: {
         title: 'Stays',

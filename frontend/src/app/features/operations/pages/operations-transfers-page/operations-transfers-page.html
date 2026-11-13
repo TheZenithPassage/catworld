@@ -1,0 +1,67 @@
+@let current = state();
+@let labels = copy();
+@let agendaLabels = text().operationsAgenda;
+
+<section class="transfers-page" aria-labelledby="transfers-title">
+  <header class="page-header transfers-header">
+    <h2 id="transfers-title">{{ text().dashboard.transfers }}</h2>
+    <div class="date-controls">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ agendaLabels.date }}</mat-label>
+        <input
+          #dateInput
+          matInput
+          type="date"
+          min="1000-01-01"
+          max="9999-12-23"
+          [value]="current.date ?? ''"
+          (change)="selectDate(dateInput)"
+        />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="showToday()">
+        {{ agendaLabels.today }}
+      </button>
+    </div>
+  </header>
+
+  @if (current.kind === 'loading') {
+    <app-ui-state kind="loading" [message]="labels.loading" />
+  } @else if (current.kind === 'error') {
+    <app-ui-state
+      kind="error"
+      [message]="labels.error"
+      [actionLabel]="agendaLabels.retry"
+      (actionTriggered)="reload()"
+    />
+  } @else if (!current.transfers.length) {
+    <app-ui-state kind="empty" [message]="labels.empty" />
+  } @else {
+    <ul class="transfers-list" role="list">
+      @for (movement of current.transfers; track movement.stay.stayId + movement.type) {
+        <li class="transfer-row">
+          <div class="transfer-schedule">
+            <strong>{{ labels.leg[movement.type] }}</strong>
+            <span class="scheduled-time">
+              {{ labels.scheduledMovement[movement.type] }}
+              <time [attr.datetime]="movement.scheduledAt">
+                {{ movement.scheduledAt.slice(11, 16) }}
+              </time>
+            </span>
+          </div>
+          <div class="transfer-party">
+            <strong>{{ catNames(movement.stay) }}</strong>
+            <span>{{ movement.stay.ownerName }}</span>
+          </div>
+          <button
+            mat-stroked-button
+            type="button"
+            [attr.aria-label]="labels.contactFor(movement.stay.ownerName)"
+            (click)="openOwner(movement.stay.ownerId)"
+          >
+            {{ labels.contact }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</section>

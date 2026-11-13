@@ -1147,6 +1147,14 @@ current business date, boarding uses the dynamic Stay status at the time of
 the request. For any other date, boarding includes stays whose
 `[startAt, endAt)` overlaps the selected local day.
 
+The authenticated Transfers page at `/operations/transfers` uses the same
+agenda response. The home link carries the selected date, and opening the
+page without a date uses the server's business date. Transfers keeps only
+selected-day movements with the transfer flag set and preserves their order.
+Each row represents one leg for the stay, with its cats, owner and scheduled
+check-in or checkout time. Opening the existing Owner detail dialog loads
+contact details for that owner.
+
 ### Operational Overview Pagination
 
 Owner, Cat, Vet and Stay operational overviews use focused server-side reads
