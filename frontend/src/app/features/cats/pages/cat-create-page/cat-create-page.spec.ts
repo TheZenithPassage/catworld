@@ -58,6 +58,7 @@ describe('CatCreatePage', () => {
 
   const createdCat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00Z',
     name: 'Milo',
     birthDate: '2020-01-02',
     sex: 'MALE',

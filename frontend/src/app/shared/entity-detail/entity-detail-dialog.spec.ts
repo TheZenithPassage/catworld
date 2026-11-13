@@ -48,6 +48,7 @@ describe('EntityDetailDialog', () => {
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
   const cat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00Z',
     name: 'Milo',
     birthDate: '2020-01-01',
     sex: 'MALE',

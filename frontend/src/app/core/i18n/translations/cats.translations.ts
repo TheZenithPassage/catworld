@@ -104,6 +104,7 @@ export interface CatsTranslations {
     title: string;
     description: string;
     backToCats: string;
+    reload: string;
     loading: string;
     submit: string;
     submitting: string;
@@ -111,6 +112,7 @@ export interface CatsTranslations {
       catIdMissing: string;
       loadFormDataFailed: string;
       dataNotLoaded: string;
+      staleEdit: string;
       nameRequired: string;
       birthDateRequired: string;
       sexRequired: string;
@@ -265,6 +267,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Editar gato',
       description: 'Actualizar información del gato.',
       backToCats: 'Volver',
+      reload: 'Recargar ficha',
       loading: 'Cargando gato...',
       submit: 'Guardar cambios',
       submitting: 'Guardando...',
@@ -272,6 +275,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Falta el id del gato',
         loadFormDataFailed: 'Error al cargar los datos del formulario del gato',
         dataNotLoaded: 'Los datos del gato no están cargados',
+        staleEdit:
+          'La ficha cambió mientras la editabas. Si la recargás, se perderán los cambios sin guardar.',
         nameRequired: 'El nombre es obligatorio',
         birthDateRequired: 'La fecha de nacimiento es obligatoria',
         sexRequired: 'El sexo es obligatorio',
@@ -423,6 +428,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Edit cat',
       description: 'Update cat information.',
       backToCats: 'Back to cats',
+      reload: 'Reload profile',
       loading: 'Loading cat...',
       submit: 'Save changes',
       submitting: 'Saving...',
@@ -430,6 +436,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Cat id is missing',
         loadFormDataFailed: 'Error loading cat form data',
         dataNotLoaded: 'Cat data is not loaded',
+        staleEdit:
+          'This profile changed while you were editing. Reloading discards unsaved changes.',
         nameRequired: 'Name is required',
         birthDateRequired: 'Birth date is required',
         sexRequired: 'Sex is required',

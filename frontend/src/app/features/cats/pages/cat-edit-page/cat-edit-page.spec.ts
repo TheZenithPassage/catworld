@@ -4,10 +4,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { NEVER, of, throwError } from 'rxjs';
+import { NEVER, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
-import { Owner } from '../../../owners/models/owner.model';
+import { Owner, OwnerLookup } from '../../../owners/models/owner.model';
 import { OwnerApiService } from '../../../owners/services/owner-api.service';
 import { Vet } from '../../../vets/models/vet.model';
 import { VetApiService } from '../../../vets/services/vet-api.service';
@@ -49,6 +49,7 @@ describe('CatEditor', () => {
 
   const cat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00.123456Z',
     name: 'Milo',
     birthDate: '2020-01-02',
     sex: 'MALE',
@@ -220,6 +221,92 @@ describe('CatEditor', () => {
     expect(fixture.nativeElement.querySelector('.page-header')).toBeNull();
   });
 
+  it('keeps a dialog draft after a conflict and reloads the saved cat on request', async () => {
+    const refreshed = {
+      ...cat,
+      name: 'Approved name',
+      ownerId: 'owner-2',
+      ownerName: 'Approved owner',
+      updatedAt: '2026-10-05T13:00:00.654321Z',
+    };
+    const failedReload = new Subject<Cat>();
+    catApiService.getCatById.mockReturnValueOnce(failedReload).mockReturnValueOnce(of(refreshed));
+    catApiService.updateCat
+      .mockReturnValueOnce(
+        throwError(() => new HttpErrorResponse({ status: 409, error: { code: 'CAT_EDIT_STALE' } })),
+      )
+      .mockReturnValueOnce(of(refreshed));
+    fixture = TestBed.createComponent(CatEditor);
+    fixture.componentRef.setInput('entityId', cat.id);
+    fixture.componentRef.setInput('entity', cat);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const ownerSelector = () =>
+      fixture.debugElement.query(By.directive(RemoteEntitySelector))
+        .componentInstance as RemoteEntitySelector<OwnerLookup>;
+    ownerSelector().select({ id: 'draft-owner', fullName: 'Draft owner', currentCats: [] });
+    const draftPhoto = new File(['photo'], 'draft.jpg', { type: 'image/jpeg' });
+    photoInput.select(fileChange(draftPhoto));
+    component.name.set('Draft name');
+
+    component.submit();
+    fixture.detectChanges();
+
+    expect(catApiService.updateCat).toHaveBeenNthCalledWith(
+      1,
+      cat.id,
+      expect.objectContaining({ name: 'Draft name', expectedUpdatedAt: cat.updatedAt }),
+      draftPhoto,
+      false,
+    );
+    expect(component.name()).toBe('Draft name');
+    expect(photoInput.mutation().photo).toBe(draftPhoto);
+    expect(catApiService.getCatById).not.toHaveBeenCalled();
+    const reload = () =>
+      fixture.nativeElement.querySelector('[role="alert"] button') as HTMLButtonElement;
+    expect(reload().textContent?.trim()).toBe('Recargar ficha');
+    expect(fixture.nativeElement.querySelector('button[type="submit"]').disabled).toBe(true);
+
+    reload().click();
+    fixture.detectChanges();
+    expect(photoInput.mutation().photo).toBe(draftPhoto);
+    failedReload.error(new HttpErrorResponse({ status: 500 }));
+    fixture.detectChanges();
+    expect(component.name()).toBe('Draft name');
+    expect(photoInput.mutation().photo).toBe(draftPhoto);
+    expect(ownerSelector().selectedId()).toBe('draft-owner');
+    expect(reload().textContent?.trim()).toBe('Recargar ficha');
+
+    reload().click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(catApiService.getCatById.mock.calls).toEqual([[cat.id], [cat.id]]);
+    expect(component.name()).toBe('Approved name');
+    expect(ownerSelector().selectedId()).toBe('owner-2');
+    expect(
+      (
+        fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance as CatPhotoInput
+      ).mutation().photo,
+    ).toBeNull();
+    component.submit();
+    expect(catApiService.updateCat).toHaveBeenNthCalledWith(
+      2,
+      cat.id,
+      expect.objectContaining({
+        name: 'Approved name',
+        ownerId: 'owner-2',
+        expectedUpdatedAt: refreshed.updatedAt,
+      }),
+      null,
+      false,
+    );
+  });
+
   it('does not update when the name is blank', async () => {
     createComponent();
     fixture.detectChanges();
@@ -264,6 +351,7 @@ describe('CatEditor', () => {
       'cat-1',
       {
         name: 'Milo',
+        expectedUpdatedAt: cat.updatedAt,
         birthDate: '2020-01-02',
         sex: 'MALE',
         breed: null,
