@@ -1,0 +1,130 @@
+.operations-tasks,
+.tasks-layout,
+.create-fields,
+.stay-picker-body,
+.task-list,
+.task-group,
+.task-items {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.page-header,
+.task-item,
+.task-actions,
+.stay-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header,
+.task-item,
+.stay-selection {
+  justify-content: space-between;
+}
+
+.tasks-layout {
+  align-items: start;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+}
+
+h2,
+p {
+  margin: 0;
+}
+
+.create-card h3 {
+  margin: 0 0 1rem;
+}
+
+.create-fields {
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.create-fields > button {
+  justify-self: start;
+}
+
+.stay-picker {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+}
+
+.stay-picker summary {
+  cursor: pointer;
+}
+
+.stay-picker-body {
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.stay-candidates,
+.task-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.stay-candidates li + li {
+  margin-top: 0.5rem;
+}
+
+.stay-candidates button {
+  width: 100%;
+  height: auto;
+  min-height: 2.5rem;
+  padding-block: 0.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.task-group,
+.task-items {
+  gap: 0.55rem;
+}
+
+.task-group h3 {
+  margin: 0;
+}
+
+.task-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 0.75rem;
+}
+
+.task-copy {
+  flex: 1 1 13rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+  overflow-wrap: anywhere;
+}
+
+.task-description {
+  font-weight: 600;
+  white-space: pre-wrap;
+}
+
+.task-copy time,
+.muted {
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  color: var(--color-danger);
+}
+
+@media (max-width: 800px) {
+  .tasks-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
