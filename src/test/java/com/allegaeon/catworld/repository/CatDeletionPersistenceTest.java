@@ -165,7 +165,7 @@ class CatDeletionPersistenceTest {
         Stay stay = saveStay(cat, owner, creator, startAt, endAt, cancelledAt);
 
         UUID catId = cat.getId();
-        assertEquals(expectedStatus, stay.getStatus());
+        assertEquals(expectedStatus, stay.statusAt(LocalDateTime.now()));
         assertTrue(stayCatRepository.existsByCat_Id(catId));
         assertEquals(1, countStayCatRows(catId));
 

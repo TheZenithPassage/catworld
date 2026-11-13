@@ -21,6 +21,20 @@ describe('BusinessTimeService', () => {
     expect(service.formatInstant('2026-08-12T13:00:00Z', 'es-ES')).toContain('15:00');
   });
 
+  it('shows two-digit 24-hour time for instants and business-local timestamps in English', () => {
+    config.businessTimeZone.set('America/Argentina/Buenos_Aires');
+
+    expect(service.formatInstant('2026-09-01T03:05:00Z', 'en-US')).toMatch(/00:05$/);
+    expect(service.formatLocalDateTime('2026-08-31T21:05:00', 'en-US')).toMatch(/21:05$/);
+  });
+
+  it('uses the previous business day when UTC has crossed midnight', () => {
+    config.businessTimeZone.set('America/Argentina/Buenos_Aires');
+    expect(service.currentLocalDateTime(new Date('2026-09-01T01:30:00Z'))).toBe(
+      '2026-08-31T22:30:00',
+    );
+  });
+
   it('round-trips datetime-local through the business timezone independently of the host', () => {
     config.businessTimeZone.set('America/Argentina/Buenos_Aires');
 

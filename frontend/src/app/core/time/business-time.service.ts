@@ -23,15 +23,21 @@ export class BusinessTimeService {
     return new Intl.DateTimeFormat(locale, {
       dateStyle: 'medium',
       timeStyle: 'short',
+      hourCycle: 'h23',
       timeZone: this.config.businessTimeZone(),
     }).format(new Date(value));
   }
 
-  formatLocalDateTime(value: string, locale: string): string {
+  formatLocalDateTime(
+    value: string,
+    locale: string,
+    dateStyle: 'short' | 'medium' = 'medium',
+  ): string {
     const parts = this.parseLocalDateTime(value);
     return new Intl.DateTimeFormat(locale, {
-      dateStyle: 'medium',
+      dateStyle,
       timeStyle: 'short',
+      hourCycle: 'h23',
       timeZone: 'UTC',
     }).format(new Date(Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)));
   }
@@ -68,8 +74,16 @@ export class BusinessTimeService {
       : { valid: false, reason: 'nonexistent' };
   }
 
+  currentLocalDateTime(now = new Date()): string {
+    const parts = this.partsInBusinessZone(now);
+    return this.formatDateTimeParts(parts) + ':' + this.pad(parts.second);
+  }
+
   instantToLocalDateTime(value: string): string {
-    const parts = this.partsInBusinessZone(new Date(value));
+    return this.formatDateTimeParts(this.partsInBusinessZone(new Date(value)));
+  }
+
+  private formatDateTimeParts(parts: DateTimeParts): string {
     return `${this.pad(parts.year, 4)}-${this.pad(parts.month)}-${this.pad(parts.day)}T${this.pad(parts.hour)}:${this.pad(parts.minute)}`;
   }
 

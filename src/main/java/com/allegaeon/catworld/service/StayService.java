@@ -155,17 +155,10 @@ public class StayService implements IStayService {
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
                         .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName())));
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
-                stay.getStartAt(), stay.getEndAt(), statusAt(stay, now),
+                stay.getStartAt(), stay.getEndAt(), stay.statusAt(now),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),
                 List.copyOf(cats.getOrDefault(stay.getId(), List.of())),
                 stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired())).toList(), page, stays.getTotalElements());
-    }
-
-    private com.allegaeon.catworld.model.StayStatus statusAt(Stay stay, LocalDateTime now) {
-        if (stay.getCancelledAt() != null) return com.allegaeon.catworld.model.StayStatus.CANCELLED;
-        if (now.isBefore(stay.getStartAt())) return com.allegaeon.catworld.model.StayStatus.RESERVED;
-        if (now.isBefore(stay.getEndAt())) return com.allegaeon.catworld.model.StayStatus.CHECKED_IN;
-        return com.allegaeon.catworld.model.StayStatus.CHECKED_OUT;
     }
 
     @Override
@@ -243,7 +236,7 @@ public class StayService implements IStayService {
         Owner owner = stay.getOwner();
         RelationshipPreview<CatRelationshipItem> preview =
                 RelationshipResponses.preview(cats, RelationshipResponses::cat);
-        return new StayDetailResponse(stay.getId(), stay.getStatus(),
+        return new StayDetailResponse(stay.getId(), stay.statusAt(LocalDateTime.now(clock)),
                 stay.getStartAt(), stay.getEndAt(),
                 ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
                         stay.getEndAt().toLocalDate()),
@@ -283,7 +276,7 @@ public class StayService implements IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
         Stay stay = getStayEntity(stayId);
-        validateStayCanBeModified(stay);
+        validateStayCanBeModified(stay, LocalDateTime.now(clock));
         boolean arrival = request.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : request.getArrivalTransferRequired();
         boolean departure = request.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : request.getDepartureTransferRequired();
         boolean waived = request.getTransferWaived() == null ? stay.isTransferWaived() : request.getTransferWaived();
@@ -379,7 +372,7 @@ public class StayService implements IStayService {
 
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay);
+        validateStayCanBeModified(stay, LocalDateTime.now(clock));
         long previousNumberOfNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(),
                 stay.getEndAt()
@@ -603,7 +596,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
         BigDecimal amount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -641,7 +634,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
         requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
@@ -704,7 +697,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
         requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
@@ -793,9 +786,9 @@ public class StayService implements IStayService {
     public void cancelStay(UUID stayId) {
 
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay);
-
-        stay.setCancelledAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now(clock);
+        validateStayCanBeModified(stay, now);
+        stay.setCancelledAt(now);
 
     }
 
@@ -857,8 +850,10 @@ public class StayService implements IStayService {
         return false;
     }
 
-    private void validateStayCanBeModified(Stay stay) {
-        if(stay.getCancelledAt() != null || stay.getEndAt().isBefore(LocalDateTime.now())) throw new ConflictException("Closed stays cannot be modified");
+    private void validateStayCanBeModified(Stay stay, LocalDateTime now) {
+        if (stay.getCancelledAt() != null || !now.isBefore(stay.getEndAt())) {
+            throw new ConflictException("Closed stays cannot be modified");
+        }
     }
 
     private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {

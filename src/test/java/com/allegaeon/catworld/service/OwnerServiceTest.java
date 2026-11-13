@@ -22,13 +22,16 @@ import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -71,6 +74,10 @@ class OwnerServiceTest {
 
     @Mock
     private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
+
+    @Spy
+    private Clock clock = Clock.fixed(Instant.parse("2026-09-01T01:30:00Z"),
+            ZoneId.of("America/Argentina/Buenos_Aires"));
 
     @InjectMocks
     private OwnerService service;
@@ -560,7 +567,7 @@ class OwnerServiceTest {
     }
 
     private com.allegaeon.catworld.model.Stay stay(Owner owner, int days) {
-        LocalDateTime start = LocalDateTime.now().plusDays(days);
+        LocalDateTime start = LocalDateTime.now(clock).plusDays(days);
         return com.allegaeon.catworld.model.Stay.builder().id(UUID.randomUUID()).owner(owner)
                 .startAt(start).endAt(start.plusDays(1)).build();
     }

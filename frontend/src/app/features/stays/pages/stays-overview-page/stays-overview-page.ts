@@ -5,6 +5,7 @@ import { MatCheckbox } from '@angular/material/checkbox';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
@@ -54,6 +55,7 @@ export class StaysOverviewPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly details = inject(EntityDetailDialogService);
   private readonly preferences = inject(StayStatusVisibilityPreferencesService);
   private request?: Subscription;
@@ -226,10 +228,7 @@ export class StaysOverviewPage {
     return this.text().stays.status[this.fromBackendStatus(s.status)];
   }
   formatDate(v: string): string {
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(v));
+    return this.businessTime.formatLocalDateTime(v, this.dateLocale(), 'short');
   }
   getCatNames(s: StayOverviewItem): string {
     return s.cats.map((c) => c.name).join(', ');

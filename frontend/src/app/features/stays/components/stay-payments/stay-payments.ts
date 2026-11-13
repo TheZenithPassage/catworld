@@ -52,7 +52,7 @@ export class StayPayments {
   readonly isAdmin = computed(() => this.authSession.hasRole('ADMIN'));
   readonly canMutate = computed(() => {
     if (this.isAdmin()) return true;
-    const status = getStayStatus(this.stay());
+    const status = getStayStatus(this.stay(), this.businessTime.currentLocalDateTime());
     return status === 'reserved' || status === 'checked-in';
   });
   readonly mutationLocked = computed(

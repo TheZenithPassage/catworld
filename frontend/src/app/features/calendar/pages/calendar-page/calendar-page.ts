@@ -48,6 +48,7 @@ import {
   StayStatus,
   StayStatusVisibility,
 } from '../../../stays/utils/stay-status.util';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import {
@@ -90,6 +91,7 @@ export class CalendarPage implements OnDestroy {
   private readonly entityDetailDialog = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
   private readonly i18nService = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly stayStatusVisibilityPreferencesService = inject(
     StayStatusVisibilityPreferencesService,
   );
@@ -142,13 +144,14 @@ export class CalendarPage implements OnDestroy {
   private viewInterval: { dateFrom: string; dateTo: string } | null = null;
   private request?: Subscription;
   private requestId = 0;
-  readonly filteredStays = computed(() =>
-    this.stays().filter(
+  readonly filteredStays = computed(() => {
+    const now = this.businessTime.currentLocalDateTime();
+    return this.stays().filter(
       (stay) =>
-        isStayVisibleByStatus(stay, this.statusVisibility()) &&
+        isStayVisibleByStatus(stay, this.statusVisibility(), now) &&
         isStayVisibleBySearchFilters(stay, this.searchFilters()),
-    ),
-  );
+    );
+  });
   readonly dailyAggregates = computed(() =>
     getCalendarDailyAggregates(this.filteredStays(), this.i18nService.dateLocale()),
   );
@@ -157,6 +160,8 @@ export class CalendarPage implements OnDestroy {
     plugins: [dayGridPlugin],
     initialView: 'dayGridMonth',
     showNonCurrentDates: false,
+    timeZone: 'UTC', // The date grid uses the business calendar fields as wall time.
+    now: () => this.businessTime.currentLocalDateTime(),
     initialDate: this.storedCalendarPreferences.visibleMonth ?? undefined,
     locale: this.language() === 'es' ? esLocale : enGbLocale,
     firstDay: 1,
@@ -285,6 +290,7 @@ export class CalendarPage implements OnDestroy {
     const colorAssignments = getStayColorAssignments(this.stays());
     return toStayCalendarEvents({
       visibleStays: this.filteredStays(),
+      businessNow: this.businessTime.currentLocalDateTime(),
       dailyAggregates: this.dailyAggregates(),
       colorAssignments,
       displayMode: this.displayMode(),
@@ -473,7 +479,7 @@ export class CalendarPage implements OnDestroy {
 
   setViewInterval(info: DatesSetArg): void {
     const lastDay = new Date(info.view.currentEnd);
-    lastDay.setDate(lastDay.getDate() - 1);
+    lastDay.setUTCDate(lastDay.getUTCDate() - 1);
     const interval = {
       dateFrom: this.toDateValue(info.view.currentStart),
       dateTo: this.toDateValue(lastDay),
@@ -681,10 +687,6 @@ export class CalendarPage implements OnDestroy {
   }
 
   private toDateValue(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
+    return date.toISOString().slice(0, 10);
   }
 }
