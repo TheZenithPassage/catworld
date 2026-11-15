@@ -29,6 +29,7 @@ public class PricingDecisionRequestDTO {
     @Getter(AccessLevel.NONE)
     private Boolean pricePending;
     private String reason;
+    private String expectedPendingPriceVersion;
 
     public boolean isPricePending() {
         return Boolean.TRUE.equals(pricePending);

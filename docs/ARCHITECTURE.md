@@ -445,14 +445,23 @@ an amount. Inherited stays with a null agreement and no pending marker retain
 their historical behavior and reject economic mutations.
 
 The submitted amount follows the normal non-negative whole-unit monetary
-contract of at most 19 digits. Every real correction requires a non-blank
-reason. Numerically equal values such as `20` and `20.0`
+contract of at most 19 digits. Corrections and reopening an agreement require
+a non-blank reason. Numerically equal values such as `20` and `20.0`
 are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
+For explicitly pending stays, `GET /api/stays/{id}/pending-price-preview`
+shows the saved rates, nights and chargeable transfer legs for administrators.
+The first agreement requires a reason when it overrides a complete suggestion.
+Accepting the suggestion or entering the first amount when a rate is missing
+records a system reason if none was supplied. Confirming a reopened agreement
+still requires a reason. The dialog sends the preview version as
+`expectedPendingPriceVersion`. A stale version returns `409 Conflict` and the
+dialog refreshes the price breakdown while keeping the draft.
+
 The service takes the existing pessimistic `Stay` lock before persisted-account
 authorization and current-value comparison. A real change updates only
-`agreedAmount` and inserts one immutable correction event in the same
+`agreedAmount` and its pending flag and inserts one immutable event in the same
 transaction. The exact previous and new values therefore form a serialized
 chain for competing corrections, and neither half can commit without the
 other. Correction evidence is retained after cancellation or permanent
@@ -1583,12 +1592,14 @@ entered. Cancelled stays can still have active receipts. Annulled and removed
 payments are excluded. The response includes an exact whole-month total as a
 decimal string, separate from the paginated rows.
 
-The Payments URL records the selected month, tab and zero-based page for
+The Payments URL records the selected month, tab, scope and zero-based page for
 returning from stay pricing through its Back button or browser history. If the
 requested page has disappeared, the URL records the last available page.
 
-The Outstanding view uses `GET /api/payments/outstanding?month=YYYY-MM&page=0`.
-It includes non-cancelled arrivals in the selected month that have a positive
-balance or an explicitly pending price. All active payments reduce the stay
-balance regardless of their payment dates. The totals distinguish the sum of
-known balances from the count of stays with a pending price.
+The Outstanding view uses `GET /api/payments/outstanding?month=YYYY-MM&page=0`
+by default and `scope=all` without a month to show outstanding stays across
+months. Both scopes include non-cancelled stays with a positive balance or an
+explicitly pending price, ordered by scheduled arrival. Arrivals that have
+started are identified using the business clock. All active payments reduce
+the stay balance regardless of their payment dates. The totals distinguish the
+sum of known balances from the count of stays with a pending price.

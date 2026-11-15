@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
 import java.time.LocalDate;
+import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
@@ -541,6 +542,19 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PendingPricePreviewDTO previewPendingPrice(UUID stayId) {
+        stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(
+                currentUserAccountService.getCurrentUserAccount()
+        );
+        Stay stay = getStayEntity(stayId);
+        if (!stay.isPricePending()) {
+            throw new StalePricingConfirmationException();
+        }
+        return pendingPricePreview(stay);
+    }
+
+    @Override
     @Transactional
     public StayResponseDTO correctAgreedAmount(
             UUID stayId,
@@ -550,13 +564,24 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
 
+        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
+        String expectedVersion = pricingDecision == null ? null : pricingDecision.getExpectedPendingPriceVersion();
+        String requestedReason = pricingDecision == null ? null : pricingDecision.getReason();
+        PendingPricePreviewDTO pendingPreview = stay.isPricePending()
+                && (expectedVersion != null || requestedReason == null || requestedReason.isBlank())
+                ? pendingPricePreview(stay)
+                : null;
+        if (expectedVersion != null && (pendingPreview == null || pricePending
+                || !expectedVersion.equals(pendingPreview.version()))) {
+            throw new StalePricingConfirmationException();
+        }
+
         if (stay.getAgreedAmount() == null && !stay.isPricePending()) {
             throw new ConflictException(
                     "The stay agreement must exist before it can be corrected"
             );
         }
 
-        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
         BigDecimal newAgreedAmount = pricePending
                 ? validatePendingPrice(pricingDecision)
                 : validateCorrectionAmount(pricingDecision);
@@ -566,12 +591,7 @@ public class StayService implements IStayService {
             return toResponseDTO(stay);
         }
 
-        if (pricingDecision.getReason() == null
-                || pricingDecision.getReason().isBlank()) {
-            throw new BadRequestException(
-                    "A non-blank reason is required to correct the agreed amount"
-            );
-        }
+        String reason = agreedAmountDecisionReason(pendingPreview, newAgreedAmount, requestedReason);
         if (!pricePending) {
             validateAgreementFloor(stayId, newAgreedAmount);
         }
@@ -588,7 +608,7 @@ public class StayService implements IStayService {
                         .newAgreedAmount(newAgreedAmount)
                         .decidedBy(currentUser)
                         .decidedAt(Instant.now(clock))
-                        .reason(pricingDecision.getReason())
+                        .reason(reason)
                         .sensitiveContext(
                                 sensitiveStayContextFactory.create(savedStay)
                         )
@@ -596,6 +616,46 @@ public class StayService implements IStayService {
         );
 
         return toResponseDTO(savedStay);
+    }
+
+    private String agreedAmountDecisionReason(PendingPricePreviewDTO preview, BigDecimal amount, String reason) {
+        if (reason != null && !reason.isBlank()) {
+            return reason;
+        }
+        if (preview != null && !preview.previouslyAgreed()
+                && (preview.suggestedAmount() == null || sameMoney(amount, preview.suggestedAmount()))) {
+            return "Initial price confirmed";
+        }
+        throw new BadRequestException("A non-blank reason is required to correct the agreed amount");
+    }
+
+    private PendingPricePreviewDTO pendingPricePreview(Stay stay) {
+        long nights = stayMapper.calculateNumberOfNights(stay.getStartAt(), stay.getEndAt());
+        BigDecimal accommodation = stayMapper.calculateSuggestedAmount(stay.getRetainedNightlyRate(), nights);
+        boolean transferRateMissing = !stay.isTransferWaived() && stay.getRetainedTransferRate() == null
+                && (stay.isArrivalTransferRequired() || stay.isDepartureTransferRequired());
+        BigDecimal transfer = transferRateMissing ? null : stayMapper.calculateTransferSuggestedAmount(stay);
+        BigDecimal total = accommodation == null || transfer == null ? null : accommodation.add(transfer);
+        boolean previouslyAgreed = stayAgreedAmountCorrectionRepository
+                .existsByStayIdAndPreviousAgreedAmountIsNotNull(stay.getId());
+        // Include the price inputs in case two edits share a persisted audit timestamp.
+        String version = "%s|%s|%s|%s|%s|%s|%b|%b|%b|%b".formatted(
+                stay.getId(), stay.getUpdatedAt(), stay.getStartAt(), stay.getEndAt(),
+                stay.getRetainedNightlyRate(), stay.getRetainedTransferRate(), stay.isArrivalTransferRequired(),
+                stay.isDepartureTransferRequired(), stay.isTransferWaived(), previouslyAgreed);
+        return new PendingPricePreviewDTO(
+                version,
+                previouslyAgreed,
+                nights,
+                stay.getRetainedNightlyRate(),
+                accommodation,
+                stay.isArrivalTransferRequired(),
+                stay.isDepartureTransferRequired(),
+                stay.isTransferWaived(),
+                stay.getRetainedTransferRate(),
+                transfer,
+                WholeMonetaryAmount.isSupported(total) ? total : null
+        );
     }
 
     @Override

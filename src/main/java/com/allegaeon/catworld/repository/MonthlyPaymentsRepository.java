@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,19 +41,23 @@ public class MonthlyPaymentsRepository {
     }
 
 
-    public List<CollectionBalance> findCollectionBalances(LocalDate start, LocalDate end) {
-        return entityManager.createQuery("""
+    public List<CollectionBalance> findCollectionBalances(YearMonth month) {
+        String arrivalFilter = month == null ? "" : " and stay.startAt >= :start and stay.startAt < :end ";
+        var query = entityManager.createQuery("""
                 select stay.id, stay.agreedAmount, coalesce(sum(payment.amount), 0)
                 from Stay stay
                 left join StayPayment payment on payment.stay = stay and payment.annulled = false
                 where stay.cancelledAt is null and (stay.pricePending = true or stay.agreedAmount is not null)
-                  and stay.startAt >= :start and stay.startAt < :end
+                """ + arrivalFilter + """
                 group by stay.id, stay.startAt, stay.agreedAmount, stay.pricePending
                 having stay.pricePending = true or stay.agreedAmount > coalesce(sum(payment.amount), 0)
                 order by stay.startAt asc, stay.id asc
-                """, Object[].class)
-                .setParameter("start", start.atStartOfDay()).setParameter("end", end.atStartOfDay())
-                .getResultList().stream()
+                """, Object[].class);
+        if (month != null) {
+            query.setParameter("start", month.atDay(1).atStartOfDay())
+                    .setParameter("end", month.plusMonths(1).atDay(1).atStartOfDay());
+        }
+        return query.getResultList().stream()
                 .map(row -> new CollectionBalance((UUID) row[0], (BigDecimal) row[1], (BigDecimal) row[2]))
                 .toList();
     }

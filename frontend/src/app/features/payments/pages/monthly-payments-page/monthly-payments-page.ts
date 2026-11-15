@@ -44,6 +44,7 @@ interface OutstandingStay {
   paidAmount: string;
   remainingAmount: string | null;
   notes: string | null;
+  started: boolean;
 }
 
 interface MonthlyCollections {
@@ -53,11 +54,13 @@ interface MonthlyCollections {
 }
 
 type PaymentView = 'received' | 'outstanding';
+type CollectionScope = 'month' | 'all';
 
 interface PaymentFilters {
   month: string;
   tab: PaymentView;
   page: number;
+  scope: CollectionScope;
 }
 
 type PaymentQuery = PaymentFilters & { retry: number };
@@ -122,6 +125,9 @@ export class MonthlyPaymentsPage {
   readonly view = computed<PaymentView>(() =>
     this.params().get('tab') === 'outstanding' ? 'outstanding' : 'received',
   );
+  readonly scope = computed<CollectionScope>(() =>
+    this.view() === 'outstanding' && this.params().get('scope') === 'all' ? 'all' : 'month',
+  );
   private readonly page = computed(() => {
     const value = this.params().get('page');
     if (!value || !/^\d+$/.test(value)) return 0;
@@ -132,25 +138,28 @@ export class MonthlyPaymentsPage {
     month: this.month(),
     tab: this.view(),
     page: this.page(),
+    scope: this.scope(),
     retry: this.retryCount(),
   }));
 
   readonly state = toSignal(
     toObservable(this.query).pipe(
       switchMap((query) => {
-        const { month, tab, page, retry } = query;
+        const { month, tab, page, scope, retry } = query;
         const loaded = this.loadedQuery;
         // Replacing the URL after clamping can reuse the response already showing that page.
         if (
           loaded?.month === month &&
           loaded.tab === tab &&
           loaded.page === page &&
+          loaded.scope === scope &&
           loaded.retry === retry
         ) {
           return EMPTY;
         }
         this.loadedQuery = null;
-        const params = { month, page };
+        const params: Record<string, string | number> =
+          scope === 'all' ? { page, scope } : { month, page };
         const request =
           tab === 'received'
             ? this.http.get<MonthlyReceipts>(`${API_BASE_URL}/payments/received`, { params }).pipe(
@@ -209,21 +218,20 @@ export class MonthlyPaymentsPage {
       return;
     }
     if (value !== this.month()) {
-      void this.router.navigateByUrl(this.filtersUrl({ month: value, tab: this.view(), page: 0 }), {
-        replaceUrl: true,
-      });
+      this.navigateWithFilters({ ...this.query(), month: value, page: 0 });
     }
   }
 
   selectView(view: PaymentView): void {
-    void this.router.navigateByUrl(this.filtersUrl({ month: this.month(), tab: view, page: 0 }), {
-      replaceUrl: true,
-    });
+    this.navigateWithFilters({ ...this.query(), tab: view, page: 0, scope: 'month' });
+  }
+
+  selectScope(scope: CollectionScope): void {
+    this.navigateWithFilters({ ...this.query(), scope, page: 0 });
   }
 
   selectPage(event: PageEvent): void {
-    const url = this.filtersUrl({ month: this.month(), tab: this.view(), page: event.pageIndex });
-    void this.router.navigateByUrl(url, { replaceUrl: true });
+    this.navigateWithFilters({ ...this.query(), page: event.pageIndex });
   }
 
   retry(): void {
@@ -242,10 +250,14 @@ export class MonthlyPaymentsPage {
     return new Intl.NumberFormat(this.i18n.dateLocale()).format(BigInt(value));
   }
 
-  private filtersUrl({ month, tab, page }: PaymentFilters) {
+  private navigateWithFilters(filters: PaymentFilters): void {
+    void this.router.navigateByUrl(this.filtersUrl(filters), { replaceUrl: true });
+  }
+
+  private filtersUrl({ month, tab, page, scope }: PaymentFilters) {
     return this.router.createUrlTree([], {
       relativeTo: this.route,
-      queryParams: { month, tab, page },
+      queryParams: { month, tab, page, scope: scope === 'all' ? scope : null },
     });
   }
 

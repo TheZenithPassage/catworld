@@ -39,6 +39,8 @@ export interface StaysTranslations {
     pricePending: string;
     markPricePending: string;
     confirmPendingPrice: string;
+    pendingPriceSubmitting: string;
+    pendingPriceNoLongerPending: string;
     useSuggestedAmount: string;
     useCurrentRate: string;
     useOriginalRate: string;
@@ -333,6 +335,9 @@ export const STAYS_TRANSLATIONS = {
       pricePending: 'Precio por definir',
       markPricePending: 'Marcar el precio como pendiente',
       confirmPendingPrice: 'Confirmar precio',
+      pendingPriceSubmitting: 'Confirmando precio…',
+      pendingPriceNoLongerPending:
+        'El precio ya no está pendiente. Volvé al detalle para actualizarlo.',
       useSuggestedAmount: 'Usar monto sugerido',
       useCurrentRate: 'Usar tarifa actual',
       useOriginalRate: 'Usar tarifa original',
@@ -650,6 +655,9 @@ export const STAYS_TRANSLATIONS = {
       pricePending: 'Price to be determined',
       markPricePending: 'Mark price as pending',
       confirmPendingPrice: 'Confirm price',
+      pendingPriceSubmitting: 'Confirming price…',
+      pendingPriceNoLongerPending:
+        'The price is already set. Return to the stay to see the update.',
       useSuggestedAmount: 'Use suggested amount',
       useCurrentRate: 'Use current rate',
       useOriginalRate: 'Use original rate',

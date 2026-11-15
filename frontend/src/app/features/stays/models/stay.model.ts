@@ -83,8 +83,27 @@ export interface PaymentReasonRequest {
 }
 
 export type PricingDecision =
-  | { agreedAmount: MonetaryAmount; pricePending?: false; reason?: string | null }
+  | {
+      agreedAmount: MonetaryAmount;
+      pricePending?: false;
+      reason?: string | null;
+      expectedPendingPriceVersion?: string;
+    }
   | { agreedAmount?: null; pricePending: true; reason?: string | null };
+
+export interface PendingPricePreview {
+  version: string;
+  previouslyAgreed: boolean;
+  numberOfNights: number;
+  retainedNightlyRate: MonetaryAmount | null;
+  accommodationSuggestedAmount: MonetaryAmount | null;
+  arrivalTransferRequired: boolean;
+  departureTransferRequired: boolean;
+  transferWaived: boolean;
+  retainedTransferRate: MonetaryAmount | null;
+  transferSuggestedAmount: MonetaryAmount | null;
+  suggestedAmount: MonetaryAmount | null;
+}
 
 export interface CreationPricingConfirmation {
   numberOfNights: number;

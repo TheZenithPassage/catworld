@@ -124,7 +124,7 @@ describe('MonthlyPaymentsPage', () => {
     });
   }
 
-  function respondWithOctoberCollections(page: number): void {
+  function respondWithCollections(page: number, all = false): void {
     const pendingStay = {
       stayId: 'stay-1',
       arrival: '2020-10-30T15:30:00',
@@ -134,6 +134,7 @@ describe('MonthlyPaymentsPage', () => {
       paidAmount: '30',
       remainingAmount: null,
       notes: 'Traslado de llegada',
+      started: true,
     };
     const items =
       page === 0
@@ -144,7 +145,16 @@ describe('MonthlyPaymentsPage', () => {
             remainingAmount: '30',
           }))
         : [pendingStay];
-    expectPayments('outstanding', '2020-10', page).flush({
+    const request = all
+      ? http.expectOne(
+          (req) =>
+            req.url === `${API_BASE_URL}/payments/outstanding` &&
+            req.params.get('scope') === 'all' &&
+            req.params.get('page') === String(page) &&
+            !req.params.has('month'),
+        )
+      : expectPayments('outstanding', '2020-10', page);
+    request.flush({
       stays: { items, page, pageSize: 10, totalElements: 11 },
       knownTotal: '300',
       pendingPriceCount: 1,
@@ -301,10 +311,10 @@ describe('MonthlyPaymentsPage', () => {
 
     expect(router.url).toBe('/payments?month=2020-10&tab=outstanding&page=0');
     expect(router.lastSuccessfulNavigation()?.extras.replaceUrl).toBe(true);
-    respondWithOctoberCollections(0);
+    respondWithCollections(0);
     const paginator = await loader.getHarness(MatPaginatorHarness);
     await paginator.goToNextPage();
-    respondWithOctoberCollections(1);
+    respondWithCollections(1);
     harness.detectChanges();
 
     const content = harness.routeNativeElement!;
@@ -322,12 +332,50 @@ describe('MonthlyPaymentsPage', () => {
     await harness.fixture.whenStable();
 
     expect(router.url).toBe(selectedUrl);
-    respondWithOctoberCollections(1);
+    respondWithCollections(1);
     expect(
       await (
         await loader.getHarness(MatButtonToggleHarness.with({ text: 'Por cobrar' }))
       ).isChecked(),
     ).toBe(true);
+  });
+
+  it('keeps the all-outstanding scope, selected month and page after visiting a stay', async () => {
+    const harness = await RouterTestingHarness.create(
+      '/payments?month=2020-10&tab=outstanding&page=0',
+    );
+    respondWithCollections(0);
+    const loader = TestbedHarnessEnvironment.loader(harness.fixture);
+    const all = await loader.getHarness(
+      MatButtonToggleHarness.with({ text: 'Todos los pendientes' }),
+    );
+    await all.check();
+    respondWithCollections(0, true);
+    const paginator = await loader.getHarness(MatPaginatorHarness);
+    await paginator.goToNextPage();
+    respondWithCollections(1, true);
+    harness.detectChanges();
+
+    const selectedUrl = '/payments?month=2020-10&tab=outstanding&page=1&scope=all';
+    expect(router.url).toBe(selectedUrl);
+    expect(harness.routeNativeElement!.querySelector('input[type="month"]')).toBeNull();
+    expect(harness.routeNativeElement!.querySelector('tbody tr')?.textContent).toContain(
+      'Estadía iniciada',
+    );
+    await openPricing(harness);
+    expect(location.getState()).toMatchObject({ stayPricingOrigin: selectedUrl });
+    harness.routeNativeElement!.querySelector<HTMLButtonElement>('.form-back-link')!.click();
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe(selectedUrl);
+    respondWithCollections(1, true);
+    const month = await loader.getHarness(MatButtonToggleHarness.with({ text: 'Por mes' }));
+    await month.check();
+    respondWithCollections(0);
+    harness.detectChanges();
+    expect(
+      harness.routeNativeElement!.querySelector<HTMLInputElement>('input[type="month"]')?.value,
+    ).toBe('2020-10');
   });
 
   it('ignores an outstanding response received while the operator switches back to Received', async () => {

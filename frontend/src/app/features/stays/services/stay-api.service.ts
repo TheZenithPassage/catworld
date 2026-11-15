@@ -14,6 +14,7 @@ import {
   PaymentEditRequest,
   PaymentReasonRequest,
   PaymentRegistrationRequest,
+  PendingPricePreview,
   PricingDecision,
   Stay,
   StayOverviewItem,
@@ -102,6 +103,10 @@ export class StayApiService {
 
   updateStay(id: string, request: UpdateStayRequest): Observable<Stay> {
     return this.http.put<Stay>(`${this.baseUrl}/${id}`, request);
+  }
+
+  previewPendingPrice(id: string): Observable<PendingPricePreview> {
+    return this.http.get<PendingPricePreview>(`${this.baseUrl}/${id}/pending-price-preview`);
   }
 
   correctAgreedAmount(id: string, request: PricingDecision): Observable<Stay> {

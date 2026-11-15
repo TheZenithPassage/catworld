@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -33,6 +34,7 @@ class MonthlyPaymentsControllerTest {
 
     @Autowired MockMvc mvc;
     @Autowired EntityManager entities;
+    @Autowired Clock clock;
 
     @Test
     void activePaymentsUseTheirActualMonthAndTotalIncludesOtherPages() throws Exception {
@@ -136,6 +138,40 @@ class MonthlyPaymentsControllerTest {
 
         mvc.perform(get("/api/payments/outstanding").param("month", "2026-11")
                         .with(user("staff").roles("STAFF")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void allOutstandingStaysIncludeOlderPendingPricesAndIdentifyArrivalsAlreadyStarted() throws Exception {
+        LocalDate today = LocalDate.now(clock);
+        UserAccount actor = UserAccount.builder().username("all-outstanding-test").passwordHash("unused")
+                .role(UserRole.ADMIN).enabled(true).build();
+        entities.persist(actor);
+        Owner owner = Owner.builder().fullName("Example Owner").primaryPhone("555-0100").createdBy(actor).build();
+        entities.persist(owner);
+
+        Stay olderPending = collectionStay(owner, actor, today.minusMonths(2), null, true, false);
+        payment(olderPending, actor, today.minusMonths(3), "20", false);
+        Stay futureBalance = collectionStay(owner, actor, today.plusMonths(2), "100", false, false);
+        payment(futureBalance, actor, today, "30", false);
+        payment(futureBalance, actor, today, "15", true);
+        collectionStay(owner, actor, today, "100", false, true);
+        collectionStay(owner, actor, today, "0", false, false);
+        collectionStay(owner, actor, today, null, false, false);
+        entities.flush();
+
+        mvc.perform(get("/api/payments/outstanding").param("scope", "all").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("70"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(1))
+                .andExpect(jsonPath("$.stays.totalElements").value(2))
+                .andExpect(jsonPath("$.stays.items[0].stayId").value(olderPending.getId().toString()))
+                .andExpect(jsonPath("$.stays.items[0].paidAmount").value("20"))
+                .andExpect(jsonPath("$.stays.items[0].started").value(true))
+                .andExpect(jsonPath("$.stays.items[1].stayId").value(futureBalance.getId().toString()))
+                .andExpect(jsonPath("$.stays.items[1].started").value(false));
+
+        mvc.perform(get("/api/payments/outstanding").param("scope", "all").with(user("staff").roles("STAFF")))
                 .andExpect(status().isForbidden());
     }
 

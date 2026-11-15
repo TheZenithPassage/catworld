@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
+import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -53,6 +54,7 @@ public interface IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request);
     StayResponseDTO createStay(StayRequestDTO stayRequestDTO);
     StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO);
+    PendingPricePreviewDTO previewPendingPrice(UUID stayId);
     StayResponseDTO correctAgreedAmount(
             UUID stayId,
             PricingDecisionRequestDTO pricingDecision);

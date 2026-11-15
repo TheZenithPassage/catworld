@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 public class MonthlyPaymentsService {
     private final MonthlyPaymentsRepository monthlyPaymentsRepository;
     private final StayCatRepository stayCatRepository;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public MonthlyReceipts getReceipts(String requestedMonth, int page) {
@@ -50,10 +53,14 @@ public class MonthlyPaymentsService {
 
 
     @Transactional(readOnly = true)
-    public MonthlyCollections getCollections(String requestedMonth, int page) {
-        YearMonth month = parseMonth(requestedMonth);
+    public MonthlyCollections getCollections(String requestedMonth, String scope, int page) {
+        YearMonth month = switch (scope) {
+            case "month" -> parseMonth(requestedMonth);
+            case "all" -> null;
+            default -> throw new BadRequestException("Scope must be month or all");
+        };
         validatePage(page);
-        var balances = monthlyPaymentsRepository.findCollectionBalances(month.atDay(1), month.plusMonths(1).atDay(1));
+        var balances = monthlyPaymentsRepository.findCollectionBalances(month);
         var knownTotal = balances.stream().map(CollectionBalance::remaining).filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long pendingPriceCount = balances.stream().filter(balance -> balance.agreed() == null).count();
@@ -65,14 +72,19 @@ public class MonthlyPaymentsService {
         var cats = catNamesByStay(ids);
         var stays = ids.isEmpty() ? Map.<UUID, Stay>of() : monthlyPaymentsRepository.findCollectionStays(ids).stream()
                 .collect(Collectors.toMap(Stay::getId, Function.identity()));
-        var rows = pageBalances.stream().map(balance -> collectionRow(balance, stays.get(balance.stayId()), cats)).toList();
+        LocalDateTime now = LocalDateTime.now(clock);
+        var rows = pageBalances.stream()
+                .map(balance -> collectionRow(balance, stays.get(balance.stayId()), cats, now))
+                .toList();
         return new MonthlyCollections(new OverviewPage<>(rows, actualPage, balances.size()), knownTotal.toPlainString(), pendingPriceCount);
     }
 
-    private MonthlyCollections.StayBalance collectionRow(CollectionBalance balance, Stay stay, Map<UUID, List<String>> cats) {
+    private MonthlyCollections.StayBalance collectionRow(CollectionBalance balance, Stay stay,
+                                                          Map<UUID, List<String>> cats, LocalDateTime now) {
         return new MonthlyCollections.StayBalance(stay.getId(), stay.getStartAt(), stay.getOwner().getFullName(),
                 cats.getOrDefault(stay.getId(), List.of()), decimalOrNull(balance.agreed()),
-                balance.paid().toPlainString(), decimalOrNull(balance.remaining()), stay.getNotes());
+                balance.paid().toPlainString(), decimalOrNull(balance.remaining()), stay.getNotes(),
+                !stay.getStartAt().isAfter(now));
     }
 
     private String decimalOrNull(BigDecimal amount) {
@@ -96,7 +108,7 @@ public class MonthlyPaymentsService {
     }
 
     private YearMonth parseMonth(String value) {
-        if (!value.matches("[1-9]\\d{3}-\\d{2}")) {
+        if (value == null || !value.matches("[1-9]\\d{3}-\\d{2}")) {
             throw new BadRequestException("Month must use YYYY-MM");
         }
         try {

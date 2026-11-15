@@ -6,11 +6,82 @@
   }}
 </h2>
 <form (ngSubmit)="submit()">
+  @let copy = text().stays.pricing;
+  @let quote = previewState();
   <mat-dialog-content class="dialog-fields">
     @if (!stay.pricePending) {
       <mat-checkbox [checked]="pricePending()" (change)="pricePending.set($event.checked)">
         {{ text().stays.pricing.markPricePending }}
       </mat-checkbox>
+    }
+    @if (stay.pricePending) {
+      @switch (quote.status) {
+        @case ('loading') {
+          <app-ui-state kind="loading" [message]="copy.loading" />
+        }
+        @case ('error') {
+          <app-ui-state
+            kind="error"
+            [message]="copy.errors.previewFailed"
+            [actionLabel]="text().entityDetail.retry"
+            (actionTriggered)="loadPreview()"
+          />
+        }
+        @case ('no-longer-pending') {
+          <app-ui-state kind="error" [message]="copy.pendingPriceNoLongerPending" />
+        }
+        @case ('loaded') {
+          @let price = quote.price;
+          @let legAmount = price.transferWaived ? '0' : price.retainedTransferRate;
+          <dl class="price-breakdown">
+            <div>
+              <dt>{{ copy.nights }}</dt>
+              <dd>{{ price.numberOfNights }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.retainedRate }}</dt>
+              <dd>{{ formatAmount(price.retainedNightlyRate) }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.accommodation }}</dt>
+              <dd>{{ formatAmount(price.accommodationSuggestedAmount) }}</dd>
+            </div>
+            @if (price.arrivalTransferRequired) {
+              <div>
+                <dt>{{ copy.arrivalTransfer }}</dt>
+                <dd>{{ formatAmount(legAmount) }}</dd>
+              </div>
+            }
+            @if (price.departureTransferRequired) {
+              <div>
+                <dt>{{ copy.departureTransfer }}</dt>
+                <dd>{{ formatAmount(legAmount) }}</dd>
+              </div>
+            }
+            @if (price.arrivalTransferRequired || price.departureTransferRequired) {
+              <div>
+                <dt>{{ price.transferWaived ? copy.transferWaived : copy.transfer }}</dt>
+                <dd>{{ formatAmount(price.transferSuggestedAmount) }}</dd>
+              </div>
+            }
+            <div class="price-breakdown-total">
+              <dt>{{ copy.suggestion }}</dt>
+              <dd>{{ formatAmount(price.suggestedAmount) }}</dd>
+            </div>
+          </dl>
+          @if (price.suggestedAmount; as suggestedAmount) {
+            <button
+              mat-stroked-button
+              class="use-suggestion"
+              type="button"
+              [disabled]="submitting()"
+              (click)="amount.set(suggestedAmount)"
+            >
+              {{ copy.useSuggestedAmount }}
+            </button>
+          }
+        }
+      }
     }
     @if (!pricePending()) {
       <mat-form-field appearance="outline">
@@ -30,29 +101,57 @@
         }
       </mat-form-field>
     }
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().stays.pricing.correctionReason }}</mat-label
-      ><textarea
-        matInput
-        name="correctionReason"
-        rows="3"
-        [required]="changed()"
-        [errorStateMatcher]="matcher"
-        [ngModel]="reason()"
-        (ngModelChange)="reason.set($event)"
-      ></textarea>
-      @if (attempted() && changed() && !reason().trim()) {
-        <mat-error>{{ text().stays.pricing.errors.correctionReasonRequired }}</mat-error>
-      }
-    </mat-form-field>
+    @if (!stay.pricePending || reasonRequired()) {
+      @let firstConfirmation = stay.pricePending && !preview()?.previouslyAgreed;
+      <mat-form-field appearance="outline">
+        <mat-label>{{ firstConfirmation ? copy.reason : copy.correctionReason }}</mat-label>
+        <textarea
+          matInput
+          name="correctionReason"
+          rows="3"
+          [required]="reasonRequired()"
+          [errorStateMatcher]="matcher"
+          [ngModel]="reason()"
+          (ngModelChange)="reason.set($event)"
+        ></textarea>
+        @if (attempted() && reasonRequired() && !reason().trim()) {
+          <mat-error>
+            {{
+              firstConfirmation ? copy.errors.reasonRequired : copy.errors.correctionReasonRequired
+            }}
+          </mat-error>
+        }
+      </mat-form-field>
+    }
     @if (error(); as message) {
       <app-ui-state kind="error" [message]="message" />
-    }</mat-dialog-content
-  ><mat-dialog-actions align="end"
-    ><button mat-button type="button" [disabled]="submitting()" [mat-dialog-close]="undefined">
-      {{ text().stays.pricing.cancelCorrection }}</button
-    ><button mat-flat-button type="submit" [disabled]="submitting()">
-      {{ submitting() ? text().stays.pricing.correctionSubmitting : text().stays.pricing.correct }}
-    </button></mat-dialog-actions
-  >
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button
+      mat-button
+      type="button"
+      [disabled]="submitting()"
+      [mat-dialog-close]="
+        stay.pricePending && quote.status === 'no-longer-pending' ? 'reload' : undefined
+      "
+    >
+      {{
+        stay.pricePending && quote.status === 'no-longer-pending'
+          ? text().stays.pricingPage.back
+          : copy.cancelCorrection
+      }}
+    </button>
+    <button
+      mat-flat-button
+      type="submit"
+      [disabled]="submitting() || (stay.pricePending && quote.status !== 'loaded')"
+    >
+      @if (stay.pricePending) {
+        {{ submitting() ? copy.pendingPriceSubmitting : copy.confirmPendingPrice }}
+      } @else {
+        {{ submitting() ? copy.correctionSubmitting : copy.correct }}
+      }
+    </button>
+  </mat-dialog-actions>
 </form>

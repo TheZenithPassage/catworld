@@ -17,8 +17,10 @@ public class MonthlyPaymentsController {
 
 
     @GetMapping("/outstanding")
-    public MonthlyCollections outstanding(@RequestParam String month, @RequestParam(defaultValue = "0") int page) {
-        return monthlyPaymentsService.getCollections(month, page);
+    public MonthlyCollections outstanding(@RequestParam(required = false) String month,
+                                          @RequestParam(defaultValue = "month") String scope,
+                                          @RequestParam(defaultValue = "0") int page) {
+        return monthlyPaymentsService.getCollections(month, scope, page);
     }
 
     @GetMapping("/received")

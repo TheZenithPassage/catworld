@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -17,9 +18,17 @@ import { MatInput } from '@angular/material/input';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
-import { Stay } from '../../models/stay.model';
+import {
+  isStalePricingConfirmationError,
+  PendingPricePreview,
+  Stay,
+} from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { sameWholeMoney } from '../../utils/stay-money.util';
+
+type PreviewState =
+  | { status: 'loading' | 'error' | 'no-longer-pending' }
+  | { status: 'loaded'; price: PendingPricePreview };
 
 @Component({
   selector: 'app-agreed-amount-correction-dialog',
@@ -42,16 +51,22 @@ import { sameWholeMoney } from '../../utils/stay-money.util';
 })
 export class AgreedAmountCorrectionDialog {
   private readonly api = inject(StayApiService);
-  private readonly ref = inject(MatDialogRef<AgreedAmountCorrectionDialog, Stay>);
+  private readonly ref = inject(MatDialogRef<AgreedAmountCorrectionDialog, Stay | 'reload'>);
   readonly stay = inject<Stay>(MAT_DIALOG_DATA);
   private readonly i18n = inject(I18nService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly text = this.i18n.text;
   readonly pricePending = signal(false);
   readonly amount = signal(this.stay.agreedAmount ?? '');
   readonly reason = signal('');
   readonly attempted = signal(false);
   readonly submitting = signal(false);
+  readonly previewState = signal<PreviewState>({ status: 'loading' });
   readonly error = createLanguageResetError(this.i18n.language);
+  readonly preview = computed(() => {
+    const state = this.previewState();
+    return state.status === 'loaded' ? state.price : null;
+  });
   readonly amountValid = computed(() => /^\d{1,19}$/.test(this.amount()));
   readonly changed = computed(
     () =>
@@ -60,15 +75,56 @@ export class AgreedAmountCorrectionDialog {
         (this.stay.agreedAmount === null ||
           !sameWholeMoney(this.amount(), this.stay.agreedAmount))),
   );
+  readonly reasonRequired = computed(() => {
+    if (!this.stay.pricePending) return this.changed();
+    const preview = this.preview();
+    return (
+      preview !== null &&
+      (preview.previouslyAgreed ||
+        (this.amountValid() &&
+          preview.suggestedAmount !== null &&
+          !sameWholeMoney(this.amount(), preview.suggestedAmount)))
+    );
+  });
   readonly matcher: ErrorStateMatcher = {
     isErrorState: (control) => this.attempted() && Boolean(control?.invalid),
   };
+
+  constructor() {
+    if (this.stay.pricePending) this.loadPreview();
+  }
+
+  loadPreview(): void {
+    this.previewState.set({ status: 'loading' });
+    this.api
+      .previewPendingPrice(this.stay.stayId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (price) => this.previewState.set({ status: 'loaded', price }),
+        error: (error) =>
+          this.previewState.set({
+            status: isStalePricingConfirmationError(error) ? 'no-longer-pending' : 'error',
+          }),
+      });
+  }
+
+  formatAmount(value: string | null): string {
+    return value === null
+      ? this.text().stays.pricing.unavailable
+      : new Intl.NumberFormat(this.i18n.dateLocale()).format(BigInt(value));
+  }
+
   submit(): void {
-    if (this.submitting()) return;
+    const preview = this.preview();
+    if (this.submitting() || (this.stay.pricePending && !preview)) return;
     this.attempted.set(true);
     this.error.set(null);
-    if ((!this.pricePending() && !this.amountValid()) || (this.changed() && !this.reason().trim()))
+    if (
+      (!this.pricePending() && !this.amountValid()) ||
+      (this.reasonRequired() && !this.reason().trim())
+    )
       return;
+    const reason = this.stay.pricePending && !this.reasonRequired() ? null : this.reason().trim();
     this.submitting.set(true);
     this.ref.disableClose = true;
     this.api
@@ -76,13 +132,23 @@ export class AgreedAmountCorrectionDialog {
         this.stay.stayId,
         this.pricePending()
           ? { pricePending: true, reason: this.reason().trim() }
-          : { agreedAmount: this.amount(), reason: this.reason().trim() || null },
+          : {
+              agreedAmount: this.amount(),
+              reason: reason || null,
+              ...(preview ? { expectedPendingPriceVersion: preview.version } : {}),
+            },
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (stay) => this.ref.close(stay),
         error: (error) => {
           this.submitting.set(false);
           this.ref.disableClose = false;
+          if (preview && isStalePricingConfirmationError(error)) {
+            this.error.set(this.text().stays.pricing.staleUpdate);
+            this.loadPreview();
+            return;
+          }
           this.error.set(this.errorMessage(error));
         },
       });
