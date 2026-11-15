@@ -91,7 +91,7 @@ describe('StayPayments', () => {
     expect(host.textContent).toContain('10');
     expect(host.textContent).toContain('admin');
     expect(host.textContent).toContain('05/08/2026');
-    expect(host.textContent).toMatch(/6 (Aug|ago) 2026/i);
+    expect(host.textContent).toContain('6 de ago de 2026, 06:00');
     host.querySelector<HTMLButtonElement>('[data-payment-action="register"]')!.click();
     expect(dialog.open).toHaveBeenCalledWith(
       PaymentActionDialog,

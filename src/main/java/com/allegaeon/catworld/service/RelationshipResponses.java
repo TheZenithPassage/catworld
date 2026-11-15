@@ -6,6 +6,7 @@ import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Stay;
 import org.springframework.data.domain.Page;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.function.Function;
 
@@ -27,8 +28,8 @@ final class RelationshipResponses {
                 cat.getOwner().getId(), cat.getOwner().getFullName());
     }
 
-    static StayRelationshipItem stay(Stay stay) {
-        return new StayRelationshipItem(stay.getId(), stay.getStartAt(), stay.getEndAt(), stay.getStatus());
+    static StayRelationshipItem stay(Stay stay, LocalDateTime now) {
+        return new StayRelationshipItem(stay.getId(), stay.getStartAt(), stay.getEndAt(), stay.statusAt(now));
     }
 
     static <S, T> RelationshipPreview<T> preview(Page<S> source, Function<S, T> mapper) {

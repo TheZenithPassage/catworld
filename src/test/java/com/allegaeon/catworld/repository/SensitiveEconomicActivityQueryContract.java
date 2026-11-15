@@ -20,8 +20,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -312,7 +312,7 @@ final class SensitiveEconomicActivityQueryContract {
         jdbc.update("INSERT INTO owners (id,full_name,primary_phone,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,?)",
                 bytes(f.ownerId()), "Current Owner", "1", bytes(f.actorId()), timestamp(REGISTERED_AT), timestamp(REGISTERED_AT));
         jdbc.update("INSERT INTO stays (id,start_at,end_at,owner_id,created_by_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
-                bytes(f.stayId()), Timestamp.valueOf(from.atTime(23,59)), Timestamp.valueOf(to.atStartOfDay()),
+                bytes(f.stayId()), from.atTime(23, 59), to.atStartOfDay(),
                 bytes(f.ownerId()), bytes(f.actorId()), timestamp(REGISTERED_AT), timestamp(REGISTERED_AT));
         assertEquals(5, service.getActivity(period).size());
         for (var mode : StayDateMatchMode.values()) {
@@ -357,7 +357,7 @@ final class SensitiveEconomicActivityQueryContract {
                 """,
                 bytes(contextId), bytes(fixture.stayId()),
                 bytes(fixture.ownerId()), "Deleted Owner",
-                Timestamp.valueOf(STAY_START), Timestamp.valueOf(STAY_END), null);
+                STAY_START, STAY_END, null);
         insertContextCat(
                 jdbc, contextId, fixture.secondCatId(), "Second Cat");
         insertContextCat(
@@ -442,8 +442,8 @@ final class SensitiveEconomicActivityQueryContract {
                 .array();
     }
 
-    private static Timestamp timestamp(Instant instant) {
-        return Timestamp.from(instant);
+    private static LocalDateTime timestamp(Instant instant) {
+        return LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
     }
 
     private static BigDecimal amount(String value) {

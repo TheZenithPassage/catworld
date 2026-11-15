@@ -36,6 +36,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.lang.reflect.Method;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -115,6 +116,7 @@ class StayPricingPersistenceTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbcTemplate.update("delete from stay_agreed_amount_corrections");
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");

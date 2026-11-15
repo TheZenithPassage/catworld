@@ -9,6 +9,7 @@ describe('toStayCalendarEvents', () => {
     const stay = createStay();
 
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [stay],
       colorAssignments: new Map(),
       displayMode: 'entry-exit-markers',
@@ -38,6 +39,7 @@ describe('toStayCalendarEvents', () => {
     });
 
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [stay],
       colorAssignments: new Map(),
       displayMode: 'daily-labels',
@@ -60,6 +62,7 @@ describe('toStayCalendarEvents', () => {
       mutedTextColor: '#123456',
     };
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [
         createStay({
           startAt: '2099-06-03T10:00:00',
@@ -83,6 +86,7 @@ describe('toStayCalendarEvents', () => {
 
   it('marks both directions on one same-day daily label', () => {
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [
         createStay({
           startAt: '2099-06-08T10:00:00',
@@ -99,6 +103,7 @@ describe('toStayCalendarEvents', () => {
 
   it('keeps entry and exit marker directions independent on the same day', () => {
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [
         createStay({
           startAt: '2099-06-08T10:00:00',
@@ -117,6 +122,7 @@ describe('toStayCalendarEvents', () => {
 
   it('uses fixed semantic colors for entry and exit markers instead of stay colors', () => {
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [createStay()],
       colorAssignments: new Map([
         [
@@ -154,6 +160,7 @@ describe('toStayCalendarEvents', () => {
     const stay = createStay();
 
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [stay],
       colorAssignments: new Map(),
       displayMode: 'entry-exit-markers',
@@ -178,6 +185,7 @@ describe('toStayCalendarEvents', () => {
     ],
   ])('places transfer indicators on only their compact boundaries', (overrides, indicators) => {
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [createStay(overrides)],
       colorAssignments: new Map(),
       displayMode: 'entry-exit-markers',
@@ -189,6 +197,7 @@ describe('toStayCalendarEvents', () => {
 
   it('marks both same-day daily-label boundaries and no interior daily label', () => {
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [
         createStay({
           startAt: '2099-06-03T10:00:00',
@@ -234,6 +243,7 @@ describe('toStayCalendarEvents', () => {
     };
 
     const events = toStayCalendarEvents({
+      businessNow: '2026-08-31T22:30:00',
       visibleStays: [],
       dailyAggregates: [aggregate],
       colorAssignments: new Map(),
@@ -270,6 +280,7 @@ describe('toStayCalendarEvents', () => {
   it('does not manufacture zero count events', () => {
     expect(
       toStayCalendarEvents({
+        businessNow: '2026-08-31T22:30:00',
         visibleStays: [createStay()],
         dailyAggregates: [{ date: '2099-06-03', participants: [], count: 0 }],
         colorAssignments: new Map(),

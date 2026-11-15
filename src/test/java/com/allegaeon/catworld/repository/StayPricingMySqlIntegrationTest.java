@@ -31,6 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -84,6 +85,7 @@ class StayPricingMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         when(clock.instant()).thenReturn(Instant.parse("2027-01-01T00:00:00Z"));
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from stay_agreed_amount_corrections");

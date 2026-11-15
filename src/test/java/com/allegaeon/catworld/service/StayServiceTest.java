@@ -206,6 +206,7 @@ public class StayServiceTest {
                 .thenCallRealMethod();
         lenient().when(stayMapper.calculateTransferSuggestedAmount(any(Stay.class))).thenCallRealMethod();
         lenient().when(clock.instant()).thenReturn(Instant.parse("2026-07-28T12:00:00Z"));
+        lenient().when(clock.getZone()).thenReturn(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
         lenient().when(stayPaymentRepository
                         .findAllByStay_IdOrderByCreatedAtAscIdAsc(any()))
                 .thenReturn(List.of());
@@ -220,7 +221,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowBadRequest_whenEndDateIsNotAfterStartDate() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2);
             LocalDateTime endAt = startAt.minusDays(1);
 
             assertThrows(BadRequestException.class, () -> {
@@ -236,7 +237,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowBadRequest_whenCatsHaveDifferentOwner() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2);
             LocalDateTime endAt = startAt.plusDays(7);
 
             Cat cat1 = Cat.builder()
@@ -269,7 +270,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenCatHasOverbooking() {
 
-            LocalDateTime existingStartAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime existingStartAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime existingEndAt = existingStartAt.plusDays(11);
             LocalDateTime requestedStartAt = existingStartAt.plusDays(8);
             LocalDateTime requestedEndAt = requestedStartAt.plusDays(7);
@@ -305,7 +306,7 @@ public class StayServiceTest {
         @Test
         public void shouldCreateStay_whenReceivingOnlyOneCat() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(18);
 
             Owner owner = Owner.builder()
@@ -369,7 +370,7 @@ public class StayServiceTest {
         @Test
         public void shouldCreateStay_whenReceivingMultipleCatsWithSameOwner() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(18);
 
             Owner owner = Owner.builder()
@@ -442,7 +443,7 @@ public class StayServiceTest {
         @Test
         public void shouldCreateStay_whenOverlappingStayIsCancelled() {
 
-            LocalDateTime requestedStartAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime requestedStartAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime requestedEndAt = requestedStartAt.plusDays(18);
             LocalDateTime cancelledStartAt = requestedStartAt.minusDays(1);
             LocalDateTime cancelledEndAt = requestedStartAt.plusDays(10);
@@ -471,7 +472,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(cancelledStartAt)
                     .endAt(cancelledEndAt)
-                    .cancelledAt(LocalDateTime.now().minusDays(1))
+                    .cancelledAt(LocalDateTime.now(clock).minusDays(1))
                     .build();
 
             linkStayAndCat(cancelledStay, cat);
@@ -581,7 +582,7 @@ public class StayServiceTest {
 
         @Test
         void creationWithoutConfiguredRateAllowsExplicitZeroAgreementForZeroNights() {
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2)
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2)
                     .withHour(8).withMinute(0).withSecond(0).withNano(0);
             LocalDateTime endAt = startAt.withHour(18);
             CreationFixture fixture = stubPricingCreation(
@@ -1221,7 +1222,7 @@ public class StayServiceTest {
 
         @Test
         void sameLocalDateTimeAndNotesChangeRequiresNoPricingDecisionOrEvent() {
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2)
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2)
                     .withHour(8).withMinute(0).withSecond(0).withNano(0);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
@@ -1957,7 +1958,7 @@ public class StayServiceTest {
         }
 
         private Stay correctionStay(String status, BigDecimal agreedAmount) {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(clock);
             LocalDateTime startAt = switch (status) {
                 case "RESERVED" -> now.plusDays(2);
                 case "CHECKED_IN" -> now.minusDays(1);
@@ -2222,8 +2223,8 @@ public class StayServiceTest {
         @Test
         void staffCannotMutateCheckedOutStay() {
             Stay stay = paymentStay(new BigDecimal("100"), false);
-            stay.setStartAt(LocalDateTime.now().minusDays(3));
-            stay.setEndAt(LocalDateTime.now().minusDays(1));
+            stay.setStartAt(LocalDateTime.now(clock).minusDays(3));
+            stay.setEndAt(LocalDateTime.now(clock).minusDays(1));
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
@@ -2485,7 +2486,7 @@ public class StayServiceTest {
         @Test
         void agreementFloorAlsoBlocksNightCountReconfirmation() {
             Stay stay = paymentStay(new BigDecimal("100"), false);
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2);
             stay.setStartAt(startAt);
             stay.setEndAt(startAt.plusDays(2));
             StayUpdateDTO request = StayUpdateDTO.builder()
@@ -2629,7 +2630,7 @@ public class StayServiceTest {
         }
 
         private Stay paymentStay(BigDecimal agreedAmount, boolean cancelled) {
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(clock);
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(now.plusDays(2))
@@ -2665,9 +2666,25 @@ public class StayServiceTest {
     class CancelStayTests {
 
         @Test
+        void cancelsAnOpenStayAtTheBusinessLocalTimeEvenAfterUtcMidnight() {
+            LocalDateTime businessNow = LocalDateTime.parse("2026-08-31T22:30:00");
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(businessNow.minusHours(1))
+                    .endAt(businessNow.plusHours(1)).build();
+            lenient().when(clock.instant()).thenReturn(Instant.parse("2026-09-01T01:30:00Z"));
+            lenient().when(clock.getZone()).thenReturn(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+
+            service.cancelStay(stay.getId());
+
+            assertEquals(businessNow, stay.getCancelledAt());
+        }
+
+
+        @Test
         public void shouldCancelStaySuccessfully() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(11);
 
             Stay stay = Stay.builder()
@@ -2692,14 +2709,14 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenStayIsAlreadyCancelled() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(11);
 
             Stay stay = Stay.builder()
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
-                    .cancelledAt(LocalDateTime.now().minusDays(1))
+                    .cancelledAt(LocalDateTime.now(clock).minusDays(1))
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -2711,7 +2728,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenStayIsCheckedOut() {
 
-            LocalDateTime startAt = LocalDateTime.now().minusDays(11);
+            LocalDateTime startAt = LocalDateTime.now(clock).minusDays(11);
             LocalDateTime endAt = startAt.plusDays(10);
 
             Stay stay = Stay.builder()
@@ -2735,8 +2752,8 @@ public class StayServiceTest {
         void deleteStayAuthorizesBeforeDeletingStay() {
 
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -2757,8 +2774,8 @@ public class StayServiceTest {
         void deleteStayDoesNotDeleteWhenAuthorizationFails() {
 
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -2779,8 +2796,8 @@ public class StayServiceTest {
         void deleteStayTranslatesIntegrityConflict() {
 
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -2798,7 +2815,7 @@ public class StayServiceTest {
         @Test
         void deleteStayAllowsAnyDynamicStatusWhenAuthorizationPasses() {
 
-            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime now = LocalDateTime.now(clock);
             List<Stay> stays = List.of(
                     stayWithCreator(now.plusDays(1), now.plusDays(5), now.minusHours(1)),
                     stayWithCreator(now.plusDays(1), now.plusDays(5), null),
@@ -2827,8 +2844,8 @@ public class StayServiceTest {
         @Test
         void operationalPaymentBlocksDeletionAfterAuthorization() {
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5), null);
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5), null);
             UserAccount actor = user(UserRole.ADMIN);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
@@ -2847,8 +2864,8 @@ public class StayServiceTest {
         @Test
         void historicalPaymentBlocksStaffButNotAdminAfterSafeRemoval() {
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5), null);
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5), null);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(stayPaymentRemovalRepository.existsByStayId(stay.getId()))
                     .thenReturn(true);
@@ -2878,8 +2895,8 @@ public class StayServiceTest {
         void getStayPassesAllowedCanDeleteToMapper() {
 
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
             StayResponseDTO expectedResponseDTO = new StayResponseDTO();
 
@@ -2898,8 +2915,8 @@ public class StayServiceTest {
         void getStayPassesDeniedCanDeleteToMapper() {
 
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
             StayResponseDTO expectedResponseDTO = new StayResponseDTO();
 
@@ -2918,8 +2935,8 @@ public class StayServiceTest {
         @Test
         void getStayUsesLoadedPaymentsForDeletionHint() {
             Stay stay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
             StayPayment payment = StayPayment.builder()
                     .id(UUID.randomUUID())
@@ -2951,12 +2968,12 @@ public class StayServiceTest {
         void getAllStaysCalculatesCanDeleteForEachStay() {
 
             Stay allowedStay = stayWithCreator(
-                    LocalDateTime.now().plusDays(1),
-                    LocalDateTime.now().plusDays(5),
+                    LocalDateTime.now(clock).plusDays(1),
+                    LocalDateTime.now(clock).plusDays(5),
                     null);
             Stay deniedStay = stayWithCreator(
-                    LocalDateTime.now().plusDays(6),
-                    LocalDateTime.now().plusDays(10),
+                    LocalDateTime.now(clock).plusDays(6),
+                    LocalDateTime.now(clock).plusDays(10),
                     null);
             StayResponseDTO allowedResponse = new StayResponseDTO();
             StayResponseDTO deniedResponse = new StayResponseDTO();
@@ -2985,7 +3002,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowBadRequest_whenEndDateIsNotAfterStartDate() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(2);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(2);
             LocalDateTime endAt = startAt.minusDays(1);
 
             assertThrows(BadRequestException.class, () -> {
@@ -3000,7 +3017,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenStayIsCancelled() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(4);
             LocalDateTime updateStartAt = endAt.plusDays(2);
             LocalDateTime updateEndAt = updateStartAt.plusDays(10);
@@ -3009,7 +3026,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
-                    .cancelledAt(LocalDateTime.now().minusDays(1))
+                    .cancelledAt(LocalDateTime.now(clock).minusDays(1))
                     .build();
 
             StayUpdateDTO requestDto = StayUpdateDTO.builder()
@@ -3026,9 +3043,9 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenStayIsCheckedOut() {
 
-            LocalDateTime startAt = LocalDateTime.now().minusDays(10);
+            LocalDateTime startAt = LocalDateTime.now(clock).minusDays(10);
             LocalDateTime endAt = startAt.plusDays(5);
-            LocalDateTime updateStartAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime updateStartAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime updateEndAt = updateStartAt.plusDays(10);
 
             Stay stay = Stay.builder()
@@ -3051,7 +3068,7 @@ public class StayServiceTest {
         @Test
         public void shouldThrowConflict_whenCatHasOverbooking() {
 
-            LocalDateTime overbookingStartAt = LocalDateTime.now().plusDays(10);
+            LocalDateTime overbookingStartAt = LocalDateTime.now(clock).plusDays(10);
             LocalDateTime overbookingEndAt = overbookingStartAt.plusDays(11);
             LocalDateTime stayToModifyStartAt = overbookingEndAt.plusDays(10);
             LocalDateTime stayToModifyEndAt = stayToModifyStartAt.plusDays(11);
@@ -3103,7 +3120,7 @@ public class StayServiceTest {
         @Test
         public void shouldUpdateStaySuccessfully() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(41);
             LocalDateTime updateStartAt = startAt.plusDays(8);
             LocalDateTime updateEndAt = updateStartAt.plusDays(7);
@@ -3165,7 +3182,7 @@ public class StayServiceTest {
         @Test
         public void shouldUpdateStay_whenOnlyOverlapIsSameStay() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime endAt = startAt.plusDays(41);
             LocalDateTime updateStartAt = startAt.plusDays(8);
             LocalDateTime updateEndAt = updateStartAt.plusDays(7);
@@ -3226,7 +3243,7 @@ public class StayServiceTest {
         @Test
         public void shouldUpdateStay_whenOverlappingStayIsCancelled() {
 
-            LocalDateTime cancelledStartAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime cancelledStartAt = LocalDateTime.now(clock).plusDays(1);
             LocalDateTime cancelledEndAt = cancelledStartAt.plusDays(41);
             LocalDateTime activeStartAt = cancelledEndAt.plusDays(10);
             LocalDateTime activeEndAt = activeStartAt.plusDays(7);
@@ -3237,7 +3254,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(cancelledStartAt)
                     .endAt(cancelledEndAt)
-                    .cancelledAt(LocalDateTime.now().minusDays(1))
+                    .cancelledAt(LocalDateTime.now(clock).minusDays(1))
                     .build();
 
             Stay activeStay = Stay.builder()
@@ -3957,7 +3974,7 @@ public class StayServiceTest {
             Stay stay = Stay.builder().id(stayId).owner(owner)
                     .startAt(LocalDateTime.of(2030, 1, 1, 10, 0))
                     .endAt(LocalDateTime.of(2030, 1, 4, 9, 0))
-                    .cancelledAt(LocalDateTime.now()).notes("Quiet").build();
+                    .cancelledAt(LocalDateTime.now(clock)).notes("Quiet").build();
             Cat a = Cat.builder().id(UUID.randomUUID()).name("A").owner(owner).build();
             Cat b = Cat.builder().id(UUID.randomUUID()).name("B").owner(owner).build();
             when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
@@ -3977,7 +3994,7 @@ public class StayServiceTest {
             UUID stayId = UUID.randomUUID();
             Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").build();
             Stay stay = Stay.builder().id(stayId).owner(owner)
-                    .startAt(LocalDateTime.now().plusDays(1)).endAt(LocalDateTime.now().plusDays(2)).build();
+                    .startAt(LocalDateTime.now(clock).plusDays(1)).endAt(LocalDateTime.now(clock).plusDays(2)).build();
             List<Cat> cats = List.of("A", "B", "C", "D").stream()
                     .map(name -> Cat.builder().id(UUID.randomUUID()).name(name).owner(owner).build()).toList();
             when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
