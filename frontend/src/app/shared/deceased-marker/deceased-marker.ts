@@ -7,13 +7,15 @@ import { I18nService } from '../../core/i18n/i18n.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (deceased()) {
-      &ngsp;<span class="heart" role="img" [attr.aria-label]="text().entityDetail.deceased">♥</span>
+      &nbsp;<span class="heart" role="img" [attr.aria-label]="text().entityDetail.deceased">♥</span>
     }
   `,
   styles: `
     .heart {
       color: #000;
-      -webkit-text-stroke: 0.35px #fff;
+      font-size: 1.18em;
+      line-height: 1;
+      -webkit-text-stroke: 0.65px #fff;
     }
   `,
 })
