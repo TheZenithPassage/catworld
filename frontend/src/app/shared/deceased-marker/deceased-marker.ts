@@ -12,7 +12,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
   `,
   styles: `
     .heart {
-      margin-inline-start: -0.1em;
+      margin-inline-start: -0.25em;
       color: #000;
       font-size: 1.18em;
       line-height: 1;
