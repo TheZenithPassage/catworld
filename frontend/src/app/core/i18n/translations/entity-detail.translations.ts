@@ -6,6 +6,9 @@ export interface EntityDetailTranslations {
   stays: string;
   loading: string;
   empty: string;
+  recordStatus: string;
+  noLongerWithUs: string;
+  deceased: string;
   loadFailed: string;
   retry: string;
   associatedRecords: (count: number) => string;
@@ -26,6 +29,9 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     stays: 'Estadías',
     loading: 'Cargando registros relacionados…',
     empty: 'No hay registros relacionados.',
+    recordStatus: 'Estado',
+    noLongerWithUs: 'Ya no está entre nosotros',
+    deceased: 'Falleció',
     loadFailed: 'No se pudieron cargar los registros relacionados.',
     retry: 'Reintentar',
     associatedRecords: (count) => `Ver ${count} registros relacionados`,
@@ -47,6 +53,9 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     stays: 'Stays',
     loading: 'Loading related records…',
     empty: 'There are no related records.',
+    recordStatus: 'Status',
+    noLongerWithUs: 'No longer with us',
+    deceased: 'Deceased',
     loadFailed: 'Related records could not be loaded.',
     retry: 'Retry',
     associatedRecords: (count) => `View ${count} associated records`,

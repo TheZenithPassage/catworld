@@ -106,7 +106,8 @@
                 type="button"
                 (click)="showReference({ entityType: 'cat', entityId: item.id })"
               >
-                {{ item.name }} — {{ item.ownerName }}
+                {{ item.name }}<app-deceased-marker [deceased]="item.deceased" /> —
+                {{ item.ownerName }}<app-deceased-marker [deceased]="item.ownerDeceased" />
               </button>
             }
           }

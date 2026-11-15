@@ -1058,6 +1058,51 @@ describe('EntityDetailDialog', () => {
     expect(fixture.componentInstance.operationalError()).toBe(false);
   });
 
+  it('marks deceased tutors and cats in the lightweight Stay detail', async () => {
+    const detail = stayDetailResponse('stay-1');
+    stayApi.getStayDetail.mockReturnValue(
+      of({
+        ...detail,
+        owner: { ...detail.owner, deceased: true },
+        cats: {
+          totalElements: 2,
+          items: [
+            { ...catItem('cat-1'), deceased: true, ownerDeceased: true },
+            {
+              id: 'cat-2',
+              name: 'Luna',
+              ownerId: 'owner-2',
+              ownerName: 'Grace Hopper',
+              deceased: false,
+              ownerDeceased: false,
+            },
+          ],
+        },
+      }),
+    );
+    stayApi.getStayById.mockReturnValue(of(operationalStay));
+    await TestBed.configureTestingModule({
+      imports: [StayDetail],
+      providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(StayDetail);
+    fixture.componentRef.setInput('entityId', 'stay-1');
+    fixture.componentRef.setInput('editing', false);
+    fixture.detectChanges();
+    const deceased = fixture.componentInstance.text().entityDetail.deceased;
+    const markers = (name: string) =>
+      [...buttonContaining(fixture, name).querySelectorAll('[role="img"]')].map((marker) =>
+        marker.getAttribute('aria-label'),
+      );
+
+    expect(markers('Ada Lovelace')).toEqual([deceased]);
+    expect(markers('Milo')).toEqual([deceased, deceased]);
+    expect(markers('Luna')).toEqual([]);
+    expect(buttonContaining(fixture, 'Milo').textContent).toMatch(
+      /Milo\s*♥\s*—\s*Ada Lovelace\s*♥/,
+    );
+  });
+
   it.each([
     ['known', '100', true],
     ['null', null, false],

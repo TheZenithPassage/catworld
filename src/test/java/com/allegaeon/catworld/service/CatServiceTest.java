@@ -102,8 +102,8 @@ class CatServiceTest {
     void catLookupValidatesEscapesAndMapsOnlyCatMatchesWithOwnerContext() {
         assertThrows(BadRequestException.class, () -> service.searchCats(" ", 0));
         assertThrows(BadRequestException.class, () -> service.searchCats("m", -1));
-        Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Owner context").build();
-        Cat cat = Cat.builder().id(UUID.randomUUID()).name("Milo").owner(owner).build();
+        Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Owner context").deceased(true).build();
+        Cat cat = Cat.builder().id(UUID.randomUUID()).name("Milo").owner(owner).deceased(true).build();
         when(catRepository.search(eq("m!%!_!!"), any(Pageable.class))).thenReturn(new PageImpl<>(List.of(cat),
                 org.springframework.data.domain.PageRequest.of(0, 5), 8));
 
@@ -111,7 +111,7 @@ class CatServiceTest {
 
         assertEquals(5, result.pageSize());
         assertEquals(8, result.totalElements());
-        assertEquals(new CatLookupItem(cat.getId(), "Milo", owner.getId(), "Owner context"),
+        assertEquals(new CatLookupItem(cat.getId(), "Milo", owner.getId(), "Owner context", true, true),
                 result.items().getFirst());
     }
 

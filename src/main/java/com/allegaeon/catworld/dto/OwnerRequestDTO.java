@@ -14,6 +14,8 @@ public class OwnerRequestDTO {
     @Size(max = 100, message = "Full name must not exceed 100 characters")
     private String fullName;
 
+    private Boolean deceased;
+
     @Size(max = 100, message = "Address must not exceed 100 characters")
     private String address;
 

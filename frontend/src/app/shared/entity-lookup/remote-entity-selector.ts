@@ -25,11 +25,13 @@ import { ErrorStateMatcher, MatOption } from '@angular/material/core';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { Subscription } from 'rxjs';
 
+import { DeceasedMarker } from '../deceased-marker/deceased-marker';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../core/i18n/language-reset-error';
 import {
   EntityLookupAdapter,
   EntityLookupInitialSelection,
+  EntityLookupPresentation,
   EntityLookupState,
 } from './entity-lookup.models';
 
@@ -39,6 +41,7 @@ const PANEL_SCROLL_THRESHOLD_PX = 32;
 @Component({
   selector: 'app-remote-entity-selector',
   imports: [
+    DeceasedMarker,
     MatAutocomplete,
     MatAutocompleteTrigger,
     MatButton,
@@ -114,6 +117,16 @@ export class RemoteEntitySelector<T> {
     if (value === null) return '';
     return typeof value === 'string' ? value : this.adapter().present(value).selected;
   };
+
+  protected optionAriaLabel(result: EntityLookupPresentation): string | null {
+    const secondary = result.secondary ?? [];
+    if (!result.primaryDeceased && !secondary.some((item) => item.deceased)) return null;
+
+    const deceased = this.text().entityDetail.deceased;
+    return [{ label: result.primary, deceased: result.primaryDeceased }, ...secondary]
+      .map((item) => (item.deceased ? `${item.label}, ${deceased}` : item.label))
+      .join(', ');
+  }
 
   private readonly autocomplete = viewChild.required<MatAutocomplete>('autocomplete');
   private readonly lookupInput = viewChild.required<ElementRef<HTMLInputElement>>('lookupInput');

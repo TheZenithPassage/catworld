@@ -24,7 +24,8 @@ final class RelationshipResponses {
 
     static CatRelationshipItem cat(Cat cat) {
         return new CatRelationshipItem(cat.getId(), cat.getName(),
-                cat.getOwner().getId(), cat.getOwner().getFullName());
+                cat.getOwner().getId(), cat.getOwner().getFullName(), cat.isDeceased(),
+                cat.getOwner().isDeceased());
     }
 
     static StayRelationshipItem stay(Stay stay) {

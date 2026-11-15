@@ -303,19 +303,21 @@ public class StayServiceTest {
         }
 
         @Test
-        public void shouldCreateStay_whenReceivingOnlyOneCat() {
+        public void shouldCreateHistoricalStay_whenCatAndOwnerAreMarkedDeceased() {
 
-            LocalDateTime startAt = LocalDateTime.now().plusDays(1);
+            LocalDateTime startAt = LocalDateTime.of(2024, 4, 1, 12, 0);
             LocalDateTime endAt = startAt.plusDays(18);
 
             Owner owner = Owner.builder()
                     .id(UUID.randomUUID())
                     .fullName("Owner")
+                    .deceased(true)
                     .build();
 
             Cat cat = Cat.builder()
                     .id(UUID.randomUUID())
                     .name("Cat")
+                    .deceased(true)
                     .owner(owner)
                     .lastRabiesDate(endAt.toLocalDate())
                     .lastTripleFelineDate(endAt.toLocalDate())
@@ -3902,7 +3904,7 @@ public class StayServiceTest {
         @Test
         void derivesLightweightDetailAndIncludesOnlyCompleteSmallPreview() {
             UUID stayId = UUID.randomUUID();
-            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").build();
+            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").deceased(true).build();
             Stay stay = Stay.builder().id(stayId).owner(owner)
                     .startAt(LocalDateTime.of(2030, 1, 1, 10, 0))
                     .endAt(LocalDateTime.of(2030, 1, 4, 9, 0))
@@ -3919,6 +3921,7 @@ public class StayServiceTest {
             assertEquals(com.allegaeon.catworld.model.StayStatus.CANCELLED, result.status());
             assertEquals(2, result.cats().items().size());
             assertEquals("Ada", result.owner().fullName());
+            assertTrue(result.owner().deceased());
         }
 
         @Test
@@ -3932,7 +3935,9 @@ public class StayServiceTest {
             when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
             when(stayCatRepository.findCatsByStayId(stayId, PageRequest.of(0, 4)))
                     .thenReturn(new PageImpl<>(cats, PageRequest.of(0, 4), 4));
-            assertTrue(service.getStayDetail(stayId).cats().items().isEmpty());
+            StayDetailResponse result = service.getStayDetail(stayId);
+            assertTrue(result.cats().items().isEmpty());
+            assertFalse(result.owner().deceased());
             UUID missing = UUID.randomUUID();
             when(stayRepository.findById(missing)).thenReturn(Optional.empty());
             assertThrows(ResourceNotFoundException.class, () -> service.getStayCats(missing, -1));

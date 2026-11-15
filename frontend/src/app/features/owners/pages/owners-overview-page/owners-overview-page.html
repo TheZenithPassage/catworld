@@ -48,12 +48,26 @@
           class="overview-card selected-row contextual-selection"
           [id]="'owner-' + owner.id"
           tabindex="0"
-          [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
+          [attr.aria-label]="
+            text().owners.detail.openDetails +
+            ': ' +
+            owner.fullName +
+            (owner.deceased ? ', ' + text().entityDetail.deceased : '')
+          "
           (click)="openOwner(owner)"
           (keydown)="activateOwner($event, owner)"
         >
-          <h3>{{ owner.fullName }}</h3>
-          <p>{{ catNames(owner) }}</p>
+          <h3>{{ owner.fullName }}<app-deceased-marker [deceased]="owner.deceased" /></h3>
+          <p>
+            @for (cat of owner.cats; track cat.id; let last = $last) {
+              {{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" />
+              @if (!last) {
+                <ng-container>, </ng-container>
+              }
+            } @empty {
+              {{ text().owners.emptyValue }}
+            }
+          </p>
         </article>
       }
       @for (owner of owners(); track owner.id) {
@@ -62,12 +76,26 @@
           [id]="'owner-' + owner.id"
           [class.selected-row]="isSelectedOwner(owner)"
           tabindex="0"
-          [attr.aria-label]="text().owners.detail.openDetails + ': ' + owner.fullName"
+          [attr.aria-label]="
+            text().owners.detail.openDetails +
+            ': ' +
+            owner.fullName +
+            (owner.deceased ? ', ' + text().entityDetail.deceased : '')
+          "
           (click)="openOwner(owner)"
           (keydown)="activateOwner($event, owner)"
         >
-          <h3>{{ owner.fullName }}</h3>
-          <p>{{ catNames(owner) }}</p>
+          <h3>{{ owner.fullName }}<app-deceased-marker [deceased]="owner.deceased" /></h3>
+          <p>
+            @for (cat of owner.cats; track cat.id; let last = $last) {
+              {{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" />
+              @if (!last) {
+                <ng-container>, </ng-container>
+              }
+            } @empty {
+              {{ text().owners.emptyValue }}
+            }
+          </p>
         </article>
       }
     </div>

@@ -46,7 +46,8 @@
     @if (selectedOwnerId()) {
       <div class="cat-group">
         <h3 id="stay-cat-selection-title" class="cat-group-title">
-          {{ text().stays.create.catsForOwner }} {{ selectedOwner()?.fullName }}
+          {{ text().stays.create.catsForOwner }} {{ selectedOwner()?.fullName
+          }}<app-deceased-marker [deceased]="selectedOwner()?.deceased" />
         </h3>
 
         <div class="cat-selection" role="group" aria-labelledby="stay-cat-selection-title">
@@ -63,7 +64,9 @@
                   (click)="toggleCatFromPill($event, cat.id)"
                   (change)="onCatToggle(cat.id, $event.checked)"
                 >
-                  <span class="cat-option-label">{{ cat.name }}</span>
+                  <span class="cat-option-label"
+                    >{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased"
+                  /></span>
                 </mat-checkbox>
               }
             }

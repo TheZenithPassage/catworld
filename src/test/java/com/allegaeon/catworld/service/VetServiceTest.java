@@ -107,7 +107,7 @@ class VetServiceTest {
 
         assertSame(response, result.vet());
         assertEquals(1, result.cats().totalElements());
-        assertEquals(new CatRelationshipItem(cat.getId(), "Milo", owner.getId(), "Owner Name"),
+        assertEquals(new CatRelationshipItem(cat.getId(), "Milo", owner.getId(), "Owner Name", false, false),
                 result.cats().items().get(0));
     }
 
