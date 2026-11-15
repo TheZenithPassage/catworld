@@ -103,7 +103,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"),
                 jdbc.queryForList("""
                         select version from flyway_schema_history
-                        where success = 1 and cast(version as unsigned) <= 12
+                        where success = 1 and cast(version as unsigned) <= 13
                         order by installed_rank
                         limit 13
                         """, String.class));
