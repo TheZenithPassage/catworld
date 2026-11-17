@@ -1,5 +1,5 @@
 <section class="cat-photo-input" aria-live="polite">
-  <h3>{{ text().cats.photo.label }}</h3>
+  <h3>{{ photoLabel() ?? text().cats.photo.label }}</h3>
   <input
     #fileInput
     class="native-photo-input"
@@ -15,7 +15,7 @@
       <img
         class="photo-preview"
         [src]="url"
-        [alt]="text().cats.photo.previewAlt"
+        [alt]="previewAlt() ?? text().cats.photo.previewAlt"
         (error)="previewFailed(url)"
       />
     } @else {
@@ -45,14 +45,16 @@
       <button mat-stroked-button type="button" [disabled]="disabled()" (click)="fileInput.click()">
         {{ text().cats.photo.replace }}
       </button>
-      <button
-        mat-stroked-button
-        type="button"
-        [disabled]="disabled()"
-        (click)="markSavedPhotoForRemoval()"
-      >
-        {{ text().cats.photo.removeSaved }}
-      </button>
+      @if (allowSavedRemoval()) {
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="disabled()"
+          (click)="markSavedPhotoForRemoval()"
+        >
+          {{ text().cats.photo.removeSaved }}
+        </button>
+      }
     </div>
   } @else {
     <div class="photo-actions">

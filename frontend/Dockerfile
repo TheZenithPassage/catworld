@@ -23,6 +23,12 @@ LABEL org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" 
       org.opencontainers.image.revision="${SOURCE_SHA}" \
       org.opencontainers.image.version="${RELEASE_TAG}"
 
+COPY nginx-gallery.conf /etc/nginx/conf.d/gallery.conf
+COPY public-site/ /usr/share/nginx/public-site/
+COPY docker-entrypoint.d/41-public-gallery-config.sh /docker-entrypoint.d/41-public-gallery-config.sh
+RUN chmod +x /docker-entrypoint.d/41-public-gallery-config.sh
+EXPOSE 8081
+
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY --from=build /tmp/frontend-build /usr/share/nginx/html

@@ -131,6 +131,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'gallery-publications',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/public-gallery/gallery-publication-page').then(
+        (m) => m.GalleryPublicationPage,
+      ),
+  },
+  {
     path: '**',
     redirectTo: '',
   },

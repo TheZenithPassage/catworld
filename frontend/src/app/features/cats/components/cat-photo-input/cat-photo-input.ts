@@ -26,6 +26,9 @@ export class CatPhotoInput implements OnDestroy {
   private readonly i18n = inject(I18nService);
   readonly savedHasPhoto = input(false);
   readonly disabled = input(false);
+  readonly allowSavedRemoval = input(true);
+  readonly photoLabel = input<string>();
+  readonly previewAlt = input<string>();
   readonly text = this.i18n.text;
   readonly selectedFile = signal<File | null>(null);
   readonly removePhoto = signal(false);

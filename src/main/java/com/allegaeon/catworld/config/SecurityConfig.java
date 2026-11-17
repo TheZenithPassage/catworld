@@ -38,6 +38,9 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/public-gallery", "/api/public-gallery/*/photo").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/public-gallery", "/api/public-gallery/*/photo").permitAll()
+                        .requestMatchers("/api/gallery-publications", "/api/gallery-publications/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates")
                         .hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")

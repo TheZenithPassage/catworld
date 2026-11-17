@@ -7,7 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:ci": "ng test --watch=false",
+    "test:ci": "ng test --watch=false && node --test scripts/public-site.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
