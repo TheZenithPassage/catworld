@@ -40,7 +40,6 @@ export interface StayOverviewFilters extends StayDateFilters {
   statuses: StayOverviewStatus[];
   ownerId: string | null;
   catId: string | null;
-  paymentConditions: string[];
 }
 
 @Injectable({
@@ -63,7 +62,6 @@ export class StayApiService {
         page,
         ...dateParams(filters),
         status: filters.statuses,
-        paymentCondition: filters.paymentConditions,
         ...(filters.ownerId ? { ownerId: filters.ownerId } : {}),
         ...(filters.catId ? { catId: filters.catId } : {}),
       },

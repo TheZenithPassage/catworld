@@ -45,7 +45,6 @@ export interface Stay {
   totalPaid: MonetaryAmount;
   remainingAmount: MonetaryAmount | null;
   paymentCondition: PaymentCondition;
-  outstandingCollectionEligible: boolean;
   payments: StayPayment[];
 }
 

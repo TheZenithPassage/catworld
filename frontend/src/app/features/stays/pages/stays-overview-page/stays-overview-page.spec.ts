@@ -50,8 +50,6 @@ describe('StaysOverviewPage server paging', () => {
           catId: `c-${index}`,
           name: `Stay Cat ${index + 1}`,
         })),
-        paymentCondition: 'NO_PAYMENT',
-        outstandingCollectionEligible: false,
       }),
     );
     await TestBed.configureTestingModule({
@@ -72,7 +70,7 @@ describe('StaysOverviewPage server paging', () => {
       ],
     }).compileComponents();
   });
-  it('encodes defaults, preserves selected identifier, resets membership filters, and clamps', () => {
+  it('encodes defaults, preserves the selected identifier and clamps the page', () => {
     api.getStayOverview
       .mockReturnValueOnce(of({ items: [], page: 2, pageSize: 10, totalElements: 11 }))
       .mockReturnValueOnce(
@@ -100,12 +98,6 @@ describe('StaysOverviewPage server paging', () => {
     expect(api.getStayOverview.mock.calls[0][1].statuses).toEqual(['RESERVED', 'CHECKED_IN']);
     expect(f.componentInstance.page()).toBe(1);
     expect(f.componentInstance.isSelectedStay(f.componentInstance.stays()[0])).toBe(true);
-    f.componentInstance.setPaymentConditionVisibility('FULL_PAYMENT', false);
-    f.componentInstance.applyFilters();
-    expect(api.getStayOverview).toHaveBeenCalledWith(
-      0,
-      expect.objectContaining({ paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'] }),
-    );
   });
   it('clamps an empty matching population to page zero and clears the synchronized page', () => {
     api.getStayOverview
@@ -132,7 +124,6 @@ describe('StaysOverviewPage server paging', () => {
       statuses: ['RESERVED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'],
       ownerId: null,
       catId: null,
-      paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
     });
     expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
     expect(f.nativeElement.textContent).not.toContain(
@@ -230,7 +221,7 @@ describe('StaysOverviewPage server paging', () => {
       convertToParamMap({
         selectedStayId: 's',
         page: '2',
-        paymentFilter: 'NO_PAYMENT',
+        paymentFilter: 'none',
         outstandingOnly: 'true',
       }),
     );
@@ -255,7 +246,7 @@ describe('StaysOverviewPage server paging', () => {
     const f = TestBed.createComponent(StaysOverviewPage);
     f.detectChanges();
     const contextual = f.nativeElement.querySelector('.contextual-selection');
-    expect(api.getStayOverview.mock.calls[0][1].paymentConditions).toEqual(['NO_PAYMENT']);
+    expect(api.getStayOverview.mock.calls[0][1]).not.toHaveProperty('paymentConditions');
     expect(api.getStayOverview.mock.calls[0][1]).not.toHaveProperty('outstandingOnly');
     expect(api.getStayDetail).toHaveBeenCalledWith('s');
     expect(api.getStayById).toHaveBeenCalledWith('s');
@@ -274,8 +265,6 @@ describe('StaysOverviewPage server paging', () => {
         endAt: '2099-01-02T10:00:00',
         ownerId: 'o',
         cats: [{ catId: 'c', name: 'Milo' }],
-        paymentCondition: 'NO_PAYMENT',
-        outstandingCollectionEligible: false,
         arrivalTransferRequired: true,
       }),
     );
@@ -414,14 +403,13 @@ describe('StaysOverviewPage server paging', () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
-  it('clears search and payment drafts while retaining applied criteria, status and route', async () => {
+  it('clears the search draft while retaining applied criteria, status and route', async () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const f = TestBed.createComponent(StaysOverviewPage);
     f.detectChanges();
     await f.whenStable();
     const page = f.componentInstance;
     const applied = page.searchFilters();
-    const payments = page.paymentFilters();
     const statuses = page.statusVisibility();
     page.setSearchFilters({
       catId: 'draft-cat',
@@ -429,7 +417,6 @@ describe('StaysOverviewPage server paging', () => {
       dateFrom: '2030-01-01',
       dateMatchMode: 'STAY_WITHIN_RANGE',
     });
-    page.setPaymentConditionVisibility('NO_PAYMENT', false);
     f.detectChanges();
     api.getStayOverview.mockClear();
     navigate.mockClear();
@@ -443,9 +430,7 @@ describe('StaysOverviewPage server paging', () => {
       dateTo: '',
       dateMatchMode: 'OVERLAPS',
     });
-    expect(page.draftPaymentFilters().NO_PAYMENT).toBe(true);
     expect(page.searchFilters()).toEqual(applied);
-    expect(page.paymentFilters()).toEqual(payments);
     expect(page.statusVisibility()).toEqual(statuses);
     expect(navigate).not.toHaveBeenCalled();
     expect(api.getStayOverview).not.toHaveBeenCalled();
@@ -460,8 +445,6 @@ describe('StaysOverviewPage server paging', () => {
       await f.whenStable();
       const page = f.componentInstance;
       const applied = page.searchFilters();
-      const payment = page.paymentFilters();
-      page.setPaymentConditionVisibility('FULL_PAYMENT', false);
       const input = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
       input.value = date;
       input.dispatchEvent(new Event('input'));
@@ -477,14 +460,13 @@ describe('StaysOverviewPage server paging', () => {
       await f.whenStable();
       expect(f.nativeElement.querySelector('mat-error').textContent).toContain('2200');
       expect(page.searchFilters()).toEqual(applied);
-      expect(page.paymentFilters()).toEqual(payment);
       expect(navigate).not.toHaveBeenCalled();
       expect(api.getStayOverview).not.toHaveBeenCalled();
       expect(button.disabled).toBe(false);
     },
   );
 
-  it('applies status immediately from page zero without leaking invalid date, entity or payment drafts', async () => {
+  it('applies status immediately from page zero without leaking invalid date or entity drafts', async () => {
     api.getStayOverview.mockReturnValue(
       of({ items: [], page: 2, pageSize: 10, totalElements: 30 }),
     );
@@ -506,7 +488,6 @@ describe('StaysOverviewPage server paging', () => {
       dateFrom: '',
       dateMatchMode: 'RANGE_WITHIN_STAY',
     });
-    c.setPaymentConditionVisibility('FULL_PAYMENT', false);
     api.getStayOverview.mockReturnValue(EMPTY).mockClear();
     navigate.mockClear();
     visibility.store.mockClear();
@@ -520,7 +501,6 @@ describe('StaysOverviewPage server paging', () => {
       expect.objectContaining({
         ...applied,
         statuses: ['RESERVED'],
-        paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
       }),
     );
     expect(navigate).toHaveBeenLastCalledWith(
@@ -548,7 +528,6 @@ describe('StaysOverviewPage server paging', () => {
     f.detectChanges();
     await f.whenStable();
     expect(c.searchFilters()).toEqual(applied);
-    expect(c.paymentFilters().FULL_PAYMENT).toBe(true);
     expect(api.getStayOverview).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
     expect(f.nativeElement.querySelector('mat-error')).not.toBeNull();
@@ -563,7 +542,6 @@ describe('StaysOverviewPage server paging', () => {
     navigate.mockClear();
     visibility.store.mockClear();
     const c = f.componentInstance;
-    c.setPaymentConditionVisibility('FULL_PAYMENT', false);
     c.setSearchFilters({
       catId: null,
       ownerId: null,
@@ -581,7 +559,6 @@ describe('StaysOverviewPage server paging', () => {
       0,
       expect.objectContaining({
         statuses: ['RESERVED', 'CHECKED_IN'],
-        paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'],
         dateFrom: '2099-01-01',
         dateTo: '2099-01-02',
         dateMatchMode: 'STAY_WITHIN_RANGE',
@@ -642,7 +619,6 @@ describe('StaysOverviewPage server paging', () => {
       dateMatchMode: 'STAY_WITHIN_RANGE' as const,
     };
     f.componentInstance.setSearchFilters(draft);
-    f.componentInstance.setPaymentConditionVisibility('NO_PAYMENT', false);
     f.detectChanges();
     expect(queryParams.value).toBe(before);
     expect(navigate).not.toHaveBeenCalled();
@@ -662,7 +638,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(queryParams.value.get('dateMatchMode')).toBe(draft.dateMatchMode);
     expect(queryParams.value.get('ownerId')).toBe('o');
     expect(queryParams.value.get('statusFilter')).toBe('RESERVED,CHECKED_IN');
-    expect(queryParams.value.get('paymentFilter')).toBe('PARTIAL_PAYMENT,FULL_PAYMENT');
+    expect(queryParams.value.get('paymentFilter')).toBeNull();
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(api.getStayOverview).toHaveBeenCalledTimes(1);
     expect(api.getStayOverview).toHaveBeenCalledWith(0, expect.objectContaining(draft));

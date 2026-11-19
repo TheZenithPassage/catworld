@@ -159,7 +159,6 @@ describe('EntityDetailDialog', () => {
     totalPaid: '0',
     remainingAmount: null,
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: false,
     payments: [],
   };
   const beforeClosed = new Subject<void>();
@@ -1979,7 +1978,6 @@ describe('Route-free StayEditor migrated coverage', () => {
     totalPaid: '0',
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [],
   };
 

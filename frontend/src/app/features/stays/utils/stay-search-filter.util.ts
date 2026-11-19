@@ -1,20 +1,4 @@
-import { PaymentCondition, Stay } from '../models/stay.model';
-
-export const PAYMENT_CONDITION_FILTER_OPTIONS: readonly PaymentCondition[] = [
-  'NO_PAYMENT',
-  'PARTIAL_PAYMENT',
-  'FULL_PAYMENT',
-];
-
-export type PaymentConditionVisibility = Record<PaymentCondition, boolean>;
-
-export function getDefaultStayPaymentFilters(): PaymentConditionVisibility {
-  return {
-    NO_PAYMENT: true,
-    PARTIAL_PAYMENT: true,
-    FULL_PAYMENT: true,
-  };
-}
+import { Stay } from '../models/stay.model';
 
 export {
   DATE_MATCH_MODES,

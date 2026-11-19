@@ -50,7 +50,6 @@ describe('StayPayments', () => {
     totalPaid: '10',
     remainingAmount: '10',
     paymentCondition: 'PARTIAL_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [payment, annulled],
   };
   const api = {
