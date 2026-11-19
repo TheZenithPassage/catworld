@@ -124,18 +124,19 @@ describe('MonthlyPaymentsPage', () => {
     });
   }
 
+  const pendingStay = {
+    stayId: 'stay-1',
+    arrival: '2020-10-30T15:30:00',
+    ownerName: 'Example Owner',
+    cats: ['Luna', 'Mora'],
+    agreedAmount: null,
+    paidAmount: '30',
+    remainingAmount: null,
+    notes: 'Traslado de llegada',
+    started: true,
+  };
+
   function respondWithCollections(page: number, all = false): void {
-    const pendingStay = {
-      stayId: 'stay-1',
-      arrival: '2020-10-30T15:30:00',
-      ownerName: 'Example Owner',
-      cats: ['Luna', 'Mora'],
-      agreedAmount: null,
-      paidAmount: '30',
-      remainingAmount: null,
-      notes: 'Traslado de llegada',
-      started: true,
-    };
     const items =
       page === 0
         ? Array.from({ length: 10 }, (_, index) => ({
@@ -154,12 +155,70 @@ describe('MonthlyPaymentsPage', () => {
             !req.params.has('month'),
         )
       : expectPayments('outstanding', '2020-10', page);
+    expect(request.request.params.has('pricePendingOnly')).toBe(false);
     request.flush({
       stays: { items, page, pageSize: 10, totalElements: 11 },
       knownTotal: '300',
       pendingPriceCount: 1,
     });
   }
+
+  it.each(['month', 'all'])(
+    'opens pending prices across the %s scope and keeps the filter usable after the last confirmation',
+    async (scope) => {
+      const all = scope === 'all';
+      const url = '/payments?month=2020-10&tab=outstanding&page=0' + (all ? '&scope=all' : '');
+      const harness = await RouterTestingHarness.create(url);
+      respondWithCollections(0, all);
+      harness.detectChanges();
+      const filterButton = () =>
+        harness.routeNativeElement!.querySelector<HTMLButtonElement>('.monthly-total button')!;
+      const filteredRequest = () =>
+        http.expectOne(
+          (req) =>
+            req.url === `${API_BASE_URL}/payments/outstanding` &&
+            req.params.get('pricePendingOnly') === 'true' &&
+            req.params.get('page') === '0' &&
+            req.params.get('month') === (all ? null : '2020-10') &&
+            req.params.get('scope') === (all ? 'all' : null),
+        );
+
+      expect(filterButton().textContent).toContain('1 estadía con precio por definir');
+      filterButton().click();
+      await harness.fixture.whenStable();
+      const filteredUrl = url + '&pricePendingOnly=true';
+      expect(router.url).toBe(filteredUrl);
+      filteredRequest().flush({
+        stays: { items: [pendingStay], page: 0, pageSize: 10, totalElements: 1 },
+        knownTotal: '300',
+        pendingPriceCount: 1,
+      });
+      harness.detectChanges();
+      expect(filterButton().getAttribute('aria-pressed')).toBe('true');
+      expect(
+        harness.routeNativeElement!.querySelector('.monthly-total strong')?.textContent,
+      ).toContain('300');
+      expect(harness.routeNativeElement!.querySelectorAll('tbody tr')).toHaveLength(1);
+      await openPricing(harness);
+      expect(location.getState()).toMatchObject({ stayPricingOrigin: filteredUrl });
+      harness.routeNativeElement!.querySelector<HTMLButtonElement>('.form-back-link')!.click();
+      await harness.fixture.whenStable();
+      expect(router.url).toBe(filteredUrl);
+      filteredRequest().flush({
+        stays: { items: [], page: 0, pageSize: 10, totalElements: 0 },
+        knownTotal: '360',
+        pendingPriceCount: 0,
+      });
+      harness.detectChanges();
+      expect(harness.routeNativeElement!.textContent).toContain(
+        'No quedan estadías con precio por definir',
+      );
+      filterButton().click();
+      await harness.fixture.whenStable();
+      expect(router.url).toBe(url);
+      respondWithCollections(0, all);
+    },
+  );
 
   async function openPricing(harness: RouterTestingHarness): Promise<void> {
     const link = harness.routeNativeElement!.querySelector<HTMLAnchorElement>('tbody a')!;

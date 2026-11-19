@@ -11,6 +11,8 @@ export const MONTHLY_PAYMENTS_TRANSLATIONS = {
     outstandingTotal: 'Total pendiente conocido',
     pendingPriceCount: (count: number) =>
       count === 1 ? '1 estadía con precio por definir' : `${count} estadías con precio por definir`,
+    clearFilter: 'Quitar filtro',
+    emptyPendingPrice: 'No quedan estadías con precio por definir en esta selección.',
     emptyOutstanding: 'No hay estadías pendientes en este mes.',
     emptyAllOutstanding: 'No hay estadías pendientes.',
     arrival: 'Llegada',
@@ -47,6 +49,8 @@ export const MONTHLY_PAYMENTS_TRANSLATIONS = {
     outstandingTotal: 'Known outstanding total',
     pendingPriceCount: (count: number) =>
       count === 1 ? '1 stay with price pending' : `${count} stays with price pending`,
+    clearFilter: 'Clear filter',
+    emptyPendingPrice: 'No stays in this selection are waiting for a price.',
     emptyOutstanding: 'There are no outstanding stays this month.',
     emptyAllOutstanding: 'There are no outstanding stays.',
     arrival: 'Arrival',

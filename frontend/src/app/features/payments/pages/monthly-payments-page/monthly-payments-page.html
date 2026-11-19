@@ -112,14 +112,30 @@
       <p class="monthly-total">
         <span>{{ text().outstandingTotal }}</span>
         <strong>{{ amount(result.data.knownTotal) }}</strong>
-        @if (result.data.pendingPriceCount > 0) {
-          <span>{{ text().pendingPriceCount(result.data.pendingPriceCount) }}</span>
+        @if (result.data.pendingPriceCount > 0 || pricePendingOnly()) {
+          <button
+            mat-stroked-button
+            type="button"
+            [attr.aria-pressed]="pricePendingOnly()"
+            (click)="togglePricePendingOnly()"
+          >
+            {{ text().pendingPriceCount(result.data.pendingPriceCount) }}
+            @if (pricePendingOnly()) {
+              · {{ text().clearFilter }}
+            }
+          </button>
         }
       </p>
       @if (!result.data.stays.items.length) {
         <app-ui-state
           kind="empty"
-          [message]="scope() === 'all' ? text().emptyAllOutstanding : text().emptyOutstanding"
+          [message]="
+            pricePendingOnly()
+              ? text().emptyPendingPrice
+              : scope() === 'all'
+                ? text().emptyAllOutstanding
+                : text().emptyOutstanding
+          "
         />
       } @else {
         <div class="table-scroll" role="region" [attr.aria-label]="text().outstanding" tabindex="0">

@@ -61,6 +61,7 @@ interface PaymentFilters {
   tab: PaymentView;
   page: number;
   scope: CollectionScope;
+  pricePendingOnly: boolean;
 }
 
 type PaymentQuery = PaymentFilters & { retry: number };
@@ -128,6 +129,9 @@ export class MonthlyPaymentsPage {
   readonly scope = computed<CollectionScope>(() =>
     this.view() === 'outstanding' && this.params().get('scope') === 'all' ? 'all' : 'month',
   );
+  readonly pricePendingOnly = computed(
+    () => this.view() === 'outstanding' && this.params().get('pricePendingOnly') === 'true',
+  );
   private readonly page = computed(() => {
     const value = this.params().get('page');
     if (!value || !/^\d+$/.test(value)) return 0;
@@ -139,13 +143,14 @@ export class MonthlyPaymentsPage {
     tab: this.view(),
     page: this.page(),
     scope: this.scope(),
+    pricePendingOnly: this.pricePendingOnly(),
     retry: this.retryCount(),
   }));
 
   readonly state = toSignal(
     toObservable(this.query).pipe(
       switchMap((query) => {
-        const { month, tab, page, scope, retry } = query;
+        const { month, tab, page, scope, pricePendingOnly, retry } = query;
         const loaded = this.loadedQuery;
         // Replacing the URL after clamping can reuse the response already showing that page.
         if (
@@ -153,13 +158,15 @@ export class MonthlyPaymentsPage {
           loaded.tab === tab &&
           loaded.page === page &&
           loaded.scope === scope &&
+          loaded.pricePendingOnly === pricePendingOnly &&
           loaded.retry === retry
         ) {
           return EMPTY;
         }
         this.loadedQuery = null;
-        const params: Record<string, string | number> =
+        const params: Record<string, string | number | boolean> =
           scope === 'all' ? { page, scope } : { month, page };
+        if (pricePendingOnly) params['pricePendingOnly'] = true;
         const request =
           tab === 'received'
             ? this.http.get<MonthlyReceipts>(`${API_BASE_URL}/payments/received`, { params }).pipe(
@@ -223,11 +230,25 @@ export class MonthlyPaymentsPage {
   }
 
   selectView(view: PaymentView): void {
-    this.navigateWithFilters({ ...this.query(), tab: view, page: 0, scope: 'month' });
+    this.navigateWithFilters({
+      ...this.query(),
+      tab: view,
+      page: 0,
+      scope: 'month',
+      pricePendingOnly: false,
+    });
   }
 
   selectScope(scope: CollectionScope): void {
     this.navigateWithFilters({ ...this.query(), scope, page: 0 });
+  }
+
+  togglePricePendingOnly(): void {
+    this.navigateWithFilters({
+      ...this.query(),
+      pricePendingOnly: !this.pricePendingOnly(),
+      page: 0,
+    });
   }
 
   selectPage(event: PageEvent): void {
@@ -254,10 +275,16 @@ export class MonthlyPaymentsPage {
     void this.router.navigateByUrl(this.filtersUrl(filters), { replaceUrl: true });
   }
 
-  private filtersUrl({ month, tab, page, scope }: PaymentFilters) {
+  private filtersUrl({ month, tab, page, scope, pricePendingOnly }: PaymentFilters) {
     return this.router.createUrlTree([], {
       relativeTo: this.route,
-      queryParams: { month, tab, page, scope: scope === 'all' ? scope : null },
+      queryParams: {
+        month,
+        tab,
+        page,
+        scope: scope === 'all' ? scope : null,
+        pricePendingOnly: pricePendingOnly || null,
+      },
     });
   }
 
