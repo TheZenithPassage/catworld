@@ -21,6 +21,9 @@ public class Owner extends AuditableEntity{
 
     @Column(nullable = false)
     private String fullName;
+
+    @Column(nullable = false)
+    private boolean deceased;
     private String address;
 
     @Column(nullable = false)

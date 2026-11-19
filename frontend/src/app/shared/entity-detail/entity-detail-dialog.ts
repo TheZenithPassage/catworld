@@ -20,6 +20,7 @@ import { OwnerDetail } from '../../features/owners/components/owner-detail/owner
 import { VetDetail } from '../../features/vets/components/vet-detail/vet-detail';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
 import { EntityDetailUpdate, EntityReference } from './entity-reference';
+import { DeceasedMarker } from '../deceased-marker/deceased-marker';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
@@ -47,6 +48,7 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
   imports: [
+    DeceasedMarker,
     MatButton,
     MatIconButton,
     MatDialogClose,

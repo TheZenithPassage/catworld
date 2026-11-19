@@ -4,9 +4,11 @@ import { MatAutocomplete } from '@angular/material/autocomplete';
 import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
+import { OwnerApiService } from '../../features/owners/services/owner-api.service';
+import { OwnerLookupAdapter } from './domain-lookup.adapters';
 import { EntityLookupAdapter, EntityLookupPage } from './entity-lookup.models';
 import { RemoteEntitySelector } from './remote-entity-selector';
 
@@ -32,7 +34,11 @@ describe('RemoteEntitySelector', () => {
       return result;
     },
     id: (value) => value.id,
-    present: (value) => ({ primary: value.label, secondary: value.detail, selected: value.label }),
+    present: (value) => ({
+      primary: value.label,
+      secondary: value.detail ? [{ label: value.detail }] : undefined,
+      selected: value.label,
+    }),
   };
 
   beforeEach(() => {
@@ -49,7 +55,11 @@ describe('RemoteEntitySelector', () => {
   });
 
   function setup(required = false) {
-    const fixture = TestBed.createComponent(RemoteEntitySelector<Item>);
+    return setupLookup(adapter, required);
+  }
+
+  function setupLookup<T>(adapter: EntityLookupAdapter<T>, required = false) {
+    const fixture = TestBed.createComponent(RemoteEntitySelector<T>);
     fixture.componentRef.setInput('adapter', adapter);
     fixture.componentRef.setInput('label', 'Owner');
     fixture.componentRef.setInput('required', required);
@@ -61,11 +71,11 @@ describe('RemoteEntitySelector', () => {
     };
   }
 
-  function inputFor(fixture: ComponentFixture<RemoteEntitySelector<Item>>): HTMLInputElement {
+  function inputFor<T>(fixture: ComponentFixture<RemoteEntitySelector<T>>): HTMLInputElement {
     return fixture.nativeElement.querySelector('input') as HTMLInputElement;
   }
 
-  function type(fixture: ComponentFixture<RemoteEntitySelector<Item>>, value: string): void {
+  function type<T>(fixture: ComponentFixture<RemoteEntitySelector<T>>, value: string): void {
     const input = inputFor(fixture);
     input.focus();
     input.value = value;
@@ -82,7 +92,7 @@ describe('RemoteEntitySelector', () => {
     requests[requestIndex].result.next({ items, page, pageSize: 5, totalElements });
   }
 
-  function settleOverlay(fixture: ComponentFixture<RemoteEntitySelector<Item>>): void {
+  function settleOverlay<T>(fixture: ComponentFixture<RemoteEntitySelector<T>>): void {
     fixture.detectChanges();
     vi.advanceTimersByTime(0);
     fixture.detectChanges();
@@ -147,6 +157,39 @@ describe('RemoteEntitySelector', () => {
     expect(progress.closest('mat-form-field')).not.toBeNull();
     expect(component.selectedId()).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('shows and announces each deceased cat in a selectable Owner result', async () => {
+    const owner = {
+      id: 'owner-1',
+      fullName: 'Ada Lovelace',
+      deceased: false,
+      currentCats: [
+        { id: 'cat-1', name: 'Milo', deceased: true },
+        { id: 'cat-2', name: 'Luna', deceased: false },
+        { id: 'cat-3', name: 'Pixel', deceased: true },
+      ],
+    };
+    TestBed.overrideProvider(OwnerApiService, {
+      useValue: {
+        searchOwners: () => of({ items: [owner], page: 0, pageSize: 5, totalElements: 1 }),
+      },
+    });
+    const { fixture, component, loader } = setupLookup(TestBed.inject(OwnerLookupAdapter));
+    const harness = await loader.getHarness(MatAutocompleteHarness);
+    type(fixture, 'Milo');
+    vi.advanceTimersByTime(300);
+    settleOverlay(fixture);
+
+    const [option] = await harness.getOptions();
+    const deceased = TestBed.inject(I18nService).text().entityDetail.deceased;
+    expect(await option.getText()).toMatch(/Milo\s*♥,\s+Luna,\s+Pixel\s*♥/);
+    expect(await (await option.host()).getAttribute('aria-label')).toBe(
+      `Ada Lovelace, Milo, ${deceased}, Luna, Pixel, ${deceased}`,
+    );
+    await option.click();
+    expect(component.value()).toEqual(owner);
+    expect(inputFor(fixture).value).toBe('Ada Lovelace (Milo, Luna, Pixel)');
   });
 
   it('requests a later page without debounce and reaches its appended option by keyboard', async () => {

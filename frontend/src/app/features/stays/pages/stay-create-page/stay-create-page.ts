@@ -17,6 +17,7 @@ import {
 } from '../../../../core/creation-flow/creation-flow.models';
 import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
+import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { OwnerLookupAdapter } from '../../../../shared/entity-lookup/domain-lookup.adapters';
@@ -42,6 +43,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
 @Component({
   selector: 'app-stay-create-page',
   imports: [
+    DeceasedMarker,
     FormsModule,
     MatButton,
     MatCheckbox,

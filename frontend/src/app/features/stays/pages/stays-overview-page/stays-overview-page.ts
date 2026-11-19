@@ -131,35 +131,33 @@ export class StaysOverviewPage {
       this.resolveGlobalEmptyState(id);
       return;
     }
-    this.request = this.api
-      .getStayOverview(page, { statuses, ...search })
-      .subscribe({
-        next: (r) => {
-          if (this.destroyed || id !== this.requestId) return;
-          const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
-          if (page > lastValidPage) {
-            this.loadStays(lastValidPage);
-            return;
-          }
-          this.stays.set(r.items);
-          this.page.set(r.page);
-          this.totalElements.set(r.totalElements);
-          if (r.totalElements === 0) {
-            this.resolveGlobalEmptyState(id);
-            return;
-          }
-          this.globallyEmpty.set(false);
+    this.request = this.api.getStayOverview(page, { statuses, ...search }).subscribe({
+      next: (r) => {
+        if (this.destroyed || id !== this.requestId) return;
+        const lastValidPage = Math.max(0, Math.ceil(r.totalElements / this.pageSize) - 1);
+        if (page > lastValidPage) {
+          this.loadStays(lastValidPage);
+          return;
+        }
+        this.stays.set(r.items);
+        this.page.set(r.page);
+        this.totalElements.set(r.totalElements);
+        if (r.totalElements === 0) {
+          this.resolveGlobalEmptyState(id);
+          return;
+        }
+        this.globallyEmpty.set(false);
+        this.loading.set(false);
+        this.syncPage();
+        this.resolveSelectedStay(r.items);
+      },
+      error: () => {
+        if (!this.destroyed && id === this.requestId) {
+          this.error.set(this.text().stays.overview.errorLoading);
           this.loading.set(false);
-          this.syncPage();
-          this.resolveSelectedStay(r.items);
-        },
-        error: () => {
-          if (!this.destroyed && id === this.requestId) {
-            this.error.set(this.text().stays.overview.errorLoading);
-            this.loading.set(false);
-          }
-        },
-      });
+        }
+      },
+    });
   }
   private resolveGlobalEmptyState(id: number): void {
     if (this.destroyed || id !== this.requestId) return;

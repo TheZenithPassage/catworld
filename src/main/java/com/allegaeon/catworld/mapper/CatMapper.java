@@ -22,6 +22,7 @@ public class CatMapper {
         return CatResponseDTO.builder()
                 .id(cat.getId())
                 .name(cat.getName())
+                .deceased(cat.isDeceased())
                 .birthDate(cat.getBirthDate())
                 .sex(cat.getSex())
                 .breed(cat.getBreed())
@@ -39,6 +40,7 @@ public class CatMapper {
                 .lastRabiesDate(cat.getLastRabiesDate())
                 .ownerId(cat.getOwner().getId())
                 .ownerName(cat.getOwner().getFullName())
+                .ownerDeceased(cat.getOwner().isDeceased())
                 .vetId(cat.getVet() != null ? cat.getVet().getId() : null)
                 .vetName(cat.getVet() != null ? cat.getVet().getName() : null)
                 .canDelete(canDelete)
@@ -51,6 +53,7 @@ public class CatMapper {
 
         return Cat.builder()
                 .name(catRequestDTO.getName())
+                .deceased(Boolean.TRUE.equals(catRequestDTO.getDeceased()))
                 .birthDate(catRequestDTO.getBirthDate())
                 .sex(catRequestDTO.getSex())
                 .breed(catRequestDTO.getBreed())
@@ -75,6 +78,9 @@ public class CatMapper {
     public Cat updateEntity(Cat cat, CatRequestDTO catRequestDTO, Owner owner, Vet vet) {
 
         cat.setName(catRequestDTO.getName());
+        if (catRequestDTO.getDeceased() != null) {
+            cat.setDeceased(catRequestDTO.getDeceased());
+        }
         cat.setBirthDate(catRequestDTO.getBirthDate());
         cat.setSex(catRequestDTO.getSex());
         cat.setBreed(catRequestDTO.getBreed());

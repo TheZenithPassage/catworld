@@ -12,6 +12,7 @@ public class OwnerResponseDTO {
 
     private UUID id;
     private String fullName;
+    private boolean deceased;
     private String address;
     private String primaryPhone;
     private String secondaryPhone;

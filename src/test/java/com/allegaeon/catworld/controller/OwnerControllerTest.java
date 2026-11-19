@@ -44,7 +44,7 @@ public class OwnerControllerTest {
         void lookupRoutesSerializeSemanticEnvelopeAndMapValidationAndMissingOwner() throws Exception {
             UUID ownerId = UUID.randomUUID();
             UUID catId = UUID.randomUUID();
-            var owner = new OwnerLookupItem(ownerId, "Owner", List.of(new CurrentCatLookupItem(catId, "Milo")));
+            var owner = new OwnerLookupItem(ownerId, "Owner", false, List.of(new CurrentCatLookupItem(catId, "Milo", false)));
             when(ownerService.searchOwners("o", 0)).thenReturn(new LookupPage<>(List.of(owner), 0, 5, 6));
             when(ownerService.getOwnerLookup(ownerId)).thenReturn(owner);
 
@@ -69,7 +69,7 @@ public class OwnerControllerTest {
         void detailAndNestedReadsSerializeTypedContractsAndDelegatePages() throws Exception {
             UUID ownerId = UUID.randomUUID();
             UUID catId = UUID.randomUUID();
-            var item = new CatRelationshipItem(catId, "Milo", ownerId, "Owner");
+            var item = new CatRelationshipItem(catId, "Milo", ownerId, "Owner", false, false);
             when(ownerService.getOwnerDetail(ownerId)).thenReturn(new OwnerDetailResponse(
                     OwnerResponseDTO.builder().id(ownerId).fullName("Owner").build(),
                     new RelationshipPreview<>(1, List.of(item)), new RelationshipPreview<>(0, List.of())));

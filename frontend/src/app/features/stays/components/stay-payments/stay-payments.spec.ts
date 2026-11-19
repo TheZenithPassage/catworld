@@ -75,6 +75,7 @@ describe('StayPayments', () => {
         { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
+    TestBed.inject(I18nService).language.set('es');
   });
   function create() {
     const fixture = TestBed.createComponent(StayPayments);
