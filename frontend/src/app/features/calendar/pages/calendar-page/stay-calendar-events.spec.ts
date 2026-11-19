@@ -237,11 +237,9 @@ describe('toStayCalendarEvents', () => {
           ownerName: 'Owner One',
           hasEntry: true,
           hasExit: false,
-          hasOutstandingCollection: false,
         },
       ],
       count: 1,
-      pendingStayCount: 0,
     };
 
     const events = toStayCalendarEvents({
@@ -255,9 +253,6 @@ describe('toStayCalendarEvents', () => {
         plural: '{{count}} cats',
         accessibleSingular: 'Open summary for {{count}} cat',
         accessiblePlural: 'Open summary for {{count}} cats',
-        pendingSingular: '{{count}} stay pending',
-        pendingPlural: '{{count}} stays pending',
-        pendingCompact: '{{count}} due',
       },
     });
 
@@ -287,7 +282,7 @@ describe('toStayCalendarEvents', () => {
       toStayCalendarEvents({
         businessNow: '2026-08-31T22:30:00',
         visibleStays: [createStay()],
-        dailyAggregates: [{ date: '2099-06-03', participants: [], count: 0, pendingStayCount: 0 }],
+        dailyAggregates: [{ date: '2099-06-03', participants: [], count: 0 }],
         colorAssignments: new Map(),
         displayMode: 'daily-counts',
         dailyCountLabels: {
@@ -295,9 +290,6 @@ describe('toStayCalendarEvents', () => {
           plural: '{{count}} cats',
           accessibleSingular: 'Open summary for {{count}} cat',
           accessiblePlural: 'Open summary for {{count}} cats',
-          pendingSingular: '{{count}} stay pending',
-          pendingPlural: '{{count}} stays pending',
-          pendingCompact: '{{count}} due',
         },
       }),
     ).toEqual([]);
@@ -324,7 +316,6 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
     totalPaid: '0',
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [],
     ...overrides,
   };

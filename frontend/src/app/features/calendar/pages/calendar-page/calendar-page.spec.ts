@@ -36,7 +36,6 @@ describe('CalendarPage', () => {
     totalPaid: '0',
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [],
   };
 
@@ -254,79 +253,6 @@ describe('CalendarPage', () => {
       'cat-2',
       'cat-1',
     ]);
-  });
-
-  it('highlights outstanding stays across views while counting cats and stays separately', async () => {
-    localStorage.setItem(
-      'catworld.calendar.preferences',
-      JSON.stringify({ visibleMonth: '2099-01-01' }),
-    );
-    const awaitingPrice: Stay = {
-      ...stay,
-      catIds: ['cat-1', 'cat-2'],
-      cats: [...stay.cats, { catId: 'cat-2', name: 'Nube' }],
-      pricePending: true,
-      agreedAmount: null,
-      remainingAmount: null,
-      totalPaid: '10',
-      paymentCondition: 'PARTIAL_PAYMENT',
-    };
-    const settled: Stay = {
-      ...stay,
-      stayId: 'stay-2',
-      startAt: '2099-01-09T14:00:00',
-      endAt: '2099-02-02T10:00:00',
-      catIds: ['cat-1', 'cat-3'],
-      cats: [...stay.cats, { catId: 'cat-3', name: 'Luna' }],
-      totalPaid: '100',
-      remainingAmount: '0',
-      paymentCondition: 'FULL_PAYMENT',
-      outstandingCollectionEligible: false,
-    };
-    stayApiService.getStays.mockReturnValue(of([settled, awaitingPrice]));
-    createComponent();
-    const refresh = async () => {
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-    };
-    await refresh();
-    const root = fixture.nativeElement as HTMLElement;
-    const toggle = Array.from(root.querySelectorAll('mat-checkbox'))
-      .find((checkbox) => checkbox.textContent.includes('Resaltar cobros pendientes'))!
-      .querySelector('input')!;
-    const markedEvents = () => root.querySelectorAll('.fc-event[aria-label*="Cobro pendiente"]');
-    expect(toggle.checked).toBe(false);
-    expect(markedEvents()).toHaveLength(0);
-
-    toggle.click();
-    await refresh();
-    // Milo and Nube share the same outstanding stay on every day of its interval.
-    expect(markedEvents()).toHaveLength(8);
-    component.setDisplayMode('entry-exit-markers');
-    await refresh();
-    expect(markedEvents()).toHaveLength(2);
-    expect(Array.from(markedEvents()).every((event) => event.textContent.includes('Nube'))).toBe(
-      true,
-    );
-
-    component.setDisplayMode('daily-counts');
-    await refresh();
-    const countEvent = root.querySelector<HTMLElement>(
-      '[data-date="2099-01-09"] .daily-count-event',
-    )!;
-    expect(countEvent.textContent).toContain('3 gatos');
-    expect(countEvent.textContent).toContain('1 estadía pendiente');
-    countEvent.click();
-    const day = materialDialog.open.mock.calls[0][1].data as CalendarDailyAggregate;
-    expect(
-      day.participants.filter((cat) => cat.hasOutstandingCollection).map((cat) => cat.catName),
-    ).toEqual(['Milo', 'Nube']);
-    toggle.click();
-    await refresh();
-    const dayAfterToggle = root.querySelector('[data-date="2099-01-09"] .daily-count-event')!;
-    expect(dayAfterToggle.textContent).toContain('3 gatos');
-    expect(dayAfterToggle.textContent).not.toContain('pendiente');
   });
 
   it('defaults invalid and obsolete display preferences safely while retaining the visible month', () => {

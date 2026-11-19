@@ -65,13 +65,6 @@
         </div>
       }
     </mat-radio-group>
-    <mat-checkbox
-      [checked]="highlightOutstanding()"
-      (change)="highlightOutstanding.set($event.checked)"
-    >
-      <span class="collection-marker" aria-hidden="true">$</span>
-      {{ text().calendar.highlightOutstanding }}
-    </mat-checkbox>
   </div>
 
   @if (!loading() && error()) {

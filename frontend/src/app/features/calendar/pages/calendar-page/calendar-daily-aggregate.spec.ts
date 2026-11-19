@@ -33,7 +33,6 @@ describe('getCalendarDailyAggregates', () => {
       ownerName: 'Owner One',
       hasEntry: true,
       hasExit: false,
-      hasOutstandingCollection: false,
     });
   });
 
@@ -135,7 +134,6 @@ function createStay(overrides: Partial<Stay> = {}): Stay {
     totalPaid: '0',
     remainingAmount: null,
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: false,
     payments: [],
     ...overrides,
   };
