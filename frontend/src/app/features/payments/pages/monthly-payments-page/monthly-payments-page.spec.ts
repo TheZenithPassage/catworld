@@ -6,6 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { MatButtonToggleHarness } from '@angular/material/button-toggle/testing';
 import { MatPaginatorHarness } from '@angular/material/paginator/testing';
+import { By } from '@angular/platform-browser';
 import { GuardResult, NavigationEnd, provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { filter, firstValueFrom, Subject } from 'rxjs';
@@ -14,6 +15,7 @@ import { vi } from 'vitest';
 import { API_BASE_URL } from '../../../../core/config/api.config';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { Stay } from '../../../stays/models/stay.model';
 import { StayPricingPage } from '../../../stays/pages/stay-pricing-page/stay-pricing-page';
 import { businessMonth, MonthlyPaymentsPage } from './monthly-payments-page';
@@ -50,7 +52,6 @@ const stay: Stay = {
   totalPaid: '30',
   remainingAmount: '30',
   paymentCondition: 'PARTIAL_PAYMENT',
-  outstandingCollectionEligible: true,
   payments: [
     {
       paymentId: 'payment-1',
@@ -235,6 +236,72 @@ describe('MonthlyPaymentsPage', () => {
     expect(businessMonth(at, 'Europe/Madrid')).toBe('2026-11');
   });
 
+  it('keeps the selected entity and period across tabs and restores the label after pricing', async () => {
+    const harness = await RouterTestingHarness.create(
+      '/payments?month=2020-10&tab=received&page=1&ownerId=owner-1',
+    );
+    const owner = { id: 'owner-1', fullName: 'Example Owner', currentCats: [] };
+    const cat = { id: 'cat-1', name: 'Luna', ownerId: owner.id, ownerName: owner.fullName };
+    const receipts = {
+      payments: { items: [receipt], page: 0, pageSize: 10, totalElements: 1 },
+      totalAmount: '30',
+    };
+    const balances = {
+      stays: { items: [pendingStay], page: 0, pageSize: 10, totalElements: 1 },
+      knownTotal: '0',
+      pendingPriceCount: 1,
+    };
+    const expectAll = (tab: string, entity: 'catId' | 'ownerId', id: string) =>
+      http.expectOne(
+        (req) =>
+          req.url === `${API_BASE_URL}/payments/${tab}` &&
+          req.params.get('scope') === 'all' &&
+          req.params.get('page') === '0' &&
+          req.params.get(entity) === id &&
+          !req.params.has(entity === 'catId' ? 'ownerId' : 'catId') &&
+          !req.params.has('month'),
+      );
+    const selectors = () => harness.routeDebugElement!.queryAll(By.directive(RemoteEntitySelector));
+    const loader = TestbedHarnessEnvironment.loader(harness.fixture);
+    const toggle = async (label: string) =>
+      (await loader.getHarness(MatButtonToggleHarness.with({ text: label }))).check();
+
+    http.expectOne(`${API_BASE_URL}/owners/owner-1/lookup`).flush(owner);
+    const monthly = expectPayments('received', '2020-10', 1);
+    expect(monthly.request.params.get('ownerId')).toBe(owner.id);
+    monthly.flush({ ...receipts, payments: { ...receipts.payments, page: 1, totalElements: 11 } });
+    harness.detectChanges();
+    expect(selectors()[0].nativeElement.querySelector('input').value).toBe(owner.fullName);
+
+    await toggle('Todo el historial');
+    expectAll('received', 'ownerId', owner.id).flush(receipts);
+    await toggle('Por cobrar');
+    expectAll('outstanding', 'ownerId', owner.id).flush(balances);
+    const [, catSelector] = selectors();
+    const catInput = catSelector.nativeElement.querySelector('input') as HTMLInputElement;
+    catInput.value = 'Lu';
+    catInput.dispatchEvent(new Event('input'));
+    expect(router.parseUrl(router.url).queryParams['ownerId']).toBe(owner.id);
+    http.expectNone((req) => req.url.includes('/payments/'));
+    catSelector.componentInstance.select(cat);
+    await harness.fixture.whenStable();
+    expectAll('outstanding', 'catId', cat.id).flush(balances);
+    await toggle('Cobrado');
+    expectAll('received', 'catId', cat.id).flush(receipts);
+    harness.detectChanges();
+    const filteredUrl = '/payments?month=2020-10&tab=received&page=0&scope=all&catId=cat-1';
+    expect(router.url).toBe(filteredUrl);
+    await openPricing(harness);
+    expect(location.getState()).toMatchObject({ stayPricingOrigin: filteredUrl });
+    harness.routeNativeElement!.querySelector<HTMLButtonElement>('.form-back-link')!.click();
+    await harness.fixture.whenStable();
+    expectAll('received', 'catId', cat.id).flush(receipts);
+    http.expectOne(`${API_BASE_URL}/cats/cat-1`).flush(cat);
+    harness.detectChanges();
+    expect(selectors()[0].nativeElement.querySelector('input').value).toBe('');
+    expect(selectors()[1].nativeElement.querySelector('input').value).toBe('Luna — Example Owner');
+  });
+
   it('restores the selected month and page when returning with the pricing Back button', async () => {
     const harness = await RouterTestingHarness.create(
       '/payments?month=2020-11&tab=received&page=2',
@@ -405,9 +472,7 @@ describe('MonthlyPaymentsPage', () => {
     );
     respondWithCollections(0);
     const loader = TestbedHarnessEnvironment.loader(harness.fixture);
-    const all = await loader.getHarness(
-      MatButtonToggleHarness.with({ text: 'Todos los pendientes' }),
-    );
+    const all = await loader.getHarness(MatButtonToggleHarness.with({ text: 'Todo el historial' }));
     await all.check();
     respondWithCollections(0, true);
     const paginator = await loader.getHarness(MatPaginatorHarness);

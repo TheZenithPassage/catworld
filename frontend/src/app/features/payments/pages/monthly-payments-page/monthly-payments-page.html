@@ -14,16 +14,14 @@
       <mat-button-toggle value="outstanding">{{ text().outstanding }}</mat-button-toggle>
     </mat-button-toggle-group>
 
-    @if (view() === 'outstanding') {
-      <mat-button-toggle-group
-        [value]="scope()"
-        (change)="selectScope($event.value)"
-        [attr.aria-label]="text().outstandingScope"
-      >
-        <mat-button-toggle value="month">{{ text().byMonth }}</mat-button-toggle>
-        <mat-button-toggle value="all">{{ text().allOutstanding }}</mat-button-toggle>
-      </mat-button-toggle-group>
-    }
+    <mat-button-toggle-group
+      [value]="scope()"
+      (change)="selectScope($event.value)"
+      [attr.aria-label]="text().period"
+    >
+      <mat-button-toggle value="month">{{ text().byMonth }}</mat-button-toggle>
+      <mat-button-toggle value="all">{{ text().allHistory }}</mat-button-toggle>
+    </mat-button-toggle-group>
 
     @if (scope() === 'month') {
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -36,6 +34,23 @@
           (change)="selectMonth(monthInput.value, monthInput)"
         />
       </mat-form-field>
+    }
+    <div class="entity-filters">
+      <app-remote-entity-selector
+        #ownerSelector
+        [adapter]="ownerAdapter"
+        [label]="text().owner"
+        (stateChange)="selectEntity('ownerId', $event)"
+      />
+      <app-remote-entity-selector
+        #catSelector
+        [adapter]="catAdapter"
+        [label]="text().cat"
+        (stateChange)="selectEntity('catId', $event)"
+      />
+    </div>
+    @if ((ownerId() && ownerSelector.error()) || (catId() && catSelector.error())) {
+      <button mat-button type="button" (click)="clearEntity()">{{ text().clearFilter }}</button>
     }
   </div>
 

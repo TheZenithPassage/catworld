@@ -1,5 +1,14 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  afterRenderEffect,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -13,8 +22,16 @@ import { API_BASE_URL } from '../../../../core/config/api.config';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
+import {
+  CatLookupAdapter,
+  OwnerLookupAdapter,
+} from '../../../../shared/entity-lookup/domain-lookup.adapters';
+import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
+import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OverviewPage } from '../../../../shared/pagination/overview-page';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { CatLookup } from '../../../cats/models/cat.model';
+import { OwnerLookup } from '../../../owners/models/owner.model';
 
 const MONTH_FORMAT = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/;
 // The API uses a signed 32-bit offset and ten records per page.
@@ -54,13 +71,15 @@ interface MonthlyCollections {
 }
 
 type PaymentView = 'received' | 'outstanding';
-type CollectionScope = 'month' | 'all';
+type PaymentScope = 'month' | 'all';
 
 interface PaymentFilters {
   month: string;
   tab: PaymentView;
   page: number;
-  scope: CollectionScope;
+  scope: PaymentScope;
+  ownerId: string | null;
+  catId: string | null;
   pricePendingOnly: boolean;
 }
 
@@ -100,6 +119,7 @@ export function businessMonth(now: Date, timeZone: string): string {
     MatLabel,
     MatInput,
     MatPaginator,
+    RemoteEntitySelector,
     RouterLink,
     UiStateComponent,
   ],
@@ -115,6 +135,10 @@ export class MonthlyPaymentsPage {
   private readonly params = toSignal(this.route.queryParamMap, { requireSync: true });
   private readonly retryCount = signal(0);
   private loadedQuery: PaymentQuery | null = null;
+  readonly ownerAdapter = inject(OwnerLookupAdapter);
+  readonly catAdapter = inject(CatLookupAdapter);
+  private readonly ownerSelector = viewChild<RemoteEntitySelector<OwnerLookup>>('ownerSelector');
+  private readonly catSelector = viewChild<RemoteEntitySelector<CatLookup>>('catSelector');
 
   readonly text = computed(() => this.i18n.text().monthlyPayments);
   readonly month = computed(() => {
@@ -126,9 +150,11 @@ export class MonthlyPaymentsPage {
   readonly view = computed<PaymentView>(() =>
     this.params().get('tab') === 'outstanding' ? 'outstanding' : 'received',
   );
-  readonly scope = computed<CollectionScope>(() =>
-    this.view() === 'outstanding' && this.params().get('scope') === 'all' ? 'all' : 'month',
+  readonly scope = computed<PaymentScope>(() =>
+    this.params().get('scope') === 'all' ? 'all' : 'month',
   );
+  readonly catId = computed(() => this.params().get('catId') || null);
+  readonly ownerId = computed(() => (this.catId() ? null : this.params().get('ownerId') || null));
   readonly pricePendingOnly = computed(
     () => this.view() === 'outstanding' && this.params().get('pricePendingOnly') === 'true',
   );
@@ -143,6 +169,8 @@ export class MonthlyPaymentsPage {
     tab: this.view(),
     page: this.page(),
     scope: this.scope(),
+    ownerId: this.ownerId(),
+    catId: this.catId(),
     pricePendingOnly: this.pricePendingOnly(),
     retry: this.retryCount(),
   }));
@@ -150,7 +178,7 @@ export class MonthlyPaymentsPage {
   readonly state = toSignal(
     toObservable(this.query).pipe(
       switchMap((query) => {
-        const { month, tab, page, scope, pricePendingOnly, retry } = query;
+        const { month, tab, page, scope, ownerId, catId, pricePendingOnly, retry } = query;
         const loaded = this.loadedQuery;
         // Replacing the URL after clamping can reuse the response already showing that page.
         if (
@@ -158,6 +186,8 @@ export class MonthlyPaymentsPage {
           loaded.tab === tab &&
           loaded.page === page &&
           loaded.scope === scope &&
+          loaded.ownerId === ownerId &&
+          loaded.catId === catId &&
           loaded.pricePendingOnly === pricePendingOnly &&
           loaded.retry === retry
         ) {
@@ -167,6 +197,8 @@ export class MonthlyPaymentsPage {
         const params: Record<string, string | number | boolean> =
           scope === 'all' ? { page, scope } : { month, page };
         if (pricePendingOnly) params['pricePendingOnly'] = true;
+        if (ownerId) params['ownerId'] = ownerId;
+        if (catId) params['catId'] = catId;
         const request =
           tab === 'received'
             ? this.http.get<MonthlyReceipts>(`${API_BASE_URL}/payments/received`, { params }).pipe(
@@ -203,6 +235,20 @@ export class MonthlyPaymentsPage {
   );
 
   constructor() {
+    afterRenderEffect(() => {
+      const owner = this.ownerSelector();
+      const cat = this.catSelector();
+      const ownerId = this.ownerId();
+      const catId = this.catId();
+      if (!owner || !cat) return;
+      // Restore names from an incoming URL once per identity without refetching on page changes.
+      untracked(() => {
+        if (!ownerId) owner.reset();
+        else if (owner.selectedId() !== ownerId) owner.resolveKnownId(ownerId);
+        if (!catId) cat.reset();
+        else if (cat.selectedId() !== catId) cat.resolveKnownId(catId);
+      });
+    });
     effect(() => {
       const result = this.state();
       if (
@@ -234,13 +280,27 @@ export class MonthlyPaymentsPage {
       ...this.query(),
       tab: view,
       page: 0,
-      scope: 'month',
       pricePendingOnly: false,
     });
   }
 
-  selectScope(scope: CollectionScope): void {
+  selectScope(scope: PaymentScope): void {
     this.navigateWithFilters({ ...this.query(), scope, page: 0 });
+  }
+
+  selectEntity(key: 'ownerId' | 'catId', state: EntityLookupState<OwnerLookup | CatLookup>): void {
+    const { selectedId, rawContentPresent } = state;
+    if ((!selectedId && rawContentPresent) || selectedId === this.query()[key]) return;
+    this.navigateWithFilters({
+      ...this.query(),
+      ownerId: key === 'ownerId' ? selectedId : null,
+      catId: key === 'catId' ? selectedId : null,
+      page: 0,
+    });
+  }
+
+  clearEntity(): void {
+    this.navigateWithFilters({ ...this.query(), ownerId: null, catId: null, page: 0 });
   }
 
   togglePricePendingOnly(): void {
@@ -275,7 +335,15 @@ export class MonthlyPaymentsPage {
     void this.router.navigateByUrl(this.filtersUrl(filters), { replaceUrl: true });
   }
 
-  private filtersUrl({ month, tab, page, scope, pricePendingOnly }: PaymentFilters) {
+  private filtersUrl({
+    month,
+    tab,
+    page,
+    scope,
+    pricePendingOnly,
+    ownerId,
+    catId,
+  }: PaymentFilters) {
     return this.router.createUrlTree([], {
       relativeTo: this.route,
       queryParams: {
@@ -284,6 +352,8 @@ export class MonthlyPaymentsPage {
         page,
         scope: scope === 'all' ? scope : null,
         pricePendingOnly: pricePendingOnly || null,
+        ownerId,
+        catId,
       },
     });
   }
