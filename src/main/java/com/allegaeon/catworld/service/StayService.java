@@ -43,6 +43,7 @@ import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
+import com.allegaeon.catworld.repository.MonthlyPaymentsRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
 import com.allegaeon.catworld.repository.TransferRateRepository;
 import com.allegaeon.catworld.model.TransferRate;
@@ -100,6 +101,7 @@ public class StayService implements IStayService {
     private final CatRepository catRepository;
     private final StayCatRepository stayCatRepository;
     private final StayOverviewReadRepository stayOverviewReadRepository;
+    private final MonthlyPaymentsRepository monthlyPaymentsRepository;
     private final NightlyReferenceRateRepository nightlyReferenceRateRepository;
     private final NightlyReferenceRateResolver nightlyReferenceRateResolver;
     private final TransferRateRepository transferRateRepository;
@@ -146,11 +148,11 @@ public class StayService implements IStayService {
     @Override
     @Transactional(readOnly = true)
     public OverviewPage<StayOverviewItem> getStayOverview(int page, Set<com.allegaeon.catworld.model.StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, StayDateFilter dates) {
         if (page < 0) throw new BadRequestException("Page must not be negative");
         LocalDateTime now = LocalDateTime.now(clock);
         Page<Stay> stays = stayOverviewReadRepository.find(page, OverviewPage.PAGE_SIZE,
-                now, statuses, ownerId, catId, paymentConditions, outstandingOnly, dates);
+                now, statuses, ownerId, catId, paymentConditions, dates);
         Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
         if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
@@ -163,6 +165,7 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<StayResponseDTO> getAllStays(StayDateFilter dates) {
         List<Stay> stays = dates.active() ? stayOverviewReadRepository.findCollection(dates) : stayRepository.findAll();
         if (stays.isEmpty()) {
@@ -207,6 +210,8 @@ public class StayService implements IStayService {
                 ? Set.of()
                 : emptyIfNull(stayPaymentRemovalRepository
                         .findStayIdsWithRemovalHistory(deletionAuthorizedStayIds));
+        Set<UUID> outstandingStayIds = monthlyPaymentsRepository.findOutstandingStayIds(
+                stays.stream().map(Stay::getId).toList());
 
         return stays.stream()
                 .map(stay -> toResponseDTO(
@@ -218,12 +223,14 @@ public class StayService implements IStayService {
                                 !paymentsByStay.getOrDefault(
                                         stay.getId(), List.of()).isEmpty(),
                                 staysWithRemovalHistory.contains(stay.getId())
-                        )
+                        ),
+                        outstandingStayIds.contains(stay.getId())
                 ))
                 .toList();
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StayResponseDTO getStay(UUID stayId) {
         return toResponseDTO(getStayEntity(stayId));
     }
@@ -1427,7 +1434,8 @@ public class StayService implements IStayService {
                         deletionAuthorized
                                 && stayPaymentRemovalRepository.existsByStayId(
                                         stay.getId())
-                )
+                ),
+                monthlyPaymentsRepository.findOutstandingStayIds(List.of(stay.getId())).contains(stay.getId())
         );
     }
 
@@ -1435,7 +1443,8 @@ public class StayService implements IStayService {
             Stay stay,
             List<StayPayment> payments,
             Map<UUID, StayPaymentAnnulment> annulmentsByPayment,
-            boolean canDelete) {
+            boolean canDelete,
+            boolean outstandingCollectionEligible) {
         StayResponseDTO response = stayMapper.toResponseDTO(
                 stay,
                 canDelete
@@ -1449,9 +1458,7 @@ public class StayService implements IStayService {
         response.setTotalPaid(economics.totalPaid());
         response.setRemainingAmount(economics.remainingAmount());
         response.setPaymentCondition(economics.paymentCondition());
-        response.setOutstandingCollectionEligible(
-                economics.outstandingCollectionEligible()
-        );
+        response.setOutstandingCollectionEligible(outstandingCollectionEligible);
         response.setPayments(
                 payments.stream()
                         .map(payment -> stayMapper.toPaymentResponseDTO(

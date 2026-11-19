@@ -26,19 +26,19 @@ public class StayOverviewReadRepository {
     private final EntityManager entityManager;
 
     public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
-        return find(page, size, now, statuses, ownerId, catId, paymentConditions, outstandingOnly,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions) {
+        return find(page, size, now, statuses, ownerId, catId, paymentConditions,
                 new StayDateFilter(null, null, null));
     }
 
     public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, StayDateFilter dates) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Stay> query = cb.createQuery(Stay.class);
         Root<Stay> stay = query.from(Stay.class);
         stay.fetch("owner", JoinType.INNER);
         List<Predicate> predicates = predicates(cb, query, stay, now, statuses, ownerId, catId,
-                paymentConditions, outstandingOnly, dates);
+                paymentConditions, dates);
         query.select(stay).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.asc(stay.get("startAt")), cb.asc(stay.get("id")));
 
@@ -48,7 +48,7 @@ public class StayOverviewReadRepository {
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Stay> countStay = countQuery.from(Stay.class);
         List<Predicate> countPredicates = predicates(cb, countQuery, countStay, now, statuses,
-                ownerId, catId, paymentConditions, outstandingOnly, dates);
+                ownerId, catId, paymentConditions, dates);
         countQuery.select(cb.count(countStay)).where(countPredicates.toArray(Predicate[]::new));
         return new PageImpl<>(items, org.springframework.data.domain.PageRequest.of(page, size),
                 entityManager.createQuery(countQuery).getSingleResult());
@@ -65,7 +65,7 @@ public class StayOverviewReadRepository {
 
     private List<Predicate> predicates(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Stay> stay,
             LocalDateTime now, Set<StayStatus> statuses, UUID ownerId, UUID catId,
-            Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
+            Set<PaymentCondition> paymentConditions, StayDateFilter dates) {
         List<Predicate> result = new ArrayList<>(StayDatePredicates.matching(cb, stay, dates));
         if (ownerId != null) result.add(cb.equal(stay.get("owner").get("id"), ownerId));
         if (catId != null) {
@@ -99,9 +99,6 @@ public class StayOverviewReadRepository {
                     cb.or(cb.isTrue(stay.get("pricePending")), cb.greaterThan(stay.get("agreedAmount"), activeSum))));
             if (paymentConditions.contains(PaymentCondition.FULL_PAYMENT)) visible.add(cb.and(cb.greaterThan(activeCount, 0L), cb.equal(stay.get("agreedAmount"), activeSum)));
             result.add(cb.or(visible.toArray(Predicate[]::new)));
-        }
-        if (Boolean.TRUE.equals(outstandingOnly)) {
-            result.add(cb.and(cb.isNull(stay.get("cancelledAt")), cb.isNotNull(stay.get("agreedAmount")), cb.greaterThan(stay.get("agreedAmount"), activeSum)));
         }
         return result;
     }

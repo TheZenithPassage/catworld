@@ -53,7 +53,7 @@ public class MonthlyPaymentsService {
 
 
     @Transactional(readOnly = true)
-    public MonthlyCollections getCollections(String requestedMonth, String scope, int page) {
+    public MonthlyCollections getCollections(String requestedMonth, String scope, boolean pricePendingOnly, int page) {
         YearMonth month = switch (scope) {
             case "month" -> parseMonth(requestedMonth);
             case "all" -> null;
@@ -65,8 +65,11 @@ public class MonthlyPaymentsService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long pendingPriceCount = balances.stream().filter(balance -> balance.agreed() == null).count();
 
-        int actualPage = existingPage(page, balances.size());
-        var pageBalances = balances.stream().skip((long) actualPage * OverviewPage.PAGE_SIZE)
+        var filteredBalances = pricePendingOnly
+                ? balances.stream().filter(balance -> balance.agreed() == null).toList()
+                : balances;
+        int actualPage = existingPage(page, filteredBalances.size());
+        var pageBalances = filteredBalances.stream().skip((long) actualPage * OverviewPage.PAGE_SIZE)
                 .limit(OverviewPage.PAGE_SIZE).toList();
         var ids = pageBalances.stream().map(CollectionBalance::stayId).toList();
         var cats = catNamesByStay(ids);
@@ -76,7 +79,7 @@ public class MonthlyPaymentsService {
         var rows = pageBalances.stream()
                 .map(balance -> collectionRow(balance, stays.get(balance.stayId()), cats, now))
                 .toList();
-        return new MonthlyCollections(new OverviewPage<>(rows, actualPage, balances.size()), knownTotal.toPlainString(), pendingPriceCount);
+        return new MonthlyCollections(new OverviewPage<>(rows, actualPage, filteredBalances.size()), knownTotal.toPlainString(), pendingPriceCount);
     }
 
     private MonthlyCollections.StayBalance collectionRow(CollectionBalance balance, Stay stay,

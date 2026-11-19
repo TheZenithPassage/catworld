@@ -38,11 +38,11 @@ public interface IStayService {
 
     List<StayResponseDTO> getAllStays(StayDateFilter dates);
     OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates);
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, StayDateFilter dates);
 
     default OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
-        return getStayOverview(page, statuses, ownerId, catId, paymentConditions, outstandingOnly,
+            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions) {
+        return getStayOverview(page, statuses, ownerId, catId, paymentConditions,
                 new StayDateFilter(null, null, null));
     }
     StayResponseDTO getStay(UUID stayId);

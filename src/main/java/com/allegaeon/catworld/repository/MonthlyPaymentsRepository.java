@@ -10,7 +10,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -42,13 +44,27 @@ public class MonthlyPaymentsRepository {
 
 
     public List<CollectionBalance> findCollectionBalances(YearMonth month) {
+        return findCollectionBalances(month, null);
+    }
+
+    public Set<UUID> findOutstandingStayIds(List<UUID> stayIds) {
+        if (stayIds.isEmpty()) {
+            return Set.of();
+        }
+        return findCollectionBalances(null, stayIds).stream()
+                .map(CollectionBalance::stayId)
+                .collect(Collectors.toSet());
+    }
+
+    private List<CollectionBalance> findCollectionBalances(YearMonth month, List<UUID> stayIds) {
         String arrivalFilter = month == null ? "" : " and stay.startAt >= :start and stay.startAt < :end ";
+        String stayFilter = stayIds == null ? "" : " and stay.id in :stayIds ";
         var query = entityManager.createQuery("""
                 select stay.id, stay.agreedAmount, coalesce(sum(payment.amount), 0)
                 from Stay stay
                 left join StayPayment payment on payment.stay = stay and payment.annulled = false
                 where stay.cancelledAt is null and (stay.pricePending = true or stay.agreedAmount is not null)
-                """ + arrivalFilter + """
+                """ + arrivalFilter + stayFilter + """
                 group by stay.id, stay.startAt, stay.agreedAmount, stay.pricePending
                 having stay.pricePending = true or stay.agreedAmount > coalesce(sum(payment.amount), 0)
                 order by stay.startAt asc, stay.id asc
@@ -56,6 +72,9 @@ public class MonthlyPaymentsRepository {
         if (month != null) {
             query.setParameter("start", month.atDay(1).atStartOfDay())
                     .setParameter("end", month.plusMonths(1).atDay(1).atStartOfDay());
+        }
+        if (stayIds != null) {
+            query.setParameter("stayIds", stayIds);
         }
         return query.getResultList().stream()
                 .map(row -> new CollectionBalance((UUID) row[0], (BigDecimal) row[1], (BigDecimal) row[2]))

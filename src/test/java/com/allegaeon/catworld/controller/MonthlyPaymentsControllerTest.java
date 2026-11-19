@@ -175,6 +175,72 @@ class MonthlyPaymentsControllerTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test
+    void pendingPriceFilterPaginatesOnlyMatchingStaysAndKeepsTheWholeScopeSummary() throws Exception {
+        LocalDate arrival = LocalDate.of(2026, 11, 1);
+        UserAccount actor = UserAccount.builder().username("pending-filter-test").passwordHash("unused")
+                .role(UserRole.ADMIN).enabled(true).build();
+        entities.persist(actor);
+        Owner owner = Owner.builder().fullName("Example Owner").primaryPhone("555-0100").createdBy(actor).build();
+        entities.persist(owner);
+        collectionStay(owner, actor, arrival, "100", false, false);
+        for (int day = 1; day <= 12; day++) {
+            collectionStay(owner, actor, arrival.plusDays(day), null, true, false);
+        }
+        collectionStay(owner, actor, arrival.minusMonths(1), null, true, false);
+        entities.flush();
+
+        mvc.perform(get("/api/payments/outstanding").param("month", "2026-11")
+                        .param("pricePendingOnly", "true").param("page", "4").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("100"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(12))
+                .andExpect(jsonPath("$.stays.totalElements").value(12))
+                .andExpect(jsonPath("$.stays.page").value(1))
+                .andExpect(jsonPath("$.stays.items.length()").value(2))
+                .andExpect(jsonPath("$.stays.items[*].agreedAmount",
+                        org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.nullValue())));
+        mvc.perform(get("/api/payments/outstanding").param("scope", "all")
+                        .param("pricePendingOnly", "true").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("100"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(13))
+                .andExpect(jsonPath("$.stays.totalElements").value(13));
+    }
+
+    @Test
+    void calendarCollectionSharesOutstandingEligibilityAndRetainsStaffReadAccess() throws Exception {
+        LocalDate arrival = LocalDate.of(2026, 11, 1);
+        UserAccount actor = UserAccount.builder().username("calendar-collection-test").passwordHash("unused")
+                .role(UserRole.STAFF).enabled(true).build();
+        entities.persist(actor);
+        Owner owner = Owner.builder().fullName("Example Owner").primaryPhone("555-0100").createdBy(actor).build();
+        entities.persist(owner);
+        Stay pending = collectionStay(owner, actor, arrival.minusMonths(1), null, true, false);
+        pending.setEndAt(arrival.plusDays(1).atTime(10, 0));
+        payment(pending, actor, arrival.minusMonths(2), "30", false);
+        Stay partial = collectionStay(owner, actor, arrival, "100", false, false);
+        payment(partial, actor, arrival.minusMonths(1), "20", false);
+        payment(partial, actor, arrival.plusMonths(1), "30", false);
+        Stay paid = collectionStay(owner, actor, arrival.plusDays(1), "100", false, false);
+        payment(paid, actor, arrival.minusDays(1), "100", false);
+        collectionStay(owner, actor, arrival.plusDays(2), null, true, true);
+        collectionStay(owner, actor, arrival.plusDays(3), "0", false, false);
+        collectionStay(owner, actor, arrival.plusDays(4), null, false, false);
+        collectionStay(owner, actor, arrival.minusMonths(3), "100", false, false);
+        entities.flush();
+
+        mvc.perform(get("/api/stays").param("dateFrom", "2026-11-01").param("dateTo", "2026-11-30")
+                        .param("dateMatchMode", "OVERLAPS").with(user(actor.getUsername()).roles("STAFF")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(6))
+                .andExpect(jsonPath("$[?(@.outstandingCollectionEligible == true)].stayId",
+                        org.hamcrest.Matchers.containsInAnyOrder(pending.getId().toString(), partial.getId().toString())));
+        mvc.perform(get("/api/payments/outstanding").param("scope", "all")
+                        .param("pricePendingOnly", "true").with(user("staff").roles("STAFF")))
+                .andExpect(status().isForbidden());
+    }
+
     private Stay collectionStay(Owner owner, UserAccount actor, LocalDate arrival, String amount, boolean pending,
                                 boolean cancelled) {
         Stay stay = Stay.builder().owner(owner).createdBy(actor).pricePending(pending)

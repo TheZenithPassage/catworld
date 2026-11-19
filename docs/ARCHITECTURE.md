@@ -470,8 +470,10 @@ deletion of the operational stay.
 ### Stay Payments Are Operational; Balances Are Derived
 
 Stay reads return payment history ordered by creation time and derive
-`totalPaid`, nullable `remainingAmount`, `paymentCondition` and
-`outstandingCollectionEligible` from the active rows and current agreement.
+`totalPaid`, nullable `remainingAmount` and `paymentCondition` from the
+active rows and current agreement. The `outstandingCollectionEligible` flag
+comes from the Outstanding Payments query, bounded to the returned Stay IDs in
+one batch for collection reads.
 `NO_PAYMENT`, `PARTIAL_PAYMENT` and `FULL_PAYMENT` are response values, never
 persisted state. Annulled rows remain visible but contribute nothing to the
 active total. For a cancelled stay with a known agreement, `remainingAmount`
@@ -486,8 +488,9 @@ message instead of economic values and exposes neither payment management nor
 the agreed-amount correction action. Explicitly pending stays accept payments
 and return the active total with no calculable remaining amount. Their payment
 condition is `PARTIAL_PAYMENT` when an active payment exists and `NO_PAYMENT`
-otherwise. Outstanding collection eligibility still requires a known positive
-balance. When an agreement is known, active payments may never exceed it,
+otherwise. Non-cancelled stays qualify for outstanding collection when the
+price is explicitly pending or the known balance is positive.
+When an agreement is known, active payments may never exceed it,
 including an agreement of zero.
 
 Registration, amount-only edits, annulments, pricing reconfirmation and focused
@@ -518,8 +521,8 @@ Current rules:
   annulments require a non-blank reason and are terminal.
 - Payment removal requires `ADMIN`, a non-blank reason and exact durable
   evidence; it is not a refund operation.
-- Outstanding collection is true only for a non-cancelled stay with a known
-  positive remaining amount.
+- Outstanding collection is true for a non-cancelled stay with an explicitly
+  pending price or a known positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
@@ -1171,7 +1174,7 @@ by the database using its case- and accent-insensitive comparison behavior and
 orders matching display names followed by identifiers. Owner pages are chosen
 before one bounded current-Cat hydration query. Cat photo presence is resolved
 for only the selected page without loading photo bytes. Stay overview status,
-Owner, Cat, payment-condition, outstanding-only and inclusive date filters are likewise
+Owner, Cat, payment-condition and inclusive date filters are likewise
 applied before counting and paging; Stay status remains derived from dates and
 cancellation data, and results use start time followed by identifier order.
 
@@ -1327,9 +1330,14 @@ Status visibility applies immediately and persists independently of invalid or
 pending non-status drafts. Stays resets page zero, synchronizes its applied route
 and reloads using the applied non-status query. Calendar filters the already
 bounded population without another collection request. Owner/Cat lookup remains
-live and mutually exclusive, but selections, date criteria and Stays payment /
-outstanding criteria stay draft until Filter. Pagination and contextual selection
+live and mutually exclusive, but selections, date criteria and Stays payment
+criteria stay draft until Filter. Pagination and contextual selection
 use applied criteria. Legacy routes without a mode initialize OVERLAPS.
+
+The Calendar's outstanding-collection checkbox uses the backend
+`outstandingCollectionEligible` flag to filter its bounded population and daily
+aggregates. The Stays overview retains payment-condition filters. Its former
+outstanding-only filter is superseded by the Payments view.
 
 Calendar waits for FullCalendar's logical currentStart/currentEnd interval and
 converts its exclusive end into the last inclusive local date. Every initial,
@@ -1603,3 +1611,8 @@ explicitly pending price, ordered by scheduled arrival. Arrivals that have
 started are identified using the business clock. All active payments reduce
 the stay balance regardless of their payment dates. The totals distinguish the
 sum of known balances from the count of stays with a pending price.
+The optional `pricePendingOnly=true` parameter filters the rows before paging
+and page clamping. `knownTotal` and `pendingPriceCount` still summarize the
+complete month or all-month scope. Stay reads use the same query for their
+outstanding eligibility, including Calendar stays that overlap the displayed
+interval but arrived in an earlier month.

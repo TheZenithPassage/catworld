@@ -10,8 +10,7 @@ import java.util.List;
 public record StayPaymentEconomics(
         BigDecimal totalPaid,
         BigDecimal remainingAmount,
-        PaymentCondition paymentCondition,
-        boolean outstandingCollectionEligible) {
+        PaymentCondition paymentCondition) {
 
     public static StayPaymentEconomics calculate(
             BigDecimal agreedAmount,
@@ -43,8 +42,7 @@ public record StayPaymentEconomics(
             return new StayPaymentEconomics(
                     totalPaid,
                     null,
-                    activePayments.isEmpty() ? PaymentCondition.NO_PAYMENT : PaymentCondition.PARTIAL_PAYMENT,
-                    false
+                    activePayments.isEmpty() ? PaymentCondition.NO_PAYMENT : PaymentCondition.PARTIAL_PAYMENT
             );
         }
 
@@ -69,8 +67,7 @@ public record StayPaymentEconomics(
         return new StayPaymentEconomics(
                 totalPaid,
                 cancelled ? BigDecimal.ZERO : historicalRemainingAmount,
-                condition,
-                !cancelled && historicalRemainingAmount.signum() > 0
+                condition
         );
     }
 }

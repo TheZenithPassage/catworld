@@ -75,12 +75,11 @@ public class StayController {
             @RequestParam(required = false) UUID ownerId,
             @RequestParam(required = false) UUID catId,
             @RequestParam(name = "paymentCondition", required = false) Set<PaymentCondition> paymentConditions,
-            @RequestParam(required = false) Boolean outstandingOnly,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(required = false) StayDateMatchMode dateMatchMode) {
         return ResponseEntity.ok(stayService.getStayOverview(page, statuses, ownerId, catId,
-                paymentConditions, outstandingOnly, new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
+                paymentConditions, new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
     }
 
     @GetMapping("/{id}")
