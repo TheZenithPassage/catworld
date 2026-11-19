@@ -1,5 +1,6 @@
 import { EventInput } from '@fullcalendar/core';
 
+import type { CalendarTranslations } from '../../../../core/i18n/translations/calendar.translations';
 import { Stay } from '../../../stays/models/stay.model';
 import { getStayStatus, StayStatus } from '../../../stays/utils/stay-status.util';
 import { STAY_COLOR_PALETTE, StayCalendarColor } from './stay-calendar-colors';
@@ -32,12 +33,7 @@ const DEPARTURE_MARKER_COLOR = {
   textColor: '#ffffff',
 };
 
-export interface DailyCountEventLabels {
-  singular: string;
-  plural: string;
-  accessibleSingular: string;
-  accessiblePlural: string;
-}
+export type DailyCountEventLabels = CalendarTranslations['dailyCounts'];
 
 const EMPTY_COMPACT_MARKER_LABELS: StayCalendarCompactMarkerLabels = {
   start: '',
@@ -59,6 +55,7 @@ interface ToStayCalendarEventsParams {
   compactMarkerLabels?: StayCalendarCompactMarkerLabels;
   transferIndicatorLabels?: StayCalendarTransferIndicatorLabels;
   dailyCountLabels?: DailyCountEventLabels;
+  pendingCollectionLabel?: string;
 }
 
 export function toStayCalendarEvents({
@@ -70,6 +67,7 @@ export function toStayCalendarEvents({
   compactMarkerLabels = EMPTY_COMPACT_MARKER_LABELS,
   transferIndicatorLabels = EMPTY_TRANSFER_INDICATOR_LABELS,
   dailyCountLabels,
+  pendingCollectionLabel,
 }: ToStayCalendarEventsParams): EventInput[] {
   if (displayMode === 'daily-counts') {
     return dailyCountLabels
@@ -79,39 +77,48 @@ export function toStayCalendarEvents({
       : [];
   }
 
-  if (displayMode === 'daily-labels') {
-    return visibleStays.flatMap((stay) =>
-      toDailyCalendarEvents(
-        stay,
-        getStayStatus(stay, businessNow),
-        colorAssignments.get(stay.stayId),
-        transferIndicatorLabels,
-      ),
-    );
-  }
-
-  return visibleStays.flatMap((stay) =>
-    toCompactCalendarEvents(
-      stay,
-      getStayStatus(stay, businessNow),
-      compactMarkerLabels,
-      transferIndicatorLabels,
-    ),
-  );
+  return visibleStays.flatMap((stay) => {
+    const status = getStayStatus(stay, businessNow);
+    const events =
+      displayMode === 'daily-labels'
+        ? toDailyCalendarEvents(
+            stay,
+            status,
+            colorAssignments.get(stay.stayId),
+            transferIndicatorLabels,
+          )
+        : toCompactCalendarEvents(stay, status, compactMarkerLabels, transferIndicatorLabels);
+    if (pendingCollectionLabel && stay.outstandingCollectionEligible) {
+      for (const event of events) {
+        event.extendedProps = { ...event.extendedProps, pendingCollectionLabel };
+      }
+    }
+    return events;
+  });
 }
 
 function toDailyCountEvent(
   aggregate: CalendarDailyAggregate,
   labels: DailyCountEventLabels,
 ): EventInput {
-  const title = formatCountLabel(
+  let title = formatCountLabel(
     aggregate.count === 1 ? labels.singular : labels.plural,
     aggregate.count,
   );
-  const accessibleName = formatCountLabel(
+  let accessibleName = formatCountLabel(
     aggregate.count === 1 ? labels.accessibleSingular : labels.accessiblePlural,
     aggregate.count,
   );
+  let numeral = String(aggregate.count);
+  if (aggregate.pendingStayCount > 0) {
+    const pendingLabel = formatCountLabel(
+      aggregate.pendingStayCount === 1 ? labels.pendingSingular : labels.pendingPlural,
+      aggregate.pendingStayCount,
+    );
+    title += ` · ${pendingLabel}`;
+    accessibleName += `. ${pendingLabel}`;
+    numeral += ` · ${formatCountLabel(labels.pendingCompact, aggregate.pendingStayCount)}`;
+  }
 
   return {
     id: `daily-count-${aggregate.date}`,
@@ -123,7 +130,7 @@ function toDailyCountEvent(
       eventKind: 'daily-count',
       dailyAggregate: aggregate,
       dailyCountAccessibleName: accessibleName,
-      dailyCountNumeral: String(aggregate.count),
+      dailyCountNumeral: numeral,
     },
   };
 }

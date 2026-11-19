@@ -363,9 +363,27 @@
   width: 100%;
 }
 
-:host ::ng-deep .fc .fc-daygrid-block-event .fc-event-main:has(> .stay-event__transfer-indicator) {
+:host
+  ::ng-deep
+  .fc
+  .fc-daygrid-block-event
+  .fc-event-main:has(> .stay-event__transfer-indicator, > .collection-marker) {
   display: inline-flex;
   align-items: center;
+}
+
+:host ::ng-deep .collection-marker {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  margin-inline-end: 0.2em;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 0.85em;
+  font-weight: 800;
+  line-height: 1;
 }
 
 :host ::ng-deep .fc .fc-daygrid-block-event.stay-event--has-transfer {
@@ -445,6 +463,8 @@
 }
 
 :host ::ng-deep .fc .daily-count-event .fc-event-main {
+  white-space: normal;
+  overflow-wrap: anywhere;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 800;

@@ -9,10 +9,12 @@ describe('CalendarDailySummaryDialog', () => {
   const aggregate: CalendarDailyAggregate = {
     date: '2099-01-08',
     count: 3,
+    pendingStayCount: 1,
     participants: [
       {
         catId: 'cat-2',
         catName: 'Alba',
+        hasOutstandingCollection: true,
         ownerId: 'owner-2',
         ownerName: 'Beatriz',
         hasEntry: true,
@@ -21,6 +23,7 @@ describe('CalendarDailySummaryDialog', () => {
       {
         catId: 'cat-1',
         catName: 'Milo',
+        hasOutstandingCollection: false,
         ownerId: 'owner-1',
         ownerName: 'Ada',
         hasEntry: false,
@@ -29,6 +32,7 @@ describe('CalendarDailySummaryDialog', () => {
       {
         catId: 'cat-3',
         catName: 'Zoe',
+        hasOutstandingCollection: false,
         ownerId: 'owner-3',
         ownerName: 'Celia',
         hasEntry: false,
@@ -77,6 +81,8 @@ describe('CalendarDailySummaryDialog', () => {
     expect(rows[0].querySelectorAll('.daily-summary-movement')).toHaveLength(2);
     expect(rows[0].querySelector('.daily-summary-movement--entry')).not.toBeNull();
     expect(rows[0].querySelector('.daily-summary-movement--exit')).not.toBeNull();
+    expect(rows[0].textContent).toContain('Cobro pendiente');
+    expect(rows[1].textContent).not.toContain('Cobro pendiente');
     expect(rows[1].querySelector('.daily-summary-participant__movements')).toBeNull();
     expect(rows[2].querySelectorAll('.daily-summary-movement')).toHaveLength(1);
     expect(rows[2].querySelector('.daily-summary-movement--exit')).not.toBeNull();

@@ -65,11 +65,17 @@ mat-dialog-content {
   gap: 0.4rem;
 }
 
-.daily-summary-movement {
+.daily-summary-movement,
+.daily-summary-outstanding {
   border-radius: 999px;
   background: var(--color-surface-muted);
   padding: 0.15rem 0.5rem;
   font-size: 0.875rem;
+}
+
+.daily-summary-outstanding {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
 }
 
 mat-dialog-actions {

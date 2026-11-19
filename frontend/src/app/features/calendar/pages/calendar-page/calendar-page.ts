@@ -117,6 +117,7 @@ export class CalendarPage implements OnDestroy {
   readonly displayModeOptions = CALENDAR_DISPLAY_MODES;
 
   readonly displayMode = signal<CalendarDisplayMode>(this.storedCalendarPreferences.displayMode);
+  readonly highlightOutstanding = signal(false);
 
   readonly visibleMonth = signal<string | null>(this.storedCalendarPreferences.visibleMonth);
   readonly calendarStickyTop = signal(0);
@@ -153,7 +154,11 @@ export class CalendarPage implements OnDestroy {
     );
   });
   readonly dailyAggregates = computed(() =>
-    getCalendarDailyAggregates(this.filteredStays(), this.i18nService.dateLocale()),
+    getCalendarDailyAggregates(
+      this.filteredStays(),
+      this.i18nService.dateLocale(),
+      this.highlightOutstanding(),
+    ),
   );
 
   readonly calendarOptions = computed<CalendarOptions>(() => ({
@@ -234,12 +239,21 @@ export class CalendarPage implements OnDestroy {
         const boundaryKind = this.getBoundaryKind(eventInfo.event.extendedProps);
         const transferIndicator = eventInfo.event.extendedProps['transferIndicator'];
         const hasTransferIndicator = typeof transferIndicator === 'string' && !!transferIndicator;
+        const pendingLabel = eventInfo.event.extendedProps['pendingCollectionLabel'];
 
-        if (!boundaryKind && !hasTransferIndicator) {
+        if (!boundaryKind && !hasTransferIndicator && !pendingLabel) {
           return true;
         }
 
         const domNodes: HTMLElement[] = [];
+
+        if (pendingLabel) {
+          const marker = document.createElement('span');
+          marker.className = 'collection-marker';
+          marker.setAttribute('aria-hidden', 'true');
+          marker.textContent = '$';
+          domNodes.push(marker);
+        }
 
         if (hasTransferIndicator) {
           const indicator = document.createElement('span');
@@ -297,6 +311,9 @@ export class CalendarPage implements OnDestroy {
       compactMarkerLabels: this.text().calendar.compactMarkerLabels,
       transferIndicatorLabels: this.text().calendar.transferIndicators,
       dailyCountLabels: this.text().calendar.dailyCounts,
+      pendingCollectionLabel: this.highlightOutstanding()
+        ? this.text().calendar.outstandingCollection
+        : undefined,
     });
   });
 
@@ -371,12 +388,17 @@ export class CalendarPage implements OnDestroy {
     compactMarkerKind: 'start' | 'end' | null;
     boundaryKind: StayCalendarBoundaryKind | null;
     transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+    pendingCollectionLabel?: string;
   } {
     return {
       title: event.title,
       compactMarkerKind: this.getCompactMarkerKind(event.extendedProps),
       boundaryKind: this.getBoundaryKind(event.extendedProps),
       transferIndicatorKind: this.getTransferIndicatorKind(event.extendedProps),
+      pendingCollectionLabel:
+        typeof event.extendedProps['pendingCollectionLabel'] === 'string'
+          ? event.extendedProps['pendingCollectionLabel']
+          : undefined,
     };
   }
 
@@ -404,6 +426,7 @@ export class CalendarPage implements OnDestroy {
       compactMarkerKind: 'start' | 'end' | null;
       boundaryKind: StayCalendarBoundaryKind | null;
       transferIndicatorKind: StayCalendarTransferIndicatorKind | null;
+      pendingCollectionLabel?: string;
     },
   ): void {
     const boundaryLabel =
@@ -428,7 +451,13 @@ export class CalendarPage implements OnDestroy {
     const eventLabel = compactMarkerLabel
       ? `${compactMarkerLabel}. ${this.text().calendar.openStayInList}.`
       : this.text().calendar.openStayInList;
-    const accessibleLabel = [boundaryLabel, transferIndicator, details.title, eventLabel]
+    const accessibleLabel = [
+      boundaryLabel,
+      transferIndicator,
+      details.title,
+      details.pendingCollectionLabel,
+      eventLabel,
+    ]
       .filter(Boolean)
       .join('. ');
 

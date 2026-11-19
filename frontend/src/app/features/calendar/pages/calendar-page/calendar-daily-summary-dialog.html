@@ -14,8 +14,13 @@
         <span class="daily-summary-participant__identity">
           {{ participant.catName }} — {{ participant.ownerName }}
         </span>
-        @if (participant.hasEntry || participant.hasExit) {
+        @if (participant.hasEntry || participant.hasExit || participant.hasOutstandingCollection) {
           <span class="daily-summary-participant__movements">
+            @if (participant.hasOutstandingCollection) {
+              <span class="daily-summary-outstanding">{{
+                text().calendar.outstandingCollection
+              }}</span>
+            }
             @if (participant.hasEntry) {
               <span class="daily-summary-movement daily-summary-movement--entry">
                 {{ text().calendar.dailySummary.entry }}

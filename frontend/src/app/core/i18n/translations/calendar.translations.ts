@@ -9,6 +9,8 @@ export interface CalendarTranslations {
     retry: string;
   };
   statusFiltersAriaLabel: string;
+  highlightOutstanding: string;
+  outstandingCollection: string;
   displayModes: {
     title: string;
     description: string;
@@ -51,6 +53,9 @@ export interface CalendarTranslations {
     plural: string;
     accessibleSingular: string;
     accessiblePlural: string;
+    pendingSingular: string;
+    pendingPlural: string;
+    pendingCompact: string;
   };
   dailySummary: {
     title: string;
@@ -73,6 +78,8 @@ export const CALENDAR_TRANSLATIONS = {
       retry: 'Reintentar',
     },
     statusFiltersAriaLabel: 'Filtros de estado del calendario',
+    highlightOutstanding: 'Resaltar cobros pendientes',
+    outstandingCollection: 'Cobro pendiente',
     displayModes: {
       title: 'Vista del calendario',
       description: 'Elegí cómo mostrar las estadías.',
@@ -115,6 +122,9 @@ export const CALENDAR_TRANSLATIONS = {
       plural: '{{count}} gatos',
       accessibleSingular: 'Abrir el resumen diario de {{count}} gato',
       accessiblePlural: 'Abrir el resumen diario de {{count}} gatos',
+      pendingSingular: '{{count}} estadía pendiente',
+      pendingPlural: '{{count}} estadías pendientes',
+      pendingCompact: '{{count}} pend.',
     },
     dailySummary: {
       title: 'Resumen diario',
@@ -135,6 +145,8 @@ export const CALENDAR_TRANSLATIONS = {
       retry: 'Retry',
     },
     statusFiltersAriaLabel: 'Calendar status filters',
+    highlightOutstanding: 'Highlight outstanding collections',
+    outstandingCollection: 'Payment outstanding',
     displayModes: {
       title: 'Calendar view',
       description: 'Choose how stays are displayed, with or without a cat or owner filter.',
@@ -177,6 +189,9 @@ export const CALENDAR_TRANSLATIONS = {
       plural: '{{count}} cats',
       accessibleSingular: 'Open daily summary for {{count}} cat',
       accessiblePlural: 'Open daily summary for {{count}} cats',
+      pendingSingular: '{{count}} stay pending',
+      pendingPlural: '{{count}} stays pending',
+      pendingCompact: '{{count}} due',
     },
     dailySummary: {
       title: 'Daily summary',

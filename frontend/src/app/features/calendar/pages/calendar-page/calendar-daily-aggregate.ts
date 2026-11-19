@@ -7,19 +7,25 @@ export interface CalendarDailyParticipant {
   ownerName: string;
   hasEntry: boolean;
   hasExit: boolean;
+  hasOutstandingCollection: boolean;
 }
 
 export interface CalendarDailyAggregate {
   date: string;
   participants: CalendarDailyParticipant[];
   count: number;
+  pendingStayCount: number;
 }
 
 export function getCalendarDailyAggregates(
   visibleStays: Stay[],
   locale = 'es-ES',
+  highlightOutstanding = false,
 ): CalendarDailyAggregate[] {
-  const participantsByDate = new Map<string, Map<string, CalendarDailyParticipant>>();
+  const days = new Map<
+    string,
+    { cats: Map<string, CalendarDailyParticipant>; pendingStays: Set<string> }
+  >();
   const participantCollator = new Intl.Collator(locale, {
     usage: 'sort',
     sensitivity: 'base',
@@ -32,42 +38,46 @@ export function getCalendarDailyAggregates(
 
     const arrivalDate = toLocalDateKey(stay.startAt);
     const departureDate = toLocalDateKey(stay.endAt);
+    const markPending = highlightOutstanding && stay.outstandingCollectionEligible;
 
     for (const date of inclusiveDateKeys(arrivalDate, departureDate)) {
-      let participants = participantsByDate.get(date);
+      let day = days.get(date);
 
-      if (!participants) {
-        participants = new Map<string, CalendarDailyParticipant>();
-        participantsByDate.set(date, participants);
+      if (!day) {
+        day = { cats: new Map(), pendingStays: new Set() };
+        days.set(date, day);
       }
+      if (markPending) day.pendingStays.add(stay.stayId);
 
       for (const cat of stay.cats) {
-        const existing = participants.get(cat.catId);
+        const existing = day.cats.get(cat.catId);
         const hasEntry = date === arrivalDate;
         const hasExit = date === departureDate;
 
         if (existing) {
           existing.hasEntry ||= hasEntry;
           existing.hasExit ||= hasExit;
+          existing.hasOutstandingCollection ||= markPending;
           continue;
         }
 
-        participants.set(cat.catId, {
+        day.cats.set(cat.catId, {
           catId: cat.catId,
           catName: cat.name,
           ownerId: stay.ownerId,
           ownerName: stay.ownerName,
           hasEntry,
           hasExit,
+          hasOutstandingCollection: markPending,
         });
       }
     }
   }
 
-  return [...participantsByDate.entries()]
+  return [...days.entries()]
     .sort(([firstDate], [secondDate]) => compareStableText(firstDate, secondDate))
-    .map(([date, participantsByCat]) => {
-      const participants = [...participantsByCat.values()].sort((first, second) =>
+    .map(([date, day]) => {
+      const participants = [...day.cats.values()].sort((first, second) =>
         compareParticipants(first, second, participantCollator),
       );
 
@@ -75,6 +85,7 @@ export function getCalendarDailyAggregates(
         date,
         participants,
         count: participants.length,
+        pendingStayCount: day.pendingStays.size,
       };
     })
     .filter((aggregate) => aggregate.count > 0);

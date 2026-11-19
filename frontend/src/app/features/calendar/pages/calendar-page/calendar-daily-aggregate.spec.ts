@@ -33,6 +33,7 @@ describe('getCalendarDailyAggregates', () => {
       ownerName: 'Owner One',
       hasEntry: true,
       hasExit: false,
+      hasOutstandingCollection: false,
     });
   });
 
