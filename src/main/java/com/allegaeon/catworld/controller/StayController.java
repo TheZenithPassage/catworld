@@ -27,7 +27,6 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
-import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.model.StayStatus;
 import java.util.Set;
@@ -74,12 +73,11 @@ public class StayController {
             @RequestParam(name = "status", required = false) Set<StayStatus> statuses,
             @RequestParam(required = false) UUID ownerId,
             @RequestParam(required = false) UUID catId,
-            @RequestParam(name = "paymentCondition", required = false) Set<PaymentCondition> paymentConditions,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(required = false) StayDateMatchMode dateMatchMode) {
         return ResponseEntity.ok(stayService.getStayOverview(page, statuses, ownerId, catId,
-                paymentConditions, new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
+                new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
     }
 
     @GetMapping("/{id}")

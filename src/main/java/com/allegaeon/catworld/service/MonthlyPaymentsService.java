@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
@@ -37,14 +36,13 @@ public class MonthlyPaymentsService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    public MonthlyReceipts getReceipts(String requestedMonth, int page) {
-        YearMonth month = parseMonth(requestedMonth);
+    public MonthlyReceipts getReceipts(String requestedMonth, String scope, UUID ownerId, UUID catId, int page) {
+        YearMonth month = scopeMonth(requestedMonth, scope);
+        validateEntityFilter(ownerId, catId);
         validatePage(page);
-        LocalDate start = month.atDay(1);
-        LocalDate end = month.plusMonths(1).atDay(1);
-        var totals = monthlyPaymentsRepository.summarizeReceipts(start, end);
+        var totals = monthlyPaymentsRepository.summarizeReceipts(month, ownerId, catId);
         int actualPage = existingPage(page, totals.count());
-        var payments = monthlyPaymentsRepository.findReceipts(start, end, actualPage * OverviewPage.PAGE_SIZE,
+        var payments = monthlyPaymentsRepository.findReceipts(month, ownerId, catId, actualPage * OverviewPage.PAGE_SIZE,
                 OverviewPage.PAGE_SIZE);
         var cats = catNamesByStay(payments.stream().map(payment -> payment.getStay().getId()).distinct().toList());
         var items = payments.stream().map(payment -> receipt(payment, cats)).toList();
@@ -53,14 +51,12 @@ public class MonthlyPaymentsService {
 
 
     @Transactional(readOnly = true)
-    public MonthlyCollections getCollections(String requestedMonth, String scope, boolean pricePendingOnly, int page) {
-        YearMonth month = switch (scope) {
-            case "month" -> parseMonth(requestedMonth);
-            case "all" -> null;
-            default -> throw new BadRequestException("Scope must be month or all");
-        };
+    public MonthlyCollections getCollections(String requestedMonth, String scope, boolean pricePendingOnly,
+                                             UUID ownerId, UUID catId, int page) {
+        YearMonth month = scopeMonth(requestedMonth, scope);
+        validateEntityFilter(ownerId, catId);
         validatePage(page);
-        var balances = monthlyPaymentsRepository.findCollectionBalances(month);
+        var balances = monthlyPaymentsRepository.findCollectionBalances(month, ownerId, catId);
         var knownTotal = balances.stream().map(CollectionBalance::remaining).filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long pendingPriceCount = balances.stream().filter(balance -> balance.agreed() == null).count();
@@ -108,6 +104,20 @@ public class MonthlyPaymentsService {
                             .add(relation.getCat().getName()));
         }
         return names;
+    }
+
+    private YearMonth scopeMonth(String month, String scope) {
+        return switch (scope) {
+            case "month" -> parseMonth(month);
+            case "all" -> null;
+            default -> throw new BadRequestException("Scope must be month or all");
+        };
+    }
+
+    private void validateEntityFilter(UUID ownerId, UUID catId) {
+        if (ownerId != null && catId != null) {
+            throw new BadRequestException("Choose owner or cat, not both");
+        }
     }
 
     private YearMonth parseMonth(String value) {

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
@@ -20,12 +22,18 @@ public class MonthlyPaymentsController {
     public MonthlyCollections outstanding(@RequestParam(required = false) String month,
                                           @RequestParam(defaultValue = "month") String scope,
                                           @RequestParam(defaultValue = "false") boolean pricePendingOnly,
+                                          @RequestParam(required = false) UUID ownerId,
+                                          @RequestParam(required = false) UUID catId,
                                           @RequestParam(defaultValue = "0") int page) {
-        return monthlyPaymentsService.getCollections(month, scope, pricePendingOnly, page);
+        return monthlyPaymentsService.getCollections(month, scope, pricePendingOnly, ownerId, catId, page);
     }
 
     @GetMapping("/received")
-    public MonthlyReceipts received(@RequestParam String month, @RequestParam(defaultValue = "0") int page) {
-        return monthlyPaymentsService.getReceipts(month, page);
+    public MonthlyReceipts received(@RequestParam(required = false) String month,
+                                    @RequestParam(defaultValue = "month") String scope,
+                                    @RequestParam(required = false) UUID ownerId,
+                                    @RequestParam(required = false) UUID catId,
+                                    @RequestParam(defaultValue = "0") int page) {
+        return monthlyPaymentsService.getReceipts(month, scope, ownerId, catId, page);
     }
 }

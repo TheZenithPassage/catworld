@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -209,36 +213,106 @@ class MonthlyPaymentsControllerTest {
     }
 
     @Test
-    void calendarCollectionSharesOutstandingEligibilityAndRetainsStaffReadAccess() throws Exception {
-        LocalDate arrival = LocalDate.of(2026, 11, 1);
-        UserAccount actor = UserAccount.builder().username("calendar-collection-test").passwordHash("unused")
+    void entityFiltersPreserveWholeStayAmountsAndAdministratorReadsStaffDepositsAcrossMonths() throws Exception {
+        LocalDate paymentMonth = LocalDate.now(clock).withDayOfMonth(1);
+        LocalDate arrival = paymentMonth.plusMonths(1);
+        UserAccount actor = UserAccount.builder().username("payments-filter-staff").passwordHash("unused")
                 .role(UserRole.STAFF).enabled(true).build();
         entities.persist(actor);
         Owner owner = Owner.builder().fullName("Example Owner").primaryPhone("555-0100").createdBy(actor).build();
         entities.persist(owner);
-        Stay pending = collectionStay(owner, actor, arrival.minusMonths(1), null, true, false);
-        pending.setEndAt(arrival.plusDays(1).atTime(10, 0));
-        payment(pending, actor, arrival.minusMonths(2), "30", false);
-        Stay partial = collectionStay(owner, actor, arrival, "100", false, false);
-        payment(partial, actor, arrival.minusMonths(1), "20", false);
-        payment(partial, actor, arrival.plusMonths(1), "30", false);
-        Stay paid = collectionStay(owner, actor, arrival.plusDays(1), "100", false, false);
-        payment(paid, actor, arrival.minusDays(1), "100", false);
-        collectionStay(owner, actor, arrival.plusDays(2), null, true, true);
-        collectionStay(owner, actor, arrival.plusDays(3), "0", false, false);
-        collectionStay(owner, actor, arrival.plusDays(4), null, false, false);
-        collectionStay(owner, actor, arrival.minusMonths(3), "100", false, false);
+        Owner otherOwner = Owner.builder().fullName("Other Owner").primaryPhone("555-0200").createdBy(actor).build();
+        entities.persist(otherOwner);
+        Cat firstCat = cat(owner, actor, "Luna");
+        Cat secondCat = cat(owner, actor, "Mora");
+        Cat otherCat = cat(otherOwner, actor, "Milo");
+        Stay booked = collectionStay(owner, actor, arrival, "100", false, false);
+        entities.persist(StayCat.builder().stay(booked).cat(firstCat).build());
+        entities.persist(StayCat.builder().stay(booked).cat(secondCat).build());
+        payment(booked, actor, paymentMonth, "20", false);
+        payment(booked, actor, paymentMonth, "5", true);
+        Stay pending = collectionStay(owner, actor, arrival.plusMonths(1), null, true, false);
+        entities.persist(StayCat.builder().stay(pending).cat(firstCat).build());
+        payment(pending, actor, paymentMonth, "10", false);
+        Stay cancelled = collectionStay(owner, actor, arrival.plusDays(4), "100", false, true);
+        entities.persist(StayCat.builder().stay(cancelled).cat(firstCat).build());
+        payment(cancelled, actor, paymentMonth, "7", false);
+        Stay otherStay = collectionStay(otherOwner, actor, arrival, "300", false, false);
+        entities.persist(StayCat.builder().stay(otherStay).cat(otherCat).build());
+        payment(otherStay, actor, paymentMonth, "200", false);
         entities.flush();
 
-        mvc.perform(get("/api/stays").param("dateFrom", "2026-11-01").param("dateTo", "2026-11-30")
-                        .param("dateMatchMode", "OVERLAPS").with(user(actor.getUsername()).roles("STAFF")))
+        mvc.perform(post("/api/stays/{id}/payments", booked.getId())
+                        .with(user(actor.getUsername()).roles("STAFF"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":"30","paymentDate":"%s","note":"Deposit"}
+                                """.formatted(paymentMonth.minusMonths(1))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.totalPaid").value("50"));
+
+        mvc.perform(get("/api/payments/received").param("scope", "all")
+                        .param("ownerId", owner.getId().toString()).with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(6))
-                .andExpect(jsonPath("$[?(@.outstandingCollectionEligible == true)].stayId",
-                        org.hamcrest.Matchers.containsInAnyOrder(pending.getId().toString(), partial.getId().toString())));
+                .andExpect(jsonPath("$.totalAmount").value("67"))
+                .andExpect(jsonPath("$.payments.totalElements").value(4));
+        mvc.perform(get("/api/payments/received").param("month", YearMonth.from(paymentMonth).toString())
+                        .param("ownerId", owner.getId().toString()).with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value("37"))
+                .andExpect(jsonPath("$.payments.totalElements").value(3));
+        mvc.perform(get("/api/payments/received").param("scope", "all").param("month", "ignored")
+                        .param("catId", secondCat.getId().toString()).with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalAmount").value("50"))
+                .andExpect(jsonPath("$.payments.totalElements").value(2))
+                .andExpect(jsonPath("$.payments.items[0].cats.length()").value(2));
+
         mvc.perform(get("/api/payments/outstanding").param("scope", "all")
-                        .param("pricePendingOnly", "true").with(user("staff").roles("STAFF")))
-                .andExpect(status().isForbidden());
+                        .param("ownerId", owner.getId().toString()).param("pricePendingOnly", "true")
+                        .param("page", "9").with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("50"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(1))
+                .andExpect(jsonPath("$.stays.totalElements").value(1))
+                .andExpect(jsonPath("$.stays.page").value(0))
+                .andExpect(jsonPath("$.stays.items[0].stayId").value(pending.getId().toString()));
+        mvc.perform(get("/api/payments/outstanding").param("month", YearMonth.from(arrival).toString())
+                        .param("ownerId", owner.getId().toString()).with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("50"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(0))
+                .andExpect(jsonPath("$.stays.totalElements").value(1))
+                .andExpect(jsonPath("$.stays.items[0].stayId").value(booked.getId().toString()));
+        mvc.perform(get("/api/payments/outstanding").param("scope", "all")
+                        .param("catId", secondCat.getId().toString()).with(user("admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.knownTotal").value("50"))
+                .andExpect(jsonPath("$.pendingPriceCount").value(0))
+                .andExpect(jsonPath("$.stays.totalElements").value(1));
+    }
+
+    @Test
+    void paymentScopesRejectConflictingEntityFiltersAndStaffAccess() throws Exception {
+        for (String view : new String[]{"received", "outstanding"}) {
+            mvc.perform(get("/api/payments/" + view).param("scope", "all")
+                            .param("ownerId", UUID.randomUUID().toString())
+                            .param("catId", UUID.randomUUID().toString()).with(user("admin").roles("ADMIN")))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(get("/api/payments/" + view).param("scope", "unknown")
+                            .param("month", "2026-11").with(user("admin").roles("ADMIN")))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(get("/api/payments/" + view).param("scope", "all")
+                            .with(user("staff").roles("STAFF")))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    private Cat cat(Owner owner, UserAccount actor, String name) {
+        Cat cat = Cat.builder().name(name).birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.FEMALE)
+                .owner(owner).createdBy(actor).build();
+        entities.persist(cat);
+        return cat;
     }
 
     private Stay collectionStay(Owner owner, UserAccount actor, LocalDate arrival, String amount, boolean pending,

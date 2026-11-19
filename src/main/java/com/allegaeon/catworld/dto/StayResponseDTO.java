@@ -40,7 +40,6 @@ public class StayResponseDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal totalPaid;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal remainingAmount;
     private PaymentCondition paymentCondition;
-    private boolean outstandingCollectionEligible;
     private List<StayPaymentResponseDTO> payments;
     private boolean canDelete;
 

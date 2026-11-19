@@ -22,7 +22,6 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
-import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.model.StayStatus;
 import java.util.Set;
@@ -38,11 +37,11 @@ public interface IStayService {
 
     List<StayResponseDTO> getAllStays(StayDateFilter dates);
     OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, StayDateFilter dates);
+            UUID ownerId, UUID catId, StayDateFilter dates);
 
     default OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions) {
-        return getStayOverview(page, statuses, ownerId, catId, paymentConditions,
+            UUID ownerId, UUID catId) {
+        return getStayOverview(page, statuses, ownerId, catId,
                 new StayDateFilter(null, null, null));
     }
     StayResponseDTO getStay(UUID stayId);

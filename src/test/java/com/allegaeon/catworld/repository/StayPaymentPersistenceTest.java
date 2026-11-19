@@ -160,9 +160,7 @@ class StayPaymentPersistenceTest {
         stayRepository.saveAndFlush(stay);
         UUID stayId = stay.getId();
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
-        assertTrue(stayService.getStay(stayId).isOutstandingCollectionEligible());
-        assertTrue(stayService.registerPayment(stayId, registration(new BigDecimal("40"), "Deposit"))
-                .isOutstandingCollectionEligible());
+        stayService.registerPayment(stayId, registration(new BigDecimal("40"), "Deposit"));
 
         var preview = stayService.previewPendingPrice(stayId);
         assertEquals(2, preview.numberOfNights());
@@ -175,8 +173,6 @@ class StayPaymentPersistenceTest {
         var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
                 .agreedAmount(new BigDecimal("120")).expectedPendingPriceVersion(preview.version()).build());
         assertEquals(new BigDecimal("80"), confirmed.getRemainingAmount());
-        assertTrue(confirmed.isOutstandingCollectionEligible());
-        assertTrue(stayService.getStay(stayId).isOutstandingCollectionEligible());
         var confirmation = correctionRepository.findAllByStayId(stayId).getFirst();
         assertEquals("Initial price confirmed", confirmation.getReason());
         assertEquals(MUTATED_AT, confirmation.getDecidedAt());
@@ -184,8 +180,7 @@ class StayPaymentPersistenceTest {
 
         var paid = stayService.registerPayment(stayId, registration(new BigDecimal("80"), "Final instalment"));
         assertEquals(BigDecimal.ZERO, paid.getRemainingAmount());
-        assertFalse(paid.isOutstandingCollectionEligible());
-        assertFalse(stayService.getStay(stayId).isOutstandingCollectionEligible());
+        assertEquals(BigDecimal.ZERO, stayService.getStay(stayId).getRemainingAmount());
 
         stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
                 .pricePending(true).reason("Reopened agreement").build());
@@ -204,7 +199,6 @@ class StayPaymentPersistenceTest {
         UUID stayId = stay.getId();
         when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
 
-        assertTrue(stayService.getStay(stayId).isOutstandingCollectionEligible());
         var preview = stayService.previewPendingPrice(stayId);
         assertNull(preview.transferSuggestedAmount());
         assertNull(preview.suggestedAmount());
@@ -220,11 +214,9 @@ class StayPaymentPersistenceTest {
                 .agreedAmount(BigDecimal.ZERO).expectedPendingPriceVersion(newPreview.version()).build());
         assertFalse(confirmed.isPricePending());
         assertEquals(BigDecimal.ZERO, confirmed.getAgreedAmount());
-        assertFalse(confirmed.isOutstandingCollectionEligible());
 
-        var reopened = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+        stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
                 .pricePending(true).reason("Reopened zero agreement").build());
-        assertTrue(reopened.isOutstandingCollectionEligible());
         assertTrue(stayService.previewPendingPrice(stayId).previouslyAgreed());
         assertThrows(BadRequestException.class, () -> stayService.correctAgreedAmount(stayId,
                 PricingDecisionRequestDTO.builder().agreedAmount(BigDecimal.ZERO).build()));

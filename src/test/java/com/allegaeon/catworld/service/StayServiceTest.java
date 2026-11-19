@@ -40,7 +40,6 @@ import com.allegaeon.catworld.model.StayPricingDecision;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
-import com.allegaeon.catworld.repository.MonthlyPaymentsRepository;
 import com.allegaeon.catworld.repository.NightlyReferenceRateRepository;
 import com.allegaeon.catworld.repository.StayAgreedAmountCorrectionRepository;
 import com.allegaeon.catworld.repository.StayPaymentAnnulmentRepository;
@@ -143,9 +142,6 @@ public class StayServiceTest {
 
     @Mock
     private StayPaymentRepository stayPaymentRepository;
-
-    @Mock
-    private MonthlyPaymentsRepository monthlyPaymentsRepository;
 
     @Mock
     private StayPaymentEditRepository stayPaymentEditRepository;
@@ -2027,8 +2023,6 @@ public class StayServiceTest {
                     .thenAnswer(invocation -> List.copyOf(storedPayments));
             when(stayMapper.toResponseDTO(stay, false)).thenReturn(response);
 
-            when(monthlyPaymentsRepository.findOutstandingStayIds(List.of(stay.getId())))
-                    .thenReturn(Set.of(stay.getId()));
             StayResponseDTO actual = service.registerPayment(
                     stay.getId(),
                     PaymentRegistrationRequestDTO.builder()
@@ -2047,7 +2041,6 @@ public class StayServiceTest {
             assertEquals(new BigDecimal("70"), actual.getTotalPaid());
             assertEquals(new BigDecimal("30"), actual.getRemainingAmount());
             assertEquals(PaymentCondition.PARTIAL_PAYMENT, actual.getPaymentCondition());
-            assertTrue(actual.isOutstandingCollectionEligible());
         }
 
         @Test
@@ -2115,7 +2108,6 @@ public class StayServiceTest {
             assertEquals(BigDecimal.ZERO, actual.getTotalPaid());
             assertNull(actual.getRemainingAmount());
             assertEquals(PaymentCondition.NO_PAYMENT, actual.getPaymentCondition());
-            assertFalse(actual.isOutstandingCollectionEligible());
             assertTrue(actual.getPayments().isEmpty());
 
             when(currentUserAccountService.getCurrentUserAccount())
@@ -2969,7 +2961,7 @@ public class StayServiceTest {
         }
 
         @Test
-        void getAllStaysBatchesOutstandingEligibilityAndCalculatesCanDeleteForEachStay() {
+        void getAllStaysCalculatesCanDeleteForEachStay() {
 
             Stay allowedStay = stayWithCreator(
                     LocalDateTime.now(clock).plusDays(1),
@@ -2987,17 +2979,10 @@ public class StayServiceTest {
             when(deletionAuthorizationPolicy.canDelete(deniedStay.getCreatedBy(), deniedStay.getCreatedAt())).thenReturn(false);
             when(stayMapper.toResponseDTO(allowedStay, true)).thenReturn(allowedResponse);
             when(stayMapper.toResponseDTO(deniedStay, false)).thenReturn(deniedResponse);
-            when(monthlyPaymentsRepository.findOutstandingStayIds(List.of(allowedStay.getId(), deniedStay.getId())))
-                    .thenReturn(Set.of(deniedStay.getId()));
 
             List<StayResponseDTO> result = service.getAllStays();
 
             assertEquals(List.of(allowedResponse, deniedResponse), result);
-            assertFalse(allowedResponse.isOutstandingCollectionEligible());
-            assertTrue(deniedResponse.isOutstandingCollectionEligible());
-            verify(monthlyPaymentsRepository)
-                    .findOutstandingStayIds(List.of(allowedStay.getId(), deniedStay.getId()));
-            verifyNoMoreInteractions(monthlyPaymentsRepository);
             verify(stayMapper).toResponseDTO(allowedStay, true);
             verify(stayMapper).toResponseDTO(deniedStay, false);
             verify(stayPaymentRemovalRepository)
