@@ -28,7 +28,6 @@ import {
   isStayDateRangeValid,
   isStayVisibleByDateFilters,
   StayDateMatchMode,
-  PaymentConditionVisibility,
   StaySearchFilters,
 } from '../../utils/stay-search-filter.util';
 import {
@@ -122,12 +121,9 @@ export class StaysOverviewPage {
       const conditions = paymentState === 'none' ? [] : (paymentState?.split(',') ?? []);
       if (paymentState) {
         this.paymentFilters.set({
-          conditionVisibility: {
-            NO_PAYMENT: conditions.includes('NO_PAYMENT'),
-            PARTIAL_PAYMENT: conditions.includes('PARTIAL_PAYMENT'),
-            FULL_PAYMENT: conditions.includes('FULL_PAYMENT'),
-          },
-          outstandingOnly: p.get('outstandingOnly') === 'true',
+          NO_PAYMENT: conditions.includes('NO_PAYMENT'),
+          PARTIAL_PAYMENT: conditions.includes('PARTIAL_PAYMENT'),
+          FULL_PAYMENT: conditions.includes('FULL_PAYMENT'),
         });
       }
       this.draftSearchFilters.set(this.searchFilters());
@@ -147,7 +143,7 @@ export class StaysOverviewPage {
     const statuses = Object.entries(this.statusVisibility())
       .filter(([, v]) => v)
       .map(([s]) => this.toBackendStatus(s as StayStatus));
-    const paymentConditions = Object.entries(this.paymentFilters().conditionVisibility)
+    const paymentConditions = Object.entries(this.paymentFilters())
       .filter(([, v]) => v)
       .map(([c]) => c);
     const search = this.searchFilters();
@@ -165,7 +161,6 @@ export class StaysOverviewPage {
         ownerId: search.ownerId,
         catId: search.catId,
         paymentConditions,
-        outstandingOnly: this.paymentFilters().outstandingOnly,
       })
       .subscribe({
         next: (r) => {
@@ -203,7 +198,6 @@ export class StaysOverviewPage {
         ownerId: null,
         catId: null,
         paymentConditions: [...this.paymentConditionFilterOptions],
-        outstandingOnly: false,
       })
       .subscribe({
         next: (r) => {
@@ -279,19 +273,10 @@ export class StaysOverviewPage {
     this.draftSearchFilters.set(f);
   }
   isPaymentConditionVisible(c: PaymentCondition): boolean {
-    return this.draftPaymentFilters().conditionVisibility[c];
+    return this.draftPaymentFilters()[c];
   }
   setPaymentConditionVisibility(c: PaymentCondition, v: boolean): void {
-    this.draftPaymentFilters.update((f) => ({
-      ...f,
-      conditionVisibility: {
-        ...f.conditionVisibility,
-        [c]: v,
-      } satisfies PaymentConditionVisibility,
-    }));
-  }
-  setOutstandingOnly(v: boolean): void {
-    this.draftPaymentFilters.update((f) => ({ ...f, outstandingOnly: v }));
+    this.draftPaymentFilters.update((filters) => ({ ...filters, [c]: v }));
   }
   clearFilters(): void {
     this.searchControls()?.clear();
@@ -314,7 +299,7 @@ export class StaysOverviewPage {
     const statuses = Object.entries(this.statusVisibility())
       .filter(([, visible]) => visible)
       .map(([status]) => this.toBackendStatus(status as StayStatus));
-    const conditions = Object.entries(this.paymentFilters().conditionVisibility)
+    const conditions = Object.entries(this.paymentFilters())
       .filter(([, visible]) => visible)
       .map(([condition]) => condition);
     this.syncingQuery = true;
@@ -330,7 +315,7 @@ export class StaysOverviewPage {
           ownerId: this.searchFilters().ownerId,
           catId: this.searchFilters().catId,
           paymentFilter: conditions.join(',') || 'none',
-          outstandingOnly: this.paymentFilters().outstandingOnly || null,
+          outstandingOnly: null, // Strip the retired filter from saved links.
         },
         queryParamsHandling: 'merge',
         replaceUrl: true,
@@ -386,8 +371,7 @@ export class StaysOverviewPage {
       (!search.ownerId || stay.ownerId === search.ownerId) &&
       (!search.catId || stay.cats.some((cat) => cat.catId === search.catId)) &&
       isStayVisibleByDateFilters(stay, search) &&
-      payment.conditionVisibility[stay.paymentCondition] &&
-      (!payment.outstandingOnly || stay.outstandingCollectionEligible)
+      payment[stay.paymentCondition]
     );
   }
   private selectedOverview(detail: StayDetailResponse, stay: Stay): StayOverviewItem {

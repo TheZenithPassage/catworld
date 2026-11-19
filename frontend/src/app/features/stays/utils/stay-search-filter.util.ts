@@ -8,27 +8,12 @@ export const PAYMENT_CONDITION_FILTER_OPTIONS: readonly PaymentCondition[] = [
 
 export type PaymentConditionVisibility = Record<PaymentCondition, boolean>;
 
-export interface StayPaymentFilters {
-  conditionVisibility: PaymentConditionVisibility;
-  outstandingOnly: boolean;
-}
-
-export function getDefaultStayPaymentFilters(): StayPaymentFilters {
+export function getDefaultStayPaymentFilters(): PaymentConditionVisibility {
   return {
-    conditionVisibility: {
-      NO_PAYMENT: true,
-      PARTIAL_PAYMENT: true,
-      FULL_PAYMENT: true,
-    },
-    outstandingOnly: false,
+    NO_PAYMENT: true,
+    PARTIAL_PAYMENT: true,
+    FULL_PAYMENT: true,
   };
-}
-
-export function isStayVisibleByPaymentFilters(stay: Stay, filters: StayPaymentFilters): boolean {
-  return (
-    filters.conditionVisibility[stay.paymentCondition] &&
-    (!filters.outstandingOnly || stay.outstandingCollectionEligible)
-  );
 }
 
 export {

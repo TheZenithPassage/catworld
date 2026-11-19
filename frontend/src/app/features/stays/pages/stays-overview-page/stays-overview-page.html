@@ -32,12 +32,6 @@
         >{{ text().stays.filters.paymentCondition[condition] }}</mat-checkbox
       >
     }
-    <mat-checkbox
-      class="payment-filter outstanding-filter"
-      [checked]="draftPaymentFilters().outstandingOnly"
-      (change)="setOutstandingOnly($event.checked)"
-      >{{ text().stays.filters.outstandingOnly }}</mat-checkbox
-    >
   </div>
   <app-stay-search-filters
     [dateFilters]="draftSearchFilters()"

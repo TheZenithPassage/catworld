@@ -150,7 +150,6 @@ export interface StaysTranslations {
     clear: string;
     searchAriaLabel: string;
     paymentAriaLabel: string;
-    outstandingOnly: string;
     paymentCondition: {
       NO_PAYMENT: string;
       PARTIAL_PAYMENT: string;
@@ -468,7 +467,6 @@ export const STAYS_TRANSLATIONS = {
       clear: 'Limpiar',
       searchAriaLabel: 'Filtros de búsqueda de estadías',
       paymentAriaLabel: 'Filtros de cobro de estadías',
-      outstandingOnly: 'Solo cobros pendientes',
       paymentCondition: {
         NO_PAYMENT: 'Sin pagos',
         PARTIAL_PAYMENT: 'Pago parcial',
@@ -789,7 +787,6 @@ export const STAYS_TRANSLATIONS = {
       clear: 'Clear',
       searchAriaLabel: 'Stay search filters',
       paymentAriaLabel: 'Stay payment filters',
-      outstandingOnly: 'Outstanding collection only',
       paymentCondition: {
         NO_PAYMENT: 'No payment',
         PARTIAL_PAYMENT: 'Partial payment',

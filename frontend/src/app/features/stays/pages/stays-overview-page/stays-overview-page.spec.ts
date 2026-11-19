@@ -100,11 +100,11 @@ describe('StaysOverviewPage server paging', () => {
     expect(api.getStayOverview.mock.calls[0][1].statuses).toEqual(['RESERVED', 'CHECKED_IN']);
     expect(f.componentInstance.page()).toBe(1);
     expect(f.componentInstance.isSelectedStay(f.componentInstance.stays()[0])).toBe(true);
-    f.componentInstance.setOutstandingOnly(true);
+    f.componentInstance.setPaymentConditionVisibility('FULL_PAYMENT', false);
     f.componentInstance.applyFilters();
     expect(api.getStayOverview).toHaveBeenCalledWith(
       0,
-      expect.objectContaining({ outstandingOnly: true }),
+      expect.objectContaining({ paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'] }),
     );
   });
   it('clamps an empty matching population to page zero and clears the synchronized page', () => {
@@ -133,7 +133,6 @@ describe('StaysOverviewPage server paging', () => {
       ownerId: null,
       catId: null,
       paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
-      outstandingOnly: false,
     });
     expect(f.nativeElement.textContent).toContain(f.componentInstance.text().stays.overview.empty);
     expect(f.nativeElement.textContent).not.toContain(
@@ -227,6 +226,14 @@ describe('StaysOverviewPage server paging', () => {
     );
   });
   it('keeps an off-page selected Stay present and actionable without changing the active page', () => {
+    queryParams.next(
+      convertToParamMap({
+        selectedStayId: 's',
+        page: '2',
+        paymentFilter: 'NO_PAYMENT',
+        outstandingOnly: 'true',
+      }),
+    );
     api.getStayOverview.mockReturnValue(
       of({
         items: [
@@ -248,6 +255,8 @@ describe('StaysOverviewPage server paging', () => {
     const f = TestBed.createComponent(StaysOverviewPage);
     f.detectChanges();
     const contextual = f.nativeElement.querySelector('.contextual-selection');
+    expect(api.getStayOverview.mock.calls[0][1].paymentConditions).toEqual(['NO_PAYMENT']);
+    expect(api.getStayOverview.mock.calls[0][1]).not.toHaveProperty('outstandingOnly');
     expect(api.getStayDetail).toHaveBeenCalledWith('s');
     expect(api.getStayById).toHaveBeenCalledWith('s');
     expect(f.componentInstance.page()).toBe(2);
@@ -420,7 +429,6 @@ describe('StaysOverviewPage server paging', () => {
       dateFrom: '2030-01-01',
       dateMatchMode: 'STAY_WITHIN_RANGE',
     });
-    page.setOutstandingOnly(true);
     page.setPaymentConditionVisibility('NO_PAYMENT', false);
     f.detectChanges();
     api.getStayOverview.mockClear();
@@ -435,8 +443,7 @@ describe('StaysOverviewPage server paging', () => {
       dateTo: '',
       dateMatchMode: 'OVERLAPS',
     });
-    expect(page.draftPaymentFilters().outstandingOnly).toBe(false);
-    expect(page.draftPaymentFilters().conditionVisibility.NO_PAYMENT).toBe(true);
+    expect(page.draftPaymentFilters().NO_PAYMENT).toBe(true);
     expect(page.searchFilters()).toEqual(applied);
     expect(page.paymentFilters()).toEqual(payments);
     expect(page.statusVisibility()).toEqual(statuses);
@@ -454,7 +461,7 @@ describe('StaysOverviewPage server paging', () => {
       const page = f.componentInstance;
       const applied = page.searchFilters();
       const payment = page.paymentFilters();
-      page.setOutstandingOnly(true);
+      page.setPaymentConditionVisibility('FULL_PAYMENT', false);
       const input = f.nativeElement.querySelector('input[type="date"]') as HTMLInputElement;
       input.value = date;
       input.dispatchEvent(new Event('input'));
@@ -500,7 +507,6 @@ describe('StaysOverviewPage server paging', () => {
       dateMatchMode: 'RANGE_WITHIN_STAY',
     });
     c.setPaymentConditionVisibility('FULL_PAYMENT', false);
-    c.setOutstandingOnly(true);
     api.getStayOverview.mockReturnValue(EMPTY).mockClear();
     navigate.mockClear();
     visibility.store.mockClear();
@@ -515,7 +521,6 @@ describe('StaysOverviewPage server paging', () => {
         ...applied,
         statuses: ['RESERVED'],
         paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT', 'FULL_PAYMENT'],
-        outstandingOnly: false,
       }),
     );
     expect(navigate).toHaveBeenLastCalledWith(
@@ -526,7 +531,6 @@ describe('StaysOverviewPage server paging', () => {
           statusFilter: 'RESERVED',
           ownerId: null,
           dateFrom: null,
-          outstandingOnly: null,
         }),
       }),
     );
@@ -544,7 +548,7 @@ describe('StaysOverviewPage server paging', () => {
     f.detectChanges();
     await f.whenStable();
     expect(c.searchFilters()).toEqual(applied);
-    expect(c.paymentFilters().outstandingOnly).toBe(false);
+    expect(c.paymentFilters().FULL_PAYMENT).toBe(true);
     expect(api.getStayOverview).not.toHaveBeenCalled();
     expect(navigate).not.toHaveBeenCalled();
     expect(f.nativeElement.querySelector('mat-error')).not.toBeNull();
@@ -560,7 +564,6 @@ describe('StaysOverviewPage server paging', () => {
     visibility.store.mockClear();
     const c = f.componentInstance;
     c.setPaymentConditionVisibility('FULL_PAYMENT', false);
-    c.setOutstandingOnly(true);
     c.setSearchFilters({
       catId: null,
       ownerId: null,
@@ -579,7 +582,6 @@ describe('StaysOverviewPage server paging', () => {
       expect.objectContaining({
         statuses: ['RESERVED', 'CHECKED_IN'],
         paymentConditions: ['NO_PAYMENT', 'PARTIAL_PAYMENT'],
-        outstandingOnly: true,
         dateFrom: '2099-01-01',
         dateTo: '2099-01-02',
         dateMatchMode: 'STAY_WITHIN_RANGE',
@@ -640,7 +642,7 @@ describe('StaysOverviewPage server paging', () => {
       dateMatchMode: 'STAY_WITHIN_RANGE' as const,
     };
     f.componentInstance.setSearchFilters(draft);
-    f.componentInstance.setOutstandingOnly(true);
+    f.componentInstance.setPaymentConditionVisibility('NO_PAYMENT', false);
     f.detectChanges();
     expect(queryParams.value).toBe(before);
     expect(navigate).not.toHaveBeenCalled();
@@ -660,7 +662,7 @@ describe('StaysOverviewPage server paging', () => {
     expect(queryParams.value.get('dateMatchMode')).toBe(draft.dateMatchMode);
     expect(queryParams.value.get('ownerId')).toBe('o');
     expect(queryParams.value.get('statusFilter')).toBe('RESERVED,CHECKED_IN');
-    expect(queryParams.value.get('outstandingOnly')).toBe('true');
+    expect(queryParams.value.get('paymentFilter')).toBe('PARTIAL_PAYMENT,FULL_PAYMENT');
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(api.getStayOverview).toHaveBeenCalledTimes(1);
     expect(api.getStayOverview).toHaveBeenCalledWith(0, expect.objectContaining(draft));

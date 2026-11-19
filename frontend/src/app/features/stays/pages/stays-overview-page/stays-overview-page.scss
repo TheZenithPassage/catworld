@@ -116,18 +116,8 @@
   }
 }
 
-.outstanding-filter {
-  margin-inline-start: auto;
-}
-
 @media (max-width: 900px) {
   .page-header {
     flex-direction: column;
-  }
-}
-
-@media (max-width: 720px) {
-  .outstanding-filter {
-    margin-inline-start: 0;
   }
 }
