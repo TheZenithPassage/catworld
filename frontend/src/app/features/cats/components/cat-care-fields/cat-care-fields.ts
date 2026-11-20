@@ -9,6 +9,7 @@ import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CATWORLD_LITTER, FoodBrandOption } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
+import { foodBrandKey } from '../../utils/food-brand-key';
 
 @Component({
   selector: 'app-cat-care-fields',
@@ -44,7 +45,7 @@ export class CatCareFields {
   private readonly auth = inject(AuthSessionService);
   private readonly catalog = signal<FoodBrandOption[] | null>(null);
   private loadingCatalog = false;
-  private readonly foodBrandSearch = computed(() => this.brandKey(this.foodBrand()));
+  private readonly foodBrandSearch = computed(() => foodBrandKey(this.foodBrand()));
 
   readonly text = inject(I18nService).text;
   readonly sharedLitter = CATWORLD_LITTER;
@@ -55,7 +56,7 @@ export class CatCareFields {
   readonly litterBrand = model.required<string>();
   readonly foodOptions = computed(() =>
     (this.catalog() ?? []).filter(({ name }) =>
-      this.brandKey(name).includes(this.foodBrandSearch()),
+      foodBrandKey(name).includes(this.foodBrandSearch()),
     ),
   );
   readonly canApproveFoodBrand = computed(() => {
@@ -64,7 +65,7 @@ export class CatCareFields {
       this.auth.hasRole('ADMIN') &&
       !!key &&
       !this.foodBrandId() &&
-      this.catalog()?.every(({ name }) => this.brandKey(name) !== key) === true
+      this.catalog()?.every(({ name }) => foodBrandKey(name) !== key) === true
     );
   });
 
@@ -98,8 +99,4 @@ export class CatCareFields {
 
   readonly displayLitter = (value: string): string =>
     value === CATWORLD_LITTER ? this.text().cats.form.sharedLitter : value;
-
-  private brandKey(value: string): string {
-    return value.trim().replace(/\s+/g, ' ').toLowerCase();
-  }
 }

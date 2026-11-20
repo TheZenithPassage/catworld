@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
+import { CatApiService } from '../cats/services/cat-api.service';
 import { CatIntakeApi } from './cat-intake-api';
 import { CatIntakeReviewDetail } from './cat-intake-models';
 import { CatIntakeReview } from './cat-intake-review';
@@ -35,8 +36,8 @@ describe('CatIntakeReview', () => {
     getReview: vi.fn(),
     getReviewPhoto: vi.fn(),
     approve: vi.fn(),
-    listFoodBrands: vi.fn(),
   };
+  const catApi = { getFoodBrands: vi.fn() };
   const details = { open: vi.fn(() => EMPTY) };
 
   beforeEach(async () => {
@@ -44,7 +45,7 @@ describe('CatIntakeReview', () => {
     api.listReview.mockReturnValue(of([item]));
     api.getReview.mockReturnValue(of(conflicting));
     api.getReviewPhoto.mockReturnValue(of(new Blob()));
-    api.listFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Proposed Food' }]));
+    catApi.getFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Proposed Food' }]));
     vi.stubGlobal(
       'URL',
       class extends URL {
@@ -57,6 +58,7 @@ describe('CatIntakeReview', () => {
       providers: [
         provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
         { provide: CatIntakeApi, useValue: api },
+        { provide: CatApiService, useValue: catApi },
         { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();

@@ -165,7 +165,7 @@
                           setValue('litterBrand', $any($event.target).checked ? sharedLitter : '')
                         "
                       />
-                      {{ copy().sharedLitter }}
+                      {{ catCopy().form.sharedLitter }}
                     </label>
                   }
                   @if (row.field.key !== 'litterBrand' || row.value !== sharedLitter) {

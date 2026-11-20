@@ -1,5 +1,3 @@
-export const CATWORLD_LITTER = 'Usa las de CatWorld';
-
 export const CAT_INTAKE_FIELDS = [
   { key: 'name', kind: 'text', required: true, maxLength: 100 },
   { key: 'birthDate', kind: 'date', required: true },
@@ -63,9 +61,4 @@ export interface CatIntakeApproval {
   photoIds: string[];
   expectedCatUpdatedAt: string | null;
   expectedReviewRevision: number;
-}
-
-export interface IntakeFoodBrand {
-  id: string;
-  name: string;
 }

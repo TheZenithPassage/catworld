@@ -19,16 +19,17 @@ import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake
 import { BusinessTimeService } from '../../core/time/business-time.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
+import { CATWORLD_LITTER, FoodBrandOption } from '../cats/models/cat.model';
+import { CatApiService } from '../cats/services/cat-api.service';
+import { foodBrandKey } from '../cats/utils/food-brand-key';
 import { CatIntakeApi } from './cat-intake-api';
 import {
   CAT_INTAKE_FIELDS,
-  CATWORLD_LITTER,
   CatIntakeField,
   CatIntakeFieldKey,
   CatIntakeFields,
   CatIntakeReviewDetail,
   CatIntakeReviewItem,
-  IntakeFoodBrand,
 } from './cat-intake-models';
 
 type Decision = 'apply' | 'keep' | 'unresolved';
@@ -67,6 +68,7 @@ interface ReviewGroup {
 })
 export class CatIntakeReview {
   private readonly api = inject(CatIntakeApi);
+  private readonly catApi = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly dialog = inject(MatDialog);
@@ -103,23 +105,19 @@ export class CatIntakeReview {
   readonly approving = signal(false);
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
-  readonly foodBrands = signal<IntakeFoodBrand[]>([]);
+  readonly foodBrands = signal<FoodBrandOption[]>([]);
   readonly foodBrandsState = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
   private readonly foodBrandQuery = computed(() =>
-    this.normalizeBrand(this.fields().find(({ field }) => field.key === 'foodBrand')?.value ?? ''),
+    foodBrandKey(this.fields().find(({ field }) => field.key === 'foodBrand')?.value ?? ''),
   );
   readonly suggestedFoodBrands = computed(() =>
-    this.foodBrands().filter(({ name }) =>
-      this.normalizeBrand(name).includes(this.foodBrandQuery()),
-    ),
+    this.foodBrands().filter(({ name }) => foodBrandKey(name).includes(this.foodBrandQuery())),
   );
   readonly isNewFoodBrand = computed(
     () =>
       this.foodBrandsState() === 'ready' &&
       this.foodBrandQuery().length > 0 &&
-      !this.suggestedFoodBrands().some(
-        ({ name }) => this.normalizeBrand(name) === this.foodBrandQuery(),
-      ),
+      !this.suggestedFoodBrands().some(({ name }) => foodBrandKey(name) === this.foodBrandQuery()),
   );
   readonly canApprove = computed(() => {
     const detail = this.detail();
@@ -247,7 +245,7 @@ export class CatIntakeReview {
     if (this.foodBrandsState() === 'loading') return;
     this.foodBrandsState.set('loading');
     this.detailRequests.add(
-      this.api.listFoodBrands().subscribe({
+      this.catApi.getFoodBrands().subscribe({
         next: (brands) => {
           this.foodBrands.set(brands);
           this.foodBrandsState.set('ready');
@@ -318,7 +316,7 @@ export class CatIntakeReview {
 
   displayValue(key: CatIntakeFieldKey, value: string | null | undefined): string {
     if (!value) return this.catCopy().emptyValue;
-    if (key === 'litterBrand' && value === CATWORLD_LITTER) return this.copy().sharedLitter;
+    if (key === 'litterBrand' && value === CATWORLD_LITTER) return this.catCopy().form.sharedLitter;
     if (key === 'sex')
       return value === 'MALE' ? this.catCopy().form.male : this.catCopy().form.female;
     if (CAT_INTAKE_FIELDS.some((field) => field.key === key && field.kind === 'date')) {
@@ -380,10 +378,6 @@ export class CatIntakeReview {
   private closeUnavailable(): void {
     this.back();
     this.notice.set('unavailable');
-  }
-
-  private normalizeBrand(value: string): string {
-    return value.trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
   private clearDetail(): void {
