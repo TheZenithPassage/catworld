@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter @Setter
@@ -25,6 +26,7 @@ public class CatResponseDTO {
     private String color;
     private String foodBrand;
     private UUID foodBrandId;
+    private Map<String, UUID> catalogOptionIds;
     private String foodDetail;
     private String litterBrand;
     private String personality;

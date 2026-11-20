@@ -76,7 +76,7 @@ public class CatIntakeService {
     private final CatMutationTransactionService catMutations;
     private final CatIntakeFields fields;
     private final HouseholdIntakePreparation preparation;
-    private final FoodBrandService foodBrands;
+    private final CatProfileOptionService profileOptions;
     private final LibVipsCatPhotoNormalizer normalizer;
     private final PlatformTransactionManager transactions;
     private final ObjectMapper json;
@@ -166,7 +166,9 @@ public class CatIntakeService {
             submitted.stream().filter(review -> review.getCatId() == null && review.getApprovedAt() == null)
                     .map(draft -> scopedCat(null, Map.of(), List.of(), draft)).forEach(result::add);
         }
-        return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(), foodBrands.approvedBrands());
+        var catalogOptions = profileOptions.approvedOptions();
+        return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(),
+                catalogOptions.get("foodBrand"), catalogOptions);
     }
 
     @Transactional(readOnly = true)
@@ -271,7 +273,7 @@ public class CatIntakeService {
         }
 
         var accepted = fields.nonBlank(approval.fields());
-        accepted.computeIfPresent("foodBrand", (key, value) -> foodBrands.matchingName(value));
+        profileOptions.normalizeProposals(accepted);
         if (cat != null) {
             var proposed = fieldsOf(review.getProposedFields());
             if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposed))) {
@@ -289,10 +291,7 @@ public class CatIntakeService {
         }
 
         var request = fields.request(ownerId, cat, fields.merge(cat, accepted));
-        if (accepted.containsKey("foodBrand")) {
-            request.setFoodBrand(accepted.get("foodBrand"));
-            request.setApproveFoodBrand(true);
-        }
+        profileOptions.selectForApproval(request, accepted);
         if (cat == null) {
             cat = catMutations.create(request, null);
         } else if (!accepted.isEmpty()) {
@@ -387,10 +386,7 @@ public class CatIntakeService {
 
     private Map<String, String> proposedFields(SubmittedCat submitted, Map<String, String> original) {
         var proposed = fields.nonBlank(submitted.fields());
-        String supplied = proposed.computeIfPresent("foodBrand", (key, value) -> foodBrands.matchingName(value));
-        if (supplied != null && supplied.equals(foodBrands.matchingName(original.get("foodBrand")))) {
-            proposed.remove("foodBrand");
-        }
+        profileOptions.removeUnchangedProposals(proposed, original);
         proposed.entrySet().removeIf(entry -> Objects.equals(
                 entry.getValue(), original.getOrDefault(entry.getKey(), "").strip()));
         return proposed;

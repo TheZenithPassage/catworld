@@ -19,7 +19,7 @@ public final class CatIntakeDtos {
     public record ScopedCat(UUID catId, Map<String, String> fields, List<String> requestedFields, UUID draftId,
                             long revision, Map<String, String> proposedFields, List<ReviewPhoto> photos) {}
     public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt,
-                                List<FoodBrandOption> brands) {}
+                                List<CatProfileOptionDto> brands, Map<String, List<CatProfileOptionDto>> catalogOptions) {}
     public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
                                List<UUID> retainedPhotoIds, List<String> photoKeys) {}
     public record Submission(List<SubmittedCat> cats) {}

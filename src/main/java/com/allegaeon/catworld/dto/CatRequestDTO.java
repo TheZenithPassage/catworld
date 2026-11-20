@@ -15,6 +15,7 @@ import lombok.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Year;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter @Setter
@@ -80,6 +81,7 @@ public class CatRequestDTO {
     private String foodDetail;
 
     private boolean approveFoodBrand;
+    private Set<String> approveCatalogOptions;
 
     @Size(max = 100, message = "Litter brand must not exceed 100 characters")
     private String litterBrand;

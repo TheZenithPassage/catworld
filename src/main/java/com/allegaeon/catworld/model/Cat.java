@@ -35,8 +35,11 @@ public class Cat extends AuditableEntity {
     private Sex sex;
 
     private String breed;
+    private UUID breedOptionId;
     private String coat;
+    private UUID coatOptionId;
     private String color;
+    private UUID colorOptionId;
     private String foodBrand;
     private UUID foodBrandId;
     private String foodDetail;
@@ -50,8 +53,10 @@ public class Cat extends AuditableEntity {
     private String notes;
 
     private String lastInternalDewormerName;
+    private UUID lastInternalDewormerOptionId;
     private LocalDate lastInternalDewormingDate;
     private String lastExternalDewormerName;
+    private UUID lastExternalDewormerOptionId;
     private LocalDate lastExternalDewormingDate;
     private LocalDate lastTripleFelineDate;
     private LocalDate lastRabiesDate;

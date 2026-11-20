@@ -245,6 +245,31 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void intakePublishesOnlyTheCorrectedAndSelectedCatalogField() throws Exception {
+        var owner = owner();
+        var existing = cat(owner, "Catalog review");
+        var invite = issue(owner, false);
+        var proposed = Map.of("breed", "  European  SHORTHAIR  ", "color", "Unreviewed color");
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", proposed))))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogOptions.breed[?(@.name == 'European SHORTHAIR')]").isEmpty());
+
+        var review = detail(rowFor(reviewList(), owner.getId(), existing.getName()).get("id").asString());
+        approve(review, Map.of("breed", "European Shorthair"), List.of(),
+                review.get("catUpdatedAt").asString(), 204);
+        var updated = cats.findById(existing.getId()).orElseThrow();
+        assertThat(updated.getBreed()).isEqualTo("European Shorthair");
+        assertThat(updated.getColor()).isNull();
+        var otherInvite = issue(owner(), true);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, otherInvite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogOptions.breed[*].name", hasItem("European Shorthair")))
+                .andExpect(jsonPath("$.catalogOptions.color[?(@.name == 'Unreviewed color')]").isEmpty());
+    }
+
+    @Test
     void onlyOffersFoodBrandsAfterApprovalAndMatchesTheCompleteNormalizedName() throws Exception {
         Owner owner = owner();
         var invite = issue(owner, true);
@@ -259,7 +284,8 @@ class CatIntakeControllerTest {
         var secondInvite = issue(owner(), true);
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, secondInvite.authorization()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.brands[*].name", hasItem("Northern Lights Food")));
+                .andExpect(jsonPath("$.brands[*].name", hasItem("Northern Lights Food")))
+                .andExpect(jsonPath("$.catalogOptions.foodBrand[*].name", hasItem("Northern Lights Food")));
         var second = newRegistration("Second", Map.of("foodBrand", "  northern   LIGHTS food  "));
         var third = newRegistration("Third", Map.of("foodBrand", "Nortern Lights Food"));
         mvc.perform(submission(secondInvite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", second),
