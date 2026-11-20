@@ -54,13 +54,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class CatIntakeService {
     private static final Duration INVITATION_LIFETIME = Duration.ofDays(7);
     private static final int MAX_CATS = 20;
-    private static final int MAX_PHOTOS_PER_CAT = 2;
+    private static final int MAX_PHOTOS_PER_CAT = 5;
     private static final long MAX_PHOTO_BYTES = 8L * 1024 * 1024;
     private static final long MAX_TOTAL_PHOTO_BYTES = 32L * 1024 * 1024;
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]{43}");
@@ -77,6 +78,7 @@ public class CatIntakeService {
     private final CatIntakeFields fields;
     private final HouseholdIntakePreparation preparation;
     private final CatProfileOptionService profileOptions;
+    private final FoodBrandService foodBrands;
     private final LitterRateService litterRates;
     private final LibVipsCatPhotoNormalizer normalizer;
     private final PlatformTransactionManager transactions;
@@ -109,6 +111,10 @@ public class CatIntakeService {
         Map<UUID, Map<String, String>> scope = new LinkedHashMap<>();
         livingCats.forEach(cat -> scope.put(cat.getId(), fields.snapshot(cat)));
         var requested = requestedAtIssuance(owner.getId(), livingCats, request.stayId());
+        requested.replaceAll((id, prompts) -> prompts.stream()
+                .flatMap(field -> CatIntakeCatalog.FOOD_BRAND.equals(field)
+                        ? Stream.of(field, CatIntakeCatalog.FOOD_DETAIL) : Stream.of(field))
+                .toList());
 
         Instant now = clock.instant();
         invitations.findOutstandingByOwnerForUpdate(owner.getId()).forEach(invitation -> revoke(invitation, now));
@@ -155,21 +161,22 @@ public class CatIntakeService {
         var requested = requestedForOpenScope(invite.getRequestedFieldsSnapshot(), invite.getOwnerId(), eligible);
         var submitted = reviews.findByInvitation_IdOrderBySubmittedAtAscIdAsc(invite.getId());
         var byCat = existingReviews(submitted);
+        var catalog = catalog();
         var result = new ArrayList<ScopedCat>();
         var eligibleIds = catIds(eligible);
         scope.forEach((catId, original) -> {
             var draft = byCat.get(catId);
             if (eligibleIds.contains(catId) && (draft == null || draft.isPending())) {
-                result.add(scopedCat(catId, original, requested.getOrDefault(catId, List.of()), draft));
+                result.add(scopedCat(catId, original, requested.getOrDefault(catId, List.of()), draft, catalog));
             }
         });
         if (invite.getAllowNewCats()) {
             submitted.stream().filter(review -> review.getCatId() == null && review.isPending())
-                    .map(draft -> scopedCat(null, Map.of(), List.of(), draft)).forEach(result::add);
+                    .map(draft -> scopedCat(null, Map.of(), List.of(), draft, catalog)).forEach(result::add);
         }
-        var catalogOptions = profileOptions.approvedOptions();
         return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(),
-                catalogOptions.get("foodBrand"), catalogOptions, litterRates.currentRate());
+                catalog.options().get(CatIntakeCatalog.FOOD_BRAND), catalog.options(), catalog.varieties(),
+                litterRates.currentRate());
     }
 
     @Transactional(readOnly = true)
@@ -214,7 +221,7 @@ public class CatIntakeService {
             var byDraft = submitted.stream().filter(review -> review.getDraftId() != null)
                     .collect(Collectors.toMap(CatIntakeReview::getDraftId, review -> review));
             var eligibleById = eligible.stream().collect(Collectors.toMap(Cat::getId, cat -> cat));
-            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft);
+            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog());
             validateRequestedAnswer(drafts, requested, eligible, byCat);
             drafts.forEach(draft -> saveDraft(locked, draft, normalized, now));
         });
@@ -238,9 +245,9 @@ public class CatIntakeService {
         List<String> conflicts = current == null ? List.of() : proposed.keySet().stream()
                 .filter(key -> fields.isConflict(key, original, current)).toList();
         return new ReviewDetail(id, owner.getId(), owner.getFullName(), review.getCatId(), review.getCatName(),
-                review.getSubmittedAt(), current, proposed, conflicts,
+                review.getSubmittedAt(), current, proposed, conflicts, unansweredRequestedFields(review, proposed),
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
-                cat == null ? null : cat.getUpdatedAt(), review.getRevision());
+                cat == null ? null : cat.getUpdatedAt(), review.getRevision(), review.getProposedFoodDetailBrand());
     }
 
     @Transactional(readOnly = true)
@@ -264,10 +271,10 @@ public class CatIntakeService {
         var cat = lockCurrentCat(review, ownerId, approval.expectedCatUpdatedAt());
 
         var accepted = fields.nonBlank(approval.fields());
-        profileOptions.normalizeProposals(accepted);
+        var proposal = proposalOf(review);
+        catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(), proposal);
         if (cat != null) {
-            var proposed = fieldsOf(review.getProposedFields());
-            if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposed))) {
+            if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposal.fields()))) {
                 throw new BadRequestException("Select fields proposed in this review");
             }
         }
@@ -275,8 +282,8 @@ public class CatIntakeService {
         if (cat != null && accepted.isEmpty() && photoIds.isEmpty()) {
             throw new BadRequestException("Select at least one field or photo to approve");
         }
-        if (photoIds.size() > MAX_PHOTOS_PER_CAT || photoIds.stream().anyMatch(Objects::isNull)
-                || new HashSet<>(photoIds).size() != photoIds.size()) {
+        validatePhotoCount(photoIds.size());
+        if (photoIds.stream().anyMatch(Objects::isNull) || new HashSet<>(photoIds).size() != photoIds.size()) {
             throw new BadRequestException("Invalid selection of intake photos");
         }
         List<CatIntakePhoto> acceptedPhotos = photoIds.isEmpty() ? List.of() : intakePhotos.findByReview_IdAndIdIn(id, photoIds);
@@ -286,6 +293,10 @@ public class CatIntakeService {
 
         var request = fields.request(ownerId, cat, fields.merge(cat, accepted));
         profileOptions.selectForApproval(request, accepted);
+        if (accepted.containsKey(CatIntakeCatalog.FOOD_DETAIL)) {
+            request.setFoodDetail(accepted.get(CatIntakeCatalog.FOOD_DETAIL));
+            request.setApproveFoodVariety(proposal.foodDetailBrand() != null);
+        }
         if (cat == null) {
             cat = catMutations.create(request, null);
         } else if (!accepted.isEmpty()) {
@@ -343,9 +354,7 @@ public class CatIntakeService {
         for (var submitted : submission.cats()) {
             if (submitted == null) throw new BadRequestException("Cat details are required");
             var photoKeys = photoKeys(submitted);
-            if (photoKeys.size() > MAX_PHOTOS_PER_CAT) {
-                throw new BadRequestException("Up to two photos are allowed per cat");
-            }
+            validatePhotoCount(photoKeys.size());
             for (String key : photoKeys) {
                 if (key == null || "submission".equals(key) || !PHOTO_KEY_PATTERN.matcher(key).matches()
                         || !expectedPhotos.add(key)) {
@@ -358,7 +367,8 @@ public class CatIntakeService {
 
     private List<Draft> prepareDrafts(Submission submission, CatIntakeInvitation invite,
                                       Map<UUID, Map<String, String>> scope, Map<UUID, Cat> eligible,
-                                      Map<UUID, CatIntakeReview> byCat, Map<UUID, CatIntakeReview> byDraft) {
+                                      Map<UUID, CatIntakeReview> byCat, Map<UUID, CatIntakeReview> byDraft,
+                                      CatIntakeCatalog catalog) {
         Set<UUID> includedCats = new HashSet<>();
         Set<UUID> includedDrafts = new HashSet<>();
         List<Draft> drafts = new ArrayList<>();
@@ -375,12 +385,15 @@ public class CatIntakeService {
             }
             var previous = previousDraft(submitted, byCat, byDraft);
             var original = catId == null ? Map.<String, String>of() : scope.get(catId);
-            var proposed = proposedFields(submitted, original);
+            var previousProposal = proposalOf(previous);
+            var selection = submitted.optionIds() == null ? Map.<String, UUID>of() : submitted.optionIds();
+            var proposal = catalog.propose(fields.nonBlank(submitted.fields()), selection, original, previousProposal);
+            var proposed = proposal.fields();
             if (catId == null) fields.requireRegistrationDetails(proposed);
             var oldPhotoIds = previous == null ? List.<UUID>of() : intakePhotos.findIdsByReview(previous.getId());
             var retained = retainedPhotoIds(submitted, oldPhotoIds);
             var uploads = photoKeys(submitted);
-            if (previous != null && proposed.equals(fieldsOf(previous.getProposedFields()))
+            if (previous != null && proposal.equals(previousProposal)
                     && retained.size() == oldPhotoIds.size() && uploads.isEmpty()) continue;
             if (!Collections.disjoint(proposed.keySet(), VACCINE_FIELDS) && retained.isEmpty() && uploads.isEmpty()) {
                 throw new BadRequestException("Vaccination dates require a supporting photo for this cat");
@@ -389,7 +402,7 @@ public class CatIntakeService {
             Map<String, String> baseline = fields.comparisonBaseline(original, proposed);
             UUID stableDraftId = previous != null ? previous.getDraftId() : draftId == null ? UUID.randomUUID() : draftId;
             var draft = new Draft(previous, catId, stableDraftId, proposed.getOrDefault("name", original.get("name")),
-                    baseline, proposed, retained, uploads);
+                    baseline, proposal, retained, uploads);
             if (draft.hasProposal()) {
                 fields.request(invite.getOwner().getId(), current, fields.merge(current, proposed));
             } else if (previous == null) {
@@ -417,17 +430,10 @@ public class CatIntakeService {
         return existing;
     }
 
-    private Map<String, String> proposedFields(SubmittedCat submitted, Map<String, String> original) {
-        var proposed = fields.nonBlank(submitted.fields());
-        profileOptions.removeUnchangedProposals(proposed, original);
-        proposed.entrySet().removeIf(entry -> Objects.equals(
-                entry.getValue(), original.getOrDefault(entry.getKey(), "").strip()));
-        return proposed;
-    }
-
     private static List<UUID> retainedPhotoIds(SubmittedCat submitted, List<UUID> existingIds) {
         var retained = submitted.retainedPhotoIds() == null ? existingIds : submitted.retainedPhotoIds();
-        if (retained.size() + photoKeys(submitted).size() > MAX_PHOTOS_PER_CAT || retained.stream().anyMatch(Objects::isNull)
+        validatePhotoCount(retained.size() + photoKeys(submitted).size());
+        if (retained.stream().anyMatch(Objects::isNull)
                 || new HashSet<>(retained).size() != retained.size() || !existingIds.containsAll(retained)) {
             throw new BadRequestException("Invalid selection of photos for this cat");
         }
@@ -436,6 +442,12 @@ public class CatIntakeService {
 
     private static List<String> photoKeys(SubmittedCat submitted) {
         return submitted.photoKeys() == null ? List.of() : submitted.photoKeys();
+    }
+
+    private static void validatePhotoCount(int count) {
+        if (count > MAX_PHOTOS_PER_CAT) {
+            throw new BadRequestException("Up to five photos are allowed per cat");
+        }
     }
 
     private static void validateRequestedAnswer(List<Draft> drafts, Map<UUID, List<String>> requested, List<Cat> eligible,
@@ -460,13 +472,15 @@ public class CatIntakeService {
         }
         String original = json.writeValueAsString(draft.original());
         String proposed = json.writeValueAsString(draft.proposed());
+        String optionIds = json.writeValueAsString(draft.proposal().optionIds());
+        String foodDetailBrand = draft.proposal().foodDetailBrand();
         CatIntakeReview review;
         if (previous == null) {
             review = reviews.save(new CatIntakeReview(invitation, draft.catId(), draft.draftId(), draft.catName(),
-                    original, proposed, now));
+                    original, proposed, optionIds, foodDetailBrand, now));
         } else {
             review = previous;
-            review.replaceProposal(draft.catName(), original, proposed, now);
+            review.replaceProposal(draft.catName(), original, proposed, optionIds, foodDetailBrand, now);
             if (draft.retainedPhotoIds().isEmpty()) intakePhotos.deleteByReview(review.getId());
             else intakePhotos.deleteUnretained(review.getId(), draft.retainedPhotoIds());
         }
@@ -516,15 +530,29 @@ public class CatIntakeService {
     }
 
     private Map<UUID, List<String>> requestedForOpenScope(String snapshot, UUID ownerId, List<Cat> eligible) {
-        return snapshot == null ? requestedAtIssuance(ownerId, eligible, null)
-                : json.readValue(snapshot, new TypeReference<>() {});
+        return snapshot == null ? requestedAtIssuance(ownerId, eligible, null) : requestedFromSnapshot(snapshot);
     }
 
-    private ScopedCat scopedCat(UUID id, Map<String, String> original, List<String> requested, CatIntakeReview draft) {
-        if (draft == null) return new ScopedCat(id, original, requested, null, 0, Map.of(), List.of());
+    private Map<UUID, List<String>> requestedFromSnapshot(String snapshot) {
+        return json.readValue(snapshot, new TypeReference<>() {});
+    }
+
+    private List<String> unansweredRequestedFields(CatIntakeReview review, Map<String, String> proposed) {
+        var snapshot = review.getInvitation().getRequestedFieldsSnapshot();
+        if (review.getCatId() == null || snapshot == null) return List.of();
+        return requestedFromSnapshot(snapshot).getOrDefault(review.getCatId(), List.of()).stream()
+                .filter(key -> !proposed.containsKey(key))
+                .toList();
+    }
+
+    private ScopedCat scopedCat(UUID id, Map<String, String> original, List<String> requested, CatIntakeReview draft,
+                                CatIntakeCatalog catalog) {
+        var proposal = proposalOf(draft);
+        var selections = catalog.displaySelections(original, proposal);
+        if (draft == null) return new ScopedCat(id, original, requested, null, 0, Map.of(), List.of(), selections);
         return new ScopedCat(id, original, requested, draft.getDraftId(), draft.getRevision(),
-                fieldsOf(draft.getProposedFields()),
-                intakePhotos.findIdsByReview(draft.getId()).stream().map(ReviewPhoto::new).toList());
+                proposal.fields(), intakePhotos.findIdsByReview(draft.getId()).stream().map(ReviewPhoto::new).toList(),
+                selections);
     }
 
     private void closeIfComplete(CatIntakeInvitation invite, Instant now) {
@@ -604,6 +632,18 @@ public class CatIntakeService {
         return fields.sharedFields(json.readValue(snapshot, new TypeReference<>() {}));
     }
 
+    private CatIntakeCatalog catalog() {
+        return new CatIntakeCatalog(profileOptions.approvedOptions(), foodBrands.approvedVarieties());
+    }
+
+    private CatIntakeCatalog.Proposal proposalOf(CatIntakeReview review) {
+        if (review == null) return new CatIntakeCatalog.Proposal(Map.of(), Map.of(), null);
+        Map<String, UUID> optionIds = review.getProposedOptionIds() == null ? Map.of()
+                : json.readValue(review.getProposedOptionIds(), new TypeReference<>() {});
+        return new CatIntakeCatalog.Proposal(fieldsOf(review.getProposedFields()), optionIds,
+                review.getProposedFoodDetailBrand());
+    }
+
     private static String requireDigest(String authorization) {
         String hash = digestFromAuthorization(authorization);
         if (hash == null) throw unavailable();
@@ -634,9 +674,13 @@ public class CatIntakeService {
     }
 
     private record Draft(CatIntakeReview previous, UUID catId, UUID draftId, String catName, Map<String, String> original,
-                         Map<String, String> proposed, List<UUID> retainedPhotoIds, List<String> photoKeys) {
+                         CatIntakeCatalog.Proposal proposal, List<UUID> retainedPhotoIds, List<String> photoKeys) {
+        private Map<String, String> proposed() {
+            return proposal.fields();
+        }
+
         private boolean hasProposal() {
-            return !proposed.isEmpty() || !retainedPhotoIds.isEmpty() || !photoKeys.isEmpty();
+            return !proposed().isEmpty() || !retainedPhotoIds.isEmpty() || !photoKeys.isEmpty();
         }
     }
 }

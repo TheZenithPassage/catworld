@@ -29,6 +29,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -50,6 +51,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -61,6 +63,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
@@ -95,6 +98,7 @@ class CatIntakeControllerTest {
     @Autowired CatIntakeReviewRepository reviews;
     @Autowired CatIntakePhotoRepository intakePhotos;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired JdbcTemplate jdbc;
     @MockitoBean Clock clock;
     @MockitoBean LibVipsCatPhotoNormalizer normalizer;
 
@@ -112,6 +116,15 @@ class CatIntakeControllerTest {
 
     @BeforeEach
     void setClock() {
+        // Approval publishes shared options. Each scenario starts with its own catalog.
+        jdbc.update("""
+                update cats set food_variety_id = null, food_brand_id = null, breed_option_id = null,
+                    coat_option_id = null, color_option_id = null, last_internal_dewormer_option_id = null,
+                    last_external_dewormer_option_id = null
+                """);
+        jdbc.update("delete from food_varieties");
+        jdbc.update("delete from food_brands");
+        jdbc.update("delete from cat_profile_options");
         when(clock.instant()).thenReturn(NOW);
         when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
     }
@@ -132,6 +145,7 @@ class CatIntakeControllerTest {
             mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.catalogOptions").isMap())
+                    .andExpect(jsonPath("$.foodVarieties").isArray())
                     .andExpect(jsonPath("$.litterRatePerKg").isString())
                     .andExpect(jsonPath("$.litterRatePerKg").value(rate));
             mvc.perform(get("/api/litter-rate").header(HttpHeaders.AUTHORIZATION, invite.authorization()))
@@ -206,6 +220,29 @@ class CatIntakeControllerTest {
                 .content(json.writeValueAsString(approval))).andExpect(status().isNoContent());
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reviewReportsOnlyUnansweredFieldsFromTheOriginalRequest() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Partial profile");
+        cat.setFoodBrand(null);
+        cat.setLitterBrand(null);
+        cat.setLastRabiesDate(null);
+        cat.setLastTripleFelineDate(null);
+        cats.saveAndFlush(cat);
+        var invite = issue(owner, false);
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(),
+                        "fields", Map.of("foodBrand", "Royal Canin")))))
+                .andExpect(status().isNoContent());
+
+        cat.setLastRabiesDate(LocalDate.of(2026, 10, 1));
+        cats.saveAndFlush(cat);
+        var row = rowFor(reviewList(), owner.getId(), cat.getName());
+        mvc.perform(get(REVIEW + "/{id}", row.get("id").asString()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unansweredRequestedFields",
+                        containsInAnyOrder("litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
     }
 
     @Test
@@ -338,6 +375,50 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void stagesAndApprovesFivePhotosAndRejectsASixthWhenEditing() throws Exception {
+        var owner = owner();
+        var existing = cat(owner, "Vaccine evidence");
+        var invite = issue(owner, false);
+        var firstFive = List.of("proof-0", "proof-1", "proof-2", "proof-3", "proof-4");
+        var six = List.of("proof-0", "proof-1", "proof-2", "proof-3", "proof-4", "proof-5");
+        var vaccine = Map.of("lastRabiesDate", "2026-09-20");
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", vaccine,
+                        "photoKeys", six)), six.stream().map(CatIntakeControllerTest::proof)
+                        .toArray(MockMultipartFile[]::new)))
+                .andExpect(status().isBadRequest()).andExpect(content().string("Up to five photos are allowed per cat"));
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", vaccine,
+                        "photoKeys", firstFive)), firstFive.stream().map(CatIntakeControllerTest::proof)
+                        .toArray(MockMultipartFile[]::new)))
+                .andExpect(status().isNoContent());
+        var row = rowFor(reviewList(), owner.getId(), "Vaccine evidence");
+        var review = detail(row.get("id").asString());
+        var staged = review.get("photos").valueStream().map(photo -> photo.get("id").asString()).toList();
+        assertThat(staged).hasSize(5);
+        var edit = new HashMap<String, Object>(Map.of("catId", existing.getId(), "fields", vaccine,
+                "revision", review.get("revision").asLong(), "photoKeys", List.of("replacement")));
+        edit.put("retainedPhotoIds", staged);
+        mvc.perform(submission(invite, List.of(edit), proof("replacement")))
+                .andExpect(status().isBadRequest()).andExpect(content().string("Up to five photos are allowed per cat"));
+
+        edit.put("retainedPhotoIds", staged.subList(0, 4));
+        mvc.perform(submission(invite, List.of(edit), proof("replacement"))).andExpect(status().isNoContent());
+        var updated = detail(row.get("id").asString());
+        var updatedPhotos = updated.get("photos").valueStream().map(photo -> photo.get("id").asString()).toList();
+        assertThat(updatedPhotos).hasSize(5).containsAll(staged.subList(0, 4)).doesNotContain(staged.getLast());
+        var invalidApproval = new ArrayList<>(updatedPhotos);
+        invalidApproval.add(UUID.randomUUID().toString());
+        approve(updated, vaccine, invalidApproval, updated.get("catUpdatedAt").asString(), 400);
+        approve(updated, vaccine, updatedPhotos, updated.get("catUpdatedAt").asString(), 204);
+        assertThat(photos.findGallery(existing.getId())).hasSize(5);
+    }
+
+    private static MockMultipartFile proof(String key) {
+        return new MockMultipartFile(key, key + ".jpg", "image/jpeg", JPEG);
+    }
+
+    @Test
     void returningToOriginalValuesAndRemovingEvidenceWithdrawsAnExistingProposal() throws Exception {
         var owner = owner();
         var cat = cat(owner, "Original profile");
@@ -397,6 +478,8 @@ class CatIntakeControllerTest {
         mvc.perform(get(REVIEW + "/{id}/photos/{photoId}", review.getId(), photo.getId()).with(admin()))
                 .andExpect(status().isOk()).andExpect(content().bytes(JPEG));
         var detail = detail(review.getId().toString());
+        assertThat(detail.path("unansweredRequestedFields").isArray()).isTrue();
+        assertThat(detail.path("unansweredRequestedFields").isEmpty()).isTrue();
         approve(detail, Map.of("coat", "Long"), List.of(), detail.get("catUpdatedAt").asString(), 204);
     }
 
@@ -426,6 +509,216 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void requiresASelectionForMatchingCatalogTextAndRejectsContradictoryIds() throws Exception {
+        Owner publisher = owner();
+        var firstInvite = issue(publisher, true);
+        var first = newRegistration("Publisher", Map.of("foodBrand", "Royal Nutrition API", "breed", "Forest cat API"));
+        mvc.perform(submission(firstInvite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", first))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), first, List.of(), null, 204);
+
+        Owner recipient = owner();
+        var invite = issue(recipient, true);
+        var form = recipientForm(invite);
+        String brandId = catalogId(form, "foodBrand", "Royal Nutrition API");
+        String breedId = catalogId(form, "breed", "Forest cat API");
+        var fields = newRegistration("Recipient", Map.of("foodBrand", "R", "breed", "Forest cat API",
+                "coat", "Recipient coat", "color", "Recipient color"));
+        UUID draftId = UUID.randomUUID();
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("breed", breedId)))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_INTAKE_CATALOG_CHANGED"))
+                .andExpect(jsonPath("$.field").value("foodBrand"));
+        fields.put("foodBrand", "Royal Nutrition API");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("breed", breedId)))))
+                .andExpect(status().isConflict());
+        fields.put("foodBrand", "Different brand");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodBrand", brandId, "breed", breedId)))))
+                .andExpect(status().isBadRequest());
+        fields.put("foodBrand", "Royal Nutrition API");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodBrand", brandId, "breed", brandId)))))
+                .andExpect(status().isBadRequest());
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodBrand", UUID.randomUUID(), "breed", breedId)))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.field").value("foodBrand"));
+        assertThat(recipientForm(invite).get("cats")).isEmpty();
+    }
+
+    @Test
+    void publishesFoodVarietiesOnlyOnApprovalAndScopesTheirIdentityToTheBrand() throws Exception {
+        Owner publisher = owner();
+        var firstInvite = issue(publisher, true);
+        var first = newRegistration("Variety publisher", Map.of("foodBrand", "My Scope Brand", "foodDetail", "Gastro Kitten"));
+        mvc.perform(submission(firstInvite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", first))))
+                .andExpect(status().isNoContent());
+        assertThat(recipientForm(firstInvite).get("foodVarieties")).isNotNull();
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, firstInvite.authorization()))
+                .andExpect(jsonPath("$.foodVarieties[?(@.name == 'Gastro Kitten')]").isEmpty());
+        approve(rowFor(reviewList(), publisher.getId(), "Variety publisher"), first, List.of(), null, 204);
+
+        Owner recipient = owner();
+        var invite = issue(recipient, true);
+        var form = recipientForm(invite);
+        String brandId = catalogId(form, "foodBrand", "My Scope Brand");
+        String varietyId = form.get("foodVarieties").valueStream()
+                .filter(variety -> variety.get("name").asString().equals("Gastro Kitten"))
+                .filter(variety -> variety.get("brandId").asString().equals(brandId))
+                .findFirst().orElseThrow().get("id").asString();
+        var fields = newRegistration("Variety recipient", Map.of("foodBrand", "Other Scope Brand", "foodDetail", "Gastro Kitten",
+                "breed", "Variety recipient breed", "coat", "Variety recipient coat", "color", "Variety recipient color"));
+        UUID draftId = UUID.randomUUID();
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodDetail", varietyId)))))
+                .andExpect(status().isBadRequest());
+        fields.put("foodBrand", "my   scope BRAND");
+        fields.put("foodDetail", "Gastro");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodBrand", brandId)))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.field").value("foodDetail"));
+        fields.put("foodDetail", "gastro   KITTEN");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
+                        "optionIds", Map.of("foodBrand", brandId, "foodDetail", varietyId)))))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(jsonPath("$.cats[0].optionIds.foodBrand").value(brandId))
+                .andExpect(jsonPath("$.cats[0].optionIds.foodDetail").value(varietyId))
+                .andExpect(jsonPath("$.cats[0].proposedFields.foodBrand").value("My Scope Brand"))
+                .andExpect(jsonPath("$.cats[0].proposedFields.foodDetail").value("Gastro Kitten"));
+        approve(rowFor(reviewList(), recipient.getId(), "Variety recipient"), fields, List.of(), null, 204);
+    }
+
+    @Test
+    void rejectsPartialApprovalOfAnotherBrandsVarietyAndKeepsThePreviousDietOnBrandChange() throws Exception {
+        Owner owner = owner();
+        var register = issue(owner, true);
+        var registration = newRegistration("Cat with diet",
+                Map.of("foodBrand", "Original Diet Brand", "foodDetail", "Familiar Puppy-Free Diet"));
+        mvc.perform(submission(register, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), owner.getId(), "Cat with diet"), registration, List.of(), null, 204);
+        Cat cat = cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent().getFirst();
+        assertThat(cat.getFoodVarietyId()).isNotNull();
+        cat.setLastRabiesDate(LocalDate.of(2026, 8, 12));
+        cat.setLastTripleFelineDate(LocalDate.of(2026, 8, 12));
+        cats.saveAndFlush(cat);
+
+        var invite = issue(owner, false);
+        var fields = Map.of("foodBrand", "Other Diet Brand", "foodDetail", "Other Brand Diet");
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields", fields))))
+                .andExpect(status().isNoContent());
+        var proposal = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        assertThat(proposal.get("proposedFoodDetailBrand").asString()).isEqualTo("Other Diet Brand");
+        String timestamp = proposal.get("catUpdatedAt").asString();
+        approve(proposal, Map.of("foodDetail", fields.get("foodDetail")), List.of(), timestamp, 400);
+        assertThat(cats.findById(cat.getId()).orElseThrow().getFoodVarietyId()).isEqualTo(cat.getFoodVarietyId());
+
+        approve(proposal, Map.of("foodBrand", fields.get("foodBrand")), List.of(), timestamp, 204);
+        Cat updated = cats.findById(cat.getId()).orElseThrow();
+        assertThat(updated.getFoodBrand()).isEqualTo("Other Diet Brand");
+        assertThat(updated.getFoodDetail()).isEqualTo("Familiar Puppy-Free Diet");
+        assertThat(updated.getFoodVarietyId()).isNull();
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, issue(owner(), true).authorization()))
+                .andExpect(jsonPath("$.foodVarieties[?(@.name == 'Other Brand Diet')]").isEmpty());
+    }
+
+    @Test
+    void simultaneousApprovalsShareOneNormalizedVarietyForTheSameBrand() throws Exception {
+        Owner publisher = owner();
+        var publish = issue(publisher, true);
+        var registration = newRegistration("Publisher", Map.of("foodBrand", "One Variety Brand"));
+        mvc.perform(submission(publish, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), registration, List.of(), null, 204);
+
+        Cat first = cat(owner(), "First concurrent cat");
+        first.setFoodBrand(registration.get("foodBrand"));
+        cats.saveAndFlush(first);
+        Cat second = cat(owner(), "Second concurrent cat");
+        second.setFoodBrand(registration.get("foodBrand"));
+        cats.saveAndFlush(second);
+        var firstFields = Map.of("foodDetail", "Digestive Balance");
+        var secondFields = Map.of("foodDetail", "digestive   balance");
+        mvc.perform(submission(issue(first.getOwner(), false), List.of(Map.of("catId", first.getId(), "fields", firstFields))))
+                .andExpect(status().isNoContent());
+        mvc.perform(submission(issue(second.getOwner(), false), List.of(Map.of("catId", second.getId(), "fields", secondFields))))
+                .andExpect(status().isNoContent());
+        var pending = reviewList();
+        var firstReview = detail(rowFor(pending, first.getOwner().getId(), first.getName()).get("id").asString());
+        var secondReview = detail(rowFor(pending, second.getOwner().getId(), second.getName()).get("id").asString());
+
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var firstApproval = executor.submit(() -> {
+                start.await();
+                approve(firstReview, firstFields, List.of(), firstReview.get("catUpdatedAt").asString(), 204);
+                return null;
+            });
+            var secondApproval = executor.submit(() -> {
+                start.await();
+                approve(secondReview, secondFields, List.of(), secondReview.get("catUpdatedAt").asString(), 204);
+                return null;
+            });
+            start.countDown();
+            firstApproval.get(10, TimeUnit.SECONDS);
+            secondApproval.get(10, TimeUnit.SECONDS);
+        }
+
+        Cat firstApproved = cats.findById(first.getId()).orElseThrow();
+        Cat secondApproved = cats.findById(second.getId()).orElseThrow();
+        assertThat(firstApproved.getFoodVarietyId()).isNotNull().isEqualTo(secondApproved.getFoodVarietyId());
+        assertThat(firstApproved.getFoodDetail()).isEqualTo(secondApproved.getFoodDetail());
+        var form = recipientForm(issue(owner(), true));
+        String brandId = catalogId(form, "foodBrand", registration.get("foodBrand"));
+        assertThat(form.get("foodVarieties").valueStream()
+                .filter(variety -> variety.get("brandId").asString().equals(brandId))).hasSize(2);
+    }
+
+    @Test
+    void preservesAnEarlierProposalAndItsRequestedScopeDuringAnUnrelatedCorrection() throws Exception {
+        Owner owner = owner();
+        Cat existing = cat(owner, "Legacy diet");
+        existing.setFoodBrand(null);
+        cats.saveAndFlush(existing);
+        var invite = issue(owner, false);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(jsonPath("$.cats[0].requestedFields[0]").value("foodBrand"))
+                .andExpect(jsonPath("$.cats[0].requestedFields[1]").value("foodDetail"));
+        var invitation = invitations.findById(UUID.fromString(invite.id())).orElseThrow();
+        jdbc.update("update cat_intake_invitations set requested_fields_snapshot = ? where id = ?",
+                json.writeValueAsString(Map.of(existing.getId(), List.of("foodBrand"))), uuidBytes(invitation.getId()));
+        UUID draftId = UUID.randomUUID();
+        var historical = reviews.saveAndFlush(new CatIntakeReview(invitation, existing.getId(), draftId, existing.getName(),
+                "{}", "{\"foodBrand\":\"R\",\"foodDetail\":\"Historical Diet\"}", NOW));
+
+        Owner publisher = owner();
+        var publish = issue(publisher, true);
+        var registration = newRegistration("Publisher", Map.of("foodBrand", "Royal Nutrition Historic"));
+        mvc.perform(submission(publish, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), registration, List.of(), null, 204);
+
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(jsonPath("$.cats[0].requestedFields.length()").value(1))
+                .andExpect(jsonPath("$.cats[0].proposedFields.foodBrand").value("R"));
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "draftId", draftId,
+                        "revision", historical.getRevision(), "fields", Map.of(
+                        "foodBrand", "R", "foodDetail", "Historical Diet", "coat", "Long")))))
+                .andExpect(status().isNoContent());
+        var updated = detail(historical.getId().toString());
+        assertThat(updated.get("proposedFoodDetailBrand").isNull()).isTrue();
+        approve(updated, Map.of("foodDetail", "Historical Diet"), List.of(), updated.get("catUpdatedAt").asString(), 204);
+        Cat approved = cats.findById(existing.getId()).orElseThrow();
+        assertThat(approved.getFoodDetail()).isEqualTo("Historical Diet");
+        assertThat(approved.getFoodVarietyId()).isNull();
+    }
+
+    @Test
     void onlyOffersFoodBrandsAfterApprovalAndMatchesTheCompleteNormalizedName() throws Exception {
         Owner owner = owner();
         var invite = issue(owner, true);
@@ -444,8 +737,15 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.catalogOptions.foodBrand[*].name", hasItem("Northern Lights Food")));
         var second = newRegistration("Second", Map.of("foodBrand", "  northern   LIGHTS food  "));
         var third = newRegistration("Third", Map.of("foodBrand", "Nortern Lights Food"));
-        mvc.perform(submission(secondInvite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", second),
-                        Map.of("draftId", UUID.randomUUID(), "fields", third))))
+        var form = recipientForm(secondInvite);
+        var sharedSelections = Map.of("breed", catalogId(form, "breed", first.get("breed")),
+                "coat", catalogId(form, "coat", first.get("coat")), "color", catalogId(form, "color", first.get("color")));
+        var secondSelections = new HashMap<>(sharedSelections);
+        secondSelections.put("foodBrand", catalogId(form, "foodBrand", first.get("foodBrand")));
+        secondSelections.put("foodDetail", form.get("foodVarieties").get(0).get("id").asString());
+        mvc.perform(submission(secondInvite, List.of(
+                        Map.of("draftId", UUID.randomUUID(), "fields", second, "optionIds", secondSelections),
+                        Map.of("draftId", UUID.randomUUID(), "fields", third, "optionIds", sharedSelections))))
                 .andExpect(status().isNoContent());
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, secondInvite.authorization()))
                 .andExpect(status().isOk())
@@ -841,6 +1141,21 @@ class CatIntakeControllerTest {
                 "foodBrand", "Tutor food", "foodDetail", "Dry", "litterBrand", "Tutor litter"));
         registration.putAll(changes);
         return registration;
+    }
+
+    private JsonNode recipientForm(Invite invite) throws Exception {
+        return json.readTree(mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private static String catalogId(JsonNode form, String field, String name) {
+        return form.get("catalogOptions").get(field).valueStream()
+                .filter(option -> option.get("name").asString().equals(name))
+                .findFirst().orElseThrow().get("id").asString();
+    }
+
+    private static byte[] uuidBytes(UUID id) {
+        return java.nio.ByteBuffer.allocate(16).putLong(id.getMostSignificantBits()).putLong(id.getLeastSignificantBits()).array();
     }
 
     private Owner owner() {

@@ -21,6 +21,7 @@ import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-p
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
 import { CATWORLD_LITTER, OWN_LITTER } from '../cats/models/cat.model';
+import { foodBrandKey } from '../cats/utils/food-brand-key';
 import { catLitterLabel } from '../cats/utils/cat-litter-label';
 import { CatIntakeApi } from './cat-intake-api';
 import {
@@ -113,6 +114,12 @@ export class CatIntakeReview {
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
   readonly birthKey = signal<'birthDate' | 'birthYear'>('birthDate');
+  readonly unansweredRequests = computed(() =>
+    (this.detail()?.unansweredRequestedFields ?? []).map((key) => this.fieldLabel(key)).join(', '),
+  );
+  readonly showExistingFieldChoices = computed(
+    () => this.fields().length > 1 || this.photos().length > 0,
+  );
   private readonly selectedFields = computed(() => {
     const selected: CatIntakeFields = {};
     for (const { field, decision, value } of this.fields()) {
@@ -120,6 +127,13 @@ export class CatIntakeReview {
       if (decision === 'apply' && value.trim()) selected[key] = value.trim();
     }
     return selected;
+  });
+  readonly foodDetailBrandMismatch = computed(() => {
+    const detail = this.detail();
+    const selected = this.selectedFields();
+    if (!detail?.proposedFoodDetailBrand || !selected.foodDetail) return false;
+    const brand = selected.foodBrand ?? detail.current?.foodBrand ?? '';
+    return foodBrandKey(brand) !== foodBrandKey(detail.proposedFoodDetailBrand);
   });
   private readonly selectedPhotoIds = computed(() =>
     this.photos()
@@ -139,6 +153,7 @@ export class CatIntakeReview {
       !this.saving() &&
       !this.confirmingDismiss() &&
       !this.emptyApproval() &&
+      !this.foodDetailBrandMismatch() &&
       Number.isSafeInteger(detail.revision) &&
       this.photos().every(({ state }) => state === 'loaded' || state === 'excluded') &&
       this.fields().every(({ field, decision, value }) => {
@@ -337,15 +352,20 @@ export class CatIntakeReview {
     return 'maxLength' in field ? field.maxLength : null;
   }
 
-  fieldLabel(key: CatIntakeField['key']): string {
+  fieldLabel(key: CatIntakeFieldKey): string {
     switch (key) {
       case 'birthDate':
+      case 'birthYear':
         return this.copy().birth;
       case 'foodDetail':
         return this.copy().foodDetail;
       default:
         return this.catCopy().form[key];
     }
+  }
+
+  hasCurrentValue(key: CatIntakeFieldKey, current: CatIntakeFields | null): boolean {
+    return !!(current?.[key]?.trim() || (key === 'birthDate' && current?.birthYear?.trim()));
   }
 
   displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {

@@ -17,7 +17,7 @@
         <p>Completá los datos de tus gatos. El equipo de CatWorld va a revisarlos.</p>
       </header>
 
-      <p id="status" class="notice" role="status">Cargando la ficha…</p>
+      <p id="status" class="notice" role="status" tabindex="-1">Cargando la ficha…</p>
       <button id="retry" type="button" class="secondary" hidden>Reintentar</button>
       <noscript>Activá JavaScript y volvé a abrir el enlace para completar la ficha.</noscript>
 
@@ -35,6 +35,29 @@
         </fieldset>
         <p id="error" class="notice error" role="alert" tabindex="-1" hidden></p>
       </form>
+      <dialog class="photo-viewer" aria-labelledby="photo-viewer-title">
+        <header>
+          <h2 id="photo-viewer-title">Comprobante</h2>
+          <button type="button" class="secondary">Cerrar</button>
+        </header>
+        <img alt="" />
+      </dialog>
+
+      <dialog
+        id="partial-submission"
+        aria-labelledby="partial-title"
+        aria-describedby="partial-hint"
+      >
+        <h2 id="partial-title">Quedan datos pendientes</h2>
+        <p id="partial-hint">Podés completar estos datos ahora o enviar lo que ya cargaste.</p>
+        <ul id="partial-cats" aria-label="Datos pendientes por gato" tabindex="0"></ul>
+        <div class="actions">
+          <button id="complete-partial" type="button" class="secondary" autofocus>
+            Volver y completar
+          </button>
+          <button id="send-partial" type="button">Enviar igual</button>
+        </div>
+      </dialog>
     </main>
   </body>
 </html>

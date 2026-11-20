@@ -98,6 +98,11 @@ fieldset {
   font-weight: 750;
 }
 
+.cat-state--dirty {
+  color: #744039;
+  background: #f9e8e4;
+}
+
 .cat-state--submitted {
   color: #254766;
   background: #e5eff8;
@@ -119,6 +124,10 @@ fieldset {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: 0.85rem;
+}
+
+.food-fields {
+  grid-column: 1 / -1;
 }
 
 .fields:not(:empty) + .other-fields,
@@ -154,12 +163,28 @@ fieldset {
 .catalog-suggestions {
   display: grid;
   gap: 0.25rem;
+  max-block-size: 12rem;
+  overflow: auto;
+  padding: 0.2rem;
 }
 
 .catalog-suggestions button {
   width: 100%;
   border-color: var(--line);
   text-align: start;
+  overflow-wrap: anywhere;
+}
+
+input.catalog-input--selected {
+  border-color: var(--green);
+  background: #edf6ee;
+}
+
+.catalog-selection {
+  margin: 0.3rem 0 0;
+  color: var(--green);
+  font-size: 0.9rem;
+  font-weight: 650;
   overflow-wrap: anywhere;
 }
 
@@ -273,8 +298,14 @@ button:disabled {
   height: 5.5rem;
 }
 
-.photo-preview a {
+.photo-preview .photo-enlarge {
   display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
 }
 
 .photo-preview img {
@@ -284,6 +315,45 @@ button:disabled {
   object-fit: contain;
   border: 1px solid var(--line);
   border-radius: 0.5rem;
+}
+
+:root:has(.photo-viewer[open]) {
+  overflow: hidden;
+}
+
+.photo-viewer {
+  width: min(52rem, 100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.photo-viewer::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.photo-viewer header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.photo-viewer h2 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.photo-viewer img {
+  display: block;
+  width: 100%;
+  max-height: 75dvh;
+  object-fit: contain;
 }
 
 .keep-photo,
@@ -312,6 +382,39 @@ button:disabled {
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 1rem;
+}
+
+#partial-submission {
+  width: min(100% - 2rem, 32rem);
+  max-height: calc(100% - 2rem);
+  padding: 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+#partial-submission::backdrop {
+  background: rgb(41 39 32 / 50%);
+}
+
+#partial-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+#partial-cats,
+#partial-cats ul {
+  padding-inline-start: 1.25rem;
+}
+
+#partial-cats {
+  max-block-size: min(42vh, 20rem);
+  overflow: auto;
+}
+
+#partial-cats > li + li {
+  margin-top: 0.6rem;
 }
 
 .notice {

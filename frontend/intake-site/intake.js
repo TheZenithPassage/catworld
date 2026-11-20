@@ -1,7 +1,7 @@
 'use strict';
 
 const MAX_CATS = 20;
-const MAX_PHOTOS_PER_CAT = 2;
+const MAX_PHOTOS_PER_CAT = 5;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -15,6 +15,7 @@ const CATALOG_FIELDS = new Set([
   'coat',
   'color',
   'foodBrand',
+  'foodDetail',
   'lastInternalDewormerName',
   'lastExternalDewormerName',
 ]);
@@ -26,7 +27,7 @@ const FIELDS = [
   ['coat', 'Pelaje', 'text', true, 100],
   ['color', 'Color', 'text', true, 100],
   ['personality', 'Personalidad', 'text', true, 255],
-  ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin o Comida casera.'],
+  ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin.'],
   ['foodDetail', 'Variedad o dieta', 'text', true, 255, 'Por ejemplo, Kitten.'],
   ['litterBrand', 'Piedritas', 'litter', true],
   [
@@ -58,15 +59,26 @@ fieldError.setAttribute('role', 'alert');
 const retry = document.querySelector('#retry');
 const addCat = document.querySelector('#add-cat');
 const send = document.querySelector('#submit');
+const photoViewer = document.querySelector('.photo-viewer');
+const photoViewerTitle = photoViewer.querySelector('h2');
+const photoViewerImage = photoViewer.querySelector('img');
+const photoViewerClose = photoViewer.querySelector('button');
+const partialDialog = document.querySelector('#partial-submission');
+const partialCats = document.querySelector('#partial-cats');
 const cards = [];
 let catalogOptions = {};
+let foodVarieties = [];
 let litterRatePerKg = null;
 let allowNewCats = false;
 let newCatNumber = 0;
 let labelNumber = 0;
 let sending = false;
+let partialSubmission;
 let stale = false;
 let errorInput;
+let expiresAt;
+let photoTrigger;
+let dialogExpiryTimer;
 const sharedToken = new URLSearchParams(location.hash.slice(1)).get('token');
 let token = sharedToken || history.state?.intakeToken;
 
@@ -107,12 +119,22 @@ function showStatus(message) {
   status.hidden = !message;
 }
 
+function openField(input) {
+  for (let parent = input.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
+  input.focus();
+}
+
 function showError(message, input) {
   if (errorInput) {
     errorInput.removeAttribute('aria-invalid');
-    const description = errorInput.getAttribute('aria-labelledby') + '-hint';
-    const hint = document.getElementById(description);
-    if (hint && !hint.hidden) {
+    const description = errorInput
+      .getAttribute('aria-describedby')
+      ?.split(' ')
+      .filter((id) => id !== fieldError.id)
+      .join(' ');
+    if (description) {
       errorInput.setAttribute('aria-describedby', description);
     } else {
       errorInput.removeAttribute('aria-describedby');
@@ -123,9 +145,6 @@ function showError(message, input) {
   errorMessage.textContent = input ? '' : message;
   errorMessage.hidden = Boolean(input) || !message;
   if (input) {
-    for (let parent = input.parentElement; parent; parent = parent.parentElement) {
-      if (parent.tagName === 'DETAILS') parent.open = true;
-    }
     input.setAttribute('aria-invalid', 'true');
     const description = input.getAttribute('aria-describedby');
     input.setAttribute(
@@ -134,19 +153,16 @@ function showError(message, input) {
     );
     fieldError.textContent = message;
     input.before(fieldError);
-    input.focus();
+    openField(input);
   } else if (message) {
     errorMessage.focus();
   }
 }
 
 function clearCards() {
-  for (const { photos, clearPreviews } of cards) {
-    clearPreviews();
-    for (const photo of photos) {
-      if (photo.url) URL.revokeObjectURL(photo.url);
-    }
-  }
+  closePhotoViewer();
+  closePartialSubmission();
+  for (const { releasePhotos } of cards) releasePhotos();
   cards.length = 0;
   cats.replaceChildren();
   newCatNumber = 0;
@@ -162,9 +178,11 @@ function closeForm(message, buttonText) {
 }
 
 function endAccess() {
+  const wasOpen = !form.hidden;
   token = null;
   history.replaceState(null, '', location.pathname + location.search);
   closeForm(unavailable);
+  if (wasOpen) status.focus();
 }
 
 function unavailableStatus(code) {
@@ -192,47 +210,70 @@ function catalogKey(value) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function fieldValue(key, value) {
-  const text = value?.trim() ?? '';
-  const options = catalogOptions[key];
-  if (!options || !text) return text;
-  return options.find(({ name }) => catalogKey(name) === catalogKey(text))?.name ?? text;
+function sameFieldValue(key, left, right) {
+  return CATALOG_FIELDS.has(key) ? catalogKey(left) === catalogKey(right) : left === right;
 }
 
-function createCatalogField(key, title, label, input) {
+function createCatalogField(title, label, input, options, initialId, showAllWhenEmpty) {
   const field = element('div', 'catalog-field');
+  const labelId = input.getAttribute('aria-labelledby');
   const suggestions = element('ul', 'catalog-suggestions');
   suggestions.hidden = true;
-  suggestions.id = input.getAttribute('aria-labelledby') + '-suggestions';
+  suggestions.id = labelId + '-suggestions';
   suggestions.setAttribute('aria-label', 'Opciones para ' + title);
   input.setAttribute('aria-controls', suggestions.id);
+  const selection = element('p', 'catalog-selection');
+  selection.id = labelId + '-selection';
+  selection.setAttribute('role', 'status');
+  const check = element('span', '', '✓');
+  check.setAttribute('aria-hidden', 'true');
+  const selectionName = element('span');
+  selection.append(check, ' ', selectionName);
+  input.setAttribute(
+    'aria-describedby',
+    input.getAttribute('aria-describedby') + ' ' + selection.id,
+  );
   const results = element('p', 'sr-only');
   results.setAttribute('role', 'status');
-  field.append(label, suggestions, results);
+  field.append(label, selection, suggestions, results);
 
-  function hideSuggestions() {
-    suggestions.hidden = true;
-    results.textContent = '';
+  let selected;
+
+  function updateSelection(option) {
+    selected = option;
+    selectionName.textContent = selected ? 'Seleccionado: ' + selected.name : '';
+    selection.hidden = !selected;
+    input.classList.toggle('catalog-input--selected', Boolean(selected));
+  }
+  function restoreChoice(value, chosenId) {
+    input.value = value;
+    const query = catalogKey(value);
+    updateSelection(
+      options().find(({ id, name }) => (chosenId ? id === chosenId : catalogKey(name) === query)),
+    );
+  }
+  restoreChoice(input.value, initialId);
+
+  function matchingOptions(showAll = false) {
+    const query = catalogKey(input.value);
+    if (selected || (!query && !showAll)) return [];
+    return options().filter(({ name }) => catalogKey(name).includes(query));
   }
 
-  input.addEventListener('input', () => {
-    const query = catalogKey(input.value);
-    const matches = query
-      ? (catalogOptions[key] ?? [])
-          .filter(({ name }) => catalogKey(name).includes(query) && catalogKey(name) !== query)
-          .slice(0, 6)
-      : [];
+  function renderSuggestions(showAll = false) {
+    const matches = matchingOptions(showAll);
     suggestions.replaceChildren();
-    for (const { name } of matches) {
+    for (const match of matches) {
       const item = element('li');
-      const choose = element('button', 'secondary', name);
+      const choose = element('button', 'secondary', match.name);
       choose.type = 'button';
-      choose.addEventListener('mousedown', (event) => event.preventDefault());
       choose.addEventListener('click', () => {
-        input.value = name;
+        input.value = match.name;
+        updateSelection(match);
+        if (errorInput === input) showError('');
         input.focus();
+        renderSuggestions();
         input.dispatchEvent(new Event('change', { bubbles: true }));
-        hideSuggestions();
       });
       item.append(choose);
       suggestions.append(item);
@@ -242,25 +283,44 @@ function createCatalogField(key, title, label, input) {
     if (matches.length)
       results.textContent =
         matches.length === 1 ? 'Una opción disponible.' : `${matches.length} opciones disponibles.`;
+  }
+
+  input.addEventListener('input', () => {
+    updateSelection(undefined);
+    if (errorInput === input) showError('');
+    renderSuggestions(showAllWhenEmpty);
   });
-  input.addEventListener('change', () => {
-    input.value = fieldValue(key, input.value);
-  });
-  field.addEventListener('focusout', (event) => {
-    if (!field.contains(event.relatedTarget)) hideSuggestions();
+  input.addEventListener('focus', () => {
+    if (suggestions.hidden) renderSuggestions(showAllWhenEmpty);
   });
   field.addEventListener('keydown', (event) => {
     if (suggestions.hidden) return;
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && suggestions.contains(event.target)) {
       event.preventDefault();
       input.focus();
-      hideSuggestions();
     } else if (event.key === 'ArrowDown' && event.target === input) {
       event.preventDefault();
       suggestions.querySelector('button').focus();
     }
   });
-  return field;
+  return {
+    control: field,
+    input,
+    read: () => input.value,
+    get option() {
+      return selected;
+    },
+    requiresChoice: () => matchingOptions().length > 0,
+    restore(value, id) {
+      restoreChoice(value, id);
+      if (errorInput === input) showError('');
+      renderSuggestions();
+    },
+    refreshOptions() {
+      updateSelection(selected && options().find(({ id }) => id === selected.id));
+      renderSuggestions();
+    },
+  };
 }
 
 function createLitterField(title, initialValue, required) {
@@ -361,7 +421,7 @@ function createBirthField(title, initial, required) {
   };
 }
 
-function createField([key, title, type, requiredForNew, maxLength, hint], initial, isNew) {
+function createField([key, title, type, requiredForNew, maxLength, hint], initial, isNew, catalog) {
   const required = Boolean(isNew && requiredForNew);
   const labelText = required ? title + ' *' : title;
   const initialValue = initial[key] ?? '';
@@ -380,13 +440,21 @@ function createField([key, title, type, requiredForNew, maxLength, hint], initia
   input.name = key;
   input.required = required;
   input.value = initialValue;
-  const search = CATALOG_FIELDS.has(key);
-  const guidance = search
+  const guidance = catalog
     ? [hint, 'Buscá una opción o escribí un nombre nuevo.'].filter(Boolean).join(' ')
     : hint;
   const label = fieldLabel(labelText, input, guidance);
-  const control = search ? createCatalogField(key, title, label, input) : label;
-  return { control, input, read: () => input.value };
+  if (catalog) {
+    return createCatalogField(
+      title,
+      label,
+      input,
+      catalog.options,
+      catalog.id,
+      key === 'foodDetail',
+    );
+  }
+  return { control: label, input, read: () => input.value };
 }
 
 function refreshActions() {
@@ -395,24 +463,70 @@ function refreshActions() {
   send.disabled = cards.length === 0 || stale;
 }
 
-async function showRetainedPhoto(photo, preview) {
+function closePhotoViewer(restoreFocus = false) {
+  if (!photoViewer.open) return;
+  clearTimeout(dialogExpiryTimer);
+  photoViewer.close();
+  photoViewerImage.removeAttribute('src');
+  photoViewerImage.alt = '';
+  if (restoreFocus && photoTrigger?.isConnected) photoTrigger.focus({ preventScroll: true });
+  photoTrigger = undefined;
+}
+
+function watchDialogExpiry() {
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) {
+    endAccess();
+    return false;
+  }
+  if (Number.isFinite(remaining)) dialogExpiryTimer = setTimeout(endAccess, remaining);
+  return true;
+}
+
+photoViewerClose.addEventListener('click', () => closePhotoViewer(true));
+photoViewer.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closePhotoViewer(true);
+});
+window.addEventListener('pagehide', (event) => {
+  closePhotoViewer();
+  closePartialSubmission();
+  if (!event.persisted) clearCards();
+});
+
+function photoThumbnail(image, title) {
+  const button = element('button', 'photo-enlarge');
+  button.type = 'button';
+  button.setAttribute('aria-label', 'Ampliar ' + title);
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.append(image);
+  button.addEventListener('click', () => {
+    if (partialDialog.open || photoViewer.open || !watchDialogExpiry()) return;
+    photoTrigger = button;
+    photoViewerTitle.textContent = title;
+    photoViewerImage.src = image.src;
+    photoViewerImage.alt = image.alt;
+    photoViewer.showModal();
+    photoViewerClose.focus({ preventScroll: true });
+  });
+  return button;
+}
+
+async function showRetainedPhoto(photo, preview, signal) {
   try {
-    const response = await request('/api/intake/photos/' + encodeURIComponent(photo.id));
+    const response = await request('/api/intake/photos/' + encodeURIComponent(photo.id), {
+      signal,
+    });
     if (!response.ok) throw new Error('Photo unavailable');
     const blob = await response.blob();
-    if (!preview.isConnected) return;
+    if (signal.aborted) return;
     photo.url = URL.createObjectURL(blob);
-    const link = element('a');
     const image = element('img');
     image.src = photo.url;
     image.alt = 'Comprobante ' + photo.number;
-    link.href = photo.url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.append(image);
-    preview.replaceChildren(link);
+    preview.replaceChildren(photoThumbnail(image, image.alt));
   } catch {
-    if (preview.isConnected) preview.textContent = 'No se pudo mostrar este comprobante.';
+    if (!signal.aborted) preview.textContent = 'No se pudo mostrar este comprobante.';
   }
 }
 
@@ -424,8 +538,10 @@ function selectedPhotoPreview(file, signal) {
 
   const image = element('img');
   image.alt = 'Vista previa de ' + file.name;
+  const thumbnail = photoThumbnail(image, file.name);
   let url;
   function releaseUrl() {
+    if (photoTrigger === thumbnail) closePhotoViewer();
     if (url) URL.revokeObjectURL(url);
     url = undefined;
   }
@@ -435,7 +551,7 @@ function selectedPhotoPreview(file, signal) {
   }
   function unavailablePreview() {
     releaseUrl();
-    image.remove();
+    thumbnail.remove();
     caption.textContent = file.name + ' · Vista previa no disponible';
   }
   signal.addEventListener('abort', releaseUrl, { once: true });
@@ -452,7 +568,7 @@ function selectedPhotoPreview(file, signal) {
         unavailablePreview();
         return;
       }
-      image.hidden = true;
+      thumbnail.hidden = true;
       try {
         const body = new FormData();
         body.append('photo', file);
@@ -465,7 +581,7 @@ function selectedPhotoPreview(file, signal) {
         const jpeg = await response.blob();
         if (signal.aborted) return;
         image.addEventListener('error', unavailablePreview, { once: true });
-        image.hidden = false;
+        thumbnail.hidden = false;
         setSource(jpeg);
       } catch {
         if (!signal.aborted) unavailablePreview();
@@ -474,33 +590,58 @@ function selectedPhotoPreview(file, signal) {
     { once: true },
   );
   setSource(file);
-  item.prepend(image);
+  item.prepend(thumbnail);
   return item;
+}
+
+function photoLimitError(files, retainedCount) {
+  if (files.length + retainedCount > MAX_PHOTOS_PER_CAT) {
+    return 'Elegí hasta cinco fotos por gato, incluidas las que quieras conservar.';
+  }
+  if (files.some((file) => file.size > MAX_PHOTO_BYTES)) {
+    return 'Cada foto puede pesar hasta 8 MiB. Elegí un archivo más chico.';
+  }
+  return '';
 }
 
 function createAttachments(photos) {
   const attachments = element('div', 'attachments');
   const selected = element('ul', 'selected-photos');
   const fileInput = element('input');
-  const fileStatus = element('p', 'hint');
   const clearFiles = element('button', 'secondary', 'Quitar fotos nuevas');
   fileInput.type = 'file';
   fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
-  fileStatus.setAttribute('aria-live', 'polite');
   clearFiles.type = 'button';
   clearFiles.hidden = true;
   const fileLabel = fieldLabel(
     'Fotos de comprobantes',
     fileInput,
-    'Para informar una vacuna, adjuntá el comprobante de este gato. Una foto puede mostrar las dos vacunas. Hasta dos fotos por gato, de 8 MB cada una y 32 MB por envío.',
+    'Para informar una vacuna, adjuntá el comprobante de este gato.',
   );
+  const retainedRequest = photos.length ? new AbortController() : undefined;
   let previewRequest;
 
   function clearPreviews() {
     previewRequest?.abort();
     previewRequest = undefined;
     selected.replaceChildren();
+  }
+
+  function releasePhotos() {
+    clearPreviews();
+    retainedRequest?.abort();
+    for (const photo of photos) {
+      if (photo.url) URL.revokeObjectURL(photo.url);
+    }
+  }
+
+  function checkPhotoSelection() {
+    const message = photoLimitError(
+      Array.from(fileInput.files),
+      photos.filter((photo) => photo.keep).length,
+    );
+    if (message || errorInput === fileInput) showError(message, message ? fileInput : undefined);
   }
 
   if (photos.length) {
@@ -514,21 +655,21 @@ function createAttachments(photos) {
       keep.checked = true;
       keep.addEventListener('change', () => {
         photo.keep = keep.checked;
+        checkPhotoSelection();
       });
       keepLabel.append(keep, element('span', '', 'Conservar foto ' + photo.number));
       item.append(preview, keepLabel);
       saved.append(item);
-      void showRetainedPhoto(photo, preview);
+      void showRetainedPhoto(photo, preview, retainedRequest.signal);
     }
     attachments.append(saved);
   }
-  attachments.append(fileLabel, fileStatus, selected, clearFiles);
+  attachments.append(fileLabel, selected, clearFiles);
   fileInput.addEventListener('change', () => {
     clearPreviews();
     const files = Array.from(fileInput.files);
     clearFiles.hidden = files.length === 0;
-    fileStatus.textContent =
-      files.length > MAX_PHOTOS_PER_CAT ? 'Elegí hasta dos fotos por gato.' : '';
+    checkPhotoSelection();
     if (files.length && files.length <= MAX_PHOTOS_PER_CAT) {
       previewRequest = new AbortController();
       selected.append(...files.map((file) => selectedPhotoPreview(file, previewRequest.signal)));
@@ -539,7 +680,7 @@ function createAttachments(photos) {
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     fileInput.focus();
   });
-  return { attachments, fileInput, clearPreviews };
+  return { attachments, fileInput, releasePhotos };
 }
 
 function addCard(
@@ -550,6 +691,7 @@ function addCard(
     draftId,
     revision = 0,
     proposedFields = {},
+    optionIds = {},
     photos: savedPhotos = [],
   } = { catId: null },
 ) {
@@ -567,32 +709,72 @@ function addCard(
   if (hasPending) {
     summary.append(' ', element('span', 'cat-state cat-state--pending', 'Datos pendientes'));
   }
-  if (revision > 0) {
-    summary.append(' ', element('span', 'cat-state cat-state--submitted', 'Enviado a CatWorld'));
-  }
-  if (!hasPending && revision === 0) {
-    summary.append(' ', element('span', 'cat-state cat-state--complete', 'Sin datos pendientes'));
-  }
+  const savedBadge =
+    revision > 0
+      ? element('span', 'cat-state cat-state--submitted', 'Enviado a CatWorld')
+      : hasPending
+        ? null
+        : element('span', 'cat-state cat-state--complete', 'Sin datos pendientes');
+  const unsentBadge = element('span', 'cat-state cat-state--dirty', 'Cambios sin enviar');
+  const draftState = element('span');
+  draftState.setAttribute('aria-live', 'polite');
+  summary.append(' ', draftState);
   const content = element('div', 'cat-content');
   const primaryFields = element('div', 'fields');
   const other = element('details', 'other-fields');
   const otherFields = element('div', 'fields');
   other.append(element('summary', '', 'Modificar otros datos de este gato'), otherFields);
   const inputs = new Map();
+  const foodFields = element('div', 'fields food-fields');
 
   for (const field of FIELDS) {
     const key = field[0];
-    const ui = createField(field, initial, isNew);
+    const isCatalog = CATALOG_FIELDS.has(key);
+    const options = () => {
+      if (key !== 'foodDetail') return catalogOptions[key] ?? [];
+      const brand = inputs.get('foodBrand');
+      const brandName = catalogKey(brand.read() || fields.foodBrand || '');
+      const storedBrand = [initial.foodBrand, fields.foodBrand].some(
+        (name) => name && catalogKey(name) === brandName,
+      );
+      const knownBrand = storedBrand
+        ? catalogOptions.foodBrand?.find(({ name }) => catalogKey(name) === brandName)
+        : undefined;
+      const brandId = (brand.option ?? knownBrand)?.id;
+      return foodVarieties.filter((variety) => variety.brandId === brandId);
+    };
+    const catalog = isCatalog ? { options, id: optionIds?.[key] } : undefined;
+    const ui = createField(field, initial, isNew, catalog);
     const container = isNew || requestedFields.includes(key) ? primaryFields : otherFields;
-    container.append(ui.control);
+    if (key === 'foodBrand') {
+      (requestedFields.includes('foodDetail') ? primaryFields : container).append(foodFields);
+    }
+    (key === 'foodBrand' || key === 'foodDetail' ? foodFields : container).append(ui.control);
     inputs.set(key, ui);
   }
+  const brand = inputs.get('foodBrand');
+  const variety = inputs.get('foodDetail');
+  const initialBrand = catalogKey(brand.read());
+  const initialVariety = { value: variety.read(), id: variety.option?.id };
+  let lastBrand = initialBrand;
+  function updateVariety() {
+    const nextBrand = catalogKey(brand.read());
+    if (lastBrand !== nextBrand) {
+      lastBrand = nextBrand;
+      if (nextBrand === initialBrand) variety.restore(initialVariety.value, initialVariety.id);
+      else variety.restore('');
+    } else {
+      variety.refreshOptions();
+    }
+  }
+  brand.input.addEventListener('input', updateVariety);
+  brand.input.addEventListener('change', updateVariety);
   inputs.get('name').input.addEventListener('input', ({ target }) => {
     title.textContent = target.value.trim() || fallbackTitle;
   });
 
   const photos = savedPhotos.map(({ id }, index) => ({ id, number: index + 1, keep: true }));
-  const { attachments, fileInput, clearPreviews } = createAttachments(photos);
+  const { attachments, fileInput, releasePhotos } = createAttachments(photos);
   content.append(primaryFields);
   if (isNew || photos.length || VACCINES.some((key) => requestedFields.includes(key))) {
     content.append(attachments);
@@ -608,11 +790,24 @@ function addCard(
     requestedFields,
     fields,
     initial,
+    title,
     inputs,
     photos,
     fileInput,
-    clearPreviews,
+    releasePhotos,
   };
+  function refreshDraftState() {
+    const dirty =
+      submissionCard(entry).changed ||
+      [...inputs.values()].some(({ input }) => input.validity.badInput);
+    const badge = dirty ? unsentBadge : savedBadge;
+    if (draftState.firstElementChild !== badge) {
+      draftState.replaceChildren(...(badge ? [badge] : []));
+    }
+  }
+  refreshDraftState();
+  content.addEventListener('input', refreshDraftState);
+  content.addEventListener('change', refreshDraftState);
   disclosure.open = isNew || hasPending;
   disclosure.append(summary, content);
   card.append(disclosure);
@@ -635,7 +830,7 @@ function addCard(
       refreshRemoval();
       if (remove.hidden) return;
       if (card.contains(errorInput)) showError('');
-      clearPreviews();
+      releasePhotos();
       cards.splice(cards.indexOf(entry), 1);
       card.remove();
       refreshActions();
@@ -647,6 +842,14 @@ function addCard(
   cats.append(card);
   refreshActions();
   return entry;
+}
+
+function setCatalogOptions(invitation) {
+  catalogOptions = {
+    foodBrand: invitation.brands ?? invitation.foodBrands ?? [],
+    ...invitation.catalogOptions,
+  };
+  foodVarieties = invitation.foodVarieties ?? [];
 }
 
 async function load() {
@@ -665,13 +868,11 @@ async function load() {
     if (!response.ok) throw new Error('Request failed');
     const invitation = await response.json();
     clearCards();
+    expiresAt = Date.parse(invitation.expiresAt);
     showError('');
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
-    catalogOptions = {
-      foodBrand: invitation.brands ?? invitation.foodBrands ?? [],
-      ...invitation.catalogOptions,
-    };
+    setCatalogOptions(invitation);
     litterRatePerKg = invitation.litterRatePerKg ?? null;
     existingHint.hidden = !invitation.cats.some((cat) => cat.catId);
     for (const cat of invitation.cats) addCard(cat);
@@ -686,45 +887,55 @@ async function load() {
   }
 }
 
-function submissionCards() {
-  return cards.map((card) => {
-    const fields = {};
-    let changed = false;
-    for (const [key, field] of card.inputs) {
-      if (key === 'birthDate') {
-        const originalKey = card.fields.birthYear ? 'birthYear' : 'birthDate';
-        const initialKey = card.initial.birthYear ? 'birthYear' : 'birthDate';
-        const entered = field.read().trim();
-        const activeKey = entered ? field.input.name : originalKey;
-        const value = entered || card.fields[originalKey] || '';
-        const initialValue = card.initial[initialKey] ?? '';
-        if (value !== initialValue || (value && activeKey !== initialKey)) changed = true;
-        if (value && (activeKey !== originalKey || value !== card.fields[originalKey])) {
-          fields[activeKey] = value;
-        }
-        continue;
+function submissionCard(card) {
+  const fields = {};
+  const optionIds = {};
+  let changed = false;
+  for (const [key, field] of card.inputs) {
+    if (key === 'birthDate') {
+      const originalKey = card.fields.birthYear ? 'birthYear' : 'birthDate';
+      const initialKey = card.initial.birthYear ? 'birthYear' : 'birthDate';
+      const entered = field.read().trim();
+      const activeKey = entered ? field.input.name : originalKey;
+      const value = entered || card.fields[originalKey] || '';
+      const initialValue = card.initial[initialKey] ?? '';
+      if (value !== initialValue || (value && activeKey !== initialKey)) changed = true;
+      if (value && (activeKey !== originalKey || value !== card.fields[originalKey])) {
+        fields[activeKey] = value;
       }
-      const original = fieldValue(key, card.fields[key]);
-      const value = fieldValue(key, field.read()) || original;
-      if (value !== fieldValue(key, card.initial[key])) changed = true;
-      if (value !== original) fields[key] = value;
+      continue;
     }
-    const files = Array.from(card.fileInput.files);
-    const retainedPhotoIds = card.photos.filter((photo) => photo.keep).map((photo) => photo.id);
-    return {
-      card,
-      fields,
-      files,
-      retainedPhotoIds,
-      changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
-    };
-  });
+    const original = card.fields[key]?.trim() ?? '';
+    const entered = field.read().trim();
+    const value = entered || original;
+    const initial = card.initial[key]?.trim() ?? '';
+    const unchanged = sameFieldValue(key, value, initial);
+    if (!unchanged) changed = true;
+    if (
+      !sameFieldValue(key, value, original) ||
+      (key === 'foodDetail' && entered && fields.foodBrand)
+    ) {
+      const option = field.option;
+      fields[key] = option?.name ?? (unchanged ? initial : value);
+      if (option) optionIds[key] = option.id;
+    }
+  }
+  const files = Array.from(card.fileInput.files);
+  const retainedPhotoIds = card.photos.filter((photo) => photo.keep).map((photo) => photo.id);
+  return {
+    card,
+    fields,
+    optionIds,
+    files,
+    retainedPhotoIds,
+    changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
+  };
 }
 
 function validateCards(drafts) {
   for (const { card, fields, files, retainedPhotoIds, changed } of drafts) {
     if (!changed && (card.catId !== null || card.revision > 0)) continue;
-    for (const field of card.inputs.values()) {
+    for (const [key, field] of card.inputs) {
       const { input } = field;
       const value = field.read().trim();
       if (input.required && !value && !input.validity.badInput) {
@@ -743,10 +954,30 @@ function validateCards(drafts) {
         showError('Revisá este dato antes de enviar la ficha.', input);
         return false;
       }
+      const varietyBrandChanged =
+        key === 'foodDetail' &&
+        !sameFieldValue(
+          'foodBrand',
+          card.inputs.get('foodBrand').read() || card.fields.foodBrand || '',
+          card.initial.foodBrand || '',
+        );
+      if (
+        fields[key] &&
+        field.requiresChoice?.() &&
+        (varietyBrandChanged || !sameFieldValue(key, value, card.initial[key] ?? ''))
+      ) {
+        showError('Elegí una de las opciones para este dato.', input);
+        return false;
+      }
+    }
+    if (fields.foodDetail && !fields.foodBrand && !card.fields.foodBrand) {
+      showError('Ingresá la marca para indicar la variedad.', card.inputs.get('foodBrand').input);
+      return false;
     }
     const count = files.length + retainedPhotoIds.length;
-    if (count > MAX_PHOTOS_PER_CAT || files.some((file) => file.size > MAX_PHOTO_BYTES)) {
-      showError('Elegí hasta dos fotos de 8 MB o menos por gato.', card.fileInput);
+    const photoError = photoLimitError(files, retainedPhotoIds.length);
+    if (photoError) {
+      showError(photoError, card.fileInput);
       return false;
     }
     if (VACCINES.some((key) => fields[key]) && count === 0) {
@@ -784,7 +1015,7 @@ function hasProposal({ fields, files, retainedPhotoIds }) {
 function multipart(entries) {
   const body = new FormData();
   let totalBytes = 0;
-  const updates = entries.map(({ card, fields, files, retainedPhotoIds }, index) => {
+  const updates = entries.map(({ card, fields, optionIds, files, retainedPhotoIds }, index) => {
     const photoKeys = files.map((photo, position) => {
       const key = 'photo-' + index + '-' + position;
       totalBytes += photo.size;
@@ -796,6 +1027,7 @@ function multipart(entries) {
       draftId: card.draftId,
       revision: card.revision,
       fields,
+      ...(Object.keys(optionIds).length ? { optionIds } : {}),
       retainedPhotoIds,
       photoKeys,
     };
@@ -808,15 +1040,87 @@ function multipart(entries) {
   return body;
 }
 
+async function refreshCatalogConflict(response, entries) {
+  const conflict = await response.json().catch(() => null);
+  if (conflict?.code !== 'CAT_INTAKE_CATALOG_CHANGED') return false;
+  try {
+    const latest = await request('/api/intake/request');
+    if (unavailableStatus(latest.status)) {
+      endAccess();
+      return true;
+    }
+    if (!latest.ok) throw new Error('Request failed');
+    setCatalogOptions(await latest.json());
+    for (const card of cards) {
+      for (const field of card.inputs.values()) field.refreshOptions?.();
+    }
+    const affected = entries.filter(({ fields }) => Object.hasOwn(fields, conflict.field));
+    const entry =
+      affected.find(({ card, optionIds }) => {
+        const field = card.inputs.get(conflict.field);
+        return field?.requiresChoice?.() || (optionIds[conflict.field] && !field?.option);
+      }) ?? affected[0];
+    editable.disabled = false;
+    showError(
+      'Las opciones de este dato cambiaron. Revisalo antes de enviar.',
+      entry?.card.inputs.get(conflict.field)?.input,
+    );
+  } catch {
+    showError('No se pudieron actualizar las opciones. Volvé a intentar.');
+  }
+  return true;
+}
+
 addCat.addEventListener('click', () => {
   if (allowNewCats && cards.length < MAX_CATS) addCard().inputs.get('name').input.focus();
 });
 
-form.addEventListener('submit', async (event) => {
+function showPartialSubmission(missing, body, entries) {
+  if (!watchDialogExpiry()) return;
+  partialCats.replaceChildren();
+  for (const { card, fields } of missing) {
+    const item = element('li');
+    const requested = element('ul');
+    for (const [, label] of fields) requested.append(element('li', '', label));
+    item.append(element('strong', '', card.title.textContent), requested);
+    partialCats.append(item);
+  }
+  const [{ card, fields }] = missing;
+  partialSubmission = { body, entries, firstPending: card.inputs.get(fields[0][0]).input };
+  partialDialog.showModal();
+}
+
+function closePartialSubmission() {
+  if (!partialDialog.open) return;
+  clearTimeout(dialogExpiryTimer);
+  partialSubmission = undefined;
+  partialDialog.close();
+}
+
+function returnToDraft() {
+  if (!partialSubmission) return;
+  const { firstPending } = partialSubmission;
+  closePartialSubmission();
+  openField(firstPending);
+}
+
+document.querySelector('#complete-partial').addEventListener('click', returnToDraft);
+partialDialog.addEventListener('cancel', (event) => {
   event.preventDefault();
-  if (sending || stale || cards.length === 0) return;
+  returnToDraft();
+});
+document.querySelector('#send-partial').addEventListener('click', () => {
+  if (!partialSubmission) return;
+  const { body, entries } = partialSubmission;
+  closePartialSubmission();
+  void submitDraft(body, entries, true);
+});
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (sending || stale || partialDialog.open || photoViewer.open || cards.length === 0) return;
   showError('');
-  const drafts = submissionCards();
+  const drafts = cards.map(submissionCard);
   if (!validateCards(drafts)) return;
   const entries = drafts.filter(({ changed }) => changed);
   if (!entries.length) {
@@ -828,10 +1132,24 @@ form.addEventListener('submit', async (event) => {
   const body = multipart(entries);
   if (!body) {
     showError(
-      'Las fotos del envío superan los 32 MB. Quitá alguna foto o elegí archivos más chicos.',
+      'Las fotos nuevas del envío superan los 32 MiB. Quitá alguna foto o elegí archivos más chicos.',
     );
     return;
   }
+  const missing = drafts
+    .map(({ card, fields }) => ({
+      card,
+      fields: FIELDS.filter(([key]) => card.requestedFields.includes(key) && !fields[key]),
+    }))
+    .filter(({ fields }) => fields.length);
+  if (proposals.length && missing.length) {
+    showPartialSubmission(missing, body, entries);
+    return;
+  }
+  void submitDraft(body, entries, proposals.length > 0);
+});
+
+async function submitDraft(body, entries, hasProposals) {
   sending = true;
   editable.disabled = true;
   send.textContent = 'Enviando…';
@@ -839,7 +1157,7 @@ form.addEventListener('submit', async (event) => {
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
       closeForm(
-        proposals.length
+        hasProposals
           ? 'Ficha recibida. CatWorld va a revisar los datos.'
           : 'Se retiraron los cambios de la ficha.',
         'Volver a la ficha',
@@ -848,11 +1166,13 @@ form.addEventListener('submit', async (event) => {
     } else if (unavailableStatus(response.status)) {
       endAccess();
     } else if (response.status === 409) {
-      stale = true;
-      showStatus('La ficha cambió. Cargá la versión actual antes de volver a hacer tus cambios.');
-      retry.textContent = 'Cargar versión actual';
-      retry.hidden = false;
-      retry.focus();
+      if (!(await refreshCatalogConflict(response, entries))) {
+        stale = true;
+        showStatus('La ficha cambió. Cargá la versión actual antes de volver a hacer tus cambios.');
+        retry.textContent = 'Cargar versión actual';
+        retry.hidden = false;
+        retry.focus();
+      }
     } else if (response.status === 413) {
       showError('Las fotos son demasiado grandes. Elegí archivos más chicos y volvé a enviar.');
     } else if (response.status === 400 || response.status === 415 || response.status === 422) {
@@ -870,7 +1190,7 @@ form.addEventListener('submit', async (event) => {
     send.textContent = 'Enviar ficha';
     refreshActions();
   }
-});
+}
 
 retry.addEventListener('click', load);
 void load();
