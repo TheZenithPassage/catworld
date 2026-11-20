@@ -205,7 +205,7 @@ describe('CatIntakeReview', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('button[type="submit"]')?.textContent).toContain('Dar de alta');
     expect(root.querySelector('[aria-label="Nacimiento"]')?.textContent).toContain(
-      '2021 (año aproximado)',
+      '2021 (solo año)',
     );
     expect(root.textContent).toContain('Un plato aparte');
     expect(root.querySelector('[name="careInstructions"]')).toBeNull();

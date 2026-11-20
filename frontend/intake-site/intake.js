@@ -42,7 +42,7 @@ const FIELDS = [
   ['lastInternalDewormerName', 'Último desparasitante interno', 'text', false, 100],
   ['lastInternalDewormingDate', 'Fecha de desparasitación interna', 'date'],
   ['lastExternalDewormerName', 'Última pipeta antipulgas', 'text', false, 100],
-  ['lastExternalDewormingDate', 'Fecha del tratamiento antipulgas', 'date'],
+  ['lastExternalDewormingDate', 'Fecha de la última pipeta antipulgas', 'date'],
 ];
 
 const form = document.querySelector('#intake');
@@ -309,7 +309,7 @@ function createBirthField(title, initial, required) {
   date.name = 'birthDate';
   dateLimits(date);
   date.value = initial.birthDate ?? '';
-  const dateLabel = fieldLabel(title, date, 'Puede ser aproximada.');
+  const dateLabel = fieldLabel(title, date);
 
   const year = element('input');
   year.name = 'birthYear';
