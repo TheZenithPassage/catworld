@@ -68,7 +68,7 @@ export class StayPricingPage {
     const stay = this.stay();
     if (
       !stay ||
-      stay.agreedAmount === null ||
+      (stay.agreedAmount === null && !stay.pricePending) ||
       !this.isAdmin() ||
       this.correctionOpen() ||
       this.paymentMutationLocked()
@@ -84,9 +84,10 @@ export class StayPricingPage {
         restoreFocus: false,
       })
       .afterClosed()
-      .subscribe((updated: Stay | undefined) => {
+      .subscribe((updated: Stay | 'reload' | undefined) => {
         this.correctionOpen.set(false);
-        if (updated) this.onStayChanged(updated);
+        if (updated === 'reload') this.load();
+        else if (updated) this.onStayChanged(updated);
         setTimeout(() => {
           const currentTrigger = document.querySelector<HTMLElement>(
             '[data-pricing-action="correct-agreement"]',

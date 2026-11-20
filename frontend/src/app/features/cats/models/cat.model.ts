@@ -16,6 +16,7 @@ export interface Cat {
   id: string;
   updatedAt: string;
   canDelete?: boolean;
+  deceased?: boolean;
   name: string;
   birthDate: string;
   sex: Sex;
@@ -34,6 +35,7 @@ export interface Cat {
   lastRabiesDate: string | null;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
   vetId: string | null;
   vetName: string | null;
   hasPhoto: boolean;
@@ -62,6 +64,7 @@ export interface CreateCatRequest {
 
 export interface UpdateCatRequest extends CreateCatRequest {
   expectedUpdatedAt: string;
+  deceased?: boolean;
 }
 
 export interface CatPhotoMutation {
@@ -72,14 +75,18 @@ export interface CatPhotoMutation {
 export interface CatLookup {
   id: string;
   name: string;
+  deceased?: boolean;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
 }
 
 export interface CatOverviewItem {
   id: string;
   name: string;
+  deceased?: boolean;
   ownerId: string;
   ownerName: string;
+  ownerDeceased?: boolean;
   hasPhoto: boolean;
 }

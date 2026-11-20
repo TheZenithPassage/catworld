@@ -135,6 +135,14 @@ export const routes: Routes = [
       import('./features/cat-intake/cat-intake-review').then((m) => m.CatIntakeReview),
   },
   {
+    path: 'payments',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/payments/pages/monthly-payments-page/monthly-payments-page').then(
+        (m) => m.MonthlyPaymentsPage,
+      ),
+  },
+  {
     path: 'sensitive-activity',
     canActivate: [adminGuard],
     loadComponent: () =>

@@ -1,5 +1,6 @@
 import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
+import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -20,7 +21,7 @@ import {
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
 @Component({
   selector: 'app-vet-detail',
-  imports: [MatButton, MatProgressSpinner, UiStateComponent, VetEditor],
+  imports: [DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, VetEditor],
   host: {
     '[attr.aria-busy]': 'loading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
@@ -84,7 +85,8 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
                   [disabled]="deleting()"
                   (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
                 >
-                  {{ cat.name }} — {{ cat.ownerName }}
+                  {{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /> —
+                  {{ cat.ownerName }}<app-deceased-marker [deceased]="cat.ownerDeceased" />
                 </button>
               }
             } @else {

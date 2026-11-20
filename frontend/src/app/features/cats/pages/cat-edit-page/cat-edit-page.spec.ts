@@ -326,6 +326,7 @@ describe('CatEditor', () => {
     component.saved.subscribe(saved);
 
     component.name.set('  Milo  ');
+    component.deceased.set(true);
     component.birthDate.set('2020-01-02');
     component.sex.set('MALE');
     component.ownerId.set('owner-1');
@@ -352,6 +353,7 @@ describe('CatEditor', () => {
       {
         name: 'Milo',
         expectedUpdatedAt: cat.updatedAt,
+        deceased: true,
         birthDate: '2020-01-02',
         sex: 'MALE',
         breed: null,

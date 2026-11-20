@@ -37,8 +37,6 @@ describe('StayApiService', () => {
         statuses: ['RESERVED', 'CHECKED_IN'],
         ownerId: 'owner-1',
         catId: null,
-        paymentConditions: ['NO_PAYMENT'],
-        outstandingOnly: true,
       })
       .subscribe((page) => expect(page.pageSize).toBe(10));
     const request = httpTestingController.expectOne(
@@ -47,8 +45,6 @@ describe('StayApiService', () => {
     );
     expect(request.request.params.getAll('status')).toEqual(['RESERVED', 'CHECKED_IN']);
     expect(request.request.params.get('ownerId')).toBe('owner-1');
-    expect(request.request.params.getAll('paymentCondition')).toEqual(['NO_PAYMENT']);
-    expect(request.request.params.get('outstandingOnly')).toBe('true');
     request.flush({ items: [], page: 2, pageSize: 10, totalElements: 21 });
   });
 
@@ -98,6 +94,7 @@ describe('StayApiService', () => {
       pricingDecisionRequired: false,
       currentNumberOfNights: 7,
       currentAgreedAmount: '100',
+      currentPricePending: false,
       numberOfNights: 7,
       retainedNightlyRate: '50',
       suggestedAmount: '100',

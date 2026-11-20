@@ -91,7 +91,7 @@ public class StayControllerTest {
             UUID id = UUID.randomUUID();
             StayDetailResponse detail = new StayDetailResponse(id, StayStatus.RESERVED,
                     LocalDateTime.of(2030, 1, 1, 10, 0), LocalDateTime.of(2030, 1, 3, 10, 0),
-                    2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada"),
+                    2, null, new OwnerRelationshipItem(UUID.randomUUID(), "Ada", true),
                     new RelationshipPreview<>(0, List.of()), false, false);
             when(stayService.getStayDetail(id)).thenReturn(detail);
             when(stayService.getStayCats(id, 0)).thenReturn(
@@ -100,6 +100,7 @@ public class StayControllerTest {
                     .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESERVED"))
                     .andExpect(jsonPath("$.numberOfNights").value(2))
                     .andExpect(jsonPath("$.owner.fullName").value("Ada"))
+                    .andExpect(jsonPath("$.owner.deceased").value(true))
                     .andExpect(jsonPath("$.retainedNightlyRate").doesNotExist());
             mockMvc.perform(get("/api/stays/{id}/cats", id))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.pageSize").value(5));
@@ -630,7 +631,6 @@ public class StayControllerTest {
                             .totalPaid(new BigDecimal("30"))
                             .remainingAmount(new BigDecimal("70"))
                             .paymentCondition(PaymentCondition.PARTIAL_PAYMENT)
-                            .outstandingCollectionEligible(true)
                             .payments(List.of(StayPaymentResponseDTO.builder()
                                     .paymentId(paymentId)
                                     .amount(new BigDecimal("30"))
@@ -657,8 +657,6 @@ public class StayControllerTest {
                     .andExpect(jsonPath("$.remainingAmount").value(70))
                     .andExpect(jsonPath("$.paymentCondition")
                             .value("PARTIAL_PAYMENT"))
-                    .andExpect(jsonPath("$.outstandingCollectionEligible")
-                            .value(true))
                     .andExpect(jsonPath("$.payments[0].paymentId")
                             .value(paymentId.toString()))
                     .andExpect(jsonPath("$.payments[0].state").value("ACTIVE"))

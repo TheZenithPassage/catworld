@@ -123,6 +123,17 @@
           }
         </mat-form-field>
 
+        <fieldset class="record-status">
+          <legend>{{ text().entityDetail.recordStatus }}</legend>
+          <mat-checkbox
+            name="deceased"
+            [checked]="deceased()"
+            (change)="deceased.set($event.checked)"
+          >
+            {{ text().entityDetail.noLongerWithUs }}
+          </mat-checkbox>
+        </fieldset>
+
         <div class="form-actions">
           @if (!routed()) {
             <button

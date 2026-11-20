@@ -26,7 +26,7 @@ describe('OwnerLookupAdapter', () => {
       }),
     ).toEqual({
       primary: 'Ada Lovelace',
-      secondary: 'Milo, Pixel',
+      secondary: [{ label: 'Milo' }, { label: 'Pixel' }],
       selected: 'Ada Lovelace (Milo, Pixel)',
     });
     expect(

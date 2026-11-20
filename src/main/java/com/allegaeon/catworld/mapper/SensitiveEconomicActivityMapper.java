@@ -64,8 +64,7 @@ public class SensitiveEconomicActivityMapper {
                             context,
                             canonicalizeNullable(
                                     projection.previousAgreedAmount()),
-                            WholeMonetaryAmount.canonicalize(
-                                    projection.newAgreedAmount()),
+                            canonicalizeNullable(projection.newAgreedAmount()),
                             projection.reason()
                     );
             case PAYMENT_EDITED -> new PaymentEditedActivityDTO(

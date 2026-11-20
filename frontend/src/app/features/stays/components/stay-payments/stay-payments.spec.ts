@@ -50,7 +50,6 @@ describe('StayPayments', () => {
     totalPaid: '10',
     remainingAmount: '10',
     paymentCondition: 'PARTIAL_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [payment, annulled],
   };
   const api = {
@@ -76,6 +75,7 @@ describe('StayPayments', () => {
         { provide: MatDialog, useValue: dialog },
       ],
     }).compileComponents();
+    TestBed.inject(I18nService).language.set('es');
   });
   function create() {
     const fixture = TestBed.createComponent(StayPayments);

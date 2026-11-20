@@ -66,7 +66,7 @@
             [disabled]="deleting()"
             (click)="navigate.emit({ entityType: 'owner', entityId: stay.owner.id })"
           >
-            {{ stay.owner.fullName }}
+            {{ stay.owner.fullName }}<app-deceased-marker [deceased]="stay.owner.deceased" />
           </button>
         </dd>
       </div>
@@ -90,7 +90,8 @@
               [disabled]="deleting()"
               (click)="navigate.emit({ entityType: 'cat', entityId: cat.id })"
             >
-              {{ cat.name }} — {{ cat.ownerName }}
+              {{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /> — {{ cat.ownerName
+              }}<app-deceased-marker [deceased]="cat.ownerDeceased" />
             </button>
           }
         } @else {
@@ -129,15 +130,17 @@
         }
       </div>
       <div class="detail-actions-end">
-        @if (pricingStay()?.agreedAmount !== null && pricingStay() !== null) {
-          <button
-            mat-stroked-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="pricingRequested.emit()"
-          >
-            {{ text().stays.detail.pricing }}
-          </button>
+        @if (pricingStay(); as pricing) {
+          @if (pricing.agreedAmount !== null || pricing.pricePending) {
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="deleting()"
+              (click)="pricingRequested.emit()"
+            >
+              {{ text().stays.detail.pricing }}
+            </button>
+          }
         }
         @if (canEdit(stay)) {
           <button

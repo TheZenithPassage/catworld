@@ -45,7 +45,12 @@
         <article
           class="overview-card cat-card"
           tabindex="0"
-          [attr.aria-label]="text().cats.detail.openDetails + ': ' + cat.name"
+          [attr.aria-label]="
+            text().cats.detail.openDetails +
+            ': ' +
+            cat.name +
+            (cat.deceased ? ', ' + text().entityDetail.deceased : '')
+          "
           (click)="openCat(cat)"
           (keydown)="activateCat($event, cat)"
         >
@@ -57,15 +62,15 @@
             }
           </div>
           <div>
-            <h3>{{ cat.name }}</h3>
+            <h3>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></h3>
             <a
               class="owner-search-link"
               routerLink="/owners"
               [queryParams]="{ search: cat.ownerName, selectedOwnerId: cat.ownerId }"
               (click)="$event.stopPropagation()"
               (keydown)="$event.stopPropagation()"
-              >{{ cat.ownerName }}</a
-            >
+              >{{ cat.ownerName }}<app-deceased-marker [deceased]="cat.ownerDeceased"
+            /></a>
           </div>
         </article>
       }

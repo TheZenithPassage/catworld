@@ -10,14 +10,21 @@ import java.util.List;
 public record StayPaymentEconomics(
         BigDecimal totalPaid,
         BigDecimal remainingAmount,
-        PaymentCondition paymentCondition,
-        boolean outstandingCollectionEligible) {
+        PaymentCondition paymentCondition) {
 
     public static StayPaymentEconomics calculate(
             BigDecimal agreedAmount,
             List<StayPayment> payments,
             boolean cancelled) {
 
+        return calculate(agreedAmount, payments, cancelled, false);
+    }
+
+    public static StayPaymentEconomics calculate(
+            BigDecimal agreedAmount,
+            List<StayPayment> payments,
+            boolean cancelled,
+            boolean pricePending) {
         List<StayPayment> activePayments = payments.stream()
                 .filter(payment -> !payment.isAnnulled())
                 .toList();
@@ -27,16 +34,15 @@ public record StayPaymentEconomics(
         totalPaid = WholeMonetaryAmount.canonicalize(totalPaid);
 
         if (agreedAmount == null) {
-            if (!activePayments.isEmpty()) {
+            if (!pricePending && !activePayments.isEmpty()) {
                 throw new IllegalStateException(
                         "A stay without an agreed amount cannot have active payments"
                 );
             }
             return new StayPaymentEconomics(
-                    BigDecimal.ZERO,
+                    totalPaid,
                     null,
-                    PaymentCondition.NO_PAYMENT,
-                    false
+                    activePayments.isEmpty() ? PaymentCondition.NO_PAYMENT : PaymentCondition.PARTIAL_PAYMENT
             );
         }
 
@@ -61,8 +67,7 @@ public record StayPaymentEconomics(
         return new StayPaymentEconomics(
                 totalPaid,
                 cancelled ? BigDecimal.ZERO : historicalRemainingAmount,
-                condition,
-                !cancelled && historicalRemainingAmount.signum() > 0
+                condition
         );
     }
 }

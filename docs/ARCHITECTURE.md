@@ -190,6 +190,12 @@ preserved. Owner, Cat and Vet details render the complete value through their
 normal response DTOs. Their overview search, lookup and relationship-summary
 contracts remain notes-free; the existing Stay overview behavior is unchanged.
 
+Cat and Owner records carry a reversible deceased marker. The flag defaults to
+false for existing rows and is updated through the normal edit request.
+Omitting it preserves the recorded value. Details, overviews and lookup
+results expose the marker separately from the stored name. It does not filter
+records or affect stay creation, so operators can enter historical stays.
+
 #### Stay
 
 Represents one boarding stay.
@@ -425,10 +431,13 @@ that resolved amount onto the stay. It does not retain the key that supplied the
 amount. Later reference-rate changes never reprice the stay. Responses
 derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
 
-Every new stay requires an explicit nested pricing decision from either
-authenticated role. The agreed amount is a non-negative whole number of at
-most 19 digits, including zero. A non-blank reason is required exactly when an
-available suggestion differs numerically from the agreement.
+Both authenticated roles can create a stay with a confirmed amount or an
+explicit pending price. A confirmed amount is a non-negative whole number of
+at most 19 digits, including zero. A non-blank reason is required when an
+available suggestion differs numerically from the agreement. A pending price
+stores `pricePending: true` and a null agreed amount, while retaining the
+usual rate basis. The creation path does not record an agreement event until
+there is an amount to agree.
 
 A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
 update requires `ADMIN`, a fresh explicit pricing decision and a selected
@@ -436,7 +445,8 @@ retained rate that is either the locked stay's original nullable amount or the
 effective current amount resolved for the requested new number of nights. The
 service derives the suggestion from that selected rate, then changes the
 retained-rate snapshot and agreement and appends its immutable decision in one
-transaction only after the complete stay update validates. Equal-night date or
+transaction only after the complete stay update validates. For a pending price,
+the same preview and rate validation apply and the price remains pending. Equal-night date or
 time changes do not reconfirm pricing.
 
 `POST /api/stays/pricing-preview` gives `ADMIN` and `STAFF` an unlocked,
@@ -455,7 +465,13 @@ pricing-affecting response includes a structured `confirmation` snapshot,
 separate from `pricingDecision`. Final mutations lock and recalculate the
 authoritative basis, compare every snapshot field with numeric monetary and
 exact null semantics, and return `STALE_PRICING_CONFIRMATION` on mismatch before
-writing. Preview calls persist nothing.
+writing. The existing-stay preview includes `currentPricePending` and echoes
+it as `previousPricePending` in a pricing confirmation. An omitted
+`previousPricePending` is accepted for older callers. The editor refreshes
+pricing after a concurrent price-state change and keeps the proposed dates,
+transfer settings and notes. A pending price needs no agreement decision, and
+an existing agreement must be explicitly reconfirmed for a pricing change.
+Preview calls persist nothing.
 
 An edit pricing preview also exposes nullable
 `currentApplicableNightlyRate`: backend-resolved preview information for the
@@ -481,20 +497,29 @@ and is never persisted.
 ### Agreed Amounts Have a Focused Administrative Correction Path
 
 `PATCH /api/stays/{id}/agreed-amount` lets an authenticated persisted `ADMIN`
-correct an existing known agreement independently of the stay lifecycle. An
-inherited stay whose current agreement is null has no recorded economic value
-to correct, so the operation rejects it without changing the stay or appending
-evidence.
+correct an agreement, mark it pending, or confirm a pending price independently
+of the stay lifecycle. Marking it pending uses `pricePending: true` in place of
+an amount. Inherited stays with a null agreement and no pending marker retain
+their historical behavior and reject economic mutations.
 
 The submitted amount follows the normal non-negative whole-unit monetary
-contract of at most 19 digits. Every real correction requires a non-blank
-reason. Numerically equal values such as `20` and `20.0`
+contract of at most 19 digits. Corrections and reopening an agreement require
+a non-blank reason. Numerically equal values such as `20` and `20.0`
 are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
+For explicitly pending stays, `GET /api/stays/{id}/pending-price-preview`
+shows the saved rates, nights and chargeable transfer legs for administrators.
+The first agreement requires a reason when it overrides a complete suggestion.
+Accepting the suggestion or entering the first amount when a rate is missing
+records a system reason if none was supplied. Confirming a reopened agreement
+still requires a reason. The dialog sends the preview version as
+`expectedPendingPriceVersion`. A stale version returns `409 Conflict` and the
+dialog refreshes the price breakdown while keeping the draft.
+
 The service takes the existing pessimistic `Stay` lock before persisted-account
 authorization and current-value comparison. A real change updates only
-`agreedAmount` and inserts one immutable correction event in the same
+`agreedAmount` and its pending flag and inserts one immutable event in the same
 transaction. The exact previous and new values therefore form a serialized
 chain for competing corrections, and neither half can commit without the
 other. Correction evidence is retained after cancellation or permanent
@@ -503,21 +528,23 @@ deletion of the operational stay.
 ### Stay Payments Are Operational; Balances Are Derived
 
 Stay reads return payment history ordered by creation time and derive
-`totalPaid`, nullable `remainingAmount`, `paymentCondition` and
-`outstandingCollectionEligible` from the active rows and current agreement.
+`totalPaid`, nullable `remainingAmount` and `paymentCondition` from the
+active rows and current agreement.
 `NO_PAYMENT`, `PARTIAL_PAYMENT` and `FULL_PAYMENT` are response values, never
 persisted state. Annulled rows remain visible but contribute nothing to the
 active total. For a cancelled stay with a known agreement, `remainingAmount`
-is the operational balance `0` and outstanding eligibility is false, while
+is the operational balance `0`, while
 `paymentCondition` continues to describe the real active-payment history.
 
 Inherited stays with a null agreement return zero paid, null remaining,
-`NO_PAYMENT`, false outstanding eligibility and empty history. Payment
+`NO_PAYMENT` and empty history. Payment
 mutations and focused agreement corrections are rejected because no recorded
-economic agreement exists to mutate. The overview renders a localized absence
-message instead of economic values and exposes neither payment management nor
-the agreed-amount correction action. Otherwise active payments may never exceed
-the agreement, including an agreement of zero.
+economic agreement exists to mutate. Their pricing page shows a localized
+absence message and omits economic actions. Explicitly pending stays accept payments
+and return the active total with no calculable remaining amount. Their payment
+condition is `PARTIAL_PAYMENT` when an active payment exists and `NO_PAYMENT`
+otherwise. When an agreement is known, active payments may never exceed it,
+including an agreement of zero.
 
 Registration, amount-only edits, annulments, pricing reconfirmation and focused
 agreement correction all serialize through the existing pessimistic `Stay`
@@ -541,14 +568,14 @@ Current rules:
 - `endAt` must be after `startAt`.
 - A cat cannot have overlapping active stays.
 - Cancelled stays are ignored during overlap validation.
-- Payment amounts are positive whole numbers of at most 19 digits and their
-  active aggregate cannot exceed the current agreed amount.
+- Payment amounts and the active aggregate use at most 19 whole digits.
+  The active aggregate cannot exceed a known agreed amount.
 - Payment edits require a real amount change and a non-blank reason;
   annulments require a non-blank reason and are terminal.
 - Payment removal requires `ADMIN`, a non-blank reason and exact durable
   evidence; it is not a refund operation.
-- Outstanding collection is true only for a non-cancelled stay with a known
-  positive remaining amount.
+- Outstanding Payments includes non-cancelled stays with an explicitly
+  pending price or a known positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
   stay. Each operational expiry is the stored vaccination date plus one year;
   a missing date or a stay ending on or after expiry is a vaccine conflict.
@@ -647,6 +674,14 @@ src/main/resources/db/migration
 
 Hibernate schema auto-update is not used for development schema evolution. The application validates the schema instead.
 
+When V16 was applied before the pending-price release, V14 is a resolved migration
+below the installed version. Startup recognizes that exact single ignored
+migration and runs Flyway with out-of-order execution limited to target V14,
+then resumes the original Flyway configuration. Applied checksums and history
+remain validated. Additional ignored migrations or other validation failures
+retain Flyway's normal rejection. Installations ending at V13 migrate normally,
+and an already applied V14 is never rerun.
+
 Important schema points:
 
 - `owners` stores owner contact data.
@@ -697,8 +732,7 @@ Important schema points:
   evidence with indexed scalar stay/payment UUIDs and restrictive actor foreign
   keys. They deliberately omit operational stay/payment foreign keys so
   evidence survives operational deletion. V7 creates no legacy payment or
-  audit rows and persists no derived totals, balances, conditions or
-  outstanding flags.
+  audit rows and persists no derived totals, balances or conditions.
 - V8 adds `sensitive_stay_contexts` and `sensitive_stay_context_cats` as
   immutable operationally independent snapshots, nullable context links on the
   four existing stay-scoped producers, and exact payment snapshots on edit and
@@ -730,7 +764,8 @@ method-aware matchers enforce this HTTP boundary before the generic
 authenticated API rule, and the application authorization policy repeats the
 authoritative persisted-account decision at the service boundary.
 
-Both authenticated roles may create a stay with an explicit pricing decision.
+Both authenticated roles may create a stay with an explicit agreement or
+pending price.
 Only `ADMIN` may change a stay's authoritative night count and reconfirm its
 price. This contextual decision is enforced at the service boundary after the
 stay is locked; the general authenticated HTTP update route remains available
@@ -995,7 +1030,9 @@ includes items only when the total is one through three; larger relationships
 are loaded on demand in server-fixed pages of five. Cats use `name ASC, id ASC`
 and stays use `startAt DESC, id ASC`. Stay detail derives status and night count
 at read time and intentionally excludes economics, payments and deletion hints.
-Its owner and participating cats remain read-only relationship targets.
+Its owner and participating cats remain read-only relationship targets. The
+detail response includes the owner's deceased flag and the cats' relationship
+entries include both the cat and current owner flags for display beside names.
 
 Calendar and overview stay activation open the route-free dialog and refresh
 or replace the edited stay in their existing collections after a successful
@@ -1004,7 +1041,7 @@ no separate Actions column. A transfer-required Stay shows one decorative car
 indicator in both ordinary and contextual overview rows, while the row's
 accessible name retains its detail label and adds the localized transfer meaning.
 Stay detail obtains the full operational Stay only
-to prove whether a recorded agreement exists before exposing Pricing & Payments;
+to check whether an agreement or pending price exists before exposing Pricing & Payments;
 the lightweight detail response remains economics-free.
 
 The reusable Stay editor owns the complete date, notes, pricing preview,
@@ -1082,22 +1119,25 @@ selection. `GET /api/owners/search`, `GET /api/cats/search` and
 whose default is zero. They return `{ items, page, pageSize, totalElements }`
 with a server-fixed page size of five; the envelope deliberately exposes
 neither `totalPages` nor `hasNext`. Search uses MySQL's case- and
-accent-insensitive comparison behavior for partial matching over owner full
-name, cat name or vet name respectively. A cat's current owner name is display
-context, not a cat search term. Stable ordering uses the display name followed
-by identifier. Angular uses `totalElements` to decide whether another fixed-five
-page remains and accepts transient empty pages without clamp/reload recovery.
+accent-insensitive comparison behavior for partial matches. Owner search
+matches the owner's full name or a current cat's name. Cat and vet searches
+match the cat's or vet's own name. Cat results show the current owner as
+context. Stable ordering uses the display name followed by identifier. Angular
+uses `totalElements` to decide whether another fixed-five page remains and
+accepts transient empty pages without clamp/reload recovery.
 
-Owner lookup items contain `id`, `fullName` and every current cat as an
-`id`/`name` pair. Focused `GET /api/owners/{id}/lookup` returns that same
-complete shape so known Stay owner identifiers can be resolved without a broad
-list. Cat lookup items contain `id`, `name`, `ownerId` and `ownerName`; vet
-lookup items contain `id` and `name`. Current owner/cat relationships are
-discovery and display context only: selection never mutates a relationship,
-and the owning consumer remains responsible for mutations, historical filters
-and business resets. The focused reads use existing owner, cat and vet storage
-and relationships; leading-wildcard normalized name matching does not rely on a
-name index. They add no persistence model or cache.
+Owner lookup items contain `id`, `fullName`, `deceased` and every current cat
+with its `id`, `name` and `deceased` flag. Owner results display each marked
+cat's marker beside its name. Focused `GET /api/owners/{id}/lookup` returns that
+same complete shape so known Stay owner identifiers can be resolved without a
+broad list. Cat lookup items contain `id`, `name`, `ownerId`, `ownerName`,
+`deceased` and `ownerDeceased`. Vet lookup items contain `id` and `name`.
+Current owner/cat relationships are discovery and display context only:
+selection never mutates a relationship, and the owning consumer remains
+responsible for mutations, historical filters and business resets. The
+focused reads use existing owner, cat and vet storage and relationships.
+Leading-wildcard normalized name matching does not rely on a name index.
+They add no persistence model or cache.
 
 Angular provides one API- and domain-agnostic Material autocomplete remote
 single-selector under `shared/entity-lookup`, plus focused Owner, Cat and Vet
@@ -1199,7 +1239,7 @@ by the database using its case- and accent-insensitive comparison behavior and
 orders matching display names followed by identifiers. Owner pages are chosen
 before one bounded current-Cat hydration query. Cat photo presence is resolved
 for only the selected page without loading photo bytes. Stay overview status,
-Owner, Cat, payment-condition, outstanding-only and inclusive date filters are likewise
+Owner, Cat and inclusive date filters are likewise
 applied before counting and paging; Stay status remains derived from dates and
 cancellation data, and results use start time followed by identifier order.
 
@@ -1215,7 +1255,7 @@ configuration level. Operational pages may consume Material paginator directly;
 the fixed-five relationship contracts retain their existing size and no custom
 paginator wrapper is introduced.
 
-For stays with a known agreement, authenticated `/stays/:id/pricing` is the only
+For stays with an agreement or pending price, authenticated `/stays/:id/pricing` is the only
 post-creation routed economic surface and exposes
 backend-authoritative economics and operational active and annulled payment
 history, including exact string amounts, payment dates, notes and registration
@@ -1224,15 +1264,15 @@ recorded by the existing immutable annulment, so both `ADMIN` and `STAFF` can
 understand ordinary payment history without access to sensitive economic
 activity. The page shows only owner, cats, dynamic status and dates as Stay
 context, never Stay notes, and replaces its displayed full Stay from successful
-payment output. Direct access remains valid for historical stays whose agreement
-is null, but shows an explicit empty economic state and no summary, history or
+payment output. Direct access remains valid for historical stays with neither
+an agreement nor a pending price, but shows an explicit empty economic state and no summary, history or
 economic actions. Pricing Back returns to a captured internal Angular URL,
 including its query string, and otherwise falls back to `/stays`; it does not
 reconstruct a detail dialog or use browser storage. Historical stays expose no
 Pricing & Payments entry in detail. Ordinary stay editing remains limited by
 the existing dynamic status rule and remains available for otherwise-allowed
 non-pricing changes to those historical stays. `ADMIN` receives payment mutation affordances in every
-status for known agreements; `STAFF` receives register, edit and annul
+status for stays with an agreement or pending price; `STAFF` receives register, edit and annul
 affordances only for reserved and checked-in stays and never receives permanent
 removal.
 These affordances are advisory and the backend remains the authorization and
@@ -1334,8 +1374,8 @@ also supplies the existing inclusive date matcher. Owner/Cat and the projected
 Filter action remain in the Stay search composition. At widths of 800px and above,
 From, To, the mode selector, outlined Clear and compact Filter share one row.
 Below 800px, Clear and Filter share equal widths in that order; at 520px and
-below Filter then Clear stack at full width. Clear resets the entity/date draft, date errors
-and Stays payment draft without changing applied filters or immediate status.
+below Filter then Clear stack at full width. Clear resets the entity/date draft
+and date errors without changing applied filters or immediate status.
 
 Both native date inputs use the frontend-only bounds 2000-01-01 through
 2200-12-31. Native value and validity distinguish empty, partial editing, valid
@@ -1355,8 +1395,8 @@ Status visibility applies immediately and persists independently of invalid or
 pending non-status drafts. Stays resets page zero, synchronizes its applied route
 and reloads using the applied non-status query. Calendar filters the already
 bounded population without another collection request. Owner/Cat lookup remains
-live and mutually exclusive, but selections, date criteria and Stays payment /
-outstanding criteria stay draft until Filter. Pagination and contextual selection
+live and mutually exclusive, but selections and date criteria
+stay draft until Filter. Pagination and contextual selection
 use applied criteria. Legacy routes without a mode initialize OVERLAPS.
 
 Calendar waits for FullCalendar's logical currentStart/currentEnd interval and
@@ -1609,3 +1649,35 @@ The source of truth for architecture and modeling is:
 - `README.md`
 - `docs/ARCHITECTURE.md`
 - `docs/uml/*`
+
+
+## Payments
+
+The administrator-only Payments page starts on the current business month.
+Both `GET /api/payments/received` and `GET /api/payments/outstanding` accept
+`scope=month|all`, defaulting to `month`. Monthly scope requires `month=YYYY-MM`.
+All scope ignores the month. Optional `ownerId` or `catId` restricts results to
+the stay's owner or a cat belonging to the stay. Supplying both returns 400.
+Selecting one cat retains the entire stay's amounts and cat context.
+
+`GET /api/payments/received?month=YYYY-MM&page=0` lists active payments by their
+recorded payment date, regardless of when the stay starts or the payment was
+entered. Cancelled stays can still have active receipts. Annulled and removed
+payments are excluded. The response includes an exact total for the selected
+scope and entity as a decimal string, separate from the paginated rows.
+
+The Payments URL records the selected month, tab, scope, owner or cat,
+pending-price filter and zero-based page for returning from stay pricing through
+its Back button or browser history. If the
+requested page has disappeared, the URL records the last available page.
+
+The Outstanding view uses `GET /api/payments/outstanding?month=YYYY-MM&page=0`
+by default and `scope=all` without a month to show outstanding stays across
+months. Both scopes include non-cancelled stays with a positive balance or an
+explicitly pending price, ordered by scheduled arrival. Arrivals that have
+started are identified using the business clock. All active payments reduce
+the stay balance regardless of their payment dates. The totals distinguish the
+sum of known balances from the count of stays with a pending price.
+The optional `pricePendingOnly=true` parameter filters the rows before counting,
+paging and page clamping. `knownTotal` and `pendingPriceCount` still summarize
+the complete month or all-month scope for the selected owner or cat.

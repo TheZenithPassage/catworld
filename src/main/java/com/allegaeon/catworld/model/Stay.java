@@ -53,6 +53,9 @@ public class Stay extends AuditableEntity {
     @Digits(integer = 19, fraction = 0)
     private BigDecimal agreedAmount;
 
+    @Column(nullable = false)
+    private boolean pricePending;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private Owner owner;

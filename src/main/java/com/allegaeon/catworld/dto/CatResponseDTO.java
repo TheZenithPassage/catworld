@@ -16,6 +16,7 @@ public class CatResponseDTO {
     private UUID id;
     private Instant updatedAt;
     private String name;
+    private boolean deceased;
     private LocalDate birthDate;
     private Sex sex;
     private String breed;
@@ -33,6 +34,7 @@ public class CatResponseDTO {
     private LocalDate lastRabiesDate;
     private UUID ownerId;
     private String ownerName;
+    private boolean ownerDeceased;
     private UUID vetId;
     private String vetName;
     private boolean canDelete;

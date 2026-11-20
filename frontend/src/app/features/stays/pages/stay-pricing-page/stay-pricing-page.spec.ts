@@ -40,7 +40,6 @@ describe('StayPricingPage', () => {
     totalPaid: '0',
     remainingAmount: null,
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: false,
     payments: [],
   };
   const api = { getStayById: vi.fn(() => of(stay)) };

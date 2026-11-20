@@ -10,7 +10,21 @@ import { AgreedAmountCorrectionDialog } from './agreed-amount-correction-dialog'
 
 describe('AgreedAmountCorrectionDialog', () => {
   const stay = { stayId: 's1', agreedAmount: '20' } as Stay;
-  const api = { correctAgreedAmount: vi.fn() };
+  const api = { correctAgreedAmount: vi.fn(), previewPendingPrice: vi.fn() };
+  const pendingStay = { ...stay, agreedAmount: null, pricePending: true };
+  const preview = {
+    version: 'preview-1',
+    previouslyAgreed: false,
+    numberOfNights: 2,
+    retainedNightlyRate: '50',
+    accommodationSuggestedAmount: '100',
+    arrivalTransferRequired: true,
+    departureTransferRequired: false,
+    transferWaived: false,
+    retainedTransferRate: '20',
+    transferSuggestedAmount: '20',
+    suggestedAmount: '120',
+  };
   const ref = { close: vi.fn(), disableClose: false };
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -49,6 +63,64 @@ describe('AgreedAmountCorrectionDialog', () => {
     expect(ref.disableClose).toBe(true);
     pending.next({ ...stay, agreedAmount: '21' });
     expect(ref.close).toHaveBeenCalledWith(expect.objectContaining({ agreedAmount: '21' }));
+  });
+  it('explains the saved rates and allows accepting the initial suggestion without a reason', async () => {
+    TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: pendingStay });
+    api.previewPendingPrice.mockReturnValue(of(preview));
+    api.correctAgreedAmount.mockReturnValue(of({ ...stay, agreedAmount: '120' }));
+    const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
+    await fixture.whenStable();
+    const content: HTMLElement = fixture.nativeElement;
+    const button = Array.from(content.querySelectorAll('button')).find(
+      (element) =>
+        element.textContent.trim() ===
+        fixture.componentInstance.text().stays.pricing.useSuggestedAmount,
+    );
+    expect(content.textContent).toContain(
+      fixture.componentInstance.text().stays.pricing.arrivalTransfer,
+    );
+    expect(content.querySelector('textarea[name="correctionReason"]')).toBeNull();
+    button!.click();
+    fixture.componentInstance.submit();
+
+    expect(api.previewPendingPrice).toHaveBeenCalledWith('s1');
+    expect(api.correctAgreedAmount).toHaveBeenCalledWith('s1', {
+      agreedAmount: '120',
+      reason: null,
+      expectedPendingPriceVersion: preview.version,
+    });
+  });
+  it('reloads a stale price breakdown while keeping the manual amount and reason', () => {
+    TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: pendingStay });
+    api.previewPendingPrice
+      .mockReturnValueOnce(of(preview))
+      .mockReturnValueOnce(of({ ...preview, version: 'preview-2', suggestedAmount: '170' }));
+    api.correctAgreedAmount
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'STALE_PRICING_CONFIRMATION' },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of({ ...stay, agreedAmount: '150' }));
+    const component = TestBed.createComponent(AgreedAmountCorrectionDialog).componentInstance;
+    component.amount.set('150');
+    component.submit();
+    expect(api.correctAgreedAmount).not.toHaveBeenCalled();
+
+    component.reason.set('Rounded amount');
+    component.submit();
+    expect(api.previewPendingPrice).toHaveBeenCalledTimes(2);
+    expect(component.error()).toBe(component.text().stays.pricing.staleUpdate);
+    component.submit();
+    expect(api.correctAgreedAmount).toHaveBeenLastCalledWith('s1', {
+      agreedAmount: '150',
+      reason: 'Rounded amount',
+      expectedPendingPriceVersion: 'preview-2',
+    });
   });
   it.each([
     [403, null, 'permission'],

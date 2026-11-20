@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
+import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -26,7 +27,6 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
-import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.model.StayStatus;
 import java.util.Set;
@@ -73,13 +73,11 @@ public class StayController {
             @RequestParam(name = "status", required = false) Set<StayStatus> statuses,
             @RequestParam(required = false) UUID ownerId,
             @RequestParam(required = false) UUID catId,
-            @RequestParam(name = "paymentCondition", required = false) Set<PaymentCondition> paymentConditions,
-            @RequestParam(required = false) Boolean outstandingOnly,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(required = false) StayDateMatchMode dateMatchMode) {
         return ResponseEntity.ok(stayService.getStayOverview(page, statuses, ownerId, catId,
-                paymentConditions, outstandingOnly, new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
+                new StayDateFilter(dateFrom, dateTo, dateMatchMode)));
     }
 
     @GetMapping("/{id}")
@@ -119,6 +117,11 @@ public class StayController {
     @PutMapping("/{id}")
     public ResponseEntity<StayResponseDTO> updateStay(@PathVariable UUID id, @Valid @RequestBody StayUpdateDTO stayUpdateDTO) {
         return ResponseEntity.ok(stayService.updateStay(id, stayUpdateDTO));
+    }
+
+    @GetMapping("/{id}/pending-price-preview")
+    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id) {
+        return stayService.previewPendingPrice(id);
     }
 
     @PatchMapping("/{id}/agreed-amount")

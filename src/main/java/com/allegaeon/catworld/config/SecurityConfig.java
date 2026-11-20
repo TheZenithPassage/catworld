@@ -50,6 +50,7 @@ public class SecurityConfig {
                                 "/api/stays/*/payments/*"
                         ).hasRole("ADMIN")
                         .requestMatchers("/api/cat-intake/**").hasRole("ADMIN")
+                        .requestMatchers("/api/payments/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

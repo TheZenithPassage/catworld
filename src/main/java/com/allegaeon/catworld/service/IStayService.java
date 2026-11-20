@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
+import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -21,7 +22,6 @@ import java.util.UUID;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
 import com.allegaeon.catworld.dto.relationship.RelationshipPage;
 import com.allegaeon.catworld.dto.relationship.StayDetailResponse;
-import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.model.StayStatus;
 import java.util.Set;
@@ -37,11 +37,11 @@ public interface IStayService {
 
     List<StayResponseDTO> getAllStays(StayDateFilter dates);
     OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates);
+            UUID ownerId, UUID catId, StayDateFilter dates);
 
     default OverviewPage<StayOverviewItem> getStayOverview(int page, Set<StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly) {
-        return getStayOverview(page, statuses, ownerId, catId, paymentConditions, outstandingOnly,
+            UUID ownerId, UUID catId) {
+        return getStayOverview(page, statuses, ownerId, catId,
                 new StayDateFilter(null, null, null));
     }
     StayResponseDTO getStay(UUID stayId);
@@ -53,6 +53,7 @@ public interface IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request);
     StayResponseDTO createStay(StayRequestDTO stayRequestDTO);
     StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO);
+    PendingPricePreviewDTO previewPendingPrice(UUID stayId);
     StayResponseDTO correctAgreedAmount(
             UUID stayId,
             PricingDecisionRequestDTO pricingDecision);

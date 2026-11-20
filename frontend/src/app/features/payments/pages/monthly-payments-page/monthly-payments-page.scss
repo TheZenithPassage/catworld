@@ -1,0 +1,112 @@
+:host {
+  display: block;
+}
+
+.monthly-payments {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.page-header h2,
+.page-header p,
+.monthly-total {
+  margin: 0;
+}
+
+.page-header p {
+  margin-top: 0.4rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.payments-panel {
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.payment-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.payment-results {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.entity-filters {
+  flex: 1 1 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.monthly-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  padding: 0.9rem 1rem;
+  background: var(--mat-sys-surface-container);
+  border-radius: 0.75rem;
+}
+
+.monthly-total strong {
+  font-size: 1.3rem;
+}
+
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.65rem 0.8rem;
+  text-align: start;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+th {
+  background: var(--mat-sys-surface-container);
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+.stay-started {
+  background: color-mix(in srgb, var(--color-surface-muted) 55%, var(--color-surface));
+}
+
+.started-label {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.money {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.notes {
+  min-inline-size: 8rem;
+  max-inline-size: 22rem;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

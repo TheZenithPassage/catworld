@@ -304,19 +304,21 @@ public class StayServiceTest {
         }
 
         @Test
-        public void shouldCreateStay_whenReceivingOnlyOneCat() {
+        public void shouldCreateHistoricalStay_whenCatAndOwnerAreMarkedDeceased() {
 
-            LocalDateTime startAt = LocalDateTime.now(clock).plusDays(1);
+            LocalDateTime startAt = LocalDateTime.of(2024, 4, 1, 12, 0);
             LocalDateTime endAt = startAt.plusDays(18);
 
             Owner owner = Owner.builder()
                     .id(UUID.randomUUID())
                     .fullName("Owner")
+                    .deceased(true)
                     .build();
 
             Cat cat = Cat.builder()
                     .id(UUID.randomUUID())
                     .name("Cat")
+                    .deceased(true)
                     .owner(owner)
                     .lastRabiesDate(endAt.toLocalDate())
                     .lastTripleFelineDate(endAt.toLocalDate())
@@ -330,6 +332,7 @@ public class StayServiceTest {
                     .build();
 
             Stay mappedStay = Stay.builder()
+                    .id(UUID.randomUUID())
                     .startAt(stayRequestDTO.getStartAt())
                     .endAt(stayRequestDTO.getEndAt())
                     .build();
@@ -402,6 +405,7 @@ public class StayServiceTest {
                     .build();
 
             Stay mappedStay = Stay.builder()
+                    .id(UUID.randomUUID())
                     .startAt(stayRequestDTO.getStartAt())
                     .endAt(stayRequestDTO.getEndAt())
                     .build();
@@ -478,6 +482,7 @@ public class StayServiceTest {
             linkStayAndCat(cancelledStay, cat);
 
             Stay mappedStay = Stay.builder()
+                    .id(UUID.randomUUID())
                     .startAt(stayRequestDTO.getStartAt())
                     .endAt(stayRequestDTO.getEndAt())
                     .build();
@@ -561,6 +566,23 @@ public class StayServiceTest {
             assertSame(fixture.actor(), event.getDecidedBy());
             assertEquals(Instant.parse("2026-07-28T12:00:00Z"), event.getDecidedAt());
             assertNull(event.getReason());
+        }
+
+        @Test
+        void staffCanCreateWithPendingPriceWithoutRecordingAnAgreement() {
+            LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
+            CreationFixture fixture = stubPricingCreation(
+                    1, startAt, startAt.plusDays(2), new BigDecimal("25"),
+                    PricingDecisionRequestDTO.builder().pricePending(true).build()
+            );
+            when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.STAFF));
+
+            service.createStay(fixture.request());
+
+            assertTrue(fixture.stay().isPricePending());
+            assertNull(fixture.stay().getAgreedAmount());
+            assertEquals(new BigDecimal("25"), fixture.stay().getRetainedNightlyRate());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
         }
 
         @Test
@@ -1684,6 +1706,40 @@ public class StayServiceTest {
         }
 
         @ParameterizedTest
+        @ValueSource(booleans = {false, true})
+        void dateChangeRejectsDifferentPriceStateEvenWhenBothAmountsAreNull(boolean wasPending) {
+            LocalDateTime start = LocalDateTime.of(2027, 8, 1, 8, 0);
+            Stay stay = Stay.builder().id(UUID.randomUUID())
+                    .startAt(start).endAt(start.plusDays(2))
+                    .retainedNightlyRate(new BigDecimal("10"))
+                    .pricePending(wasPending).build();
+            withPricingCat(stay);
+            when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
+            when(currentUserAccountService.getCurrentUserAccount())
+                    .thenReturn(user(UserRole.ADMIN));
+            var preview = service.previewDateChangePricing(
+                    stay.getId(), StayDatePricingPreviewRequestDTO.builder()
+                            .startAt(start).endAt(start.plusDays(3)).build());
+            assertEquals(wasPending, preview.isCurrentPricePending());
+            assertNull(preview.getCurrentAgreedAmount());
+            assertEquals(Boolean.valueOf(wasPending), preview.getConfirmation().getPreviousPricePending());
+            assertNull(preview.getConfirmation().getPreviousAgreedAmount());
+            StayUpdateDTO request = StayUpdateDTO.builder()
+                    .startAt(start).endAt(start.plusDays(3))
+                    .pricingDecision(wasPending ? null : PricingDecisionRequestDTO.builder()
+                            .agreedAmount(new BigDecimal("30")).build())
+                    .confirmation(preview.getConfirmation()).build();
+
+            stay.setPricePending(!wasPending);
+
+            assertThrows(StalePricingConfirmationException.class,
+                    () -> service.updateStay(stay.getId(), request));
+            verify(stayRepository).findByIdForUpdate(stay.getId());
+            verify(stayRepository, never()).save(any());
+            verify(stayPricingDecisionRepository, never()).saveAndFlush(any());
+        }
+
+        @ParameterizedTest
         @ValueSource(strings = {
                 "previousNumberOfNights", "previousAgreedAmount",
                 "numberOfNights", "retainedNightlyRate", "suggestedAmount"
@@ -1987,7 +2043,6 @@ public class StayServiceTest {
             assertEquals(new BigDecimal("70"), actual.getTotalPaid());
             assertEquals(new BigDecimal("30"), actual.getRemainingAmount());
             assertEquals(PaymentCondition.PARTIAL_PAYMENT, actual.getPaymentCondition());
-            assertTrue(actual.isOutstandingCollectionEligible());
         }
 
         @Test
@@ -2055,7 +2110,6 @@ public class StayServiceTest {
             assertEquals(BigDecimal.ZERO, actual.getTotalPaid());
             assertNull(actual.getRemainingAmount());
             assertEquals(PaymentCondition.NO_PAYMENT, actual.getPaymentCondition());
-            assertFalse(actual.isOutstandingCollectionEligible());
             assertTrue(actual.getPayments().isEmpty());
 
             when(currentUserAccountService.getCurrentUserAccount())
@@ -2111,7 +2165,7 @@ public class StayServiceTest {
         }
 
         @Test
-        void derivesAggregateConditionAndOutstandingFromActivePayments() {
+        void derivesAggregateConditionAndBalanceFromActivePayments() {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             StayPayment first = payment(stay, "30", false);
             StayPayment second = payment(stay, "70", false);
@@ -2124,7 +2178,6 @@ public class StayServiceTest {
             assertEquals(new BigDecimal("100"), full.totalPaid());
             assertEquals(BigDecimal.ZERO, full.remainingAmount());
             assertEquals(PaymentCondition.FULL_PAYMENT, full.paymentCondition());
-            assertFalse(full.outstandingCollectionEligible());
 
             second.annul();
             StayPaymentEconomics partial = StayPaymentEconomics.calculate(
@@ -2135,7 +2188,6 @@ public class StayServiceTest {
             assertEquals(new BigDecimal("30"), partial.totalPaid());
             assertEquals(new BigDecimal("70"), partial.remainingAmount());
             assertEquals(PaymentCondition.PARTIAL_PAYMENT, partial.paymentCondition());
-            assertTrue(partial.outstandingCollectionEligible());
 
             StayPaymentEconomics cancelled = StayPaymentEconomics.calculate(
                     stay.getAgreedAmount(),
@@ -2145,7 +2197,6 @@ public class StayServiceTest {
             assertEquals(new BigDecimal("30"), cancelled.totalPaid());
             assertEquals(BigDecimal.ZERO, cancelled.remainingAmount());
             assertEquals(PaymentCondition.PARTIAL_PAYMENT, cancelled.paymentCondition());
-            assertFalse(cancelled.outstandingCollectionEligible());
 
             StayPaymentEconomics zeroAgreement = StayPaymentEconomics.calculate(
                     BigDecimal.ZERO,
@@ -2154,7 +2205,6 @@ public class StayServiceTest {
             );
             assertEquals(PaymentCondition.NO_PAYMENT, zeroAgreement.paymentCondition());
             assertEquals(BigDecimal.ZERO, zeroAgreement.remainingAmount());
-            assertFalse(zeroAgreement.outstandingCollectionEligible());
 
             StayPaymentEconomics cancelledUnknownAgreement = StayPaymentEconomics.calculate(
                     null,
@@ -2166,7 +2216,6 @@ public class StayServiceTest {
                     PaymentCondition.NO_PAYMENT,
                     cancelledUnknownAgreement.paymentCondition()
             );
-            assertFalse(cancelledUnknownAgreement.outstandingCollectionEligible());
         }
 
         @Test
@@ -3719,6 +3768,7 @@ public class StayServiceTest {
     private void stubCreateRequest(Cat cat, StayRequestDTO request, UserRole role) {
         when(catRepository.findById(cat.getId())).thenReturn(Optional.of(cat));
         when(stayMapper.toEntity(request)).thenReturn(Stay.builder()
+                .id(UUID.randomUUID())
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
                 .build());
@@ -3919,7 +3969,7 @@ public class StayServiceTest {
         @Test
         void derivesLightweightDetailAndIncludesOnlyCompleteSmallPreview() {
             UUID stayId = UUID.randomUUID();
-            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").build();
+            Owner owner = Owner.builder().id(UUID.randomUUID()).fullName("Ada").deceased(true).build();
             Stay stay = Stay.builder().id(stayId).owner(owner)
                     .startAt(LocalDateTime.of(2030, 1, 1, 10, 0))
                     .endAt(LocalDateTime.of(2030, 1, 4, 9, 0))
@@ -3936,6 +3986,7 @@ public class StayServiceTest {
             assertEquals(com.allegaeon.catworld.model.StayStatus.CANCELLED, result.status());
             assertEquals(2, result.cats().items().size());
             assertEquals("Ada", result.owner().fullName());
+            assertTrue(result.owner().deceased());
         }
 
         @Test
@@ -3949,7 +4000,9 @@ public class StayServiceTest {
             when(stayRepository.findById(stayId)).thenReturn(Optional.of(stay));
             when(stayCatRepository.findCatsByStayId(stayId, PageRequest.of(0, 4)))
                     .thenReturn(new PageImpl<>(cats, PageRequest.of(0, 4), 4));
-            assertTrue(service.getStayDetail(stayId).cats().items().isEmpty());
+            StayDetailResponse result = service.getStayDetail(stayId);
+            assertTrue(result.cats().items().isEmpty());
+            assertFalse(result.owner().deceased());
             UUID missing = UUID.randomUUID();
             when(stayRepository.findById(missing)).thenReturn(Optional.empty());
             assertThrows(ResourceNotFoundException.class, () -> service.getStayCats(missing, -1));

@@ -258,6 +258,8 @@ export class StayPayments {
     if (error.status === 404) return copy.missing;
     if (error.status === 409) {
       const message = this.backendMessage(error).toLowerCase();
+      if (message.includes('payment total exceeds the supported monetary amount'))
+        return copy.totalLimit;
       if (message.includes('exceed')) return copy.overpayment;
       if (message.includes('below') || message.includes('active payment')) return copy.activeFloor;
       return copy.conflict;

@@ -103,7 +103,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         assertEquals(List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"),
                 jdbc.queryForList("""
                         select version from flyway_schema_history
-                        where success = 1 and version is not null
+                        where success = 1 and cast(version as unsigned) <= 13
                         order by installed_rank
                         limit 13
                         """, String.class));
@@ -200,7 +200,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
         LocalDate november = LocalDate.parse("2026-11-30");
         LocalDate december = LocalDate.parse("2026-12-01");
         var overview = stayService.getStayOverview(0, Set.of(StayStatus.RESERVED),
-                null, null, null, null, new StayDateFilter(november, november, StayDateMatchMode.OVERLAPS));
+                null, null, new StayDateFilter(november, november, StayDateMatchMode.OVERLAPS));
         assertEquals(List.of(stayId), overview.items().stream().map(item -> item.id()).toList());
         var event = assertInstanceOf(PaymentRemovedActivityDTO.class, sensitiveEconomicActivityService
                 .getActivity(removalFilter(stayId, null, null), 0).items().getFirst());
@@ -268,7 +268,7 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
     }
 
     private void assertStatusFilter(StayStatus status, UUID expectedStayId) {
-        var result = stayService.getStayOverview(0, Set.of(status), null, null, null, null,
+        var result = stayService.getStayOverview(0, Set.of(status), null, null,
                 new StayDateFilter(null, null, null));
         assertEquals(1, result.totalElements());
         assertEquals(expectedStayId, result.items().getFirst().id());

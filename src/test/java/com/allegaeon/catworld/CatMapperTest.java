@@ -1,5 +1,6 @@
 package com.allegaeon.catworld;
 
+import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.mapper.CatMapper;
 import com.allegaeon.catworld.model.Cat;
@@ -18,6 +19,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CatMapperTest {
 
     private final CatMapper catMapper = new CatMapper();
+
+    @Test
+    void deceasedMarkerCanBeSetPreservedAndCleared() {
+        Owner owner = Owner.builder().id(UUID.randomUUID()).build();
+        Cat cat = Cat.builder().owner(owner).build();
+        assertFalse(catMapper.toResponseDTO(cat).isDeceased());
+
+        catMapper.updateEntity(cat, CatRequestDTO.builder().deceased(true).build(), owner, null);
+        assertTrue(catMapper.toResponseDTO(cat).isDeceased());
+
+        catMapper.updateEntity(cat, CatRequestDTO.builder().build(), owner, null);
+        assertTrue(catMapper.toResponseDTO(cat).isDeceased());
+
+        catMapper.updateEntity(cat, CatRequestDTO.builder().deceased(false).build(), owner, null);
+        assertFalse(catMapper.toResponseDTO(cat).isDeceased());
+    }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})

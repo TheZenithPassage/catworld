@@ -14,6 +14,7 @@ export interface AppShellTranslations {
     vets: string;
     accounts: string;
     nightlyRates: string;
+    payments: string;
     sensitiveActivity: string;
   };
   language: {
@@ -44,6 +45,7 @@ export const APP_SHELL_TRANSLATIONS = {
       vets: 'Veterinarios',
       accounts: 'Cuentas',
       nightlyRates: 'Tarifas por noche',
+      payments: 'Pagos',
       sensitiveActivity: 'Actividad sensible',
     },
     language: {
@@ -72,6 +74,7 @@ export const APP_SHELL_TRANSLATIONS = {
       vets: 'Vets',
       accounts: 'Accounts',
       nightlyRates: 'Nightly rates',
+      payments: 'Payments',
       sensitiveActivity: 'Sensitive activity',
     },
     language: {

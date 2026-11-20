@@ -36,7 +36,6 @@ describe('CalendarPage', () => {
     totalPaid: '0',
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [],
   };
 
