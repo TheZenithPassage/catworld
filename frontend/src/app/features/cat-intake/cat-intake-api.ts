@@ -8,6 +8,7 @@ import {
   CatIntakeInvitationRequest,
   CatIntakeReviewDetail,
   CatIntakeReviewItem,
+  CatIntakeReviewVersion,
   IssuedCatIntakeInvitation,
 } from './cat-intake-models';
 
@@ -46,5 +47,9 @@ export class CatIntakeApi {
 
   approve(id: string, approval: CatIntakeApproval) {
     return this.http.post<void>(`${this.baseUrl}/review/${id}/approve`, approval);
+  }
+
+  dismiss(id: string, version: CatIntakeReviewVersion) {
+    return this.http.post<void>(`${this.baseUrl}/review/${id}/dismiss`, version);
   }
 }

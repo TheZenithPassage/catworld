@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButton } from '@angular/material/button';
 import {
   MatDialog,
@@ -12,16 +11,17 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
-import { distinctUntilChanged, map, Subscription } from 'rxjs';
+import { distinctUntilChanged, map, Observable, Subscription } from 'rxjs';
 
 import { I18nService } from '../../core/i18n/i18n.service';
 import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake.translations';
 import { BusinessTimeService } from '../../core/time/business-time.service';
+import { CatProfileOptionField } from '../../shared/cat-profile-options/cat-profile-option-field';
+import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-profile-options.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
-import { CATWORLD_LITTER, FoodBrandOption } from '../cats/models/cat.model';
-import { CatApiService } from '../cats/services/cat-api.service';
-import { foodBrandKey } from '../cats/utils/food-brand-key';
+import { CATWORLD_LITTER, OWN_LITTER } from '../cats/models/cat.model';
+import { catLitterLabel } from '../cats/utils/cat-litter-label';
 import { CatIntakeApi } from './cat-intake-api';
 import {
   CAT_INTAKE_FIELDS,
@@ -30,9 +30,11 @@ import {
   CatIntakeFields,
   CatIntakeReviewDetail,
   CatIntakeReviewItem,
+  CatIntakeReviewVersion,
 } from './cat-intake-models';
 
 type Decision = 'apply' | 'keep' | 'unresolved';
+type ReviewAction = 'approve' | 'dismiss';
 
 interface ReviewField {
   field: CatIntakeField;
@@ -56,7 +58,7 @@ interface ReviewGroup {
 @Component({
   selector: 'app-cat-intake-review',
   imports: [
-    MatAutocompleteModule,
+    CatProfileOptionField,
     MatButton,
     MatDialogActions,
     MatDialogClose,
@@ -68,7 +70,7 @@ interface ReviewGroup {
 })
 export class CatIntakeReview {
   private readonly api = inject(CatIntakeApi);
-  private readonly catApi = inject(CatApiService);
+  private readonly profileOptions = inject(CatProfileOptionsService);
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly dialog = inject(MatDialog);
@@ -82,6 +84,7 @@ export class CatIntakeReview {
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
   readonly sharedLitter = CATWORLD_LITTER;
+  readonly ownLitter = OWN_LITTER;
   readonly pending = signal<CatIntakeReviewItem[]>([]);
   readonly groups = computed(() => {
     const groups = new Map<string, ReviewGroup>();
@@ -101,43 +104,49 @@ export class CatIntakeReview {
   readonly detail = signal<CatIntakeReviewDetail | null>(null);
   readonly loadingDetail = signal(false);
   readonly detailFailed = signal(false);
-  readonly notice = signal<'approved' | 'approveFailed' | 'stale' | 'unavailable' | null>(null);
-  readonly approving = signal(false);
+  readonly notice = signal<
+    'approved' | 'dismissed' | 'approveFailed' | 'dismissFailed' | 'stale' | 'unavailable' | null
+  >(null);
+  readonly saving = signal<ReviewAction | null>(null);
+  readonly adjusting = signal(false);
+  readonly confirmingDismiss = signal(false);
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
-  readonly foodBrands = signal<FoodBrandOption[]>([]);
-  readonly foodBrandsState = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  private readonly foodBrandQuery = computed(() =>
-    foodBrandKey(this.fields().find(({ field }) => field.key === 'foodBrand')?.value ?? ''),
+  readonly birthKey = signal<'birthDate' | 'birthYear'>('birthDate');
+  private readonly selectedFields = computed(() => {
+    const selected: CatIntakeFields = {};
+    for (const { field, decision, value } of this.fields()) {
+      const key = field.key === 'birthDate' ? this.birthKey() : field.key;
+      if (decision === 'apply' && value.trim()) selected[key] = value.trim();
+    }
+    return selected;
+  });
+  private readonly selectedPhotoIds = computed(() =>
+    this.photos()
+      .filter((photo) => photo.state === 'loaded' && photo.selected)
+      .map(({ id }) => id),
   );
-  readonly suggestedFoodBrands = computed(() =>
-    this.foodBrands().filter(({ name }) => foodBrandKey(name).includes(this.foodBrandQuery())),
-  );
-  readonly isNewFoodBrand = computed(
+  readonly emptyApproval = computed(
     () =>
-      this.foodBrandsState() === 'ready' &&
-      this.foodBrandQuery().length > 0 &&
-      !this.suggestedFoodBrands().some(({ name }) => foodBrandKey(name) === this.foodBrandQuery()),
+      this.detail()?.catId != null &&
+      Object.keys(this.selectedFields()).length === 0 &&
+      this.selectedPhotoIds().length === 0,
   );
   readonly canApprove = computed(() => {
     const detail = this.detail();
     return (
       detail !== null &&
-      !this.approving() &&
+      !this.saving() &&
+      !this.confirmingDismiss() &&
+      !this.emptyApproval() &&
       Number.isSafeInteger(detail.revision) &&
       this.photos().every(({ state }) => state === 'loaded' || state === 'excluded') &&
-      this.fields().every(({ field, conflict, decision, value }) => {
+      this.fields().every(({ field, decision, value }) => {
         if (decision === 'unresolved') return false;
-        if (
-          field.key === 'foodBrand' &&
-          decision === 'apply' &&
-          value.trim() &&
-          this.foodBrandsState() !== 'ready'
-        ) {
-          return false;
-        }
-        if (conflict && decision === 'apply') return value.trim().length > 0;
-        return detail.catId !== null || !this.requiredForCreation(field) || value.trim().length > 0;
+        if (decision === 'keep') return true;
+        if (field.key === 'birthDate' && this.birthKey() === 'birthYear')
+          return this.validBirthYear(value);
+        return !!value.trim() || (detail.catId === null && !this.requiredForCreation(field));
       })
     );
   });
@@ -176,7 +185,7 @@ export class CatIntakeReview {
   }
 
   open(id: string, stale = false): void {
-    if (this.approving()) return;
+    if (this.saving()) return;
     this.clearDetail();
     this.selectedId.set(id);
     this.notice.set(stale ? 'stale' : null);
@@ -186,14 +195,18 @@ export class CatIntakeReview {
       this.api.getReview(id).subscribe({
         next: (detail) => {
           this.detail.set(detail);
+          this.birthKey.set(detail.proposed.birthYear ? 'birthYear' : 'birthDate');
           this.fields.set(
             CAT_INTAKE_FIELDS.filter(
-              ({ key }) => detail.catId === null || detail.proposed[key] != null,
+              ({ key }) =>
+                detail.catId === null ||
+                detail.proposed[key === 'birthDate' ? this.birthKey() : key] != null,
             ).map((field) => {
-              const conflict = detail.conflictFields.includes(field.key);
+              const key = field.key === 'birthDate' ? this.birthKey() : field.key;
+              const conflict = detail.conflictFields.includes(key);
               return {
                 field,
-                value: detail.proposed[field.key] ?? '',
+                value: detail.proposed[key] ?? '',
                 conflict,
                 decision: conflict ? 'unresolved' : 'apply',
               };
@@ -201,7 +214,6 @@ export class CatIntakeReview {
           );
           this.photos.set(detail.photos.map(({ id }) => ({ id, state: 'loading' })));
           this.loadingDetail.set(false);
-          if (this.fields().some(({ field }) => field.key === 'foodBrand')) this.loadFoodBrands();
           for (const photo of detail.photos) this.loadPhoto(detail.id, photo.id);
         },
         error: (error: unknown) => {
@@ -220,7 +232,7 @@ export class CatIntakeReview {
   }
 
   back(): void {
-    if (this.approving()) return;
+    if (this.saving()) return;
     this.clearDetail();
     this.selectedId.set(null);
     this.notice.set(null);
@@ -241,18 +253,33 @@ export class CatIntakeReview {
     );
   }
 
-  loadFoodBrands(): void {
-    if (this.foodBrandsState() === 'loading') return;
-    this.foodBrandsState.set('loading');
-    this.detailRequests.add(
-      this.catApi.getFoodBrands().subscribe({
-        next: (brands) => {
-          this.foodBrands.set(brands);
-          this.foodBrandsState.set('ready');
-        },
-        error: () => this.foodBrandsState.set('error'),
-      }),
+  adjust(): void {
+    this.adjusting.set(true);
+    if (this.fields().some(({ field }) => field.kind === 'option')) this.profileOptions.load();
+  }
+
+  setBirthKey(key: string): void {
+    if ((key !== 'birthYear' && key !== 'birthDate') || key === this.birthKey()) return;
+    const value = this.fields().find(({ field }) => field.key === 'birthDate')?.value ?? '';
+    this.setValue('birthDate', key === 'birthYear' ? value.slice(0, 4) : '');
+    this.birthKey.set(key);
+  }
+
+  validBirthYear(value: string): boolean {
+    return (
+      /^[1-9]\d{3}$/.test(value) && value <= this.businessTime.currentLocalDateTime().slice(0, 4)
     );
+  }
+
+  setLitterSource(source: string): void {
+    this.setValue(
+      'litterBrand',
+      source === 'shared' ? this.sharedLitter : source === 'own' ? this.ownLitter : '',
+    );
+  }
+
+  setLitterDescription(description: string): void {
+    this.setValue('litterBrand', description.trim() ? description : this.ownLitter);
   }
 
   openCurrentCat(catId: string): void {
@@ -286,7 +313,7 @@ export class CatIntakeReview {
           this.updatePhoto(photoId, {
             state: 'loaded',
             url: URL.createObjectURL(blob),
-            selected: false,
+            selected: true,
           });
         },
         error: () => this.updatePhoto(photoId, { state: 'failed' }),
@@ -310,13 +337,26 @@ export class CatIntakeReview {
     return 'maxLength' in field ? field.maxLength : null;
   }
 
-  fieldLabel(key: CatIntakeFieldKey): string {
-    return key === 'foodDetail' ? this.copy().foodDetail : this.catCopy().form[key];
+  fieldLabel(key: CatIntakeField['key']): string {
+    switch (key) {
+      case 'birthDate':
+        return this.copy().birth;
+      case 'foodDetail':
+        return this.copy().foodDetail;
+      default:
+        return this.catCopy().form[key];
+    }
+  }
+
+  displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {
+    if (key === 'birthDate' && fields?.birthYear)
+      return this.copy().approximateYear(fields.birthYear);
+    return this.displayValue(key, fields?.[key]);
   }
 
   displayValue(key: CatIntakeFieldKey, value: string | null | undefined): string {
     if (!value) return this.catCopy().emptyValue;
-    if (key === 'litterBrand' && value === CATWORLD_LITTER) return this.catCopy().form.sharedLitter;
+    if (key === 'litterBrand') return catLitterLabel(value, this.catCopy().form);
     if (key === 'sex')
       return value === 'MALE' ? this.catCopy().form.male : this.catCopy().form.female;
     if (CAT_INTAKE_FIELDS.some((field) => field.key === key && field.kind === 'date')) {
@@ -333,40 +373,50 @@ export class CatIntakeReview {
     event.preventDefault();
     const detail = this.detail();
     if (!detail || !this.canApprove()) return;
-    const fields: CatIntakeFields = {};
-    for (const row of this.fields()) {
-      const value = row.value.trim();
-      if (row.decision === 'apply' && value) fields[row.field.key] = value;
-    }
-    this.approving.set(true);
+    this.save(
+      detail.id,
+      'approve',
+      this.api.approve(detail.id, {
+        fields: this.selectedFields(),
+        photoIds: this.selectedPhotoIds(),
+        ...this.version(detail),
+      }),
+    );
+  }
+
+  dismiss(): void {
+    const detail = this.detail();
+    if (!detail || !this.confirmingDismiss() || this.saving()) return;
+    this.save(detail.id, 'dismiss', this.api.dismiss(detail.id, this.version(detail)));
+  }
+
+  private version(detail: CatIntakeReviewDetail): CatIntakeReviewVersion {
+    return {
+      expectedCatUpdatedAt: detail.catUpdatedAt,
+      expectedReviewRevision: detail.revision,
+    };
+  }
+
+  private save(id: string, action: ReviewAction, request: Observable<void>): void {
+    this.saving.set(action);
     this.notice.set(null);
-    this.api
-      .approve(detail.id, {
-        fields,
-        photoIds: this.photos()
-          .filter((photo) => photo.state === 'loaded' && photo.selected)
-          .map((photo) => photo.id),
-        expectedCatUpdatedAt: detail.catUpdatedAt,
-        expectedReviewRevision: detail.revision,
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.approving.set(false);
-          this.back();
-          this.notice.set('approved');
-        },
-        error: (error: unknown) => {
-          this.approving.set(false);
-          if (error instanceof HttpErrorResponse && error.status === 409) {
-            this.open(detail.id, true);
-          } else if (error instanceof HttpErrorResponse && error.status === 404) {
-            this.closeUnavailable();
-          } else {
-            this.notice.set('approveFailed');
-          }
-        },
-      });
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.saving.set(null);
+        this.back();
+        this.notice.set(action === 'approve' ? 'approved' : 'dismissed');
+      },
+      error: (error: unknown) => {
+        this.saving.set(null);
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.open(id, true);
+        } else if (error instanceof HttpErrorResponse && error.status === 404) {
+          this.closeUnavailable();
+        } else {
+          this.notice.set(action === 'approve' ? 'approveFailed' : 'dismissFailed');
+        }
+      },
+    });
   }
 
   private updatePhoto(photoId: string, state: ReviewPhotoState): void {
@@ -391,7 +441,7 @@ export class CatIntakeReview {
     this.detail.set(null);
     this.photos.set([]);
     this.fields.set([]);
-    this.foodBrands.set([]);
-    this.foodBrandsState.set('idle');
+    this.adjusting.set(false);
+    this.confirmingDismiss.set(false);
   }
 }
