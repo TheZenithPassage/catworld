@@ -46,7 +46,7 @@ export const DASHBOARD_TRANSLATIONS = {
     links: {
       arrivals: {
         title: 'Preparar ingresos',
-        description: 'Revisá vacunas, alimento y arena para las próximas reservas.',
+        description: 'Revisá vacunas, alimento y piedritas para las próximas reservas.',
       },
       stays: {
         title: 'Estadías',

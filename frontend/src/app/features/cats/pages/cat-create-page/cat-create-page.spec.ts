@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgModel } from '@angular/forms';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { By } from '@angular/platform-browser';
@@ -23,9 +24,12 @@ import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatCreatePage } from './cat-create-page';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { CatProfileOptionsService } from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
+import type { CatCreationDraft } from '../../../../core/creation-flow/creation-flow.models';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 
 describe('CatCreatePage', () => {
@@ -86,7 +90,18 @@ describe('CatCreatePage', () => {
 
   const catApiService = {
     createCat: vi.fn(),
-    getFoodBrands: vi.fn(),
+  };
+
+  const profileOptions = {
+    load: vi.fn(),
+    catalog: signal({
+      breed: [],
+      coat: [],
+      color: [],
+      foodBrand: [{ id: 'brand-1', name: 'Royal Canin' }],
+      lastInternalDewormerName: [],
+      lastExternalDewormerName: [],
+    }),
   };
 
   const ownerApiService = {
@@ -112,7 +127,6 @@ describe('CatCreatePage', () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
     queryParams = {};
-    catApiService.getFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Royal Canin' }]));
     ownerApiService.getOwners.mockReturnValue(of(owners));
     vetApiService.getVets.mockReturnValue(of(vets));
     ownerApiService.getOwnerLookup.mockReturnValue(
@@ -124,6 +138,7 @@ describe('CatCreatePage', () => {
       imports: [CatCreatePage],
       providers: [
         provideNoopAnimations(),
+        { provide: CatProfileOptionsService, useValue: profileOptions },
         {
           provide: CatApiService,
           useValue: catApiService,
@@ -217,9 +232,88 @@ describe('CatCreatePage', () => {
     expect(catApiService.createCat).toHaveBeenCalledWith(
       expect.objectContaining({
         foodBrand: 'Royal Canin',
-        foodBrandId: 'brand-1',
         foodDetail: 'Sensitive digestion',
         litterBrand: 'Usa las de CatWorld',
+      }),
+      null,
+    );
+  });
+
+  it('publishes only an explicitly selected catalog field as an administrator', async () => {
+    const session = TestBed.inject(AuthSessionService);
+    const credentials = { username: 'operator', password: 'password' };
+    session.login({ username: credentials.username, role: 'STAFF' }, credentials);
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-01');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    component.breed.set('Mixed');
+    component.color.set('Orange');
+    fixture.detectChanges();
+
+    const rendered = fixture.nativeElement as HTMLElement;
+    const breedApproval = () =>
+      rendered.querySelector<HTMLInputElement>(
+        'app-cat-profile-option-field[field=breed] mat-checkbox input',
+      );
+    expect(breedApproval()).toBeNull();
+
+    session.login({ username: credentials.username, role: 'ADMIN' }, credentials);
+    fixture.detectChanges();
+    expect(breedApproval()).not.toBeNull();
+    breedApproval()!.click();
+    await fixture.whenStable();
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        birthDate: '2020-01-01',
+        breed: 'Mixed',
+        color: 'Orange',
+        approveCatalogOptions: ['breed'],
+      }),
+      null,
+    );
+    expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('birthYear');
+  });
+
+  it('submits only the known birth year and keeps tutor instructions separate from notes', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const form = fixture.nativeElement as HTMLElement;
+    const yearOnly = form.querySelector<HTMLInputElement>('mat-checkbox input');
+    expect(yearOnly).not.toBeNull();
+    yearOnly!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.birthYear.set('999');
+    component.submit();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.birthDateError()).toBe(component.text().cats.form.birthYearInvalid);
+
+    const year = form.querySelector<HTMLInputElement>('input[name="birthYear"]')!;
+    year.value = '2020';
+    year.dispatchEvent(new Event('input'));
+    const care = form.querySelector<HTMLTextAreaElement>('textarea[name="careInstructions"]')!;
+    care.value = '  Serve wet food separately.  ';
+    care.dispatchEvent(new Event('input'));
+    component.notes.set('Private note');
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        birthDate: null,
+        birthYear: 2020,
+        careInstructions: 'Serve wet food separately.',
+        notes: 'Private note',
       }),
       null,
     );
@@ -231,7 +325,7 @@ describe('CatCreatePage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(19);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(20);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
@@ -603,6 +697,35 @@ describe('CatCreatePage', () => {
     preview.mockRestore();
   });
 
+  it('restores a year-only draft with its distinct care instructions and catalog approvals', () => {
+    arriveWithDraft(
+      '/vets/new',
+      {},
+      {
+        ...completeDraft(null),
+        birthDate: '2020-01-01',
+        birthYear: '2021',
+        yearOnly: true,
+        careInstructions: 'Feed separately',
+        catalogApprovals: ['breed'],
+      },
+    );
+
+    expect(component.yearOnly()).toBe(true);
+    expect(component.birthYear()).toBe('2021');
+    expect(component.birthDate()).toBe('2020-01-01');
+    expect(component.careInstructions()).toBe('Feed separately');
+    expect(component.catalogApprovals()).toEqual(['breed']);
+
+    component.createRelated('owner', new Event('click'));
+    returnFromCancelledRelated('owner', latestCreatedFlowId());
+    expect(component.yearOnly()).toBe(true);
+    expect(component.birthYear()).toBe('2021');
+    expect(component.birthDate()).toBe('2020-01-01');
+    expect(component.careInstructions()).toBe('Feed separately');
+    expect(component.catalogApprovals()).toEqual(['breed']);
+  });
+
   it('overlays only a returned Vet and restores both saved relations after child cancel', () => {
     const draft = completeDraft(null);
     vetApiService.getVetById.mockImplementation((id: string) =>
@@ -752,7 +875,7 @@ describe('CatCreatePage', () => {
   function arriveWithDraft(
     via: '/owners/new' | '/vets/new',
     returned: Record<string, string>,
-    draft: ReturnType<typeof completeDraft>,
+    draft: CatCreationDraft,
   ): string {
     const creationFlow = TestBed.inject(CreationFlowService);
     const flowId = creationFlow.start('stay');

@@ -19,7 +19,11 @@ public interface CatIntakePhotoRepository extends JpaRepository<CatIntakePhoto, 
     @Query("select p.content from CatIntakePhoto p where p.review.id = :reviewId and p.id = :photoId")
     Optional<byte[]> findContent(@Param("reviewId") UUID reviewId, @Param("photoId") UUID photoId);
 
-    @Query("select p.review from CatIntakePhoto p where p.review.invitation.id = :inviteId and p.id = :photoId and p.review.approvedAt is null")
+    @Query("""
+            select p.review from CatIntakePhoto p
+            where p.review.invitation.id = :inviteId and p.id = :photoId
+              and p.review.approvedAt is null and p.review.dismissedAt is null
+            """)
     Optional<CatIntakeReview> findPendingReview(@Param("inviteId") UUID inviteId, @Param("photoId") UUID photoId);
 
     List<CatIntakePhoto> findByReview_IdAndIdIn(UUID reviewId, Collection<UUID> ids);

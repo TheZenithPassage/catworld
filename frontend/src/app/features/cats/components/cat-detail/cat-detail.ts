@@ -5,7 +5,8 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
-import { CATWORLD_LITTER, Cat, CatPhotoViewRequest } from '../../models/cat.model';
+import { catLitterLabel } from '../../utils/cat-litter-label';
+import { Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
@@ -39,6 +40,20 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
   },
   templateUrl: './cat-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
+  styles: [
+    `
+      .care-instructions-visibility {
+        display: block;
+        font-weight: 400;
+      }
+
+      .detail-field-internal-notes {
+        padding: 0.75rem;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+      }
+    `,
+  ],
 })
 export class CatDetail {
   private readonly api = inject(CatApiService);
@@ -162,7 +177,7 @@ export class CatDetail {
     return v || this.text().cats.emptyValue;
   }
   litterValue(v: string | null): string {
-    return v === CATWORLD_LITTER ? this.text().cats.form.sharedLitter : this.value(v);
+    return this.value(v && catLitterLabel(v, this.text().cats.form));
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

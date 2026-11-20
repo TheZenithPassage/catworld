@@ -1,7 +1,7 @@
 package com.allegaeon.catworld.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
@@ -21,7 +21,7 @@ public final class CatIntakeDtos {
     public record ScopedCat(UUID catId, Map<String, String> fields, List<String> requestedFields, UUID draftId,
                             long revision, Map<String, String> proposedFields, List<ReviewPhoto> photos) {}
     public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt,
-                                List<FoodBrandOption> brands,
+                                List<CatProfileOptionDto> brands, Map<String, List<CatProfileOptionDto>> catalogOptions,
                                 @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal litterRatePerKg) {}
     public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
                                List<UUID> retainedPhotoIds, List<String> photoKeys) {}
@@ -34,4 +34,5 @@ public final class CatIntakeDtos {
                                List<ReviewPhoto> photos, Instant catUpdatedAt, long revision) {}
     public record Approval(Map<String, String> fields, List<UUID> photoIds, Instant expectedCatUpdatedAt,
                            Long expectedReviewRevision) {}
+    public record Dismissal(Instant expectedCatUpdatedAt, @NotNull Long expectedReviewRevision) {}
 }

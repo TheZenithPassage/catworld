@@ -1,13 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { EMPTY, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { I18nService } from '../../core/i18n/i18n.service';
+import {
+  CatProfileOptions,
+  CatProfileOptionsService,
+} from '../../shared/cat-profile-options/cat-profile-options.service';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
-import { CatApiService } from '../cats/services/cat-api.service';
 import { CatIntakeApi } from './cat-intake-api';
 import { CatIntakeReviewDetail } from './cat-intake-models';
 import { CatIntakeReview } from './cat-intake-review';
@@ -36,8 +41,16 @@ describe('CatIntakeReview', () => {
     getReview: vi.fn(),
     getReviewPhoto: vi.fn(),
     approve: vi.fn(),
+    dismiss: vi.fn(),
   };
-  const catApi = { getFoodBrands: vi.fn() };
+  const catalog = signal<CatProfileOptions>({
+    breed: [],
+    coat: [],
+    color: [],
+    foodBrand: [{ id: 'brand-1', name: 'Proposed Food' }],
+    lastInternalDewormerName: [],
+    lastExternalDewormerName: [],
+  });
   const details = { open: vi.fn(() => EMPTY) };
 
   beforeEach(async () => {
@@ -45,7 +58,6 @@ describe('CatIntakeReview', () => {
     api.listReview.mockReturnValue(of([item]));
     api.getReview.mockReturnValue(of(conflicting));
     api.getReviewPhoto.mockReturnValue(of(new Blob()));
-    catApi.getFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Proposed Food' }]));
     vi.stubGlobal(
       'URL',
       class extends URL {
@@ -58,7 +70,8 @@ describe('CatIntakeReview', () => {
       providers: [
         provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
         { provide: CatIntakeApi, useValue: api },
-        { provide: CatApiService, useValue: catApi },
+        { provide: CatProfileOptionsService, useValue: { load: vi.fn(), catalog } },
+        { provide: AuthSessionService, useValue: { hasRole: () => true } },
         { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();
@@ -77,14 +90,181 @@ describe('CatIntakeReview', () => {
     const page = await harness.navigateByUrl('/cat-intake?reviewId=proposal-1', CatIntakeReview);
 
     expect(page.detail()?.id).toBe('proposal-1');
-    expect(
-      harness.routeNativeElement?.querySelector<HTMLInputElement>('[name="foodBrand"]')?.value,
-    ).toBe('Proposed Food');
+    expect(harness.routeNativeElement?.textContent).toContain('Proposed Food');
+    expect(harness.routeNativeElement?.querySelector('[name="foodBrand"]')).toBeNull();
     harness.routeNativeElement?.querySelector<HTMLButtonElement>('button')?.click();
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/cat-intake');
     expect(page.selectedId()).toBeNull();
+  });
+
+  it('approves a plain comparison without opening the adjustment controls', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        proposed: { ...conflicting.proposed, lastRabiesDate: '2026-10-01' },
+        conflictFields: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.proof-thumbnail img')).not.toBeNull();
+    expect(root.querySelector('.proofs dl')?.textContent).toContain('2026');
+    expect(root.querySelector('fieldset input, fieldset select, fieldset textarea')).toBeNull();
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.textContent).toContain('Aprobar cambios');
+    approve.click();
+
+    expect(api.approve).toHaveBeenCalledWith(item.id, {
+      fields: { color: 'Gray', foodBrand: 'Proposed Food', lastRabiesDate: '2026-10-01' },
+      photoIds: ['photo-1'],
+      expectedCatUpdatedAt: conflicting.catUpdatedAt,
+      expectedReviewRevision: 3,
+    });
+  });
+
+  it('leaves a proposal pending on back and requires confirmation to dismiss', () => {
+    api.dismiss.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector('button')!.click();
+    fixture.detectChanges();
+    expect(api.dismiss).not.toHaveBeenCalled();
+
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('[data-dismiss-review]')!.click();
+    fixture.detectChanges();
+    expect(api.dismiss).not.toHaveBeenCalled();
+    root.querySelector<HTMLButtonElement>('[data-confirm-dismiss]')!.click();
+
+    expect(api.approve).not.toHaveBeenCalled();
+    expect(api.dismiss).toHaveBeenCalledWith(item.id, {
+      expectedCatUpdatedAt: conflicting.catUpdatedAt,
+      expectedReviewRevision: 3,
+    });
+    expect(fixture.componentInstance.notice()).toBe('dismissed');
+  });
+
+  it('requires at least one field or photo to approve an existing proposal', () => {
+    api.getReview.mockReturnValue(of({ ...conflicting, conflictFields: [] }));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    adjust();
+    const root = fixture.nativeElement as HTMLElement;
+    for (const key of ['color', 'foodBrand']) {
+      const decision = root.querySelector<HTMLSelectElement>(`[name="decision-${key}"]`)!;
+      decision.value = 'keep';
+      decision.dispatchEvent(new Event('change'));
+    }
+    fixture.detectChanges();
+
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.disabled).toBe(false);
+    root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.click();
+    fixture.detectChanges();
+    expect(approve.disabled).toBe(true);
+    root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    expect(api.approve).not.toHaveBeenCalled();
+
+    api.approve.mockReturnValue(of(undefined));
+    root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.click();
+    fixture.detectChanges();
+    approve.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ fields: {}, photoIds: ['photo-1'] }),
+    );
+  });
+
+  it('shows the full new profile and sends only the selected birth precision and optional data', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        catId: null,
+        catUpdatedAt: null,
+        current: null,
+        proposed: {
+          name: 'Milo',
+          sex: 'MALE',
+          birthYear: '2021',
+          careInstructions: 'Un plato aparte',
+        },
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('button[type="submit"]')?.textContent).toContain('Dar de alta');
+    expect(root.querySelector('[aria-label="Nacimiento"]')?.textContent).toContain(
+      '2021 (año aproximado)',
+    );
+    expect(root.textContent).toContain('Un plato aparte');
+    expect(root.querySelector('[name="careInstructions"]')).toBeNull();
+
+    adjust();
+    const birth = root.querySelector<HTMLSelectElement>('[name="birth-precision"]')!;
+    birth.value = 'birthDate';
+    birth.dispatchEvent(new Event('change'));
+    const care = root.querySelector<HTMLSelectElement>('[name="decision-careInstructions"]')!;
+    care.value = 'keep';
+    care.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    const date = root.querySelector<HTMLInputElement>('[name="birthDate"]')!;
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.disabled).toBe(true);
+    date.value = '2021-05-06';
+    date.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    approve.click();
+
+    expect(api.approve).toHaveBeenCalledWith(item.id, {
+      fields: { name: 'Milo', sex: 'MALE', birthDate: '2021-05-06' },
+      photoIds: [],
+      expectedCatUpdatedAt: null,
+      expectedReviewRevision: 3,
+    });
+  });
+
+  it('keeps a historical litter description editable and accepts own litter without a brand', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { litterBrand: 'Usa las de CatWorld' },
+        proposed: { litterBrand: 'Wood pellets' },
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('Wood pellets');
+    adjust();
+    const source = root.querySelector<HTMLSelectElement>('[name="litter-source"]')!;
+    expect(source.value).toBe('own');
+    const description = root.querySelector<HTMLInputElement>('[name="litterBrand"]')!;
+    expect(description.value).toBe('Wood pellets');
+    description.value = '';
+    description.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({
+        fields: { litterBrand: 'Trae sus propias piedritas' },
+      }),
+    );
   });
 
   it('requires resolving conflicting fields and applies only chosen corrections and photos', () => {
@@ -105,11 +285,12 @@ describe('CatIntakeReview', () => {
     ) as HTMLSelectElement;
     choice.value = 'keep';
     choice.dispatchEvent(new Event('change'));
+    adjust();
     const food = fixture.nativeElement.querySelector('[name="foodBrand"]') as HTMLInputElement;
     food.value = 'Corrected Food';
     food.dispatchEvent(new Event('input'));
     const photo = fixture.nativeElement.querySelector('[name="photo-photo-1"]') as HTMLInputElement;
-    photo.click();
+    expect(photo.checked).toBe(true);
     fixture.detectChanges();
     approve.click();
 
@@ -136,6 +317,7 @@ describe('CatIntakeReview', () => {
   it('opens the current cat in a modal without discarding the review inputs', () => {
     fixture.nativeElement.querySelector('[data-review-item]').click();
     fixture.detectChanges();
+    adjust();
     const root = fixture.nativeElement as HTMLElement;
     const input = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
     input.value = 'Corrected Food';
@@ -151,22 +333,24 @@ describe('CatIntakeReview', () => {
 
     expect(details.open).toHaveBeenCalledWith({ entityType: 'cat', entityId: item.catId });
     expect(input.value).toBe('Corrected Food');
-    expect(photo.checked).toBe(true);
+    expect(photo.checked).toBe(false);
   });
 
   it('distinguishes an unfamiliar spelling from a complete catalog match', () => {
     fixture.nativeElement.querySelector('[data-review-item]').click();
     fixture.detectChanges();
+    adjust();
     const root = fixture.nativeElement as HTMLElement;
     const input = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
-    const hint = root.querySelector('#review-food-brand-status')!;
-    expect(hint.textContent).not.toContain('Se incorporará');
+    const hint = () => input.closest('mat-form-field')?.querySelector('mat-hint')?.textContent;
+    expect(hint()).toBeUndefined();
 
     for (const value of ['  PROPOSED   Food  ', 'Proposed Foods']) {
       input.value = value;
       input.dispatchEvent(new Event('input'));
       fixture.detectChanges();
-      expect(hint.textContent?.includes('Se incorporará')).toBe(value === 'Proposed Foods');
+      if (value === 'Proposed Foods') expect(hint()).toContain('se añadirá al catálogo');
+      else expect(hint()).toBeUndefined();
     }
   });
 
@@ -188,6 +372,7 @@ describe('CatIntakeReview', () => {
     form.dispatchEvent(new Event('submit', { cancelable: true }));
     expect(api.approve).not.toHaveBeenCalled();
 
+    adjust();
     form.querySelector<HTMLButtonElement>('[data-exclude-photo]')!.click();
     fixture.detectChanges();
     expect(approve.disabled).toBe(false);
@@ -214,7 +399,8 @@ describe('CatIntakeReview', () => {
     retry.next(new Blob());
     retry.complete();
     fixture.detectChanges();
-    form.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.click();
+    adjust();
+    expect(form.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.checked).toBe(true);
     fixture.detectChanges();
     approve.click();
     expect(api.approve).toHaveBeenCalledWith(
@@ -253,4 +439,11 @@ describe('CatIntakeReview', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('button[type="submit"]').disabled).toBe(true);
   });
+
+  function adjust(): void {
+    (fixture.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-adjust]')!
+      .click();
+    fixture.detectChanges();
+  }
 });

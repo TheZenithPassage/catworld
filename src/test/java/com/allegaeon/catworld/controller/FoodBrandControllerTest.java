@@ -50,6 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class FoodBrandControllerTest {
     private static final String CATALOG = "/api/food-brands";
+    private static final String PROFILE_OPTIONS = "/api/cat-profile-options";
     private static final String PASSWORD = "catalog-test-password";
 
     @Autowired MockMvc mvc;
@@ -90,6 +91,68 @@ class FoodBrandControllerTest {
                 .with(httpBasic(admin.getUsername(), PASSWORD))).andExpect(status().isForbidden());
         mvc.perform(get(CATALOG).with(httpBasic(staff.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void profileCatalogSeparatesCategoriesAndRequiresAdministratorToPublishOptions() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        String name = "Crema Ártica " + suffix;
+        mvc.perform(get(PROFILE_OPTIONS)).andExpect(status().isUnauthorized());
+        mvc.perform(get(PROFILE_OPTIONS).header(HttpHeaders.ORIGIN, "http://localhost:4202")
+                .with(httpBasic(admin.getUsername(), PASSWORD))).andExpect(status().isForbidden());
+        mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isOk());
+
+        var local = create(staff, Map.of("coat", name));
+        assertThat(local.get("coat").asText()).isEqualTo(name);
+        assertThat(local.get("catalogOptionIds").has("coat")).isFalse();
+        mvc.perform(createRequest(staff, Map.of("breed", name, "approveCatalogOptions", List.of("breed"))))
+                .andExpect(status().isForbidden());
+
+        var approved = create(admin, Map.of("breed", "  Crema  Ártica\t" + suffix + "  ", "color", name,
+                "approveCatalogOptions", List.of("breed", "color")));
+        var matched = create(staff, Map.of("breed", "crema\u00a0ártica " + suffix, "coat", name,
+                "color", "Crema Artica " + suffix));
+        assertThat(approved.get("breed").asText()).isEqualTo(name);
+        assertThat(matched.get("breed")).isEqualTo(approved.get("breed"));
+        assertThat(matched.get("catalogOptionIds").get("breed"))
+                .isEqualTo(approved.get("catalogOptionIds").get("breed"))
+                .isNotEqualTo(approved.get("catalogOptionIds").get("color"));
+        assertThat(matched.get("catalogOptionIds").has("coat")).isFalse();
+        assertThat(matched.get("catalogOptionIds").has("color")).isFalse();
+
+        var catalog = json.readTree(mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertThat(catalog.get("breed").valueStream()
+                .filter(option -> option.get("name").asText().equals(name))
+                .map(option -> option.get("id")).toList())
+                .containsExactly(approved.get("catalogOptionIds").get("breed"));
+        assertThat(catalog.get("coat").valueStream().map(option -> option.get("name").asText()).toList())
+                .doesNotContain(name);
+        assertThat(catalog.get("lastInternalDewormerName").isArray()).isTrue();
+        assertThat(catalog.get("lastExternalDewormerName").isArray()).isTrue();
+        assertThat(catalog.get("foodBrand").isArray()).isTrue();
+    }
+
+    @Test
+    void unchangedHistoricalValuesRemainLocalAndChangingAnApprovedValueClearsItsId() throws Exception {
+        String legacy = "  Historical treatment " + UUID.randomUUID() + "  ";
+        Cat cat = cats.saveAndFlush(Cat.builder().name("Historical cat").birthDate(LocalDate.of(2020, 3, 2))
+                .sex(Sex.MALE).lastExternalDewormerName(legacy).owner(owner).createdBy(admin).build());
+        var existing = json.readTree(mvc.perform(get("/api/cats/{id}", cat.getId())
+                        .with(httpBasic(admin.getUsername(), PASSWORD)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var updated = update(existing, Map.of("lastExternalDewormerName", legacy, "coat", "Curly",
+                "approveCatalogOptions", List.of("coat")));
+        assertThat(updated.get("lastExternalDewormerName").asText()).isEqualTo(legacy);
+        assertThat(updated.get("catalogOptionIds").has("lastExternalDewormerName")).isFalse();
+        assertThat(updated.get("catalogOptionIds").has("coat")).isTrue();
+
+        var changed = update(updated, Map.of("lastExternalDewormerName", legacy, "coat", "Curly and white"));
+        assertThat(changed.get("coat").asText()).isEqualTo("Curly and white");
+        assertThat(changed.get("catalogOptionIds").has("coat")).isFalse();
+        mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.lastExternalDewormerName").isEmpty());
     }
 
     @Test
@@ -142,7 +205,7 @@ class FoodBrandControllerTest {
     }
 
     @Test
-    void concurrentApprovalReusesTheSameCatalogEntry() throws Exception {
+    void concurrentApprovalReusesTheSameCatalogEntryInEachCategory() throws Exception {
         String suffix = UUID.randomUUID().toString();
         String brandA = "Nutri Cat " + suffix;
         String brandB = "NUTRI CAT " + suffix;
@@ -150,11 +213,13 @@ class FoodBrandControllerTest {
         try (var pool = Executors.newFixedThreadPool(2)) {
             var first = pool.submit(() -> {
                 start.await();
-                return create(admin, Map.of("foodBrand", brandA, "approveFoodBrand", true));
+                return create(admin, Map.of("foodBrand", brandA, "approveFoodBrand", true,
+                        "lastInternalDewormerName", brandA, "approveCatalogOptions", List.of("lastInternalDewormerName")));
             });
             var second = pool.submit(() -> {
                 start.await();
-                return create(admin, Map.of("foodBrand", brandB, "approveFoodBrand", true));
+                return create(admin, Map.of("foodBrand", brandB,
+                        "lastInternalDewormerName", brandB, "approveCatalogOptions", List.of("foodBrand", "lastInternalDewormerName")));
             });
             start.countDown();
             JsonNode firstCat = first.get(15, TimeUnit.SECONDS);
@@ -162,6 +227,9 @@ class FoodBrandControllerTest {
             assertThat(firstCat.get("foodBrand")).isEqualTo(secondCat.get("foodBrand"));
             assertThat(firstCat.get("foodBrandId").asText()).isNotBlank();
             assertThat(firstCat.get("foodBrandId")).isEqualTo(secondCat.get("foodBrandId"));
+            assertThat(firstCat.get("catalogOptionIds").get("lastInternalDewormerName").asText()).isNotBlank();
+            assertThat(firstCat.get("catalogOptionIds").get("lastInternalDewormerName"))
+                    .isEqualTo(secondCat.get("catalogOptionIds").get("lastInternalDewormerName"));
             assertThat(catalogNames(admin).stream().filter(name -> name.endsWith(suffix))).hasSize(1);
         }
     }

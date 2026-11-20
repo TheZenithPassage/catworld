@@ -4,26 +4,44 @@ const MAX_CATS = 20;
 const MAX_PHOTOS_PER_CAT = 2;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
-const ACCEPTED_PHOTOS =
-  'image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif';
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
+const MIN_BIRTH_YEAR = 1000;
 const SHARED_LITTER = 'Usa las de CatWorld';
+const OWN_LITTER = 'Trae sus propias piedritas';
 const VACCINES = ['lastTripleFelineDate', 'lastRabiesDate'];
+const CATALOG_FIELDS = new Set([
+  'breed',
+  'coat',
+  'color',
+  'foodBrand',
+  'lastInternalDewormerName',
+  'lastExternalDewormerName',
+]);
 const FIELDS = [
   ['name', 'Nombre', 'text', true, 100],
-  ['birthDate', 'Fecha de nacimiento', 'date', true, undefined, 'Puede ser aproximada.'],
+  ['birthDate', 'Fecha de nacimiento', 'birth', true],
   ['sex', 'Sexo', 'select', true],
-  ['breed', 'Raza', 'text', false, 100],
-  ['coat', 'Pelaje', 'text', false, 100],
-  ['color', 'Color', 'text', false, 100],
-  ['personality', 'Personalidad', 'text', false, 255],
-  ['foodBrand', 'Marca de comida', 'text', false, 100],
-  ['foodDetail', 'Variedad o dieta', 'text', false, 255],
-  ['litterBrand', 'Arena', 'litter'],
+  ['breed', 'Raza', 'text', true, 100, 'Por ejemplo, Sin raza definida.'],
+  ['coat', 'Pelaje', 'text', true, 100],
+  ['color', 'Color', 'text', true, 100],
+  ['personality', 'Personalidad', 'text', true, 255],
+  ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin o Comida casera.'],
+  ['foodDetail', 'Variedad o dieta', 'text', true, 255, 'Por ejemplo, Kitten.'],
+  ['litterBrand', 'Piedritas', 'litter', true],
+  [
+    'careInstructions',
+    'Indicaciones de cuidado del tutor',
+    'textarea',
+    false,
+    2000,
+    'Opcional. El equipo de CatWorld podrá leer estas indicaciones.',
+  ],
   ['lastTripleFelineDate', 'Fecha de aplicación de la triple felina', 'date'],
   ['lastRabiesDate', 'Fecha de aplicación de la antirrábica', 'date'],
   ['lastInternalDewormerName', 'Último desparasitante interno', 'text', false, 100],
   ['lastInternalDewormingDate', 'Fecha de desparasitación interna', 'date'],
-  ['lastExternalDewormerName', 'Último tratamiento antipulgas', 'text', false, 100],
+  ['lastExternalDewormerName', 'Última pipeta antipulgas', 'text', false, 100],
   ['lastExternalDewormingDate', 'Fecha del tratamiento antipulgas', 'date'],
 ];
 
@@ -41,7 +59,7 @@ const retry = document.querySelector('#retry');
 const addCat = document.querySelector('#add-cat');
 const send = document.querySelector('#submit');
 const cards = [];
-let brands = [];
+let catalogOptions = {};
 let litterRatePerKg = null;
 let allowNewCats = false;
 let newCatNumber = 0;
@@ -123,7 +141,8 @@ function showError(message, input) {
 }
 
 function clearCards() {
-  for (const { photos } of cards) {
+  for (const { photos, clearPreviews } of cards) {
+    clearPreviews();
     for (const photo of photos) {
       if (photo.url) URL.revokeObjectURL(photo.url);
     }
@@ -169,28 +188,38 @@ function localToday() {
   return [now.getFullYear(), month, day].join('-');
 }
 
-function brandKey(value) {
+function catalogKey(value) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
 function fieldValue(key, value) {
   const text = value?.trim() ?? '';
-  if (key !== 'foodBrand' || !text) return text;
-  return brands.find((brand) => brandKey(brand.name) === brandKey(text))?.name ?? text;
+  const options = catalogOptions[key];
+  if (!options || !text) return text;
+  return options.find(({ name }) => catalogKey(name) === catalogKey(text))?.name ?? text;
 }
 
-function createBrandField(label, input) {
-  const field = element('div', 'brand-field');
-  const suggestions = element('ul', 'brand-suggestions');
+function createCatalogField(key, title, label, input) {
+  const field = element('div', 'catalog-field');
+  const suggestions = element('ul', 'catalog-suggestions');
   suggestions.hidden = true;
-  suggestions.setAttribute('aria-label', 'Marcas de comida sugeridas');
-  field.append(label, suggestions);
+  suggestions.id = input.getAttribute('aria-labelledby') + '-suggestions';
+  suggestions.setAttribute('aria-label', 'Opciones para ' + title);
+  input.setAttribute('aria-controls', suggestions.id);
+  const results = element('p', 'sr-only');
+  results.setAttribute('role', 'status');
+  field.append(label, suggestions, results);
+
+  function hideSuggestions() {
+    suggestions.hidden = true;
+    results.textContent = '';
+  }
 
   input.addEventListener('input', () => {
-    const query = brandKey(input.value);
+    const query = catalogKey(input.value);
     const matches = query
-      ? brands
-          .filter((brand) => brandKey(brand.name).includes(query) && brandKey(brand.name) !== query)
+      ? (catalogOptions[key] ?? [])
+          .filter(({ name }) => catalogKey(name).includes(query) && catalogKey(name) !== query)
           .slice(0, 6)
       : [];
     suggestions.replaceChildren();
@@ -198,37 +227,49 @@ function createBrandField(label, input) {
       const item = element('li');
       const choose = element('button', 'secondary', name);
       choose.type = 'button';
+      choose.addEventListener('mousedown', (event) => event.preventDefault());
       choose.addEventListener('click', () => {
         input.value = name;
         input.focus();
-        suggestions.hidden = true;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        hideSuggestions();
       });
       item.append(choose);
       suggestions.append(item);
     }
     suggestions.hidden = matches.length === 0;
+    results.textContent = '';
+    if (matches.length)
+      results.textContent =
+        matches.length === 1 ? 'Una opción disponible.' : `${matches.length} opciones disponibles.`;
   });
   input.addEventListener('change', () => {
-    input.value = fieldValue('foodBrand', input.value);
+    input.value = fieldValue(key, input.value);
   });
   field.addEventListener('focusout', (event) => {
-    if (!field.contains(event.relatedTarget)) suggestions.hidden = true;
+    if (!field.contains(event.relatedTarget)) hideSuggestions();
   });
   field.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !suggestions.hidden) {
+    if (suggestions.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
       input.focus();
-      suggestions.hidden = true;
+      hideSuggestions();
+    } else if (event.key === 'ArrowDown' && event.target === input) {
+      event.preventDefault();
+      suggestions.querySelector('button').focus();
     }
   });
   return field;
 }
 
-function createLitterField(title, initialValue) {
+function createLitterField(title, initialValue, required) {
   const field = element('div', 'field');
   const choice = element('select');
   choice.add(new Option('Seleccioná una opción', ''));
   choice.add(new Option(SHARED_LITTER, 'shared'));
-  choice.add(new Option('Usa su propia arena', 'own'));
+  choice.add(new Option(OWN_LITTER, 'own'));
+  choice.required = required;
   const hasRate = litterRatePerKg !== null;
   const rate = hasRate ? new Intl.NumberFormat('es-AR').format(BigInt(litterRatePerKg)) : '';
   const expectation = hasRate
@@ -244,52 +285,107 @@ function createLitterField(title, initialValue) {
   const own = element('input');
   own.name = 'litterBrand';
   own.maxLength = 100;
-  own.value = initialValue === SHARED_LITTER ? '' : initialValue;
+  own.value = initialValue === SHARED_LITTER || initialValue === OWN_LITTER ? '' : initialValue;
   choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue ? 'own' : '';
-  const ownLabel = fieldLabel('Marca o tipo de arena', own);
-  function updateLitterHints() {
+  const ownLabel = fieldLabel('Marca o tipo de piedritas (opcional)', own);
+  function updateChoice() {
     ownLabel.hidden = choice.value !== 'own';
+    own.disabled = ownLabel.hidden;
     sharedHint.hidden = choice.value !== 'shared';
     if (sharedHint.hidden) choice.removeAttribute('aria-describedby');
     else choice.setAttribute('aria-describedby', sharedHint.id);
   }
-  updateLitterHints();
-  choice.addEventListener('change', updateLitterHints);
+  updateChoice();
+  choice.addEventListener('change', updateChoice);
 
   field.append(choiceLabel, ownLabel);
   return {
     control: field,
+    hasEnteredValue: () => Boolean(choice.value || own.value.trim()),
     get input() {
-      return choice.value === 'own' ? own : choice;
+      return choice.value === 'own' && own.value.trim() ? own : choice;
     },
     read: () => {
       if (choice.value === 'shared') return SHARED_LITTER;
-      return choice.value === 'own' ? own.value : '';
+      return choice.value === 'own' ? own.value.trim() || OWN_LITTER : '';
     },
   };
 }
 
-function createField([key, title, type, requiredForNew, maxLength, hint], initialValue, isNew) {
-  if (type === 'litter') return createLitterField(title, initialValue);
-  const required = isNew && requiredForNew;
-  const input = element(type === 'select' ? 'select' : 'input');
+function dateLimits(input) {
+  input.min = `${MIN_BIRTH_YEAR}-01-01`;
+  input.max = localToday();
+}
+
+function createBirthField(title, initial, required) {
+  const field = element('div', 'birth-field');
+  const date = element('input');
+  date.type = 'date';
+  date.name = 'birthDate';
+  dateLimits(date);
+  date.value = initial.birthDate ?? '';
+  const dateLabel = fieldLabel(title, date, 'Puede ser aproximada.');
+
+  const year = element('input');
+  year.name = 'birthYear';
+  year.inputMode = 'numeric';
+  year.pattern = '[0-9]{4}';
+  year.maxLength = 4;
+  year.value = initial.birthYear ?? '';
+  const yearLabel = fieldLabel(required ? 'Año de nacimiento *' : 'Año de nacimiento', year);
+
+  const onlyYear = element('input');
+  onlyYear.type = 'checkbox';
+  onlyYear.checked = Boolean(initial.birthYear);
+  const toggle = element('label', 'birth-toggle');
+  toggle.append(element('span', '', 'Solo sé el año'), onlyYear);
+  function updatePrecision() {
+    dateLabel.hidden = date.disabled = onlyYear.checked;
+    yearLabel.hidden = year.disabled = !onlyYear.checked;
+    date.required = required && !onlyYear.checked;
+    year.required = required && onlyYear.checked;
+  }
+  updatePrecision();
+  onlyYear.addEventListener('change', updatePrecision);
+
+  field.append(dateLabel, yearLabel, toggle);
+  return {
+    control: field,
+    get input() {
+      return onlyYear.checked ? year : date;
+    },
+    hasEnteredValue: () => Boolean(date.value || date.validity.badInput || year.value.trim()),
+    read() {
+      return this.input.value;
+    },
+  };
+}
+
+function createField([key, title, type, requiredForNew, maxLength, hint], initial, isNew) {
+  const required = Boolean(isNew && requiredForNew);
+  const labelText = required ? title + ' *' : title;
+  const initialValue = initial[key] ?? '';
+  if (type === 'birth') return createBirthField(labelText, initial, required);
+  if (type === 'litter') return createLitterField(labelText, initialValue, required);
+  const input = element(type === 'select' || type === 'textarea' ? type : 'input');
   if (type === 'select') {
     input.add(new Option('Seleccioná una opción', ''));
     input.add(new Option('Hembra', 'FEMALE'));
     input.add(new Option('Macho', 'MALE'));
   } else {
-    input.type = type;
+    if (type !== 'textarea') input.type = type;
     if (maxLength) input.maxLength = maxLength;
-    if (type === 'date') {
-      input.min = '1000-01-01';
-      input.max = localToday();
-    }
+    if (type === 'date') dateLimits(input);
   }
   input.name = key;
-  input.required = Boolean(required);
+  input.required = required;
   input.value = initialValue;
-  const label = fieldLabel(required ? title + ' *' : title, input, hint);
-  const control = key === 'foodBrand' ? createBrandField(label, input) : label;
+  const search = CATALOG_FIELDS.has(key);
+  const guidance = search
+    ? [hint, 'Buscá una opción o escribí un nombre nuevo.'].filter(Boolean).join(' ')
+    : hint;
+  const label = fieldLabel(labelText, input, guidance);
+  const control = search ? createCatalogField(key, title, label, input) : label;
   return { control, input, read: () => input.value };
 }
 
@@ -320,18 +416,92 @@ async function showRetainedPhoto(photo, preview) {
   }
 }
 
+function selectedPhotoPreview(file, signal) {
+  const item = element('li', 'photo-preview');
+  const caption = element('p', 'hint', file.name);
+  item.append(caption);
+  if (file.size > MAX_PHOTO_BYTES) return item;
+
+  const image = element('img');
+  image.alt = 'Vista previa de ' + file.name;
+  let url;
+  function releaseUrl() {
+    if (url) URL.revokeObjectURL(url);
+    url = undefined;
+  }
+  function setSource(blob) {
+    url = URL.createObjectURL(blob);
+    image.src = url;
+  }
+  function unavailablePreview() {
+    releaseUrl();
+    image.remove();
+    caption.textContent = file.name + ' · Vista previa no disponible';
+  }
+  signal.addEventListener('abort', releaseUrl, { once: true });
+  image.addEventListener(
+    'error',
+    async () => {
+      releaseUrl();
+      if (signal.aborted) return;
+      const name = file.name.toLowerCase();
+      const supported =
+        PHOTO_TYPES.includes(file.type.toLowerCase()) ||
+        PHOTO_EXTENSIONS.some((extension) => name.endsWith(extension));
+      if (!supported) {
+        unavailablePreview();
+        return;
+      }
+      image.hidden = true;
+      try {
+        const body = new FormData();
+        body.append('photo', file);
+        const response = await request('/api/intake/photo-preview', {
+          method: 'POST',
+          body,
+          signal,
+        });
+        if (!response.ok) throw new Error('Preview unavailable');
+        const jpeg = await response.blob();
+        if (signal.aborted) return;
+        image.addEventListener('error', unavailablePreview, { once: true });
+        image.hidden = false;
+        setSource(jpeg);
+      } catch {
+        if (!signal.aborted) unavailablePreview();
+      }
+    },
+    { once: true },
+  );
+  setSource(file);
+  item.prepend(image);
+  return item;
+}
+
 function createAttachments(photos) {
   const attachments = element('div', 'attachments');
+  const selected = element('ul', 'selected-photos');
   const fileInput = element('input');
   const fileStatus = element('p', 'hint');
   const clearFiles = element('button', 'secondary', 'Quitar fotos nuevas');
   fileInput.type = 'file';
-  fileInput.accept = ACCEPTED_PHOTOS;
+  fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
   fileStatus.setAttribute('aria-live', 'polite');
   clearFiles.type = 'button';
   clearFiles.hidden = true;
-  const fileLabel = fieldLabel('Fotos de comprobantes', fileInput);
+  const fileLabel = fieldLabel(
+    'Fotos de comprobantes',
+    fileInput,
+    'Para informar una vacuna, adjuntá el comprobante de este gato. Una foto puede mostrar las dos vacunas. Hasta dos fotos por gato, de 8 MB cada una y 32 MB por envío.',
+  );
+  let previewRequest;
+
+  function clearPreviews() {
+    previewRequest?.abort();
+    previewRequest = undefined;
+    selected.replaceChildren();
+  }
 
   if (photos.length) {
     const saved = element('ul', 'retained-photos');
@@ -352,27 +522,24 @@ function createAttachments(photos) {
     }
     attachments.append(saved);
   }
-  attachments.append(
-    fileLabel,
-    element(
-      'p',
-      'hint',
-      'Para informar una vacuna, adjuntá el comprobante de este gato. Una foto puede mostrar las dos vacunas. Hasta dos fotos por gato, de 8 MiB cada una.',
-    ),
-    fileStatus,
-    clearFiles,
-  );
+  attachments.append(fileLabel, fileStatus, selected, clearFiles);
   fileInput.addEventListener('change', () => {
-    fileStatus.textContent = Array.from(fileInput.files, (file) => file.name).join(', ');
-    clearFiles.hidden = fileInput.files.length === 0;
+    clearPreviews();
+    const files = Array.from(fileInput.files);
+    clearFiles.hidden = files.length === 0;
+    fileStatus.textContent =
+      files.length > MAX_PHOTOS_PER_CAT ? 'Elegí hasta dos fotos por gato.' : '';
+    if (files.length && files.length <= MAX_PHOTOS_PER_CAT) {
+      previewRequest = new AbortController();
+      selected.append(...files.map((file) => selectedPhotoPreview(file, previewRequest.signal)));
+    }
   });
   clearFiles.addEventListener('click', () => {
     fileInput.value = '';
-    fileStatus.textContent = '';
-    clearFiles.hidden = true;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     fileInput.focus();
   });
-  return { attachments, fileInput };
+  return { attachments, fileInput, clearPreviews };
 }
 
 function addCard(
@@ -388,15 +555,19 @@ function addCard(
 ) {
   const isNew = catId === null;
   const initial = { ...fields, ...proposedFields };
-  const card = element('details', 'cat-card');
+  if (proposedFields.birthDate) delete initial.birthYear;
+  if (proposedFields.birthYear) delete initial.birthDate;
+  const card = element('div', 'cat-card');
+  const disclosure = element('details');
   const fallbackTitle = isNew ? 'Gato nuevo ' + ++newCatNumber : 'Datos del gato';
   const summary = element('summary');
   const title = element('span', '', initial.name || fallbackTitle);
   summary.append(title);
-  if (revision > 0) {
-    summary.append(' ', element('span', 'cat-state', 'En revisión'));
-  } else if (!isNew && !requestedFields.length) {
-    summary.append(' ', element('span', 'cat-state', 'Al día'));
+  const hasPending = isNew ? revision === 0 : requestedFields.some((key) => !proposedFields[key]);
+  if (hasPending) summary.append(' ', element('span', 'cat-state', 'Datos pendientes'));
+  if (revision > 0) summary.append(' ', element('span', 'cat-state', 'Enviado a CatWorld'));
+  if (!hasPending && revision === 0) {
+    summary.append(' ', element('span', 'cat-state', 'Sin datos pendientes'));
   }
   const content = element('div', 'cat-content');
   const primaryFields = element('div', 'fields');
@@ -407,7 +578,7 @@ function addCard(
 
   for (const field of FIELDS) {
     const key = field[0];
-    const ui = createField(field, initial[key] ?? '', isNew);
+    const ui = createField(field, initial, isNew);
     const container = isNew || requestedFields.includes(key) ? primaryFields : otherFields;
     container.append(ui.control);
     inputs.set(key, ui);
@@ -417,7 +588,7 @@ function addCard(
   });
 
   const photos = savedPhotos.map(({ id }, index) => ({ id, number: index + 1, keep: true }));
-  const { attachments, fileInput } = createAttachments(photos);
+  const { attachments, fileInput, clearPreviews } = createAttachments(photos);
   content.append(primaryFields);
   if (isNew || photos.length || VACCINES.some((key) => requestedFields.includes(key))) {
     content.append(attachments);
@@ -436,20 +607,40 @@ function addCard(
     inputs,
     photos,
     fileInput,
+    clearPreviews,
   };
+  disclosure.open = isNew || hasPending;
+  disclosure.append(summary, content);
+  card.append(disclosure);
   if (isNew && revision === 0) {
     const remove = element('button', 'secondary remove-cat', 'Quitar este gato');
     remove.type = 'button';
+    function refreshRemoval() {
+      remove.hidden =
+        disclosure.open ||
+        fileInput.files.length > 0 ||
+        [...inputs.values()].some(
+          (field) =>
+            field.hasEnteredValue?.() ??
+            Boolean(field.read().trim() || field.input.validity.badInput),
+        );
+    }
+    refreshRemoval();
+    disclosure.addEventListener('toggle', refreshRemoval);
+    content.addEventListener('input', refreshRemoval);
+    content.addEventListener('change', refreshRemoval);
     remove.addEventListener('click', () => {
+      refreshRemoval();
+      if (remove.hidden) return;
+      if (card.contains(errorInput)) showError('');
+      clearPreviews();
       cards.splice(cards.indexOf(entry), 1);
       card.remove();
       refreshActions();
       addCat.focus();
     });
-    content.append(remove);
+    card.append(remove);
   }
-  card.open = isNew || requestedFields.length > 0 || revision > 0;
-  card.append(summary, content);
   cards.push(entry);
   cats.append(card);
   refreshActions();
@@ -475,7 +666,10 @@ async function load() {
     showError('');
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
-    brands = invitation.brands ?? [];
+    catalogOptions = {
+      foodBrand: invitation.brands ?? invitation.foodBrands ?? [],
+      ...invitation.catalogOptions,
+    };
     litterRatePerKg = invitation.litterRatePerKg ?? null;
     existingHint.hidden = !invitation.cats.some((cat) => cat.catId);
     for (const cat of invitation.cats) addCard(cat);
@@ -495,6 +689,19 @@ function submissionCards() {
     const fields = {};
     let changed = false;
     for (const [key, field] of card.inputs) {
+      if (key === 'birthDate') {
+        const originalKey = card.fields.birthYear ? 'birthYear' : 'birthDate';
+        const initialKey = card.initial.birthYear ? 'birthYear' : 'birthDate';
+        const entered = field.read().trim();
+        const activeKey = entered ? field.input.name : originalKey;
+        const value = entered || card.fields[originalKey] || '';
+        const initialValue = card.initial[initialKey] ?? '';
+        if (value !== initialValue || (value && activeKey !== initialKey)) changed = true;
+        if (value && (activeKey !== originalKey || value !== card.fields[originalKey])) {
+          fields[activeKey] = value;
+        }
+        continue;
+      }
       const original = fieldValue(key, card.fields[key]);
       const value = fieldValue(key, field.read()) || original;
       if (value !== fieldValue(key, card.initial[key])) changed = true;
@@ -512,24 +719,32 @@ function submissionCards() {
   });
 }
 
-function validate(entries) {
-  for (const { card, fields, files, retainedPhotoIds } of entries) {
-    for (const [key, { input }] of card.inputs) {
-      if (card.catId === null && input.required && !fields[key]) {
-        showError(
-          'Para agregar un gato, completá el nombre, la fecha de nacimiento y el sexo.',
-          input,
-        );
+function validateCards(drafts) {
+  for (const { card, fields, files, retainedPhotoIds, changed } of drafts) {
+    if (!changed && (card.catId !== null || card.revision > 0)) continue;
+    for (const field of card.inputs.values()) {
+      const { input } = field;
+      const value = field.read().trim();
+      if (input.required && !value && !input.validity.badInput) {
+        showError('Completá este dato para registrar a tu gato.', input);
         return false;
       }
-      if (fields[key] && !input.validity.valid) {
+      if (
+        input.name === 'birthYear' &&
+        value &&
+        (Number(value) < MIN_BIRTH_YEAR || Number(value) > Number(localToday().slice(0, 4)))
+      ) {
+        showError('Ingresá un año de nacimiento válido.', input);
+        return false;
+      }
+      if (input.validity.badInput || (value && !input.validity.valid)) {
         showError('Revisá este dato antes de enviar la ficha.', input);
         return false;
       }
     }
     const count = files.length + retainedPhotoIds.length;
     if (count > MAX_PHOTOS_PER_CAT || files.some((file) => file.size > MAX_PHOTO_BYTES)) {
-      showError('Elegí hasta dos fotos de 8 MiB o menos por gato.', card.fileInput);
+      showError('Elegí hasta dos fotos de 8 MB o menos por gato.', card.fileInput);
       return false;
     }
     if (VACCINES.some((key) => fields[key]) && count === 0) {
@@ -541,6 +756,10 @@ function validate(entries) {
     }
   }
 
+  return true;
+}
+
+function validateRequestedAnswer(entries) {
   const pending = cards.find((card) => card.requestedFields.length);
   const answersRequest = entries.some(({ card, fields }) =>
     card.requestedFields.some((key) => fields[key]),
@@ -554,6 +773,10 @@ function validate(entries) {
     return false;
   }
   return true;
+}
+
+function hasProposal({ fields, files, retainedPhotoIds }) {
+  return Object.keys(fields).length > 0 || files.length > 0 || retainedPhotoIds.length > 0;
 }
 
 function multipart(entries) {
@@ -592,18 +815,18 @@ form.addEventListener('submit', async (event) => {
   if (sending || stale || cards.length === 0) return;
   showError('');
   const drafts = submissionCards();
+  if (!validateCards(drafts)) return;
   const entries = drafts.filter(({ changed }) => changed);
   if (!entries.length) {
-    const fresh = drafts.find(({ card }) => card.catId === null && card.revision === 0);
-    if (fresh) validate([fresh]);
-    else showError('No hay datos nuevos para enviar.');
+    showError('No hay datos nuevos para enviar.');
     return;
   }
-  if (!validate(entries)) return;
+  const proposals = entries.filter(hasProposal);
+  if (proposals.length && !validateRequestedAnswer(proposals)) return;
   const body = multipart(entries);
   if (!body) {
     showError(
-      'Las fotos del envío superan los 32 MiB. Quitá alguna foto o elegí archivos más chicos.',
+      'Las fotos del envío superan los 32 MB. Quitá alguna foto o elegí archivos más chicos.',
     );
     return;
   }
@@ -613,7 +836,12 @@ form.addEventListener('submit', async (event) => {
   try {
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
-      closeForm('Ficha recibida. CatWorld va a revisar los datos.', 'Volver a la ficha');
+      closeForm(
+        proposals.length
+          ? 'Ficha recibida. CatWorld va a revisar los datos.'
+          : 'Se retiraron los cambios de la ficha.',
+        'Volver a la ficha',
+      );
       retry.focus();
     } else if (unavailableStatus(response.status)) {
       endAccess();

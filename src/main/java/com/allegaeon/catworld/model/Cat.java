@@ -26,28 +26,37 @@ public class Cat extends AuditableEntity {
     @Column(nullable = false)
     private boolean deceased;
 
-    @Column(nullable = false)
     private LocalDate birthDate;
+
+    private Integer birthYear;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Sex sex;
 
     private String breed;
+    private UUID breedOptionId;
     private String coat;
+    private UUID coatOptionId;
     private String color;
+    private UUID colorOptionId;
     private String foodBrand;
     private UUID foodBrandId;
     private String foodDetail;
     private String litterBrand;
     private String personality;
 
+    @Column(length = 2000)
+    private String careInstructions;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
     private String lastInternalDewormerName;
+    private UUID lastInternalDewormerOptionId;
     private LocalDate lastInternalDewormingDate;
     private String lastExternalDewormerName;
+    private UUID lastExternalDewormerOptionId;
     private LocalDate lastExternalDewormingDate;
     private LocalDate lastTripleFelineDate;
     private LocalDate lastRabiesDate;

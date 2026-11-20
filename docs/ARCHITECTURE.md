@@ -25,6 +25,15 @@ Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
 to 8-bit and premultiplied while resizing before being flattened onto white.
 Native objects remain inside `Vips.run`.
 
+Each cat has either an exact `birthDate` or an approximate integer
+`birthYear`. V24 keeps existing dates at their stored precision, including
+January 1, and enforces that one representation is present. Creation requires
+one representation. On internal updates, supplying either representation
+replaces the pair, and omitting both preserves it. Optional
+`careInstructions` are shared with the tutor. The cat and tutor notes are
+private administration fields. V24 leaves care instructions unset on existing
+profiles.
+
 Cat informational photos are separate attachments for vaccination records and
 other reference images. The cat detail gallery lists attachment IDs and upload
 timestamps from `GET /api/cats/{catId}/informational-photos`. The same
@@ -45,9 +54,10 @@ booked on the selected arrival, preparation checks vaccination coverage
 through that stay's local departure date. Other cats use the departure of
 their next non-cancelled stay that has yet to start, or today's business date
 when they have no upcoming stay. The invitation captures the resulting
-prompts, including missing food and litter. The form exposes only editable cat
-fields. The server rechecks eligibility and ownership before displaying an
-existing cat or accepting or approving changes.
+prompts, including missing food and litter. The form exposes editable cat
+fields, including the tutor's care instructions. Staff notes on cats and tutors
+remain on the administration origin. The server rechecks eligibility and
+ownership before displaying an existing cat or accepting or approving changes.
 
 The token uses 32 random bytes and is stored as a SHA-256 digest. The link
 carries it in the URL fragment and expires after seven days. Replacement or
@@ -55,35 +65,51 @@ revocation ends recipient access to the previous link and keeps received
 proposals available for review. The recipient sends the token as a Bearer
 credential to the form, submission and photo endpoints. Their allowed browser
 origin comes from `CATWORLD_INTAKE_URL`. `GET /api/intake/photos/{id}` serves
-staged JPEGs on pending proposals from that open invitation. The admin
-endpoint `GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo
-to its review. Both responses use `Cache-Control: no-store`. Cat profiles and
-the informational gallery remain behind staff authentication on the protected
-administration origin.
+staged JPEGs on pending proposals from that open invitation.
+`POST /api/intake/photo-preview` validates and normalizes one multipart
+`photo` upload for an open invitation and returns the JPEG without staging
+evidence or changing the invitation. The admin endpoint
+`GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo to its
+review. The photo responses use `Cache-Control: no-store`. Cat profiles and
+the informational gallery remain behind staff authentication on the
+protected administration origin.
 
 Recipients can return to edit pending proposals and reuse staged evidence.
-A requested update must answer at least one prompt. Reporting a rabies or
-triple feline dose requires its date and an image. One image can cover both
-doses. A submission can include up to 20 cats, with up to two normalized JPEGs
-per cat, including retained evidence. New uploads are limited to 8 MiB per
-image and 32 MiB across the submission.
+Restoring an existing cat's original values and removing all staged evidence
+withdraws its proposal while leaving the invitation open. A requested update
+must answer at least one prompt. Reporting a rabies or triple feline dose
+requires its date and an image. One image can cover both doses. A tutor's new
+registration requires name, birth date or year, sex, breed, coat, color,
+personality, food brand and detail, and litter. An invalid registration fails
+the whole submission. Vaccines and deworming details are optional. Internal
+profile creation and approval of pending registrations use the existing name,
+birth and sex minimum. A submission can include up to 20 cats, with up to two
+normalized JPEGs per cat, including retained evidence. New uploads are limited
+to 8 MiB per image and 32 MiB across the submission. Intake fields are strings,
+using `birthYear` instead of `birthDate` when only the year is known.
 
-Administrators compare proposed fields with the current profile and approve each
-cat independently. Approval checks the proposal revision and verifies the
-profile timestamp under the same cat row lock used by the internal editor.
-It applies the selected fields and moves selected evidence to the informational
-gallery. An approved cat is closed to further edits through that invitation.
-Approval closes the link when the last outstanding cat is resolved.
+Administrators compare proposed fields with the current profile and review each
+cat independently. Review treats both birth representations as one field.
+Approval and dismissal check the proposal revision and verify the profile
+timestamp under the same cat row lock used by the internal editor.
+Approval applies the selected fields and moves selected evidence to the
+informational gallery. Dismissal discards the staged values and photos without
+changing the cat profile or registering a new cat. Both decisions prevent
+further edits to that proposal through the invitation. The link closes when
+the last outstanding cat is resolved.
 
-Cat profiles retain the historical `foodBrand` text and expose an optional
-`foodBrandId` and free-text `foodDetail` for the variety or diet. On the
-administration origin, `GET /api/food-brands` lists approved brands for
-`ADMIN` and `STAFF`. The private form receives those options with its
-Bearer-authorized response. Brand matching ignores case and normalizes
-whitespace. An administrator can select an existing brand or correct a
-proposed name. Only explicit `ADMIN` approval adds a brand to the shared
-catalog. Litter retains its historical value and accepts a tutor's own
-description or the shared CatWorld litter choice.
+Cat profiles suggest approved options for breed, coat, color, food brand, and
+the last internal and external dewormers. `GET /api/cat-profile-options` lists
+options by field for `ADMIN` and `STAFF`. The Bearer-authorized private form
+receives the same options in `catalogOptions`. Names match within their field
+after normalizing case and whitespace. A direct cat edit can keep a local
+value. Only administrators can publish a new option, either by selecting it
+for the catalog in the editor or by applying the field during intake review.
+Historical text remains on cat profiles, and approved selections reference
+catalog IDs. `GET /api/food-brands`, `foodBrandId` and the private form's
+`brands` list continue to use the existing food brand IDs. The free-text
+`foodDetail` stores the variety or diet. Tutors can bring their own litter,
+with an optional description, or choose the shared CatWorld supply.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 

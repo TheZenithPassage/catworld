@@ -5,13 +5,16 @@
   </header>
 
   @if (notice(); as message) {
-    <p class="notice" [attr.role]="message === 'approved' ? 'status' : 'alert'">
+    <p
+      class="notice"
+      [attr.role]="message === 'approved' || message === 'dismissed' ? 'status' : 'alert'"
+    >
       {{ copy()[message] }}
     </p>
   }
 
   @if (selectedId(); as id) {
-    <button mat-button type="button" [disabled]="approving()" (click)="back()">
+    <button mat-button type="button" [disabled]="!!saving()" (click)="back()">
       {{ copy().back }}
     </button>
     @if (loadingDetail()) {
@@ -30,7 +33,7 @@
             <button
               mat-stroked-button
               type="button"
-              [disabled]="approving()"
+              [disabled]="!!saving()"
               (click)="openCurrentCat(catId)"
             >
               {{ copy().openCurrent }}
@@ -38,11 +41,19 @@
           }
         </div>
         <form (submit)="approve($event)">
-          <fieldset class="review-form" [disabled]="approving()">
+          <fieldset class="review-form" [disabled]="!!saving()">
+            @if (!adjusting()) {
+              <button mat-stroked-button type="button" data-adjust (click)="adjust()">
+                {{ copy().adjust }}
+              </button>
+            }
             @if (photos().length) {
               <section class="proofs">
                 <h4>{{ copy().images }}</h4>
                 <p>{{ copy().reviewPhotos }}</p>
+                @if (!adjusting()) {
+                  <p class="photo-note">{{ copy().photoSelection }}</p>
+                }
                 @if (detail.proposed.lastTripleFelineDate || detail.proposed.lastRabiesDate) {
                   <dl>
                     @if (detail.proposed.lastTripleFelineDate; as date) {
@@ -67,15 +78,17 @@
                         >
                           <img [src]="photo.url" alt="" />
                         </button>
-                        <label class="choice">
-                          <input
-                            type="checkbox"
-                            [name]="'photo-' + photo.id"
-                            [checked]="photo.selected"
-                            (change)="setPhoto(photo.id, $any($event.target).checked)"
-                          />
-                          {{ copy().keepPhoto(index + 1) }}
-                        </label>
+                        @if (adjusting()) {
+                          <label class="choice">
+                            <input
+                              type="checkbox"
+                              [name]="'photo-' + photo.id"
+                              [checked]="photo.selected"
+                              (change)="setPhoto(photo.id, $any($event.target).checked)"
+                            />
+                            {{ copy().keepPhoto(index + 1) }}
+                          </label>
+                        }
                       } @else if (photo.state === 'loading') {
                         <p role="status">{{ copy().photoLoading(index + 1) }}</p>
                       } @else {
@@ -87,7 +100,7 @@
                         <button mat-button type="button" (click)="loadPhoto(detail.id, photo.id)">
                           {{ copy().retryPhoto(index + 1) }}
                         </button>
-                        @if (photo.state === 'failed') {
+                        @if (photo.state === 'failed' && adjusting()) {
                           <button
                             mat-button
                             type="button"
@@ -117,126 +130,196 @@
                     <dl class="comparison">
                       <div>
                         <dt>{{ copy().actual }}</dt>
-                        <dd>{{ displayValue(row.field.key, detail.current?.[row.field.key]) }}</dd>
+                        <dd>{{ displayField(row.field.key, detail.current) }}</dd>
                       </div>
                       <div>
                         <dt>{{ copy().proposed }}</dt>
-                        <dd>{{ displayValue(row.field.key, detail.proposed[row.field.key]) }}</dd>
+                        <dd>{{ displayField(row.field.key, detail.proposed) }}</dd>
                       </div>
                     </dl>
-                    @if (row.conflict) {
-                      <p class="conflict-note">{{ copy().conflict }}</p>
-                      <label class="control">
-                        {{ copy().decision }}
-                        <select
-                          [name]="'decision-' + row.field.key"
-                          [value]="row.decision"
-                          (change)="setDecision(row.field.key, $any($event.target).value)"
-                        >
-                          <option value="unresolved">{{ copy().choose }}</option>
-                          <option value="keep">{{ copy().keepCurrent }}</option>
-                          <option value="apply">{{ copy().useReviewed }}</option>
-                        </select>
-                      </label>
-                    } @else {
-                      <label class="choice">
-                        <input
-                          type="checkbox"
-                          [name]="'apply-' + row.field.key"
-                          [checked]="row.decision === 'apply'"
-                          (change)="
-                            setDecision(
-                              row.field.key,
-                              $any($event.target).checked ? 'apply' : 'keep'
-                            )
-                          "
-                        />
-                        {{ copy().apply }}
-                      </label>
-                    }
+                  } @else {
+                    <p class="submitted-value">
+                      {{ displayField(row.field.key, detail.proposed) }}
+                    </p>
                   }
-                  @if (row.field.key === 'litterBrand') {
-                    <label class="choice">
-                      <input
-                        type="checkbox"
-                        [checked]="row.value === sharedLitter"
-                        [disabled]="row.decision !== 'apply'"
-                        (change)="
-                          setValue('litterBrand', $any($event.target).checked ? sharedLitter : '')
-                        "
-                      />
-                      {{ catCopy().form.sharedLitter }}
-                    </label>
+                  @if (row.conflict) {
+                    <p class="conflict-note">{{ copy().conflict }}</p>
                   }
-                  @if (row.field.key !== 'litterBrand' || row.value !== sharedLitter) {
+                  @if (
+                    row.conflict ||
+                    (adjusting() && (detail.catId || !requiredForCreation(row.field)))
+                  ) {
                     <label class="control">
-                      {{ copy().reviewed }}
-                      @if (row.field.kind === 'sex') {
-                        <select
-                          [name]="row.field.key"
-                          [disabled]="row.decision !== 'apply'"
-                          [required]="detail.catId === null"
-                          [value]="row.value"
-                          (change)="setValue(row.field.key, $any($event.target).value)"
-                        >
-                          <option value="">{{ catCopy().form.selectSex }}</option>
-                          <option value="FEMALE">{{ catCopy().form.female }}</option>
-                          <option value="MALE">{{ catCopy().form.male }}</option>
-                        </select>
-                      } @else if (row.field.key === 'foodBrand') {
-                        <input
-                          type="text"
-                          name="foodBrand"
-                          [attr.maxlength]="maxLength(row.field)"
-                          [disabled]="row.decision !== 'apply'"
-                          [value]="row.value"
-                          [matAutocomplete]="foodBrandsAutocomplete"
-                          aria-describedby="review-food-brand-status"
-                          (input)="setValue('foodBrand', $any($event.target).value)"
-                        />
-                        <mat-autocomplete
-                          #foodBrandsAutocomplete="matAutocomplete"
-                          (optionSelected)="setValue('foodBrand', $event.option.value)"
-                        >
-                          @for (brand of suggestedFoodBrands(); track brand.id) {
-                            <mat-option [value]="brand.name">{{ brand.name }}</mat-option>
-                          }
-                        </mat-autocomplete>
-                      } @else {
-                        <input
-                          [name]="row.field.key"
-                          [type]="row.field.kind"
-                          [attr.maxlength]="maxLength(row.field)"
-                          [disabled]="row.decision !== 'apply'"
-                          [required]="detail.catId === null && requiredForCreation(row.field)"
-                          [value]="row.value"
-                          (input)="setValue(row.field.key, $any($event.target).value)"
-                        />
-                      }
+                      {{ copy().decision }}
+                      <select
+                        [name]="'decision-' + row.field.key"
+                        [value]="row.decision"
+                        (change)="setDecision(row.field.key, $any($event.target).value)"
+                      >
+                        @if (row.conflict) {
+                          <option value="unresolved">{{ copy().choose }}</option>
+                        }
+                        <option value="apply">{{ copy().useReviewed }}</option>
+                        <option value="keep">
+                          {{ detail.catId ? copy().keepCurrent : copy().skipField }}
+                        </option>
+                      </select>
                     </label>
                   }
-                  @if (row.field.key === 'foodBrand') {
-                    <div id="review-food-brand-status" class="brand-status" aria-live="polite">
-                      @if (foodBrandsState() === 'loading') {
-                        {{ copy().foodBrandsLoading }}
-                      } @else if (foodBrandsState() === 'error') {
-                        {{ copy().foodBrandsFailed }}
-                      } @else if (row.decision === 'apply' && isNewFoodBrand()) {
-                        {{ copy().newFoodBrand }}
+                  @if (adjusting() && row.decision === 'apply') {
+                    @if (row.field.kind === 'option') {
+                      <app-cat-profile-option-field
+                        [field]="row.field.key"
+                        [label]="copy().reviewed"
+                        [value]="row.value"
+                        [allowApproval]="false"
+                        [showPublicationHint]="true"
+                        [disabled]="!!saving()"
+                        (valueChange)="setValue(row.field.key, $event)"
+                      />
+                    } @else {
+                      @if (row.field.key === 'litterBrand') {
+                        <label class="control">
+                          {{ copy().litterSource }}
+                          <select
+                            name="litter-source"
+                            [value]="row.value === sharedLitter ? 'shared' : row.value ? 'own' : ''"
+                            (change)="setLitterSource($any($event.target).value)"
+                          >
+                            @if (!detail.catId) {
+                              <option value="">{{ copy().choose }}</option>
+                            }
+                            <option value="shared">{{ catCopy().form.sharedLitter }}</option>
+                            <option value="own">{{ catCopy().form.ownLitter }}</option>
+                          </select>
+                        </label>
+                        @if (row.value && row.value !== sharedLitter) {
+                          <label class="control">
+                            {{ copy().litterDescription }}
+                            <input
+                              type="text"
+                              name="litterBrand"
+                              [attr.maxlength]="maxLength(row.field)"
+                              [value]="row.value === ownLitter ? '' : row.value"
+                              (input)="setLitterDescription($any($event.target).value)"
+                            />
+                          </label>
+                        }
+                      } @else if (row.field.key === 'birthDate') {
+                        <label class="control">
+                          {{ copy().birthPrecision }}
+                          <select
+                            name="birth-precision"
+                            [value]="birthKey()"
+                            (change)="setBirthKey($any($event.target).value)"
+                          >
+                            <option value="birthDate">{{ copy().exactDate }}</option>
+                            <option value="birthYear">{{ copy().yearOnly }}</option>
+                          </select>
+                        </label>
                       }
-                    </div>
-                    @if (foodBrandsState() === 'error') {
-                      <button mat-button type="button" (click)="loadFoodBrands()">
-                        {{ copy().retry }}
-                      </button>
+                      @if (row.field.key !== 'litterBrand') {
+                        <label class="control">
+                          {{ copy().reviewed }}
+                          @if (row.field.kind === 'sex') {
+                            <select
+                              [name]="row.field.key"
+                              required
+                              [value]="row.value"
+                              (change)="setValue(row.field.key, $any($event.target).value)"
+                            >
+                              <option value="">{{ catCopy().form.selectSex }}</option>
+                              <option value="FEMALE">{{ catCopy().form.female }}</option>
+                              <option value="MALE">{{ catCopy().form.male }}</option>
+                            </select>
+                          } @else if (row.field.kind === 'textarea') {
+                            <textarea
+                              [name]="row.field.key"
+                              [attr.maxlength]="maxLength(row.field)"
+                              [value]="row.value"
+                              rows="3"
+                              (input)="setValue(row.field.key, $any($event.target).value)"
+                            ></textarea>
+                          } @else if (row.field.key === 'birthDate' && birthKey() === 'birthYear') {
+                            <input
+                              name="birthYear"
+                              type="text"
+                              inputmode="numeric"
+                              maxlength="4"
+                              required
+                              [value]="row.value"
+                              (input)="setValue('birthDate', $any($event.target).value)"
+                            />
+                            @if (row.value && !validBirthYear(row.value)) {
+                              <span class="conflict-note">{{
+                                catCopy().form.birthYearInvalid
+                              }}</span>
+                            }
+                          } @else {
+                            <input
+                              [name]="row.field.key"
+                              [type]="row.field.kind"
+                              [attr.maxlength]="maxLength(row.field)"
+                              [required]="!!detail.catId || requiredForCreation(row.field)"
+                              [value]="row.value"
+                              (input)="setValue(row.field.key, $any($event.target).value)"
+                            />
+                          }
+                        </label>
+                      }
                     }
                   }
                 </div>
               }
             </div>
-            <button mat-flat-button type="submit" [disabled]="!canApprove()">
-              {{ approving() ? copy().approving : copy().approve }}
-            </button>
+
+            @if (emptyApproval() && adjusting()) {
+              <p class="empty-approval" role="status">{{ copy().emptyApproval }}</p>
+            }
+            <div class="review-actions">
+              <button mat-flat-button type="submit" [disabled]="!canApprove()">
+                {{
+                  saving() === 'approve'
+                    ? copy().approving
+                    : detail.catId
+                      ? copy().approve
+                      : copy().register
+                }}
+              </button>
+              @if (!confirmingDismiss()) {
+                <button
+                  mat-button
+                  type="button"
+                  class="dismiss"
+                  data-dismiss-review
+                  (click)="confirmingDismiss.set(true)"
+                >
+                  {{ copy().dismiss }}
+                </button>
+              }
+            </div>
+
+            @if (confirmingDismiss()) {
+              <section class="dismiss-confirmation" [attr.aria-label]="copy().dismiss">
+                <p role="status">
+                  {{ detail.catId ? copy().confirmDismissExisting : copy().confirmDismissNew }}
+                </p>
+                <div class="review-actions">
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    class="dismiss"
+                    data-confirm-dismiss
+                    (click)="dismiss()"
+                  >
+                    {{ saving() === 'dismiss' ? copy().dismissing : copy().confirmDismiss }}
+                  </button>
+                  <button mat-button type="button" (click)="confirmingDismiss.set(false)">
+                    {{ copy().cancelDismiss }}
+                  </button>
+                </div>
+              </section>
+            }
           </fieldset>
         </form>
       </section>

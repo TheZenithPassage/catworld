@@ -45,9 +45,14 @@
           }
         </dd>
       </div>
-      <div class="detail-field">
-        <dt>{{ text().cats.form.birthDate }}</dt>
-        <dd>{{ date(cat.birthDate) }}</dd>
+      <div class="detail-field detail-field-birth">
+        @if (cat.birthDate || cat.birthYear == null) {
+          <dt>{{ text().cats.form.birthDate }}</dt>
+          <dd>{{ date(cat.birthDate) }}</dd>
+        } @else {
+          <dt>{{ text().cats.form.birthYear }}</dt>
+          <dd>{{ cat.birthYear }}</dd>
+        }
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.sex }}</dt>
@@ -111,7 +116,16 @@
         <dt>{{ text().cats.form.personality }}</dt>
         <dd>{{ value(cat.personality) }}</dd>
       </div>
-      <div class="detail-field detail-field-notes">
+      <div class="detail-field detail-field-notes detail-field-care-instructions">
+        <dt>
+          {{ text().cats.form.careInstructions }}
+          <span class="care-instructions-visibility">
+            {{ text().cats.form.careInstructionsVisibility }}
+          </span>
+        </dt>
+        <dd>{{ value(cat.careInstructions) }}</dd>
+      </div>
+      <div class="detail-field detail-field-notes detail-field-internal-notes">
         <dt>{{ text().cats.form.notes }}</dt>
         <dd>{{ value(cat.notes) }}</dd>
       </div>

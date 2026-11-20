@@ -61,13 +61,9 @@
 .owner-group small,
 .comparison dt,
 .proofs dt,
-.brand-status,
+.photo-note,
 .detail-heading p {
   color: var(--color-text-muted);
-}
-
-.brand-status:not(:empty) {
-  margin-top: 0.35rem;
 }
 
 .review-form {
@@ -107,9 +103,44 @@
 }
 
 .comparison dd,
-.proofs dd {
+.proofs dd,
+.submitted-value {
   margin: 0;
   overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.submitted-value {
+  margin-top: 0.5rem;
+}
+
+.conflict-note,
+.dismiss {
+  color: var(--mat-sys-error);
+}
+
+.empty-approval,
+.dismiss-confirmation p {
+  margin: 0;
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dismiss-confirmation {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--mat-sys-error);
+  border-radius: 0.5rem;
+}
+
+app-cat-profile-option-field {
+  margin-top: 0.75rem;
 }
 
 .control,
@@ -123,7 +154,8 @@
 }
 
 .control input,
-.control select {
+.control select,
+.control textarea {
   width: 100%;
   min-width: 0;
   min-height: 2.5rem;
@@ -133,6 +165,10 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+}
+
+.control textarea {
+  resize: vertical;
 }
 
 .choice {

@@ -50,6 +50,8 @@ public class CatIntakeReview {
 
     private Instant approvedAt;
 
+    private Instant dismissedAt;
+
     public CatIntakeReview(CatIntakeInvitation invitation, UUID catId, UUID draftId, String catName, String originalFields,
                            String proposedFields, Instant submittedAt) {
         this.invitation = invitation;
@@ -74,6 +76,19 @@ public class CatIntakeReview {
     public void approve(UUID approvedCatId, Instant now) {
         catId = approvedCatId;
         approvedAt = now;
+        clearProposal();
+    }
+
+    public boolean isPending() {
+        return approvedAt == null && dismissedAt == null;
+    }
+
+    public void dismiss(Instant now) {
+        dismissedAt = now;
+        clearProposal();
+    }
+
+    private void clearProposal() {
         originalFields = "{}";
         proposedFields = "{}";
     }
