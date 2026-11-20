@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
@@ -26,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,11 +67,21 @@ class PendingPriceMigrationMySqlIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"13", "14", "16"})
-    void upgradesPopulatedHistoricalSchemasWithoutChangingTheirData(String startingVersion) throws IOException {
-        Path initial = migrationFiles("initial", !"14".equals(startingVersion));
+    @CsvSource({
+            "13, false, false",
+            "14, true, false",
+            "16, false, true",
+            "16, false, false",
+            "16, true, false"
+    })
+    void upgradesPopulatedHistoricalSchemasWithoutChangingTheirData(
+            String startingVersion, boolean hasPendingPriceMigration, boolean hasGalleryMigration) throws IOException {
+        List<String> omittedVersions = new ArrayList<>();
+        if (!hasPendingPriceMigration) omittedVersions.add("14");
+        if (!hasGalleryMigration) omittedVersions.add("15");
+        Path initial = migrationFiles("initial", omittedVersions.toArray(String[]::new));
         Flyway.configure().dataSource(dataSource).locations(location(initial)).target(startingVersion).load().migrate();
-        populate("16".equals(startingVersion), "14".equals(startingVersion));
+        populate("16".equals(startingVersion), hasPendingPriceMigration);
         Map<String, List<String>> before = dataSnapshot();
         List<Map<String, Object>> historyBefore = history();
         Map<String, List<String>> deceasedBefore = deceasedSnapshot();
@@ -87,10 +99,10 @@ class PendingPriceMigrationMySqlIntegrationTest {
                     "--catworld.security.password=fictional-password",
                     "--catworld.security.cors-allowed-origins=http://localhost:4200")) {
                 assertTrue(application.isActive());
-                assertNotNull(application.getBean(PendingPriceMigrationConfig.class));
+                assertNotNull(application.getBean(HistoricalMigrationConfig.class));
             }
         } else {
-            PendingPriceMigrationConfig.migrate(candidate);
+            HistoricalMigrationConfig.migrate(candidate);
         }
 
         assertEquals(before, dataSnapshot());
@@ -98,7 +110,11 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '14' and success = 1", Integer.class));
         assertEquals(1, jdbc.queryForObject(
+                "select count(*) from flyway_schema_history where version = '15' and success = 1", Integer.class));
+        assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '16' and success = 1", Integer.class));
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from flyway_schema_history where version = '17' and success = 1", Integer.class));
         assertEquals("YES", jdbc.queryForObject("""
                 select is_nullable from information_schema.columns
                 where table_schema = database() and table_name = 'stay_agreed_amount_corrections'
@@ -106,16 +122,23 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 """, String.class));
         if ("16".equals(startingVersion)) {
             assertEquals(deceasedBefore, deceasedSnapshot());
-            assertTrue(jdbc.queryForObject("""
-                    select installed_rank from flyway_schema_history where version = '14'
-                    """, Integer.class) > jdbc.queryForObject("""
-                    select installed_rank from flyway_schema_history where version = '16'
-                    """, Integer.class));
+            assertEquals(!hasGalleryMigration, installedRank("15") > installedRank("16"));
+            if (!hasPendingPriceMigration) {
+                assertTrue(installedRank("14") > installedRank("16"));
+            }
         } else {
             assertEquals(0, jdbc.queryForObject("select count(*) from cats where deceased = true", Integer.class));
         }
-        assertEquals("14".equals(startingVersion) ? 1 : 0,
+        if (!hasGalleryMigration) {
+            assertTrue(installedRank("14") < installedRank("15"));
+        }
+        assertTrue(installedRank("15") < installedRank("17"));
+        assertEquals(hasPendingPriceMigration ? 1 : 0,
                 jdbc.queryForObject("select count(*) from stays where price_pending = true", Integer.class));
+        jdbc.update("""
+                insert into cat_informational_photos (id, cat_id, created_at, content)
+                values (?, ?, '2026-11-10 12:30:00', X'FFD8FFD9')
+                """, id(51), id(4));
 
         jdbc.update("update stays set agreed_amount = null, price_pending = true where id = ?", id(7));
         jdbc.update("""
@@ -131,28 +154,30 @@ class PendingPriceMigrationMySqlIntegrationTest {
 
         List<Map<String, Object>> migratedHistory = history();
         Map<String, List<String>> migratedData = dataSnapshot();
-        PendingPriceMigrationConfig.migrate(Flyway.configure().dataSource(dataSource).load());
+        HistoricalMigrationConfig.migrate(Flyway.configure().dataSource(dataSource).load());
         assertEquals(migratedHistory, history());
         assertEquals(migratedData, dataSnapshot());
+        assertEquals("FFD8FFD9", jdbc.queryForObject(
+                "select hex(content) from cat_informational_photos where id = ?", String.class, id(51)));
         candidate.validate();
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"12", "16"})
-    void rejectsAnAppliedChecksumMismatchBeforeApplyingLateV14(String changedVersion) throws IOException {
-        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", true)))
-                .load().migrate();
+    void rejectsAnAppliedChecksumMismatchBeforeApplyingLateMigrations(String changedVersion) throws IOException {
+        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "14", "15")))
+                .target("16").load().migrate();
         populate(true, false);
         Map<String, List<String>> before = dataSnapshot();
         List<Map<String, Object>> historyBefore = history();
-        Path altered = migrationFiles("altered", false);
+        Path altered = migrationFiles("altered");
         try (var scripts = Files.list(altered)) {
             Path script = scripts.filter(path -> path.getFileName().toString().startsWith("V" + changedVersion + "__"))
                     .findFirst().orElseThrow();
             Files.writeString(script, Files.readString(script) + "\nSELECT 'changed applied migration';\n");
         }
 
-        assertThrows(FlywayException.class, () -> PendingPriceMigrationConfig.migrate(
+        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
                 Flyway.configure().dataSource(dataSource).locations(location(altered)).load()));
 
         assertEquals(before, dataSnapshot());
@@ -161,16 +186,20 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 select count(*) from information_schema.columns
                 where table_schema = database() and table_name = 'stays' and column_name = 'price_pending'
                 """, Integer.class));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from information_schema.tables
+                where table_schema = database() and table_name = 'cat_informational_photos'
+                """, Integer.class));
     }
 
     @Test
     void rejectsAnotherIgnoredVersionInsteadOfEnablingGeneralOutOfOrderMigration() throws IOException {
-        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", true)))
-                .load().migrate();
+        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "14", "15")))
+                .target("16").load().migrate();
         List<Map<String, Object>> historyBefore = history();
-        Path extra = migrationFiles("extra", false);
-        Files.writeString(extra.resolve("V15__unapproved_migration.sql"), "CREATE TABLE unexpected (id INT);");
-        assertThrows(FlywayException.class, () -> PendingPriceMigrationConfig.migrate(
+        Path extra = migrationFiles("extra");
+        Files.writeString(extra.resolve("V14_1__unapproved_migration.sql"), "CREATE TABLE unexpected (id INT);");
+        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
                 Flyway.configure().dataSource(dataSource).locations(location(extra)).load()));
         assertEquals(historyBefore, history());
         assertEquals(0, jdbc.queryForObject("""
@@ -179,17 +208,24 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 """, Integer.class));
     }
 
-    private Path migrationFiles(String name, boolean mainHistory) throws IOException {
+    private Path migrationFiles(String name, String... omittedVersions) throws IOException {
         Path directory = Files.createDirectory(temporary.resolve(name));
+        var omitted = Set.of(omittedVersions);
         try (var scripts = Files.list(Path.of("src/main/resources/db/migration"))) {
             for (Path script : scripts.toList()) {
                 String filename = script.getFileName().toString();
-                if (filename.endsWith(".sql") && (!mainHistory || !filename.startsWith("V14__"))) {
+                if (filename.endsWith(".sql")
+                        && omitted.stream().noneMatch(version -> filename.startsWith("V" + version + "__"))) {
                     Files.copy(script, directory.resolve(filename));
                 }
             }
         }
         return directory;
+    }
+
+    private int installedRank(String version) {
+        return jdbc.queryForObject(
+                "select installed_rank from flyway_schema_history where version = ?", Integer.class, version);
     }
 
     private String location(Path path) {

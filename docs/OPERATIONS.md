@@ -233,6 +233,10 @@ deployment, let Flyway apply the committed migrations and investigate any
 schema/data incompatibility against the actual source and backup before
 continuing; never invent creator attribution or bypass a failed migration.
 
+When upgrading a database that already has V16, startup applies a missing V14
+(pending stay prices) or V15 (private cat photo gallery) in a version-limited
+Flyway pass before continuing with the remaining migrations. Flyway still
+validates applied checksums and rejects other unexpected gaps.
 
 ## Enable private cat intake links
 
