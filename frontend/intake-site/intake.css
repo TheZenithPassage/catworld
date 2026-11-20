@@ -65,7 +65,7 @@ fieldset {
   background: var(--surface);
 }
 
-.cat-card summary {
+.cat-card > summary {
   padding: 1rem 1.1rem;
   color: var(--green);
   font-weight: 750;
@@ -73,7 +73,7 @@ fieldset {
   overflow-wrap: anywhere;
 }
 
-.cat-card[open] summary {
+.cat-card[open] > summary {
   border-bottom: 1px solid var(--line);
 }
 
@@ -81,10 +81,30 @@ fieldset {
   padding: 1rem 1.1rem 1.2rem;
 }
 
+.cat-state {
+  margin-inline-start: 0.6rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.other-fields > summary {
+  padding-block: 0.75rem;
+  color: var(--green);
+  font-weight: 650;
+  cursor: pointer;
+}
+
 .fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: 0.85rem;
+}
+
+.fields:not(:empty) + .other-fields,
+.attachments + .other-fields {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
 }
 
 .field {
@@ -96,6 +116,29 @@ fieldset {
 
 .field > span {
   font-weight: 620;
+}
+
+.brand-field {
+  min-width: 0;
+}
+
+.brand-suggestions,
+.retained-photos {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brand-suggestions {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.brand-suggestions button {
+  width: 100%;
+  border-color: var(--line);
+  text-align: start;
+  overflow-wrap: anywhere;
 }
 
 .hint {
@@ -160,6 +203,40 @@ button:disabled {
   margin-top: 0.5rem;
 }
 
+.retained-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  margin: 0 0 0.8rem;
+  gap: 0.7rem;
+}
+
+.photo-preview a {
+  display: block;
+}
+
+.photo-preview img {
+  display: block;
+  width: 100%;
+  max-height: 10rem;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+.keep-photo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.keep-photo input {
+  width: 1.1rem;
+  min-height: auto;
+  accent-color: var(--green);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -178,6 +255,17 @@ button:disabled {
 .error {
   border-color: #a33b2c;
   color: #922c20;
+}
+
+.field > .field-error {
+  color: #922c20;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'] {
+  border-color: #a33b2c;
 }
 
 @media (max-width: 32rem) {
