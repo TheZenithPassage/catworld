@@ -75,11 +75,15 @@ It applies the selected fields and moves selected evidence to the informational
 gallery. An approved cat is closed to further edits through that invitation.
 Approval closes the link when the last outstanding cat is resolved.
 
-Food separates the brand from the variety or diet detail. The form matches
-approved brand names by ignoring case and normalizing whitespace. Admin
-approval can select an existing brand, correct a proposed name or add the name
-to the catalog. Litter accepts a tutor's own description or the shared
-CatWorld litter choice. Historical food and litter values are retained.
+Cat profiles retain the historical `foodBrand` text and expose an optional
+`foodBrandId` and free-text `foodDetail` for the variety or diet. On the
+administration origin, `GET /api/food-brands` lists approved brands for
+`ADMIN` and `STAFF`. The private form receives those options with its
+Bearer-authorized response. Brand matching ignores case and normalizes
+whitespace. An administrator can select an existing brand or correct a
+proposed name. Only explicit `ADMIN` approval adds a brand to the shared
+catalog. Litter retains its historical value and accepts a tutor's own
+description or the shared CatWorld litter choice.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
