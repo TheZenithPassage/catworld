@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSetMetaData;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,8 +50,9 @@ class PendingPriceMigrationMySqlIntegrationTest {
         String password = System.getenv("CATWORLD_MIGRATION_MYSQL_PASSWORD");
         administrator = new JdbcTemplate(new DriverManagerDataSource(url, username, password));
         assertTrue(administrator.queryForObject("select version()", String.class).startsWith("8."));
-        schema = "cw453_migration_" + UUID.randomUUID().toString().replace("-", "");
-        administrator.execute("create database `" + schema + "`");
+        String isolatedSchema = "cw453_migration_" + UUID.randomUUID().toString().replace("-", "");
+        administrator.execute("create database `" + isolatedSchema + "`");
+        schema = isolatedSchema;
         int queryStart = url.indexOf('?');
         String address = queryStart < 0 ? url : url.substring(0, queryStart);
         String options = queryStart < 0 ? "" : url.substring(queryStart);
@@ -110,13 +112,13 @@ class PendingPriceMigrationMySqlIntegrationTest {
         }
 
         // Profile additions have their initialization checked separately.
-        assertEquals(before, dataSnapshot("food_brand_id", "food_detail", "birth_year", "care_instructions"));
+        assertEquals(before, dataSnapshot("food_brand_id", "food_detail", "birth_year", "care_instructions",
+                "breed_option_id", "coat_option_id", "color_option_id",
+                "last_internal_dewormer_option_id", "last_external_dewormer_option_id"));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from cats where food_brand_id is not null or food_detail is not null
                 """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
-        assertEquals(0, jdbc.queryForObject("""
-                select count(*) from cats where birth_year is not null or care_instructions is not null
-                """, Integer.class), "V24 must preserve exact dates and leave care instructions unset for historical cats");
+        assertNewProfileFieldsUnset();
         assertTrue(history().containsAll(historyBefore));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '14' and success = 1", Integer.class));
@@ -195,6 +197,73 @@ class PendingPriceMigrationMySqlIntegrationTest {
         jdbc.update("update cats set birth_date = null, birth_year = 2020 where id = ?", id(4));
         assertNull(jdbc.queryForObject("select birth_date from cats where id = ?", String.class, id(4)));
         assertEquals(2020, jdbc.queryForObject("select birth_year from cats where id = ?", Integer.class, id(4)));
+    }
+
+    @Test
+    void preservesPopulatedHouseholdDataWhenUpgradingV23() {
+        Flyway.configure().dataSource(dataSource).target("23").load().migrate();
+        populate(false, false);
+        jdbc.update("""
+                insert into food_brands (id, name, normalized_key)
+                values (?, 'Fictional approved brand', cast('fictional approved brand' as binary))
+                """, id(60));
+        jdbc.update("""
+                update cats
+                set food_brand_id = ?, food_brand = 'Fictional approved brand', food_detail = 'Fictional diet',
+                    breed = 'Fictional breed', coat = 'Fictional coat', color = 'Fictional color',
+                    last_internal_dewormer_name = 'Fictional internal treatment',
+                    last_external_dewormer_name = 'Fictional external treatment'
+                where id = ?
+                """, id(60), id(4));
+        jdbc.update("""
+                insert into cat_intake_invitations
+                    (id, owner_id, token_hash, allow_new_cats, scope_snapshot, requested_fields_snapshot, expires_at)
+                values (?, ?, ?, true, ?, ?, '2026-11-17 12:00:00')
+                """, id(61), id(2), "a".repeat(64),
+                """
+                {"00000000-0000-0000-0000-000000000004":{"birthDate":"2020-01-01"},
+                 "00000000-0000-0000-0000-000000000005":{"birthDate":"2020-01-01"}}
+                """.strip(),
+                """
+                {"00000000-0000-0000-0000-000000000004":["lastRabiesDate"],
+                 "00000000-0000-0000-0000-000000000005":["litterBrand"]}
+                """.strip());
+        jdbc.update("""
+                insert into cat_intake_reviews
+                    (id, invitation_id, cat_id, cat_name, original_fields, proposed_fields,
+                     submitted_at, approved_at, revision)
+                values (?, ?, ?, 'Fictional cat 4', '{"birthDate":"2020-01-01"}',
+                        '{"birthDate":"2020-02-20","lastRabiesDate":"2026-11-10"}',
+                        '2026-11-10 13:00:00', null, 2),
+                       (?, ?, ?, 'Fictional cat 5', '{}', '{"litterBrand":"Fictional approved litter"}',
+                        '2026-11-10 14:00:00', '2026-11-10 15:00:00', 1)
+                """, id(62), id(61), id(4), id(63), id(61), id(5));
+        jdbc.update("""
+                insert into cat_intake_photos (id, review_id, content)
+                values (?, ?, X'FFD8FFE1FFD9')
+                """, id(64), id(62));
+        jdbc.update("""
+                insert into cat_informational_photos (id, cat_id, created_at, content)
+                values (?, ?, '2026-11-10 12:30:00', X'FFD8FFE0FFD9')
+                """, id(65), id(4));
+
+        var dataBefore = dataSnapshot();
+        var householdBefore = householdSnapshot();
+        var historyBefore = history();
+        Flyway candidate = Flyway.configure().dataSource(dataSource).target("26").load();
+        HistoricalMigrationConfig.migrate(candidate);
+
+        assertEquals(dataBefore, dataSnapshot("birth_year", "care_instructions", "breed_option_id",
+                "coat_option_id", "color_option_id", "last_internal_dewormer_option_id",
+                "last_external_dewormer_option_id"));
+        assertNewProfileFieldsUnset();
+        assertEquals(householdBefore, householdSnapshot("dismissed_at"));
+        assertEquals(0, jdbc.queryForObject(
+                "select count(*) from cat_intake_reviews where dismissed_at is not null", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from cat_profile_options", Integer.class));
+        assertEquals(historyBefore, history().subList(0, historyBefore.size()));
+        assertEquals("26", candidate.info().current().getVersion().getVersion());
+        candidate.validate();
     }
 
     @ParameterizedTest
@@ -327,27 +396,57 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 "cats", jdbc.queryForList("select concat(hex(id), ':', deceased) from cats order by id", String.class));
     }
 
+    private Map<String, List<String>> householdSnapshot(String... excludedReviewColumns) {
+        return Map.of(
+                "food_brands", snapshotRows("food_brands", Set.of()),
+                "cat_intake_invitations", snapshotRows("cat_intake_invitations", Set.of()),
+                "cat_intake_reviews", snapshotRows("cat_intake_reviews", Set.of(excludedReviewColumns)),
+                "cat_intake_photos", snapshotRows("cat_intake_photos", Set.of()),
+                "cat_informational_photos", snapshotRows("cat_informational_photos", Set.of()));
+    }
+
+    private void assertNewProfileFieldsUnset() {
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from cats where birth_year is not null or care_instructions is not null
+                """, Integer.class), "V24 must preserve exact dates and leave care instructions unset for historical cats");
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from cats
+                where breed_option_id is not null or coat_option_id is not null or color_option_id is not null
+                   or last_internal_dewormer_option_id is not null or last_external_dewormer_option_id is not null
+                """, Integer.class), "V25 must leave option references unset for historical cats");
+    }
+
     private Map<String, List<String>> dataSnapshot(String... excludedCatColumns) {
-        Set<String> excludedCatColumnNames = Set.of(excludedCatColumns);
+        Set<String> excludedCatColumnNames = new HashSet<>(List.of(excludedCatColumns));
+        excludedCatColumnNames.add("deceased");
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (String table : List.of("user_accounts", "owners", "vets", "cats", "stays", "stay_cat",
                 "nightly_reference_rates", "stay_pricing_decisions", "stay_agreed_amount_corrections",
                 "stay_payments", "stay_payment_annulments", "sensitive_stay_contexts", "sensitive_stay_context_cats")) {
-            result.put(table, jdbc.query("select * from " + table, (row, index) -> {
-                ResultSetMetaData columns = row.getMetaData();
-                List<String> values = new ArrayList<>();
-                for (int column = 1; column <= columns.getColumnCount(); column++) {
-                    String name = columns.getColumnName(column);
-                    if ("price_pending".equals(name) || "deceased".equals(name)) continue;
-                    if ("cats".equals(table) && excludedCatColumnNames.contains(name)) continue;
-                    Object value = row.getObject(column);
-                    values.add(name + "=" + (value instanceof byte[] bytes
-                            ? HexFormat.of().formatHex(bytes) : Objects.toString(value, "null")));
-                }
-                return String.join("|", values);
-            }).stream().sorted().toList());
+            Set<String> excludedColumns = switch (table) {
+                case "cats" -> excludedCatColumnNames;
+                case "owners" -> Set.of("deceased");
+                case "stays" -> Set.of("price_pending");
+                default -> Set.of();
+            };
+            result.put(table, snapshotRows(table, excludedColumns));
         }
         return result;
+    }
+
+    private List<String> snapshotRows(String table, Set<String> excludedColumns) {
+        return jdbc.query("select * from " + table, (row, index) -> {
+            ResultSetMetaData columns = row.getMetaData();
+            List<String> values = new ArrayList<>();
+            for (int column = 1; column <= columns.getColumnCount(); column++) {
+                String name = columns.getColumnName(column);
+                if (excludedColumns.contains(name)) continue;
+                Object value = row.getObject(column);
+                values.add(name + "=" + (value instanceof byte[] bytes
+                        ? HexFormat.of().formatHex(bytes) : Objects.toString(value, "null")));
+            }
+            return String.join("|", values);
+        }).stream().sorted().toList();
     }
 
     private void populate(boolean deceased, boolean pending) {
