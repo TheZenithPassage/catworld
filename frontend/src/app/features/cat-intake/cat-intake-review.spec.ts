@@ -224,15 +224,13 @@ describe('CatIntakeReview', () => {
   });
 
   it('reloads the comparison after a stale approval so it can be reviewed again', () => {
-    api.getReview
-      .mockReturnValueOnce(of({ ...conflicting, revision: 3 }))
-      .mockReturnValueOnce(
-        of({
-          ...conflicting,
-          revision: 4,
-          proposed: { color: 'White', foodBrand: 'Proposed Food' },
-        }),
-      );
+    api.getReview.mockReturnValueOnce(of({ ...conflicting, revision: 3 })).mockReturnValueOnce(
+      of({
+        ...conflicting,
+        revision: 4,
+        proposed: { color: 'White', foodBrand: 'Proposed Food' },
+      }),
+    );
     api.approve.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
     fixture.nativeElement.querySelector('[data-review-item]').click();
     fixture.detectChanges();

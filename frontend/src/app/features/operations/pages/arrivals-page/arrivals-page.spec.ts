@@ -84,14 +84,12 @@ describe('ArrivalsPage', () => {
       { username: 'admin', password: 'test' },
     );
     const pendingReviews = [{ id: 'proposal-1', submittedAt: '2026-11-12T15:00:00Z' }];
-    http
-      .expectOne('/api/operations/arrivals')
-      .flush([
-        {
-          ...stay,
-          cats: [{ ...cat, foodBrand: 'Example Food', vaccineWarnings: [], pendingReviews }],
-        },
-      ]);
+    http.expectOne('/api/operations/arrivals').flush([
+      {
+        ...stay,
+        cats: [{ ...cat, foodBrand: 'Example Food', vaccineWarnings: [], pendingReviews }],
+      },
+    ]);
     fixture.detectChanges();
 
     const link = (fixture.nativeElement as HTMLElement).querySelector('article a')!;
