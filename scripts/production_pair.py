@@ -12,10 +12,11 @@ import re
 import subprocess
 from pathlib import Path
 
+from release_tags import valid_release_tag
+
 REPO = "TheZenithPassage/catworld"
 SOURCE = re.compile(r"[0-9a-f]{40}\Z")
 DIGEST = re.compile(r"sha256:[0-9a-f]{64}\Z")
-TAG = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 FIELDS = frozenset({"schema", "repository", "release_id", "tag", "prerelease",
                     "source_sha", "backend", "frontend", "workflow_run", "workflow_attempt"})
 
@@ -31,7 +32,7 @@ def parse_delivery(data, expected_tag, expected_sha, repository=REPO):
         fail("Unsupported release record schema")
     if data["repository"] != repository:
         fail("Release record belongs to a different repository")
-    if not isinstance(data["tag"], str) or not TAG.fullmatch(data["tag"]):
+    if not valid_release_tag(data["tag"]):
         fail("Invalid release tag")
     if data["tag"] != expected_tag:
         fail("Release tag differs from the explicitly selected tag")
