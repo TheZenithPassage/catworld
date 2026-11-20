@@ -252,8 +252,8 @@ listener. Route `fichas.catworld.com.ar` to it in Cloudflare Tunnel (default por
 4202) and set `CATWORLD_INTAKE_URL` to the external HTTPS origin used in
 invitations. Keep the administrative listener behind Cloudflare Access.
 The intake listener serves the standalone form and the token-protected form,
-submission and staged photo endpoints. Invitation management, review and
-informational gallery access use the administrative listener.
+submission, photo preview and staged photo endpoints. Invitation management,
+review and informational gallery access use the administrative listener.
 
 Use a synthetic household to check the link on a phone. Submit vaccination
 evidence, reopen the link to view the staged photo, and approve selected

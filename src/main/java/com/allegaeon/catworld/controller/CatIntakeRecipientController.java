@@ -8,6 +8,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.UUID;
@@ -27,6 +28,13 @@ public class CatIntakeRecipientController {
     public byte[] photo(@PathVariable UUID id,
                         @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         return intake.recipientPhoto(authorization, id);
+    }
+
+    @PostMapping(value = "/photo-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] photoPreview(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+                               @RequestPart("photo") MultipartFile photo) {
+        return intake.recipientPhotoPreview(authorization, photo);
     }
 
     @PostMapping(value = "/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

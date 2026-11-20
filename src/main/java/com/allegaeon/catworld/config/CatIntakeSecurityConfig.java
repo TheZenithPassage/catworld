@@ -33,17 +33,20 @@ public class CatIntakeSecurityConfig {
         String formPath = "/api/intake/request";
         String submissionPath = "/api/intake/submissions";
         String photoPath = "/api/intake/photos/{id}";
+        String previewPath = "/api/intake/photo-preview";
         var read = paths.matcher(HttpMethod.GET, formPath);
         var photo = paths.matcher(HttpMethod.GET, photoPath);
-        var submit = paths.matcher(HttpMethod.POST, submissionPath);
+        var upload = new OrRequestMatcher(paths.matcher(HttpMethod.POST, submissionPath),
+                paths.matcher(HttpMethod.POST, previewPath));
         var options = new OrRequestMatcher(paths.matcher(HttpMethod.OPTIONS, formPath),
-                paths.matcher(HttpMethod.OPTIONS, submissionPath), paths.matcher(HttpMethod.OPTIONS, photoPath));
+                paths.matcher(HttpMethod.OPTIONS, submissionPath), paths.matcher(HttpMethod.OPTIONS, photoPath),
+                paths.matcher(HttpMethod.OPTIONS, previewPath));
         var recipientCors = new CorsConfiguration();
         recipientCors.setAllowedOrigins(List.of(intake.recipientOrigin()));
         recipientCors.setAllowedMethods(List.of(HttpMethod.GET.name(), HttpMethod.POST.name()));
         recipientCors.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE));
         recipientCors.setAllowCredentials(false);
-        return http.securityMatcher(new OrRequestMatcher(read, photo, submit,
+        return http.securityMatcher(new OrRequestMatcher(read, photo, upload,
                         request -> CorsUtils.isPreFlightRequest(request) && options.matches(request)))
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> recipientCors))
@@ -54,7 +57,7 @@ public class CatIntakeSecurityConfig {
                     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                                     FilterChain chain) throws ServletException, IOException {
                         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
-                        if (submit.matches(request) && !intake.hasOpenLink(request.getHeader(HttpHeaders.AUTHORIZATION))) {
+                        if (upload.matches(request) && !intake.hasOpenLink(request.getHeader(HttpHeaders.AUTHORIZATION))) {
                             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                             return;
                         }

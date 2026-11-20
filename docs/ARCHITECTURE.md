@@ -55,11 +55,14 @@ revocation ends recipient access to the previous link and keeps received
 proposals available for review. The recipient sends the token as a Bearer
 credential to the form, submission and photo endpoints. Their allowed browser
 origin comes from `CATWORLD_INTAKE_URL`. `GET /api/intake/photos/{id}` serves
-staged JPEGs on pending proposals from that open invitation. The admin
-endpoint `GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo
-to its review. Both responses use `Cache-Control: no-store`. Cat profiles and
-the informational gallery remain behind staff authentication on the protected
-administration origin.
+staged JPEGs on pending proposals from that open invitation.
+`POST /api/intake/photo-preview` validates and normalizes one multipart
+`photo` upload for an open invitation and returns the JPEG without staging
+evidence or changing the invitation. The admin endpoint
+`GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo to its
+review. The photo responses use `Cache-Control: no-store`. Cat profiles and
+the informational gallery remain behind staff authentication on the
+protected administration origin.
 
 Recipients can return to edit pending proposals and reuse staged evidence.
 A requested update must answer at least one prompt. Reporting a rabies or

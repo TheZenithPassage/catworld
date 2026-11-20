@@ -183,6 +183,15 @@ public class CatIntakeService {
         return intakePhotos.findContent(review.getId(), photoId).orElseThrow(CatIntakeService::unavailable);
     }
 
+    public byte[] recipientPhotoPreview(String authorization, MultipartFile photo) {
+        var invite = openScope(requireDigest(authorization));
+        var scope = scopeOf(invite.getScopeSnapshot());
+        var eligible = eligibleCats(invite.getOwnerId(), scope.keySet(), false);
+        requireAccessible(invite.getAllowNewCats(), eligible);
+        validatePhotoSize(photo);
+        return normalizer.normalize(photo).bytes();
+    }
+
     public void submit(String authorization, Submission submission, Map<String, List<MultipartFile>> parts) {
         String hash = requireDigest(authorization);
         openScope(hash);
@@ -441,9 +450,7 @@ public class CatIntakeService {
                 throw new BadRequestException("Unexpected or empty intake photo");
             }
             var file = files.getFirst();
-            if (file.getSize() > MAX_PHOTO_BYTES) {
-                throw new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_FILE_TOO_LARGE);
-            }
+            validatePhotoSize(file);
             uploads.put(key, file);
         });
         if (!uploads.keySet().equals(expectedPhotos)) throw new BadRequestException("Missing intake photo");
@@ -453,6 +460,12 @@ public class CatIntakeService {
         Map<String, NormalizedCatPhoto> result = new LinkedHashMap<>();
         uploads.forEach((key, upload) -> result.put(key, normalizer.normalize(upload)));
         return result;
+    }
+
+    private static void validatePhotoSize(MultipartFile photo) {
+        if (photo.getSize() > MAX_PHOTO_BYTES) {
+            throw new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_FILE_TOO_LARGE);
+        }
     }
 
     private List<Cat> eligibleCats(UUID ownerId, Collection<UUID> ids, boolean lock) {
