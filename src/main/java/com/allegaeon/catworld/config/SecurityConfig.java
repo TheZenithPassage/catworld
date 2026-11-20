@@ -49,6 +49,7 @@ public class SecurityConfig {
                                 HttpMethod.DELETE,
                                 "/api/stays/*/payments/*"
                         ).hasRole("ADMIN")
+                        .requestMatchers("/api/payments/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll()

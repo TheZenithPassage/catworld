@@ -15,5 +15,7 @@ public interface StayAgreedAmountCorrectionRepository
 
     List<StayAgreedAmountCorrection> findAllByStayId(UUID stayId);
 
+    boolean existsByStayIdAndPreviousAgreedAmountIsNotNull(UUID stayId);
+
     boolean existsByDecidedBy_Id(UUID decidedById);
 }

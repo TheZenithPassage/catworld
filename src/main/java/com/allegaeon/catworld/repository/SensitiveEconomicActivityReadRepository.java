@@ -10,11 +10,13 @@ import org.springframework.stereotype.Repository;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,8 +29,27 @@ import com.allegaeon.catworld.model.SensitiveStayContextCat;
 @RequiredArgsConstructor
 public class SensitiveEconomicActivityReadRepository {
 
+    private static final DateTimeFormatter DATABASE_DATETIME =
+            DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSSSSS");
+
+    // Read native DATETIME projections as text so the driver does not interpret them
+    // as timestamps. Event times are UTC, while stay context times are local.
     private static final String UNION_QUERY = """
-            SELECT activity.*
+            SELECT activity.event_id, activity.event_type, activity.event_type_order,
+                   CAST(activity.occurred_at AS CHAR(26)), activity.actor_id,
+                   activity.actor_username, activity.context_id, activity.stay_id,
+                   activity.owner_id, activity.owner_full_name,
+                   CAST(activity.stay_start_at AS CHAR(26)), CAST(activity.stay_end_at AS CHAR(26)),
+                   CAST(activity.stay_cancelled_at AS CHAR(26)), activity.rate_category,
+                   activity.previous_rate, activity.new_rate, activity.retained_nightly_rate,
+                   activity.number_of_nights, activity.agreed_amount,
+                   activity.previous_agreed_amount, activity.new_agreed_amount,
+                   activity.payment_id, activity.previous_amount, activity.new_amount,
+                   activity.amount, activity.payment_date, activity.payment_note,
+                   activity.registered_by_id, activity.registered_by_username,
+                   CAST(activity.registered_at AS CHAR(26)), activity.annulled, activity.reason,
+                   activity.arrival_transfer_required, activity.departure_transfer_required,
+                   activity.transfer_waived, activity.retained_transfer_rate
             FROM (
                 SELECT
                     rate_change.id AS event_id,
@@ -307,12 +328,13 @@ public class SensitiveEconomicActivityReadRepository {
     public OverviewPage<SensitiveEconomicActivityProjection> findActivity(
             SensitiveEconomicActivityFilter filter, int page) {
         StringBuilder sql = new StringBuilder(UNION_QUERY);
-        appendPredicates(sql, filter);
+        Map<String, LocalDateTime> stayBounds = new LinkedHashMap<>();
+        appendPredicates(sql, filter, stayBounds);
         String filteredSql = sql.toString();
         sql.append('\n').append(GLOBAL_ORDER);
 
         Query query = entityManager.createNativeQuery(sql.toString());
-        bindParameters(query, filter);
+        bindParameters(query, filter, stayBounds);
         query.setFirstResult(page * OverviewPage.PAGE_SIZE);
         query.setMaxResults(OverviewPage.PAGE_SIZE);
 
@@ -320,7 +342,7 @@ public class SensitiveEconomicActivityReadRepository {
         List<Object[]> rows = query.getResultList();
         Query countQuery = entityManager.createNativeQuery(
                 "SELECT COUNT(*) FROM (" + filteredSql + ") counted_activity");
-        bindParameters(countQuery, filter);
+        bindParameters(countQuery, filter, stayBounds);
         long total = ((Number) countQuery.getSingleResult()).longValue();
         return new OverviewPage<>(project(rows), page, total);
     }
@@ -332,23 +354,24 @@ public class SensitiveEconomicActivityReadRepository {
 
     private void appendPredicates(
             StringBuilder sql,
-            SensitiveEconomicActivityFilter filter) {
-        if (filter.stayFrom() != null || filter.stayTo() != null) {
+            SensitiveEconomicActivityFilter filter,
+            Map<String, LocalDateTime> stayBounds) {
+        LocalDate stayFrom = filter.stayFrom();
+        LocalDate stayTo = filter.stayTo();
+        if (stayFrom != null || stayTo != null) {
             sql.append(" AND EXISTS (SELECT 1 FROM stays current_stay WHERE current_stay.id = activity.stay_id");
             switch (filter.stayDateMatchMode()) {
                 case OVERLAPS -> {
-                    if (filter.stayFrom() != null) sql.append(" AND CAST(current_stay.end_at AS DATE) >= :stayFrom");
-                    if (filter.stayTo() != null) sql.append(" AND CAST(current_stay.start_at AS DATE) <= :stayTo");
+                    onOrAfterStayDay(sql, stayBounds, "end_at", stayFrom);
+                    onOrBeforeStayDay(sql, stayBounds, "start_at", stayTo);
                 }
                 case STAY_WITHIN_RANGE -> {
-                    if (filter.stayFrom() != null) sql.append(" AND CAST(current_stay.start_at AS DATE) >= :stayFrom");
-                    if (filter.stayTo() != null) sql.append(" AND CAST(current_stay.end_at AS DATE) <= :stayTo");
+                    onOrAfterStayDay(sql, stayBounds, "start_at", stayFrom);
+                    onOrBeforeStayDay(sql, stayBounds, "end_at", stayTo);
                 }
                 case RANGE_WITHIN_STAY -> {
-                    sql.append(" AND CAST(current_stay.start_at AS DATE) <= :")
-                            .append(filter.stayFrom() != null ? "stayFrom" : "stayTo");
-                    sql.append(" AND CAST(current_stay.end_at AS DATE) >= :")
-                            .append(filter.stayTo() != null ? "stayTo" : "stayFrom");
+                    onOrBeforeStayDay(sql, stayBounds, "start_at", stayFrom != null ? stayFrom : stayTo);
+                    onOrAfterStayDay(sql, stayBounds, "end_at", stayTo != null ? stayTo : stayFrom);
                 }
             }
             sql.append(")");
@@ -357,10 +380,10 @@ public class SensitiveEconomicActivityReadRepository {
             sql.append(" AND activity.actor_id = :actorId");
         }
         if (filter.occurredFrom() != null) {
-            sql.append(" AND activity.occurred_at >= :occurredFrom");
+            sql.append(" AND activity.occurred_at >= CAST(:occurredFrom AS DATETIME(6))");
         }
         if (filter.occurredTo() != null) {
-            sql.append(" AND activity.occurred_at < :occurredTo");
+            sql.append(" AND activity.occurred_at < CAST(:occurredTo AS DATETIME(6))");
         }
         if (filter.eventType() != null) {
             sql.append(" AND activity.event_type = :eventType");
@@ -383,21 +406,43 @@ public class SensitiveEconomicActivityReadRepository {
         }
     }
 
+    // Bind stay boundaries as wall times, matching the entity's LocalDateTime mapping.
+    private static void onOrAfterStayDay(StringBuilder sql, Map<String, LocalDateTime> bounds,
+                                        String column, LocalDate date) {
+        if (date == null) return;
+        sql.append(" AND current_stay.").append(column).append(" >= CAST(:stayLower AS DATETIME(6))");
+        bounds.put("stayLower", date.atStartOfDay());
+    }
+
+    private static void onOrBeforeStayDay(StringBuilder sql, Map<String, LocalDateTime> bounds,
+                                         String column, LocalDate date) {
+        if (date == null) return;
+        sql.append(" AND current_stay.").append(column);
+        if (LocalDate.MAX.equals(date)) {
+            sql.append(" <= CAST(:stayUpper AS DATETIME(6))");
+            bounds.put("stayUpper", date.atTime(LocalTime.MAX));
+        } else {
+            sql.append(" < CAST(:stayUpper AS DATETIME(6))");
+            bounds.put("stayUpper", date.plusDays(1).atStartOfDay());
+        }
+    }
+
     private void bindParameters(
             Query query,
-            SensitiveEconomicActivityFilter filter) {
-        if (filter.stayFrom() != null) query.setParameter("stayFrom", filter.stayFrom());
-        if (filter.stayTo() != null) query.setParameter("stayTo", filter.stayTo());
+            SensitiveEconomicActivityFilter filter,
+            Map<String, LocalDateTime> stayBounds) {
+        // Untyped native parameters can still use the driver's timestamp conversion.
+        stayBounds.forEach((name, bound) -> query.setParameter(name, DATABASE_DATETIME.format(bound)));
         if (filter.actorId() != null) {
             query.setParameter("actorId", uuidBytes(filter.actorId()));
         }
         if (filter.occurredFrom() != null) {
             query.setParameter(
-                    "occurredFrom", Timestamp.from(filter.occurredFrom()));
+                    "occurredFrom", utcBound(filter.occurredFrom()));
         }
         if (filter.occurredTo() != null) {
             query.setParameter(
-                    "occurredTo", Timestamp.from(filter.occurredTo()));
+                    "occurredTo", utcBound(filter.occurredTo()));
         }
         if (filter.eventType() != null) {
             query.setParameter("eventType", filter.eventType().name());
@@ -483,27 +528,21 @@ public class SensitiveEconomicActivityReadRepository {
         return value == null ? null : ((Number) value).longValue();
     }
 
+    private static String utcBound(Instant instant) {
+        // Both >= and < keep their meaning when a bound falls between stored microseconds.
+        Instant microsecond = instant.truncatedTo(ChronoUnit.MICROS);
+        if (!instant.equals(microsecond)) {
+            microsecond = microsecond.plus(1, ChronoUnit.MICROS);
+        }
+        return DATABASE_DATETIME.format(LocalDateTime.ofInstant(microsecond, ZoneOffset.UTC));
+    }
+
     private Instant instant(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Instant instant) {
-            return instant;
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime.atZone(ZoneId.systemDefault()).toInstant();
-        }
-        return ((Timestamp) value).toInstant();
+        return value == null ? null : localDateTime(value).toInstant(ZoneOffset.UTC);
     }
 
     private LocalDateTime localDateTime(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof LocalDateTime localDateTime) {
-            return localDateTime;
-        }
-        return ((Timestamp) value).toLocalDateTime();
+        return value == null ? null : LocalDateTime.parse(string(value).trim().replace(' ', 'T'));
     }
 
     private LocalDate localDate(Object value) {

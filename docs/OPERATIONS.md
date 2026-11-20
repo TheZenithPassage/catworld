@@ -68,7 +68,8 @@ and Access settings before mutation. The [production template](../.env.productio
 lists the required keys. Provision unique database and bootstrap credentials,
 `BUSINESS_TIME_ZONE=America/Argentina/Buenos_Aires`, the frontend loopback port,
 and `CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS=https://admin.catworld.com.ar` in
-`/opt/catworld/.env.production`. Use the host's existing private file when
+`/opt/catworld/.env.production`. Compose supplies the same IANA business zone to
+both application services. Use the host's existing private file when
 updating; never replace it with the public template. Populate `BACKEND_IMAGE`
 and `FRONTEND_IMAGE` with the verified record's exact digest references for
 ordinary later Compose operations.

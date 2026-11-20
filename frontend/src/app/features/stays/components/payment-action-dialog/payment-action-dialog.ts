@@ -127,6 +127,8 @@ export class PaymentActionDialog {
     if (error.status === 400) return copy.validation;
     if (error.status === 409) {
       const value = this.backendMessage(error.error).toLowerCase();
+      if (value.includes('payment total exceeds the supported monetary amount'))
+        return copy.totalLimit;
       if (value.includes('exceed')) return copy.overpayment;
       if (value.includes('below') || value.includes('active payment')) return copy.activeFloor;
       return copy.conflict;

@@ -78,7 +78,7 @@ export type SensitiveEconomicActivityEvent =
   | (StayScopedEventBase & {
       eventType: 'AGREED_AMOUNT_CORRECTED';
       previousAgreedAmount: string | null;
-      newAgreedAmount: string;
+      newAgreedAmount: string | null;
       reason: string;
     })
   | (StayScopedEventBase &
@@ -188,7 +188,7 @@ function parseEvent(value: unknown): SensitiveEconomicActivityEvent {
         affectedContext: context(item['affectedContext']),
         eventType,
         previousAgreedAmount: money(item['previousAgreedAmount'], true),
-        newAgreedAmount: money(item['newAgreedAmount']),
+        newAgreedAmount: money(item['newAgreedAmount'], true),
         reason: text(item['reason']),
       };
     case 'PAYMENT_EDITED':

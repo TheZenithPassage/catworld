@@ -33,6 +33,7 @@ export interface StayCreationDraft {
   endAt: string;
   notes: string;
   agreedAmount: string;
+  pricePending?: boolean;
   pricingReason: string;
   transferAssistanceActive?: boolean;
   arrivalTransferRequired?: boolean;

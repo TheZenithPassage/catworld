@@ -25,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
@@ -93,6 +95,9 @@ class StayPaymentMySqlIntegrationTest {
     private StayRepository stayRepository;
 
     @Autowired
+    private StayAgreedAmountCorrectionRepository correctionRepository;
+
+    @Autowired
     private StayPaymentRepository stayPaymentRepository;
 
     @Autowired
@@ -112,6 +117,7 @@ class StayPaymentMySqlIntegrationTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbcTemplate.update("delete from stay_payment_removals");
         jdbcTemplate.update("delete from stay_payment_annulments");
         jdbcTemplate.update("delete from stay_payment_edits");
@@ -132,6 +138,28 @@ class StayPaymentMySqlIntegrationTest {
     }
 
     @Test
+    void mysqlSupportsPendingPricesWithExistingPayments() {
+        Fixture fixture = createFixture(new BigDecimal("100"));
+        UUID stayId = fixture.stay().getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(stayId, registration(new BigDecimal("30")));
+
+        var pending = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Original price was provisional").build());
+
+        assertTrue(pending.isPricePending());
+        assertNull(pending.getRemainingAmount());
+        assertEquals(new BigDecimal("30"), pending.getTotalPaid());
+        var corrections = correctionRepository.findAllByStayId(stayId);
+        assertEquals(1, corrections.size());
+        assertNull(corrections.getFirst().getNewAgreedAmount());
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(new BigDecimal("80")).reason("Price confirmed").build());
+        assertFalse(confirmed.isPricePending());
+        assertEquals(new BigDecimal("50"), confirmed.getRemainingAmount());
+    }
+
+    @Test
     void fullFlywaySchemaPreservesExactValuesAndRollsBackFailedAudit() {
         assertEquals(
                 List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
@@ -139,8 +167,9 @@ class StayPaymentMySqlIntegrationTest {
                         """
                         select version
                         from flyway_schema_history
-                        where success = 1 and version is not null
+                        where success = 1 and cast(version as unsigned) <= 10
                         order by installed_rank
+                        limit 10
                         """,
                         String.class
                 )

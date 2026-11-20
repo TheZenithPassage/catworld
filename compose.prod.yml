@@ -21,6 +21,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      BUSINESS_TIME_ZONE: ${BUSINESS_TIME_ZONE:-America/Argentina/Buenos_Aires}
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:?DB_NAME is required}

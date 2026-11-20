@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
@@ -24,6 +25,7 @@ export class StayPricingPage {
   private readonly dialog = inject(MatDialog);
   private readonly authSession = inject(AuthSessionService);
   private readonly i18n = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly stayId = this.route.snapshot.paramMap.get('id');
   private readonly origin = this.captureOrigin();
   readonly text = this.i18n.text;
@@ -66,7 +68,7 @@ export class StayPricingPage {
     const stay = this.stay();
     if (
       !stay ||
-      stay.agreedAmount === null ||
+      (stay.agreedAmount === null && !stay.pricePending) ||
       !this.isAdmin() ||
       this.correctionOpen() ||
       this.paymentMutationLocked()
@@ -82,9 +84,10 @@ export class StayPricingPage {
         restoreFocus: false,
       })
       .afterClosed()
-      .subscribe((updated: Stay | undefined) => {
+      .subscribe((updated: Stay | 'reload' | undefined) => {
         this.correctionOpen.set(false);
-        if (updated) this.onStayChanged(updated);
+        if (updated === 'reload') this.load();
+        else if (updated) this.onStayChanged(updated);
         setTimeout(() => {
           const currentTrigger = document.querySelector<HTMLElement>(
             '[data-pricing-action="correct-agreement"]',
@@ -97,13 +100,10 @@ export class StayPricingPage {
     void (this.origin ? this.router.navigateByUrl(this.origin) : this.router.navigate(['/stays']));
   }
   formatDate(value: string): string {
-    return new Intl.DateTimeFormat(this.dateLocale(), {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    return this.businessTime.formatLocalDateTime(value, this.dateLocale(), 'short');
   }
   status(stay: Stay): string {
-    return this.text().stays.status[getStayStatus(stay)];
+    return this.text().stays.status[getStayStatus(stay, this.businessTime.currentLocalDateTime())];
   }
   catNames(stay: Stay): string {
     return stay.cats.map((cat) => cat.name).join(', ') || this.text().stays.emptyValue;

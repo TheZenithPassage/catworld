@@ -3,6 +3,10 @@ package com.allegaeon.catworld.repository;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayPayment;
@@ -24,6 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,6 +37,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -69,6 +76,9 @@ class StayPaymentPersistenceTest {
     private StayRepository stayRepository;
 
     @Autowired
+    private StayAgreedAmountCorrectionRepository correctionRepository;
+
+    @Autowired
     private StayPaymentRepository stayPaymentRepository;
 
     @Autowired
@@ -91,6 +101,7 @@ class StayPaymentPersistenceTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbcTemplate.update("delete from stay_payment_annulments");
         jdbcTemplate.update("delete from stay_payment_edits");
         jdbcTemplate.update("delete from stay_payments");
@@ -105,6 +116,110 @@ class StayPaymentPersistenceTest {
         jdbcTemplate.update("update nightly_reference_rates set nightly_rate = null");
         jdbcTemplate.update("delete from user_accounts");
         when(clock.instant()).thenReturn(MUTATED_AT);
+    }
+
+    @Test
+    void pendingPriceKeepsPaymentsAndAuditsBothAgreementTransitions() {
+        Fixture fixture = createFixture(new BigDecimal("100"));
+        UUID stayId = fixture.stay().getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+
+        stayService.registerPayment(stayId, registration(new BigDecimal("40"), "Deposit"));
+        var pending = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Placeholder was never agreed").build());
+
+        assertTrue(pending.isPricePending());
+        assertNull(pending.getAgreedAmount());
+        assertNull(pending.getRemainingAmount());
+        assertEquals(new BigDecimal("40"), pending.getTotalPaid());
+        var additional = stayService.registerPayment(stayId, registration(new BigDecimal("20"), "Second deposit"));
+        assertEquals(new BigDecimal("60"), additional.getTotalPaid());
+        assertThrows(ConflictException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("59")).reason("Too low").build()));
+
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(new BigDecimal("90")).reason("Price confirmed").build());
+        assertFalse(confirmed.isPricePending());
+        assertEquals(new BigDecimal("30"), confirmed.getRemainingAmount());
+        assertEquals(2, payments(stayId).size());
+        var corrections = correctionRepository.findAllByStayId(stayId);
+        assertEquals(2, corrections.size());
+        assertTrue(corrections.stream().anyMatch(event -> new BigDecimal("100").equals(event.getPreviousAgreedAmount())
+                && event.getNewAgreedAmount() == null));
+        assertTrue(corrections.stream().anyMatch(event -> event.getPreviousAgreedAmount() == null
+                && new BigDecimal("90").equals(event.getNewAgreedAmount())));
+    }
+
+    @Test
+    void firstPendingPriceCanAcceptTheSuggestionWithoutATypedReason() {
+        Fixture fixture = createFixture(null);
+        Stay stay = fixture.stay();
+        stay.setPricePending(true);
+        stay.setArrivalTransferRequired(true);
+        stay.setRetainedTransferRate(new BigDecimal("20"));
+        stayRepository.saveAndFlush(stay);
+        UUID stayId = stay.getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(stayId, registration(new BigDecimal("40"), "Deposit"));
+
+        var preview = stayService.previewPendingPrice(stayId);
+        assertEquals(2, preview.numberOfNights());
+        assertEquals(new BigDecimal("100"), preview.accommodationSuggestedAmount());
+        assertEquals(new BigDecimal("20"), preview.transferSuggestedAmount());
+        assertEquals(new BigDecimal("120"), preview.suggestedAmount());
+        assertFalse(preview.previouslyAgreed());
+        assertThrows(BadRequestException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("119")).build()));
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(new BigDecimal("120")).expectedPendingPriceVersion(preview.version()).build());
+        assertEquals(new BigDecimal("80"), confirmed.getRemainingAmount());
+        var confirmation = correctionRepository.findAllByStayId(stayId).getFirst();
+        assertEquals("Initial price confirmed", confirmation.getReason());
+        assertEquals(MUTATED_AT, confirmation.getDecidedAt());
+        assertEquals(fixture.actor().getId(), confirmation.getDecidedBy().getId());
+
+        var paid = stayService.registerPayment(stayId, registration(new BigDecimal("80"), "Final instalment"));
+        assertEquals(BigDecimal.ZERO, paid.getRemainingAmount());
+        assertEquals(BigDecimal.ZERO, stayService.getStay(stayId).getRemainingAmount());
+
+        stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Reopened agreement").build());
+        assertTrue(stayService.previewPendingPrice(stayId).previouslyAgreed());
+        assertThrows(BadRequestException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("120")).build()));
+    }
+
+    @Test
+    void firstPendingPriceWithMissingTransferRateCanConfirmZeroAfterRefreshingAStalePreview() {
+        Fixture fixture = createFixture(null);
+        Stay stay = fixture.stay();
+        stay.setPricePending(true);
+        stay.setDepartureTransferRequired(true);
+        stayRepository.saveAndFlush(stay);
+        UUID stayId = stay.getId();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+
+        var preview = stayService.previewPendingPrice(stayId);
+        assertNull(preview.transferSuggestedAmount());
+        assertNull(preview.suggestedAmount());
+        Stay currentStay = stayRepository.findById(stayId).orElseThrow();
+        currentStay.setEndAt(currentStay.getEndAt().plusDays(1));
+        stayRepository.saveAndFlush(currentStay);
+        var newPreview = stayService.previewPendingPrice(stayId);
+        assertEquals(3, newPreview.numberOfNights());
+        assertThrows(StalePricingConfirmationException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder()
+                        .agreedAmount(BigDecimal.ZERO).expectedPendingPriceVersion(preview.version()).build()));
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(BigDecimal.ZERO).expectedPendingPriceVersion(newPreview.version()).build());
+        assertFalse(confirmed.isPricePending());
+        assertEquals(BigDecimal.ZERO, confirmed.getAgreedAmount());
+
+        stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .pricePending(true).reason("Reopened zero agreement").build());
+        assertTrue(stayService.previewPendingPrice(stayId).previouslyAgreed());
+        assertThrows(BadRequestException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(BigDecimal.ZERO).build()));
     }
 
     @Test

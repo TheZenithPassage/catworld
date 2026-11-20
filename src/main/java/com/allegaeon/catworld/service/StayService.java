@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
 import java.time.LocalDate;
+import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.CreationPricingConfirmationDTO;
 import com.allegaeon.catworld.dto.ExistingStayPricingConfirmationDTO;
@@ -55,7 +56,6 @@ import com.allegaeon.catworld.repository.StayRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.StayOverviewReadRepository;
 import com.allegaeon.catworld.dto.StayDateFilter;
-import com.allegaeon.catworld.dto.PaymentCondition;
 import com.allegaeon.catworld.dto.lookup.CurrentCatLookupItem;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.dto.relationship.CatRelationshipItem;
@@ -145,30 +145,24 @@ public class StayService implements IStayService {
     @Override
     @Transactional(readOnly = true)
     public OverviewPage<StayOverviewItem> getStayOverview(int page, Set<com.allegaeon.catworld.model.StayStatus> statuses,
-            UUID ownerId, UUID catId, Set<PaymentCondition> paymentConditions, Boolean outstandingOnly, StayDateFilter dates) {
+            UUID ownerId, UUID catId, StayDateFilter dates) {
         if (page < 0) throw new BadRequestException("Page must not be negative");
         LocalDateTime now = LocalDateTime.now(clock);
         Page<Stay> stays = stayOverviewReadRepository.find(page, OverviewPage.PAGE_SIZE,
-                now, statuses, ownerId, catId, paymentConditions, outstandingOnly, dates);
+                now, statuses, ownerId, catId, dates);
         Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
         if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
                         .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName(), sc.getCat().isDeceased())));
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
-                stay.getStartAt(), stay.getEndAt(), statusAt(stay, now),
+                stay.getStartAt(), stay.getEndAt(), stay.statusAt(now),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),
                 List.copyOf(cats.getOrDefault(stay.getId(), List.of())),
                 stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired())).toList(), page, stays.getTotalElements());
     }
 
-    private com.allegaeon.catworld.model.StayStatus statusAt(Stay stay, LocalDateTime now) {
-        if (stay.getCancelledAt() != null) return com.allegaeon.catworld.model.StayStatus.CANCELLED;
-        if (now.isBefore(stay.getStartAt())) return com.allegaeon.catworld.model.StayStatus.RESERVED;
-        if (now.isBefore(stay.getEndAt())) return com.allegaeon.catworld.model.StayStatus.CHECKED_IN;
-        return com.allegaeon.catworld.model.StayStatus.CHECKED_OUT;
-    }
-
     @Override
+    @Transactional(readOnly = true)
     public List<StayResponseDTO> getAllStays(StayDateFilter dates) {
         List<Stay> stays = dates.active() ? stayOverviewReadRepository.findCollection(dates) : stayRepository.findAll();
         if (stays.isEmpty()) {
@@ -230,6 +224,7 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StayResponseDTO getStay(UUID stayId) {
         return toResponseDTO(getStayEntity(stayId));
     }
@@ -243,7 +238,7 @@ public class StayService implements IStayService {
         Owner owner = stay.getOwner();
         RelationshipPreview<CatRelationshipItem> preview =
                 RelationshipResponses.preview(cats, RelationshipResponses::cat);
-        return new StayDetailResponse(stay.getId(), stay.getStatus(),
+        return new StayDetailResponse(stay.getId(), stay.statusAt(LocalDateTime.now(clock)),
                 stay.getStartAt(), stay.getEndAt(),
                 ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
                         stay.getEndAt().toLocalDate()),
@@ -283,7 +278,7 @@ public class StayService implements IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
         Stay stay = getStayEntity(stayId);
-        validateStayCanBeModified(stay);
+        validateStayCanBeModified(stay, LocalDateTime.now(clock));
         boolean arrival = request.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : request.getArrivalTransferRequired();
         boolean departure = request.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : request.getDepartureTransferRequired();
         boolean waived = request.getTransferWaived() == null ? stay.isTransferWaived() : request.getTransferWaived();
@@ -345,29 +340,32 @@ public class StayService implements IStayService {
         validateCreationConfirmation(
                 stayRequestDTO.getConfirmation(), numberOfNights,
                 retainedNightlyRate, suggestedAmount, transfer);
-        BigDecimal agreedAmount = validatePricingDecision(
-                pricingDecision,
-                suggestedAmount
-        );
+        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
+        BigDecimal agreedAmount = pricePending
+                ? validatePendingPrice(pricingDecision)
+                : validatePricingDecision(pricingDecision, suggestedAmount);
 
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
         stay.setCreatedBy(currentUser);
         stay.setRetainedNightlyRate(retainedNightlyRate);
         stay.setAgreedAmount(agreedAmount);
+        stay.setPricePending(pricePending);
 
         Stay savedStay = stayRepository.save(stay);
-        stayPricingDecisionRepository.saveAndFlush(
-                buildPricingDecision(
-                        savedStay,
-                        null,
-                        numberOfNights,
-                        null,
-                        agreedAmount,
-                        pricingDecision.getReason(),
-                        currentUser
-                )
-        );
+        if (!pricePending) {
+            stayPricingDecisionRepository.saveAndFlush(
+                    buildPricingDecision(
+                            savedStay,
+                            null,
+                            numberOfNights,
+                            null,
+                            agreedAmount,
+                            pricingDecision.getReason(),
+                            currentUser
+                    )
+            );
+        }
 
         return toResponseDTO(savedStay);
 
@@ -379,7 +377,7 @@ public class StayService implements IStayService {
 
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay);
+        validateStayCanBeModified(stay, LocalDateTime.now(clock));
         long previousNumberOfNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(),
                 stay.getEndAt()
@@ -446,8 +444,7 @@ public class StayService implements IStayService {
             }
             selectedRetainedNightlyRate = validateDateChangeConfirmation(
                     stayUpdateDTO.getConfirmation(), previousNumberOfNights,
-                    previousAgreedAmount, newNumberOfNights,
-                    stay);
+                    newNumberOfNights, stay);
             int oldTransferLegs = (stay.isArrivalTransferRequired() ? 1 : 0)
                     + (stay.isDepartureTransferRequired() ? 1 : 0);
             int newTransferLegs = (requestedArrival ? 1 : 0) + (requestedDeparture ? 1 : 0);
@@ -483,12 +480,16 @@ public class StayService implements IStayService {
                     || !sameMoney(stayUpdateDTO.getConfirmation().getRetainedTransferRate(), selectedTransferRate))) {
                 throw new StalePricingConfirmationException();
             }
-            newAgreedAmount = validatePricingDecision(
-                    stayUpdateDTO.getPricingDecision(),
-                    selectedSuggestion
-            );
+            if (stay.isPricePending()) {
+                if (stayUpdateDTO.getPricingDecision() != null) {
+                    throw new BadRequestException("Confirm a pending price separately");
+                }
+            } else {
+                newAgreedAmount = validatePricingDecision(
+                        stayUpdateDTO.getPricingDecision(), selectedSuggestion);
+                validateAgreementFloor(stayId, newAgreedAmount);
+            }
             stay.setRetainedTransferRate(selectedTransferRate);
-            validateAgreementFloor(stayId, newAgreedAmount);
         }
 
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
@@ -523,7 +524,7 @@ public class StayService implements IStayService {
         }
 
         Stay savedStay = stayRepository.save(stay);
-        if (pricingAffecting) {
+        if (pricingAffecting && !stay.isPricePending()) {
             stayPricingDecisionRepository.saveAndFlush(
                     buildPricingDecision(
                             savedStay,
@@ -542,6 +543,19 @@ public class StayService implements IStayService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PendingPricePreviewDTO previewPendingPrice(UUID stayId) {
+        stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(
+                currentUserAccountService.getCurrentUserAccount()
+        );
+        Stay stay = getStayEntity(stayId);
+        if (!stay.isPricePending()) {
+            throw new StalePricingConfirmationException();
+        }
+        return pendingPricePreview(stay);
+    }
+
+    @Override
     @Transactional
     public StayResponseDTO correctAgreedAmount(
             UUID stayId,
@@ -551,29 +565,40 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPricingAuthorizationPolicy.authorizeAgreedAmountCorrection(currentUser);
 
-        if (stay.getAgreedAmount() == null) {
+        boolean pricePending = pricingDecision != null && pricingDecision.isPricePending();
+        String expectedVersion = pricingDecision == null ? null : pricingDecision.getExpectedPendingPriceVersion();
+        String requestedReason = pricingDecision == null ? null : pricingDecision.getReason();
+        PendingPricePreviewDTO pendingPreview = stay.isPricePending()
+                && (expectedVersion != null || requestedReason == null || requestedReason.isBlank())
+                ? pendingPricePreview(stay)
+                : null;
+        if (expectedVersion != null && (pendingPreview == null || pricePending
+                || !expectedVersion.equals(pendingPreview.version()))) {
+            throw new StalePricingConfirmationException();
+        }
+
+        if (stay.getAgreedAmount() == null && !stay.isPricePending()) {
             throw new ConflictException(
                     "The stay agreement must exist before it can be corrected"
             );
         }
 
-        BigDecimal newAgreedAmount = validateCorrectionAmount(pricingDecision);
+        BigDecimal newAgreedAmount = pricePending
+                ? validatePendingPrice(pricingDecision)
+                : validateCorrectionAmount(pricingDecision);
         BigDecimal previousAgreedAmount = stay.getAgreedAmount();
 
-        if (previousAgreedAmount != null
-                && previousAgreedAmount.compareTo(newAgreedAmount) == 0) {
+        if (sameMoney(previousAgreedAmount, newAgreedAmount)) {
             return toResponseDTO(stay);
         }
 
-        if (pricingDecision.getReason() == null
-                || pricingDecision.getReason().isBlank()) {
-            throw new BadRequestException(
-                    "A non-blank reason is required to correct the agreed amount"
-            );
+        String reason = agreedAmountDecisionReason(pendingPreview, newAgreedAmount, requestedReason);
+        if (!pricePending) {
+            validateAgreementFloor(stayId, newAgreedAmount);
         }
-        validateAgreementFloor(stayId, newAgreedAmount);
 
         stay.setAgreedAmount(newAgreedAmount);
+        stay.setPricePending(pricePending);
         Stay savedStay = stayRepository.save(stay);
         stayAgreedAmountCorrectionRepository.saveAndFlush(
                 StayAgreedAmountCorrection.builder()
@@ -584,7 +609,7 @@ public class StayService implements IStayService {
                         .newAgreedAmount(newAgreedAmount)
                         .decidedBy(currentUser)
                         .decidedAt(Instant.now(clock))
-                        .reason(pricingDecision.getReason())
+                        .reason(reason)
                         .sensitiveContext(
                                 sensitiveStayContextFactory.create(savedStay)
                         )
@@ -592,6 +617,46 @@ public class StayService implements IStayService {
         );
 
         return toResponseDTO(savedStay);
+    }
+
+    private String agreedAmountDecisionReason(PendingPricePreviewDTO preview, BigDecimal amount, String reason) {
+        if (reason != null && !reason.isBlank()) {
+            return reason;
+        }
+        if (preview != null && !preview.previouslyAgreed()
+                && (preview.suggestedAmount() == null || sameMoney(amount, preview.suggestedAmount()))) {
+            return "Initial price confirmed";
+        }
+        throw new BadRequestException("A non-blank reason is required to correct the agreed amount");
+    }
+
+    private PendingPricePreviewDTO pendingPricePreview(Stay stay) {
+        long nights = stayMapper.calculateNumberOfNights(stay.getStartAt(), stay.getEndAt());
+        BigDecimal accommodation = stayMapper.calculateSuggestedAmount(stay.getRetainedNightlyRate(), nights);
+        boolean transferRateMissing = !stay.isTransferWaived() && stay.getRetainedTransferRate() == null
+                && (stay.isArrivalTransferRequired() || stay.isDepartureTransferRequired());
+        BigDecimal transfer = transferRateMissing ? null : stayMapper.calculateTransferSuggestedAmount(stay);
+        BigDecimal total = accommodation == null || transfer == null ? null : accommodation.add(transfer);
+        boolean previouslyAgreed = stayAgreedAmountCorrectionRepository
+                .existsByStayIdAndPreviousAgreedAmountIsNotNull(stay.getId());
+        // Include the price inputs in case two edits share a persisted audit timestamp.
+        String version = "%s|%s|%s|%s|%s|%s|%b|%b|%b|%b".formatted(
+                stay.getId(), stay.getUpdatedAt(), stay.getStartAt(), stay.getEndAt(),
+                stay.getRetainedNightlyRate(), stay.getRetainedTransferRate(), stay.isArrivalTransferRequired(),
+                stay.isDepartureTransferRequired(), stay.isTransferWaived(), previouslyAgreed);
+        return new PendingPricePreviewDTO(
+                version,
+                previouslyAgreed,
+                nights,
+                stay.getRetainedNightlyRate(),
+                accommodation,
+                stay.isArrivalTransferRequired(),
+                stay.isDepartureTransferRequired(),
+                stay.isTransferWaived(),
+                stay.getRetainedTransferRate(),
+                transfer,
+                WholeMonetaryAmount.isSupported(total) ? total : null
+        );
     }
 
     @Override
@@ -603,7 +668,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
         BigDecimal amount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -613,11 +678,8 @@ public class StayService implements IStayService {
         }
         BigDecimal agreement = requirePaymentAgreement(stay);
         BigDecimal activeTotal = getActivePaymentTotal(stayId);
-        if (activeTotal.add(amount).compareTo(agreement) > 0) {
-            throw new ConflictException(
-                    "Payment amount exceeds the current remaining amount"
-            );
-        }
+        validatePaymentTotal(agreement, activeTotal.add(amount),
+                "Payment amount exceeds the current remaining amount");
 
         stayPaymentRepository.saveAndFlush(
                 StayPayment.builder()
@@ -641,9 +703,9 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
-        requirePaymentAgreement(stay);
+        BigDecimal agreement = requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
         BigDecimal newAmount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -659,15 +721,11 @@ public class StayService implements IStayService {
             );
         }
 
-        BigDecimal agreement = requirePaymentAgreement(stay);
         BigDecimal resultingTotal = getActivePaymentTotal(stayId)
                 .subtract(previousAmount)
                 .add(newAmount);
-        if (resultingTotal.compareTo(agreement) > 0) {
-            throw new ConflictException(
-                    "Edited payment amount would exceed the agreed amount"
-            );
-        }
+        validatePaymentTotal(agreement, resultingTotal,
+                "Edited payment amount would exceed the agreed amount");
 
         payment.changeAmount(newAmount);
         StayPayment savedPayment = stayPaymentRepository.saveAndFlush(payment);
@@ -704,7 +762,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.getStatus()
+                stay.statusAt(LocalDateTime.now(clock))
         );
         requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
@@ -793,9 +851,9 @@ public class StayService implements IStayService {
     public void cancelStay(UUID stayId) {
 
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay);
-
-        stay.setCancelledAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now(clock);
+        validateStayCanBeModified(stay, now);
+        stay.setCancelledAt(now);
 
     }
 
@@ -857,8 +915,10 @@ public class StayService implements IStayService {
         return false;
     }
 
-    private void validateStayCanBeModified(Stay stay) {
-        if(stay.getCancelledAt() != null || stay.getEndAt().isBefore(LocalDateTime.now())) throw new ConflictException("Closed stays cannot be modified");
+    private void validateStayCanBeModified(Stay stay, LocalDateTime now) {
+        if (stay.getCancelledAt() != null || !now.isBefore(stay.getEndAt())) {
+            throw new ConflictException("Closed stays cannot be modified");
+        }
     }
 
     private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {
@@ -1000,6 +1060,7 @@ public class StayService implements IStayService {
                 ? ExistingStayPricingConfirmationDTO.builder()
                         .previousNumberOfNights(previousNights)
                         .previousAgreedAmount(stay.getAgreedAmount())
+                        .previousPricePending(stay.isPricePending())
                         .numberOfNights(nights)
                         .retainedNightlyRate(retainedNightlyRate)
                         .suggestedAmount(suggestion)
@@ -1010,6 +1071,7 @@ public class StayService implements IStayService {
                 .pricingDecisionRequired(pricingDecisionRequired)
                 .currentNumberOfNights(previousNights)
                 .currentAgreedAmount(stay.getAgreedAmount())
+                .currentPricePending(stay.isPricePending())
                 .numberOfNights(nights)
                 .currentApplicableNightlyRate(currentApplicableNightlyRate)
                 .retainedNightlyRate(retainedNightlyRate)
@@ -1040,15 +1102,16 @@ public class StayService implements IStayService {
 
     private BigDecimal validateDateChangeConfirmation(
             ExistingStayPricingConfirmationDTO confirmation,
-            long previousNights, BigDecimal previousAgreement,
-            long proposedNights, Stay stay) {
+            long previousNights, long proposedNights, Stay stay) {
         if (confirmation == null
                 || confirmation.getPreviousNumberOfNights() == null
                 || confirmation.getNumberOfNights() == null) {
             throw new BadRequestException("Pricing confirmation is required");
         }
+        Boolean previousPricePending = confirmation.getPreviousPricePending();
         if (confirmation.getPreviousNumberOfNights() != previousNights
-                || !sameMoney(confirmation.getPreviousAgreedAmount(), previousAgreement)
+                || !sameMoney(confirmation.getPreviousAgreedAmount(), stay.getAgreedAmount())
+                || (previousPricePending != null && previousPricePending != stay.isPricePending())
                 || confirmation.getNumberOfNights() != proposedNights) {
             throw new StalePricingConfirmationException();
         }
@@ -1085,6 +1148,13 @@ public class StayService implements IStayService {
                 : authoritative != null && clientValue.compareTo(authoritative) == 0;
     }
 
+    private BigDecimal validatePendingPrice(PricingDecisionRequestDTO pricingDecision) {
+        if (pricingDecision.getAgreedAmount() != null) {
+            throw new BadRequestException("Choose either an agreed amount or a pending price");
+        }
+        return null;
+    }
+
     private BigDecimal validatePricingDecision(
             PricingDecisionRequestDTO pricingDecision,
             BigDecimal suggestedAmount) {
@@ -1093,7 +1163,7 @@ public class StayService implements IStayService {
         }
 
         BigDecimal agreedAmount = pricingDecision.getAgreedAmount();
-        if (agreedAmount == null
+        if (pricingDecision.isPricePending() || agreedAmount == null
                 || agreedAmount.signum() < 0
                 || !WholeMonetaryAmount.isSupported(agreedAmount)) {
             throw new BadRequestException(
@@ -1146,12 +1216,24 @@ public class StayService implements IStayService {
     }
 
     private BigDecimal requirePaymentAgreement(Stay stay) {
+        if (stay.isPricePending()) {
+            return null;
+        }
         if (stay.getAgreedAmount() == null) {
             throw new ConflictException(
                     "The stay agreement must be initialized before changing payments"
             );
         }
         return WholeMonetaryAmount.canonicalize(stay.getAgreedAmount());
+    }
+
+    private void validatePaymentTotal(BigDecimal agreement, BigDecimal total, String error) {
+        if (agreement != null && total.compareTo(agreement) > 0) {
+            throw new ConflictException(error);
+        }
+        if (!WholeMonetaryAmount.isSupported(total)) {
+            throw new ConflictException("Payment total exceeds the supported monetary amount");
+        }
     }
 
     private BigDecimal getActivePaymentTotal(UUID stayId) {
@@ -1362,14 +1444,12 @@ public class StayService implements IStayService {
         StayPaymentEconomics economics = StayPaymentEconomics.calculate(
                 stay.getAgreedAmount(),
                 payments,
-                stay.getCancelledAt() != null
+                stay.getCancelledAt() != null,
+                stay.isPricePending()
         );
         response.setTotalPaid(economics.totalPaid());
         response.setRemainingAmount(economics.remainingAmount());
         response.setPaymentCondition(economics.paymentCondition());
-        response.setOutstandingCollectionEligible(
-                economics.outstandingCollectionEligible()
-        );
         response.setPayments(
                 payments.stream()
                         .map(payment -> stayMapper.toPaymentResponseDTO(

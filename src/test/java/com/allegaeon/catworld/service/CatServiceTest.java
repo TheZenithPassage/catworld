@@ -29,6 +29,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -36,7 +37,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -92,6 +95,10 @@ class CatServiceTest {
     @Mock
     private CatMutationTransactionService mutationTransactionService;
 
+    @Spy
+    private Clock clock = Clock.fixed(Instant.parse("2026-09-01T01:30:00Z"),
+            ZoneId.of("America/Argentina/Buenos_Aires"));
+
     @InjectMocks
     private CatService service;
 
@@ -133,8 +140,8 @@ class CatServiceTest {
         assertEquals(List.of(), empty.stays().items());
 
         var stay = com.allegaeon.catworld.model.Stay.builder().id(UUID.randomUUID())
-                .startAt(LocalDateTime.now().minusDays(2)).endAt(LocalDateTime.now().minusDays(1))
-                .cancelledAt(LocalDateTime.now().minusDays(1)).build();
+                .startAt(LocalDateTime.now(clock).minusDays(2)).endAt(LocalDateTime.now(clock).minusDays(1))
+                .cancelledAt(LocalDateTime.now(clock).minusDays(1)).build();
         when(stayCatRepository.findStaysByCatId(eq(id), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(stay)));
         assertEquals(com.allegaeon.catworld.model.StayStatus.CANCELLED,

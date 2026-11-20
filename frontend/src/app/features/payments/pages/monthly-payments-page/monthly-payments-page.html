@@ -1,0 +1,218 @@
+<section class="monthly-payments">
+  <header class="page-header">
+    <h2>{{ text().title }}</h2>
+    <p>{{ view() === 'received' ? text().receivedDescription : text().outstandingDescription }}</p>
+  </header>
+
+  <div class="payments-panel payment-filters">
+    <mat-button-toggle-group
+      [value]="view()"
+      (change)="selectView($event.value)"
+      [attr.aria-label]="text().views"
+    >
+      <mat-button-toggle value="received">{{ text().received }}</mat-button-toggle>
+      <mat-button-toggle value="outstanding">{{ text().outstanding }}</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    <mat-button-toggle-group
+      [value]="scope()"
+      (change)="selectScope($event.value)"
+      [attr.aria-label]="text().period"
+    >
+      <mat-button-toggle value="month">{{ text().byMonth }}</mat-button-toggle>
+      <mat-button-toggle value="all">{{ text().allHistory }}</mat-button-toggle>
+    </mat-button-toggle-group>
+
+    @if (scope() === 'month') {
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ text().month }}</mat-label>
+        <input
+          matInput
+          type="month"
+          [value]="month()"
+          #monthInput
+          (change)="selectMonth(monthInput.value, monthInput)"
+        />
+      </mat-form-field>
+    }
+    <div class="entity-filters">
+      <app-remote-entity-selector
+        #ownerSelector
+        [adapter]="ownerAdapter"
+        [label]="text().owner"
+        (stateChange)="selectEntity('ownerId', $event)"
+      />
+      <app-remote-entity-selector
+        #catSelector
+        [adapter]="catAdapter"
+        [label]="text().cat"
+        (stateChange)="selectEntity('catId', $event)"
+      />
+    </div>
+    @if ((ownerId() && ownerSelector.error()) || (catId() && catSelector.error())) {
+      <button mat-button type="button" (click)="clearEntity()">{{ text().clearFilter }}</button>
+    }
+  </div>
+
+  <div class="payments-panel payment-results">
+    @let result = state();
+    @if (result.status === 'loading') {
+      <app-ui-state kind="loading" [message]="text().loading" />
+    } @else if (result.status === 'error') {
+      <app-ui-state
+        kind="error"
+        [message]="text().error"
+        [actionLabel]="text().retry"
+        (actionTriggered)="retry()"
+      />
+    } @else if (result.view === 'received') {
+      <p class="monthly-total">
+        <span>{{ text().receivedTotal }}</span>
+        <strong>{{ amount(result.data.totalAmount) }}</strong>
+      </p>
+      @if (!result.data.payments.items.length) {
+        <app-ui-state kind="empty" [message]="text().emptyReceived" />
+      } @else {
+        <div
+          class="table-scroll"
+          role="region"
+          [attr.aria-label]="text().receivedTotal"
+          tabindex="0"
+        >
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{{ text().paymentDate }}</th>
+                <th scope="col">{{ text().owner }}</th>
+                <th scope="col">{{ text().cats }}</th>
+                <th scope="col" class="money">{{ text().amount }}</th>
+                <th scope="col">{{ text().concept }}</th>
+                <th scope="col">{{ text().stay }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (payment of result.data.payments.items; track payment.id) {
+                <tr>
+                  <td>{{ date(payment.paymentDate) }}</td>
+                  <td>{{ payment.ownerName }}</td>
+                  <td>{{ payment.cats.join(', ') || '—' }}</td>
+                  <td class="money">{{ amount(payment.amount) }}</td>
+                  <td class="notes">{{ payment.note || '—' }}</td>
+                  <td>
+                    <a
+                      mat-button
+                      [routerLink]="['/stays', payment.stayId, 'pricing']"
+                      [state]="result.pricingState"
+                    >
+                      {{ text().openStay }}
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (result.data.payments.totalElements > result.data.payments.pageSize) {
+          <mat-paginator
+            [length]="result.data.payments.totalElements"
+            [pageIndex]="result.data.payments.page"
+            [pageSize]="result.data.payments.pageSize"
+            [hidePageSize]="true"
+            (page)="selectPage($event)"
+            [attr.aria-label]="text().receivedTotal"
+          />
+        }
+      }
+    } @else {
+      <p class="monthly-total">
+        <span>{{ text().outstandingTotal }}</span>
+        <strong>{{ amount(result.data.knownTotal) }}</strong>
+        @if (result.data.pendingPriceCount > 0 || pricePendingOnly()) {
+          <button
+            mat-stroked-button
+            type="button"
+            [attr.aria-pressed]="pricePendingOnly()"
+            (click)="togglePricePendingOnly()"
+          >
+            {{ text().pendingPriceCount(result.data.pendingPriceCount) }}
+            @if (pricePendingOnly()) {
+              · {{ text().clearFilter }}
+            }
+          </button>
+        }
+      </p>
+      @if (!result.data.stays.items.length) {
+        <app-ui-state
+          kind="empty"
+          [message]="
+            pricePendingOnly()
+              ? text().emptyPendingPrice
+              : scope() === 'all'
+                ? text().emptyAllOutstanding
+                : text().emptyOutstanding
+          "
+        />
+      } @else {
+        <div class="table-scroll" role="region" [attr.aria-label]="text().outstanding" tabindex="0">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{{ text().arrival }}</th>
+                <th scope="col">{{ text().owner }}</th>
+                <th scope="col">{{ text().cats }}</th>
+                <th scope="col" class="money">{{ text().agreedAmount }}</th>
+                <th scope="col" class="money">{{ text().paidAmount }}</th>
+                <th scope="col" class="money">{{ text().balance }}</th>
+                <th scope="col">{{ text().stayNotes }}</th>
+                <th scope="col">{{ text().stay }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (stay of result.data.stays.items; track stay.stayId) {
+                <tr [class.stay-started]="stay.started">
+                  <td>
+                    {{ arrival(stay.arrival) }}
+                    @if (stay.started) {
+                      <span class="started-label">{{ text().started }}</span>
+                    }
+                  </td>
+                  <td>{{ stay.ownerName }}</td>
+                  <td>{{ stay.cats.join(', ') || '—' }}</td>
+                  <td class="money">
+                    {{
+                      stay.agreedAmount === null ? text().pendingPrice : amount(stay.agreedAmount)
+                    }}
+                  </td>
+                  <td class="money">{{ amount(stay.paidAmount) }}</td>
+                  <td class="money">
+                    {{ stay.remainingAmount === null ? '—' : amount(stay.remainingAmount) }}
+                  </td>
+                  <td class="notes">{{ stay.notes || '—' }}</td>
+                  <td>
+                    <a
+                      mat-button
+                      [routerLink]="['/stays', stay.stayId, 'pricing']"
+                      [state]="result.pricingState"
+                    >
+                      {{ text().openStay }}
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (result.data.stays.totalElements > result.data.stays.pageSize) {
+          <mat-paginator
+            [length]="result.data.stays.totalElements"
+            [pageIndex]="result.data.stays.page"
+            [pageSize]="result.data.stays.pageSize"
+            [hidePageSize]="true"
+            (page)="selectPage($event)"
+            [attr.aria-label]="text().outstanding"
+          />
+        }
+      }
+    }
+  </div>
+</section>

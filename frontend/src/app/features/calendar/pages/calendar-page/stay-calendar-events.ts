@@ -52,6 +52,7 @@ const EMPTY_TRANSFER_INDICATOR_LABELS: StayCalendarTransferIndicatorLabels = {
 
 interface ToStayCalendarEventsParams {
   visibleStays: Stay[];
+  businessNow: string;
   dailyAggregates?: CalendarDailyAggregate[];
   colorAssignments: Map<string, StayCalendarColor>;
   displayMode: CalendarDisplayMode;
@@ -62,6 +63,7 @@ interface ToStayCalendarEventsParams {
 
 export function toStayCalendarEvents({
   visibleStays,
+  businessNow,
   dailyAggregates = [],
   colorAssignments,
   displayMode,
@@ -79,12 +81,22 @@ export function toStayCalendarEvents({
 
   if (displayMode === 'daily-labels') {
     return visibleStays.flatMap((stay) =>
-      toDailyCalendarEvents(stay, colorAssignments.get(stay.stayId), transferIndicatorLabels),
+      toDailyCalendarEvents(
+        stay,
+        getStayStatus(stay, businessNow),
+        colorAssignments.get(stay.stayId),
+        transferIndicatorLabels,
+      ),
     );
   }
 
   return visibleStays.flatMap((stay) =>
-    toCompactCalendarEvents(stay, compactMarkerLabels, transferIndicatorLabels),
+    toCompactCalendarEvents(
+      stay,
+      getStayStatus(stay, businessNow),
+      compactMarkerLabels,
+      transferIndicatorLabels,
+    ),
   );
 }
 
@@ -152,46 +164,25 @@ export function compareStayCalendarEvents(firstEvent: unknown, secondEvent: unkn
   return getEventTitleProp(firstEvent).localeCompare(getEventTitleProp(secondEvent));
 }
 
-function toCalendarEvent(stay: Stay, color?: StayCalendarColor): EventInput {
-  const status = getStayStatus(stay);
-  const eventColor = getEventColor(status, color);
-
-  return {
-    id: stay.stayId,
-    title: getEventTitle(stay),
-    start: stay.startAt,
-    end: stay.endAt,
-    allDay: false,
-    backgroundColor: eventColor.backgroundColor,
-    borderColor: eventColor.borderColor,
-    textColor: eventColor.textColor,
-    classNames: getStayEventClassNames(status),
-    extendedProps: {
-      stayId: stay.stayId,
-      status,
-      stayStartAt: stay.startAt,
-      stayCreatedAt: stay.createdAt,
-      stayDurationDays: getStayDurationDays(stay),
-    },
-  };
-}
-
 function toCompactCalendarEvents(
   stay: Stay,
+  status: StayStatus,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput[] {
   return [
     toCompactCalendarEvent(
       stay,
-      new Date(stay.startAt),
+      stay.startAt.slice(0, 10),
+      status,
       'start',
       compactMarkerLabels,
       transferIndicatorLabels,
     ),
     toCompactCalendarEvent(
       stay,
-      new Date(stay.endAt),
+      stay.endAt.slice(0, 10),
+      status,
       'end',
       compactMarkerLabels,
       transferIndicatorLabels,
@@ -201,14 +192,13 @@ function toCompactCalendarEvents(
 
 function toCompactCalendarEvent(
   stay: Stay,
-  date: Date,
+  dateValue: string,
+  status: StayStatus,
   markerKind: CompactMarkerKind,
   compactMarkerLabels: StayCalendarCompactMarkerLabels,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
-  const status = getStayStatus(stay);
   const eventColor = markerKind === 'start' ? ARRIVAL_MARKER_COLOR : DEPARTURE_MARKER_COLOR;
-  const dateValue = toDateValue(date);
 
   return {
     id: `${stay.stayId}-${markerKind}-${dateValue}`,
@@ -250,19 +240,25 @@ function toCompactCalendarEvent(
 
 function toDailyCalendarEvents(
   stay: Stay,
+  status: StayStatus,
   color: StayCalendarColor | undefined,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput[] {
-  const startDate = new Date(stay.startAt);
-  const endDate = new Date(stay.endAt);
+  const currentDate = new Date(stay.startAt.slice(0, 10));
+  const lastDate = new Date(stay.endAt.slice(0, 10));
   const events: EventInput[] = [];
 
-  const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-  const lastDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-
   while (currentDate <= lastDate) {
-    events.push(toCalendarEventForDate(stay, currentDate, color, transferIndicatorLabels));
-    currentDate.setDate(currentDate.getDate() + 1);
+    events.push(
+      toCalendarEventForDate(
+        stay,
+        currentDate.toISOString().slice(0, 10),
+        status,
+        color,
+        transferIndicatorLabels,
+      ),
+    );
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
   }
 
   return events;
@@ -270,15 +266,14 @@ function toDailyCalendarEvents(
 
 function toCalendarEventForDate(
   stay: Stay,
-  date: Date,
+  dateValue: string,
+  status: StayStatus,
   color: StayCalendarColor | undefined,
   transferIndicatorLabels: StayCalendarTransferIndicatorLabels,
 ): EventInput {
-  const status = getStayStatus(stay);
   const eventColor = getEventColor(status, color);
-  const dateValue = toDateValue(date);
-  const isArrivalBoundary = dateValue === toDateValue(new Date(stay.startAt));
-  const isDepartureBoundary = dateValue === toDateValue(new Date(stay.endAt));
+  const isArrivalBoundary = dateValue === stay.startAt.slice(0, 10);
+  const isDepartureBoundary = dateValue === stay.endAt.slice(0, 10);
 
   return {
     id: `${stay.stayId}-${dateValue}`,
@@ -406,24 +401,9 @@ function getEventColor(
 }
 
 function getStayDurationDays(stay: Stay): number {
-  const startDate = new Date(stay.startAt);
-  const endDate = new Date(stay.endAt);
-
-  const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-
-  const endDay = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-
-  return Math.floor((endDay.getTime() - startDay.getTime()) / millisecondsPerDay) + 1;
-}
-
-function toDateValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
+  const startDay = Date.parse(stay.startAt.slice(0, 10));
+  const endDay = Date.parse(stay.endAt.slice(0, 10));
+  return (endDay - startDay) / 86_400_000 + 1;
 }
 
 function compareEventStringProp(

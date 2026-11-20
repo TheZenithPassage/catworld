@@ -14,6 +14,7 @@ import {
   PaymentEditRequest,
   PaymentReasonRequest,
   PaymentRegistrationRequest,
+  PendingPricePreview,
   PricingDecision,
   Stay,
   StayOverviewItem,
@@ -39,8 +40,6 @@ export interface StayOverviewFilters extends StayDateFilters {
   statuses: StayOverviewStatus[];
   ownerId: string | null;
   catId: string | null;
-  paymentConditions: string[];
-  outstandingOnly: boolean;
 }
 
 @Injectable({
@@ -63,8 +62,6 @@ export class StayApiService {
         page,
         ...dateParams(filters),
         status: filters.statuses,
-        paymentCondition: filters.paymentConditions,
-        outstandingOnly: filters.outstandingOnly,
         ...(filters.ownerId ? { ownerId: filters.ownerId } : {}),
         ...(filters.catId ? { catId: filters.catId } : {}),
       },
@@ -102,6 +99,10 @@ export class StayApiService {
 
   updateStay(id: string, request: UpdateStayRequest): Observable<Stay> {
     return this.http.put<Stay>(`${this.baseUrl}/${id}`, request);
+  }
+
+  previewPendingPrice(id: string): Observable<PendingPricePreview> {
+    return this.http.get<PendingPricePreview>(`${this.baseUrl}/${id}/pending-price-preview`);
   }
 
   correctAgreedAmount(id: string, request: PricingDecision): Observable<Stay> {

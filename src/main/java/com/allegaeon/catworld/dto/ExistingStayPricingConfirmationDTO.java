@@ -16,6 +16,7 @@ public class ExistingStayPricingConfirmationDTO {
     private Long previousNumberOfNights;
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private BigDecimal previousAgreedAmount;
+    private Boolean previousPricePending;
     @NotNull(message = "numberOfNights is required")
     private Long numberOfNights;
     @JsonFormat(shape = JsonFormat.Shape.STRING)

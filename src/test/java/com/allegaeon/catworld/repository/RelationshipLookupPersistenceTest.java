@@ -87,7 +87,7 @@ class RelationshipLookupPersistenceTest {
         assertEquals(6, catFirst.getTotalElements());
         assertEquals(2, catFirst.getTotalPages());
         assertEquals(List.of(StayStatus.RESERVED, StayStatus.CHECKED_IN, StayStatus.CANCELLED, StayStatus.CHECKED_OUT),
-                saved.stream().limit(5).map(Stay::getStatus).distinct().toList());
+                saved.stream().limit(5).map(stay -> stay.statusAt(now)).distinct().toList());
     }
 
     @Test

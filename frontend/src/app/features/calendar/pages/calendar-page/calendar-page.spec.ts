@@ -36,7 +36,6 @@ describe('CalendarPage', () => {
     totalPaid: '0',
     remainingAmount: '100',
     paymentCondition: 'NO_PAYMENT',
-    outstandingCollectionEligible: true,
     payments: [],
   };
 
@@ -275,7 +274,10 @@ describe('CalendarPage', () => {
     expect(component.calendarOptions().initialDate).toBe('2099-04-01');
 
     component.calendarOptions().datesSet!({
-      view: { currentStart: new Date(2099, 6, 1), currentEnd: new Date(2099, 7, 1) },
+      view: {
+        currentStart: new Date(Date.UTC(2099, 6, 1)),
+        currentEnd: new Date(Date.UTC(2099, 7, 1)),
+      },
     } as never);
     fixture.detectChanges();
 
@@ -336,7 +338,10 @@ describe('CalendarPage', () => {
     expect(stickyHeader).not.toBeNull();
 
     component.calendarOptions().datesSet!({
-      view: { currentStart: new Date(2099, 6, 1), currentEnd: new Date(2099, 7, 1) },
+      view: {
+        currentStart: new Date(Date.UTC(2099, 6, 1)),
+        currentEnd: new Date(Date.UTC(2099, 7, 1)),
+      },
     } as never);
     fixture.detectChanges();
 
@@ -1086,7 +1091,10 @@ describe('CalendarPage', () => {
     component = fixture.componentInstance;
     expect(stayApiService.getStays).not.toHaveBeenCalled();
     component.setViewInterval({
-      view: { currentStart: new Date(2030, 0, 1), currentEnd: new Date(2030, 1, 1) },
+      view: {
+        currentStart: new Date(Date.UTC(2030, 0, 1)),
+        currentEnd: new Date(Date.UTC(2030, 1, 1)),
+      },
     } as never);
     expect(stayApiService.getStays).toHaveBeenLastCalledWith({
       dateFrom: '2030-01-01',
@@ -1101,7 +1109,10 @@ describe('CalendarPage', () => {
     });
     component.applyFilters();
     component.setViewInterval({
-      view: { currentStart: new Date(2030, 1, 1), currentEnd: new Date(2030, 1, 8) },
+      view: {
+        currentStart: new Date(Date.UTC(2030, 1, 1)),
+        currentEnd: new Date(Date.UTC(2030, 1, 8)),
+      },
     } as never);
     expect(stayApiService.getStays).toHaveBeenLastCalledWith({
       dateFrom: '2030-02-01',

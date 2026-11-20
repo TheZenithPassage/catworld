@@ -20,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -62,6 +63,8 @@ class SensitiveEconomicActivityPersistenceTest {
 
     @BeforeEach
     void resetData() {
+        when(clock.instant()).thenReturn(Instant.parse("2026-08-02T12:00:00Z"));
+        when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
         jdbc.update("delete from stay_payment_removals");
         jdbc.update("delete from stay_payment_annulments");
         jdbc.update("delete from stay_payment_edits");
@@ -83,7 +86,6 @@ class SensitiveEconomicActivityPersistenceTest {
         Fixture fixture = fixture();
         when(currentUserAccountService.getCurrentUserAccount())
                 .thenReturn(fixture.actor());
-        when(clock.instant()).thenReturn(Instant.parse("2026-08-02T12:00:00Z"));
         stayService.registerPayment(
                 fixture.stay().getId(),
                 PaymentRegistrationRequestDTO.builder()
@@ -156,7 +158,6 @@ class SensitiveEconomicActivityPersistenceTest {
                         .role(UserRole.ADMIN)
                         .enabled(true)
                         .build());
-        when(clock.instant()).thenReturn(Instant.parse("2026-08-02T12:00:00Z"));
         StayPayment payment = paymentRepository.saveAndFlush(
                 StayPayment.builder()
                         .stay(fixture.stay())
@@ -195,7 +196,7 @@ class SensitiveEconomicActivityPersistenceTest {
                 .owner(owner)
                 .createdBy(actor)
                 .build());
-        LocalDateTime start = LocalDateTime.now().plusDays(2)
+        LocalDateTime start = LocalDateTime.now(clock).plusDays(2)
                 .withSecond(0).withNano(0);
         Stay stay = Stay.builder()
                 .startAt(start)

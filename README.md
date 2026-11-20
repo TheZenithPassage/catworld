@@ -54,6 +54,15 @@ Backend:
 ./mvnw verify
 ```
 
+The optional native MySQL suite uses `CATWORLD_NATIVE_MYSQL_URL`,
+`CATWORLD_NATIVE_MYSQL_USERNAME` and `CATWORLD_NATIVE_MYSQL_PASSWORD` for a
+dedicated test database. Upgrade regression is a separate opt-in through
+`CATWORLD_MIGRATION_MYSQL_URL`, `CATWORLD_MIGRATION_MYSQL_USERNAME` and
+`CATWORLD_MIGRATION_MYSQL_PASSWORD`. Use a MySQL 8 server URL without a database
+and an account permitted to create, migrate and drop only databases matching
+`cw453_migration_<UUID>`. Run it with
+`./mvnw -Dtest=PendingPriceMigrationMySqlIntegrationTest test`.
+
 Frontend:
 
 ```bash

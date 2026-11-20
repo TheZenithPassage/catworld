@@ -16,6 +16,7 @@ import {
   StayCreationDraft,
 } from '../../../../core/creation-flow/creation-flow.models';
 import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
+import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
@@ -62,6 +63,7 @@ export class StayCreatePage implements AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
+  private readonly businessTime = inject(BusinessTimeService);
   private readonly authSessionService = inject(AuthSessionService);
   private readonly creationFlow = inject(CreationFlowService);
   private readonly dialog = inject(MatDialog);
@@ -79,6 +81,7 @@ export class StayCreatePage implements AfterViewInit {
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
   readonly notes = signal('');
   readonly agreedAmount = signal('');
+  readonly pricePending = signal(false);
   readonly pricingReason = signal('');
   readonly transferAssistanceActive = signal(false);
   readonly arrivalTransferRequired = signal(false);
@@ -143,6 +146,11 @@ export class StayCreatePage implements AfterViewInit {
     () =>
       isValidWholeMoney(this.agreedAmount()) &&
       (!this.reasonRequired() || this.pricingReason().trim().length > 0),
+  );
+  readonly canSubmitPricing = computed(
+    () =>
+      Boolean(this.pricingPreview()) &&
+      (this.pricePending() || (this.pricingConfirmed() && this.decisionValid())),
   );
   readonly amountValid = computed(() => isValidWholeMoney(this.agreedAmount()));
   readonly pricingReasonPlaceholder = computed(() => {
@@ -316,6 +324,11 @@ export class StayCreatePage implements AfterViewInit {
     this.pricingConfirmed.set(false);
   }
 
+  setPricePending(pending: boolean): void {
+    this.pricePending.set(pending);
+    this.onPricingDecisionChange();
+  }
+
   onAgreedAmountChange(value: string): void {
     this.agreedAmount.set(value);
     this.pricingReasonContext.set('manual');
@@ -377,13 +390,13 @@ export class StayCreatePage implements AfterViewInit {
       return;
     }
 
-    if (new Date(this.endAt()) <= new Date(this.startAt())) {
+    if (Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')) {
       this.error.set(this.text().stays.create.errors.endAfterStart);
       return;
     }
 
     const preview = this.pricingPreview();
-    if (this.previewLoading() || !preview || !this.pricingConfirmed() || !this.decisionValid()) {
+    if (this.previewLoading() || !preview || !this.canSubmitPricing()) {
       this.error.set(this.text().stays.pricing.errors.confirmationRequired);
       return;
     }
@@ -397,10 +410,12 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
       ...this.transferInputs(),
-      pricingDecision: {
-        agreedAmount: this.agreedAmount(),
-        reason: this.pricingReason().trim() || null,
-      },
+      pricingDecision: this.pricePending()
+        ? { pricePending: true }
+        : {
+            agreedAmount: this.agreedAmount(),
+            reason: this.pricingReason().trim() || null,
+          },
       confirmation: preview.confirmation,
     };
 
@@ -521,7 +536,7 @@ export class StayCreatePage implements AfterViewInit {
       this.selectedCatIds().length === 0 ||
       !this.startAt() ||
       !this.endAt() ||
-      new Date(this.endAt()) <= new Date(this.startAt())
+      Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')
     ) {
       this.pricingPreview.set(null);
       this.previewLoading.set(false);
@@ -601,6 +616,7 @@ export class StayCreatePage implements AfterViewInit {
       endAt: this.endAt(),
       notes: this.notes(),
       agreedAmount: this.agreedAmount(),
+      ...(this.pricePending() ? { pricePending: true } : {}),
       pricingReason: this.pricingReason(),
       transferAssistanceActive: this.transferAssistanceActive(),
       arrivalTransferRequired: this.arrivalTransferRequired(),
@@ -614,6 +630,7 @@ export class StayCreatePage implements AfterViewInit {
     this.endAt.set(draft.endAt);
     this.notes.set(draft.notes);
     this.agreedAmount.set(draft.agreedAmount);
+    this.pricePending.set(draft.pricePending === true);
     this.pricingReason.set(draft.pricingReason);
     this.transferAssistanceActive.set(
       draft.transferAssistanceActive ??
@@ -695,21 +712,9 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private getDefaultDateTimeLocalValue(daysToAdd: number): string {
-    const date = new Date();
-
-    date.setDate(date.getDate() + daysToAdd);
-    date.setHours(10, 0, 0, 0);
-
-    return this.toDateTimeLocalValue(date);
-  }
-
-  private toDateTimeLocalValue(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
+    const today = this.businessTime.currentLocalDateTime().slice(0, 10);
+    const date = new Date(today + 'T10:00:00Z');
+    date.setUTCDate(date.getUTCDate() + daysToAdd);
+    return date.toISOString().slice(0, 16);
   }
 }
