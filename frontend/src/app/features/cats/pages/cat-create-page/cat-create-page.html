@@ -35,20 +35,13 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.birthDate }}</mat-label>
-      <input
-        matInput
-        type="date"
-        name="birthDate"
-        required
-        [ngModel]="birthDate()"
-        (ngModelChange)="birthDate.set($event)"
-      />
-      @if (birthDateError(); as message) {
-        <mat-error>{{ message }}</mat-error>
-      }
-    </mat-form-field>
+    <app-cat-birth-field
+      [(birthDate)]="birthDate"
+      [(birthYear)]="birthYear"
+      [(yearOnly)]="yearOnly"
+      [(error)]="birthDateError"
+      [disabled]="submitting()"
+    />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.sex }}</mat-label>
@@ -105,46 +98,43 @@
       </a>
     </div>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.breed }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="breed"
-        [ngModel]="breed()"
-        (ngModelChange)="breed.set($event)"
-      />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.coat }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="coat"
-        [ngModel]="coat()"
-        (ngModelChange)="coat.set($event)"
-      />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.color }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="color"
-        [ngModel]="color()"
-        (ngModelChange)="color.set($event)"
-      />
-    </mat-form-field>
-
-    <app-cat-care-fields
-      [(foodBrand)]="foodBrand"
-      [(foodBrandId)]="foodBrandId"
-      [(foodDetail)]="foodDetail"
-      [(approveFoodBrand)]="approveFoodBrand"
-      [(litterBrand)]="litterBrand"
+    <app-cat-profile-option-field
+      field="breed"
+      [label]="text().cats.form.breed"
+      [(value)]="breed"
+      [approve]="catalogApprovals().includes('breed')"
+      (approveChange)="setCatalogApproval('breed', $event)"
+      [disabled]="submitting()"
     />
+
+    <app-cat-profile-option-field
+      field="coat"
+      [label]="text().cats.form.coat"
+      [(value)]="coat"
+      [approve]="catalogApprovals().includes('coat')"
+      (approveChange)="setCatalogApproval('coat', $event)"
+      [disabled]="submitting()"
+    />
+
+    <app-cat-profile-option-field
+      field="color"
+      [label]="text().cats.form.color"
+      [(value)]="color"
+      [approve]="catalogApprovals().includes('color')"
+      (approveChange)="setCatalogApproval('color', $event)"
+      [disabled]="submitting()"
+    />
+
+    <app-cat-profile-option-field
+      field="foodBrand"
+      [label]="text().cats.form.foodBrand"
+      [(value)]="foodBrand"
+      [approve]="catalogApprovals().includes('foodBrand')"
+      (approveChange)="setCatalogApproval('foodBrand', $event)"
+      [disabled]="submitting()"
+    />
+
+    <app-cat-care-fields [(foodDetail)]="foodDetail" [(litterBrand)]="litterBrand" />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.personality }}</mat-label>
@@ -158,6 +148,23 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline">
+      <mat-label>{{ text().cats.form.careInstructions }}</mat-label>
+      <textarea
+        matInput
+        name="careInstructions"
+        rows="4"
+        [errorStateMatcher]="careInstructionsErrorStateMatcher"
+        [ngModel]="careInstructions()"
+        (ngModelChange)="updateCareInstructions($event)"
+      ></textarea>
+      @if (careInstructionsError(); as message) {
+        <mat-error>{{ message }}</mat-error>
+      } @else {
+        <mat-hint>{{ text().cats.form.careInstructionsVisibility }}</mat-hint>
+      }
+    </mat-form-field>
+
+    <mat-form-field class="internal-notes" appearance="outline">
       <mat-label>{{ text().cats.form.notes }}</mat-label>
       <textarea
         matInput
@@ -172,16 +179,14 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.lastInternalDewormerName }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="lastInternalDewormerName"
-        [ngModel]="lastInternalDewormerName()"
-        (ngModelChange)="lastInternalDewormerName.set($event)"
-      />
-    </mat-form-field>
+    <app-cat-profile-option-field
+      field="lastInternalDewormerName"
+      [label]="text().cats.form.lastInternalDewormerName"
+      [(value)]="lastInternalDewormerName"
+      [approve]="catalogApprovals().includes('lastInternalDewormerName')"
+      (approveChange)="setCatalogApproval('lastInternalDewormerName', $event)"
+      [disabled]="submitting()"
+    />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.lastInternalDewormingDate }}</mat-label>
@@ -194,16 +199,14 @@
       />
     </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.lastExternalDewormerName }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="lastExternalDewormerName"
-        [ngModel]="lastExternalDewormerName()"
-        (ngModelChange)="lastExternalDewormerName.set($event)"
-      />
-    </mat-form-field>
+    <app-cat-profile-option-field
+      field="lastExternalDewormerName"
+      [label]="text().cats.form.lastExternalDewormerName"
+      [(value)]="lastExternalDewormerName"
+      [approve]="catalogApprovals().includes('lastExternalDewormerName')"
+      (approveChange)="setCatalogApproval('lastExternalDewormerName', $event)"
+      [disabled]="submitting()"
+    />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.lastExternalDewormingDate }}</mat-label>

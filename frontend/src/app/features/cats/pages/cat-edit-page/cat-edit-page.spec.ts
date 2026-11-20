@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgModel } from '@angular/forms';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -15,6 +16,7 @@ import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../../components/cat-editor/cat-editor';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { CatProfileOptionsService } from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 
 describe('CatEditor', () => {
@@ -78,6 +80,8 @@ describe('CatEditor', () => {
     updateCat: vi.fn(),
   };
 
+  const profileOptions = { load: vi.fn(), catalog: signal(null) };
+
   const ownerApiService = {
     getOwners: vi.fn(),
     searchOwners: vi.fn(),
@@ -107,6 +111,7 @@ describe('CatEditor', () => {
       imports: [CatEditor],
       providers: [
         provideNoopAnimations(),
+        { provide: CatProfileOptionsService, useValue: profileOptions },
         {
           provide: CatApiService,
           useValue: catApiService,
@@ -186,7 +191,7 @@ describe('CatEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(19);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(20);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
@@ -219,6 +224,46 @@ describe('CatEditor', () => {
     expect(vetApiService.getVetById).not.toHaveBeenCalled();
     expect(selectors.map((selector) => selector.selectedId())).toEqual(['owner-1', 'vet-1']);
     expect(fixture.nativeElement.querySelector('.page-header')).toBeNull();
+  });
+
+  it('loads year-only precision, rejects overlong care instructions and clears them explicitly', async () => {
+    const yearOnlyCat = {
+      ...cat,
+      birthDate: null,
+      birthYear: 2020,
+      careInstructions: 'Separate meals',
+      notes: 'Private note',
+    };
+    catApiService.getCatById.mockReturnValue(of(yearOnlyCat));
+    catApiService.updateCat.mockReturnValue(of(yearOnlyCat));
+    createComponent();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(component.yearOnly()).toBe(true);
+    expect(component.birthDate()).toBe('');
+    expect(component.birthYear()).toBe('2020');
+    expect(component.careInstructions()).toBe('Separate meals');
+
+    component.updateCareInstructions('x'.repeat(2001));
+    component.submit();
+    fixture.detectChanges();
+    expect(getMaterialErrorText()).toContain(component.text().cats.form.careInstructionsTooLong);
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
+
+    component.updateCareInstructions(' ');
+    component.submit();
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      cat.id,
+      expect.objectContaining({
+        birthDate: null,
+        birthYear: 2020,
+        careInstructions: null,
+        notes: 'Private note',
+      }),
+      null,
+      false,
+    );
   });
 
   it('keeps a dialog draft after a conflict and reloads the saved cat on request', async () => {

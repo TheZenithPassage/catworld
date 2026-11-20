@@ -21,6 +21,9 @@ export interface CatsTranslations {
   form: {
     name: string;
     birthDate: string;
+    birthYear: string;
+    birthYearOnly: string;
+    birthYearInvalid: string;
     sex: string;
     selectSex: string;
     male: string;
@@ -36,13 +39,19 @@ export interface CatsTranslations {
     color: string;
     foodBrand: string;
     foodDetail: string;
+    foodDetailHelp: string;
     approveFoodBrand: string;
     approveCatalogOption: string;
     catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
+    ownLitter: string;
+    litterHelp: string;
     personality: string;
     notes: string;
+    careInstructions: string;
+    careInstructionsVisibility: string;
+    careInstructionsTooLong: string;
     lastInternalDewormerName: string;
     lastInternalDewormingDate: string;
     lastExternalDewormerName: string;
@@ -203,6 +212,9 @@ export const CATS_TRANSLATIONS = {
     form: {
       name: 'Nombre',
       birthDate: 'Fecha de nacimiento',
+      birthYear: 'Año de nacimiento',
+      birthYearOnly: 'Solo sé el año',
+      birthYearInvalid: 'Introducí un año de cuatro cifras, hasta el año actual',
       sex: 'Sexo',
       selectSex: 'Seleccioná sexo',
       male: 'Macho',
@@ -218,17 +230,23 @@ export const CATS_TRANSLATIONS = {
       color: 'Color',
       foodBrand: 'Marca de comida',
       foodDetail: 'Variedad o detalle de la dieta',
+      foodDetailHelp: 'Por ejemplo, alimento húmedo o una dieta especial.',
       approveFoodBrand: 'Añadir esta marca al catálogo',
       approveCatalogOption: 'Añadir este valor al catálogo',
       catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
-      litterBrand: 'Marca de arena',
+      litterBrand: 'Piedritas',
+      ownLitter: 'Trae sus propias piedritas',
+      litterHelp: 'Elegí una opción o ingresá la marca.',
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
-      notes: 'Notas',
+      notes: 'Notas internas · solo para el equipo',
+      careInstructions: 'Indicaciones de cuidado del tutor',
+      careInstructionsVisibility: 'Visible para el tutor en su ficha.',
+      careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
-      lastExternalDewormerName: 'Pipetas para pulgas o comprimidos',
-      lastExternalDewormingDate: 'Fecha del último tratamiento antipulgas',
+      lastExternalDewormerName: 'Última pipeta antipulgas',
+      lastExternalDewormingDate: 'Fecha de la última pipeta antipulgas',
       lastTripleFelineDate: 'Fecha de la última vacunación triple felina',
       lastRabiesDate: 'Fecha de la última vacunación antirrábica',
     },
@@ -320,14 +338,14 @@ export const CATS_TRANSLATIONS = {
       },
       care: {
         food: 'Comida',
-        litter: 'Arena',
+        litter: 'Piedritas',
         personality: 'Personalidad',
       },
       health: {
         tripleFeline: 'Triple felina',
         rabies: 'Rabia',
         internalDeworming: 'Desparasitación interna',
-        externalDeworming: 'Pipetas para pulgas o comprimidos',
+        externalDeworming: 'Última pipeta antipulgas',
       },
       edit: 'Editar',
     },
@@ -370,6 +388,9 @@ export const CATS_TRANSLATIONS = {
     form: {
       name: 'Name',
       birthDate: 'Birth date',
+      birthYear: 'Birth year',
+      birthYearOnly: 'I only know the year',
+      birthYearInvalid: 'Enter a four-digit year no later than the current year',
       sex: 'Sex',
       selectSex: 'Select sex',
       male: 'Male',
@@ -385,16 +406,22 @@ export const CATS_TRANSLATIONS = {
       color: 'Color',
       foodBrand: 'Food brand',
       foodDetail: 'Variety or diet details',
+      foodDetailHelp: 'For example, wet food or a special diet.',
       approveFoodBrand: 'Add this brand to the catalog',
       approveCatalogOption: 'Add this value to the catalog',
       catalogPublicationHint: 'This value will be added to the catalog when approved.',
-      litterBrand: 'Litter brand',
+      litterBrand: 'Litter',
+      ownLitter: 'Brings their own litter',
+      litterHelp: 'Choose an option or enter the brand.',
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
-      notes: 'Notes',
+      notes: 'Internal notes · staff only',
+      careInstructions: 'Caretaker’s care instructions',
+      careInstructionsVisibility: 'Visible to the caretaker on their form.',
+      careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
-      lastExternalDewormerName: 'Flea treatment (pipette or tablet)',
+      lastExternalDewormerName: 'Last flea spot-on treatment',
       lastExternalDewormingDate: 'Date of last flea treatment',
       lastTripleFelineDate: 'Date of last feline triple vaccination',
       lastRabiesDate: 'Date of last rabies vaccination',

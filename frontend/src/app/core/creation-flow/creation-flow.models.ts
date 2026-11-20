@@ -1,3 +1,5 @@
+import type { CatProfileOptionFieldKey } from '../../shared/cat-profile-options/cat-profile-options.service';
+
 export const CREATION_FLOW_QUERY_PARAM = 'creationFlowId';
 
 export type CreationFlowId = string & { readonly __creationFlowId: unique symbol };
@@ -7,16 +9,18 @@ export type CreationFlowFrameKind = CreationFlowRoot;
 export interface CatCreationDraft {
   name: string;
   birthDate: string;
+  birthYear?: string;
+  yearOnly?: boolean;
   sex: 'MALE' | 'FEMALE' | '';
   breed: string;
   coat: string;
   color: string;
   foodBrand: string;
-  foodBrandId?: string | null;
   foodDetail?: string;
-  approveFoodBrand?: boolean;
+  catalogApprovals?: CatProfileOptionFieldKey[];
   litterBrand: string;
   personality: string;
+  careInstructions?: string;
   notes: string;
   lastInternalDewormerName: string;
   lastInternalDewormingDate: string;

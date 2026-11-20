@@ -1,6 +1,9 @@
+import type { CatProfileOptionFieldKey } from '../../../shared/cat-profile-options/cat-profile-options.service';
+
 export type Sex = 'MALE' | 'FEMALE';
 
 export const CATWORLD_LITTER = 'Usa las de CatWorld';
+export const OWN_LITTER = 'Trae sus propias piedritas';
 
 export interface FoodBrandOption {
   id: string;
@@ -25,16 +28,19 @@ export interface Cat {
   canDelete?: boolean;
   deceased?: boolean;
   name: string;
-  birthDate: string;
+  birthDate: string | null;
+  birthYear?: number | null;
   sex: Sex;
   breed: string | null;
   coat: string | null;
   color: string | null;
   foodBrand: string | null;
   foodBrandId?: string | null;
+  catalogOptionIds?: Partial<Record<CatProfileOptionFieldKey, string>>;
   foodDetail?: string | null;
   litterBrand: string | null;
   personality: string | null;
+  careInstructions?: string | null;
   notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
@@ -52,7 +58,8 @@ export interface Cat {
 
 export interface CreateCatRequest {
   name: string;
-  birthDate: string;
+  birthDate: string | null;
+  birthYear?: number | null;
   sex: Sex;
   breed: string | null;
   coat: string | null;
@@ -61,8 +68,10 @@ export interface CreateCatRequest {
   foodBrandId?: string;
   foodDetail?: string | null;
   approveFoodBrand?: boolean;
+  approveCatalogOptions?: CatProfileOptionFieldKey[];
   litterBrand?: string | null;
   personality: string | null;
+  careInstructions?: string | null;
   notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
