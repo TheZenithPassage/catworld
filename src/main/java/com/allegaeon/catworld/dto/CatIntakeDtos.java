@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
@@ -10,19 +11,24 @@ import java.util.UUID;
 public final class CatIntakeDtos {
     private CatIntakeDtos() {}
 
-    public record InviteRequest(@NotNull UUID ownerId, List<UUID> catIds, boolean allowNewCats) {}
+    @JsonIgnoreProperties("catIds")
+    public record InviteRequest(@NotNull UUID ownerId, boolean allowNewCats, UUID stayId) {}
     public record IssuedInvite(UUID id, String url, Instant expiresAt) {}
     public record ActiveInvite(UUID id, UUID ownerId, List<UUID> catIds, boolean allowNewCats, Instant expiresAt) {}
 
-    public record ScopedCat(UUID catId, Map<String, String> fields) {}
-    public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt) {}
-    public record SubmittedCat(UUID catId, Map<String, String> fields, List<String> photoKeys) {}
+    public record ScopedCat(UUID catId, Map<String, String> fields, List<String> requestedFields, UUID draftId,
+                            long revision, Map<String, String> proposedFields, List<ReviewPhoto> photos) {}
+    public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt,
+                                List<FoodBrandOption> brands) {}
+    public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
+                               List<UUID> retainedPhotoIds, List<String> photoKeys) {}
     public record Submission(List<SubmittedCat> cats) {}
 
     public record ReviewRow(UUID id, UUID ownerId, String ownerName, UUID catId, String catName, Instant submittedAt) {}
     public record ReviewPhoto(UUID id) {}
     public record ReviewDetail(UUID id, UUID ownerId, String ownerName, UUID catId, String catName, Instant submittedAt,
                                Map<String, String> current, Map<String, String> proposed, List<String> conflictFields,
-                               List<ReviewPhoto> photos, Instant catUpdatedAt) {}
-    public record Approval(Map<String, String> fields, List<UUID> photoIds, Instant expectedCatUpdatedAt) {}
+                               List<ReviewPhoto> photos, Instant catUpdatedAt, long revision) {}
+    public record Approval(Map<String, String> fields, List<UUID> photoIds, Instant expectedCatUpdatedAt,
+                           Long expectedReviewRevision) {}
 }

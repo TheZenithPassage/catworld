@@ -32,16 +32,18 @@ public class CatIntakeSecurityConfig {
         var paths = PathPatternRequestMatcher.withDefaults();
         String formPath = "/api/intake/request";
         String submissionPath = "/api/intake/submissions";
+        String photoPath = "/api/intake/photos/{id}";
         var read = paths.matcher(HttpMethod.GET, formPath);
+        var photo = paths.matcher(HttpMethod.GET, photoPath);
         var submit = paths.matcher(HttpMethod.POST, submissionPath);
         var options = new OrRequestMatcher(paths.matcher(HttpMethod.OPTIONS, formPath),
-                paths.matcher(HttpMethod.OPTIONS, submissionPath));
+                paths.matcher(HttpMethod.OPTIONS, submissionPath), paths.matcher(HttpMethod.OPTIONS, photoPath));
         var recipientCors = new CorsConfiguration();
         recipientCors.setAllowedOrigins(List.of(intake.recipientOrigin()));
         recipientCors.setAllowedMethods(List.of(HttpMethod.GET.name(), HttpMethod.POST.name()));
         recipientCors.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE));
         recipientCors.setAllowCredentials(false);
-        return http.securityMatcher(new OrRequestMatcher(read, submit,
+        return http.securityMatcher(new OrRequestMatcher(read, photo, submit,
                         request -> CorsUtils.isPreFlightRequest(request) && options.matches(request)))
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(request -> recipientCors))

@@ -38,14 +38,14 @@ public interface CatRepository extends JpaRepository<Cat, UUID> {
 
     Page<Cat> findByVet_Id(UUID vetId, Pageable pageable);
 
-    long countByOwner_IdAndIdIn(UUID ownerId, Collection<UUID> ids);
+    List<Cat> findByOwner_IdAndIdInAndDeceasedFalse(UUID ownerId, Collection<UUID> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Cat c where c.id = :id")
     Optional<Cat> findByIdForUpdate(@Param("id") UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select c from Cat c where c.id in :ids and c.owner.id = :ownerId order by c.id")
+    @Query("select c from Cat c where c.id in :ids and c.owner.id = :ownerId and c.deceased = false order by c.id")
     List<Cat> findScopedForUpdate(@Param("ids") Collection<UUID> ids, @Param("ownerId") UUID ownerId);
 
     boolean existsByCreatedBy_Id(UUID createdById);

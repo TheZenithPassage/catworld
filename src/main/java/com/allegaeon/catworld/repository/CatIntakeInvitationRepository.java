@@ -16,8 +16,9 @@ public interface CatIntakeInvitationRepository extends JpaRepository<CatIntakeIn
     boolean existsByTokenHashAndRevokedAtIsNullAndSubmittedAtIsNullAndExpiresAtAfter(String tokenHash, Instant now);
 
     @Query("""
-            select i.owner.id as ownerId, i.allowNewCats as allowNewCats,
-                   i.scopeSnapshot as scopeSnapshot, i.expiresAt as expiresAt
+            select i.id as id, i.owner.id as ownerId, i.allowNewCats as allowNewCats,
+                   i.scopeSnapshot as scopeSnapshot, i.requestedFieldsSnapshot as requestedFieldsSnapshot,
+                   i.expiresAt as expiresAt
             from CatIntakeInvitation i
             where i.tokenHash = :tokenHash and i.revokedAt is null and i.submittedAt is null and i.expiresAt > :now
             """)
@@ -41,10 +42,16 @@ public interface CatIntakeInvitationRepository extends JpaRepository<CatIntakeIn
     @Query("select i from CatIntakeInvitation i where i.id = :id")
     Optional<CatIntakeInvitation> findByIdForUpdate(@Param("id") UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select i from CatIntakeInvitation i where i.id = (select r.invitation.id from CatIntakeReview r where r.id = :reviewId)")
+    Optional<CatIntakeInvitation> findByReviewIdForUpdate(@Param("reviewId") UUID reviewId);
+
     interface OpenScope {
+        UUID getId();
         UUID getOwnerId();
         boolean getAllowNewCats();
         String getScopeSnapshot();
+        String getRequestedFieldsSnapshot();
         Instant getExpiresAt();
     }
 }

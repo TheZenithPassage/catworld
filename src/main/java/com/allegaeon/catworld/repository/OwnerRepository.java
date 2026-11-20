@@ -39,6 +39,15 @@ public interface OwnerRepository extends JpaRepository<Owner, UUID> {
     @Query("select o from Owner o where o.id = :id")
     Optional<Owner> findByIdForUpdate(@Param("id") UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select o from Owner o where o.id = (
+                select r.invitation.owner.id from CatIntakeReview r
+                where r.id = :reviewId and r.catId is null and r.approvedAt is null
+            )
+            """)
+    Optional<Owner> findByNewCatReviewForUpdate(@Param("reviewId") UUID reviewId);
+
     boolean existsByCreatedBy_Id(UUID createdById);
 
     boolean existsByIdAndCatsIsNotEmpty(UUID id);

@@ -10,6 +10,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
+import java.util.UUID;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/intake")
@@ -19,6 +21,12 @@ public class CatIntakeRecipientController {
     @GetMapping("/request")
     public RecipientForm form(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
         return intake.form(authorization);
+    }
+
+    @GetMapping(value = "/photos/{id}", produces = MediaType.IMAGE_JPEG_VALUE)
+    public byte[] photo(@PathVariable UUID id,
+                        @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+        return intake.recipientPhoto(authorization, id);
     }
 
     @PostMapping(value = "/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

@@ -185,7 +185,7 @@ class OperationsArrivalsControllerTest {
     private CatIntakeReview review(Owner submitter, UUID catId) {
         String tokenHash = UUID.randomUUID().toString().replace("-", "").repeat(2);
         var invitation = new CatIntakeInvitation(submitter, tokenHash, true, "{}", NOW.plusSeconds(3600));
-        invitation.consume(NOW);
+        invitation.close(NOW, "{}");
         return reviews.save(new CatIntakeReview(invitations.save(invitation), catId, "Milo", "{}",
                 "{\"foodBrand\":\"Private proposed brand\"}", NOW));
     }
