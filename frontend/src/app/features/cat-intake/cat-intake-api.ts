@@ -8,6 +8,7 @@ import {
   CatIntakeInvitationRequest,
   CatIntakeReviewDetail,
   CatIntakeReviewItem,
+  IntakeFoodBrand,
   IssuedCatIntakeInvitation,
 } from './cat-intake-models';
 
@@ -42,6 +43,10 @@ export class CatIntakeApi {
     return this.http.get(`${this.baseUrl}/review/${id}/photos/${photoId}`, {
       responseType: 'blob',
     });
+  }
+
+  listFoodBrands() {
+    return this.http.get<IntakeFoodBrand[]>(`${API_BASE_URL}/food-brands`);
   }
 
   approve(id: string, approval: CatIntakeApproval) {

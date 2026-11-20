@@ -17,22 +17,16 @@
         {{ copy().allowNew }}
       </label>
     </fieldset>
-    <fieldset [disabled]="busy()">
-      <legend>{{ copy().existing }}</legend>
-      @for (cat of cats(); track cat.id) {
-        <label class="choice">
-          <input
-            type="checkbox"
-            [checked]="catIds().includes(cat.id)"
-            [disabled]="atLimit() && !catIds().includes(cat.id)"
-            (change)="selectCat(cat.id, $any($event.target).checked)"
-          />
-          {{ cat.name }}
-        </label>
-      } @empty {
-        <p>{{ copy().empty }}</p>
-      }
-    </fieldset>
+    @if (cats().length) {
+      <p id="intake-household-cats" class="cats-heading">{{ copy().existing }}</p>
+      <ul class="household-cats" aria-labelledby="intake-household-cats">
+        @for (cat of cats(); track cat.id) {
+          <li>{{ cat.name }}</li>
+        }
+      </ul>
+    } @else {
+      <p>{{ copy().empty }}</p>
+    }
     @if (active(); as invitation) {
       <p>
         {{ copy().active }}

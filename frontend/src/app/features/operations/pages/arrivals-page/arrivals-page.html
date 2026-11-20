@@ -54,66 +54,80 @@
                 </div>
               </dl>
             </div>
-            <button
-              mat-stroked-button
-              type="button"
-              [attr.aria-label]="
-                copy().openStay +
-                ' · ' +
-                stay.owner.fullName +
-                ' · ' +
-                formatLocalDateTime(stay.startAt)
-              "
-              (click)="openDetail('stay', stay.id)"
-            >
-              {{ copy().openStay }}
-            </button>
+            <div class="stay-actions">
+              @if (isAdmin()) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [attr.aria-label]="copy().familyLink + ' · ' + stay.owner.fullName"
+                  (click)="openInvitation(stay)"
+                >
+                  {{ copy().familyLink }}
+                </button>
+              }
+              <button
+                mat-stroked-button
+                type="button"
+                [attr.aria-label]="
+                  copy().openStay +
+                  ' · ' +
+                  stay.owner.fullName +
+                  ' · ' +
+                  formatLocalDateTime(stay.startAt)
+                "
+                (click)="openDetail('stay', stay.id)"
+              >
+                {{ copy().openStay }}
+              </button>
+            </div>
           </div>
 
-          <ul class="cats">
-            @for (cat of stay.cats; track cat.id) {
-              <li class="cat">
-                <h4>
-                  <button class="detail-link" type="button" (click)="openDetail('cat', cat.id)">
-                    {{ cat.name }}
-                  </button>
-                </h4>
-                <dl class="care">
-                  <div>
-                    <dt>{{ catForm().foodBrand }}</dt>
-                    <dd [class.unconfirmed]="!cat.foodBrand">
-                      {{ cat.foodBrand ?? copy().toConfirm }}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{{ catForm().litterBrand }}</dt>
-                    <dd [class.unconfirmed]="!cat.litterBrand">
-                      {{ cat.litterBrand ?? copy().toConfirm }}
-                    </dd>
-                  </div>
-                </dl>
-                @if (cat.vaccineWarnings.length > 0) {
-                  <ul class="vaccine-warnings">
-                    @for (warning of cat.vaccineWarnings; track warning.vaccineType) {
-                      <li>{{ vaccineWarning(warning) }}</li>
+          @let hasPending = hasPendingPreparation(stay);
+          @if (stay.cats.length) {
+            <ul class="cats" [class.cats-with-pending]="hasPending">
+              @for (cat of stay.cats; track cat.id) {
+                <li class="cat">
+                  <h4>
+                    <button class="detail-link" type="button" (click)="openDetail('cat', cat.id)">
+                      {{ cat.name }}
+                    </button>
+                  </h4>
+                  @if (
+                    !cat.foodBrand?.trim() || !cat.litterBrand?.trim() || cat.vaccineWarnings.length
+                  ) {
+                    <ul class="preparation-warnings">
+                      @if (!cat.foodBrand?.trim()) {
+                        <li>{{ catForm().foodBrand }} · {{ copy().toConfirm }}</li>
+                      }
+                      @if (!cat.litterBrand?.trim()) {
+                        <li>{{ catForm().litterBrand }} · {{ copy().toConfirm }}</li>
+                      }
+                      @for (warning of cat.vaccineWarnings; track warning.vaccineType) {
+                        <li>{{ vaccineWarning(warning) }}</li>
+                      }
+                    </ul>
+                  }
+                  @if (isAdmin()) {
+                    @for (review of cat.pendingReviews ?? []; track review.id) {
+                      <a
+                        class="review-link"
+                        routerLink="/cat-intake"
+                        [queryParams]="{ reviewId: review.id }"
+                      >
+                        {{ copy().reviewProposal }} ·
+                        <time [attr.datetime]="review.submittedAt">{{
+                          formatInstant(review.submittedAt)
+                        }}</time>
+                      </a>
                     }
-                  </ul>
-                }
-                @for (review of cat.pendingReviews ?? []; track review.id) {
-                  <a
-                    class="review-link"
-                    routerLink="/cat-intake"
-                    [queryParams]="{ reviewId: review.id }"
-                  >
-                    {{ copy().reviewProposal }} ·
-                    <time [attr.datetime]="review.submittedAt">{{
-                      formatInstant(review.submittedAt)
-                    }}</time>
-                  </a>
-                }
-              </li>
-            }
-          </ul>
+                  }
+                </li>
+              }
+            </ul>
+          }
+          @if (!hasPending) {
+            <p class="preparation-complete">{{ copy().complete }}</p>
+          }
         </article>
       }
     </div>

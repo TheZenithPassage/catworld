@@ -1,10 +1,12 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
 import { EMPTY } from 'rxjs';
 import { vi } from 'vitest';
 
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { EntityDetailDialogService } from '../../../../shared/entity-detail/entity-detail-dialog.service';
 import { ArrivalsPage } from './arrivals-page';
@@ -46,33 +48,113 @@ describe('ArrivalsPage', () => {
   afterEach(() => http.verify());
 
   it('shows arrival preparation and opens the existing stay detail', () => {
+    const complete = {
+      ...cat,
+      id: 'cat-2',
+      name: 'Luna',
+      foodBrand: 'Example Food',
+      vaccineWarnings: [],
+    };
     http
       .expectOne({ method: 'GET', url: '/api/operations/arrivals' })
-      .flush([{ ...stay, cats: [cat] }]);
+      .flush([{ ...stay, cats: [cat, complete] }]);
     fixture.detectChanges();
     const row = (fixture.nativeElement as HTMLElement).querySelector('article')!;
 
     expect(row.textContent).toContain('Ana Example');
-    expect(row.textContent).toContain('Milo');
     expect(row.textContent).toContain('14:00');
-    expect(row.textContent).toContain('Rabia · Falta la fecha de vacunación');
-    expect(row.textContent).toContain('Por confirmar');
-    expect(row.textContent).toContain('Example Litter');
+    expect(row.textContent).not.toMatch(
+      /Example Food|Example Litter|Sin pendientes de preparación/,
+    );
     expect(row.querySelector('a')).toBeNull();
+
+    const [milo, luna] = row.querySelectorAll('.cat');
+    expect(milo.textContent).toMatch(
+      /Milo.*Marca de comida · Por confirmar.*Rabia · Falta la fecha de vacunación/s,
+    );
+    expect(luna.textContent?.trim()).toBe('Luna');
 
     row.querySelector<HTMLButtonElement>('button[aria-label^="Ver estadía"]')!.click();
     expect(details.open).toHaveBeenCalledWith({ entityType: 'stay', entityId: stay.id });
   });
 
   it('links each returned profile proposal to its review', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'test' },
+    );
     const pendingReviews = [{ id: 'proposal-1', submittedAt: '2026-11-12T15:00:00Z' }];
     http
       .expectOne('/api/operations/arrivals')
-      .flush([{ ...stay, cats: [{ ...cat, pendingReviews }] }]);
+      .flush([
+        {
+          ...stay,
+          cats: [{ ...cat, foodBrand: 'Example Food', vaccineWarnings: [], pendingReviews }],
+        },
+      ]);
     fixture.detectChanges();
 
     const link = (fixture.nativeElement as HTMLElement).querySelector('article a')!;
     expect(link.getAttribute('href')).toBe('/cat-intake?reviewId=proposal-1');
     expect(link.textContent).toContain('Revisar propuesta de ficha');
+    expect(fixture.nativeElement.textContent).not.toContain('Sin pendientes de preparación');
+  });
+
+  it('shows all complete cats as links with a single preparation summary for staff', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'staff', role: 'STAFF' },
+      { username: 'staff', password: 'test' },
+    );
+    const complete = { ...cat, foodBrand: 'Example Food', vaccineWarnings: [] };
+    http.expectOne('/api/operations/arrivals').flush([
+      {
+        ...stay,
+        cats: [
+          {
+            ...complete,
+            pendingReviews: [{ id: 'hidden-proposal', submittedAt: '2026-11-12T15:00:00Z' }],
+          },
+          { ...complete, id: 'cat-2', name: 'Luna', litterBrand: 'Usa las de CatWorld' },
+        ],
+      },
+    ]);
+    fixture.detectChanges();
+    const row = (fixture.nativeElement as HTMLElement).querySelector('article')!;
+
+    expect(row.textContent.match(/Sin pendientes de preparación/g)).toHaveLength(1);
+    expect(row.textContent).not.toMatch(/Example Food|Example Litter|Usa las de CatWorld/);
+    expect(row.querySelector('a')).toBeNull();
+    expect(row.textContent).not.toContain('Enlace familiar');
+    row.querySelector<HTMLButtonElement>('li:nth-child(2) button')!.click();
+    expect(details.open).toHaveBeenCalledWith({ entityType: 'cat', entityId: 'cat-2' });
+  });
+
+  it('opens the owner invitation dialog with the arrival context', () => {
+    TestBed.inject(AuthSessionService).login(
+      { username: 'admin', role: 'ADMIN' },
+      { username: 'admin', password: 'test' },
+    );
+    const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
+    http.expectOne('/api/operations/arrivals').flush([{ ...stay, cats: [cat] }]);
+    fixture.detectChanges();
+    const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'article button',
+    );
+    const inviteButton = [...buttons].find(
+      (button) => button.textContent.trim() === 'Enlace familiar',
+    );
+    expect(inviteButton).toBeDefined();
+    inviteButton!.click();
+
+    expect(open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        data: { ownerId: stay.owner.id, ownerName: stay.owner.fullName, stayId: stay.id },
+      }),
+    );
+    http
+      .expectOne('/api/owners/owner-1/lookup')
+      .flush({ ...stay.owner, currentCats: [{ id: cat.id, name: cat.name }] });
+    http.expectOne('/api/cat-intake/invitations/active?ownerId=owner-1').flush(null);
   });
 });

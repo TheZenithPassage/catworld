@@ -1,12 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButton } from '@angular/material/button';
 import {
   MatDialog,
   MatDialogActions,
   MatDialogClose,
   MatDialogContent,
+  MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -16,14 +18,17 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { CAT_INTAKE_TRANSLATIONS } from '../../core/i18n/translations/cat-intake.translations';
 import { BusinessTimeService } from '../../core/time/business-time.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
+import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
 import { CatIntakeApi } from './cat-intake-api';
 import {
   CAT_INTAKE_FIELDS,
+  CATWORLD_LITTER,
   CatIntakeField,
   CatIntakeFieldKey,
   CatIntakeFields,
   CatIntakeReviewDetail,
   CatIntakeReviewItem,
+  IntakeFoodBrand,
 } from './cat-intake-models';
 
 type Decision = 'apply' | 'keep' | 'unresolved';
@@ -49,7 +54,14 @@ interface ReviewGroup {
 
 @Component({
   selector: 'app-cat-intake-review',
-  imports: [MatButton, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogTitle],
+  imports: [
+    MatAutocompleteModule,
+    MatButton,
+    MatDialogActions,
+    MatDialogClose,
+    MatDialogContent,
+    MatDialogTitle,
+  ],
   templateUrl: './cat-intake-review.html',
   styleUrl: './cat-intake-review.scss',
 })
@@ -58,13 +70,16 @@ export class CatIntakeReview {
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly dialog = inject(MatDialog);
+  private readonly details = inject(EntityDetailDialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private detailRequests = new Subscription();
+  private photoDialog?: MatDialogRef<unknown>;
 
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
+  readonly sharedLitter = CATWORLD_LITTER;
   readonly pending = signal<CatIntakeReviewItem[]>([]);
   readonly groups = computed(() => {
     const groups = new Map<string, ReviewGroup>();
@@ -88,14 +103,41 @@ export class CatIntakeReview {
   readonly approving = signal(false);
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
+  readonly foodBrands = signal<IntakeFoodBrand[]>([]);
+  readonly foodBrandsState = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  private readonly foodBrandQuery = computed(() =>
+    this.normalizeBrand(this.fields().find(({ field }) => field.key === 'foodBrand')?.value ?? ''),
+  );
+  readonly suggestedFoodBrands = computed(() =>
+    this.foodBrands().filter(({ name }) =>
+      this.normalizeBrand(name).includes(this.foodBrandQuery()),
+    ),
+  );
+  readonly isNewFoodBrand = computed(
+    () =>
+      this.foodBrandsState() === 'ready' &&
+      this.foodBrandQuery().length > 0 &&
+      !this.suggestedFoodBrands().some(
+        ({ name }) => this.normalizeBrand(name) === this.foodBrandQuery(),
+      ),
+  );
   readonly canApprove = computed(() => {
     const detail = this.detail();
     return (
       detail !== null &&
       !this.approving() &&
+      Number.isSafeInteger(detail.revision) &&
       this.photos().every(({ state }) => state === 'loaded' || state === 'excluded') &&
       this.fields().every(({ field, conflict, decision, value }) => {
         if (decision === 'unresolved') return false;
+        if (
+          field.key === 'foodBrand' &&
+          decision === 'apply' &&
+          value.trim() &&
+          this.foodBrandsState() !== 'ready'
+        ) {
+          return false;
+        }
         if (conflict && decision === 'apply') return value.trim().length > 0;
         return detail.catId !== null || !this.requiredForCreation(field) || value.trim().length > 0;
       })
@@ -161,6 +203,7 @@ export class CatIntakeReview {
           );
           this.photos.set(detail.photos.map(({ id }) => ({ id, state: 'loading' })));
           this.loadingDetail.set(false);
+          if (this.fields().some(({ field }) => field.key === 'foodBrand')) this.loadFoodBrands();
           for (const photo of detail.photos) this.loadPhoto(detail.id, photo.id);
         },
         error: (error: unknown) => {
@@ -200,6 +243,24 @@ export class CatIntakeReview {
     );
   }
 
+  loadFoodBrands(): void {
+    if (this.foodBrandsState() === 'loading') return;
+    this.foodBrandsState.set('loading');
+    this.detailRequests.add(
+      this.api.listFoodBrands().subscribe({
+        next: (brands) => {
+          this.foodBrands.set(brands);
+          this.foodBrandsState.set('ready');
+        },
+        error: () => this.foodBrandsState.set('error'),
+      }),
+    );
+  }
+
+  openCurrentCat(catId: string): void {
+    this.details.open({ entityType: 'cat', entityId: catId });
+  }
+
   setDecision(key: CatIntakeFieldKey, value: string): void {
     const decision = value === 'keep' || value === 'apply' ? value : 'unresolved';
     this.fields.update((fields) =>
@@ -236,7 +297,11 @@ export class CatIntakeReview {
   }
 
   zoom(template: TemplateRef<unknown>, source: string, label: string): void {
-    this.dialog.open(template, { data: { source, label }, maxWidth: '95vw', width: '56rem' });
+    this.photoDialog = this.dialog.open(template, {
+      data: { source, label },
+      maxWidth: '95vw',
+      width: '56rem',
+    });
   }
 
   requiredForCreation(field: CatIntakeField): boolean {
@@ -247,8 +312,13 @@ export class CatIntakeReview {
     return 'maxLength' in field ? field.maxLength : null;
   }
 
+  fieldLabel(key: CatIntakeFieldKey): string {
+    return key === 'foodDetail' ? this.copy().foodDetail : this.catCopy().form[key];
+  }
+
   displayValue(key: CatIntakeFieldKey, value: string | null | undefined): string {
     if (!value) return this.catCopy().emptyValue;
+    if (key === 'litterBrand' && value === CATWORLD_LITTER) return this.copy().sharedLitter;
     if (key === 'sex')
       return value === 'MALE' ? this.catCopy().form.male : this.catCopy().form.female;
     if (CAT_INTAKE_FIELDS.some((field) => field.key === key && field.kind === 'date')) {
@@ -279,6 +349,7 @@ export class CatIntakeReview {
           .filter((photo) => photo.state === 'loaded' && photo.selected)
           .map((photo) => photo.id),
         expectedCatUpdatedAt: detail.catUpdatedAt,
+        expectedReviewRevision: detail.revision,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -311,14 +382,22 @@ export class CatIntakeReview {
     this.notice.set('unavailable');
   }
 
+  private normalizeBrand(value: string): string {
+    return value.trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
   private clearDetail(): void {
     this.detailRequests.unsubscribe();
     this.detailRequests = new Subscription();
+    this.photoDialog?.close();
+    this.photoDialog = undefined;
     for (const photo of this.photos()) {
       if (photo.state === 'loaded') URL.revokeObjectURL(photo.url);
     }
     this.detail.set(null);
     this.photos.set([]);
     this.fields.set([]);
+    this.foodBrands.set([]);
+    this.foodBrandsState.set('idle');
   }
 }

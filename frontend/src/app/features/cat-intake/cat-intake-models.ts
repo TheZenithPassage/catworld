@@ -1,3 +1,5 @@
+export const CATWORLD_LITTER = 'Usa las de CatWorld';
+
 export const CAT_INTAKE_FIELDS = [
   { key: 'name', kind: 'text', required: true, maxLength: 100 },
   { key: 'birthDate', kind: 'date', required: true },
@@ -7,6 +9,7 @@ export const CAT_INTAKE_FIELDS = [
   { key: 'color', kind: 'text', maxLength: 100 },
   { key: 'personality', kind: 'text', maxLength: 255 },
   { key: 'foodBrand', kind: 'text', maxLength: 100 },
+  { key: 'foodDetail', kind: 'text', maxLength: 255 },
   { key: 'litterBrand', kind: 'text', maxLength: 100 },
   { key: 'lastTripleFelineDate', kind: 'date' },
   { key: 'lastRabiesDate', kind: 'date' },
@@ -22,8 +25,8 @@ export type CatIntakeFields = Partial<Record<CatIntakeFieldKey, string | null>>;
 
 export interface CatIntakeInvitationRequest {
   ownerId: string;
-  catIds: string[];
   allowNewCats: boolean;
+  stayId?: string;
 }
 
 export interface ActiveCatIntakeInvitation extends CatIntakeInvitationRequest {
@@ -52,10 +55,17 @@ export interface CatIntakeReviewDetail extends CatIntakeReviewItem {
   conflictFields: CatIntakeFieldKey[];
   photos: { id: string }[];
   catUpdatedAt: string | null;
+  revision: number;
 }
 
 export interface CatIntakeApproval {
   fields: CatIntakeFields;
   photoIds: string[];
   expectedCatUpdatedAt: string | null;
+  expectedReviewRevision: number;
+}
+
+export interface IntakeFoodBrand {
+  id: string;
+  name: string;
 }

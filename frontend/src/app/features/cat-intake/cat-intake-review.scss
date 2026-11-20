@@ -11,6 +11,14 @@
   margin: 0;
 }
 
+.detail-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .review-page header p,
 .detail-heading p,
 .notice,
@@ -53,8 +61,13 @@
 .owner-group small,
 .comparison dt,
 .proofs dt,
+.brand-status,
 .detail-heading p {
   color: var(--color-text-muted);
+}
+
+.brand-status:not(:empty) {
+  margin-top: 0.35rem;
 }
 
 .review-form {

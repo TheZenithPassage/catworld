@@ -2,9 +2,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { of, Subject, throwError } from 'rxjs';
+import { EMPTY, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
+import { I18nService } from '../../core/i18n/i18n.service';
+import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
 import { CatIntakeApi } from './cat-intake-api';
 import { CatIntakeReviewDetail } from './cat-intake-models';
 import { CatIntakeReview } from './cat-intake-review';
@@ -25,6 +27,7 @@ describe('CatIntakeReview', () => {
     conflictFields: ['color'],
     photos: [{ id: 'photo-1' }],
     catUpdatedAt: '2026-11-12T10:15:00Z',
+    revision: 3,
   };
   let fixture: ComponentFixture<CatIntakeReview>;
   const api = {
@@ -32,13 +35,16 @@ describe('CatIntakeReview', () => {
     getReview: vi.fn(),
     getReviewPhoto: vi.fn(),
     approve: vi.fn(),
+    listFoodBrands: vi.fn(),
   };
+  const details = { open: vi.fn(() => EMPTY) };
 
   beforeEach(async () => {
     vi.resetAllMocks();
     api.listReview.mockReturnValue(of([item]));
     api.getReview.mockReturnValue(of(conflicting));
     api.getReviewPhoto.mockReturnValue(of(new Blob()));
+    api.listFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Proposed Food' }]));
     vi.stubGlobal(
       'URL',
       class extends URL {
@@ -51,8 +57,10 @@ describe('CatIntakeReview', () => {
       providers: [
         provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
         { provide: CatIntakeApi, useValue: api },
+        { provide: EntityDetailDialogService, useValue: details },
       ],
     }).compileComponents();
+    TestBed.inject(I18nService).language.set('es');
     fixture = TestBed.createComponent(CatIntakeReview);
     fixture.detectChanges();
   });
@@ -107,6 +115,7 @@ describe('CatIntakeReview', () => {
       fields: { foodBrand: 'Corrected Food' },
       photoIds: ['photo-1'],
       expectedCatUpdatedAt: conflicting.catUpdatedAt,
+      expectedReviewRevision: 3,
     });
   });
 
@@ -120,6 +129,43 @@ describe('CatIntakeReview', () => {
     expect(page.selectedId()).toBeNull();
     expect(page.pending()).toEqual([]);
     expect(page.notice()).toBe('unavailable');
+  });
+
+  it('opens the current cat in a modal without discarding the review inputs', () => {
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
+    input.value = 'Corrected Food';
+    input.dispatchEvent(new Event('input'));
+    const photo = root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!;
+    photo.click();
+    const modalButton = [...root.querySelectorAll('button')].find(
+      (button) => button.textContent.trim() === 'Ver ficha actual',
+    );
+    expect(modalButton).toBeDefined();
+    modalButton!.click();
+    fixture.detectChanges();
+
+    expect(details.open).toHaveBeenCalledWith({ entityType: 'cat', entityId: item.catId });
+    expect(input.value).toBe('Corrected Food');
+    expect(photo.checked).toBe(true);
+  });
+
+  it('distinguishes an unfamiliar spelling from a complete catalog match', () => {
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
+    const hint = root.querySelector('#review-food-brand-status')!;
+    expect(hint.textContent).not.toContain('Se incorporará');
+
+    for (const value of ['  PROPOSED   Food  ', 'Proposed Foods']) {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      expect(hint.textContent?.includes('Se incorporará')).toBe(value === 'Proposed Foods');
+    }
   });
 
   it('blocks approval until a failed record is explicitly excluded', () => {
@@ -176,6 +222,15 @@ describe('CatIntakeReview', () => {
   });
 
   it('reloads the comparison after a stale approval so it can be reviewed again', () => {
+    api.getReview
+      .mockReturnValueOnce(of({ ...conflicting, revision: 3 }))
+      .mockReturnValueOnce(
+        of({
+          ...conflicting,
+          revision: 4,
+          proposed: { color: 'White', foodBrand: 'Proposed Food' },
+        }),
+      );
     api.approve.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
     fixture.nativeElement.querySelector('[data-review-item]').click();
     fixture.detectChanges();
@@ -190,6 +245,12 @@ describe('CatIntakeReview', () => {
     fixture.detectChanges();
 
     expect(api.getReview).toHaveBeenCalledTimes(2);
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ expectedReviewRevision: 3 }),
+    );
+    expect(fixture.nativeElement.textContent).toContain('White');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('button[type="submit"]').disabled).toBe(true);
   });
 });
