@@ -121,6 +121,10 @@ fieldset {
   gap: 0.85rem;
 }
 
+.food-fields {
+  grid-column: 1 / -1;
+}
+
 .fields:not(:empty) + .other-fields,
 .attachments + .other-fields {
   margin-top: 1rem;
@@ -154,12 +158,28 @@ fieldset {
 .catalog-suggestions {
   display: grid;
   gap: 0.25rem;
+  max-block-size: 12rem;
+  overflow: auto;
+  padding: 0.2rem;
 }
 
 .catalog-suggestions button {
   width: 100%;
   border-color: var(--line);
   text-align: start;
+  overflow-wrap: anywhere;
+}
+
+input.catalog-input--selected {
+  border-color: var(--green);
+  background: #edf6ee;
+}
+
+.catalog-selection {
+  margin: 0.3rem 0 0;
+  color: var(--green);
+  font-size: 0.9rem;
+  font-weight: 650;
   overflow-wrap: anywhere;
 }
 

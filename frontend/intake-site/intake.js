@@ -15,6 +15,7 @@ const CATALOG_FIELDS = new Set([
   'coat',
   'color',
   'foodBrand',
+  'foodDetail',
   'lastInternalDewormerName',
   'lastExternalDewormerName',
 ]);
@@ -26,7 +27,7 @@ const FIELDS = [
   ['coat', 'Pelaje', 'text', true, 100],
   ['color', 'Color', 'text', true, 100],
   ['personality', 'Personalidad', 'text', true, 255],
-  ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin o Comida casera.'],
+  ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin.'],
   ['foodDetail', 'Variedad o dieta', 'text', true, 255, 'Por ejemplo, Kitten.'],
   ['litterBrand', 'Piedritas', 'litter', true],
   [
@@ -64,6 +65,7 @@ const photoViewerImage = photoViewer.querySelector('img');
 const photoViewerClose = photoViewer.querySelector('button');
 const cards = [];
 let catalogOptions = {};
+let foodVarieties = [];
 let allowNewCats = false;
 let newCatNumber = 0;
 let labelNumber = 0;
@@ -116,8 +118,12 @@ function showStatus(message) {
 function showError(message, input) {
   if (errorInput) {
     errorInput.removeAttribute('aria-invalid');
-    const description = errorInput.getAttribute('aria-labelledby') + '-hint';
-    if (document.getElementById(description)) {
+    const description = errorInput
+      .getAttribute('aria-describedby')
+      ?.split(' ')
+      .filter((id) => id !== fieldError.id)
+      .join(' ');
+    if (description) {
       errorInput.setAttribute('aria-describedby', description);
     } else {
       errorInput.removeAttribute('aria-describedby');
@@ -193,47 +199,70 @@ function catalogKey(value) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function fieldValue(key, value) {
-  const text = value?.trim() ?? '';
-  const options = catalogOptions[key];
-  if (!options || !text) return text;
-  return options.find(({ name }) => catalogKey(name) === catalogKey(text))?.name ?? text;
+function sameFieldValue(key, left, right) {
+  return CATALOG_FIELDS.has(key) ? catalogKey(left) === catalogKey(right) : left === right;
 }
 
-function createCatalogField(key, title, label, input) {
+function createCatalogField(title, label, input, options, initialId, showAllWhenEmpty) {
   const field = element('div', 'catalog-field');
+  const labelId = input.getAttribute('aria-labelledby');
   const suggestions = element('ul', 'catalog-suggestions');
   suggestions.hidden = true;
-  suggestions.id = input.getAttribute('aria-labelledby') + '-suggestions';
+  suggestions.id = labelId + '-suggestions';
   suggestions.setAttribute('aria-label', 'Opciones para ' + title);
   input.setAttribute('aria-controls', suggestions.id);
+  const selection = element('p', 'catalog-selection');
+  selection.id = labelId + '-selection';
+  selection.setAttribute('role', 'status');
+  const check = element('span', '', '✓');
+  check.setAttribute('aria-hidden', 'true');
+  const selectionName = element('span');
+  selection.append(check, ' ', selectionName);
+  input.setAttribute(
+    'aria-describedby',
+    input.getAttribute('aria-describedby') + ' ' + selection.id,
+  );
   const results = element('p', 'sr-only');
   results.setAttribute('role', 'status');
-  field.append(label, suggestions, results);
+  field.append(label, selection, suggestions, results);
 
-  function hideSuggestions() {
-    suggestions.hidden = true;
-    results.textContent = '';
+  let selected;
+
+  function updateSelection(option) {
+    selected = option;
+    selectionName.textContent = selected ? 'Seleccionado: ' + selected.name : '';
+    selection.hidden = !selected;
+    input.classList.toggle('catalog-input--selected', Boolean(selected));
+  }
+  function restoreChoice(value, chosenId) {
+    input.value = value;
+    const query = catalogKey(value);
+    updateSelection(
+      options().find(({ id, name }) => (chosenId ? id === chosenId : catalogKey(name) === query)),
+    );
+  }
+  restoreChoice(input.value, initialId);
+
+  function matchingOptions(showAll = false) {
+    const query = catalogKey(input.value);
+    if (selected || (!query && !showAll)) return [];
+    return options().filter(({ name }) => catalogKey(name).includes(query));
   }
 
-  input.addEventListener('input', () => {
-    const query = catalogKey(input.value);
-    const matches = query
-      ? (catalogOptions[key] ?? [])
-          .filter(({ name }) => catalogKey(name).includes(query) && catalogKey(name) !== query)
-          .slice(0, 6)
-      : [];
+  function renderSuggestions(showAll = false) {
+    const matches = matchingOptions(showAll);
     suggestions.replaceChildren();
-    for (const { name } of matches) {
+    for (const match of matches) {
       const item = element('li');
-      const choose = element('button', 'secondary', name);
+      const choose = element('button', 'secondary', match.name);
       choose.type = 'button';
-      choose.addEventListener('mousedown', (event) => event.preventDefault());
       choose.addEventListener('click', () => {
-        input.value = name;
+        input.value = match.name;
+        updateSelection(match);
+        if (errorInput === input) showError('');
         input.focus();
+        renderSuggestions();
         input.dispatchEvent(new Event('change', { bubbles: true }));
-        hideSuggestions();
       });
       item.append(choose);
       suggestions.append(item);
@@ -243,25 +272,44 @@ function createCatalogField(key, title, label, input) {
     if (matches.length)
       results.textContent =
         matches.length === 1 ? 'Una opción disponible.' : `${matches.length} opciones disponibles.`;
+  }
+
+  input.addEventListener('input', () => {
+    updateSelection(undefined);
+    if (errorInput === input) showError('');
+    renderSuggestions(showAllWhenEmpty);
   });
-  input.addEventListener('change', () => {
-    input.value = fieldValue(key, input.value);
-  });
-  field.addEventListener('focusout', (event) => {
-    if (!field.contains(event.relatedTarget)) hideSuggestions();
+  input.addEventListener('focus', () => {
+    if (suggestions.hidden) renderSuggestions(showAllWhenEmpty);
   });
   field.addEventListener('keydown', (event) => {
     if (suggestions.hidden) return;
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && suggestions.contains(event.target)) {
       event.preventDefault();
       input.focus();
-      hideSuggestions();
     } else if (event.key === 'ArrowDown' && event.target === input) {
       event.preventDefault();
       suggestions.querySelector('button').focus();
     }
   });
-  return field;
+  return {
+    control: field,
+    input,
+    read: () => input.value,
+    get option() {
+      return selected;
+    },
+    requiresChoice: () => matchingOptions().length > 0,
+    restore(value, id) {
+      restoreChoice(value, id);
+      if (errorInput === input) showError('');
+      renderSuggestions();
+    },
+    refreshOptions() {
+      updateSelection(selected && options().find(({ id }) => id === selected.id));
+      renderSuggestions();
+    },
+  };
 }
 
 function createLitterField(title, initialValue, required) {
@@ -349,7 +397,7 @@ function createBirthField(title, initial, required) {
   };
 }
 
-function createField([key, title, type, requiredForNew, maxLength, hint], initial, isNew) {
+function createField([key, title, type, requiredForNew, maxLength, hint], initial, isNew, catalog) {
   const required = Boolean(isNew && requiredForNew);
   const labelText = required ? title + ' *' : title;
   const initialValue = initial[key] ?? '';
@@ -368,13 +416,21 @@ function createField([key, title, type, requiredForNew, maxLength, hint], initia
   input.name = key;
   input.required = required;
   input.value = initialValue;
-  const search = CATALOG_FIELDS.has(key);
-  const guidance = search
+  const guidance = catalog
     ? [hint, 'Buscá una opción o escribí un nombre nuevo.'].filter(Boolean).join(' ')
     : hint;
   const label = fieldLabel(labelText, input, guidance);
-  const control = search ? createCatalogField(key, title, label, input) : label;
-  return { control, input, read: () => input.value };
+  if (catalog) {
+    return createCatalogField(
+      title,
+      label,
+      input,
+      catalog.options,
+      catalog.id,
+      key === 'foodDetail',
+    );
+  }
+  return { control: label, input, read: () => input.value };
 }
 
 function refreshActions() {
@@ -605,6 +661,7 @@ function addCard(
     draftId,
     revision = 0,
     proposedFields = {},
+    optionIds = {},
     photos: savedPhotos = [],
   } = { catId: null },
 ) {
@@ -634,14 +691,50 @@ function addCard(
   const otherFields = element('div', 'fields');
   other.append(element('summary', '', 'Modificar otros datos de este gato'), otherFields);
   const inputs = new Map();
+  const foodFields = element('div', 'fields food-fields');
 
   for (const field of FIELDS) {
     const key = field[0];
-    const ui = createField(field, initial, isNew);
+    const isCatalog = CATALOG_FIELDS.has(key);
+    const options = () => {
+      if (key !== 'foodDetail') return catalogOptions[key] ?? [];
+      const brand = inputs.get('foodBrand');
+      const brandName = catalogKey(brand.read() || fields.foodBrand || '');
+      const storedBrand = [initial.foodBrand, fields.foodBrand].some(
+        (name) => name && catalogKey(name) === brandName,
+      );
+      const knownBrand = storedBrand
+        ? catalogOptions.foodBrand?.find(({ name }) => catalogKey(name) === brandName)
+        : undefined;
+      const brandId = (brand.option ?? knownBrand)?.id;
+      return foodVarieties.filter((variety) => variety.brandId === brandId);
+    };
+    const catalog = isCatalog ? { options, id: optionIds?.[key] } : undefined;
+    const ui = createField(field, initial, isNew, catalog);
     const container = isNew || requestedFields.includes(key) ? primaryFields : otherFields;
-    container.append(ui.control);
+    if (key === 'foodBrand') {
+      (requestedFields.includes('foodDetail') ? primaryFields : container).append(foodFields);
+    }
+    (key === 'foodBrand' || key === 'foodDetail' ? foodFields : container).append(ui.control);
     inputs.set(key, ui);
   }
+  const brand = inputs.get('foodBrand');
+  const variety = inputs.get('foodDetail');
+  const initialBrand = catalogKey(brand.read());
+  const initialVariety = { value: variety.read(), id: variety.option?.id };
+  let lastBrand = initialBrand;
+  function updateVariety() {
+    const nextBrand = catalogKey(brand.read());
+    if (lastBrand !== nextBrand) {
+      lastBrand = nextBrand;
+      if (nextBrand === initialBrand) variety.restore(initialVariety.value, initialVariety.id);
+      else variety.restore('');
+    } else {
+      variety.refreshOptions();
+    }
+  }
+  brand.input.addEventListener('input', updateVariety);
+  brand.input.addEventListener('change', updateVariety);
   inputs.get('name').input.addEventListener('input', ({ target }) => {
     title.textContent = target.value.trim() || fallbackTitle;
   });
@@ -704,6 +797,14 @@ function addCard(
   return entry;
 }
 
+function setCatalogOptions(invitation) {
+  catalogOptions = {
+    foodBrand: invitation.brands ?? invitation.foodBrands ?? [],
+    ...invitation.catalogOptions,
+  };
+  foodVarieties = invitation.foodVarieties ?? [];
+}
+
 async function load() {
   if (!token) {
     endAccess();
@@ -724,10 +825,7 @@ async function load() {
     showError('');
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
-    catalogOptions = {
-      foodBrand: invitation.brands ?? invitation.foodBrands ?? [],
-      ...invitation.catalogOptions,
-    };
+    setCatalogOptions(invitation);
     existingHint.hidden = !invitation.cats.some((cat) => cat.catId);
     for (const cat of invitation.cats) addCard(cat);
     if (cards.length === 0 && allowNewCats) addCard();
@@ -744,6 +842,7 @@ async function load() {
 function submissionCards() {
   return cards.map((card) => {
     const fields = {};
+    const optionIds = {};
     let changed = false;
     for (const [key, field] of card.inputs) {
       if (key === 'birthDate') {
@@ -759,16 +858,27 @@ function submissionCards() {
         }
         continue;
       }
-      const original = fieldValue(key, card.fields[key]);
-      const value = fieldValue(key, field.read()) || original;
-      if (value !== fieldValue(key, card.initial[key])) changed = true;
-      if (value !== original) fields[key] = value;
+      const original = card.fields[key]?.trim() ?? '';
+      const entered = field.read().trim();
+      const value = entered || original;
+      const initial = card.initial[key]?.trim() ?? '';
+      const unchanged = sameFieldValue(key, value, initial);
+      if (!unchanged) changed = true;
+      if (
+        !sameFieldValue(key, value, original) ||
+        (key === 'foodDetail' && entered && fields.foodBrand)
+      ) {
+        const option = field.option;
+        fields[key] = option?.name ?? (unchanged ? initial : value);
+        if (option) optionIds[key] = option.id;
+      }
     }
     const files = Array.from(card.fileInput.files);
     const retainedPhotoIds = card.photos.filter((photo) => photo.keep).map((photo) => photo.id);
     return {
       card,
       fields,
+      optionIds,
       files,
       retainedPhotoIds,
       changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
@@ -779,7 +889,7 @@ function submissionCards() {
 function validateCards(drafts) {
   for (const { card, fields, files, retainedPhotoIds, changed } of drafts) {
     if (!changed && (card.catId !== null || card.revision > 0)) continue;
-    for (const field of card.inputs.values()) {
+    for (const [key, field] of card.inputs) {
       const { input } = field;
       const value = field.read().trim();
       if (input.required && !value && !input.validity.badInput) {
@@ -798,6 +908,25 @@ function validateCards(drafts) {
         showError('Revisá este dato antes de enviar la ficha.', input);
         return false;
       }
+      const varietyBrandChanged =
+        key === 'foodDetail' &&
+        !sameFieldValue(
+          'foodBrand',
+          card.inputs.get('foodBrand').read() || card.fields.foodBrand || '',
+          card.initial.foodBrand || '',
+        );
+      if (
+        fields[key] &&
+        field.requiresChoice?.() &&
+        (varietyBrandChanged || !sameFieldValue(key, value, card.initial[key] ?? ''))
+      ) {
+        showError('Elegí una de las opciones para este dato.', input);
+        return false;
+      }
+    }
+    if (fields.foodDetail && !fields.foodBrand && !card.fields.foodBrand) {
+      showError('Ingresá la marca para indicar la variedad.', card.inputs.get('foodBrand').input);
+      return false;
     }
     const count = files.length + retainedPhotoIds.length;
     const photoError = photoLimitError(files, retainedPhotoIds.length);
@@ -840,7 +969,7 @@ function hasProposal({ fields, files, retainedPhotoIds }) {
 function multipart(entries) {
   const body = new FormData();
   let totalBytes = 0;
-  const updates = entries.map(({ card, fields, files, retainedPhotoIds }, index) => {
+  const updates = entries.map(({ card, fields, optionIds, files, retainedPhotoIds }, index) => {
     const photoKeys = files.map((photo, position) => {
       const key = 'photo-' + index + '-' + position;
       totalBytes += photo.size;
@@ -852,6 +981,7 @@ function multipart(entries) {
       draftId: card.draftId,
       revision: card.revision,
       fields,
+      ...(Object.keys(optionIds).length ? { optionIds } : {}),
       retainedPhotoIds,
       photoKeys,
     };
@@ -862,6 +992,37 @@ function multipart(entries) {
     new Blob([JSON.stringify({ cats: updates })], { type: 'application/json' }),
   );
   return body;
+}
+
+async function refreshCatalogConflict(response, entries) {
+  const conflict = await response.json().catch(() => null);
+  if (conflict?.code !== 'CAT_INTAKE_CATALOG_CHANGED') return false;
+  try {
+    const latest = await request('/api/intake/request');
+    if (unavailableStatus(latest.status)) {
+      endAccess();
+      return true;
+    }
+    if (!latest.ok) throw new Error('Request failed');
+    setCatalogOptions(await latest.json());
+    for (const card of cards) {
+      for (const field of card.inputs.values()) field.refreshOptions?.();
+    }
+    const affected = entries.filter(({ fields }) => Object.hasOwn(fields, conflict.field));
+    const entry =
+      affected.find(({ card, optionIds }) => {
+        const field = card.inputs.get(conflict.field);
+        return field?.requiresChoice?.() || (optionIds[conflict.field] && !field?.option);
+      }) ?? affected[0];
+    editable.disabled = false;
+    showError(
+      'Las opciones de este dato cambiaron. Revisalo antes de enviar.',
+      entry?.card.inputs.get(conflict.field)?.input,
+    );
+  } catch {
+    showError('No se pudieron actualizar las opciones. Volvé a intentar.');
+  }
+  return true;
 }
 
 addCat.addEventListener('click', () => {
@@ -904,11 +1065,13 @@ form.addEventListener('submit', async (event) => {
     } else if (unavailableStatus(response.status)) {
       endAccess();
     } else if (response.status === 409) {
-      stale = true;
-      showStatus('La ficha cambió. Cargá la versión actual antes de volver a hacer tus cambios.');
-      retry.textContent = 'Cargar versión actual';
-      retry.hidden = false;
-      retry.focus();
+      if (!(await refreshCatalogConflict(response, entries))) {
+        stale = true;
+        showStatus('La ficha cambió. Cargá la versión actual antes de volver a hacer tus cambios.');
+        retry.textContent = 'Cargar versión actual';
+        retry.hidden = false;
+        retry.focus();
+      }
     } else if (response.status === 413) {
       showError('Las fotos son demasiado grandes. Elegí archivos más chicos y volvé a enviar.');
     } else if (response.status === 400 || response.status === 415 || response.status === 422) {
