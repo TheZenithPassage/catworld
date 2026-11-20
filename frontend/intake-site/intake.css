@@ -59,17 +59,11 @@ fieldset {
 }
 
 .cat-card {
-  display: flex;
-  align-items: flex-start;
+  position: relative;
   margin-bottom: 0.8rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   background: var(--surface);
-}
-
-.cat-card > details {
-  flex: 1;
-  min-width: 0;
 }
 
 .cat-card > details > summary {
@@ -89,10 +83,29 @@ fieldset {
 }
 
 .cat-state {
-  margin-inline-start: 0.6rem;
-  color: var(--muted);
+  display: inline-block;
+  max-inline-size: 100%;
+  margin-block: 0.15rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 1rem;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.cat-state--pending {
+  color: #693c09;
+  background: #ffe2a6;
+  font-weight: 750;
+}
+
+.cat-state--submitted {
+  color: #254766;
+  background: #e5eff8;
+}
+
+.cat-state--complete {
+  color: var(--green);
+  background: #e6f0e8;
 }
 
 .other-fields > summary {
@@ -228,12 +241,15 @@ button:disabled {
 }
 
 .remove-cat {
-  max-width: 48%;
-  margin: 0.5rem 0.6rem 0.5rem 0;
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.6rem;
+  max-inline-size: 43%;
 }
 
-.cat-card > details[open] + .remove-cat {
-  display: none;
+.cat-card:has(> .remove-cat:not([hidden])) > details > summary {
+  min-block-size: 3.75rem;
+  padding-inline-end: 48%;
 }
 
 .retained-photos {
