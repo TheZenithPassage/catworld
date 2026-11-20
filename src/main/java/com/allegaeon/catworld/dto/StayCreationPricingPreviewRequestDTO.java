@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.model.LitterChoice;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -10,6 +11,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
@@ -23,4 +25,5 @@ public class StayCreationPricingPreviewRequestDTO {
     private Boolean arrivalTransferRequired;
     private Boolean departureTransferRequired;
     private Boolean transferWaived;
+    private Map<UUID, LitterChoice> litterChoices;
 }

@@ -13,6 +13,7 @@ import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveOwnerContextDTO;
 import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveStayContextDTO;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.repository.SensitiveEconomicActivityProjection;
+import com.allegaeon.catworld.service.StayLitterPricing;
 import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import org.springframework.stereotype.Component;
 
@@ -155,5 +156,11 @@ public class SensitiveEconomicActivityMapper {
                 : WholeMonetaryAmount.canonicalize(amount);
     }
     private BigDecimal transferSuggestion(SensitiveEconomicActivityProjection p) { long legs=(Boolean.TRUE.equals(p.arrivalTransferRequired())?1:0)+(Boolean.TRUE.equals(p.departureTransferRequired())?1:0); return Boolean.TRUE.equals(p.transferWaived()) || p.retainedTransferRate()==null ? BigDecimal.ZERO : WholeMonetaryAmount.canonicalize(p.retainedTransferRate().multiply(BigDecimal.valueOf(legs))); }
-    private BigDecimal suggestion(SensitiveEconomicActivityProjection p) { return p.retainedNightlyRate()==null ? null : WholeMonetaryAmount.canonicalize(p.retainedNightlyRate().multiply(BigDecimal.valueOf(p.numberOfNights())).add(transferSuggestion(p))); }
+    private BigDecimal suggestion(SensitiveEconomicActivityProjection projection) {
+        long nights = projection.numberOfNights();
+        BigDecimal accommodation = projection.retainedNightlyRate() == null ? null
+                : projection.retainedNightlyRate().multiply(BigDecimal.valueOf(nights));
+        BigDecimal litter = StayLitterPricing.subtotal(projection.litterRatePerKg(), nights, projection.litterDailyHalfKilos());
+        return StayLitterPricing.combine(accommodation, transferSuggestion(projection), litter);
+    }
 }

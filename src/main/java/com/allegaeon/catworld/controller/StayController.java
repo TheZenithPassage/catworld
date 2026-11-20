@@ -3,6 +3,7 @@ package com.allegaeon.catworld.controller;
 import com.allegaeon.catworld.dto.lookup.LookupPage;
 import com.allegaeon.catworld.dto.lookup.StayLookupItem;
 import com.allegaeon.catworld.dto.PendingPricePreviewDTO;
+import com.allegaeon.catworld.dto.PendingPricePreviewRequestDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
 import com.allegaeon.catworld.dto.PaymentAnnulmentRequestDTO;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
@@ -120,8 +121,17 @@ public class StayController {
     }
 
     @GetMapping("/{id}/pending-price-preview")
-    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id) {
-        return stayService.previewPendingPrice(id);
+    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean adoptCurrentLitterRate) {
+        return adoptCurrentLitterRate
+                ? stayService.previewPendingPrice(id, new PendingPricePreviewRequestDTO(null, true))
+                : stayService.previewPendingPrice(id);
+    }
+
+    @PostMapping("/{id}/pending-price-preview")
+    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id,
+            @RequestBody PendingPricePreviewRequestDTO request) {
+        return stayService.previewPendingPrice(id, request);
     }
 
     @PatchMapping("/{id}/agreed-amount")

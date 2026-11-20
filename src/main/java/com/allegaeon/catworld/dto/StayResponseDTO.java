@@ -34,6 +34,7 @@ public class StayResponseDTO {
     private boolean transferWaived;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
+    private StayLitterBreakdown litter;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal suggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal agreedAmount;
     private boolean pricePending;

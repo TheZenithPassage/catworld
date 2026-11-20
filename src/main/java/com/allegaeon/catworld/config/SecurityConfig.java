@@ -39,9 +39,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates", "/api/operations/arrivals",
-                                "/api/food-brands")
+                                "/api/food-brands", "/api/litter-rate")
                         .hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")
+                        .requestMatchers("/api/nightly-reference-rates/**", "/api/litter-rate").hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/sensitive-economic-activity"

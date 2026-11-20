@@ -1,8 +1,10 @@
 package com.allegaeon.catworld.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +21,8 @@ public final class CatIntakeDtos {
     public record ScopedCat(UUID catId, Map<String, String> fields, List<String> requestedFields, UUID draftId,
                             long revision, Map<String, String> proposedFields, List<ReviewPhoto> photos) {}
     public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt,
-                                List<FoodBrandOption> brands) {}
+                                List<FoodBrandOption> brands,
+                                @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal litterRatePerKg) {}
     public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
                                List<UUID> retainedPhotoIds, List<String> photoKeys) {}
     public record Submission(List<SubmittedCat> cats) {}

@@ -134,6 +134,9 @@ public class StayServiceTest {
     private com.allegaeon.catworld.repository.TransferRateRepository transferRateRepository;
 
     @Mock
+    private LitterRateService litterRates;
+
+    @Mock
     private StayPricingDecisionRepository stayPricingDecisionRepository;
 
     @Mock
@@ -198,6 +201,8 @@ public class StayServiceTest {
         lenient().when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("10")).build()));
         lenient().when(stayRepository.findByIdForUpdate(any()))
                 .thenAnswer(invocation -> stayRepository.findById(invocation.getArgument(0)));
+        lenient().when(catRepository.findByIdForUpdate(any()))
+                .thenAnswer(invocation -> catRepository.findById(invocation.getArgument(0)));
         lenient().when(stayMapper.calculateNumberOfNights(any(), any()))
                 .thenCallRealMethod();
         lenient().when(stayMapper.calculateSuggestedAmount(
@@ -1493,7 +1498,7 @@ public class StayServiceTest {
                     .endAt(startAt.plusDays(2))
                     .retainedNightlyRate(new BigDecimal("20"))
                     .agreedAmount(new BigDecimal("40"))
-                    .stayCats(Set.of(StayCat.builder().build()))
+                    .stayCats(Set.of(StayCat.builder().cat(Cat.builder().id(UUID.randomUUID()).build()).build()))
                     .build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
@@ -1545,7 +1550,7 @@ public class StayServiceTest {
             Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
                     .retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("5"))
                     .arrivalTransferRequired(true).agreedAmount(new BigDecimal("25"))
-                    .stayCats(Set.of(StayCat.builder().build())).build();
+                    .stayCats(Set.of(StayCat.builder().cat(Cat.builder().id(UUID.randomUUID()).build()).build())).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
             when(nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT)).thenReturn(Optional.of(NightlyReferenceRate.builder().key(NightlyReferenceRateKey.ONE_CAT).nightlyRate(new BigDecimal("15")).build()));

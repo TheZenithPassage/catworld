@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.model.LitterChoice;
 import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.AssertTrue;
@@ -12,6 +13,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -30,6 +33,8 @@ public class PricingDecisionRequestDTO {
     private Boolean pricePending;
     private String reason;
     private String expectedPendingPriceVersion;
+    private Map<UUID, LitterChoice> litterChoices;
+    private Boolean adoptCurrentLitterRate;
 
     public boolean isPricePending() {
         return Boolean.TRUE.equals(pricePending);

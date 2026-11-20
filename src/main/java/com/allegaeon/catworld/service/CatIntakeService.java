@@ -77,6 +77,7 @@ public class CatIntakeService {
     private final CatIntakeFields fields;
     private final HouseholdIntakePreparation preparation;
     private final FoodBrandService foodBrands;
+    private final LitterRateService litterRates;
     private final LibVipsCatPhotoNormalizer normalizer;
     private final PlatformTransactionManager transactions;
     private final ObjectMapper json;
@@ -166,7 +167,8 @@ public class CatIntakeService {
             submitted.stream().filter(review -> review.getCatId() == null && review.getApprovedAt() == null)
                     .map(draft -> scopedCat(null, Map.of(), List.of(), draft)).forEach(result::add);
         }
-        return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(), foodBrands.approvedBrands());
+        return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(),
+                foodBrands.approvedBrands(), litterRates.currentRate());
     }
 
     @Transactional(readOnly = true)

@@ -105,7 +105,7 @@ class OperationalOverviewServiceTest {
 
     private StayService mockStayService(Clock fixed) {
         return new StayService(null, null, null, null, stayCatRepository, stayOverviewReadRepository,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
                 fixed);
     }
 }

@@ -49,7 +49,8 @@ public class SensitiveEconomicActivityReadRepository {
                    activity.registered_by_id, activity.registered_by_username,
                    CAST(activity.registered_at AS CHAR(26)), activity.annulled, activity.reason,
                    activity.arrival_transfer_required, activity.departure_transfer_required,
-                   activity.transfer_waived, activity.retained_transfer_rate
+                   activity.transfer_waived, activity.retained_transfer_rate,
+                   activity.litter_rate_per_kg, activity.litter_daily_half_kilos
             FROM (
                 SELECT
                     rate_change.id AS event_id,
@@ -85,7 +86,8 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL AS annulled,
                     NULL AS reason,
                     NULL AS arrival_transfer_required, NULL AS departure_transfer_required,
-                    NULL AS transfer_waived, NULL AS retained_transfer_rate
+                    NULL AS transfer_waived, NULL AS retained_transfer_rate,
+                    NULL AS litter_rate_per_kg, 0 AS litter_daily_half_kilos
                 FROM nightly_reference_rate_changes rate_change
                 JOIN user_accounts actor ON actor.id = rate_change.changed_by_id
 
@@ -125,7 +127,8 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL,
                     pricing.reason,
                     pricing.arrival_transfer_required, pricing.departure_transfer_required,
-                    pricing.transfer_waived, pricing.retained_transfer_rate
+                    pricing.transfer_waived, pricing.retained_transfer_rate,
+                    pricing.litter_rate_per_kg, pricing.litter_daily_half_kilos
                 FROM stay_pricing_decisions pricing
                 JOIN user_accounts actor ON actor.id = pricing.decided_by_id
                 JOIN sensitive_stay_contexts context
@@ -133,6 +136,7 @@ public class SensitiveEconomicActivityReadRepository {
                 WHERE pricing.retained_nightly_rate IS NOT NULL
                   AND pricing.reason IS NOT NULL
                   AND CHAR_LENGTH(TRIM(pricing.reason)) > 0
+                  AND (pricing.litter_daily_half_kilos = 0 OR pricing.litter_rate_per_kg IS NOT NULL)
                   AND pricing.retained_nightly_rate
                         * pricing.new_number_of_nights
                         + CASE
@@ -141,6 +145,10 @@ public class SensitiveEconomicActivityReadRepository {
                             ELSE pricing.retained_transfer_rate
                                 * ((CASE WHEN pricing.arrival_transfer_required THEN 1 ELSE 0 END)
                                    + (CASE WHEN pricing.departure_transfer_required THEN 1 ELSE 0 END))
+                          END
+                        + CASE WHEN pricing.litter_daily_half_kilos = 0 THEN 0
+                            ELSE ROUND(pricing.litter_rate_per_kg * GREATEST(pricing.new_number_of_nights, 1)
+                                       * pricing.litter_daily_half_kilos * 0.5, 0)
                           END
                         <> pricing.new_agreed_amount
 
@@ -179,7 +187,7 @@ public class SensitiveEconomicActivityReadRepository {
                     NULL,
                     NULL,
                     correction.reason,
-                    NULL, NULL, NULL, NULL
+                    NULL, NULL, NULL, NULL, NULL, 0
                 FROM stay_agreed_amount_corrections correction
                 JOIN user_accounts actor ON actor.id = correction.decided_by_id
                 JOIN sensitive_stay_contexts context
@@ -220,7 +228,7 @@ public class SensitiveEconomicActivityReadRepository {
                     payment_edit.registered_at,
                     NULL,
                     payment_edit.reason,
-                    NULL, NULL, NULL, NULL
+                    NULL, NULL, NULL, NULL, NULL, 0
                 FROM stay_payment_edits payment_edit
                 JOIN user_accounts actor ON actor.id = payment_edit.edited_by_id
                 JOIN user_accounts registrant
@@ -263,7 +271,7 @@ public class SensitiveEconomicActivityReadRepository {
                     annulment.registered_at,
                     NULL,
                     annulment.reason,
-                    NULL, NULL, NULL, NULL
+                    NULL, NULL, NULL, NULL, NULL, 0
                 FROM stay_payment_annulments annulment
                 JOIN user_accounts actor ON actor.id = annulment.annulled_by_id
                 JOIN user_accounts registrant
@@ -306,7 +314,7 @@ public class SensitiveEconomicActivityReadRepository {
                     removal.registered_at,
                     removal.annulled,
                     removal.reason,
-                    NULL, NULL, NULL, NULL
+                    NULL, NULL, NULL, NULL, NULL, 0
                 FROM stay_payment_removals removal
                 JOIN user_accounts actor ON actor.id = removal.removed_by_id
                 JOIN user_accounts registrant
@@ -612,7 +620,8 @@ public class SensitiveEconomicActivityReadRepository {
                     booleanValue(row[30]),
                     string(row[31]),
                     booleanValue(row[32]), booleanValue(row[33]),
-                    booleanValue(row[34]), decimal(row[35])
+                    booleanValue(row[34]), decimal(row[35]),
+                    decimal(row[36]), ((Number) row[37]).intValue()
             );
         }
     }

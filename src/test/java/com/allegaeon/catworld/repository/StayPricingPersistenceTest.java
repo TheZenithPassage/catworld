@@ -1,14 +1,22 @@
 package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
+import com.allegaeon.catworld.dto.PendingPricePreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayRequestDTO;
 import com.allegaeon.catworld.dto.StayCreationPricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayDatePricingPreviewRequestDTO;
 import com.allegaeon.catworld.dto.StayResponseDTO;
 import com.allegaeon.catworld.dto.StayUpdateDTO;
+import com.allegaeon.catworld.dto.sensitiveactivity.PricingOverrideActivityDTO;
+import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicActivityFilter;
+import com.allegaeon.catworld.dto.sensitiveactivity.SensitiveEconomicEventType;
+import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.LitterChoice;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
@@ -20,6 +28,8 @@ import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.service.StayService;
+import com.allegaeon.catworld.service.LitterRateService;
+import com.allegaeon.catworld.service.SensitiveEconomicActivityService;
 import jakarta.persistence.LockModeType;
 import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +42,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.lang.reflect.Method;
@@ -40,6 +51,7 @@ import java.time.ZoneId;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -81,6 +93,15 @@ class StayPricingPersistenceTest {
     private StayService stayService;
 
     @Autowired
+    private LitterRateService litterRates;
+
+    @Autowired
+    private SensitiveEconomicActivityService economicActivity;
+
+    @Autowired
+    private ObjectMapper json;
+
+    @Autowired
     private UserAccountRepository userAccountRepository;
 
     @Autowired
@@ -120,14 +141,130 @@ class StayPricingPersistenceTest {
         jdbcTemplate.update("delete from stay_agreed_amount_corrections");
         jdbcTemplate.update("delete from stay_pricing_decisions");
         jdbcTemplate.update("delete from nightly_reference_rate_changes");
+        jdbcTemplate.update("delete from stay_payments");
         jdbcTemplate.update("delete from stay_cat");
         jdbcTemplate.update("delete from stays");
         jdbcTemplate.update("delete from cats");
         jdbcTemplate.update("delete from vets");
         jdbcTemplate.update("delete from owners");
         jdbcTemplate.update("update nightly_reference_rates set nightly_rate = null");
+        jdbcTemplate.update("update litter_rates set litter_rate_per_kg = null");
         jdbcTemplate.update("delete from user_accounts");
         when(clock.instant()).thenReturn(DECIDED_AT);
+    }
+
+    @Test
+    void litterUsesApprovedDefaultAndRoundsOnceAcrossCatsOnSameDayStay() {
+        var fixture = createPricedStay(new BigDecimal("10"), new BigDecimal("20"), true);
+        UUID catId = fixture.response().getCatIds().iterator().next();
+        Cat existingCat = catRepository.findById(catId).orElseThrow();
+        Cat second = catRepository.saveAndFlush(Cat.builder()
+                .name("Second litter cat").sex(Sex.FEMALE).birthDate(existingCat.getBirthDate())
+                .owner(existingCat.getOwner()).createdBy(fixture.actor()).build());
+        litterRates.configure(new BigDecimal("3"));
+        LocalDateTime start = fixture.startAt().plusDays(12);
+        var preview = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder()
+                .startAt(start).endAt(start.plusHours(2)).catIds(Set.of(catId, second.getId()))
+                .litterChoices(Map.of(second.getId(), LitterChoice.HALF)).build());
+
+        assertEquals(0, preview.getNumberOfNights());
+        assertEquals(new BigDecimal("3"), preview.getLitter().subtotal());
+        assertTrue(preview.getLitter().cats().stream().allMatch(cat -> cat.choice() == LitterChoice.HALF
+                && new BigDecimal("0.5").equals(cat.totalKg())
+                && new BigDecimal("1.5").equals(cat.suggestedAmount())));
+        var serialized = json.valueToTree(preview).path("litter");
+        assertTrue(serialized.path("ratePerKg").isString());
+        assertEquals("1.5", serialized.path("cats").get(0).path("suggestedAmount").asString());
+        var ownLitter = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder()
+                .startAt(start).endAt(start.plusHours(2)).catIds(Set.of(catId, second.getId())).build());
+        assertEquals(new BigDecimal("2"), ownLitter.getLitter().subtotal());
+        assertTrue(ownLitter.getLitter().cats().stream().anyMatch(cat -> cat.choice() == LitterChoice.OWN));
+    }
+
+    @Test
+    void firstPendingConfirmationChecksCurrentRateAndCanAdjustLitterAfterCheckout() {
+        var fixture = createPricedStay(new BigDecimal("10"), new BigDecimal("20"), true);
+        UUID catId = fixture.response().getCatIds().iterator().next();
+        UUID stayId = fixture.response().getStayId();
+        assertTrue(fixture.response().getLitter().rateUnavailable());
+        assertNull(fixture.response().getSuggestedAmount());
+        when(clock.instant()).thenReturn(Instant.parse("2027-08-05T12:00:00Z"));
+        litterRates.configure(new BigDecimal("3"));
+        var request = new PendingPricePreviewRequestDTO(Map.of(catId, LitterChoice.ONE), true);
+        var old = stayService.previewPendingPrice(stayId, request);
+        assertEquals(new BigDecimal("26"), old.suggestedAmount());
+        litterRates.configure(new BigDecimal("5"));
+        var decision = PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("26"))
+                .expectedPendingPriceVersion(old.version()).litterChoices(request.litterChoices())
+                .adoptCurrentLitterRate(true).build();
+        assertThrows(StalePricingConfirmationException.class, () -> stayService.correctAgreedAmount(stayId, decision));
+
+        var current = stayService.previewPendingPrice(stayId, request);
+        decision.setExpectedPendingPriceVersion(current.version());
+        decision.setAgreedAmount(new BigDecimal("30"));
+        var confirmed = stayService.correctAgreedAmount(stayId, decision);
+        assertFalse(confirmed.isPricePending());
+        assertEquals(LitterChoice.ONE, confirmed.getLitter().cats().getFirst().choice());
+        assertEquals(new BigDecimal("5"), confirmed.getLitter().ratePerKg());
+        assertEquals(new BigDecimal("30"), confirmed.getAgreedAmount());
+        var correction = stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).getFirst();
+        assertEquals(new BigDecimal("5"), correction.getLitterRatePerKg());
+        assertEquals(catId + "=ONE", correction.getLitterChoices());
+    }
+
+    @Test
+    void retainedLitterSurvivesProfileAndTariffChangesAndRepricingCannotUndercutPayments() {
+        var fixture = createPricedStay();
+        UUID catId = fixture.response().getCatIds().iterator().next();
+        UUID stayId = fixture.response().getStayId();
+        Cat cat = catRepository.findById(catId).orElseThrow();
+        cat.setLitterBrand("Usa las de CatWorld");
+        catRepository.saveAndFlush(cat);
+        litterRates.configure(new BigDecimal("5"));
+        assertEquals(LitterChoice.OWN, stayService.getStay(stayId).getLitter().cats().getFirst().choice());
+
+        LocalDateTime start = fixture.startAt();
+        var useLitter = Map.of(catId, LitterChoice.ONE);
+        var preview = stayService.previewDateChangePricing(stayId, StayDatePricingPreviewRequestDTO.builder()
+                .startAt(start).endAt(start.plusDays(2)).litterChoices(useLitter).build());
+        var add = StayUpdateDTO.builder().startAt(start).endAt(start.plusDays(2)).litterChoices(useLitter)
+                .confirmation(preview.getConfirmation()).pricingDecision(PricingDecisionRequestDTO.builder()
+                        .agreedAmount(new BigDecimal("31")).reason("Whole-stay amount agreed with the tutor").build()).build();
+        stayService.updateStay(stayId, add);
+        litterRates.configure(new BigDecimal("9"));
+        cat.setLitterBrand("Own brand");
+        catRepository.saveAndFlush(cat);
+        stayService.registerPayment(stayId, PaymentRegistrationRequestDTO.builder()
+                .amount(new BigDecimal("28")).paymentDate(LocalDateTime.ofInstant(DECIDED_AT, clock.getZone()).toLocalDate())
+                .build());
+
+        assertEquals(new BigDecimal("5"), stayService.getStay(stayId).getLitter().ratePerKg());
+        assertThrows(ConflictException.class,
+                () -> stayService.updateStay(stayId, updateRequest(stayId, start, 1, new BigDecimal("15"), null)));
+        assertEquals(new BigDecimal("31"), stayService.getStay(stayId).getAgreedAmount());
+        assertEquals(new BigDecimal("10"), stayService.getStay(stayId).getLitter().subtotal());
+        var filter = new SensitiveEconomicActivityFilter(null, null, null,
+                SensitiveEconomicEventType.PRICING_OVERRIDE, null, null, stayId);
+        var activity = (PricingOverrideActivityDTO) economicActivity.getActivity(filter, 0).items().getFirst();
+        assertEquals(new BigDecimal("30"), activity.suggestedAmount());
+    }
+
+    @Test
+    void litterRateAllowsStaffReadAndAdministratorConfigurationAndClear() {
+        var admin = createPersistenceFixture().actor();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+        assertThrows(BadRequestException.class, () -> litterRates.configure(new BigDecimal("1.5")));
+        assertNull(litterRates.get().litterRatePerKg());
+        var rate = new BigDecimal("9999999999999999999");
+        litterRates.configure(rate);
+        var staff = UserAccount.builder().role(UserRole.STAFF).build();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(staff);
+        assertEquals(rate, litterRates.get().litterRatePerKg());
+        assertThrows(ForbiddenException.class, litterRates::clear);
+        assertThrows(ForbiddenException.class, () -> litterRates.configure(BigDecimal.ONE));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(admin);
+        litterRates.clear();
+        assertNull(litterRates.get().litterRatePerKg());
     }
 
     @Test
@@ -772,6 +909,10 @@ class StayPricingPersistenceTest {
     private PricingFixture createPricedStay(
             BigDecimal retainedNightlyRate,
             BigDecimal agreedAmount) {
+        return createPricedStay(retainedNightlyRate, agreedAmount, false);
+    }
+
+    private PricingFixture createPricedStay(BigDecimal retainedNightlyRate, BigDecimal agreedAmount, boolean pendingLitter) {
         UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
                 .username("pricing-admin-" + UUID.randomUUID())
                 .passwordHash(passwordEncoder.encode("password"))
@@ -786,6 +927,7 @@ class StayPricingPersistenceTest {
         LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
         Cat cat = catRepository.saveAndFlush(Cat.builder()
                 .name("Milo")
+                .litterBrand(pendingLitter ? "Usa las de CatWorld" : null)
                 .birthDate(startAt.minusYears(3).toLocalDate())
                 .sex(Sex.MALE)
                 .owner(owner)
@@ -815,7 +957,8 @@ class StayPricingPersistenceTest {
                 .endAt(startAt.plusDays(2))
                 .catIds(catIds)
                 .pricingDecision(PricingDecisionRequestDTO.builder()
-                        .agreedAmount(agreedAmount)
+                        .agreedAmount(pendingLitter ? null : agreedAmount)
+                        .pricePending(pendingLitter)
                         .build())
                 .confirmation(confirmation)
                 .build());

@@ -1,11 +1,14 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.model.LitterChoice;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
 
 @Getter @Setter
 @NoArgsConstructor
@@ -26,6 +29,7 @@ public class StayUpdateDTO {
     private Boolean arrivalTransferRequired;
     private Boolean departureTransferRequired;
     private Boolean transferWaived;
+    private Map<UUID, LitterChoice> litterChoices;
 
     @Valid
     private PricingDecisionRequestDTO pricingDecision;
