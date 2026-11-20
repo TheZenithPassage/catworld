@@ -26,8 +26,9 @@ public class Cat extends AuditableEntity {
     @Column(nullable = false)
     private boolean deceased;
 
-    @Column(nullable = false)
     private LocalDate birthDate;
+
+    private Integer birthYear;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -41,6 +42,9 @@ public class Cat extends AuditableEntity {
     private String foodDetail;
     private String litterBrand;
     private String personality;
+
+    @Column(length = 2000)
+    private String careInstructions;
 
     @Column(columnDefinition = "TEXT")
     private String notes;

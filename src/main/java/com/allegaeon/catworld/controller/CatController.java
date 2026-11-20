@@ -6,7 +6,6 @@ import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.ICatService;
-import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -63,7 +62,7 @@ public class CatController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> createCat(
-            @Valid @RequestPart("cat") CatRequestDTO catRequestDTO,
+            @Validated({Default.class, CatRequestDTO.Create.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
             @RequestPart(value = "photo", required = false) MultipartFile photo) {
         return ResponseEntity.status(HttpStatus.CREATED).body(catService.createCat(catRequestDTO, photo));
     }

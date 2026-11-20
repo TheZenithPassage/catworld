@@ -11,6 +11,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.boot.builder.SpringApplicationBuilder;
@@ -108,11 +109,14 @@ class PendingPriceMigrationMySqlIntegrationTest {
             HistoricalMigrationConfig.migrate(candidate);
         }
 
-        // V23 adds two cat columns whose initial values are checked separately.
-        assertEquals(before, dataSnapshot("food_brand_id", "food_detail"));
+        // Profile additions have their initialization checked separately.
+        assertEquals(before, dataSnapshot("food_brand_id", "food_detail", "birth_year", "care_instructions"));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from cats where food_brand_id is not null or food_detail is not null
                 """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from cats where birth_year is not null or care_instructions is not null
+                """, Integer.class), "V24 must preserve exact dates and leave care instructions unset for historical cats");
         assertTrue(history().containsAll(historyBefore));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '14' and success = 1", Integer.class));
@@ -171,6 +175,26 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals("FFD8FFD9", jdbc.queryForObject(
                 "select hex(content) from cat_informational_photos where id = ?", String.class, id(51)));
         candidate.validate();
+    }
+
+    @Test
+    void preservesExactBirthDatesAndEnforcesPrecisionWhenUpgradingV23() {
+        Flyway.configure().dataSource(dataSource).target("23").load().migrate();
+        populate(false, false);
+        Flyway.configure().dataSource(dataSource).target("24").load().migrate();
+
+        assertEquals("2020-01-01", jdbc.queryForObject("select birth_date from cats where id = ?", String.class, id(4)));
+        assertNull(jdbc.queryForObject("select birth_year from cats where id = ?", Integer.class, id(4)));
+        assertNull(jdbc.queryForObject("select care_instructions from cats where id = ?", String.class, id(4)));
+        var missing = assertThrows(DataAccessException.class,
+                () -> jdbc.update("update cats set birth_date = null where id = ?", id(4)));
+        assertTrue(missing.getMessage().contains("chk_cats_birth_precision"));
+        var both = assertThrows(DataAccessException.class,
+                () -> jdbc.update("update cats set birth_year = 2020 where id = ?", id(4)));
+        assertTrue(both.getMessage().contains("chk_cats_birth_precision"));
+        jdbc.update("update cats set birth_date = null, birth_year = 2020 where id = ?", id(4));
+        assertNull(jdbc.queryForObject("select birth_date from cats where id = ?", String.class, id(4)));
+        assertEquals(2020, jdbc.queryForObject("select birth_year from cats where id = ?", Integer.class, id(4)));
     }
 
     @ParameterizedTest

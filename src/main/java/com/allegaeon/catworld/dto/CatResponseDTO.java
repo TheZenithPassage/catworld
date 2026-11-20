@@ -18,6 +18,7 @@ public class CatResponseDTO {
     private String name;
     private boolean deceased;
     private LocalDate birthDate;
+    private Integer birthYear;
     private Sex sex;
     private String breed;
     private String coat;
@@ -27,6 +28,7 @@ public class CatResponseDTO {
     private String foodDetail;
     private String litterBrand;
     private String personality;
+    private String careInstructions;
     private String notes;
     private String lastInternalDewormerName;
     private LocalDate lastInternalDewormingDate;

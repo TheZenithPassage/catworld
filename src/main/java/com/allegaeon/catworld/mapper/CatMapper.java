@@ -25,6 +25,7 @@ public class CatMapper {
                 .name(cat.getName())
                 .deceased(cat.isDeceased())
                 .birthDate(cat.getBirthDate())
+                .birthYear(cat.getBirthYear())
                 .sex(cat.getSex())
                 .breed(cat.getBreed())
                 .coat(cat.getCoat())
@@ -34,6 +35,7 @@ public class CatMapper {
                 .foodDetail(cat.getFoodDetail())
                 .litterBrand(cat.getLitterBrand())
                 .personality(cat.getPersonality())
+                .careInstructions(cat.getCareInstructions())
                 .notes(cat.getNotes())
                 .lastInternalDewormerName(cat.getLastInternalDewormerName())
                 .lastInternalDewormingDate(cat.getLastInternalDewormingDate())
@@ -58,12 +60,14 @@ public class CatMapper {
                 .name(catRequestDTO.getName())
                 .deceased(Boolean.TRUE.equals(catRequestDTO.getDeceased()))
                 .birthDate(catRequestDTO.getBirthDate())
+                .birthYear(catRequestDTO.getBirthYear())
                 .sex(catRequestDTO.getSex())
                 .breed(catRequestDTO.getBreed())
                 .coat(catRequestDTO.getCoat())
                 .color(catRequestDTO.getColor())
                 .litterBrand(catRequestDTO.getLitterBrand())
                 .personality(catRequestDTO.getPersonality())
+                .careInstructions(normalizeOptional(catRequestDTO.getCareInstructions()))
                 .notes(normalizeOptional(catRequestDTO.getNotes()))
                 .lastInternalDewormerName(catRequestDTO.getLastInternalDewormerName())
                 .lastInternalDewormingDate(catRequestDTO.getLastInternalDewormingDate())
@@ -83,13 +87,19 @@ public class CatMapper {
         if (catRequestDTO.getDeceased() != null) {
             cat.setDeceased(catRequestDTO.getDeceased());
         }
-        cat.setBirthDate(catRequestDTO.getBirthDate());
+        if (catRequestDTO.isBirthSpecified()) {
+            cat.setBirthDate(catRequestDTO.getBirthDate());
+            cat.setBirthYear(catRequestDTO.getBirthYear());
+        }
         cat.setSex(catRequestDTO.getSex());
         cat.setBreed(catRequestDTO.getBreed());
         cat.setCoat(catRequestDTO.getCoat());
         cat.setColor(catRequestDTO.getColor());
         if (catRequestDTO.hasLitterBrandUpdate()) cat.setLitterBrand(catRequestDTO.getLitterBrand());
         cat.setPersonality(catRequestDTO.getPersonality());
+        if (catRequestDTO.hasCareInstructionsUpdate()) {
+            cat.setCareInstructions(normalizeOptional(catRequestDTO.getCareInstructions()));
+        }
         cat.setNotes(normalizeOptional(catRequestDTO.getNotes()));
         cat.setLastInternalDewormerName(catRequestDTO.getLastInternalDewormerName());
         cat.setLastInternalDewormingDate(catRequestDTO.getLastInternalDewormingDate());

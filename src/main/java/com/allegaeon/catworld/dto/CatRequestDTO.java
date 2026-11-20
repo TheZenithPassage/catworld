@@ -4,6 +4,8 @@ import com.allegaeon.catworld.model.Sex;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -12,6 +14,7 @@ import lombok.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.UUID;
 
 @Getter @Setter
@@ -19,6 +22,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class CatRequestDTO {
+
+    public interface Create {}
 
     public interface Update {}
 
@@ -31,9 +36,29 @@ public class CatRequestDTO {
 
     private Boolean deceased;
 
-    @NotNull(message = "Birth date is required")
     @PastOrPresent(message = "Birth date cannot be in the future")
     private LocalDate birthDate;
+
+    @Min(value = 1000, message = "Birth year must have four digits")
+    private Integer birthYear;
+
+    @JsonIgnore
+    @AssertTrue(groups = Create.class, message = "Birth date or birth year is required")
+    public boolean isBirthSpecified() {
+        return birthDate != null || birthYear != null;
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "Provide either birth date or birth year")
+    public boolean isBirthPrecisionValid() {
+        return birthDate == null || birthYear == null;
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "Birth year cannot be in the future")
+    public boolean isBirthYearPastOrPresent() {
+        return birthYear == null || birthYear <= Year.now().getValue();
+    }
 
     @NotNull(message = "Sex is required")
     private Sex sex;
@@ -100,6 +125,22 @@ public class CatRequestDTO {
 
     @Size(max = 255, message = "Personality must not exceed 255 characters")
     private String personality;
+
+    @Size(max = 2000, message = "Care instructions must not exceed 2000 characters")
+    private String careInstructions;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean careInstructionsSupplied;
+
+    @JsonSetter("careInstructions")
+    public void setCareInstructions(String careInstructions) {
+        this.careInstructions = careInstructions;
+        careInstructionsSupplied = true;
+    }
+
+    public boolean hasCareInstructionsUpdate() {
+        return careInstructionsSupplied || careInstructions != null;
+    }
 
     @Size(max = 10000, message = "Notes must not exceed 10000 characters")
     private String notes;

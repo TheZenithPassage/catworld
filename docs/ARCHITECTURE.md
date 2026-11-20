@@ -25,6 +25,15 @@ Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
 to 8-bit and premultiplied while resizing before being flattened onto white.
 Native objects remain inside `Vips.run`.
 
+Each cat has either an exact `birthDate` or an approximate integer
+`birthYear`. V24 keeps existing dates at their stored precision, including
+January 1, and enforces that one representation is present. Creation requires
+one representation. On internal updates, supplying either representation
+replaces the pair, and omitting both preserves it. Optional
+`careInstructions` are shared with the tutor. The cat and tutor notes are
+private administration fields. V24 leaves care instructions unset on existing
+profiles.
+
 Cat informational photos are separate attachments for vaccination records and
 other reference images. The cat detail gallery lists attachment IDs and upload
 timestamps from `GET /api/cats/{catId}/informational-photos`. The same
@@ -67,14 +76,21 @@ protected administration origin.
 Recipients can return to edit pending proposals and reuse staged evidence.
 A requested update must answer at least one prompt. Reporting a rabies or
 triple feline dose requires its date and an image. One image can cover both
-doses. A submission can include up to 20 cats, with up to two normalized JPEGs
+doses. A tutor's new registration requires name, birth date or year, sex,
+breed, coat, color, personality, food brand and detail, and litter. An
+invalid registration fails the whole submission. Vaccines and deworming
+details are optional. Internal profile creation and approval of pending
+registrations use the existing name, birth and sex minimum. A submission
+can include up to 20 cats, with up to two normalized JPEGs
 per cat, including retained evidence. New uploads are limited to 8 MiB per
-image and 32 MiB across the submission.
+image and 32 MiB across the submission. Intake fields are strings, using
+`birthYear` instead of `birthDate` when only the year is known.
 
 Administrators compare proposed fields with the current profile and approve each
-cat independently. Approval checks the proposal revision and verifies the
-profile timestamp under the same cat row lock used by the internal editor.
-It applies the selected fields and moves selected evidence to the informational
+cat independently. Review treats both birth representations as one field.
+Approval checks the proposal revision and verifies the profile timestamp under
+the same cat row lock used by the internal editor. It applies the selected
+fields and moves selected evidence to the informational
 gallery. An approved cat is closed to further edits through that invitation.
 Approval closes the link when the last outstanding cat is resolved.
 

@@ -233,7 +233,7 @@ public class CatIntakeService {
         var original = fieldsOf(review.getOriginalFields());
         var proposed = fieldsOf(review.getProposedFields());
         List<String> conflicts = current == null ? List.of() : proposed.keySet().stream()
-                .filter(key -> !Objects.equals(original.get(key), current.get(key))).toList();
+                .filter(key -> fields.isConflict(key, original, current)).toList();
         return new ReviewDetail(id, owner.getId(), owner.getFullName(), review.getCatId(), review.getCatName(),
                 review.getSubmittedAt(), current, proposed, conflicts,
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
@@ -272,8 +272,11 @@ public class CatIntakeService {
 
         var accepted = fields.nonBlank(approval.fields());
         accepted.computeIfPresent("foodBrand", (key, value) -> foodBrands.matchingName(value));
-        if (cat != null && !fieldsOf(review.getProposedFields()).keySet().containsAll(accepted.keySet())) {
-            throw new BadRequestException("Select fields proposed in this review");
+        if (cat != null) {
+            var proposed = fieldsOf(review.getProposedFields());
+            if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposed))) {
+                throw new BadRequestException("Select fields proposed in this review");
+            }
         }
         List<UUID> photoIds = approval.photoIds() == null ? List.of() : approval.photoIds();
         if (photoIds.size() > MAX_PHOTOS_PER_CAT || photoIds.stream().anyMatch(Objects::isNull)
@@ -285,9 +288,7 @@ public class CatIntakeService {
             throw new BadRequestException("Select photos belonging to this review");
         }
 
-        Map<String, String> values = cat == null ? new LinkedHashMap<>() : fields.snapshot(cat);
-        values.putAll(accepted);
-        var request = fields.request(ownerId, cat, values);
+        var request = fields.request(ownerId, cat, fields.merge(cat, accepted));
         if (accepted.containsKey("foodBrand")) {
             request.setFoodBrand(accepted.get("foodBrand"));
             request.setApproveFoodBrand(true);
@@ -347,6 +348,7 @@ public class CatIntakeService {
             var previous = previousDraft(submitted, byCat, byDraft);
             var original = catId == null ? Map.<String, String>of() : scope.get(catId);
             var proposed = proposedFields(submitted, original);
+            if (catId == null) fields.requireRegistrationDetails(proposed);
             var oldPhotoIds = previous == null ? List.<UUID>of() : intakePhotos.findIdsByReview(previous.getId());
             var retained = retainedPhotoIds(submitted, oldPhotoIds);
             var uploads = photoKeys(submitted);
@@ -357,11 +359,8 @@ public class CatIntakeService {
                 throw new BadRequestException("Vaccination dates require a supporting photo for this cat");
             }
 
-            Map<String, String> values = current == null ? new LinkedHashMap<>() : fields.snapshot(current);
-            values.putAll(proposed);
-            fields.request(invite.getOwner().getId(), current, values);
-            Map<String, String> baseline = new LinkedHashMap<>(original);
-            baseline.keySet().retainAll(proposed.keySet());
+            fields.request(invite.getOwner().getId(), current, fields.merge(current, proposed));
+            Map<String, String> baseline = fields.comparisonBaseline(original, proposed);
             UUID stableDraftId = previous != null ? previous.getDraftId() : draftId == null ? UUID.randomUUID() : draftId;
             drafts.add(new Draft(previous, catId, stableDraftId, proposed.getOrDefault("name", original.get("name")),
                     baseline, proposed, retained, uploads));
@@ -561,11 +560,13 @@ public class CatIntakeService {
     }
 
     private Map<UUID, Map<String, String>> scopeOf(String snapshot) {
-        return json.readValue(snapshot, new TypeReference<>() {});
+        Map<UUID, Map<String, String>> scope = json.readValue(snapshot, new TypeReference<>() {});
+        scope.replaceAll((id, saved) -> fields.sharedFields(saved));
+        return scope;
     }
 
     private Map<String, String> fieldsOf(String snapshot) {
-        return json.readValue(snapshot, new TypeReference<>() {});
+        return fields.sharedFields(json.readValue(snapshot, new TypeReference<>() {}));
     }
 
     private static String requireDigest(String authorization) {
