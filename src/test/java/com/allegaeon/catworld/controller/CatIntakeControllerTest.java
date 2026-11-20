@@ -116,6 +116,29 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void exposesTheExactLitterReferenceThroughThePrivateForm() throws Exception {
+        Owner owner = owner();
+        cat(owner, "Fictional cat");
+        var invite = issue(owner, false);
+        String rate = "9876543210987654321";
+
+        mvc.perform(put("/api/litter-rate").with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("litterRatePerKg", rate))))
+                .andExpect(status().isOk());
+        try {
+            mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.catalogOptions").isMap())
+                    .andExpect(jsonPath("$.litterRatePerKg").isString())
+                    .andExpect(jsonPath("$.litterRatePerKg").value(rate));
+            mvc.perform(get("/api/litter-rate").header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                    .andExpect(status().isUnauthorized());
+        } finally {
+            mvc.perform(delete("/api/litter-rate").with(admin())).andExpect(status().isNoContent());
+        }
+    }
+
+    @Test
     void snapshotsTheHouseholdAndKeepsPendingProfilesOpenUntilTheFinalApproval() throws Exception {
         Owner owner = owner();
         Cat withPending = cat(owner, "Pending vaccine");

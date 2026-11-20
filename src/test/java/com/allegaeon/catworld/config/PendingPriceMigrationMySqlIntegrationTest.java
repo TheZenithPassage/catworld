@@ -36,6 +36,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfEnvironmentVariable(named = "CATWORLD_MIGRATION_MYSQL_URL", matches = ".+")
 class PendingPriceMigrationMySqlIntegrationTest {
+    private static final Map<String, Set<String>> LITTER_PRICING_COLUMNS = Map.of(
+            "stays", Set.of("retained_litter_rate_per_kg"),
+            "stay_cat", Set.of("litter_choice"),
+            "stay_pricing_decisions", Set.of("litter_rate_per_kg", "litter_daily_half_kilos", "litter_choices"),
+            "stay_agreed_amount_corrections", Set.of("litter_rate_per_kg", "litter_choices"));
 
     @TempDir Path temporary;
     private JdbcTemplate administrator;
@@ -111,14 +116,16 @@ class PendingPriceMigrationMySqlIntegrationTest {
             HistoricalMigrationConfig.migrate(candidate);
         }
 
-        // Profile additions have their initialization checked separately.
-        assertEquals(before, dataSnapshot("food_brand_id", "food_detail", "birth_year", "care_instructions",
+        // Profile and litter pricing additions have their initialization checked separately.
+        assertEquals(before, dataSnapshot(LITTER_PRICING_COLUMNS,
+                "food_brand_id", "food_detail", "birth_year", "care_instructions",
                 "breed_option_id", "coat_option_id", "color_option_id",
                 "last_internal_dewormer_option_id", "last_external_dewormer_option_id"));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from cats where food_brand_id is not null or food_detail is not null
                 """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
         assertNewProfileFieldsUnset();
+        assertHistoricalLitterDefaults();
         assertTrue(history().containsAll(historyBefore));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '14' and success = 1", Integer.class));
@@ -176,6 +183,31 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals(migratedData, dataSnapshot());
         assertEquals("FFD8FFD9", jdbc.queryForObject(
                 "select hex(content) from cat_informational_photos where id = ?", String.class, id(51)));
+        candidate.validate();
+    }
+
+    @Test
+    void upgradesAnAgreedAndPaidMultiCatStayThroughV27() {
+        Flyway.configure().dataSource(dataSource).target("26").load().migrate();
+        populate(false, false);
+        jdbc.update("update cats set litter_brand = 'Usa las de CatWorld' where id = ?", id(4));
+        var before = dataSnapshot();
+        var historyBefore = history();
+
+        Flyway candidate = Flyway.configure().dataSource(dataSource).target("27").load();
+        HistoricalMigrationConfig.migrate(candidate);
+
+        assertEquals(before, dataSnapshot(LITTER_PRICING_COLUMNS));
+        assertTrue(history().containsAll(historyBefore));
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from flyway_schema_history where version = '27' and success = 1", Integer.class));
+        assertHistoricalLitterDefaults();
+        assertEquals(List.of("OWN", "OWN"), jdbc.queryForList(
+                "select litter_choice from stay_cat where stay_id = ?", String.class, id(7)));
+        assertEquals("400", jdbc.queryForObject(
+                "select agreed_amount from stays where id = ? and not price_pending", String.class, id(7)));
+        assertEquals("125", jdbc.queryForObject(
+                "select sum(amount) from stay_payments where stay_id = ? and not annulled", String.class, id(7)));
         candidate.validate();
     }
 
@@ -416,19 +448,41 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 """, Integer.class), "V25 must leave option references unset for historical cats");
     }
 
+    private void assertHistoricalLitterDefaults() {
+        assertNull(jdbc.queryForObject("select litter_rate_per_kg from litter_rates where id = 1", String.class));
+        assertEquals(0, jdbc.queryForObject(
+                "select count(*) from stays where retained_litter_rate_per_kg is not null", Integer.class));
+        assertEquals(0, jdbc.queryForObject(
+                "select count(*) from stay_cat where litter_choice is null or litter_choice <> 'OWN'", Integer.class));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from stay_pricing_decisions
+                where litter_rate_per_kg is not null or litter_daily_half_kilos <> 0 or litter_choices is not null
+                """, Integer.class));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from stay_agreed_amount_corrections
+                where litter_rate_per_kg is not null or litter_choices is not null
+                """, Integer.class));
+    }
+
     private Map<String, List<String>> dataSnapshot(String... excludedCatColumns) {
+        return dataSnapshot(Map.of(), excludedCatColumns);
+    }
+
+    private Map<String, List<String>> dataSnapshot(Map<String, Set<String>> excludedNewColumns,
+                                                  String... excludedCatColumns) {
         Set<String> excludedCatColumnNames = new HashSet<>(List.of(excludedCatColumns));
         excludedCatColumnNames.add("deceased");
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (String table : List.of("user_accounts", "owners", "vets", "cats", "stays", "stay_cat",
                 "nightly_reference_rates", "stay_pricing_decisions", "stay_agreed_amount_corrections",
                 "stay_payments", "stay_payment_annulments", "sensitive_stay_contexts", "sensitive_stay_context_cats")) {
-            Set<String> excludedColumns = switch (table) {
+            Set<String> excludedColumns = new HashSet<>(switch (table) {
                 case "cats" -> excludedCatColumnNames;
                 case "owners" -> Set.of("deceased");
                 case "stays" -> Set.of("price_pending");
                 default -> Set.of();
-            };
+            });
+            excludedColumns.addAll(excludedNewColumns.getOrDefault(table, Set.of()));
             result.put(table, snapshotRows(table, excludedColumns));
         }
         return result;
