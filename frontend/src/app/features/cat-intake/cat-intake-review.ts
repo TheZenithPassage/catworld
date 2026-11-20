@@ -350,7 +350,7 @@ export class CatIntakeReview {
 
   displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {
     if (key === 'birthDate' && fields?.birthYear)
-      return this.copy().approximateYear(fields.birthYear);
+      return this.copy().formatYearOnly(fields.birthYear);
     return this.displayValue(key, fields?.[key]);
   }
 
