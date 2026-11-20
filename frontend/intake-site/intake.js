@@ -759,6 +759,10 @@ function validateRequestedAnswer(entries) {
   return true;
 }
 
+function hasProposal({ fields, files, retainedPhotoIds }) {
+  return Object.keys(fields).length > 0 || files.length > 0 || retainedPhotoIds.length > 0;
+}
+
 function multipart(entries) {
   const body = new FormData();
   let totalBytes = 0;
@@ -801,7 +805,8 @@ form.addEventListener('submit', async (event) => {
     showError('No hay datos nuevos para enviar.');
     return;
   }
-  if (!validateRequestedAnswer(entries)) return;
+  const proposals = entries.filter(hasProposal);
+  if (proposals.length && !validateRequestedAnswer(proposals)) return;
   const body = multipart(entries);
   if (!body) {
     showError(
@@ -815,7 +820,12 @@ form.addEventListener('submit', async (event) => {
   try {
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
-      closeForm('Ficha recibida. CatWorld va a revisar los datos.', 'Volver a la ficha');
+      closeForm(
+        proposals.length
+          ? 'Ficha recibida. CatWorld va a revisar los datos.'
+          : 'Se retiraron los cambios de la ficha.',
+        'Volver a la ficha',
+      );
       retry.focus();
     } else if (unavailableStatus(response.status)) {
       endAccess();

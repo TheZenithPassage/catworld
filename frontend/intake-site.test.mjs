@@ -224,6 +224,23 @@ test('reopening a partial submission shows both pending data and the submitted s
   assert.equal(pepa.querySelector('details')?.open, false);
 });
 
+test('restoring the original data withdraws the proposal while requested fields are unanswered', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [{ ...existing, revision: 1, proposedFields: { foodBrand: 'Royal Canin' } }],
+  });
+  const [cat] = portal.entries();
+  enter(portal.window, cat, 'foodBrand', '');
+  const post = await portal.submit();
+  assert.ok(post, 'the portal should post the withdrawn proposal even with unanswered requests');
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, {});
+  assert.match(
+    portal.window.document.querySelector('#status').textContent,
+    /Se retiraron los cambios/,
+  );
+});
+
 test('catalog suggestions can be chosen from a keyboard or sent as typed proposals', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: false,

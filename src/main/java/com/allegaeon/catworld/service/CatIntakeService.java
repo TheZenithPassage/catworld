@@ -379,18 +379,22 @@ public class CatIntakeService {
             var oldPhotoIds = previous == null ? List.<UUID>of() : intakePhotos.findIdsByReview(previous.getId());
             var retained = retainedPhotoIds(submitted, oldPhotoIds);
             var uploads = photoKeys(submitted);
-            if (catId != null && proposed.isEmpty() && retained.isEmpty() && uploads.isEmpty()) continue;
             if (previous != null && proposed.equals(fieldsOf(previous.getProposedFields()))
                     && retained.size() == oldPhotoIds.size() && uploads.isEmpty()) continue;
             if (!Collections.disjoint(proposed.keySet(), VACCINE_FIELDS) && retained.isEmpty() && uploads.isEmpty()) {
                 throw new BadRequestException("Vaccination dates require a supporting photo for this cat");
             }
 
-            fields.request(invite.getOwner().getId(), current, fields.merge(current, proposed));
             Map<String, String> baseline = fields.comparisonBaseline(original, proposed);
             UUID stableDraftId = previous != null ? previous.getDraftId() : draftId == null ? UUID.randomUUID() : draftId;
-            drafts.add(new Draft(previous, catId, stableDraftId, proposed.getOrDefault("name", original.get("name")),
-                    baseline, proposed, retained, uploads));
+            var draft = new Draft(previous, catId, stableDraftId, proposed.getOrDefault("name", original.get("name")),
+                    baseline, proposed, retained, uploads);
+            if (draft.hasProposal()) {
+                fields.request(invite.getOwner().getId(), current, fields.merge(current, proposed));
+            } else if (previous == null) {
+                continue;
+            }
+            drafts.add(draft);
         }
         return drafts;
     }
@@ -435,11 +439,12 @@ public class CatIntakeService {
 
     private static void validateRequestedAnswer(List<Draft> drafts, Map<UUID, List<String>> requested, List<Cat> eligible,
                                                 Map<UUID, CatIntakeReview> byCat) {
-        if (drafts.isEmpty() || drafts.stream().anyMatch(draft -> draft.catId() == null)) return;
+        var proposals = drafts.stream().filter(Draft::hasProposal).toList();
+        if (proposals.isEmpty() || proposals.stream().anyMatch(draft -> draft.catId() == null)) return;
         boolean hasRequests = eligible.stream().map(Cat::getId)
                 .filter(id -> byCat.get(id) == null || byCat.get(id).isPending())
                 .anyMatch(id -> !requested.getOrDefault(id, List.of()).isEmpty());
-        if (hasRequests && drafts.stream().noneMatch(draft -> requested.getOrDefault(draft.catId(), List.of())
+        if (hasRequests && proposals.stream().noneMatch(draft -> requested.getOrDefault(draft.catId(), List.of())
                 .stream().anyMatch(draft.proposed()::containsKey))) {
             throw new BadRequestException("Answer at least one requested field in the household");
         }
@@ -447,9 +452,13 @@ public class CatIntakeService {
 
     private void saveDraft(CatIntakeInvitation invitation, Draft draft, Map<String, NormalizedCatPhoto> normalized,
                            Instant now) {
+        var previous = draft.previous();
+        if (!draft.hasProposal()) {
+            reviews.delete(previous);
+            return;
+        }
         String original = json.writeValueAsString(draft.original());
         String proposed = json.writeValueAsString(draft.proposed());
-        var previous = draft.previous();
         CatIntakeReview review;
         if (previous == null) {
             review = reviews.save(new CatIntakeReview(invitation, draft.catId(), draft.draftId(), draft.catName(),
@@ -624,5 +633,9 @@ public class CatIntakeService {
     }
 
     private record Draft(CatIntakeReview previous, UUID catId, UUID draftId, String catName, Map<String, String> original,
-                         Map<String, String> proposed, List<UUID> retainedPhotoIds, List<String> photoKeys) {}
+                         Map<String, String> proposed, List<UUID> retainedPhotoIds, List<String> photoKeys) {
+        private boolean hasProposal() {
+            return !proposed.isEmpty() || !retainedPhotoIds.isEmpty() || !photoKeys.isEmpty();
+        }
+    }
 }

@@ -228,8 +228,8 @@ class CatIntakeControllerTest {
         cats.saveAllAndFlush(List.of(existing, other));
         var invite = issue(owner, true);
         UUID draftId = UUID.randomUUID();
-        var newFields = Map.of("name", "New", "birthDate", "2020-01-01", "sex", "MALE",
-                "lastRabiesDate", "2026-09-21", "foodBrand", "Never Approved Food");
+        var newFields = newRegistration("New", Map.of("lastRabiesDate", "2026-09-21",
+                "foodBrand", "Never Approved Food"));
         doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
         mvc.perform(submission(invite, List.of(
                         Map.of("draftId", draftId, "fields", newFields, "photoKeys", List.of("new-proof")),
@@ -309,6 +309,43 @@ class CatIntakeControllerTest {
                 review.get("catUpdatedAt").asString(), 204);
         assertThat(cats.findById(existing.getId()).orElseThrow().getLastRabiesDate()).isEqualTo(LocalDate.of(2026, 8, 12));
         assertThat(photos.findGallery(existing.getId())).hasSize(1);
+    }
+
+    @Test
+    void returningToOriginalValuesAndRemovingEvidenceWithdrawsAnExistingProposal() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Original profile");
+        cat.setLitterBrand(null);
+        cats.saveAndFlush(cat);
+        var invite = issue(owner, false);
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields",
+                        Map.of("litterBrand", "Pellets", "lastRabiesDate", "2026-08-30"),
+                        "photoKeys", List.of("proof"))),
+                new MockMultipartFile("proof", "record.jpg", "image/jpeg", JPEG)))
+                .andExpect(status().isNoContent());
+        var row = rowFor(reviewList(), owner.getId(), cat.getName());
+        var pending = detail(row.get("id").asString());
+        var photoId = pending.get("photos").get(0).get("id").asString();
+
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "revision",
+                        pending.get("revision").asLong(), "fields", Map.of(), "retainedPhotoIds", List.of()))))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cats[0].requestedFields", hasItem("litterBrand")))
+                .andExpect(jsonPath("$.cats[0].proposedFields").isEmpty())
+                .andExpect(jsonPath("$.cats[0].photos").isEmpty());
+        mvc.perform(get(REVIEW + "/{id}", row.get("id").asString()).with(admin()))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/intake/photos/{id}", photoId).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isNotFound());
+        assertThat(cats.findById(cat.getId()).orElseThrow().getLitterBrand()).isNull();
+
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields",
+                        Map.of("litterBrand", "Clay")))))
+                .andExpect(status().isNoContent());
+        assertThat(rowFor(reviewList(), owner.getId(), cat.getName()).get("id")).isNotEqualTo(row.get("id"));
     }
 
     @Test

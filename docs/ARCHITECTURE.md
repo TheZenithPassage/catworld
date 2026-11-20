@@ -54,9 +54,10 @@ booked on the selected arrival, preparation checks vaccination coverage
 through that stay's local departure date. Other cats use the departure of
 their next non-cancelled stay that has yet to start, or today's business date
 when they have no upcoming stay. The invitation captures the resulting
-prompts, including missing food and litter. The form exposes only editable cat
-fields. The server rechecks eligibility and ownership before displaying an
-existing cat or accepting or approving changes.
+prompts, including missing food and litter. The form exposes editable cat
+fields, including the tutor's care instructions. Staff notes on cats and tutors
+remain on the administration origin. The server rechecks eligibility and
+ownership before displaying an existing cat or accepting or approving changes.
 
 The token uses 32 random bytes and is stored as a SHA-256 digest. The link
 carries it in the URL fragment and expires after seven days. Replacement or
@@ -74,23 +75,24 @@ the informational gallery remain behind staff authentication on the
 protected administration origin.
 
 Recipients can return to edit pending proposals and reuse staged evidence.
-A requested update must answer at least one prompt. Reporting a rabies or
-triple feline dose requires its date and an image. One image can cover both
-doses. A tutor's new registration requires name, birth date or year, sex,
-breed, coat, color, personality, food brand and detail, and litter. An
-invalid registration fails the whole submission. Vaccines and deworming
-details are optional. Internal profile creation and approval of pending
-registrations use the existing name, birth and sex minimum. A submission
-can include up to 20 cats, with up to two normalized JPEGs
-per cat, including retained evidence. New uploads are limited to 8 MiB per
-image and 32 MiB across the submission. Intake fields are strings, using
-`birthYear` instead of `birthDate` when only the year is known.
+Restoring an existing cat's original values and removing all staged evidence
+withdraws its proposal while leaving the invitation open. A requested update
+must answer at least one prompt. Reporting a rabies or triple feline dose
+requires its date and an image. One image can cover both doses. A tutor's new
+registration requires name, birth date or year, sex, breed, coat, color,
+personality, food brand and detail, and litter. An invalid registration fails
+the whole submission. Vaccines and deworming details are optional. Internal
+profile creation and approval of pending registrations use the existing name,
+birth and sex minimum. A submission can include up to 20 cats, with up to two
+normalized JPEGs per cat, including retained evidence. New uploads are limited
+to 8 MiB per image and 32 MiB across the submission. Intake fields are strings,
+using `birthYear` instead of `birthDate` when only the year is known.
 
 Administrators compare proposed fields with the current profile and review each
 cat independently. Review treats both birth representations as one field.
-Approval and dismissal check the proposal revision and
-verify the profile timestamp under the same cat row lock used by the internal
-editor. Approval applies the selected fields and moves selected evidence to the
+Approval and dismissal check the proposal revision and verify the profile
+timestamp under the same cat row lock used by the internal editor.
+Approval applies the selected fields and moves selected evidence to the
 informational gallery. Dismissal discards the staged values and photos without
 changing the cat profile or registering a new cat. Both decisions prevent
 further edits to that proposal through the invitation. The link closes when
@@ -106,8 +108,8 @@ for the catalog in the editor or by applying the field during intake review.
 Historical text remains on cat profiles, and approved selections reference
 catalog IDs. `GET /api/food-brands`, `foodBrandId` and the private form's
 `brands` list continue to use the existing food brand IDs. The free-text
-`foodDetail` stores the variety or diet. Litter accepts a tutor's own
-description or the shared CatWorld litter choice.
+`foodDetail` stores the variety or diet. Tutors can bring their own litter,
+with an optional description, or choose the shared CatWorld supply.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
