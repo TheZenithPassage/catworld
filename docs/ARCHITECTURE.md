@@ -86,13 +86,15 @@ per cat, including retained evidence. New uploads are limited to 8 MiB per
 image and 32 MiB across the submission. Intake fields are strings, using
 `birthYear` instead of `birthDate` when only the year is known.
 
-Administrators compare proposed fields with the current profile and approve each
+Administrators compare proposed fields with the current profile and review each
 cat independently. Review treats both birth representations as one field.
-Approval checks the proposal revision and verifies the profile timestamp under
-the same cat row lock used by the internal editor. It applies the selected
-fields and moves selected evidence to the informational
-gallery. An approved cat is closed to further edits through that invitation.
-Approval closes the link when the last outstanding cat is resolved.
+Approval and dismissal check the proposal revision and
+verify the profile timestamp under the same cat row lock used by the internal
+editor. Approval applies the selected fields and moves selected evidence to the
+informational gallery. Dismissal discards the staged values and photos without
+changing the cat profile or registering a new cat. Both decisions prevent
+further edits to that proposal through the invitation. The link closes when
+the last outstanding cat is resolved.
 
 Cat profiles suggest approved options for breed, coat, color, food brand, and
 the last internal and external dewormers. `GET /api/cat-profile-options` lists

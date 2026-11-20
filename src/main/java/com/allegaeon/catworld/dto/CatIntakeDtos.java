@@ -31,4 +31,5 @@ public final class CatIntakeDtos {
                                List<ReviewPhoto> photos, Instant catUpdatedAt, long revision) {}
     public record Approval(Map<String, String> fields, List<UUID> photoIds, Instant expectedCatUpdatedAt,
                            Long expectedReviewRevision) {}
+    public record Dismissal(Instant expectedCatUpdatedAt, @NotNull Long expectedReviewRevision) {}
 }

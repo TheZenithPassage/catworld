@@ -158,12 +158,12 @@ public class CatIntakeService {
         var eligibleIds = catIds(eligible);
         scope.forEach((catId, original) -> {
             var draft = byCat.get(catId);
-            if (eligibleIds.contains(catId) && (draft == null || draft.getApprovedAt() == null)) {
+            if (eligibleIds.contains(catId) && (draft == null || draft.isPending())) {
                 result.add(scopedCat(catId, original, requested.getOrDefault(catId, List.of()), draft));
             }
         });
         if (invite.getAllowNewCats()) {
-            submitted.stream().filter(review -> review.getCatId() == null && review.getApprovedAt() == null)
+            submitted.stream().filter(review -> review.getCatId() == null && review.isPending())
                     .map(draft -> scopedCat(null, Map.of(), List.of(), draft)).forEach(result::add);
         }
         var catalogOptions = profileOptions.approvedOptions();
@@ -257,20 +257,10 @@ public class CatIntakeService {
     public void approve(UUID id, Approval approval) {
         // Registering a new cat also writes an owner foreign key. Use issuance's owner-then-invitation lock order.
         owners.findByNewCatReviewForUpdate(id);
-        // Submission and approval acquire the same invitation lock before reading or changing proposals.
-        var invitation = invitations.findByReviewIdForUpdate(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Cat intake review", id));
-        var review = requirePendingReview(reviews.findByIdForUpdate(id), id);
-        requireReviewScope(review);
-        if (!Objects.equals(review.getRevision(), approval.expectedReviewRevision())) {
-            throw new ConflictException("The proposal has changed since this review was opened");
-        }
+        var invitation = lockReviewInvitation(id);
+        var review = lockPendingReview(id, approval.expectedReviewRevision());
         UUID ownerId = invitation.getOwner().getId();
-        var cat = review.getCatId() == null ? null
-                : requireReviewCat(cats.findByIdForUpdate(review.getCatId()), ownerId);
-        if (cat != null && !Objects.equals(cat.getUpdatedAt(), approval.expectedCatUpdatedAt())) {
-            throw new ConflictException("The cat has changed since this review was opened");
-        }
+        var cat = lockCurrentCat(review, ownerId, approval.expectedCatUpdatedAt());
 
         var accepted = fields.nonBlank(approval.fields());
         profileOptions.normalizeProposals(accepted);
@@ -281,6 +271,9 @@ public class CatIntakeService {
             }
         }
         List<UUID> photoIds = approval.photoIds() == null ? List.of() : approval.photoIds();
+        if (cat != null && accepted.isEmpty() && photoIds.isEmpty()) {
+            throw new BadRequestException("Select at least one field or photo to approve");
+        }
         if (photoIds.size() > MAX_PHOTOS_PER_CAT || photoIds.stream().anyMatch(Objects::isNull)
                 || new HashSet<>(photoIds).size() != photoIds.size()) {
             throw new BadRequestException("Invalid selection of intake photos");
@@ -304,6 +297,41 @@ public class CatIntakeService {
         intakePhotos.deleteByReview(id);
         review.approve(approvedCat.getId(), now);
         closeIfComplete(invitation, now);
+    }
+
+    @Transactional
+    public void dismiss(UUID id, Dismissal dismissal) {
+        var invitation = lockReviewInvitation(id);
+        var review = lockPendingReview(id, dismissal.expectedReviewRevision());
+        lockCurrentCat(review, invitation.getOwner().getId(), dismissal.expectedCatUpdatedAt());
+        Instant now = clock.instant();
+        intakePhotos.deleteByReview(id);
+        review.dismiss(now);
+        closeIfComplete(invitation, now);
+    }
+
+    private CatIntakeInvitation lockReviewInvitation(UUID id) {
+        // Submission and review decisions share this lock before reading or changing proposals.
+        return invitations.findByReviewIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cat intake review", id));
+    }
+
+    private CatIntakeReview lockPendingReview(UUID id, Long expectedRevision) {
+        var review = requirePendingReview(reviews.findByIdForUpdate(id), id);
+        requireReviewScope(review);
+        if (!Objects.equals(review.getRevision(), expectedRevision)) {
+            throw new ConflictException("The proposal has changed since this review was opened");
+        }
+        return review;
+    }
+
+    private Cat lockCurrentCat(CatIntakeReview review, UUID ownerId, Instant expectedCatUpdatedAt) {
+        if (review.getCatId() == null) return null;
+        var cat = requireReviewCat(cats.findByIdForUpdate(review.getCatId()), ownerId);
+        if (!Objects.equals(cat.getUpdatedAt(), expectedCatUpdatedAt)) {
+            throw new ConflictException("The cat has changed since this review was opened");
+        }
+        return cat;
     }
 
     private Set<String> submissionPhotoKeys(Submission submission) {
@@ -377,7 +405,7 @@ public class CatIntakeService {
         var existing = submitted.catId() == null ? named : byCat.get(submitted.catId());
         if (existing == null) {
             if (submitted.revision() != null && submitted.revision() != 0) throw staleDraft();
-        } else if (existing.getApprovedAt() != null || !Objects.equals(existing.getRevision(), submitted.revision())
+        } else if (!existing.isPending() || !Objects.equals(existing.getRevision(), submitted.revision())
                 || (draftId != null && !draftId.equals(existing.getDraftId()))) {
             throw staleDraft();
         }
@@ -409,7 +437,7 @@ public class CatIntakeService {
                                                 Map<UUID, CatIntakeReview> byCat) {
         if (drafts.isEmpty() || drafts.stream().anyMatch(draft -> draft.catId() == null)) return;
         boolean hasRequests = eligible.stream().map(Cat::getId)
-                .filter(id -> byCat.get(id) == null || byCat.get(id).getApprovedAt() == null)
+                .filter(id -> byCat.get(id) == null || byCat.get(id).isPending())
                 .anyMatch(id -> !requested.getOrDefault(id, List.of()).isEmpty());
         if (hasRequests && drafts.stream().noneMatch(draft -> requested.getOrDefault(draft.catId(), List.of())
                 .stream().anyMatch(draft.proposed()::containsKey))) {
@@ -495,12 +523,13 @@ public class CatIntakeService {
         UUID ownerId = invite.getOwner().getId();
         var eligible = eligibleCats(ownerId, scope.keySet(), false);
         var eligibleIds = catIds(eligible);
-        var submitted = reviews.findByInvitation_IdOrderBySubmittedAtAscIdAsc(invite.getId());
-        if (submitted.stream().anyMatch(review -> review.getApprovedAt() == null
+        // Use a current read under the invitation lock, including decisions committed while waiting for it.
+        var submitted = reviews.findByInvitationIdForUpdate(invite.getId());
+        if (submitted.stream().anyMatch(review -> review.isPending()
                 && (review.getCatId() == null || eligibleIds.contains(review.getCatId())))) return;
-        var approvedIds = existingReviews(submitted).keySet();
+        var resolvedIds = existingReviews(submitted).keySet();
         var requested = requestedForOpenScope(invite.getRequestedFieldsSnapshot(), ownerId, eligible);
-        boolean needsAnswer = eligibleIds.stream().filter(id -> !approvedIds.contains(id))
+        boolean needsAnswer = eligibleIds.stream().filter(id -> !resolvedIds.contains(id))
                 .anyMatch(id -> !requested.getOrDefault(id, List.of()).isEmpty());
         if (!needsAnswer) invite.close(now, identifiersOnly(scope));
     }
@@ -523,7 +552,7 @@ public class CatIntakeService {
     }
 
     private static CatIntakeReview requirePendingReview(Optional<CatIntakeReview> review, UUID id) {
-        return review.filter(value -> value.getApprovedAt() == null)
+        return review.filter(CatIntakeReview::isPending)
                 .orElseThrow(() -> new ResourceNotFoundException("Cat intake review", id));
     }
 

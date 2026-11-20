@@ -18,7 +18,7 @@ public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview
             select r.id as id, o.id as ownerId, o.fullName as ownerName, r.catId as catId,
                    r.catName as catName, r.submittedAt as submittedAt
             from CatIntakeReview r join r.invitation i join i.owner o
-            where r.approvedAt is null
+            where r.approvedAt is null and r.dismissedAt is null
               and (r.catId is null or exists (
                   select 1 from Cat c where c.id = r.catId and c.owner.id = o.id and c.deceased = false
               ))
@@ -38,7 +38,7 @@ public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview
     @Query("""
             select r.id as id, r.catId as catId, r.submittedAt as submittedAt
             from CatIntakeReview r
-            where r.approvedAt is null and r.catId in :catIds
+            where r.approvedAt is null and r.dismissedAt is null and r.catId in :catIds
               and exists (
                   select 1 from Cat c where c.id = r.catId and c.owner.id = r.invitation.owner.id and c.deceased = false
               )
@@ -55,6 +55,10 @@ public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from CatIntakeReview r where r.id = :id")
     Optional<CatIntakeReview> findByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from CatIntakeReview r where r.invitation.id = :invitationId")
+    List<CatIntakeReview> findByInvitationIdForUpdate(@Param("invitationId") UUID invitationId);
 
     List<CatIntakeReview> findByInvitation_IdOrderBySubmittedAtAscIdAsc(UUID invitationId);
 }

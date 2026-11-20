@@ -219,6 +219,99 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void dismissesNewAndExistingProposalsIndependentlyWithoutApplyingTheirData() throws Exception {
+        Owner owner = owner();
+        Cat existing = cat(owner, "Existing");
+        existing.setLitterBrand(null);
+        Cat other = cat(owner, "Other");
+        other.setLitterBrand(null);
+        cats.saveAllAndFlush(List.of(existing, other));
+        var invite = issue(owner, true);
+        UUID draftId = UUID.randomUUID();
+        var newFields = Map.of("name", "New", "birthDate", "2020-01-01", "sex", "MALE",
+                "lastRabiesDate", "2026-09-21", "foodBrand", "Never Approved Food");
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+        mvc.perform(submission(invite, List.of(
+                        Map.of("draftId", draftId, "fields", newFields, "photoKeys", List.of("new-proof")),
+                        Map.of("catId", existing.getId(), "fields", Map.of("litterBrand", "Pellets",
+                                "lastRabiesDate", "2026-09-20"), "photoKeys", List.of("existing-proof"))),
+                new MockMultipartFile("new-proof", "new.jpg", "image/jpeg", JPEG),
+                new MockMultipartFile("existing-proof", "existing.jpg", "image/jpeg", JPEG)))
+                .andExpect(status().isNoContent());
+
+        var newReview = detail(rowFor(reviewList(), owner.getId(), "New").get("id").asString());
+        var existingReview = detail(rowFor(reviewList(), owner.getId(), "Existing").get("id").asString());
+        String newPhoto = newReview.get("photos").get(0).get("id").asString();
+        dismiss(newReview, 204);
+        dismiss(newReview, 404);
+        approve(newReview, newFields, List.of(newPhoto), null, 404);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.cats.length()").value(2))
+                .andExpect(jsonPath("$.cats[*].catId", containsInAnyOrder(
+                        existing.getId().toString(), other.getId().toString())));
+        mvc.perform(get("/api/intake/photos/{id}", newPhoto).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isNotFound());
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", newFields))))
+                .andExpect(status().isConflict());
+        assertThat(cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent())
+                .extracting(Cat::getId).containsExactlyInAnyOrder(existing.getId(), other.getId());
+
+        var existingTimestamp = existingReview.get("catUpdatedAt").asString();
+        approve(existingReview, Map.of("litterBrand", "  "), List.of(), existingTimestamp, 400);
+        String existingPhoto = existingReview.get("photos").get(0).get("id").asString();
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "revision", existingReview.get("revision").asLong(), "retainedPhotoIds", List.of(existingPhoto),
+                        "fields", Map.of("litterBrand", "New pellets", "lastRabiesDate", "2026-09-20")))))
+                .andExpect(status().isNoContent());
+        dismiss(existingReview, 409);
+        var corrected = detail(existingReview.get("id").asString());
+        assertThat(corrected.get("proposed").get("litterBrand").asString()).isEqualTo("New pellets");
+        dismiss(corrected, 204);
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "revision", corrected.get("revision").asLong(), "fields", Map.of("litterBrand", "Replay")))))
+                .andExpect(status().isConflict());
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.cats.length()").value(1))
+                .andExpect(jsonPath("$.cats[0].catId").value(other.getId().toString()));
+
+        var persisted = cats.findById(existing.getId()).orElseThrow();
+        assertThat(persisted.getLitterBrand()).isNull();
+        assertThat(persisted.getLastRabiesDate()).isEqualTo(LocalDate.of(2026, 8, 12));
+        assertThat(photos.findGallery(existing.getId())).isEmpty();
+        for (var row : List.of(newReview, existingReview)) {
+            UUID id = UUID.fromString(row.get("id").asString());
+            assertThat(intakePhotos.findIdsByReview(id)).isEmpty();
+            var dismissed = reviews.findById(id).orElseThrow();
+            assertThat(dismissed.getApprovedAt()).isNull();
+            assertThat(dismissed.getDismissedAt()).isEqualTo(NOW);
+        }
+        assertThat(reviewList().valueStream().noneMatch(row -> owner.getId().toString().equals(row.get("ownerId").asString())))
+                .isTrue();
+        mvc.perform(submission(invite, List.of(Map.of("catId", other.getId(), "fields", Map.of("litterBrand", "Pellets")))))
+                .andExpect(status().isNoContent());
+        var last = detail(rowFor(reviewList(), owner.getId(), "Other").get("id").asString());
+        dismiss(last, 204);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void allowsSelectedPhotosWhenNoProfileFieldsAreApplied() throws Exception {
+        Owner owner = owner();
+        Cat existing = cat(owner, "Existing");
+        var invite = issue(owner, false);
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "fields", Map.of("lastRabiesDate", "2026-09-20"), "photoKeys", List.of("proof"))),
+                new MockMultipartFile("proof", "proof.jpg", "image/jpeg", JPEG)))
+                .andExpect(status().isNoContent());
+        var review = detail(rowFor(reviewList(), owner.getId(), "Existing").get("id").asString());
+        approve(review, Map.of(), List.of(review.get("photos").get(0).get("id").asString()),
+                review.get("catUpdatedAt").asString(), 204);
+        assertThat(cats.findById(existing.getId()).orElseThrow().getLastRabiesDate()).isEqualTo(LocalDate.of(2026, 8, 12));
+        assertThat(photos.findGallery(existing.getId())).hasSize(1);
+    }
+
+    @Test
     void legacyLinksKeepTheirSelectedScopeAndConsumedLinksStayClosedWithTheirPendingPhotos() throws Exception {
         Owner owner = owner();
         Cat selected = cat(owner, "Selected");
@@ -439,6 +532,10 @@ class CatIntakeControllerTest {
         mvc.perform(post(INVITATIONS).with(httpBasic(staff.getUsername(), "intake-staff-password"))
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
         mvc.perform(get(REVIEW).with(httpBasic(staff.getUsername(), "intake-staff-password")))
+                .andExpect(status().isForbidden());
+        mvc.perform(post(REVIEW + "/{id}/dismiss", UUID.randomUUID())
+                        .with(httpBasic(staff.getUsername(), "intake-staff-password"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"expectedReviewRevision\":1}"))
                 .andExpect(status().isForbidden());
         var first = issue(owner, true);
         var second = issue(owner, true);
@@ -763,6 +860,15 @@ class CatIntakeControllerTest {
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
         return httpBasic("test-admin", "test-password");
+    }
+
+    private void dismiss(JsonNode row, int status) throws Exception {
+        var body = new java.util.HashMap<String, Object>();
+        body.put("expectedCatUpdatedAt", row.get("catUpdatedAt").isNull() ? null : row.get("catUpdatedAt").asString());
+        body.put("expectedReviewRevision", row.get("revision").asLong());
+        mvc.perform(post(REVIEW + "/{id}/dismiss", row.get("id").asString()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
+                .andExpect(status().is(status));
     }
 
     private record Invite(String id, String authorization) {}

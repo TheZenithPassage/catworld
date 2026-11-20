@@ -57,4 +57,10 @@ public class CatIntakeAdminController {
     public void approve(@PathVariable UUID id, @RequestBody Approval approval) {
         intake.approve(id, approval);
     }
+
+    @PostMapping("/review/{id}/dismiss")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void dismiss(@PathVariable UUID id, @Valid @RequestBody Dismissal dismissal) {
+        intake.dismiss(id, dismissal);
+    }
 }
