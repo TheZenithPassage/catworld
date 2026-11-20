@@ -35,6 +35,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
@@ -116,6 +117,8 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    @Sql(statements = "insert into litter_rates (id) "
+            + "select 1 where not exists (select 1 from litter_rates where id = 1)")
     void exposesTheExactLitterReferenceThroughThePrivateForm() throws Exception {
         Owner owner = owner();
         cat(owner, "Fictional cat");
