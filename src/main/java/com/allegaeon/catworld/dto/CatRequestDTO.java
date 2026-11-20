@@ -83,6 +83,9 @@ public class CatRequestDTO {
     private boolean approveFoodBrand;
     private Set<String> approveCatalogOptions;
 
+    @JsonIgnore
+    private boolean approveFoodVariety;
+
     @Size(max = 100, message = "Litter brand must not exceed 100 characters")
     private String litterBrand;
 

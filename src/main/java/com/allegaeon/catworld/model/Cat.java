@@ -43,6 +43,7 @@ public class Cat extends AuditableEntity {
     private String foodBrand;
     private UUID foodBrandId;
     private String foodDetail;
+    private UUID foodVarietyId;
     private String litterBrand;
     private String personality;
 

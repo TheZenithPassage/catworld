@@ -116,6 +116,7 @@ public class CatMapper {
             UUID id = field.idOf(cat);
             if (id != null) result.put(field.key(), id);
         }
+        if (cat.getFoodVarietyId() != null) result.put("foodDetail", cat.getFoodVarietyId());
         return result;
     }
 

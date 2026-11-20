@@ -54,9 +54,10 @@ booked on the selected arrival, preparation checks vaccination coverage
 through that stay's local departure date. Other cats use the departure of
 their next non-cancelled stay that has yet to start, or today's business date
 when they have no upcoming stay. The invitation captures the resulting
-prompts, including missing food and litter. The form exposes editable cat
-fields, including the tutor's care instructions. Staff notes on cats and tutors
-remain on the administration origin. The server rechecks eligibility and
+prompts. A newly issued invitation that requests a missing brand also requests
+its variety. Earlier invitations keep their original prompts. The form exposes
+editable cat fields, including the tutor's care instructions. Staff notes on
+cats and tutors remain on the administration origin. The server rechecks eligibility and
 ownership before displaying an existing cat or accepting or approving changes.
 
 The token uses 32 random bytes and is stored as a SHA-256 digest. The link
@@ -107,14 +108,19 @@ the last outstanding cat is resolved.
 Cat profiles suggest approved options for breed, coat, color, food brand, and
 the last internal and external dewormers. `GET /api/cat-profile-options` lists
 options by field for `ADMIN` and `STAFF`. The Bearer-authorized private form
-receives the same options in `catalogOptions`. Names match within their field
-after normalizing case and whitespace. A direct cat edit can keep a local
+receives the same options in `catalogOptions`. The tutor selects an approved
+option by ID whenever the typed text matches part or all of an option's name
+after normalizing case and whitespace. The server validates the selection and
+preserves its ID in the proposal. A direct cat edit can keep a local
 value. Only administrators can publish a new option, either by selecting it
 for the catalog in the editor or by applying the field during intake review.
 Historical text remains on cat profiles, and approved selections reference
 catalog IDs. `GET /api/food-brands`, `foodBrandId` and the private form's
-`brands` list continue to use the existing food brand IDs. The free-text
-`foodDetail` stores the variety or diet. Tutors can bring their own litter,
+`brands` list continue to use the existing food brand IDs. The form receives
+`foodVarieties` scoped by brand. An administrator can approve a proposed
+variety for its brand. Cat profiles retain existing diet descriptions even
+when a brand change removes the variety association. Historical descriptions
+stay on their profiles. Tutors can bring their own litter,
 with an optional description, or choose the shared CatWorld supply.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.

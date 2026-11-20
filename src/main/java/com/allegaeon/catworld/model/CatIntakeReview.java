@@ -45,6 +45,12 @@ public class CatIntakeReview {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String proposedFields;
 
+    @Column(columnDefinition = "TEXT")
+    private String proposedOptionIds;
+
+    @Column(length = 100)
+    private String proposedFoodDetailBrand;
+
     @Column(nullable = false)
     private Instant submittedAt;
 
@@ -54,10 +60,15 @@ public class CatIntakeReview {
 
     public CatIntakeReview(CatIntakeInvitation invitation, UUID catId, UUID draftId, String catName, String originalFields,
                            String proposedFields, Instant submittedAt) {
+        this(invitation, catId, draftId, catName, originalFields, proposedFields, null, null, submittedAt);
+    }
+
+    public CatIntakeReview(CatIntakeInvitation invitation, UUID catId, UUID draftId, String catName, String originalFields,
+                           String proposedFields, String proposedOptionIds, String proposedFoodDetailBrand, Instant submittedAt) {
         this.invitation = invitation;
         this.catId = catId;
         this.draftId = draftId;
-        replaceProposal(catName, originalFields, proposedFields, submittedAt);
+        replaceProposal(catName, originalFields, proposedFields, proposedOptionIds, proposedFoodDetailBrand, submittedAt);
     }
 
     public CatIntakeReview(CatIntakeInvitation invitation, UUID catId, String catName, String originalFields,
@@ -65,10 +76,13 @@ public class CatIntakeReview {
         this(invitation, catId, null, catName, originalFields, proposedFields, submittedAt);
     }
 
-    public void replaceProposal(String catName, String originalFields, String proposedFields, Instant submittedAt) {
+    public void replaceProposal(String catName, String originalFields, String proposedFields, String proposedOptionIds,
+                                String proposedFoodDetailBrand, Instant submittedAt) {
         this.catName = catName;
         this.originalFields = originalFields;
         this.proposedFields = proposedFields;
+        this.proposedOptionIds = proposedOptionIds;
+        this.proposedFoodDetailBrand = proposedFoodDetailBrand;
         this.submittedAt = submittedAt;
         revision++;
     }
@@ -91,5 +105,7 @@ public class CatIntakeReview {
     private void clearProposal() {
         originalFields = "{}";
         proposedFields = "{}";
+        proposedOptionIds = null;
+        proposedFoodDetailBrand = null;
     }
 }

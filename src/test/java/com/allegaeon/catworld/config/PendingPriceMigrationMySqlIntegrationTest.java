@@ -114,7 +114,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
         // Profile additions have their initialization checked separately.
         assertEquals(before, dataSnapshot("food_brand_id", "food_detail", "birth_year", "care_instructions",
                 "breed_option_id", "coat_option_id", "color_option_id",
-                "last_internal_dewormer_option_id", "last_external_dewormer_option_id"));
+                "last_internal_dewormer_option_id", "last_external_dewormer_option_id", "food_variety_id"));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from cats where food_brand_id is not null or food_detail is not null
                 """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
@@ -264,6 +264,32 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals(historyBefore, history().subList(0, historyBefore.size()));
         assertEquals("26", candidate.info().current().getVersion().getVersion());
         candidate.validate();
+
+        var catsBeforeVarieties = dataSnapshot();
+        var reviewsBeforeVarieties = householdSnapshot();
+        Flyway withVarieties = Flyway.configure().dataSource(dataSource).target("26.1").load();
+        HistoricalMigrationConfig.migrate(withVarieties);
+        assertEquals("26.1", withVarieties.info().current().getVersion().getVersion());
+        assertEquals(catsBeforeVarieties, dataSnapshot("food_variety_id"));
+        assertEquals(reviewsBeforeVarieties, householdSnapshot("proposed_option_ids", "proposed_food_detail_brand"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from food_varieties", Integer.class));
+        assertNull(jdbc.queryForObject("select food_variety_id from cats where id = ?", byte[].class, id(4)));
+        assertNull(jdbc.queryForObject("select proposed_option_ids from cat_intake_reviews where id = ?",
+                String.class, id(62)));
+
+        jdbc.update("""
+                insert into food_brands (id, name, normalized_key)
+                values (?, 'Another brand', cast('another brand' as binary))
+                """, id(67));
+        jdbc.update("""
+                insert into food_varieties (id, brand_id, name, normalized_key)
+                values (?, ?, 'Another variety', cast('another variety' as binary))
+                """, id(68), id(67));
+        assertThrows(DataAccessException.class,
+                () -> jdbc.update("update cats set food_variety_id = ? where id = ?", id(68), id(4)));
+        assertThrows(DataAccessException.class,
+                () -> jdbc.update("update cats set food_brand_id = null, food_variety_id = ? where id = ?", id(68), id(4)));
+        withVarieties.validate();
     }
 
     @ParameterizedTest

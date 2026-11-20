@@ -5,7 +5,6 @@ import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.model.Cat;
-import com.allegaeon.catworld.model.CatProfileOption;
 import com.allegaeon.catworld.model.CatProfileOptionField;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatProfileOptionRepository;
@@ -51,22 +50,6 @@ public class CatProfileOptionService {
         return result;
     }
 
-    void normalizeProposals(Map<String, String> fields) {
-        for (var field : CatProfileOptionField.values()) {
-            fields.computeIfPresent(field.key(), (ignored, name) -> matchingName(field, name));
-        }
-    }
-
-    void removeUnchangedProposals(Map<String, String> fields, Map<String, String> original) {
-        normalizeProposals(fields);
-        for (var field : CatProfileOptionField.values()) {
-            String proposed = fields.get(field.key());
-            if (proposed != null && proposed.equals(matchingName(field, original.get(field.key())))) {
-                fields.remove(field.key());
-            }
-        }
-    }
-
     void selectForApproval(CatRequestDTO request, Map<String, String> selected) {
         Set<String> approvals = new LinkedHashSet<>(FIELD_KEYS);
         approvals.retainAll(selected.keySet());
@@ -82,7 +65,8 @@ public class CatProfileOptionService {
             throw new BadRequestException("An unknown cat profile option was selected for approval");
         }
         boolean approveFood = request.isApproveFoodBrand() || approvals.contains(FOOD_BRAND.key());
-        if ((approveFood || !approvals.isEmpty()) && users.getCurrentUserAccount().getRole() != UserRole.ADMIN) {
+        if ((approveFood || request.isApproveFoodVariety() || !approvals.isEmpty())
+                && users.getCurrentUserAccount().getRole() != UserRole.ADMIN) {
             throw new ForbiddenException("Only administrators can approve cat profile options");
         }
 
@@ -93,14 +77,6 @@ public class CatProfileOptionService {
                 applyOption(field, cat, suppliedName(field, request), approvals.contains(field.key()));
             }
         }
-    }
-
-    private String matchingName(CatProfileOptionField field, String supplied) {
-        if (field == FOOD_BRAND) return foodBrands.matchingName(supplied);
-        String name = cleanName(supplied);
-        if (name == null) return null;
-        return options.findByCategoryAndNormalizedKey(field.key(), key(name))
-                .map(CatProfileOption::getName).orElse(name);
     }
 
     private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve) {
