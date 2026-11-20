@@ -30,6 +30,8 @@ public class CatMapper {
                 .coat(cat.getCoat())
                 .color(cat.getColor())
                 .foodBrand(cat.getFoodBrand())
+                .foodBrandId(cat.getFoodBrandId())
+                .foodDetail(cat.getFoodDetail())
                 .litterBrand(cat.getLitterBrand())
                 .personality(cat.getPersonality())
                 .notes(cat.getNotes())
@@ -60,7 +62,6 @@ public class CatMapper {
                 .breed(catRequestDTO.getBreed())
                 .coat(catRequestDTO.getCoat())
                 .color(catRequestDTO.getColor())
-                .foodBrand(catRequestDTO.getFoodBrand())
                 .litterBrand(catRequestDTO.getLitterBrand())
                 .personality(catRequestDTO.getPersonality())
                 .notes(normalizeOptional(catRequestDTO.getNotes()))
@@ -87,8 +88,7 @@ public class CatMapper {
         cat.setBreed(catRequestDTO.getBreed());
         cat.setCoat(catRequestDTO.getCoat());
         cat.setColor(catRequestDTO.getColor());
-        cat.setFoodBrand(catRequestDTO.getFoodBrand());
-        cat.setLitterBrand(catRequestDTO.getLitterBrand());
+        if (catRequestDTO.hasLitterBrandUpdate()) cat.setLitterBrand(catRequestDTO.getLitterBrand());
         cat.setPersonality(catRequestDTO.getPersonality());
         cat.setNotes(normalizeOptional(catRequestDTO.getNotes()));
         cat.setLastInternalDewormerName(catRequestDTO.getLastInternalDewormerName());

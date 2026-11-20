@@ -28,11 +28,13 @@ public class CatMutationTransactionService {
     private final CatMapper catMapper;
     private final CurrentUserAccountService currentUserAccountService;
     private final EntityManager entityManager;
+    private final FoodBrandService foodBrands;
 
     @Transactional
     public Cat create(CatRequestDTO request, NormalizedCatPhoto photo) {
         Cat cat = catMapper.toEntity(request, owner(request.getOwnerId()), vet(request.getVetId()));
         cat.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
+        foodBrands.applyProfile(cat, request);
         cat = catRepository.saveAndFlush(cat);
         if (photo != null) catPhotoRepository.save(toEntity(cat.getId(), photo));
         entityManager.refresh(cat);
@@ -62,6 +64,7 @@ public class CatMutationTransactionService {
     // The caller holds the write lock in its transaction.
     void applyProfile(Cat cat, CatRequestDTO request) {
         catMapper.updateEntity(cat, request, owner(request.getOwnerId()), vet(request.getVetId()));
+        foodBrands.applyProfile(cat, request);
     }
 
     private Owner owner(UUID id) {

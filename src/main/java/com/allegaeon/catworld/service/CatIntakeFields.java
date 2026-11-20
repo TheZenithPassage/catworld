@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class CatIntakeFields {
     private static final Set<String> ALLOWED = Set.of("name", "birthDate", "sex", "breed", "coat", "color",
-            "personality", "foodBrand", "litterBrand", "lastInternalDewormerName", "lastInternalDewormingDate",
+            "personality", "foodBrand", "foodDetail", "litterBrand", "lastInternalDewormerName", "lastInternalDewormingDate",
             "lastExternalDewormerName", "lastExternalDewormingDate", "lastTripleFelineDate", "lastRabiesDate");
 
     private final Validator validator;
@@ -34,6 +35,7 @@ class CatIntakeFields {
         put(result, "color", cat.getColor());
         put(result, "personality", cat.getPersonality());
         put(result, "foodBrand", cat.getFoodBrand());
+        put(result, "foodDetail", cat.getFoodDetail());
         put(result, "litterBrand", cat.getLitterBrand());
         put(result, "lastInternalDewormerName", cat.getLastInternalDewormerName());
         put(result, "lastInternalDewormingDate", cat.getLastInternalDewormingDate());
@@ -64,8 +66,9 @@ class CatIntakeFields {
                 .coat(values.get("coat"))
                 .color(values.get("color"))
                 .personality(values.get("personality"))
-                .foodBrand(values.get("foodBrand"))
-                .litterBrand(values.get("litterBrand"))
+                .foodBrand(changedValue(values.get("foodBrand"), current == null ? null : current.getFoodBrand()))
+                .foodDetail(changedValue(values.get("foodDetail"), current == null ? null : current.getFoodDetail()))
+                .litterBrand(changedValue(values.get("litterBrand"), current == null ? null : current.getLitterBrand()))
                 .lastInternalDewormerName(values.get("lastInternalDewormerName"))
                 .lastInternalDewormingDate(date(values, "lastInternalDewormingDate"))
                 .lastExternalDewormerName(values.get("lastExternalDewormerName"))
@@ -81,6 +84,10 @@ class CatIntakeFields {
             throw new BadRequestException(violation.getMessage());
         }
         return request;
+    }
+
+    private static String changedValue(String value, String current) {
+        return Objects.equals(value, current) ? null : value;
     }
 
     private static void put(Map<String, String> fields, String key, Object value) {

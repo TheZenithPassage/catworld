@@ -23,6 +23,8 @@ public class CatResponseDTO {
     private String coat;
     private String color;
     private String foodBrand;
+    private UUID foodBrandId;
+    private String foodDetail;
     private String litterBrand;
     private String personality;
     private String notes;

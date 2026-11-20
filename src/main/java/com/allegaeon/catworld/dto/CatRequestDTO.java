@@ -1,6 +1,9 @@
 package com.allegaeon.catworld.dto;
 
 import com.allegaeon.catworld.model.Sex;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
@@ -12,7 +15,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @Getter @Setter
-@NoArgsConstructor
+@NoArgsConstructor(onConstructor_ = @JsonCreator)
 @AllArgsConstructor
 @Builder
 public class CatRequestDTO {
@@ -46,9 +49,54 @@ public class CatRequestDTO {
 
     @Size(max = 100, message = "Food brand must not exceed 100 characters")
     private String foodBrand;
+    private UUID foodBrandId;
+
+    @Size(max = 255, message = "Food detail must not exceed 255 characters")
+    private String foodDetail;
+
+    private boolean approveFoodBrand;
 
     @Size(max = 100, message = "Litter brand must not exceed 100 characters")
     private String litterBrand;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean foodBrandSupplied;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean foodDetailSupplied;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean litterBrandSupplied;
+
+    @JsonSetter("foodBrand")
+    public void setFoodBrand(String foodBrand) {
+        this.foodBrand = foodBrand;
+        foodBrandSupplied = true;
+    }
+
+    @JsonSetter("foodDetail")
+    public void setFoodDetail(String foodDetail) {
+        this.foodDetail = foodDetail;
+        foodDetailSupplied = true;
+    }
+
+    @JsonSetter("litterBrand")
+    public void setLitterBrand(String litterBrand) {
+        this.litterBrand = litterBrand;
+        litterBrandSupplied = true;
+    }
+
+    public boolean hasFoodBrandUpdate() {
+        return foodBrandSupplied || foodBrand != null;
+    }
+
+    public boolean hasFoodDetailUpdate() {
+        return foodDetailSupplied || foodDetail != null;
+    }
+
+    public boolean hasLitterBrandUpdate() {
+        return litterBrandSupplied || litterBrand != null;
+    }
 
     @Size(max = 255, message = "Personality must not exceed 255 characters")
     private String personality;
