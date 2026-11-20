@@ -139,6 +139,9 @@ describe('NightlyRateManagementPage', () => {
     fixture.detectChanges();
     expect(litterApi.clearRate).toHaveBeenCalledTimes(1);
     expect(card.querySelector('.current-rate')?.textContent?.trim()).toBe('Unavailable');
+    TestBed.inject(I18nService).language.set('es');
+    fixture.detectChanges();
+    expect(card.textContent).toContain('Piedritas de CatWorld');
   });
 
   it.each([

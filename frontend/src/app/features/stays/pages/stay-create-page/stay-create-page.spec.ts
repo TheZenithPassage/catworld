@@ -1068,7 +1068,17 @@ describe('StayCreatePage', () => {
     const root = fixture.nativeElement as HTMLElement;
     const choice = root.querySelector<HTMLSelectElement>('[data-litter-cat="cat-1"]')!;
     expect(choice?.value).toBe('HALF');
-    expect(root.textContent).toContain(component.text().stays.pricing.litter.unavailable);
+    const i18n = TestBed.inject(I18nService);
+    const previousLanguage = i18n.language();
+    i18n.language.set('es');
+    fixture.detectChanges();
+    expect(root.textContent).toContain('falta la tarifa de piedritas de CatWorld');
+    expect([...choice.options].map(({ textContent }) => textContent?.trim())).toEqual([
+      'Trae sus propias piedritas',
+      'Usa las de CatWorld (½ kg/día)',
+      'Usa las de CatWorld (1 kg/día)',
+    ]);
+    i18n.language.set(previousLanguage);
     choice.value = 'ONE';
     choice.dispatchEvent(new Event('change'));
     await fixture.whenStable();

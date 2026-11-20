@@ -92,9 +92,9 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       clearing: 'Quitando…',
     },
     litter: {
-      title: 'Arena de CatWorld',
+      title: 'Piedritas de CatWorld',
       rateLabel: 'Precio por kg',
-      loadError: 'No se pudo cargar la tarifa de arena.',
+      loadError: 'No se pudo cargar la tarifa de piedritas.',
     },
   },
   en: {
