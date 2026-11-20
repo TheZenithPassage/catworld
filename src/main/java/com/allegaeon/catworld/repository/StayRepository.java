@@ -42,6 +42,15 @@ public interface StayRepository extends JpaRepository<Stay, UUID> {
     List<ArrivalRow> findArrivalRows(@Param("now") LocalDateTime now,
                                      @Param("endExclusive") LocalDateTime endExclusive);
 
+    @Query("""
+            select count(s) > 0 from Stay s
+            where s.id = :stayId and s.owner.id = :ownerId and s.cancelledAt is null
+                and s.startAt > :now and s.startAt < :endExclusive
+            """)
+    boolean isUpcomingArrivalForOwner(@Param("stayId") UUID stayId, @Param("ownerId") UUID ownerId,
+                                      @Param("now") LocalDateTime now,
+                                      @Param("endExclusive") LocalDateTime endExclusive);
+
     interface ArrivalRow {
         UUID getStayId();
         LocalDateTime getStartAt();

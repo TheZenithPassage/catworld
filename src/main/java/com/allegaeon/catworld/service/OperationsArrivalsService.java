@@ -43,8 +43,7 @@ public class OperationsArrivalsService {
     @Transactional(readOnly = true)
     public List<OperationsArrival> list() {
         LocalDateTime now = LocalDateTime.now(clock);
-        LocalDateTime endExclusive = now.toLocalDate().plusDays(DAYS_AHEAD + 1).atStartOfDay();
-        List<ArrivalRow> rows = stays.findArrivalRows(now, endExclusive);
+        List<ArrivalRow> rows = stays.findArrivalRows(now, arrivalWindowEndExclusive(now));
         boolean includeReviews = currentUser.getCurrentUserAccount().getRole() == UserRole.ADMIN;
         Map<UUID, List<PendingReview>> pendingReviews = includeReviews ? pendingReviews(rows) : Map.of();
         Map<UUID, List<ArrivalRow>> rowsByStay = rows.stream()
@@ -59,6 +58,10 @@ public class OperationsArrivalsService {
             return new OperationsArrival(stay.getStayId(), stay.getStartAt(), stay.getEndAt(),
                     new ArrivalOwner(stay.getOwnerId(), stay.getOwnerName()), cats);
         }).toList();
+    }
+
+    static LocalDateTime arrivalWindowEndExclusive(LocalDateTime now) {
+        return now.toLocalDate().plusDays(DAYS_AHEAD + 1).atStartOfDay();
     }
 
     private Map<UUID, List<PendingReview>> pendingReviews(List<ArrivalRow> rows) {

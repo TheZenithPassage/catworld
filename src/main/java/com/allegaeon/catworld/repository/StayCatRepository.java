@@ -11,6 +11,7 @@ import com.allegaeon.catworld.model.Cat;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Set;
 import java.util.UUID;
@@ -21,6 +22,23 @@ public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
 
     @Query("select sc from StayCat sc join fetch sc.cat where sc.stay.id in :stayIds order by sc.cat.name asc, sc.cat.id asc")
     List<StayCat> findOverviewCatsByStayIds(@Param("stayIds") Collection<UUID> stayIds);
+
+    @Query("""
+            select sc.cat.id as catId, s.id as stayId, s.endAt as endAt
+            from StayCat sc join sc.stay s
+            where sc.cat.id in :catIds and sc.cat.owner.id = :ownerId and s.owner.id = :ownerId
+                and s.cancelledAt is null and s.startAt > :now
+            order by s.startAt, s.id
+            """)
+    List<UpcomingCatStay> findUpcomingStaysForOwnerCats(@Param("ownerId") UUID ownerId,
+                                                       @Param("catIds") Collection<UUID> catIds,
+                                                       @Param("now") LocalDateTime now);
+
+    interface UpcomingCatStay {
+        UUID getCatId();
+        UUID getStayId();
+        LocalDateTime getEndAt();
+    }
 
     @Query("select sc.stay from StayCat sc where sc.cat.id = :catId order by sc.stay.startAt desc, sc.stay.id asc")
     Page<Stay> findStaysByCatId(@Param("catId") UUID catId, Pageable pageable);

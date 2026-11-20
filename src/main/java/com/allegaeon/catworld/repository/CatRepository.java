@@ -34,6 +34,8 @@ public interface CatRepository extends JpaRepository<Cat, UUID> {
 
     Page<Cat> findByOwner_Id(UUID ownerId, Pageable pageable);
 
+    List<Cat> findByOwner_IdAndDeceasedFalseOrderByNameAscIdAsc(UUID ownerId);
+
     Page<Cat> findByVet_Id(UUID vetId, Pageable pageable);
 
     long countByOwner_IdAndIdIn(UUID ownerId, Collection<UUID> ids);
