@@ -96,7 +96,7 @@ test('a collapsed blank new cat blocks a valid existing cat update until removed
   );
 });
 
-test('only a collapsed, empty unsubmitted cat can be removed', async (t) => {
+test('only an empty unsubmitted cat can be removed, even while open', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: true,
     cats: [
@@ -113,14 +113,17 @@ test('only a collapsed, empty unsubmitted cat can be removed', async (t) => {
   assert.equal(removeButton(mora), undefined);
   assert.equal(removeButton(sol), undefined);
   const remove = removeButton(newCat);
-  assert.equal(remove.hidden, true);
+  assert.equal(newCat.querySelector('details').open, true);
+  assert.equal(remove.hidden, false);
 
   enter(portal.window, newCat, 'color', 'Gris');
+  assert.equal(remove.hidden, true);
   await setOpen(newCat.querySelector('details'), false);
   assert.equal(remove.hidden, true);
 
   await setOpen(newCat.querySelector('details'), true);
   enter(portal.window, newCat, 'color', '');
+  assert.equal(remove.hidden, false);
   await setOpen(newCat.querySelector('details'), false);
   assert.equal(remove.hidden, false);
 });
@@ -286,6 +289,7 @@ test('selected HEIC falls back to an authenticated JPEG preview and clearing rev
   });
   Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'dose.HEIC' });
   input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  assert.equal(cat.querySelector('.remove-cat').hidden, true);
 
   const disclosure = cat.querySelector('details');
   await setOpen(disclosure, false);

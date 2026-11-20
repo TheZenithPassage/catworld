@@ -549,10 +549,14 @@ function addCard(
   const title = element('span', '', initial.name || fallbackTitle);
   summary.append(title);
   const hasPending = isNew ? revision === 0 : requestedFields.some((key) => !proposedFields[key]);
-  if (hasPending) summary.append(' ', element('span', 'cat-state', 'Datos pendientes'));
-  if (revision > 0) summary.append(' ', element('span', 'cat-state', 'Enviado a CatWorld'));
+  if (hasPending) {
+    summary.append(' ', element('span', 'cat-state cat-state--pending', 'Datos pendientes'));
+  }
+  if (revision > 0) {
+    summary.append(' ', element('span', 'cat-state cat-state--submitted', 'Enviado a CatWorld'));
+  }
   if (!hasPending && revision === 0) {
-    summary.append(' ', element('span', 'cat-state', 'Sin datos pendientes'));
+    summary.append(' ', element('span', 'cat-state cat-state--complete', 'Sin datos pendientes'));
   }
   const content = element('div', 'cat-content');
   const primaryFields = element('div', 'fields');
@@ -602,7 +606,6 @@ function addCard(
     remove.type = 'button';
     function refreshRemoval() {
       remove.hidden =
-        disclosure.open ||
         fileInput.files.length > 0 ||
         [...inputs.values()].some(
           (field) =>
@@ -611,7 +614,6 @@ function addCard(
         );
     }
     refreshRemoval();
-    disclosure.addEventListener('toggle', refreshRemoval);
     content.addEventListener('input', refreshRemoval);
     content.addEventListener('change', refreshRemoval);
     remove.addEventListener('click', () => {
