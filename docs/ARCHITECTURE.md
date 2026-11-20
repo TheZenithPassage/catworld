@@ -104,8 +104,8 @@ CatWorld currently covers:
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Safe ADMIN-only application account deletion with creator and enabled-admin protection.
 - Lookup of current, future, completed and cancelled stays.
-- Stay pricing previews, explicit agreement confirmation, retained nightly and
-  transfer rates, and immutable pricing decisions and corrections.
+- Stay pricing previews, explicit agreement confirmation, retained nightly,
+  transfer and litter rates, and immutable pricing decisions and corrections.
 - Individual stay payments, derived balances and payment conditions, with
   immutable evidence for sensitive economic changes and removals.
 - Optional normalized cat profile photos stored in MySQL.
@@ -235,6 +235,7 @@ A `Stay` contains:
 - `notes`
 - nullable retained nightly reference rate
 - independent arrival and departure transfer requirements, a pricing-only waiver, and a nullable captured per-leg transfer rate
+- nullable retained litter rate per kilogram
 - nullable agreed whole-stay amount
 - `owner`
 - participating cats through `StayCat`
@@ -250,7 +251,8 @@ retains only the monetary amount, never the source nightly-rate key.
 
 #### StayCat
 
-Represents the link between a `Stay` and a `Cat`.
+Represents the link between a `Stay` and a `Cat` and records the choice of
+own litter, half a kilogram per day, or one kilogram per day for that booking.
 
 The project uses an explicit link entity instead of a plain `@ManyToMany`.
 
@@ -288,6 +290,7 @@ It records the category, exact previous and new nullable amounts, the
 Represents one immutable pricing confirmation for a stay. It records selected retained nightly and transfer rates, arrival/departure requirements, waiver, previous and new authoritative night counts, previous and new agreed amounts, optional reason, deciding `UserAccount` and
 application-clock timestamp. It stores the stay UUID as audit evidence rather
 than a foreign key so the history survives operational stay deletion.
+Litter evidence includes the captured rate and per-cat consumption choices.
 
 #### StayAgreedAmountCorrection
 
@@ -295,7 +298,8 @@ Represents one immutable administrative correction of a stay's agreed amount.
 It records the nullable exact previous amount, exact new amount, required
 reason, deciding `UserAccount` and application-clock timestamp. It stores the
 stay UUID as indexed audit evidence without an operational foreign key, so the
-history survives cancellation and permanent stay deletion.
+history survives cancellation and permanent stay deletion. The event also
+captures the retained litter rate and consumption choices.
 
 #### StayPayment
 
@@ -456,9 +460,13 @@ on the `Stay` entity or in the database schema.
 
 Creation resolves the effective nullable nightly rate from the actual cat count
 and authoritative number of nights, including one-cat fallback, and snapshots
-that resolved amount onto the stay. It does not retain the key that supplied the
-amount. Later reference-rate changes never reprice the stay. Responses
-derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
+that resolved amount onto the stay. The backend derives the accommodation
+subtotal from the retained nightly rate and authoritative nights, then adds
+the transfer and litter subtotals. Previews expose the components and, when
+available, the complete suggestion. Transfer is zero for no legs, a waiver,
+or an unavailable captured rate. When accommodation or chargeable litter is
+missing its rate, the complete suggestion is null and the operator can still
+enter an explicit agreement or leave the price pending.
 
 Both authenticated roles can create a stay with a confirmed amount or an
 explicit pending price. A confirmed amount is a non-negative whole number of
@@ -468,8 +476,10 @@ stores `pricePending: true` and a null agreed amount, while retaining the
 usual rate basis. The creation path does not record an agreement event until
 there is an amount to agree.
 
-A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
-update requires `ADMIN`, a fresh explicit pricing decision and a selected
+A change to authoritative night count, the monetary transfer contribution,
+or the per-cat litter choices is pricing-affecting. Zero-charge transfer flag
+changes remain operational-only. A pricing-affecting update requires
+`ADMIN`, a fresh explicit pricing decision and a selected
 retained rate that is either the locked stay's original nullable amount or the
 effective current amount resolved for the requested new number of nights. The
 service derives the suggestion from that selected rate, then changes the
@@ -538,7 +548,10 @@ are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
 For explicitly pending stays, `GET /api/stays/{id}/pending-price-preview`
-shows the saved rates, nights and chargeable transfer legs for administrators.
+shows the saved rates, nights, chargeable transfer legs and per-cat litter choices
+for administrators. Before the first agreement, administrators can use
+`POST /api/stays/{id}/pending-price-preview` to preview adjusted litter choices
+and request the current litter rate when the stay lacks a retained rate.
 The first agreement requires a reason when it overrides a complete suggestion.
 Accepting the suggestion or entering the first amount when a rate is missing
 records a system reason if none was supplied. Confirming a reopened agreement
@@ -547,8 +560,9 @@ still requires a reason. The dialog sends the preview version as
 dialog refreshes the price breakdown while keeping the draft.
 
 The service takes the existing pessimistic `Stay` lock before persisted-account
-authorization and current-value comparison. A real change updates only
-`agreedAmount` and its pending flag and inserts one immutable event in the same
+authorization and current-value comparison. A real change updates
+`agreedAmount` and its pending flag, retains any confirmed first-agreement litter
+basis, and inserts one immutable event in the same
 transaction. The exact previous and new values therefore form a serialized
 chain for competing corrections, and neither half can commit without the
 other. Correction evidence is retained after cancellation or permanent
@@ -724,6 +738,10 @@ Important schema points:
 - `stays` does not have `cat_id`.
 - `stay_cat` stores the relationship between stays and cats.
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
+- V27 adds the current singleton `litter_rates` row, a nullable retained
+  litter rate on stays, per-cat choices on `stay_cat`, and litter evidence
+  on pricing decisions and agreed-amount corrections. The upgrade initializes
+  earlier bookings to the own-litter choice with no captured rate or charge.
 - `status` is not persisted.
 - `user_accounts` stores persistent application users for HTTP Basic authentication.
 - `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
@@ -1495,10 +1513,10 @@ change time in `nightly_reference_rate_changes`. These rows have no update
 path, are not a generic event log, and retain their actor through a restrictive
 foreign key and account-deletion pre-check.
 
-Stay pricing history records the immutable nightly and transfer bases,
-operational transfer flags, waiver, and exact component evidence with every
-pricing decision. Audit reads derive historic complete suggestions from that
-row only; they never read the live stay or current transfer configuration.
+Stay pricing history records the immutable nightly, transfer and litter
+bases, operational transfer flags, waiver and exact component evidence with
+every pricing decision. Audit reads derive historic complete suggestions
+from that row alone.
 
 Stay pricing history is a second focused append-only audit model. Creation and
 each pricing-affecting update preserve exact retained, previous and new values,
@@ -1664,6 +1682,23 @@ both arrival and departure legs by default; either leg can then be cleared
 individually. Disabling transfer assistance clears both leg selections and the
 waiver, so none of those controls contributes a required leg, waiver or charge
 to the resulting request or pricing preview.
+
+## Litter pricing
+
+`GET /api/litter-rate` exposes the current nullable rate per kilogram to
+`ADMIN` and `STAFF`. `ADMIN` can configure or clear it through `PUT` and
+`DELETE`. The private household form shows the rate, when available, and
+the usual consumption of half a kilogram per cat per day when CatWorld
+supplies litter. The form changes the cat's preference through the existing
+review flow. New stays use the approved preference as the default, and
+existing bookings use their saved choices.
+
+The backend multiplies total daily consumption by `max(1, nights)` and
+the captured rate, then rounds the litter subtotal to a whole monetary unit.
+An own-litter choice contributes zero. If a cat uses CatWorld litter and the
+rate is unavailable, the preview shows the missing rate and keeps the full
+suggestion incomplete. Pricing confirmations compare the recalculated
+per-cat choices, quantities and rate before saving the agreement.
 
 ## Public Repository Notes
 
