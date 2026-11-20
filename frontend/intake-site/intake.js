@@ -63,6 +63,8 @@ const photoViewer = document.querySelector('.photo-viewer');
 const photoViewerTitle = photoViewer.querySelector('h2');
 const photoViewerImage = photoViewer.querySelector('img');
 const photoViewerClose = photoViewer.querySelector('button');
+const partialDialog = document.querySelector('#partial-submission');
+const partialCats = document.querySelector('#partial-cats');
 const cards = [];
 let catalogOptions = {};
 let foodVarieties = [];
@@ -70,11 +72,12 @@ let allowNewCats = false;
 let newCatNumber = 0;
 let labelNumber = 0;
 let sending = false;
+let partialSubmission;
 let stale = false;
 let errorInput;
 let expiresAt;
 let photoTrigger;
-let photoExpiryTimer;
+let dialogExpiryTimer;
 const sharedToken = new URLSearchParams(location.hash.slice(1)).get('token');
 let token = sharedToken || history.state?.intakeToken;
 
@@ -115,6 +118,13 @@ function showStatus(message) {
   status.hidden = !message;
 }
 
+function openField(input) {
+  for (let parent = input.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
+  input.focus();
+}
+
 function showError(message, input) {
   if (errorInput) {
     errorInput.removeAttribute('aria-invalid');
@@ -134,9 +144,6 @@ function showError(message, input) {
   errorMessage.textContent = input ? '' : message;
   errorMessage.hidden = Boolean(input) || !message;
   if (input) {
-    for (let parent = input.parentElement; parent; parent = parent.parentElement) {
-      if (parent.tagName === 'DETAILS') parent.open = true;
-    }
     input.setAttribute('aria-invalid', 'true');
     const description = input.getAttribute('aria-describedby');
     input.setAttribute(
@@ -145,7 +152,7 @@ function showError(message, input) {
     );
     fieldError.textContent = message;
     input.before(fieldError);
-    input.focus();
+    openField(input);
   } else if (message) {
     errorMessage.focus();
   }
@@ -153,6 +160,7 @@ function showError(message, input) {
 
 function clearCards() {
   closePhotoViewer();
+  closePartialSubmission();
   for (const { releasePhotos } of cards) releasePhotos();
   cards.length = 0;
   cats.replaceChildren();
@@ -169,9 +177,11 @@ function closeForm(message, buttonText) {
 }
 
 function endAccess() {
+  const wasOpen = !form.hidden;
   token = null;
   history.replaceState(null, '', location.pathname + location.search);
   closeForm(unavailable);
+  if (wasOpen) status.focus();
 }
 
 function unavailableStatus(code) {
@@ -441,12 +451,22 @@ function refreshActions() {
 
 function closePhotoViewer(restoreFocus = false) {
   if (!photoViewer.open) return;
-  clearTimeout(photoExpiryTimer);
+  clearTimeout(dialogExpiryTimer);
   photoViewer.close();
   photoViewerImage.removeAttribute('src');
   photoViewerImage.alt = '';
   if (restoreFocus && photoTrigger?.isConnected) photoTrigger.focus({ preventScroll: true });
   photoTrigger = undefined;
+}
+
+function watchDialogExpiry() {
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) {
+    endAccess();
+    return false;
+  }
+  if (Number.isFinite(remaining)) dialogExpiryTimer = setTimeout(endAccess, remaining);
+  return true;
 }
 
 photoViewerClose.addEventListener('click', () => closePhotoViewer(true));
@@ -456,6 +476,7 @@ photoViewer.addEventListener('cancel', (event) => {
 });
 window.addEventListener('pagehide', (event) => {
   closePhotoViewer();
+  closePartialSubmission();
   if (!event.persisted) clearCards();
 });
 
@@ -466,18 +487,13 @@ function photoThumbnail(image, title) {
   button.setAttribute('aria-haspopup', 'dialog');
   button.append(image);
   button.addEventListener('click', () => {
-    const remaining = expiresAt - Date.now();
-    if (remaining <= 0) {
-      endAccess();
-      return;
-    }
+    if (partialDialog.open || photoViewer.open || !watchDialogExpiry()) return;
     photoTrigger = button;
     photoViewerTitle.textContent = title;
     photoViewerImage.src = image.src;
     photoViewerImage.alt = image.alt;
     photoViewer.showModal();
     photoViewerClose.focus({ preventScroll: true });
-    if (Number.isFinite(remaining)) photoExpiryTimer = setTimeout(endAccess, remaining);
   });
   return button;
 }
@@ -679,12 +695,16 @@ function addCard(
   if (hasPending) {
     summary.append(' ', element('span', 'cat-state cat-state--pending', 'Datos pendientes'));
   }
-  if (revision > 0) {
-    summary.append(' ', element('span', 'cat-state cat-state--submitted', 'Enviado a CatWorld'));
-  }
-  if (!hasPending && revision === 0) {
-    summary.append(' ', element('span', 'cat-state cat-state--complete', 'Sin datos pendientes'));
-  }
+  const savedBadge =
+    revision > 0
+      ? element('span', 'cat-state cat-state--submitted', 'Enviado a CatWorld')
+      : hasPending
+        ? null
+        : element('span', 'cat-state cat-state--complete', 'Sin datos pendientes');
+  const unsentBadge = element('span', 'cat-state cat-state--dirty', 'Cambios sin enviar');
+  const draftState = element('span');
+  draftState.setAttribute('aria-live', 'polite');
+  summary.append(' ', draftState);
   const content = element('div', 'cat-content');
   const primaryFields = element('div', 'fields');
   const other = element('details', 'other-fields');
@@ -756,11 +776,24 @@ function addCard(
     requestedFields,
     fields,
     initial,
+    title,
     inputs,
     photos,
     fileInput,
     releasePhotos,
   };
+  function refreshDraftState() {
+    const dirty =
+      submissionCard(entry).changed ||
+      [...inputs.values()].some(({ input }) => input.validity.badInput);
+    const badge = dirty ? unsentBadge : savedBadge;
+    if (draftState.firstElementChild !== badge) {
+      draftState.replaceChildren(...(badge ? [badge] : []));
+    }
+  }
+  refreshDraftState();
+  content.addEventListener('input', refreshDraftState);
+  content.addEventListener('change', refreshDraftState);
   disclosure.open = isNew || hasPending;
   disclosure.append(summary, content);
   card.append(disclosure);
@@ -839,51 +872,49 @@ async function load() {
   }
 }
 
-function submissionCards() {
-  return cards.map((card) => {
-    const fields = {};
-    const optionIds = {};
-    let changed = false;
-    for (const [key, field] of card.inputs) {
-      if (key === 'birthDate') {
-        const originalKey = card.fields.birthYear ? 'birthYear' : 'birthDate';
-        const initialKey = card.initial.birthYear ? 'birthYear' : 'birthDate';
-        const entered = field.read().trim();
-        const activeKey = entered ? field.input.name : originalKey;
-        const value = entered || card.fields[originalKey] || '';
-        const initialValue = card.initial[initialKey] ?? '';
-        if (value !== initialValue || (value && activeKey !== initialKey)) changed = true;
-        if (value && (activeKey !== originalKey || value !== card.fields[originalKey])) {
-          fields[activeKey] = value;
-        }
-        continue;
-      }
-      const original = card.fields[key]?.trim() ?? '';
+function submissionCard(card) {
+  const fields = {};
+  const optionIds = {};
+  let changed = false;
+  for (const [key, field] of card.inputs) {
+    if (key === 'birthDate') {
+      const originalKey = card.fields.birthYear ? 'birthYear' : 'birthDate';
+      const initialKey = card.initial.birthYear ? 'birthYear' : 'birthDate';
       const entered = field.read().trim();
-      const value = entered || original;
-      const initial = card.initial[key]?.trim() ?? '';
-      const unchanged = sameFieldValue(key, value, initial);
-      if (!unchanged) changed = true;
-      if (
-        !sameFieldValue(key, value, original) ||
-        (key === 'foodDetail' && entered && fields.foodBrand)
-      ) {
-        const option = field.option;
-        fields[key] = option?.name ?? (unchanged ? initial : value);
-        if (option) optionIds[key] = option.id;
+      const activeKey = entered ? field.input.name : originalKey;
+      const value = entered || card.fields[originalKey] || '';
+      const initialValue = card.initial[initialKey] ?? '';
+      if (value !== initialValue || (value && activeKey !== initialKey)) changed = true;
+      if (value && (activeKey !== originalKey || value !== card.fields[originalKey])) {
+        fields[activeKey] = value;
       }
+      continue;
     }
-    const files = Array.from(card.fileInput.files);
-    const retainedPhotoIds = card.photos.filter((photo) => photo.keep).map((photo) => photo.id);
-    return {
-      card,
-      fields,
-      optionIds,
-      files,
-      retainedPhotoIds,
-      changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
-    };
-  });
+    const original = card.fields[key]?.trim() ?? '';
+    const entered = field.read().trim();
+    const value = entered || original;
+    const initial = card.initial[key]?.trim() ?? '';
+    const unchanged = sameFieldValue(key, value, initial);
+    if (!unchanged) changed = true;
+    if (
+      !sameFieldValue(key, value, original) ||
+      (key === 'foodDetail' && entered && fields.foodBrand)
+    ) {
+      const option = field.option;
+      fields[key] = option?.name ?? (unchanged ? initial : value);
+      if (option) optionIds[key] = option.id;
+    }
+  }
+  const files = Array.from(card.fileInput.files);
+  const retainedPhotoIds = card.photos.filter((photo) => photo.keep).map((photo) => photo.id);
+  return {
+    card,
+    fields,
+    optionIds,
+    files,
+    retainedPhotoIds,
+    changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
+  };
 }
 
 function validateCards(drafts) {
@@ -1029,11 +1060,52 @@ addCat.addEventListener('click', () => {
   if (allowNewCats && cards.length < MAX_CATS) addCard().inputs.get('name').input.focus();
 });
 
-form.addEventListener('submit', async (event) => {
+function showPartialSubmission(missing, body, entries) {
+  if (!watchDialogExpiry()) return;
+  partialCats.replaceChildren();
+  for (const { card, fields } of missing) {
+    const item = element('li');
+    const requested = element('ul');
+    for (const [, label] of fields) requested.append(element('li', '', label));
+    item.append(element('strong', '', card.title.textContent), requested);
+    partialCats.append(item);
+  }
+  const [{ card, fields }] = missing;
+  partialSubmission = { body, entries, firstPending: card.inputs.get(fields[0][0]).input };
+  partialDialog.showModal();
+}
+
+function closePartialSubmission() {
+  if (!partialDialog.open) return;
+  clearTimeout(dialogExpiryTimer);
+  partialSubmission = undefined;
+  partialDialog.close();
+}
+
+function returnToDraft() {
+  if (!partialSubmission) return;
+  const { firstPending } = partialSubmission;
+  closePartialSubmission();
+  openField(firstPending);
+}
+
+document.querySelector('#complete-partial').addEventListener('click', returnToDraft);
+partialDialog.addEventListener('cancel', (event) => {
   event.preventDefault();
-  if (sending || stale || cards.length === 0) return;
+  returnToDraft();
+});
+document.querySelector('#send-partial').addEventListener('click', () => {
+  if (!partialSubmission) return;
+  const { body, entries } = partialSubmission;
+  closePartialSubmission();
+  void submitDraft(body, entries, true);
+});
+
+form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (sending || stale || partialDialog.open || photoViewer.open || cards.length === 0) return;
   showError('');
-  const drafts = submissionCards();
+  const drafts = cards.map(submissionCard);
   if (!validateCards(drafts)) return;
   const entries = drafts.filter(({ changed }) => changed);
   if (!entries.length) {
@@ -1049,6 +1121,20 @@ form.addEventListener('submit', async (event) => {
     );
     return;
   }
+  const missing = drafts
+    .map(({ card, fields }) => ({
+      card,
+      fields: FIELDS.filter(([key]) => card.requestedFields.includes(key) && !fields[key]),
+    }))
+    .filter(({ fields }) => fields.length);
+  if (proposals.length && missing.length) {
+    showPartialSubmission(missing, body, entries);
+    return;
+  }
+  void submitDraft(body, entries, proposals.length > 0);
+});
+
+async function submitDraft(body, entries, hasProposals) {
   sending = true;
   editable.disabled = true;
   send.textContent = 'Enviando…';
@@ -1056,7 +1142,7 @@ form.addEventListener('submit', async (event) => {
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
       closeForm(
-        proposals.length
+        hasProposals
           ? 'Ficha recibida. CatWorld va a revisar los datos.'
           : 'Se retiraron los cambios de la ficha.',
         'Volver a la ficha',
@@ -1089,7 +1175,7 @@ form.addEventListener('submit', async (event) => {
     send.textContent = 'Enviar ficha';
     refreshActions();
   }
-});
+}
 
 retry.addEventListener('click', load);
 void load();

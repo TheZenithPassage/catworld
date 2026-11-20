@@ -14,15 +14,16 @@ async function openForm(t, invitation, previewOptions = {}) {
   t.after(() => dom.window.close());
   const { window } = dom;
   const requests = [];
-  window.Blob = Blob;
-  window.FormData = FormData;
-  // jsdom has the dialog element but omits the native dialog actions.
+  // jsdom exposes the dialog element without its native modal methods.
   window.HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
+    this.querySelector('[autofocus]')?.focus();
   };
   window.HTMLDialogElement.prototype.close = function () {
     this.open = false;
   };
+  window.Blob = Blob;
+  window.FormData = FormData;
   window.fetch = async (path, options) => {
     requests.push({ path, ...options });
     if (path === '/api/intake/request') {
@@ -47,6 +48,12 @@ async function openForm(t, invitation, previewOptions = {}) {
     window,
     form,
     requests,
+    confirmPartial: async () => {
+      const before = requests.length;
+      window.document.querySelector('#send-partial').click();
+      await tick();
+      return requests.slice(before).find(({ path }) => path === '/api/intake/submissions');
+    },
     entries: () => [...form.querySelectorAll('#cats > *')],
     add: () => form.querySelector('#add-cat').click(),
     submit: async () => {
@@ -108,7 +115,8 @@ test('a collapsed blank new cat blocks a valid existing cat update until removed
   );
   assert.equal(remove.hidden, false);
   remove.click();
-  const post = await portal.submit();
+  assert.equal(await portal.submit(), undefined);
+  const post = await portal.confirmPartial();
   const { cats } = JSON.parse(await post.body.get('submission').text());
   assert.deepEqual(
     cats.map((cat) => cat.fields),
@@ -249,6 +257,127 @@ test('reopening a partial submission shows both pending data and the submitted s
   assert.match(mora.querySelector('summary').textContent, /Enviado a CatWorld/);
   assert.match(pepa.querySelector('summary').textContent, /Sin datos pendientes/);
   assert.equal(pepa.querySelector('details')?.open, false);
+});
+
+test('confirms an incomplete household draft and returns to the first unanswered field', async (t) => {
+  const portal = await openForm(
+    t,
+    {
+      allowNewCats: false,
+      cats: [
+        {
+          ...existing,
+          fields: { name: 'Mora', lastRabiesDate: '2020-01-01' },
+          requestedFields: ['foodBrand', 'lastRabiesDate'],
+          proposedFields: { foodBrand: 'Royal Canin' },
+          revision: 1,
+        },
+        {
+          catId: 'second',
+          fields: { name: 'Pipa', foodBrand: 'Purina' },
+          requestedFields: ['foodDetail'],
+        },
+      ],
+    },
+    {
+      urls: { createObjectURL: () => 'blob:local-evidence', revokeObjectURL: () => {} },
+    },
+  );
+  const { window, requests } = portal;
+  const [mora, pipa] = portal.entries();
+  enter(window, mora, 'careInstructions', 'Come por la noche');
+  const fileInput = mora.querySelector('input[type="file"]');
+  const file = new File(['evidence'], 'dose.jpg', { type: 'image/jpeg' });
+  Object.defineProperty(fileInput, 'files', { value: [file] });
+  fileInput.dispatchEvent(new window.Event('change', { bubbles: true }));
+  mora.querySelector('details').open = false;
+
+  assert.equal(await portal.submit(), undefined);
+  const dialog = window.document.querySelector('dialog[open]');
+  const cats = [...dialog.querySelectorAll('#partial-cats > li')].map((item) => item.textContent);
+  assert.equal(cats.length, 2);
+  assert.match(cats[0], /Mora.*antirrábica/);
+  assert.match(cats[1], /Pipa.*Variedad o dieta/);
+  assert.doesNotMatch(dialog.textContent, /Marca de comida/);
+  assert.equal(window.document.activeElement.id, 'complete-partial');
+
+  window.document.querySelector('#complete-partial').click();
+  assert.equal(dialog.open, false);
+  assert.equal(mora.querySelector('details').open, true);
+  assert.equal(window.document.activeElement.name, 'lastRabiesDate');
+  assert.equal(mora.querySelector('[name="careInstructions"]').value, 'Come por la noche');
+  assert.equal(mora.querySelector('img').getAttribute('src'), 'blob:local-evidence');
+
+  enter(window, pipa, 'foodDetail', 'Pollo');
+  assert.equal(await portal.submit(), undefined);
+  assert.doesNotMatch(dialog.textContent, /Pipa/);
+  const confirm = window.document.querySelector('#send-partial');
+  confirm.click();
+  confirm.click();
+  await tick();
+  const posts = requests.filter(({ path }) => path === '/api/intake/submissions');
+  assert.equal(posts.length, 1);
+  const { cats: submitted } = JSON.parse(await posts[0].body.get('submission').text());
+  assert.deepEqual(submitted[0].fields, {
+    foodBrand: 'Royal Canin',
+    careInstructions: 'Come por la noche',
+  });
+  assert.equal(posts[0].body.get('photo-0-0').name, 'dose.jpg');
+  assert.deepEqual(submitted[1].fields, { foodDetail: 'Pollo' });
+});
+
+test('keeps evidence validation and unchanged submissions ahead of partial confirmation', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [{ ...existing, requestedFields: ['foodBrand', 'lastRabiesDate'] }],
+  });
+  const { window } = portal;
+  const [card] = portal.entries();
+  const dialog = window.document.querySelector('#partial-submission');
+  const date = enter(window, card, 'lastRabiesDate', '2020-01-01');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(dialog.open, false);
+  assert.equal(window.document.activeElement.type, 'file');
+  assert.match(window.document.querySelector('#field-error').textContent, /Adjuntá/);
+
+  enter(window, card, date.name, '');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(dialog.open, false);
+  assert.match(window.document.querySelector('#error').textContent, /No hay datos nuevos/);
+});
+
+test('marks proposal edits and retained photo changes until they are undone', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [
+      {
+        ...existing,
+        revision: 1,
+        proposedFields: { foodBrand: 'Royal Canin' },
+        photos: [{ id: 'proof' }],
+      },
+    ],
+  });
+  const [card] = portal.entries();
+  const summary = card.querySelector('summary');
+  const assertDirty = () => {
+    assert.match(summary.textContent, /Cambios sin enviar/);
+    assert.doesNotMatch(summary.textContent, /Enviado a CatWorld/);
+  };
+  const assertReceived = () => {
+    assert.match(summary.textContent, /Enviado a CatWorld/);
+    assert.doesNotMatch(summary.textContent, /Cambios sin enviar/);
+  };
+  assertReceived();
+  enter(portal.window, card, 'foodBrand', '');
+  assertDirty();
+  enter(portal.window, card, 'foodBrand', 'Royal Canin');
+  assertReceived();
+  const keep = card.querySelector('.keep-photo input');
+  keep.click();
+  assertDirty();
+  keep.click();
+  assertReceived();
 });
 
 test('restoring the original data withdraws the proposal while requested fields are unanswered', async (t) => {
@@ -401,50 +530,88 @@ test('an unrelated update preserves historical catalog text and diet', async (t)
   assert.equal(cats[0].optionIds, undefined);
 });
 
-test('catalog conflicts refresh choices in place and preserve the draft and attachments', async (t) => {
-  let catalogChanged = false;
-  const portal = await openForm(
-    t,
-    () => ({
-      allowNewCats: false,
-      cats: [{ ...existing, requestedFields: ['foodBrand'] }],
-      catalogOptions: {
-        foodBrand: catalogChanged ? [{ id: 'brand-royal', name: 'Royal Canin' }] : [],
-        color: [{ id: 'color-gray', name: 'Gris' }],
-      },
-    }),
-    {
-      submit: () => {
-        if (catalogChanged) return new Response(null, { status: 204 });
-        catalogChanged = true;
-        return Response.json(
-          { code: 'CAT_INTAKE_CATALOG_CHANGED', field: 'foodBrand' },
-          { status: 409 },
-        );
-      },
+for (const partial of [false, true]) {
+  test(
+    'catalog conflicts preserve the draft and attachments' +
+      (partial ? ' after partial confirmation' : ''),
+    async (t) => {
+      let catalogChanged = false;
+      const portal = await openForm(
+        t,
+        () => ({
+          allowNewCats: false,
+          cats: [
+            {
+              ...existing,
+              requestedFields: partial ? ['foodBrand', 'litterBrand'] : ['foodBrand'],
+            },
+          ],
+          catalogOptions: {
+            foodBrand: catalogChanged ? [{ id: 'brand-royal', name: 'Royal Canin' }] : [],
+            color: [{ id: 'color-gray', name: 'Gris' }],
+          },
+        }),
+        {
+          submit: () => {
+            if (catalogChanged) return new Response(null, { status: 204 });
+            catalogChanged = true;
+            return Response.json(
+              { code: 'CAT_INTAKE_CATALOG_CHANGED', field: 'foodBrand' },
+              { status: 409 },
+            );
+          },
+        },
+      );
+      const [cat] = portal.entries();
+      await setOpen(cat.querySelector('.other-fields'), true);
+      const color = enter(portal.window, cat, 'color', 'G');
+      color.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
+      const brand = enter(portal.window, cat, 'foodBrand', 'Royal Canin');
+      const fileInput = cat.querySelector('input[type="file"]');
+      const file = new File(['photo'], 'vaccine.jpg', { type: 'image/jpeg' });
+      Object.defineProperty(fileInput, 'files', { value: [file] });
+      const submitDraft = async () => {
+        const request = await portal.submit();
+        if (!partial) return request;
+        assert.equal(request, undefined);
+        return portal.confirmPartial();
+      };
+      const initial = await submitDraft();
+      assert.ok(initial);
+      assert.equal(portal.entries()[0], cat);
+      assert.equal(portal.window.document.activeElement, brand);
+      assert.equal(brand.value, 'Royal Canin');
+      assert.equal(fileInput.files[0], file);
+      assert.match(color.closest('.catalog-field').textContent, /✓.*Seleccionado: Gris/);
+      assert.equal(await portal.submit(), undefined);
+      brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
+      const retry = await submitDraft();
+      const { cats } = JSON.parse(await retry.body.get('submission').text());
+      assert.deepEqual(cats[0].optionIds, { foodBrand: 'brand-royal', color: 'color-gray' });
+      assert.equal(retry.body.get(cats[0].photoKeys[0]).name, 'vaccine.jpg');
     },
   );
-  const [cat] = portal.entries();
-  await setOpen(cat.querySelector('.other-fields'), true);
-  const color = enter(portal.window, cat, 'color', 'G');
-  color.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
-  const brand = enter(portal.window, cat, 'foodBrand', 'Royal Canin');
-  const fileInput = cat.querySelector('input[type="file"]');
-  const file = new File(['photo'], 'vaccine.jpg', { type: 'image/jpeg' });
-  Object.defineProperty(fileInput, 'files', { value: [file] });
-  const initial = await portal.submit();
-  assert.ok(initial);
-  assert.equal(portal.entries()[0], cat);
-  assert.equal(portal.window.document.activeElement, brand);
-  assert.equal(brand.value, 'Royal Canin');
-  assert.equal(fileInput.files[0], file);
-  assert.match(color.closest('.catalog-field').textContent, /✓.*Seleccionado: Gris/);
+}
+
+test('a partial confirmation closes on expiry and discards its pending submission', async (t) => {
+  const portal = await openForm(t, {
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    cats: [existing],
+  });
+  const { window } = portal;
+  let expire;
+  window.setTimeout = (callback) => {
+    expire = callback;
+    return 0;
+  };
+  enter(window, portal.entries()[0], 'foodBrand', 'Proposed food');
   assert.equal(await portal.submit(), undefined);
-  brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
-  const retry = await portal.submit();
-  const { cats } = JSON.parse(await retry.body.get('submission').text());
-  assert.deepEqual(cats[0].optionIds, { foodBrand: 'brand-royal', color: 'color-gray' });
-  assert.equal(retry.body.get(cats[0].photoKeys[0]).name, 'vaccine.jpg');
+  assert.ok(window.document.querySelector('#partial-submission').open);
+  expire();
+  assert.equal(window.document.querySelector('dialog[open]'), null);
+  assert.ok(portal.form.hidden);
+  assert.equal(window.document.activeElement.id, 'status');
+  assert.equal(await portal.confirmPartial(), undefined);
 });
 
 test('selected HEIC falls back to an authenticated JPEG preview and clearing revokes its URLs', async (t) => {
@@ -539,7 +706,8 @@ test('a pending cat can send five kept and new photos after correcting a six-pho
   assert.equal(input.files.length, 4);
 
   cat.querySelector('.keep-photo input').click();
-  const post = await portal.submit();
+  assert.equal(await portal.submit(), undefined);
+  const post = await portal.confirmPartial();
   const { cats } = JSON.parse(await post.body.get('submission').text());
   assert.deepEqual(cats[0].retainedPhotoIds, ['second']);
   assert.equal(cats[0].photoKeys.length, 4);

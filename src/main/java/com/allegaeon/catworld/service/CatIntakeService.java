@@ -237,7 +237,7 @@ public class CatIntakeService {
         List<String> conflicts = current == null ? List.of() : proposed.keySet().stream()
                 .filter(key -> fields.isConflict(key, original, current)).toList();
         return new ReviewDetail(id, owner.getId(), owner.getFullName(), review.getCatId(), review.getCatName(),
-                review.getSubmittedAt(), current, proposed, conflicts,
+                review.getSubmittedAt(), current, proposed, conflicts, unansweredRequestedFields(review, proposed),
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
                 cat == null ? null : cat.getUpdatedAt(), review.getRevision());
     }
@@ -520,8 +520,19 @@ public class CatIntakeService {
     }
 
     private Map<UUID, List<String>> requestedForOpenScope(String snapshot, UUID ownerId, List<Cat> eligible) {
-        return snapshot == null ? requestedAtIssuance(ownerId, eligible, null)
-                : json.readValue(snapshot, new TypeReference<>() {});
+        return snapshot == null ? requestedAtIssuance(ownerId, eligible, null) : requestedFromSnapshot(snapshot);
+    }
+
+    private Map<UUID, List<String>> requestedFromSnapshot(String snapshot) {
+        return json.readValue(snapshot, new TypeReference<>() {});
+    }
+
+    private List<String> unansweredRequestedFields(CatIntakeReview review, Map<String, String> proposed) {
+        var snapshot = review.getInvitation().getRequestedFieldsSnapshot();
+        if (review.getCatId() == null || snapshot == null) return List.of();
+        return requestedFromSnapshot(snapshot).getOrDefault(review.getCatId(), List.of()).stream()
+                .filter(key -> !proposed.containsKey(key))
+                .toList();
     }
 
     private ScopedCat scopedCat(UUID id, Map<String, String> original, List<String> requested, CatIntakeReview draft) {

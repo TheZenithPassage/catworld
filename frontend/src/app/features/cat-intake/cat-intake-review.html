@@ -40,6 +40,11 @@
             </button>
           }
         </div>
+        @if (unansweredRequests(); as unanswered) {
+          <p class="unanswered-requests">
+            <strong>{{ copy().unansweredRequests }}</strong> · {{ unanswered }}
+          </p>
+        }
         <form (submit)="approve($event)">
           <fieldset class="review-form" [disabled]="!!saving()">
             @if (!adjusting()) {
@@ -147,7 +152,8 @@
                   }
                   @if (
                     row.conflict ||
-                    (adjusting() && (detail.catId || !requiredForCreation(row.field)))
+                    (adjusting() &&
+                      (detail.catId ? showExistingFieldChoices() : !requiredForCreation(row.field)))
                   ) {
                     <label class="control">
                       {{ copy().decision }}
@@ -161,7 +167,11 @@
                         }
                         <option value="apply">{{ copy().useReviewed }}</option>
                         <option value="keep">
-                          {{ detail.catId ? copy().keepCurrent : copy().skipField }}
+                          {{
+                            hasCurrentValue(row.field.key, detail.current)
+                              ? copy().keepCurrent
+                              : copy().skipField
+                          }}
                         </option>
                       </select>
                     </label>
@@ -273,6 +283,11 @@
               }
             </div>
 
+            @if (foodDetailBrandMismatch()) {
+              <p class="conflict-note" role="status">
+                {{ copy().foodDetailBrandMismatch(detail.proposedFoodDetailBrand!) }}
+              </p>
+            }
             @if (emptyApproval() && adjusting()) {
               <p class="empty-approval" role="status">{{ copy().emptyApproval }}</p>
             }

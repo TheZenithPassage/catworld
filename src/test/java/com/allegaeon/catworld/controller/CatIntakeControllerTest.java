@@ -62,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -181,6 +182,29 @@ class CatIntakeControllerTest {
                 .content(json.writeValueAsString(approval))).andExpect(status().isNoContent());
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void reviewReportsOnlyUnansweredFieldsFromTheOriginalRequest() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Partial profile");
+        cat.setFoodBrand(null);
+        cat.setLitterBrand(null);
+        cat.setLastRabiesDate(null);
+        cat.setLastTripleFelineDate(null);
+        cats.saveAndFlush(cat);
+        var invite = issue(owner, false);
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(),
+                        "fields", Map.of("foodBrand", "Royal Canin")))))
+                .andExpect(status().isNoContent());
+
+        cat.setLastRabiesDate(LocalDate.of(2026, 10, 1));
+        cats.saveAndFlush(cat);
+        var row = rowFor(reviewList(), owner.getId(), cat.getName());
+        mvc.perform(get(REVIEW + "/{id}", row.get("id").asString()).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unansweredRequestedFields",
+                        containsInAnyOrder("litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
     }
 
     @Test
@@ -416,6 +440,8 @@ class CatIntakeControllerTest {
         mvc.perform(get(REVIEW + "/{id}/photos/{photoId}", review.getId(), photo.getId()).with(admin()))
                 .andExpect(status().isOk()).andExpect(content().bytes(JPEG));
         var detail = detail(review.getId().toString());
+        assertThat(detail.path("unansweredRequestedFields").isArray()).isTrue();
+        assertThat(detail.path("unansweredRequestedFields").isEmpty()).isTrue();
         approve(detail, Map.of("coat", "Long"), List.of(), detail.get("catUpdatedAt").asString(), 204);
     }
 

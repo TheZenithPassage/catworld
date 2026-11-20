@@ -31,6 +31,7 @@ describe('CatIntakeReview', () => {
     current: { name: 'Milo', color: 'Black', foodBrand: 'Current Food' },
     proposed: { color: 'Gray', foodBrand: 'Proposed Food' },
     conflictFields: ['color'],
+    unansweredRequestedFields: [],
     photos: [{ id: 'photo-1' }],
     catUpdatedAt: '2026-11-12T10:15:00Z',
     revision: 3,
@@ -125,6 +126,75 @@ describe('CatIntakeReview', () => {
       expectedCatUpdatedAt: conflicting.catUpdatedAt,
       expectedReviewRevision: 3,
     });
+  });
+
+  it('shows unanswered requests outside the editable fields and simplifies a single change', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { name: 'Milo' },
+        proposed: { foodBrand: 'Proposed Food' },
+        unansweredRequestedFields: ['litterBrand', 'lastRabiesDate', 'lastTripleFelineDate'],
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const pending = root.querySelector('.unanswered-requests')!;
+    expect(pending.textContent).toMatch(/Piedritas.*Antirrábica.*Triple felina/i);
+    expect(pending.closest('form')).toBeNull();
+    adjust();
+    expect(root.querySelector('[name="decision-foodBrand"]')).toBeNull();
+    const brand = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
+    brand.value = 'Corrected Food';
+    brand.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ fields: { foodBrand: 'Corrected Food' } }),
+    );
+  });
+
+  it('can omit a missing value in a partial approval and requires the variety brand when linked', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { foodBrand: 'Current Food' },
+        proposed: { foodBrand: 'Proposed Food', foodDetail: 'Chicken', color: 'Gray' },
+        proposedFoodDetailBrand: 'Proposed Food',
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    fixture.nativeElement.querySelector('[data-review-item]').click();
+    fixture.detectChanges();
+    adjust();
+    const root = fixture.nativeElement as HTMLElement;
+    const decide = (key: string) => {
+      const select = root.querySelector<HTMLSelectElement>('[name="decision-' + key + '"]')!;
+      select.value = 'keep';
+      select.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    expect(
+      root.querySelector('[name="decision-color"] option[value="keep"]')?.textContent,
+    ).toContain('Omitir este dato');
+    decide('foodBrand');
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.disabled).toBe(true);
+    expect(root.textContent).toContain('Para aplicar la variedad o dieta');
+    decide('foodDetail');
+    expect(approve.disabled).toBe(false);
+    approve.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ fields: { color: 'Gray' } }),
+    );
   });
 
   it('leaves a proposal pending on back and requires confirmation to dismiss', () => {

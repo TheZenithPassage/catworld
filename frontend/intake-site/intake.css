@@ -98,6 +98,11 @@ fieldset {
   font-weight: 750;
 }
 
+.cat-state--dirty {
+  color: #744039;
+  background: #f9e8e4;
+}
+
 .cat-state--submitted {
   color: #254766;
   background: #e5eff8;
@@ -377,6 +382,39 @@ button:disabled {
   flex-wrap: wrap;
   gap: 0.6rem;
   margin-top: 1rem;
+}
+
+#partial-submission {
+  width: min(100% - 2rem, 32rem);
+  max-height: calc(100% - 2rem);
+  padding: 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+#partial-submission::backdrop {
+  background: rgb(41 39 32 / 50%);
+}
+
+#partial-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+#partial-cats,
+#partial-cats ul {
+  padding-inline-start: 1.25rem;
+}
+
+#partial-cats {
+  max-block-size: min(42vh, 20rem);
+  overflow: auto;
+}
+
+#partial-cats > li + li {
+  margin-top: 0.6rem;
 }
 
 .notice {

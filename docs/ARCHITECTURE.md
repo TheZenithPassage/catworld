@@ -78,8 +78,11 @@ protected administration origin.
 Recipients can return to edit pending proposals and reuse staged evidence.
 Restoring an existing cat's original values and removing all staged evidence
 withdraws its proposal while leaving the invitation open. A requested update
-must answer at least one prompt. Reporting a rabies or triple feline dose
-requires its date and an image. One image can cover both doses. A tutor's new
+must answer at least one prompt. The form asks for confirmation before a valid
+partial submission and lists the remaining prompts for each cat. It compares
+the effective draft with the original values and includes previous proposals
+that are still in place. Reporting a rabies or triple feline dose requires
+its date and an image. One image can cover both doses. A tutor's new
 registration requires name, birth date or year, sex, breed, coat, color,
 personality, food brand and detail, and litter. An invalid registration fails
 the whole submission. Vaccines and deworming details are optional. Internal
@@ -90,7 +93,9 @@ to 8 MiB per image and 32 MiB across the submission. Intake fields are strings,
 using `birthYear` instead of `birthDate` when only the year is known.
 
 Administrators compare proposed fields with the current profile and review each
-cat independently. Review treats both birth representations as one field.
+cat independently. Review lists unanswered prompts from the invitation
+snapshot alongside the submitted fields. V17 invitations lack this snapshot.
+Review treats both birth representations as one field.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
 Approval applies the selected fields and moves selected evidence to the

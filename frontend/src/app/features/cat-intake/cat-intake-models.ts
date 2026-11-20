@@ -52,6 +52,8 @@ export interface CatIntakeReviewDetail extends CatIntakeReviewItem {
   current: CatIntakeFields | null;
   proposed: CatIntakeFields;
   conflictFields: CatIntakeFieldKey[];
+  unansweredRequestedFields: CatIntakeFieldKey[];
+  proposedFoodDetailBrand?: string | null;
   photos: { id: string }[];
   catUpdatedAt: string | null;
   revision: number;

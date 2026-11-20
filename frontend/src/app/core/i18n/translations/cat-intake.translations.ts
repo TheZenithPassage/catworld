@@ -49,6 +49,9 @@ export const CAT_INTAKE_TRANSLATIONS = {
       yearOnly: 'Solo el año',
       formatYearOnly: (year: string) => `${year} (solo año)`,
       foodDetail: 'Variedad o dieta',
+      unansweredRequests: 'Datos sin responder',
+      foodDetailBrandMismatch: (brand: string) =>
+        'Para aplicar la variedad o dieta, elegí la marca ' + brand + ' u omití la variedad.',
       litterSource: 'Origen de las piedritas',
       litterDescription: 'Marca o descripción (opcional)',
       conflict: 'Este dato cambió en CatWorld después de generar el enlace.',
@@ -134,6 +137,9 @@ export const CAT_INTAKE_TRANSLATIONS = {
       yearOnly: 'Year only',
       formatYearOnly: (year: string) => `${year} (year only)`,
       foodDetail: 'Variety or diet',
+      unansweredRequests: 'Unanswered requests',
+      foodDetailBrandMismatch: (brand: string) =>
+        'To apply the variety or diet, choose the brand ' + brand + ' or skip the variety.',
       litterSource: 'Litter source',
       litterDescription: 'Brand or description (optional)',
       conflict: 'This value changed in CatWorld after the link was generated.',
