@@ -108,7 +108,11 @@ class PendingPriceMigrationMySqlIntegrationTest {
             HistoricalMigrationConfig.migrate(candidate);
         }
 
-        assertEquals(before, dataSnapshot());
+        // V23 adds two cat columns whose initial values are checked separately.
+        assertEquals(before, dataSnapshot("food_brand_id", "food_detail"));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from cats where food_brand_id is not null or food_detail is not null
+                """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
         assertTrue(history().containsAll(historyBefore));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '14' and success = 1", Integer.class));
@@ -299,7 +303,8 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 "cats", jdbc.queryForList("select concat(hex(id), ':', deceased) from cats order by id", String.class));
     }
 
-    private Map<String, List<String>> dataSnapshot() {
+    private Map<String, List<String>> dataSnapshot(String... excludedCatColumns) {
+        Set<String> excludedCatColumnNames = Set.of(excludedCatColumns);
         Map<String, List<String>> result = new LinkedHashMap<>();
         for (String table : List.of("user_accounts", "owners", "vets", "cats", "stays", "stay_cat",
                 "nightly_reference_rates", "stay_pricing_decisions", "stay_agreed_amount_corrections",
@@ -310,6 +315,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 for (int column = 1; column <= columns.getColumnCount(); column++) {
                     String name = columns.getColumnName(column);
                     if ("price_pending".equals(name) || "deceased".equals(name)) continue;
+                    if ("cats".equals(table) && excludedCatColumnNames.contains(name)) continue;
                     Object value = row.getObject(column);
                     values.add(name + "=" + (value instanceof byte[] bytes
                             ? HexFormat.of().formatHex(bytes) : Objects.toString(value, "null")));
@@ -337,9 +343,12 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 """, id(10), id(1));
         for (int number = 4; number <= 6; number++) {
             jdbc.update("""
-                    insert into cats(id, name, birth_date, sex, owner_id, vet_id, created_by_id, created_at, updated_at)
-                    values (?, ?, '2020-01-01', 'FEMALE', ?, ?, ?, '2026-11-10 12:00:00', '2026-11-10 12:00:00')
-                    """, id(number), "Fictional cat " + number, id(number == 6 ? 3 : 2), id(10), id(1));
+                    insert into cats(id, name, birth_date, sex, food_brand, litter_brand, notes,
+                                     owner_id, vet_id, created_by_id, created_at, updated_at)
+                    values (?, ?, '2020-01-01', 'FEMALE', ?, ?, ?, ?, ?, ?,
+                            '2026-11-10 12:00:00', '2026-11-10 12:00:00')
+                    """, id(number), "Fictional cat " + number, "Fictional food " + number,
+                    "Fictional litter " + number, "Fictional cat notes " + number, id(number == 6 ? 3 : 2), id(10), id(1));
         }
         for (int number = 7; number <= 9; number++) {
             Integer agreement = switch (number) {
