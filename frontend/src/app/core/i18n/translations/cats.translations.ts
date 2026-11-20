@@ -35,7 +35,10 @@ export interface CatsTranslations {
     coat: string;
     color: string;
     foodBrand: string;
+    foodDetail: string;
+    approveFoodBrand: string;
     litterBrand: string;
+    sharedLitter: string;
     personality: string;
     notes: string;
     lastInternalDewormerName: string;
@@ -212,7 +215,10 @@ export const CATS_TRANSLATIONS = {
       coat: 'Pelaje',
       color: 'Color',
       foodBrand: 'Marca de comida',
+      foodDetail: 'Variedad o detalle de la dieta',
+      approveFoodBrand: 'Añadir esta marca al catálogo',
       litterBrand: 'Marca de arena',
+      sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
       notes: 'Notas',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
@@ -374,7 +380,10 @@ export const CATS_TRANSLATIONS = {
       coat: 'Coat',
       color: 'Color',
       foodBrand: 'Food brand',
+      foodDetail: 'Variety or diet details',
+      approveFoodBrand: 'Add this brand to the catalog',
       litterBrand: 'Litter brand',
+      sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
       notes: 'Notes',
       lastInternalDewormerName: 'Last internal dewormer name',

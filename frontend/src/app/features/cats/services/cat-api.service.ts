@@ -9,6 +9,7 @@ import {
   CatLookup,
   CatOverviewItem,
   CreateCatRequest,
+  FoodBrandOption,
   UpdateCatRequest,
 } from '../models/cat.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
@@ -47,6 +48,10 @@ export class CatApiService {
 
   getCatDetail(catId: string): Observable<CatDetailResponse> {
     return this.http.get<CatDetailResponse>(`${this.baseUrl}/${catId}/detail`);
+  }
+
+  getFoodBrands(): Observable<FoodBrandOption[]> {
+    return this.http.get<FoodBrandOption[]>(`${API_BASE_URL}/food-brands`);
   }
 
   getCatPhoto(catId: string): Observable<Blob> {

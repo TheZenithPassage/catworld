@@ -12,6 +12,9 @@ export interface CatCreationDraft {
   coat: string;
   color: string;
   foodBrand: string;
+  foodBrandId?: string | null;
+  foodDetail?: string;
+  approveFoodBrand?: boolean;
   litterBrand: string;
   personality: string;
   notes: string;

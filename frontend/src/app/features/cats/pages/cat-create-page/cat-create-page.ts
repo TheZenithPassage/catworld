@@ -25,6 +25,7 @@ import { CreateCatRequest, Sex } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields';
 
 @Component({
   selector: 'app-cat-create-page',
@@ -39,6 +40,7 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
     RemoteEntitySelector,
     UiStateComponent,
     CatPhotoInput,
+    CatCareFields,
   ],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss',
@@ -71,6 +73,9 @@ export class CatCreatePage implements AfterViewInit {
   readonly coat = signal('');
   readonly color = signal('');
   readonly foodBrand = signal('');
+  readonly foodBrandId = signal<string | null>(null);
+  readonly foodDetail = signal('');
+  readonly approveFoodBrand = signal(false);
   readonly litterBrand = signal('');
   readonly personality = signal('');
   readonly notes = signal('');
@@ -109,6 +114,9 @@ export class CatCreatePage implements AfterViewInit {
       this.coat.set(draft.coat);
       this.color.set(draft.color);
       this.foodBrand.set(draft.foodBrand);
+      this.foodBrandId.set(draft.foodBrandId ?? null);
+      this.foodDetail.set(draft.foodDetail ?? '');
+      this.approveFoodBrand.set(draft.approveFoodBrand ?? false);
       this.litterBrand.set(draft.litterBrand);
       this.personality.set(draft.personality);
       this.notes.set(draft.notes);
@@ -181,6 +189,8 @@ export class CatCreatePage implements AfterViewInit {
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
 
+    const foodBrandId = this.foodBrandId();
+    const foodDetail = this.toNullableString(this.foodDetail());
     const request: CreateCatRequest = {
       name: this.name().trim(),
       birthDate: this.birthDate(),
@@ -189,6 +199,9 @@ export class CatCreatePage implements AfterViewInit {
       coat: this.toNullableString(this.coat()),
       color: this.toNullableString(this.color()),
       foodBrand: this.toNullableString(this.foodBrand()),
+      ...(foodBrandId ? { foodBrandId } : {}),
+      ...(foodDetail ? { foodDetail } : {}),
+      ...(this.approveFoodBrand() ? { approveFoodBrand: true } : {}),
       litterBrand: this.toNullableString(this.litterBrand()),
       personality: this.toNullableString(this.personality()),
       notes: this.toNullableString(this.notes()),
@@ -333,6 +346,9 @@ export class CatCreatePage implements AfterViewInit {
       coat: this.coat(),
       color: this.color(),
       foodBrand: this.foodBrand(),
+      foodBrandId: this.foodBrandId(),
+      foodDetail: this.foodDetail(),
+      approveFoodBrand: this.approveFoodBrand(),
       litterBrand: this.litterBrand(),
       personality: this.personality(),
       notes: this.notes(),

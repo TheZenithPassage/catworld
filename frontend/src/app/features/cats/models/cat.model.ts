@@ -1,5 +1,12 @@
 export type Sex = 'MALE' | 'FEMALE';
 
+export const CATWORLD_LITTER = 'Usa las de CatWorld';
+
+export interface FoodBrandOption {
+  id: string;
+  name: string;
+}
+
 export interface CatInformationalPhoto {
   id: string;
   createdAt: string;
@@ -24,6 +31,8 @@ export interface Cat {
   coat: string | null;
   color: string | null;
   foodBrand: string | null;
+  foodBrandId?: string | null;
+  foodDetail?: string | null;
   litterBrand: string | null;
   personality: string | null;
   notes: string | null;
@@ -48,8 +57,11 @@ export interface CreateCatRequest {
   breed: string | null;
   coat: string | null;
   color: string | null;
-  foodBrand: string | null;
-  litterBrand: string | null;
+  foodBrand?: string | null;
+  foodBrandId?: string;
+  foodDetail?: string | null;
+  approveFoodBrand?: boolean;
+  litterBrand?: string | null;
   personality: string | null;
   notes: string | null;
   lastInternalDewormerName: string | null;

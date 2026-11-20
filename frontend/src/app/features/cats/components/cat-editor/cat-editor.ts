@@ -33,6 +33,7 @@ import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
+import { CatCareFields } from '../cat-care-fields/cat-care-fields';
 
 @Component({
   selector: 'app-cat-editor',
@@ -49,6 +50,7 @@ import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
     TrimRequiredDirective,
     UiStateComponent,
     CatPhotoInput,
+    CatCareFields,
   ],
   templateUrl: '../../pages/cat-edit-page/cat-edit-page.html',
   styleUrl: '../../pages/cat-edit-page/cat-edit-page.scss',
@@ -82,6 +84,9 @@ export class CatEditor {
   readonly coat = signal('');
   readonly color = signal('');
   readonly foodBrand = signal('');
+  readonly foodBrandId = signal<string | null>(null);
+  readonly foodDetail = signal('');
+  readonly approveFoodBrand = signal(false);
   readonly litterBrand = signal('');
   readonly personality = signal('');
   readonly notes = signal('');
@@ -204,6 +209,7 @@ export class CatEditor {
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
+    const foodBrandId = this.foodBrandId();
     const request: UpdateCatRequest = {
       expectedUpdatedAt,
       name: this.name().trim(),
@@ -213,8 +219,17 @@ export class CatEditor {
       breed: this.optional(this.breed()),
       coat: this.optional(this.coat()),
       color: this.optional(this.color()),
-      foodBrand: this.optional(this.foodBrand()),
-      litterBrand: this.optional(this.litterBrand()),
+      ...(this.foodBrand() !== (this.initialCat?.foodBrand ?? '') || this.approveFoodBrand()
+        ? { foodBrand: this.optional(this.foodBrand()) }
+        : {}),
+      ...(foodBrandId && foodBrandId !== this.initialCat?.foodBrandId ? { foodBrandId } : {}),
+      ...(this.foodDetail() !== (this.initialCat?.foodDetail ?? '')
+        ? { foodDetail: this.optional(this.foodDetail()) }
+        : {}),
+      ...(this.approveFoodBrand() ? { approveFoodBrand: true } : {}),
+      ...(this.litterBrand() !== (this.initialCat?.litterBrand ?? '')
+        ? { litterBrand: this.optional(this.litterBrand()) }
+        : {}),
       personality: this.optional(this.personality()),
       notes: this.optional(this.notes()),
       lastInternalDewormerName: this.optional(this.lastInternalDewormerName()),
@@ -284,6 +299,9 @@ export class CatEditor {
     this.coat.set(c.coat ?? '');
     this.color.set(c.color ?? '');
     this.foodBrand.set(c.foodBrand ?? '');
+    this.foodBrandId.set(c.foodBrandId ?? null);
+    this.foodDetail.set(c.foodDetail ?? '');
+    this.approveFoodBrand.set(false);
     this.litterBrand.set(c.litterBrand ?? '');
     this.personality.set(c.personality ?? '');
     this.notes.set(c.notes ?? '');

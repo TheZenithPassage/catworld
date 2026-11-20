@@ -5,7 +5,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
-import { Cat, CatPhotoViewRequest } from '../../models/cat.model';
+import { CATWORLD_LITTER, Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
@@ -158,8 +158,11 @@ export class CatDetail {
     this.submittingChanged.emit(false);
     this.deletionCompleted.emit({ entityType: 'cat', entityId: catId });
   }
-  value(v: string | null): string {
+  value(v: string | null | undefined): string {
     return v || this.text().cats.emptyValue;
+  }
+  litterValue(v: string | null): string {
+    return v === CATWORLD_LITTER ? this.text().cats.form.sharedLitter : this.value(v);
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

@@ -186,7 +186,7 @@ describe('CatEditor', () => {
     const compiled = fixture.nativeElement as HTMLElement;
 
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(18);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(19);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);

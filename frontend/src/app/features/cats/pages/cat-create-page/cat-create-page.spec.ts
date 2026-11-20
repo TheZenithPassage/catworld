@@ -1,6 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgModel } from '@angular/forms';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import {
@@ -84,6 +86,7 @@ describe('CatCreatePage', () => {
 
   const catApiService = {
     createCat: vi.fn(),
+    getFoodBrands: vi.fn(),
   };
 
   const ownerApiService = {
@@ -109,6 +112,7 @@ describe('CatCreatePage', () => {
     vi.resetAllMocks();
     router.navigate.mockResolvedValue(true);
     queryParams = {};
+    catApiService.getFoodBrands.mockReturnValue(of([{ id: 'brand-1', name: 'Royal Canin' }]));
     ownerApiService.getOwners.mockReturnValue(of(owners));
     vetApiService.getVets.mockReturnValue(of(vets));
     ownerApiService.getOwnerLookup.mockReturnValue(
@@ -187,13 +191,47 @@ describe('CatCreatePage', () => {
       .join(' ');
   }
 
+  it('submits a selected food brand, free-text diet and the shared litter choice', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const food = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodBrand]' }),
+    );
+    await food.enterText('royal');
+    await food.selectOption({ text: 'Royal Canin' });
+    setInputValue('foodDetail', 'Sensitive digestion');
+    const litter = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    await litter.enterText('CatWorld');
+    await litter.selectOption({ text: /CatWorld/ });
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        foodBrand: 'Royal Canin',
+        foodBrandId: 'brand-1',
+        foodDetail: 'Sensitive digestion',
+        litterBrand: 'Usa las de CatWorld',
+      }),
+      null,
+    );
+  });
+
   it('renders Material cat create fields, selects, links and submit action', () => {
     createComponent();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(18);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(19);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
     expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);

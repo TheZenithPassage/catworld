@@ -138,27 +138,13 @@
       />
     </mat-form-field>
 
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.foodBrand }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="foodBrand"
-        [ngModel]="foodBrand()"
-        (ngModelChange)="foodBrand.set($event)"
-      />
-    </mat-form-field>
-
-    <mat-form-field appearance="outline">
-      <mat-label>{{ text().cats.form.litterBrand }}</mat-label>
-      <input
-        matInput
-        type="text"
-        name="litterBrand"
-        [ngModel]="litterBrand()"
-        (ngModelChange)="litterBrand.set($event)"
-      />
-    </mat-form-field>
+    <app-cat-care-fields
+      [(foodBrand)]="foodBrand"
+      [(foodBrandId)]="foodBrandId"
+      [(foodDetail)]="foodDetail"
+      [(approveFoodBrand)]="approveFoodBrand"
+      [(litterBrand)]="litterBrand"
+    />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.personality }}</mat-label>
