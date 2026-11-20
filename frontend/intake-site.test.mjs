@@ -1,0 +1,296 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import { JSDOM } from 'jsdom';
+
+const html = readFileSync(new URL('./intake-site/index.html', import.meta.url), 'utf8');
+const script = readFileSync(new URL('./intake-site/intake.js', import.meta.url), 'utf8');
+
+async function openForm(t, invitation, previewOptions = {}) {
+  const dom = new JSDOM(html, {
+    url: 'https://fichas.example.test/#token=example',
+    runScripts: 'outside-only',
+  });
+  t.after(() => dom.window.close());
+  const { window } = dom;
+  const requests = [];
+  window.Blob = Blob;
+  window.FormData = FormData;
+  window.fetch = async (path, options) => {
+    requests.push({ path, ...options });
+    if (path === '/api/intake/request') return Response.json(invitation);
+    if (path === '/api/intake/photo-preview' && previewOptions.response) {
+      return previewOptions.response();
+    }
+    return new Response(null, { status: 204 });
+  };
+  Object.assign(window.URL, previewOptions.urls);
+  window.eval(script);
+  await tick();
+  const form = window.document.querySelector('#intake');
+  return {
+    window,
+    form,
+    requests,
+    entries: () => [...form.querySelectorAll('#cats > *')],
+    add: () => form.querySelector('#add-cat').click(),
+    submit: async () => {
+      form.querySelector('#submit').click();
+      await tick();
+      return requests.find((request) => request.path === '/api/intake/submissions');
+    },
+  };
+}
+
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+async function setOpen(disclosure, open) {
+  if (disclosure.open === open) return;
+  const toggled = new Promise((resolve) =>
+    disclosure.addEventListener('toggle', resolve, { once: true }),
+  );
+  disclosure.open = open;
+  await toggled;
+}
+
+function enter(window, card, key, value) {
+  const input = card.querySelector(`[name="${key}"]`);
+  input.value = value;
+  input.dispatchEvent(new window.Event('input', { bubbles: true }));
+  return input;
+}
+
+const existing = {
+  catId: 'registered-cat',
+  fields: { name: 'Mora' },
+  requestedFields: ['foodBrand', 'litterBrand'],
+};
+
+test('a collapsed blank new cat blocks a valid existing cat update until removed', async (t) => {
+  const portal = await openForm(t, { allowNewCats: true, cats: [existing] });
+  const [mora] = portal.entries();
+  const food = enter(portal.window, mora, 'foodBrand', 'Royal Canin');
+  portal.add();
+  const [, newCat] = portal.entries();
+  const disclosure = newCat.closest('details') ?? newCat.querySelector('details');
+  await setOpen(disclosure, false);
+  const name = newCat.querySelector('[name="name"]');
+
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(disclosure.open, true);
+  assert.equal(portal.window.document.activeElement, name);
+  assert.equal(name.getAttribute('aria-invalid'), 'true');
+  assert.equal(food.value, 'Royal Canin');
+
+  await setOpen(disclosure, false);
+  const remove = [...newCat.querySelectorAll('button')].find((button) =>
+    button.textContent.includes('Quitar este gato'),
+  );
+  assert.equal(remove.hidden, false);
+  remove.click();
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(
+    cats.map((cat) => cat.fields),
+    [{ foodBrand: 'Royal Canin' }],
+  );
+});
+
+test('only a collapsed, empty unsubmitted cat can be removed', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: true,
+    cats: [
+      { ...existing, requestedFields: [] },
+      { catId: null, revision: 1, draftId: 'submitted-cat', proposedFields: { name: 'Sol' } },
+    ],
+  });
+  portal.add();
+  const [mora, sol, newCat] = portal.entries();
+  const removeButton = (card) =>
+    [...card.querySelectorAll('button')].find((button) =>
+      button.textContent.includes('Quitar este gato'),
+    );
+  assert.equal(removeButton(mora), undefined);
+  assert.equal(removeButton(sol), undefined);
+  const remove = removeButton(newCat);
+  assert.equal(remove.hidden, true);
+
+  enter(portal.window, newCat, 'color', 'Gris');
+  await setOpen(newCat.querySelector('details'), false);
+  assert.equal(remove.hidden, true);
+
+  await setOpen(newCat.querySelector('details'), true);
+  enter(portal.window, newCat, 'color', '');
+  await setOpen(newCat.querySelector('details'), false);
+  assert.equal(remove.hidden, false);
+});
+
+test('full registration requires its core fields and submits only the selected birth precision', async (t) => {
+  const portal = await openForm(t, { allowNewCats: true, cats: [] });
+  const [cat] = portal.entries();
+  enter(portal.window, cat, 'name', 'Gala');
+  enter(portal.window, cat, 'birthDate', '2021-05-07');
+  enter(portal.window, cat, 'sex', 'FEMALE');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(portal.window.document.activeElement.name, 'breed');
+
+  const onlyYear = [...cat.querySelectorAll('input[type="checkbox"]')].find((input) =>
+    input.closest('label').textContent.includes('Solo sé el año'),
+  );
+  onlyYear.click();
+  enter(portal.window, cat, 'birthYear', '123');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(portal.window.document.activeElement.name, 'birthYear');
+  enter(portal.window, cat, 'birthYear', '2021');
+  for (const [key, value] of Object.entries({
+    breed: 'Sin raza definida',
+    coat: 'Corto',
+    color: 'Gris',
+    personality: 'Tímida',
+    foodBrand: 'Comida casera',
+    foodDetail: 'Pollo',
+    careInstructions: 'Come de noche',
+  })) {
+    enter(portal.window, cat, key, value);
+  }
+  const litter = [...cat.querySelectorAll('select')].find((select) =>
+    [...select.options].some((option) => option.value === 'shared'),
+  );
+  litter.value = 'shared';
+  litter.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.equal(cats[0].fields.birthYear, '2021');
+  assert.equal(cats[0].fields.birthDate, undefined);
+  assert.equal(cats[0].fields.litterBrand, 'Usa las de CatWorld');
+  assert.equal(cats[0].fields.careInstructions, 'Come de noche');
+});
+
+test('editing an existing year-only birth can replace it with a precise date', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [{ ...existing, fields: { name: 'Mora', birthYear: '2021' }, requestedFields: [] }],
+  });
+  const [cat] = portal.entries();
+  const onlyYear = [...cat.querySelectorAll('input[type="checkbox"]')].find((input) =>
+    input.closest('label').textContent.includes('Solo sé el año'),
+  );
+  assert.equal(onlyYear.checked, true);
+  onlyYear.click();
+  enter(portal.window, cat, 'birthDate', '2021-05-07');
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, { birthDate: '2021-05-07' });
+});
+
+test('choosing personal litter answers the request without a brand and reopens as an empty description', async (t) => {
+  const cat = { ...existing, requestedFields: ['litterBrand'] };
+  const portal = await openForm(t, { allowNewCats: false, cats: [cat] });
+  const [card] = portal.entries();
+  const selectLitter = (entry) =>
+    [...entry.querySelectorAll('select')].find((select) =>
+      [...select.options].some((option) => option.value === 'own'),
+    );
+  const litter = selectLitter(card);
+  litter.value = 'own';
+  litter.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, { litterBrand: 'Trae sus propias piedritas' });
+
+  const reopened = await openForm(t, {
+    allowNewCats: false,
+    cats: [{ ...cat, revision: 1, proposedFields: cats[0].fields }],
+  });
+  const [received] = reopened.entries();
+  assert.equal(selectLitter(received).value, 'own');
+  assert.equal(received.querySelector('[name="litterBrand"]').value, '');
+});
+
+test('reopening a partial submission shows both pending data and the submitted status', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: true,
+    cats: [
+      { ...existing, revision: 1, proposedFields: { foodBrand: 'Royal Canin' } },
+      { catId: 'complete-cat', fields: { name: 'Pepa' }, requestedFields: [] },
+    ],
+  });
+  const [mora, pepa] = portal.entries();
+  assert.match(mora.querySelector('summary').textContent, /Datos pendientes/);
+  assert.match(mora.querySelector('summary').textContent, /Enviado a CatWorld/);
+  assert.match(pepa.querySelector('summary').textContent, /Sin datos pendientes/);
+  assert.equal(pepa.querySelector('details')?.open, false);
+});
+
+test('catalog suggestions can be chosen from a keyboard or sent as typed proposals', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [{ ...existing, requestedFields: ['breed', 'foodBrand'] }],
+    catalogOptions: { breed: [{ id: 1, name: 'Siamés' }] },
+    brands: [{ id: 2, name: 'Royal Canin' }],
+  });
+  const [cat] = portal.entries();
+  const breed = enter(portal.window, cat, 'breed', 'sia');
+  breed.focus();
+  breed.dispatchEvent(
+    new portal.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+  );
+  const option = portal.window.document.activeElement;
+  assert.equal(option.textContent, 'Siamés');
+  option.click();
+  enter(portal.window, cat, 'foodBrand', ' royal   canin  ');
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, { breed: 'Siamés', foodBrand: 'Royal Canin' });
+});
+
+test('selected HEIC falls back to an authenticated JPEG preview and clearing revokes its URLs', async (t) => {
+  const revoked = [];
+  let object = 0;
+  const portal = await openForm(
+    t,
+    { allowNewCats: true, cats: [] },
+    {
+      response: () => new Response('preview', { headers: { 'Content-Type': 'image/jpeg' } }),
+      urls: {
+        createObjectURL: () => `blob:photo-${++object}`,
+        revokeObjectURL: (url) => revoked.push(url),
+      },
+    },
+  );
+  const [cat] = portal.entries();
+  const input = cat.querySelector('input[type="file"]');
+  const file = new File(['photo'], 'dose.HEIC', { type: 'image/heic' });
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    get: () => (input.value ? [file] : []),
+  });
+  Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'dose.HEIC' });
+  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+
+  const disclosure = cat.querySelector('details');
+  await setOpen(disclosure, false);
+  assert.equal(cat.querySelector('.remove-cat').hidden, true);
+  await setOpen(disclosure, true);
+
+  const image = cat.querySelector('img');
+  assert.equal(image.getAttribute('src'), 'blob:photo-1');
+  image.dispatchEvent(new portal.window.Event('error'));
+  await tick();
+  const preview = portal.requests.find((request) => request.path === '/api/intake/photo-preview');
+  assert.equal(preview.method, 'POST');
+  assert.equal(preview.headers.Authorization, 'Bearer example');
+  assert.equal(preview.body.get('photo').name, 'dose.HEIC');
+  assert.equal(image.getAttribute('src'), 'blob:photo-2');
+
+  const clear = [...cat.querySelectorAll('button')].find((button) =>
+    button.textContent.includes('Quitar fotos nuevas'),
+  );
+  clear.click();
+  assert.equal(cat.querySelector('img'), null);
+  assert.deepEqual(revoked, ['blob:photo-1', 'blob:photo-2']);
+  await setOpen(disclosure, false);
+  assert.equal(cat.querySelector('.remove-cat').hidden, false);
+});

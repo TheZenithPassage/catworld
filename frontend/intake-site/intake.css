@@ -59,13 +59,20 @@ fieldset {
 }
 
 .cat-card {
+  display: flex;
+  align-items: flex-start;
   margin-bottom: 0.8rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   background: var(--surface);
 }
 
-.cat-card > summary {
+.cat-card > details {
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-card > details > summary {
   padding: 1rem 1.1rem;
   color: var(--green);
   font-weight: 750;
@@ -73,7 +80,7 @@ fieldset {
   overflow-wrap: anywhere;
 }
 
-.cat-card[open] > summary {
+.cat-card > details[open] > summary {
   border-bottom: 1px solid var(--line);
 }
 
@@ -118,27 +125,38 @@ fieldset {
   font-weight: 620;
 }
 
-.brand-field {
+.birth-field,
+.catalog-field {
   min-width: 0;
 }
 
-.brand-suggestions,
-.retained-photos {
+.catalog-suggestions,
+.retained-photos,
+.selected-photos {
   margin: 0.4rem 0 0;
   padding: 0;
   list-style: none;
 }
 
-.brand-suggestions {
+.catalog-suggestions {
   display: grid;
   gap: 0.25rem;
 }
 
-.brand-suggestions button {
+.catalog-suggestions button {
   width: 100%;
   border-color: var(--line);
   text-align: start;
   overflow-wrap: anywhere;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .hint {
@@ -151,13 +169,15 @@ fieldset {
 
 input,
 select,
+textarea,
 button {
   min-height: 2.75rem;
   font: inherit;
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-width: 0;
   padding: 0.5rem 0.6rem;
@@ -165,6 +185,11 @@ select {
   border-radius: 0.45rem;
   color: var(--text);
   background: var(--surface);
+}
+
+textarea {
+  min-height: 5rem;
+  resize: vertical;
 }
 
 button {
@@ -198,9 +223,17 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
-.attachments button,
-.remove-cat {
+.attachments button {
   margin-top: 0.5rem;
+}
+
+.remove-cat {
+  max-width: 48%;
+  margin: 0.5rem 0.6rem 0.5rem 0;
+}
+
+.cat-card > details[open] + .remove-cat {
+  display: none;
 }
 
 .retained-photos {
@@ -208,6 +241,20 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
   margin: 0 0 0.8rem;
   gap: 0.7rem;
+}
+
+.selected-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.selected-photos .photo-preview {
+  width: min(8rem, 100%);
+}
+
+.selected-photos .photo-preview img {
+  height: 5.5rem;
 }
 
 .photo-preview a {
@@ -223,7 +270,8 @@ button:disabled {
   border-radius: 0.5rem;
 }
 
-.keep-photo {
+.keep-photo,
+.birth-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -231,7 +279,13 @@ button:disabled {
   cursor: pointer;
 }
 
-.keep-photo input {
+.birth-toggle {
+  justify-content: flex-end;
+  font-size: 0.9rem;
+}
+
+.keep-photo input,
+.birth-toggle input {
   width: 1.1rem;
   min-height: auto;
   accent-color: var(--green);
@@ -264,7 +318,8 @@ button:disabled {
 }
 
 input[aria-invalid='true'],
-select[aria-invalid='true'] {
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
   border-color: #a33b2c;
 }
 
