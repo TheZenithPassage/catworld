@@ -37,6 +37,8 @@ export interface CatsTranslations {
     foodBrand: string;
     foodDetail: string;
     approveFoodBrand: string;
+    approveCatalogOption: string;
+    catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
     personality: string;
@@ -217,6 +219,8 @@ export const CATS_TRANSLATIONS = {
       foodBrand: 'Marca de comida',
       foodDetail: 'Variedad o detalle de la dieta',
       approveFoodBrand: 'Añadir esta marca al catálogo',
+      approveCatalogOption: 'Añadir este valor al catálogo',
+      catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Marca de arena',
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
@@ -382,6 +386,8 @@ export const CATS_TRANSLATIONS = {
       foodBrand: 'Food brand',
       foodDetail: 'Variety or diet details',
       approveFoodBrand: 'Add this brand to the catalog',
+      approveCatalogOption: 'Add this value to the catalog',
+      catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter brand',
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',

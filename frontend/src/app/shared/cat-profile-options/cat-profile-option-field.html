@@ -1,0 +1,34 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ label() }}</mat-label>
+  <input
+    matInput
+    type="text"
+    [name]="field()"
+    maxlength="100"
+    [disabled]="disabled()"
+    [ngModel]="value()"
+    (ngModelChange)="changeValue($event)"
+    (focus)="loadOptions()"
+    [matAutocomplete]="approvedOptions"
+  />
+  <mat-autocomplete
+    #approvedOptions="matAutocomplete"
+    (optionSelected)="changeValue($event.option.value)"
+  >
+    @for (option of suggestions(); track option.id) {
+      <mat-option [value]="option.name">{{ option.name }}</mat-option>
+    }
+  </mat-autocomplete>
+  @if (showPublicationHint() && canPublish()) {
+    <mat-hint>{{ text().cats.form.catalogPublicationHint }}</mat-hint>
+  }
+</mat-form-field>
+@if (allowApproval() && canPublish()) {
+  <mat-checkbox [checked]="approve()" (change)="approve.set($event.checked)">
+    {{
+      field() === 'foodBrand'
+        ? text().cats.form.approveFoodBrand
+        : text().cats.form.approveCatalogOption
+    }}
+  </mat-checkbox>
+}
