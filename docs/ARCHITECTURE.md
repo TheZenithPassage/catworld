@@ -68,7 +68,8 @@ origin comes from `CATWORLD_INTAKE_URL`. `GET /api/intake/photos/{id}` serves
 staged JPEGs on pending proposals from that open invitation.
 `POST /api/intake/photo-preview` validates and normalizes one multipart
 `photo` upload for an open invitation and returns the JPEG without staging
-evidence or changing the invitation. The admin endpoint
+evidence or changing the invitation. The recipient can enlarge thumbnails of
+new and retained evidence in a dialog within the form. The admin endpoint
 `GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo to its
 review. The photo responses use `Cache-Control: no-store`. Cat profiles and
 the informational gallery remain behind staff authentication on the
@@ -83,7 +84,7 @@ registration requires name, birth date or year, sex, breed, coat, color,
 personality, food brand and detail, and litter. An invalid registration fails
 the whole submission. Vaccines and deworming details are optional. Internal
 profile creation and approval of pending registrations use the existing name,
-birth and sex minimum. A submission can include up to 20 cats, with up to two
+birth and sex minimum. A submission can include up to 20 cats, with up to five
 normalized JPEGs per cat, including retained evidence. New uploads are limited
 to 8 MiB per image and 32 MiB across the submission. Intake fields are strings,
 using `birthYear` instead of `birthDate` when only the year is known.

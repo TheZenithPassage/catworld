@@ -1,7 +1,7 @@
 'use strict';
 
 const MAX_CATS = 20;
-const MAX_PHOTOS_PER_CAT = 2;
+const MAX_PHOTOS_PER_CAT = 5;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -58,6 +58,10 @@ fieldError.setAttribute('role', 'alert');
 const retry = document.querySelector('#retry');
 const addCat = document.querySelector('#add-cat');
 const send = document.querySelector('#submit');
+const photoViewer = document.querySelector('.photo-viewer');
+const photoViewerTitle = photoViewer.querySelector('h2');
+const photoViewerImage = photoViewer.querySelector('img');
+const photoViewerClose = photoViewer.querySelector('button');
 const cards = [];
 let catalogOptions = {};
 let allowNewCats = false;
@@ -66,6 +70,9 @@ let labelNumber = 0;
 let sending = false;
 let stale = false;
 let errorInput;
+let expiresAt;
+let photoTrigger;
+let photoExpiryTimer;
 const sharedToken = new URLSearchParams(location.hash.slice(1)).get('token');
 let token = sharedToken || history.state?.intakeToken;
 
@@ -139,12 +146,8 @@ function showError(message, input) {
 }
 
 function clearCards() {
-  for (const { photos, clearPreviews } of cards) {
-    clearPreviews();
-    for (const photo of photos) {
-      if (photo.url) URL.revokeObjectURL(photo.url);
-    }
-  }
+  closePhotoViewer();
+  for (const { releasePhotos } of cards) releasePhotos();
   cards.length = 0;
   cats.replaceChildren();
   newCatNumber = 0;
@@ -380,24 +383,64 @@ function refreshActions() {
   send.disabled = cards.length === 0 || stale;
 }
 
-async function showRetainedPhoto(photo, preview) {
+function closePhotoViewer(restoreFocus = false) {
+  if (!photoViewer.open) return;
+  clearTimeout(photoExpiryTimer);
+  photoViewer.close();
+  photoViewerImage.removeAttribute('src');
+  photoViewerImage.alt = '';
+  if (restoreFocus && photoTrigger?.isConnected) photoTrigger.focus({ preventScroll: true });
+  photoTrigger = undefined;
+}
+
+photoViewerClose.addEventListener('click', () => closePhotoViewer(true));
+photoViewer.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closePhotoViewer(true);
+});
+window.addEventListener('pagehide', (event) => {
+  closePhotoViewer();
+  if (!event.persisted) clearCards();
+});
+
+function photoThumbnail(image, title) {
+  const button = element('button', 'photo-enlarge');
+  button.type = 'button';
+  button.setAttribute('aria-label', 'Ampliar ' + title);
+  button.setAttribute('aria-haspopup', 'dialog');
+  button.append(image);
+  button.addEventListener('click', () => {
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      endAccess();
+      return;
+    }
+    photoTrigger = button;
+    photoViewerTitle.textContent = title;
+    photoViewerImage.src = image.src;
+    photoViewerImage.alt = image.alt;
+    photoViewer.showModal();
+    photoViewerClose.focus({ preventScroll: true });
+    if (Number.isFinite(remaining)) photoExpiryTimer = setTimeout(endAccess, remaining);
+  });
+  return button;
+}
+
+async function showRetainedPhoto(photo, preview, signal) {
   try {
-    const response = await request('/api/intake/photos/' + encodeURIComponent(photo.id));
+    const response = await request('/api/intake/photos/' + encodeURIComponent(photo.id), {
+      signal,
+    });
     if (!response.ok) throw new Error('Photo unavailable');
     const blob = await response.blob();
-    if (!preview.isConnected) return;
+    if (signal.aborted) return;
     photo.url = URL.createObjectURL(blob);
-    const link = element('a');
     const image = element('img');
     image.src = photo.url;
     image.alt = 'Comprobante ' + photo.number;
-    link.href = photo.url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.append(image);
-    preview.replaceChildren(link);
+    preview.replaceChildren(photoThumbnail(image, image.alt));
   } catch {
-    if (preview.isConnected) preview.textContent = 'No se pudo mostrar este comprobante.';
+    if (!signal.aborted) preview.textContent = 'No se pudo mostrar este comprobante.';
   }
 }
 
@@ -409,8 +452,10 @@ function selectedPhotoPreview(file, signal) {
 
   const image = element('img');
   image.alt = 'Vista previa de ' + file.name;
+  const thumbnail = photoThumbnail(image, file.name);
   let url;
   function releaseUrl() {
+    if (photoTrigger === thumbnail) closePhotoViewer();
     if (url) URL.revokeObjectURL(url);
     url = undefined;
   }
@@ -420,7 +465,7 @@ function selectedPhotoPreview(file, signal) {
   }
   function unavailablePreview() {
     releaseUrl();
-    image.remove();
+    thumbnail.remove();
     caption.textContent = file.name + ' · Vista previa no disponible';
   }
   signal.addEventListener('abort', releaseUrl, { once: true });
@@ -437,7 +482,7 @@ function selectedPhotoPreview(file, signal) {
         unavailablePreview();
         return;
       }
-      image.hidden = true;
+      thumbnail.hidden = true;
       try {
         const body = new FormData();
         body.append('photo', file);
@@ -450,7 +495,7 @@ function selectedPhotoPreview(file, signal) {
         const jpeg = await response.blob();
         if (signal.aborted) return;
         image.addEventListener('error', unavailablePreview, { once: true });
-        image.hidden = false;
+        thumbnail.hidden = false;
         setSource(jpeg);
       } catch {
         if (!signal.aborted) unavailablePreview();
@@ -459,33 +504,58 @@ function selectedPhotoPreview(file, signal) {
     { once: true },
   );
   setSource(file);
-  item.prepend(image);
+  item.prepend(thumbnail);
   return item;
+}
+
+function photoLimitError(files, retainedCount) {
+  if (files.length + retainedCount > MAX_PHOTOS_PER_CAT) {
+    return 'Elegí hasta cinco fotos por gato, incluidas las que quieras conservar.';
+  }
+  if (files.some((file) => file.size > MAX_PHOTO_BYTES)) {
+    return 'Cada foto puede pesar hasta 8 MiB. Elegí un archivo más chico.';
+  }
+  return '';
 }
 
 function createAttachments(photos) {
   const attachments = element('div', 'attachments');
   const selected = element('ul', 'selected-photos');
   const fileInput = element('input');
-  const fileStatus = element('p', 'hint');
   const clearFiles = element('button', 'secondary', 'Quitar fotos nuevas');
   fileInput.type = 'file';
   fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
-  fileStatus.setAttribute('aria-live', 'polite');
   clearFiles.type = 'button';
   clearFiles.hidden = true;
   const fileLabel = fieldLabel(
     'Fotos de comprobantes',
     fileInput,
-    'Para informar una vacuna, adjuntá el comprobante de este gato. Una foto puede mostrar las dos vacunas. Hasta dos fotos por gato, de 8 MB cada una y 32 MB por envío.',
+    'Para informar una vacuna, adjuntá el comprobante de este gato.',
   );
+  const retainedRequest = photos.length ? new AbortController() : undefined;
   let previewRequest;
 
   function clearPreviews() {
     previewRequest?.abort();
     previewRequest = undefined;
     selected.replaceChildren();
+  }
+
+  function releasePhotos() {
+    clearPreviews();
+    retainedRequest?.abort();
+    for (const photo of photos) {
+      if (photo.url) URL.revokeObjectURL(photo.url);
+    }
+  }
+
+  function checkPhotoSelection() {
+    const message = photoLimitError(
+      Array.from(fileInput.files),
+      photos.filter((photo) => photo.keep).length,
+    );
+    if (message || errorInput === fileInput) showError(message, message ? fileInput : undefined);
   }
 
   if (photos.length) {
@@ -499,21 +569,21 @@ function createAttachments(photos) {
       keep.checked = true;
       keep.addEventListener('change', () => {
         photo.keep = keep.checked;
+        checkPhotoSelection();
       });
       keepLabel.append(keep, element('span', '', 'Conservar foto ' + photo.number));
       item.append(preview, keepLabel);
       saved.append(item);
-      void showRetainedPhoto(photo, preview);
+      void showRetainedPhoto(photo, preview, retainedRequest.signal);
     }
     attachments.append(saved);
   }
-  attachments.append(fileLabel, fileStatus, selected, clearFiles);
+  attachments.append(fileLabel, selected, clearFiles);
   fileInput.addEventListener('change', () => {
     clearPreviews();
     const files = Array.from(fileInput.files);
     clearFiles.hidden = files.length === 0;
-    fileStatus.textContent =
-      files.length > MAX_PHOTOS_PER_CAT ? 'Elegí hasta dos fotos por gato.' : '';
+    checkPhotoSelection();
     if (files.length && files.length <= MAX_PHOTOS_PER_CAT) {
       previewRequest = new AbortController();
       selected.append(...files.map((file) => selectedPhotoPreview(file, previewRequest.signal)));
@@ -524,7 +594,7 @@ function createAttachments(photos) {
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     fileInput.focus();
   });
-  return { attachments, fileInput, clearPreviews };
+  return { attachments, fileInput, releasePhotos };
 }
 
 function addCard(
@@ -577,7 +647,7 @@ function addCard(
   });
 
   const photos = savedPhotos.map(({ id }, index) => ({ id, number: index + 1, keep: true }));
-  const { attachments, fileInput, clearPreviews } = createAttachments(photos);
+  const { attachments, fileInput, releasePhotos } = createAttachments(photos);
   content.append(primaryFields);
   if (isNew || photos.length || VACCINES.some((key) => requestedFields.includes(key))) {
     content.append(attachments);
@@ -596,7 +666,7 @@ function addCard(
     inputs,
     photos,
     fileInput,
-    clearPreviews,
+    releasePhotos,
   };
   disclosure.open = isNew || hasPending;
   disclosure.append(summary, content);
@@ -620,7 +690,7 @@ function addCard(
       refreshRemoval();
       if (remove.hidden) return;
       if (card.contains(errorInput)) showError('');
-      clearPreviews();
+      releasePhotos();
       cards.splice(cards.indexOf(entry), 1);
       card.remove();
       refreshActions();
@@ -650,6 +720,7 @@ async function load() {
     if (!response.ok) throw new Error('Request failed');
     const invitation = await response.json();
     clearCards();
+    expiresAt = Date.parse(invitation.expiresAt);
     showError('');
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
@@ -729,8 +800,9 @@ function validateCards(drafts) {
       }
     }
     const count = files.length + retainedPhotoIds.length;
-    if (count > MAX_PHOTOS_PER_CAT || files.some((file) => file.size > MAX_PHOTO_BYTES)) {
-      showError('Elegí hasta dos fotos de 8 MB o menos por gato.', card.fileInput);
+    const photoError = photoLimitError(files, retainedPhotoIds.length);
+    if (photoError) {
+      showError(photoError, card.fileInput);
       return false;
     }
     if (VACCINES.some((key) => fields[key]) && count === 0) {
@@ -812,7 +884,7 @@ form.addEventListener('submit', async (event) => {
   const body = multipart(entries);
   if (!body) {
     showError(
-      'Las fotos del envío superan los 32 MB. Quitá alguna foto o elegí archivos más chicos.',
+      'Las fotos nuevas del envío superan los 32 MiB. Quitá alguna foto o elegí archivos más chicos.',
     );
     return;
   }

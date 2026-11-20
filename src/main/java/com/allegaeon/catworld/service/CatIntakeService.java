@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
 public class CatIntakeService {
     private static final Duration INVITATION_LIFETIME = Duration.ofDays(7);
     private static final int MAX_CATS = 20;
-    private static final int MAX_PHOTOS_PER_CAT = 2;
+    private static final int MAX_PHOTOS_PER_CAT = 5;
     private static final long MAX_PHOTO_BYTES = 8L * 1024 * 1024;
     private static final long MAX_TOTAL_PHOTO_BYTES = 32L * 1024 * 1024;
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]{43}");
@@ -274,8 +274,8 @@ public class CatIntakeService {
         if (cat != null && accepted.isEmpty() && photoIds.isEmpty()) {
             throw new BadRequestException("Select at least one field or photo to approve");
         }
-        if (photoIds.size() > MAX_PHOTOS_PER_CAT || photoIds.stream().anyMatch(Objects::isNull)
-                || new HashSet<>(photoIds).size() != photoIds.size()) {
+        validatePhotoCount(photoIds.size());
+        if (photoIds.stream().anyMatch(Objects::isNull) || new HashSet<>(photoIds).size() != photoIds.size()) {
             throw new BadRequestException("Invalid selection of intake photos");
         }
         List<CatIntakePhoto> acceptedPhotos = photoIds.isEmpty() ? List.of() : intakePhotos.findByReview_IdAndIdIn(id, photoIds);
@@ -342,9 +342,7 @@ public class CatIntakeService {
         for (var submitted : submission.cats()) {
             if (submitted == null) throw new BadRequestException("Cat details are required");
             var photoKeys = photoKeys(submitted);
-            if (photoKeys.size() > MAX_PHOTOS_PER_CAT) {
-                throw new BadRequestException("Up to two photos are allowed per cat");
-            }
+            validatePhotoCount(photoKeys.size());
             for (String key : photoKeys) {
                 if (key == null || "submission".equals(key) || !PHOTO_KEY_PATTERN.matcher(key).matches()
                         || !expectedPhotos.add(key)) {
@@ -426,7 +424,8 @@ public class CatIntakeService {
 
     private static List<UUID> retainedPhotoIds(SubmittedCat submitted, List<UUID> existingIds) {
         var retained = submitted.retainedPhotoIds() == null ? existingIds : submitted.retainedPhotoIds();
-        if (retained.size() + photoKeys(submitted).size() > MAX_PHOTOS_PER_CAT || retained.stream().anyMatch(Objects::isNull)
+        validatePhotoCount(retained.size() + photoKeys(submitted).size());
+        if (retained.stream().anyMatch(Objects::isNull)
                 || new HashSet<>(retained).size() != retained.size() || !existingIds.containsAll(retained)) {
             throw new BadRequestException("Invalid selection of photos for this cat");
         }
@@ -435,6 +434,12 @@ public class CatIntakeService {
 
     private static List<String> photoKeys(SubmittedCat submitted) {
         return submitted.photoKeys() == null ? List.of() : submitted.photoKeys();
+    }
+
+    private static void validatePhotoCount(int count) {
+        if (count > MAX_PHOTOS_PER_CAT) {
+            throw new BadRequestException("Up to five photos are allowed per cat");
+        }
     }
 
     private static void validateRequestedAnswer(List<Draft> drafts, Map<UUID, List<String>> requested, List<Cat> eligible,

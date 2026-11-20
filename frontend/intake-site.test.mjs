@@ -16,11 +16,21 @@ async function openForm(t, invitation, previewOptions = {}) {
   const requests = [];
   window.Blob = Blob;
   window.FormData = FormData;
+  // jsdom has the dialog element but omits the native dialog actions.
+  window.HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  window.HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
   window.fetch = async (path, options) => {
     requests.push({ path, ...options });
     if (path === '/api/intake/request') return Response.json(invitation);
     if (path === '/api/intake/photo-preview' && previewOptions.response) {
       return previewOptions.response();
+    }
+    if (path.startsWith('/api/intake/photos/') && previewOptions.retainedResponse) {
+      return previewOptions.retainedResponse();
     }
     return new Response(null, { status: 204 });
   };
@@ -306,6 +316,21 @@ test('selected HEIC falls back to an authenticated JPEG preview and clearing rev
   assert.equal(preview.body.get('photo').name, 'dose.HEIC');
   assert.equal(image.getAttribute('src'), 'blob:photo-2');
 
+  const enlarge = image.closest('button');
+  enlarge.focus();
+  enlarge.click();
+  const dialog = portal.window.document.querySelector('dialog[open]');
+  assert.equal(dialog.querySelector('img').getAttribute('src'), 'blob:photo-2');
+  assert.equal(portal.window.document.activeElement, dialog.querySelector('button'));
+  dialog.dispatchEvent(new portal.window.Event('cancel', { cancelable: true }));
+  assert.equal(dialog.open, false);
+  assert.equal(dialog.querySelector('img').hasAttribute('src'), false);
+  assert.equal(portal.window.document.activeElement, enlarge);
+  assert.equal(
+    portal.requests.some(({ path }) => path === '/api/intake/submissions'),
+    false,
+  );
+
   const clear = [...cat.querySelectorAll('button')].find((button) =>
     button.textContent.includes('Quitar fotos nuevas'),
   );
@@ -314,4 +339,108 @@ test('selected HEIC falls back to an authenticated JPEG preview and clearing rev
   assert.deepEqual(revoked, ['blob:photo-1', 'blob:photo-2']);
   await setOpen(disclosure, false);
   assert.equal(cat.querySelector('.remove-cat').hidden, false);
+});
+
+test('a pending cat can send five kept and new photos after correcting a six-photo selection', async (t) => {
+  const portal = await openForm(
+    t,
+    {
+      cats: [
+        {
+          ...existing,
+          revision: 2,
+          proposedFields: { foodBrand: 'Proposed food' },
+          photos: [{ id: 'first' }, { id: 'second' }],
+        },
+      ],
+    },
+    { urls: { createObjectURL: () => 'blob:photo', revokeObjectURL: () => {} } },
+  );
+  const [cat] = portal.entries();
+  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
+  const input = cat.querySelector('input[type="file"]');
+  const files = Array.from({ length: 4 }, (_, index) => new File(['photo'], `photo-${index}.jpg`));
+  Object.defineProperty(input, 'files', { value: files });
+  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  assert.equal(await portal.submit(), undefined);
+  assert.match(cat.querySelector('[role="alert"]').textContent, /cinco fotos/);
+  assert.equal(field.value, 'Updated food');
+  assert.equal(input.files.length, 4);
+
+  cat.querySelector('.keep-photo input').click();
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].retainedPhotoIds, ['second']);
+  assert.equal(cats[0].photoKeys.length, 4);
+});
+
+test('a photo over 8 MiB leaves the selected file and draft available to correct', async (t) => {
+  const portal = await openForm(t, { cats: [existing] });
+  const [cat] = portal.entries();
+  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
+  const input = cat.querySelector('input[type="file"]');
+  const file = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'large.jpg');
+  Object.defineProperty(input, 'files', { value: [file] });
+  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  assert.equal(await portal.submit(), undefined);
+  assert.match(cat.querySelector('[role="alert"]').textContent, /8 MiB/);
+  assert.equal(field.value, 'Updated food');
+  assert.equal(input.files[0], file);
+});
+
+test('new photos over 32 MiB leave the draft available to correct', async (t) => {
+  const portal = await openForm(
+    t,
+    { cats: [existing] },
+    { urls: { createObjectURL: () => 'blob:photo', revokeObjectURL: () => {} } },
+  );
+  const [cat] = portal.entries();
+  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
+  const input = cat.querySelector('input[type="file"]');
+  const files = Array.from(
+    { length: 5 },
+    (_, index) => new File([new Uint8Array(7 * 1024 * 1024)], `photo-${index}.jpg`),
+  );
+  Object.defineProperty(input, 'files', { value: files });
+  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  assert.equal(await portal.submit(), undefined);
+  assert.match(portal.form.querySelector('#error').textContent, /32 MiB/);
+  assert.equal(field.value, 'Updated food');
+  assert.equal(input.files.length, 5);
+});
+
+test('retained JPEG enlarges in the form, restores focus and closes on departure', async (t) => {
+  const revoked = [];
+  const portal = await openForm(
+    t,
+    { cats: [{ ...existing, revision: 2, photos: [{ id: 'retained' }] }] },
+    {
+      retainedResponse: () =>
+        new Response('preview', { headers: { 'Content-Type': 'image/jpeg' } }),
+      urls: {
+        createObjectURL: () => 'blob:retained',
+        revokeObjectURL: (url) => revoked.push(url),
+      },
+    },
+  );
+  const [cat] = portal.entries();
+  const enlarge = cat.querySelector('.retained-photos button');
+  enlarge.focus();
+  enlarge.click();
+  const dialog = portal.window.document.querySelector('dialog[open]');
+  assert.equal(dialog.querySelector('img').getAttribute('src'), 'blob:retained');
+  const request = portal.requests.find(({ path }) => path === '/api/intake/photos/retained');
+  assert.equal(request.headers.Authorization, 'Bearer example');
+  dialog.querySelector('button').click();
+  assert.equal(dialog.open, false);
+  assert.equal(portal.window.document.activeElement, enlarge);
+
+  enlarge.click();
+  portal.window.dispatchEvent(new portal.window.PageTransitionEvent('pagehide'));
+  assert.equal(dialog.open, false);
+  assert.deepEqual(revoked, ['blob:retained']);
+  assert.equal(
+    portal.requests.some(({ path }) => path === '/api/intake/submissions'),
+    false,
+  );
 });

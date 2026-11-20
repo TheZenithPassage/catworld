@@ -49,6 +49,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -309,6 +310,50 @@ class CatIntakeControllerTest {
                 review.get("catUpdatedAt").asString(), 204);
         assertThat(cats.findById(existing.getId()).orElseThrow().getLastRabiesDate()).isEqualTo(LocalDate.of(2026, 8, 12));
         assertThat(photos.findGallery(existing.getId())).hasSize(1);
+    }
+
+    @Test
+    void stagesAndApprovesFivePhotosAndRejectsASixthWhenEditing() throws Exception {
+        var owner = owner();
+        var existing = cat(owner, "Vaccine evidence");
+        var invite = issue(owner, false);
+        var firstFive = List.of("proof-0", "proof-1", "proof-2", "proof-3", "proof-4");
+        var six = List.of("proof-0", "proof-1", "proof-2", "proof-3", "proof-4", "proof-5");
+        var vaccine = Map.of("lastRabiesDate", "2026-09-20");
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", vaccine,
+                        "photoKeys", six)), six.stream().map(CatIntakeControllerTest::proof)
+                        .toArray(MockMultipartFile[]::new)))
+                .andExpect(status().isBadRequest()).andExpect(content().string("Up to five photos are allowed per cat"));
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", vaccine,
+                        "photoKeys", firstFive)), firstFive.stream().map(CatIntakeControllerTest::proof)
+                        .toArray(MockMultipartFile[]::new)))
+                .andExpect(status().isNoContent());
+        var row = rowFor(reviewList(), owner.getId(), "Vaccine evidence");
+        var review = detail(row.get("id").asString());
+        var staged = review.get("photos").valueStream().map(photo -> photo.get("id").asString()).toList();
+        assertThat(staged).hasSize(5);
+        var edit = new HashMap<String, Object>(Map.of("catId", existing.getId(), "fields", vaccine,
+                "revision", review.get("revision").asLong(), "photoKeys", List.of("replacement")));
+        edit.put("retainedPhotoIds", staged);
+        mvc.perform(submission(invite, List.of(edit), proof("replacement")))
+                .andExpect(status().isBadRequest()).andExpect(content().string("Up to five photos are allowed per cat"));
+
+        edit.put("retainedPhotoIds", staged.subList(0, 4));
+        mvc.perform(submission(invite, List.of(edit), proof("replacement"))).andExpect(status().isNoContent());
+        var updated = detail(row.get("id").asString());
+        var updatedPhotos = updated.get("photos").valueStream().map(photo -> photo.get("id").asString()).toList();
+        assertThat(updatedPhotos).hasSize(5).containsAll(staged.subList(0, 4)).doesNotContain(staged.getLast());
+        var invalidApproval = new ArrayList<>(updatedPhotos);
+        invalidApproval.add(UUID.randomUUID().toString());
+        approve(updated, vaccine, invalidApproval, updated.get("catUpdatedAt").asString(), 400);
+        approve(updated, vaccine, updatedPhotos, updated.get("catUpdatedAt").asString(), 204);
+        assertThat(photos.findGallery(existing.getId())).hasSize(5);
+    }
+
+    private static MockMultipartFile proof(String key) {
+        return new MockMultipartFile(key, key + ".jpg", "image/jpeg", JPEG);
     }
 
     @Test
