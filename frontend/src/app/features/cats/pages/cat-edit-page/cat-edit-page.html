@@ -242,7 +242,11 @@
 
       <fieldset class="record-status">
         <legend>{{ text().entityDetail.recordStatus }}</legend>
-        <mat-checkbox name="deceased" [checked]="deceased()" (change)="deceased.set($event.checked)">
+        <mat-checkbox
+          name="deceased"
+          [checked]="deceased()"
+          (change)="deceased.set($event.checked)"
+        >
           {{ text().entityDetail.noLongerWithUs }}
         </mat-checkbox>
       </fieldset>
