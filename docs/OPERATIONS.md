@@ -238,6 +238,11 @@ When upgrading a database that already has V16, startup applies a missing V14
 Flyway pass before continuing with the remaining migrations. Flyway still
 validates applied checksums and rejects other unexpected gaps.
 
+The earlier intake candidate applied V1–V13, V15 and V17. For that
+exact recorded sequence, startup applies the original V14 and V16 scripts
+before continuing. A restart can finish V16 if V14 already succeeded during
+that upgrade. The V17 intake data stays in place.
+
 ## Enable private cat intake links
 
 When authorized, download `compose.cat-intake.yml` next to `compose.prod.yml`

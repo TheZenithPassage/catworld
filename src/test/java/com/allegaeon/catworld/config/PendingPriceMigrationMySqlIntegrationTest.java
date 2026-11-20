@@ -72,13 +72,16 @@ class PendingPriceMigrationMySqlIntegrationTest {
             "14, true, false",
             "16, false, true",
             "16, false, false",
-            "16, true, false"
+            "16, true, false",
+            "17, false, true"
     })
     void upgradesPopulatedHistoricalSchemasWithoutChangingTheirData(
             String startingVersion, boolean hasPendingPriceMigration, boolean hasGalleryMigration) throws IOException {
+        boolean originalIntake = "17".equals(startingVersion);
         List<String> omittedVersions = new ArrayList<>();
         if (!hasPendingPriceMigration) omittedVersions.add("14");
         if (!hasGalleryMigration) omittedVersions.add("15");
+        if (originalIntake) omittedVersions.add("16");
         Path initial = migrationFiles("initial", omittedVersions.toArray(String[]::new));
         Flyway.configure().dataSource(dataSource).locations(location(initial)).target(startingVersion).load().migrate();
         populate("16".equals(startingVersion), hasPendingPriceMigration);
@@ -87,7 +90,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
         Map<String, List<String>> deceasedBefore = deceasedSnapshot();
         Flyway candidate = Flyway.configure().dataSource(dataSource).load();
 
-        if ("16".equals(startingVersion)) {
+        if ("16".equals(startingVersion) || originalIntake) {
             try (var application = new SpringApplicationBuilder(CatworldApplication.class).run(
                     "--server.address=127.0.0.1", "--server.port=0",
                     "--spring.datasource.url=" + ((DriverManagerDataSource) dataSource).getUrl(),
@@ -133,6 +136,10 @@ class PendingPriceMigrationMySqlIntegrationTest {
             assertTrue(installedRank("14") < installedRank("15"));
         }
         assertTrue(installedRank("15") < installedRank("17"));
+        if (originalIntake) {
+            assertTrue(installedRank("14") > installedRank("17"));
+            assertTrue(installedRank("16") > installedRank("14"));
+        }
         assertEquals(hasPendingPriceMigration ? 1 : 0,
                 jdbc.queryForObject("select count(*) from stays where price_pending = true", Integer.class));
         jdbc.update("""
@@ -163,11 +170,13 @@ class PendingPriceMigrationMySqlIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"12", "16"})
+    @ValueSource(strings = {"12", "16", "17"})
     void rejectsAnAppliedChecksumMismatchBeforeApplyingLateMigrations(String changedVersion) throws IOException {
-        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "14", "15")))
-                .target("16").load().migrate();
-        populate(true, false);
+        boolean originalIntake = "17".equals(changedVersion);
+        Path initial = migrationFiles("initial", "14", originalIntake ? "16" : "15");
+        Flyway.configure().dataSource(dataSource).locations(location(initial))
+                .target(originalIntake ? "17" : "16").load().migrate();
+        populate(!originalIntake, false);
         Map<String, List<String>> before = dataSnapshot();
         List<Map<String, Object>> historyBefore = history();
         Path altered = migrationFiles("altered");
@@ -177,19 +186,58 @@ class PendingPriceMigrationMySqlIntegrationTest {
             Files.writeString(script, Files.readString(script) + "\nSELECT 'changed applied migration';\n");
         }
 
-        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
+        var failure = assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
                 Flyway.configure().dataSource(dataSource).locations(location(altered)).load()));
 
+        assertTrue(failure.getMessage().contains("Migration checksum mismatch for migration version " + changedVersion));
         assertEquals(before, dataSnapshot());
         assertEquals(historyBefore, history());
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from information_schema.columns
                 where table_schema = database() and table_name = 'stays' and column_name = 'price_pending'
                 """, Integer.class));
-        assertEquals(0, jdbc.queryForObject("""
+        assertEquals(originalIntake ? 1 : 0, jdbc.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = database() and table_name = 'cat_informational_photos'
                 """, Integer.class));
+    }
+
+    @Test
+    void rejectsLateV16OutsideThePublishedV17History() throws IOException {
+        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "16")))
+                .target("17").load().migrate();
+        var before = history();
+
+        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
+                Flyway.configure().dataSource(dataSource).load()));
+        assertEquals(before, history());
+    }
+
+    @Test
+    void resumesThePublishedV17UpgradeAfterLateV14() throws IOException {
+        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "14", "16")))
+                .target("17").load().migrate();
+        Flyway.configure().dataSource(dataSource).outOfOrder(true).target("14").load().migrate();
+        var before = history();
+
+        HistoricalMigrationConfig.migrate(Flyway.configure().dataSource(dataSource).load());
+
+        assertTrue(history().containsAll(before));
+        assertEquals(16, installedRank("14"));
+        assertEquals(17, installedRank("16"));
+    }
+
+    @Test
+    void rejectsAnUnexpectedV16ScriptEvenInThePublishedV17History() throws IOException {
+        Flyway.configure().dataSource(dataSource).locations(location(migrationFiles("initial", "14", "16")))
+                .target("17").load().migrate();
+        var before = history();
+        Path altered = migrationFiles("altered", "16");
+        Files.writeString(altered.resolve("V16__unapproved_migration.sql"), "CREATE TABLE unexpected (id INT);");
+
+        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(
+                Flyway.configure().dataSource(dataSource).locations(location(altered)).load()));
+        assertEquals(before, history());
     }
 
     @Test
