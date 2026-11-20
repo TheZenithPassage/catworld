@@ -36,6 +36,11 @@ export interface NightlyRatesTranslations {
     saving: string;
     clearing: string;
   };
+  litter: {
+    title: string;
+    rateLabel: string;
+    loadError: string;
+  };
 }
 
 export const NIGHTLY_RATES_TRANSLATIONS = {
@@ -86,6 +91,11 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       saving: 'Guardando…',
       clearing: 'Quitando…',
     },
+    litter: {
+      title: 'Arena de CatWorld',
+      rateLabel: 'Precio por kg',
+      loadError: 'No se pudo cargar la tarifa de arena.',
+    },
   },
   en: {
     title: 'Nightly reference rates',
@@ -133,6 +143,11 @@ export const NIGHTLY_RATES_TRANSLATIONS = {
       clear: 'Clear rate',
       saving: 'Saving…',
       clearing: 'Clearing…',
+    },
+    litter: {
+      title: 'CatWorld litter',
+      rateLabel: 'Price per kg',
+      loadError: 'The litter rate could not be loaded.',
     },
   },
 } satisfies Record<AppLanguage, NightlyRatesTranslations>;

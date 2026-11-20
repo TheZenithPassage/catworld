@@ -134,11 +134,28 @@
                   <dt>{{ text().stays.pricing.transfer }}</dt>
                   <dd>{{ preview.transferSuggestedAmount }}</dd>
                 </div>
+                @if (preview.litter; as litter) {
+                  <div>
+                    <dt>{{ text().stays.pricing.litter.title }}</dt>
+                    <dd>{{ litter.subtotal ?? text().stays.pricing.unavailable }}</dd>
+                  </div>
+                }
                 <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
                   <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
                 </div>
               </dl>
+              @if (preview.litter; as litter) {
+                <app-stay-litter
+                  [litter]="litter"
+                  [cats]="entity().cats"
+                  [editable]="isAdmin()"
+                  [disabled]="submitting()"
+                  [updating]="previewLoading()"
+                  [choices]="litterChoices()"
+                  (choiceChange)="changeLitterChoice($event)"
+                />
+              }
               @if (preview.transferRateUnavailable) {
                 <p class="pricing-warning" role="status">
                   {{ text().stays.pricing.transferUnavailable }}

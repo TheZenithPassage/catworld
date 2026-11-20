@@ -1,0 +1,45 @@
+<div class="litter-details">
+  @if (litter().ratePerKg !== null) {
+    <p>{{ copy().perKg(format(litter().ratePerKg!)) }}</p>
+  }
+  <ul class="litter-cats" [attr.aria-label]="copy().title">
+    @for (row of rows(); track row.catId) {
+      <li>
+        @if (editable()) {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>{{ copy().catLabel(row.name) }}</mat-label>
+            <select
+              matNativeControl
+              [attr.data-litter-cat]="row.catId"
+              [ngModelOptions]="{ standalone: true }"
+              [ngModel]="choices()[row.catId] ?? row.choice"
+              [disabled]="disabled()"
+              (ngModelChange)="choiceChange.emit({ catId: row.catId, choice: $event })"
+            >
+              @for (option of options; track option) {
+                <option [value]="option">{{ copy().choices[option] }}</option>
+              }
+            </select>
+          </mat-form-field>
+        } @else {
+          <span
+            ><strong>{{ row.name }}</strong> · {{ copy().choices[row.choice] }}</span
+          >
+        }
+        @if (!updating()) {
+          <small>
+            {{ copy().totalKg(format(row.totalKg)) }} ·
+            {{
+              row.suggestedAmount === null
+                ? unavailable()
+                : copy().charge(format(row.suggestedAmount))
+            }}
+          </small>
+        }
+      </li>
+    }
+  </ul>
+  @if (!updating() && litter().rateUnavailable) {
+    <p class="litter-warning" role="status">{{ copy().unavailable }}</p>
+  }
+</div>

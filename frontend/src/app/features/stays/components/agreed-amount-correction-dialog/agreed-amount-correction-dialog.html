@@ -33,6 +33,9 @@
         @case ('loaded') {
           @let price = quote.price;
           @let legAmount = price.transferWaived ? '0' : price.retainedTransferRate;
+          @if (previewRefreshing()) {
+            <p role="status">{{ copy.loading }}</p>
+          }
           <dl class="price-breakdown">
             <div>
               <dt>{{ copy.nights }}</dt>
@@ -64,17 +67,48 @@
                 <dd>{{ formatAmount(price.transferSuggestedAmount) }}</dd>
               </div>
             }
+            @if (price.litter; as litter) {
+              <div>
+                <dt>{{ copy.litter.title }}</dt>
+                <dd>{{ formatAmount(litter.subtotal) }}</dd>
+              </div>
+            }
             <div class="price-breakdown-total">
               <dt>{{ copy.suggestion }}</dt>
               <dd>{{ formatAmount(price.suggestedAmount) }}</dd>
             </div>
           </dl>
+          @if (price.litter; as litter) {
+            <app-stay-litter
+              [litter]="litter"
+              [cats]="stay.cats"
+              [editable]="!price.previouslyAgreed"
+              [disabled]="submitting()"
+              [updating]="previewRefreshing()"
+              [choices]="litterChoices()"
+              (choiceChange)="changeLitterChoice($event)"
+            />
+            @if (!price.previouslyAgreed && (litter.rateUnavailable || adoptCurrentLitterRate())) {
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="submitting() || previewRefreshing()"
+                (click)="toggleLitterRate()"
+              >
+                {{
+                  adoptCurrentLitterRate()
+                    ? copy.litter.keepRetainedRate
+                    : copy.litter.tryCurrentRate
+                }}
+              </button>
+            }
+          }
           @if (price.suggestedAmount; as suggestedAmount) {
             <button
               mat-stroked-button
               class="use-suggestion"
               type="button"
-              [disabled]="submitting()"
+              [disabled]="submitting() || previewRefreshing()"
               (click)="amount.set(suggestedAmount)"
             >
               {{ copy.useSuggestedAmount }}
@@ -145,7 +179,9 @@
     <button
       mat-flat-button
       type="submit"
-      [disabled]="submitting() || (stay.pricePending && quote.status !== 'loaded')"
+      [disabled]="
+        submitting() || previewRefreshing() || (stay.pricePending && quote.status !== 'loaded')
+      "
     >
       @if (stay.pricePending) {
         {{ submitting() ? copy.pendingPriceSubmitting : copy.confirmPendingPrice }}

@@ -122,6 +122,79 @@ describe('AgreedAmountCorrectionDialog', () => {
       expectedPendingPriceVersion: 'preview-2',
     });
   });
+  it('confirms the server quote for the edited litter choice on a first pending agreement', async () => {
+    const cats = [{ catId: 'cat-1', name: 'Milo' }];
+    const initial = {
+      ...preview,
+      suggestedAmount: null,
+      litter: {
+        ratePerKg: null,
+        rateUnavailable: true,
+        subtotal: null,
+        cats: [
+          { catId: 'cat-1', choice: 'HALF', kgPerDay: '0.5', totalKg: '1', suggestedAmount: null },
+        ],
+      },
+    };
+    TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: { ...pendingStay, cats } });
+    const editedCat = { ...initial.litter.cats[0], choice: 'ONE', kgPerDay: '1', totalKg: '2' };
+    api.previewPendingPrice
+      .mockReturnValueOnce(of(initial))
+      .mockReturnValueOnce(
+        of({
+          ...initial,
+          version: 'preview-2',
+          litter: { ...initial.litter, cats: [editedCat] },
+        }),
+      )
+      .mockReturnValueOnce(
+        of({
+          ...initial,
+          version: 'preview-3',
+          suggestedAmount: '168',
+          litter: {
+            ...initial.litter,
+            ratePerKg: '24',
+            rateUnavailable: false,
+            subtotal: '48',
+            cats: [{ ...editedCat, suggestedAmount: '48' }],
+          },
+        }),
+      );
+    api.correctAgreedAmount.mockReturnValue(of(stay));
+    const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    const choice = root.querySelector<HTMLSelectElement>('[data-litter-cat="cat-1"]')!;
+    expect(choice?.value).toBe('HALF');
+    choice.value = 'ONE';
+    choice.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(api.previewPendingPrice).toHaveBeenLastCalledWith('s1', {
+      litterChoices: { 'cat-1': 'ONE' },
+    });
+    const adopt = [...root.querySelectorAll('button')].find(
+      (button) =>
+        button.textContent.trim() ===
+        fixture.componentInstance.text().stays.pricing.litter.tryCurrentRate,
+    );
+    adopt!.click();
+    await fixture.whenStable();
+    expect(api.previewPendingPrice).toHaveBeenLastCalledWith('s1', {
+      litterChoices: { 'cat-1': 'ONE' },
+      adoptCurrentLitterRate: true,
+    });
+    fixture.componentInstance.amount.set('168');
+    fixture.componentInstance.submit();
+    expect(api.correctAgreedAmount).toHaveBeenCalledWith('s1', {
+      agreedAmount: '168',
+      reason: null,
+      expectedPendingPriceVersion: 'preview-3',
+      litterChoices: { 'cat-1': 'ONE' },
+      adoptCurrentLitterRate: true,
+    });
+  });
   it.each([
     [403, null, 'permission'],
     [404, undefined, 'missing'],

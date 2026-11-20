@@ -42,6 +42,7 @@ const addCat = document.querySelector('#add-cat');
 const send = document.querySelector('#submit');
 const cards = [];
 let brands = [];
+let litterRatePerKg = null;
 let allowNewCats = false;
 let newCatNumber = 0;
 let labelNumber = 0;
@@ -92,7 +93,8 @@ function showError(message, input) {
   if (errorInput) {
     errorInput.removeAttribute('aria-invalid');
     const description = errorInput.getAttribute('aria-labelledby') + '-hint';
-    if (document.getElementById(description)) {
+    const hint = document.getElementById(description);
+    if (hint && !hint.hidden) {
       errorInput.setAttribute('aria-describedby', description);
     } else {
       errorInput.removeAttribute('aria-describedby');
@@ -227,7 +229,17 @@ function createLitterField(title, initialValue) {
   choice.add(new Option('Seleccioná una opción', ''));
   choice.add(new Option(SHARED_LITTER, 'shared'));
   choice.add(new Option('Usa su propia arena', 'own'));
-  const choiceLabel = fieldLabel(title, choice);
+  const hasRate = litterRatePerKg !== null;
+  const rate = hasRate ? new Intl.NumberFormat('es-AR').format(BigInt(litterRatePerKg)) : '';
+  const expectation = hasRate
+    ? `La tarifa actual es de ${rate} pesos por kg. CatWorld confirma la cantidad y el precio para cada estadía.`
+    : 'La tarifa todavía no está disponible. CatWorld te confirmará el precio para la estadía.';
+  const choiceLabel = fieldLabel(
+    title,
+    choice,
+    `El consumo habitual es de ½ kg por gato por día. ${expectation}`,
+  );
+  const sharedHint = choiceLabel.querySelector('.hint');
 
   const own = element('input');
   own.name = 'litterBrand';
@@ -235,10 +247,14 @@ function createLitterField(title, initialValue) {
   own.value = initialValue === SHARED_LITTER ? '' : initialValue;
   choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue ? 'own' : '';
   const ownLabel = fieldLabel('Marca o tipo de arena', own);
-  ownLabel.hidden = choice.value !== 'own';
-  choice.addEventListener('change', () => {
+  function updateLitterHints() {
     ownLabel.hidden = choice.value !== 'own';
-  });
+    sharedHint.hidden = choice.value !== 'shared';
+    if (sharedHint.hidden) choice.removeAttribute('aria-describedby');
+    else choice.setAttribute('aria-describedby', sharedHint.id);
+  }
+  updateLitterHints();
+  choice.addEventListener('change', updateLitterHints);
 
   field.append(choiceLabel, ownLabel);
   return {
@@ -460,6 +476,7 @@ async function load() {
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
     brands = invitation.brands ?? [];
+    litterRatePerKg = invitation.litterRatePerKg ?? null;
     existingHint.hidden = !invitation.cats.some((cat) => cat.catId);
     for (const cat of invitation.cats) addCard(cat);
     if (cards.length === 0 && allowNewCats) addCard();

@@ -24,6 +24,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
+import { StayLitter } from '../stay-litter/stay-litter';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -33,6 +34,8 @@ import {
   isStalePricingConfirmationError,
   Stay,
   StayDatePricingPreview,
+  StayLitterChoice,
+  StayLitterChoices,
   UpdateStayRequest,
   VaccineConflictResponse,
 } from '../../models/stay.model';
@@ -52,6 +55,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatInput,
     MatLabel,
     MatProgressSpinner,
+    StayLitter,
     UiStateComponent,
   ],
   templateUrl: './stay-editor.html',
@@ -84,6 +88,7 @@ export class StayEditor {
   readonly arrivalTransferRequired = signal(false);
   readonly departureTransferRequired = signal(false);
   readonly transferWaived = signal(false);
+  readonly litterChoices = signal<StayLitterChoices>({});
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentTransferRate = signal<string | null>(null);
@@ -336,6 +341,7 @@ export class StayEditor {
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
       ...this.transferInputs(),
+      ...this.litterInputs(),
       ...(preview.pricingDecisionRequired
         ? {
             ...(preview.currentPricePending
@@ -446,6 +452,7 @@ export class StayEditor {
     this.arrivalTransferRequired.set(Boolean(stay.arrivalTransferRequired));
     this.departureTransferRequired.set(Boolean(stay.departureTransferRequired));
     this.transferWaived.set(Boolean(stay.transferWaived));
+    this.litterChoices.set({});
     this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
@@ -513,6 +520,12 @@ export class StayEditor {
     else this.transferWaived.set(value);
     this.selectedTransferRate.set(null);
     this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
+  }
+
+  changeLitterChoice({ catId, choice }: { catId: string; choice: StayLitterChoice }): void {
+    this.clearVaccineOverrideRecovery();
+    this.litterChoices.update((choices) => ({ ...choices, [catId]: choice }));
     this.refreshPricingPreview();
   }
 
@@ -621,6 +634,7 @@ export class StayEditor {
         startAt: this.startAt(),
         endAt: this.endAt(),
         ...this.transferInputs(),
+        ...this.litterInputs(),
         ...(this.selectedNightlyRate() !== null
           ? { selectedNightlyRate: this.selectedNightlyRate() }
           : {}),
@@ -704,6 +718,7 @@ export class StayEditor {
       this.transferWaived(),
       this.selectedNightlyRate(),
       this.selectedTransferRate(),
+      this.litterChoices(),
     ]);
   }
 
@@ -720,6 +735,11 @@ export class StayEditor {
         ? { transferWaived: this.transferWaived() }
         : {}),
     };
+  }
+
+  private litterInputs(): { litterChoices?: StayLitterChoices } {
+    const litterChoices = this.litterChoices();
+    return Object.keys(litterChoices).length ? { litterChoices } : {};
   }
 
   private clearNightlySelectionWhenAdoptionIsIneligible(): void {

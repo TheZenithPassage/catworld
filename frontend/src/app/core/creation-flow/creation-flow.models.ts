@@ -1,3 +1,5 @@
+import type { StayLitterChoices } from '../../features/stays/models/stay.model';
+
 export const CREATION_FLOW_QUERY_PARAM = 'creationFlowId';
 
 export type CreationFlowId = string & { readonly __creationFlowId: unique symbol };
@@ -42,6 +44,7 @@ export interface StayCreationDraft {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface CreationFlowFrames {

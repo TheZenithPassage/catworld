@@ -39,6 +39,7 @@ export interface Stay {
   transferWaived?: boolean;
   retainedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount?: MonetaryAmount;
+  litter?: StayLitterBreakdown;
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
   pricePending?: boolean;
@@ -49,6 +50,22 @@ export interface Stay {
 }
 
 export type MonetaryAmount = string;
+
+export type StayLitterChoice = 'OWN' | 'HALF' | 'ONE';
+export type StayLitterChoices = Partial<Record<string, StayLitterChoice>>;
+
+export interface StayLitterBreakdown {
+  ratePerKg: MonetaryAmount | null;
+  subtotal: MonetaryAmount | null;
+  rateUnavailable: boolean;
+  cats: Array<{
+    catId: string;
+    choice: StayLitterChoice;
+    kgPerDay: string;
+    totalKg: string;
+    suggestedAmount: MonetaryAmount | null;
+  }>;
+}
 
 export type PaymentCondition = 'NO_PAYMENT' | 'PARTIAL_PAYMENT' | 'FULL_PAYMENT';
 
@@ -87,6 +104,8 @@ export type PricingDecision =
       pricePending?: false;
       reason?: string | null;
       expectedPendingPriceVersion?: string;
+      litterChoices?: StayLitterChoices;
+      adoptCurrentLitterRate?: boolean;
     }
   | { agreedAmount?: null; pricePending: true; reason?: string | null };
 
@@ -101,7 +120,13 @@ export interface PendingPricePreview {
   transferWaived: boolean;
   retainedTransferRate: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount | null;
+  litter?: StayLitterBreakdown;
   suggestedAmount: MonetaryAmount | null;
+}
+
+export interface PendingPricePreviewRequest {
+  litterChoices?: StayLitterChoices;
+  adoptCurrentLitterRate?: boolean;
 }
 
 export interface CreationPricingConfirmation {
@@ -113,6 +138,7 @@ export interface CreationPricingConfirmation {
   transferWaived?: boolean;
   retainedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount?: MonetaryAmount;
+  litter?: StayLitterBreakdown;
 }
 
 export interface ExistingStayPricingConfirmation {
@@ -128,6 +154,8 @@ export interface ExistingStayPricingConfirmation {
   retainedTransferRate: MonetaryAmount | null;
   selectedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount;
+  previousLitter?: StayLitterBreakdown;
+  litter?: StayLitterBreakdown;
 }
 
 export interface CreationPricingPreview extends CreationPricingConfirmation {
@@ -151,6 +179,7 @@ interface StayDatePricingPreviewBase {
   retainedTransferRate: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount;
   transferRateUnavailable?: boolean;
+  litter?: StayLitterBreakdown;
 }
 
 export type StayDatePricingPreview =
@@ -170,6 +199,7 @@ export interface CreationPricingPreviewRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface StayDatePricingPreviewRequest {
@@ -180,6 +210,7 @@ export interface StayDatePricingPreviewRequest {
   transferWaived?: boolean;
   selectedNightlyRate?: MonetaryAmount | null;
   selectedTransferRate?: MonetaryAmount | null;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface CreateStayRequest {
@@ -191,6 +222,7 @@ export interface CreateStayRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
   pricingDecision: PricingDecision;
   confirmation: CreationPricingConfirmation;
 }
@@ -203,6 +235,7 @@ export interface UpdateStayRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
   pricingDecision?: PricingDecision;
   confirmation?: ExistingStayPricingConfirmation;
 }

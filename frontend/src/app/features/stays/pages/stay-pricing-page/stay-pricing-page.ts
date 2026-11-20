@@ -7,6 +7,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { StayPayments } from '../../components/stay-payments/stay-payments';
+import { StayLitter } from '../../components/stay-litter/stay-litter';
 import { AgreedAmountCorrectionDialog } from '../../components/agreed-amount-correction-dialog/agreed-amount-correction-dialog';
 import { Stay } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -14,7 +15,7 @@ import { getStayStatus } from '../../utils/stay-status.util';
 
 @Component({
   selector: 'app-stay-pricing-page',
-  imports: [MatButton, UiStateComponent, StayPayments],
+  imports: [MatButton, UiStateComponent, StayLitter, StayPayments],
   templateUrl: './stay-pricing-page.html',
   styleUrl: './stay-pricing-page.scss',
 })
