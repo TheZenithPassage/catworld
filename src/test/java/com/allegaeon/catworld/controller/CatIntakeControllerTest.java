@@ -215,7 +215,7 @@ class CatIntakeControllerTest {
         mvc.perform(get(REVIEW + "/{id}", row.get("id").asString()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unansweredRequestedFields",
-                        containsInAnyOrder("litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
+                        containsInAnyOrder("foodDetail", "litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
     }
 
     @Test
