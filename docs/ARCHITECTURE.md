@@ -39,24 +39,47 @@ When the application loses its authenticated session, open entity detail
 dialogs close and release any enlarged photo's object URL.
 
 Private cat intake uses separate invitation, review and photo staging tables.
-An administrator issues one active invitation per tutor, with an explicit list
-of existing cats and permission for new cats. The token is generated from 32
-random bytes and only its SHA-256 digest is stored. Links expire after seven
-days and carry the token in the URL fragment. The recipient sends it as a
-Bearer credential to the two intake endpoints. Their allowed browser origin
-is derived from the absolute `CATWORLD_INTAKE_URL` configuration.
+An administrator issues one active invitation per tutor. It includes the
+tutor's current living cats and can permit new registrations. For each cat
+booked on the selected arrival, preparation checks vaccination coverage
+through that stay's local departure date. Other cats use the departure of
+their next non-cancelled stay that has yet to start, or today's business date
+when they have no upcoming stay. The invitation captures the resulting
+prompts, including missing food and litter. The form exposes only editable cat
+fields. The server rechecks eligibility and ownership before displaying an
+existing cat or accepting or approving changes.
 
-A submission can include up to 20 cats with two photos each, up to 8 MiB
-per photo and 32 MiB of images in total. Only normalized JPEGs are staged.
-A transaction locks and consumes the invitation when it saves the review
-items. Validation failures leave the invitation available. The server checks
-that selected cats still belong to the tutor before displaying, accepting or
-approving their proposed data. Reviews compare submitted fields with the
-invitation snapshot and the current cat. Approval requires the current update
-timestamp and takes the same cat row lock as the internal editor. It applies
-the selected fields through the ordinary cat mutation service. Approved photos
-move to the authenticated informational gallery.
-Approval removes the staged data and closes the review in the same transaction.
+The token uses 32 random bytes and is stored as a SHA-256 digest. The link
+carries it in the URL fragment and expires after seven days. Replacement or
+revocation ends recipient access to the previous link and keeps received
+proposals available for review. The recipient sends the token as a Bearer
+credential to the form, submission and photo endpoints. Their allowed browser
+origin comes from `CATWORLD_INTAKE_URL`. `GET /api/intake/photos/{id}` serves
+staged JPEGs on pending proposals from that open invitation. The admin
+endpoint `GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo
+to its review. Both responses use `Cache-Control: no-store`. Cat profiles and
+the informational gallery remain behind staff authentication on the protected
+administration origin.
+
+Recipients can return to edit pending proposals and reuse staged evidence.
+A requested update must answer at least one prompt. Reporting a rabies or
+triple feline dose requires its date and an image. One image can cover both
+doses. A submission can include up to 20 cats, with up to two normalized JPEGs
+per cat, including retained evidence. New uploads are limited to 8 MiB per
+image and 32 MiB across the submission.
+
+Administrators compare proposed fields with the current profile and approve each
+cat independently. Approval checks the proposal revision and verifies the
+profile timestamp under the same cat row lock used by the internal editor.
+It applies the selected fields and moves selected evidence to the informational
+gallery. An approved cat is closed to further edits through that invitation.
+Approval closes the link when the last outstanding cat is resolved.
+
+Food separates the brand from the variety or diet detail. The form matches
+approved brand names by ignoring case and normalizing whitespace. Admin
+approval can select an existing brand, correct a proposed name or add the name
+to the catalog. Litter accepts a tutor's own description or the shared
+CatWorld litter choice. Historical food and litter values are retained.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
@@ -407,10 +430,12 @@ brands, and vaccine warnings. The dashboard's **Prepare arrivals** link opens
 this view and uses the existing stay, owner, and cat details.
 
 The warnings apply the same coverage rule as stay creation and extensions
-to the stay's local departure date. The screen marks missing or blank food and
-litter brands as **To confirm**. Only `ADMIN` receives pending profile proposal
-references, limited to booked cats that still belong to the proposal's owner.
-The links open the existing intake review screen.
+to the stay's local departure date, including doses that expire that day.
+The screen marks missing or blank food and litter brands as **To confirm**.
+A stay without preparation items or visible proposals shows one complete
+message. `ADMIN` can generate a household link from the arrival and open
+pending profile proposals for living booked cats that still belong to the
+proposal's tutor. Staff retain access to the operational alerts.
 
 ### Stay Nights Are Response-Derived
 
@@ -1526,6 +1551,8 @@ Current focus:
 - overlap validation
 - cancellation flow
 - update flow rules
+- household intake eligibility and preparation through the business date or
+  scheduled checkout, including vaccine expiration on that day
 - nightly reference-rate authorization, current-state transitions and audit
   construction
 - stay pricing selection, explicit confirmation, role policy, reconfirmation

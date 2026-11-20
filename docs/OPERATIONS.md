@@ -224,8 +224,8 @@ reading the restored bytes. Do not claim a successful restore from a completed
 SQL import alone.
 
 Keep the intake listener disabled for the first startup after a restore.
-Review and revoke restored links that were consumed or revoked after the
-backup before enabling the listener.
+Before enabling the listener, review and revoke restored links that were
+closed, replaced or revoked after the backup.
 
 The creator-attribution checks once needed for migration #146 were a
 historical rollout decision, not a standing pre-deployment command. For every
@@ -246,10 +246,13 @@ from the same pinned source commit. Add `--enable-listener intake` to
 listener. Route `fichas.catworld.com.ar` to it in Cloudflare Tunnel (default port
 4202) and set `CATWORLD_INTAKE_URL` to the external HTTPS origin used in
 invitations. Keep the administrative listener behind Cloudflare Access.
-The intake listener serves the standalone form and its two token-protected
-API paths.
+The intake listener serves the standalone form and the token-protected form,
+submission and staged photo endpoints. Invitation management, review and
+informational gallery access use the administrative listener.
 
-Verify that an invitation opens on a phone and that administrative routes
-return 404 from the intake listener. Share real links individually only after
-the domain is verified. Revoke a link from the owner's record if it was shared
-with the wrong recipient.
+Use a synthetic household to check the link on a phone. Submit vaccination
+evidence, reopen the link to view the staged photo, and approve selected
+evidence from the administration origin. Verify that administrative routes
+return 404 from the intake listener and that the staged photo requires its
+active invitation. Share real links individually after verifying the domain.
+Revoke a link from the tutor's record if it reaches the wrong recipient.
