@@ -12,8 +12,9 @@ focused on confirmed product needs and avoid speculative platform abstractions.
   persisted integrity where practical.
 - Use Flyway migrations for schema changes; do not use Hibernate schema
   auto-update for real schema evolution.
-- Keep stay status derived from dates and cancellation data. Preserve the core
-  stay invariants documented in `docs/ARCHITECTURE.md` and covered by tests.
+- Keep stay status authoritative in the backend through confirmed movements and
+  cancellation. Scheduled dates drive bookings, pricing and vaccine coverage.
+  Preserve the stay invariants documented in `docs/ARCHITECTURE.md`.
 - Keep secrets and real operational data out of the repository.
 
 ## Working in this repository

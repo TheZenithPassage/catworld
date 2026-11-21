@@ -314,6 +314,7 @@ A `Stay` contains:
 - `startAt`
 - `endAt`
 - `cancelledAt`
+- operational movement status and movement revision
 - `notes`
 - nullable retained nightly reference rate
 - independent arrival and departure transfer requirements, a pricing-only waiver, and a nullable captured per-leg transfer rate
@@ -431,6 +432,7 @@ All cats inside the same `Stay` share:
 - `startAt`
 - `endAt`
 - `cancelledAt`
+- the arrival and departure confirmations
 - `notes`
 
 If one cat needs a different checkout time, a separate cancellation or a different lifecycle, it should be modeled as a separate `Stay`.
@@ -491,25 +493,40 @@ Reasons:
 - Prevent duplicate pairs with a composite primary key.
 - Leave room for future relationship-specific fields if needed.
 
-### Stay Status Is Dynamic
+### Confirmed Stay Lifecycle
 
-Stay status is not persisted.
+`stays.movement_status` is the operational source of truth.
+A reservation remains `RESERVED` until confirmed arrival, becomes
+`CHECKED_IN`, and stays in that state until confirmed departure sets
+`CHECKED_OUT` permanently. `cancelledAt` takes precedence and only a reserved
+stay can be cancelled. New stays created wholly on past business days begin
+as historical `CHECKED_OUT` stays. Scheduled dates still determine booking
+overlap, the calendar, nights and vaccine coverage.
 
-It is computed from:
+The stay detail embeds the same evidence and capabilities returned by
+`GET /api/stays/{id}/actual-movements`. Both roles write via `PUT` to
+`/ARRIVAL` or `/DEPARTURE` under that path. Each request carries the current
+stay movement revision and an ISO instant or JSON null for server time.
+The instant must fall on the scheduled business date, and can be earlier but
+never future. Server time is available on the scheduled day. Recorded departure
+is at or after recorded arrival. To depart on another day, edit the scheduled
+departure first. A checked-in stay keeps its scheduled arrival day.
 
-- `startAt`
-- `endAt`
-- `cancelledAt`
-- current time
+Each confirmation applies to all cats in the stay and stores a UTC instant
+and the recording account. Staff can correct or undo their own arrival and
+administrators can do so for team arrivals. Undo via
+`POST /api/stays/{id}/actual-movements/ARRIVAL/reset` returns a checked-in stay
+to reserved and records the former evidence and the operator who reset it.
+There are no movement corrections after checkout. The stay row lock serializes
+confirmation, schedule edits, cancellation and payment mutations.
+Confirmations and schedule edits lock the participating cats in identifier
+order. Arrival rejects overlap with open operational occupancy or a later
+recorded checkout of a participating cat.
 
-Possible statuses:
-
-- `RESERVED`
-- `CHECKED_IN`
-- `CHECKED_OUT`
-- `CANCELLED`
-
-This avoids storing redundant state that can become inconsistent with the dates.
+Migration preserves the operational state at activation and keeps existing
+actual evidence. An imported or retrospective stay can display a confirmed
+state with an unknown time and author. An imported checked-in stay can be
+checked out without inventing an arrival.
 
 ### Upcoming Stays
 
@@ -731,12 +748,12 @@ Current rules:
 - Vaccine expiry, override intent and warning state are calculated for the
   request only and are not persisted. An administrator override bypasses only
   the vaccine policy; all other stay rules remain active.
-- Closed stays cannot be modified.
-- Cancelled stays cannot be cancelled again.
+- Checked-out and cancelled stays are closed to ordinary edits.
+- Cancellation is available for reserved stays.
 - Permanent stay deletion is separate from cancellation. Authorized deletion
   removes the stay and its `StayCat` links, preserves cat, owner, vet and
   application-account records and sensitive economic evidence, and is not
-  blocked by dynamic stay status. Operational payments always block deletion;
+  blocked by operational stay status. Operational payments always block deletion;
   after all payments are removed, historical payment evidence still blocks
   `STAFF` while `ADMIN` may complete the safe deletion order.
 
@@ -1025,9 +1042,10 @@ to make owner, cat or vet deletion succeed.
 
 Compose passes `BUSINESS_TIME_ZONE` to Spring and nginx. It accepts an IANA
 zone such as `Europe/Madrid` and defaults to `America/Argentina/Buenos_Aires`.
-Spring uses the configured clock for stay status, status filters, status-based
-edit and payment permissions, and new cancellation timestamps. JDBC binds and
-reads stay wall times as `LocalDateTime` without a time zone. Native audit
+Spring uses the configured clock for business-day movement validation and new
+cancellation timestamps. Operational status and its permissions use persisted
+confirmation and cancellation. JDBC binds and reads scheduled stay wall times
+as `LocalDateTime` without a time zone. Native audit
 projections preserve those same local fields, and their stay date filters use
 the same day boundaries as operational reads. Audit instants are stored, read
 and filtered as UTC.
@@ -1205,7 +1223,7 @@ workflow through route-free inputs and outputs. The Stay detail presenter loads
 the operational Stay only when editing begins and refreshes its lightweight
 detail after an authoritative save. Normal Stay editing has no route and remains
 inside this existing detail/editor flow.
-Eligible reserved and checked-in stays expose cancellation in the route-free
+Reserved stays expose cancellation in the route-free
 detail through a distinct Material confirmation dialog. A successful
 cancellation reloads the lightweight backend-authoritative detail, while a
 failed request remains recoverable in the open confirmation dialog; permanent
@@ -1259,7 +1277,7 @@ while only `ADMIN` may confirm a pricing-affecting date change. A
 `STALE_PRICING_CONFIRMATION` conflict preserves entered form and vaccine-override
 state, obtains a fresh preview and never retries until the user explicitly
 reconfirms. The stays overview renders only Cat names, Owner, compact period and
-backend-derived dynamic status. Complete economic information remains on the
+backend-authoritative operational status. Complete economic information remains on the
 dedicated Pricing & Payments page, where post-creation agreement correction and
 payment actions belong. Registration, amount editing and annulment use focused
 responsive Material dialogs; permanent payment removal remains on the shared
@@ -1395,8 +1413,8 @@ orders matching display names followed by identifiers. Owner pages are chosen
 before one bounded current-Cat hydration query. Cat photo presence is resolved
 for only the selected page without loading photo bytes. Stay overview status,
 Owner, Cat and inclusive date filters are likewise
-applied before counting and paging; Stay status remains derived from dates and
-cancellation data, and results use start time followed by identifier order.
+applied before counting and paging. Status uses stored movement state and
+cancellation, and results use start time followed by identifier order.
 
 Sensitive Economic Activity uses the same fixed-ten envelope. Its existing
 authorization, filter validation, six discriminated variants, monetary strings,
@@ -1417,16 +1435,16 @@ history, including exact string amounts, payment dates, notes and registration
 attribution. Annulled operational entries also expose the user and instant
 recorded by the existing immutable annulment, so both `ADMIN` and `STAFF` can
 understand ordinary payment history without access to sensitive economic
-activity. The page shows only owner, cats, dynamic status and dates as Stay
+activity. The page shows only owner, cats, operational status and dates as Stay
 context, never Stay notes, and replaces its displayed full Stay from successful
 payment output. Direct access remains valid for historical stays with neither
 an agreement nor a pending price, but shows an explicit empty economic state and no summary, history or
 economic actions. Pricing Back returns to a captured internal Angular URL,
 including its query string, and otherwise falls back to `/stays`; it does not
 reconstruct a detail dialog or use browser storage. Historical stays expose no
-Pricing & Payments entry in detail. Ordinary stay editing remains limited by
-the existing dynamic status rule and remains available for otherwise-allowed
-non-pricing changes to those historical stays. `ADMIN` receives payment mutation affordances in every
+Pricing & Payments entry in detail. Ordinary editing remains available for
+reserved and checked-in stays, including otherwise-allowed non-pricing changes.
+`ADMIN` receives payment mutation affordances in every
 status for stays with an agreement or pending price; `STAFF` receives register, edit and annul
 affordances only for reserved and checked-in stays and never receives permanent
 removal.

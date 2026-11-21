@@ -150,6 +150,17 @@ docker compose --project-name catworld-prod --env-file .env.production -f compos
 application pair only after checking its compatibility with the **current**
 Flyway schema and data; changing image digests does not downgrade MySQL.
 
+During the confirmed stay lifecycle upgrade, Flyway validates the original
+V21 movement schema when it is installed and applies that migration on known
+compatible histories where it was omitted. It can also fill the V14–V17 gap
+from the original movement-only history. V29 adds the lifecycle schema. V30
+classifies existing stays once using the backend's configured
+`BUSINESS_TIME_ZONE` at migration time. It keeps existing actual movements and
+leaves unknown times and authors empty. Stop the old application before
+starting the new pair so that only one lifecycle policy writes to MySQL.
+An older pair uses scheduled dates for operational permissions, so treat it as
+incompatible with changes made after this upgrade.
+
 ## Backup and off-host retention
 
 The database includes operational records **and** JPEG photo binaries. Use

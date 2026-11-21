@@ -216,34 +216,39 @@ class SensitiveEconomicActivityMySqlIntegrationTest {
 
     @Test
     void madridRepeatedHourDoesNotChangeBusinessStatusOrMutationPermissions() {
-        LocalDateTime firstDeparture = LocalDateTime.parse("2027-10-31T00:30:00");
+        LocalDateTime firstDeparture = LocalDateTime.parse("2026-10-25T02:30:00");
         LocalDateTime secondDeparture = firstDeparture.plusHours(1);
-        LocalDateTime reservedArrival = LocalDateTime.parse("2027-10-31T01:15:00");
+        LocalDateTime reservedArrival = LocalDateTime.parse("2026-10-25T10:00:00");
         Fixture closed = fixture(firstDeparture.minusDays(1), firstDeparture);
         Fixture open = fixture(firstDeparture.minusDays(1), secondDeparture);
         Fixture reserved = fixture(reservedArrival, reservedArrival.plusDays(1));
         UUID closedId = closed.stay().getId();
         UUID openId = open.stay().getId();
         UUID reservedId = reserved.stay().getId();
-        when(clock.instant()).thenReturn(Instant.parse("2027-10-31T03:45:00Z"));
+        closed.stay().setMovementStatus(StayStatus.CHECKED_OUT);
+        open.stay().setMovementStatus(StayStatus.CHECKED_IN);
+        stayRepository.saveAllAndFlush(List.of(closed.stay(), open.stay()));
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Madrid"));
+        UserAccount staff = UserAccount.builder().role(UserRole.STAFF).enabled(true).build();
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(staff);
+
         assertEquals(firstDeparture, storedStayTime(closedId, "end_at"));
         assertEquals(secondDeparture, storedStayTime(openId, "end_at"));
         assertEquals(reservedArrival, storedStayTime(reservedId, "start_at"));
-
-        assertStatusFilter(StayStatus.CHECKED_OUT, closedId);
-        assertStatusFilter(StayStatus.CHECKED_IN, openId);
-        assertStatusFilter(StayStatus.RESERVED, reservedId);
-
-        UserAccount staff = UserAccount.builder().role(UserRole.STAFF).enabled(true).build();
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(staff);
-        assertThrows(ForbiddenException.class, () -> stayService.registerPayment(closedId, registration("40")));
-        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(closed.actor());
+        for (String instant : List.of("2026-10-25T00:45:00Z", "2026-10-25T01:15:00Z", "2026-10-25T01:45:00Z")) {
+            when(clock.instant()).thenReturn(Instant.parse(instant));
+            assertStatusFilter(StayStatus.CHECKED_OUT, closedId);
+            assertStatusFilter(StayStatus.CHECKED_IN, openId);
+            assertStatusFilter(StayStatus.RESERVED, reservedId);
+            assertThrows(ForbiddenException.class, () -> stayService.registerPayment(closedId, registration("40")));
+        }
         assertThrows(ConflictException.class, () -> stayService.updateStay(closedId, StayUpdateDTO.builder()
                 .startAt(closed.stay().getStartAt()).endAt(firstDeparture.plusMinutes(5)).build()));
         assertThrows(ConflictException.class, () -> stayService.cancelStay(closedId));
-        stayService.cancelStay(openId);
-        assertEquals(LocalDateTime.parse("2027-10-31T00:45:00"), storedStayTime(openId, "cancelled_at"));
-        assertStatusFilter(StayStatus.CANCELLED, openId);
+        assertThrows(ConflictException.class, () -> stayService.cancelStay(openId));
+        stayService.cancelStay(reservedId);
+        assertEquals(LocalDateTime.parse("2026-10-25T02:45:00"), storedStayTime(reservedId, "cancelled_at"));
+        assertStatusFilter(StayStatus.CANCELLED, reservedId);
     }
 
     @Test

@@ -9,8 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.io.Serializable;
 import java.util.UUID;
@@ -26,7 +24,6 @@ public class StayActualMovementId implements Serializable {
     private UUID stayId;
 
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "movement_type", nullable = false, length = 9)
     private StayMovementType type;
 }

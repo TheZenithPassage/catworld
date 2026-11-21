@@ -1,6 +1,8 @@
 package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.NightlyReferenceRate;
+import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
@@ -19,18 +21,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -48,22 +55,31 @@ class StayActualMovementIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired EntityManager entityManager;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired ObjectMapper json;
+    @Autowired MutableBusinessClock clock;
 
     private Stay stay;
+    private UUID catId;
     private String movementsUrl;
 
     @BeforeEach
     void saveFixtures() {
+        clock.current = Instant.parse("2030-06-02T02:00:00Z");
+        entityManager.persist(NightlyReferenceRate.builder()
+                .key(NightlyReferenceRateKey.ONE_CAT).nightlyRate(BigDecimal.valueOf(100)).build());
         var admin = saveUser("movement-admin", UserRole.ADMIN);
         saveUser("movement-staff", UserRole.STAFF);
         saveUser("another-staff", UserRole.STAFF);
         var owner = Owner.builder().fullName("Movement Owner").primaryPhone("5550100").createdBy(admin).build();
         entityManager.persist(owner);
         var cat = Cat.builder().name("Menta").birthDate(LocalDate.of(2024, 1, 1))
-                .sex(Sex.FEMALE).owner(owner).createdBy(admin).build();
+                .sex(Sex.FEMALE).owner(owner).createdBy(admin)
+                .lastRabiesDate(LocalDate.of(2030, 1, 1)).lastTripleFelineDate(LocalDate.of(2030, 1, 1)).build();
         entityManager.persist(cat);
+        catId = cat.getId();
         stay = Stay.builder().startAt(LocalDateTime.parse("2030-06-01T20:00"))
-                .endAt(LocalDateTime.parse("2030-06-01T22:45")).owner(owner).createdBy(admin).build();
+                .endAt(LocalDateTime.parse("2030-06-01T22:45")).owner(owner).createdBy(admin).pricePending(true).build();
         entityManager.persist(stay);
         entityManager.persist(StayCat.builder().stay(stay).cat(cat).build());
         entityManager.flush();
@@ -111,7 +127,7 @@ class StayActualMovementIntegrationTest {
                 .andExpect(status().isOk());
         write("ARRIVAL", 1, "2030-06-02T01:25:00Z", "another-staff", UserRole.STAFF)
                 .andExpect(status().isForbidden());
-        reset(1, "movement-staff", UserRole.STAFF).andExpect(status().isForbidden());
+        reset(1, "another-staff", UserRole.STAFF).andExpect(status().isForbidden());
         write("ARRIVAL", 1, "2030-06-02T01:30:00Z", "movement-admin", UserRole.ADMIN)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.arrival.revision").value(2))
@@ -123,10 +139,26 @@ class StayActualMovementIntegrationTest {
                 .andExpect(jsonPath("$.revision").value(3))
                 .andExpect(jsonPath("$.status").value("RESERVED"))
                 .andExpect(jsonPath("$.arrival").doesNotExist());
+        assertEquals("movement-staff:movement-admin:movement-admin:1", jdbc.queryForObject("""
+                select concat(recorded_by, ':', corrected_by, ':', reset_by, ':', version)
+                from stay_arrival_resets
+                """, String.class));
         write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isConflict());
         write("ARRIVAL", 3, null, "another-staff", UserRole.STAFF)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.arrival.recordedBy").value("another-staff"));
+    }
+
+    @Test
+    void staffCanUndoTheirOwnArrivalWithTheCurrentRevision() throws Exception {
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.canResetArrival").value(true));
+        mvc.perform(get(movementsUrl).with(user("another-staff").roles("STAFF")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.canResetArrival").value(false));
+        reset(1, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESERVED"))
+                .andExpect(jsonPath("$.revision").value(2));
+        detail("RESERVED", true, true);
     }
 
     @Test
@@ -145,6 +177,74 @@ class StayActualMovementIntegrationTest {
                 .andExpect(jsonPath("$.status").value("CHECKED_OUT"))
                 .andExpect(jsonPath("$.arrival").doesNotExist())
                 .andExpect(jsonPath("$.departure.occurredAt").value("2030-05-31T15:00:00Z"));
+    }
+
+    @Test
+    void datesAreEditableAfterThePlannedEndAndInvalidateAnOlderConfirmation() throws Exception {
+        edit("2030-06-01T20:00", "2030-06-01T22:30")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESERVED"));
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isConflict());
+        write("ARRIVAL", 1, null, "movement-staff", UserRole.STAFF).andExpect(status().isOk());
+        edit("2030-05-31T20:00", "2030-06-01T23:30").andExpect(status().isConflict());
+        edit("2030-06-01T20:00", "2030-06-01T23:30")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_IN"));
+        write("DEPARTURE", 2, null, "movement-staff", UserRole.STAFF).andExpect(status().isConflict());
+        write("DEPARTURE", 3, null, "movement-staff", UserRole.STAFF).andExpect(status().isOk());
+    }
+
+    @Test
+    void extendsAnOverdueCheckedInStayByOneDayBeforeConfirmingCheckout() throws Exception {
+        detail("RESERVED", true, true);
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_IN"));
+        clock.current = Instant.parse("2030-06-02T14:00:00Z");
+        detail("CHECKED_IN", true, false);
+        write("DEPARTURE", 1, null, "movement-staff", UserRole.STAFF).andExpect(status().isBadRequest());
+
+        var dates = json.createObjectNode().put("startAt", "2030-06-01T20:00").put("endAt", "2030-06-02T11:30");
+        var preview = mvc.perform(post("/api/stays/{id}/pricing-preview", stay.getId())
+                        .with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(dates.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.numberOfNights").value(1))
+                .andReturn().getResponse().getContentAsString();
+        dates.set("confirmation", json.readTree(preview).get("confirmation"));
+        dates.put("overrideVaccineConflicts", false);
+        mvc.perform(put("/api/stays/{id}", stay.getId()).with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(dates.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_IN"));
+        write("DEPARTURE", 2, null, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_OUT"))
+                .andExpect(jsonPath("$.endAt").value("2030-06-02T11:30:00"))
+                .andExpect(jsonPath("$.departure.occurredAt").value("2030-06-02T14:00:00Z"));
+    }
+
+    @Test
+    void createsAWhollyPastStayAsHistoricalWithoutSyntheticMovements() throws Exception {
+        var booking = json.createObjectNode().put("startAt", "2030-05-28T10:00").put("endAt", "2030-05-30T10:00");
+        booking.putArray("catIds").add(catId.toString());
+        var preview = mvc.perform(post("/api/stays/pricing-preview").with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        booking.set("confirmation", json.readTree(preview).get("confirmation"));
+        booking.putObject("pricingDecision").put("pricePending", true);
+        booking.put("overrideVaccineConflicts", false);
+        var created = mvc.perform(post("/api/stays").with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("CHECKED_OUT"))
+                .andReturn().getResponse().getContentAsString();
+        mvc.perform(get("/api/stays/{id}/detail", json.readTree(created).get("stayId").asString())
+                        .with(user("movement-admin").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_OUT"))
+                .andExpect(jsonPath("$.actualMovements.arrival").doesNotExist())
+                .andExpect(jsonPath("$.actualMovements.departure").doesNotExist());
+    }
+
+    private ResultActions edit(String startAt, String endAt) throws Exception {
+        return mvc.perform(put("/api/stays/{id}", stay.getId()).with(user("movement-admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"startAt":"%s","endAt":"%s","overrideVaccineConflicts":false}
+                        """.formatted(startAt, endAt)));
     }
 
     private void detail(String expectedState, boolean canEdit, boolean canCancel) throws Exception {
@@ -186,8 +286,27 @@ class StayActualMovementIntegrationTest {
     static class FixedBusinessClock {
         @Bean
         @Primary
-        Clock stayMovementTestClock() {
-            return Clock.fixed(Instant.parse("2030-06-02T02:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"));
+        MutableBusinessClock stayMovementTestClock() {
+            return new MutableBusinessClock();
+        }
+    }
+
+    static class MutableBusinessClock extends Clock {
+        private Instant current = Instant.parse("2030-06-02T02:00:00Z");
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneId.of("America/Argentina/Buenos_Aires");
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return Clock.fixed(current, zone);
+        }
+
+        @Override
+        public Instant instant() {
+            return current;
         }
     }
 }
