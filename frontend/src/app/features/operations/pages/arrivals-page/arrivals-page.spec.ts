@@ -84,10 +84,8 @@ describe('ArrivalsPage', () => {
     expect(settings.contains(days)).toBe(true);
     expect(settings.contains(include)).toBe(true);
     settings.open = true;
-    expect(days.labels?.[0].textContent).toContain('Días a partir de hoy');
-    expect(include.labels?.[0].textContent).toContain(
-      'Incluir los ingresos de hoy que ya empezaron',
-    );
+    expect(days.labels?.[0].textContent).toContain('Días a mostrar después de hoy');
+    expect(include.labels?.[0].textContent).toContain('Mostrar todos los ingresos de hoy');
     expect(days.value).toBe('7');
     expect(include.checked).toBe(true);
 
