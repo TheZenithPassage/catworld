@@ -1153,9 +1153,7 @@ describe('EntityDetailDialog', () => {
     expect(warning.textContent).toContain(catalogText.breed);
     expect(warning.textContent).toContain(catalogText.foodBrand);
     const reviewed = firstValueFrom(warningRef.afterClosed());
-    warning
-      .querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!
-      .click();
+    warning.querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!.click();
     await reviewed;
     TestBed.tick();
     expect(catApi.updateCat).toHaveBeenCalledTimes(1);
