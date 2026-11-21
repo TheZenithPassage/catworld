@@ -164,8 +164,9 @@ export interface StaysTranslations {
       tripleFeline: string;
     };
     reason: {
-      missing: string;
-      expired: string;
+      MISSING: string;
+      EXPIRED_BY_ARRIVAL: string;
+      EXPIRES_DURING_STAY: string;
     };
     actions: {
       dismiss: string;
@@ -476,8 +477,9 @@ export const STAYS_TRANSLATIONS = {
         tripleFeline: 'Triple felina',
       },
       reason: {
-        missing: 'Falta la fecha de vacunación',
-        expired: 'La vacuna caduca el día que termina la estadía o antes',
+        MISSING: 'Falta la fecha de vacunación',
+        EXPIRED_BY_ARRIVAL: 'La vacuna ya estará vencida al ingreso',
+        EXPIRES_DURING_STAY: 'La vacuna vence durante la estadía',
       },
       actions: {
         dismiss: 'Cerrar',
@@ -790,8 +792,9 @@ export const STAYS_TRANSLATIONS = {
         tripleFeline: 'Triple feline',
       },
       reason: {
-        missing: 'Vaccination date is missing',
-        expired: 'Vaccination expires on or before the stay ends',
+        MISSING: 'Vaccination date is missing',
+        EXPIRED_BY_ARRIVAL: 'Vaccination will have expired by arrival',
+        EXPIRES_DURING_STAY: 'Vaccination expires during the stay',
       },
       actions: {
         dismiss: 'Dismiss',

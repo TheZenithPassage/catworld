@@ -2144,7 +2144,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         catId: 'cat-1',
         catName: 'Milo',
         vaccineType: 'RABIES',
-        reason: 'EXPIRED',
+        reason: 'EXPIRED_BY_ARRIVAL',
         vaccinatedOn: '2025-07-01',
         expiresOn: '2026-07-01',
       },

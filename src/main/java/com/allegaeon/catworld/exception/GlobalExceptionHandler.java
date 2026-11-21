@@ -50,6 +50,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
     }
 
+    @ExceptionHandler(CatIntakeVaccineDateException.class)
+    public ResponseEntity<Map<String, Object>> handleIntakeVaccineDate(CatIntakeVaccineDateException exception) {
+        return ResponseEntity.badRequest().body(Map.of("code", "CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE",
+                "catIndex", exception.getCatIndex(), "field", exception.getField(),
+                "vaccineDateRange", exception.getVaccineDateRange()));
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<String> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());

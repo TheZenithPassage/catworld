@@ -95,7 +95,7 @@ export const OWNERS_TRANSLATIONS = {
       close: 'Cerrar',
       openDetails: 'Ver detalles',
       unsupportedStay: 'Los detalles de la estadía aún no están disponibles.',
-      requestIntake: 'Solicitar ficha de gatos',
+      requestIntake: 'Compartir ficha',
       intakeLoadFailed: 'No se pudo abrir el diálogo de la ficha.',
     },
     form: {
@@ -176,7 +176,7 @@ export const OWNERS_TRANSLATIONS = {
       close: 'Close',
       openDetails: 'View details',
       unsupportedStay: 'Stay details are not available yet.',
-      requestIntake: 'Request cat information',
+      requestIntake: 'Share profile',
       intakeLoadFailed: 'Could not open the cat information dialog.',
     },
     form: {

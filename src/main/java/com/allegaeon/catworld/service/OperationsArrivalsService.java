@@ -103,8 +103,9 @@ public class OperationsArrivalsService {
 
     private ArrivalCat toArrivalCat(ArrivalRow row, List<PendingReview> pendingReviews) {
         List<VaccineWarning> warnings = StayVaccineCoverage.findConflicts(
-                        row.getLastRabiesDate(), row.getLastTripleFelineDate(), row.getEndAt().toLocalDate()).stream()
-                .map(conflict -> new VaccineWarning(conflict.vaccineType(), conflict.reason()))
+                        row.getLastRabiesDate(), row.getLastTripleFelineDate(),
+                        row.getStartAt().toLocalDate(), row.getEndAt().toLocalDate()).stream()
+                .map(conflict -> new VaccineWarning(conflict.vaccineType(), conflict.reason(), conflict.expiresOn()))
                 .toList();
         String foodBrand = StringUtils.hasText(row.getFoodBrand()) ? row.getFoodBrand() : null;
         String litterBrand = StringUtils.hasText(row.getLitterBrand()) ? row.getLitterBrand() : null;

@@ -290,6 +290,7 @@ test('confirms an incomplete household draft and returns to the first unanswered
     t,
     {
       allowNewCats: false,
+      vaccineDateRange: { min: '2025-11-21', max: '2026-11-21' },
       cats: [
         {
           ...existing,
@@ -355,12 +356,13 @@ test('confirms an incomplete household draft and returns to the first unanswered
 test('keeps evidence validation and unchanged submissions ahead of partial confirmation', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: false,
+    vaccineDateRange: { min: '2025-11-21', max: '2026-11-21' },
     cats: [{ ...existing, requestedFields: ['foodBrand', 'lastRabiesDate'] }],
   });
   const { window } = portal;
   const [card] = portal.entries();
   const dialog = window.document.querySelector('#partial-submission');
-  const date = enter(window, card, 'lastRabiesDate', '2020-01-01');
+  const date = enter(window, card, 'lastRabiesDate', '2025-11-21');
   assert.equal(await portal.submit(), undefined);
   assert.equal(dialog.open, false);
   assert.equal(window.document.activeElement.type, 'file');
@@ -370,6 +372,43 @@ test('keeps evidence validation and unchanged submissions ahead of partial confi
   assert.equal(await portal.submit(), undefined);
   assert.equal(dialog.open, false);
   assert.match(window.document.querySelector('#error').textContent, /No hay datos nuevos/);
+});
+
+test('refreshes vaccine bounds on submission and keeps a rejected draft and evidence', async (t) => {
+  let vaccineDateRange = { min: '2025-11-21', max: '2026-11-21' };
+  const portal = await openForm(
+    t,
+    () => ({
+      vaccineDateRange,
+      cats: [{ ...existing, requestedFields: ['lastRabiesDate'] }],
+    }),
+    { urls: { createObjectURL: () => 'blob:vaccine-proof', revokeObjectURL: () => {} } },
+  );
+  const { window } = portal;
+  const [card] = portal.entries();
+  const dose = enter(window, card, 'lastRabiesDate', '2025-11-21');
+  assert.equal(dose.min, '2025-11-21');
+  assert.equal(dose.max, '2026-11-21');
+  enter(window, card, 'careInstructions', 'Come de noche');
+  const fileInput = card.querySelector('input[type="file"]');
+  const file = new File(['evidence'], 'dose.jpg', { type: 'image/jpeg' });
+  Object.defineProperty(fileInput, 'files', { value: [file] });
+  fileInput.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+  vaccineDateRange = { min: '2025-11-22', max: '2026-11-22' };
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(window.document.activeElement, dose);
+  assert.match(window.document.querySelector('#field-error').textContent, /22\/11\/2025/);
+  assert.equal(dose.min, '2025-11-22');
+  assert.equal(dose.value, '2025-11-21');
+  assert.equal(card.querySelector('[name="careInstructions"]').value, 'Come de noche');
+  assert.equal(fileInput.files[0], file);
+
+  enter(window, card, 'lastRabiesDate', '2026-11-22');
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.equal(cats[0].fields.lastRabiesDate, '2026-11-22');
+  assert.equal(post.body.get('photo-0-0').name, 'dose.jpg');
 });
 
 test('marks proposal edits and retained photo changes until they are undone', async (t) => {

@@ -319,6 +319,7 @@ public class StayService implements IStayService {
         stayPricingAuthorizationPolicy.authorizeCreation(currentUser);
         validateVaccineCoverage(
                 cats,
+                stayRequestDTO.getStartAt(),
                 stayRequestDTO.getEndAt(),
                 stayRequestDTO.isOverrideVaccineConflicts(),
                 currentUser);
@@ -499,7 +500,8 @@ public class StayService implements IStayService {
         }
 
         if (extendsStay) {
-            List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayUpdateDTO.getEndAt());
+            List<VaccineConflictViolationDTO> vaccineConflicts =
+                    findVaccineConflicts(cats, stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
             if (!vaccineConflicts.isEmpty()) {
                 if (currentUser == null) {
                     currentUser = currentUserAccountService.getCurrentUserAccount();
@@ -1338,24 +1340,27 @@ public class StayService implements IStayService {
 
     private void validateVaccineCoverage(
             List<Cat> cats,
+            LocalDateTime stayStartAt,
             LocalDateTime stayEndAt,
             boolean overrideVaccineConflicts,
             UserAccount currentUser) {
 
-        List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayEndAt);
+        List<VaccineConflictViolationDTO> vaccineConflicts = findVaccineConflicts(cats, stayStartAt, stayEndAt);
         if (!vaccineConflicts.isEmpty()) {
             validateVaccineOverride(vaccineConflicts, overrideVaccineConflicts, currentUser);
         }
 
     }
 
-    private List<VaccineConflictViolationDTO> findVaccineConflicts(List<Cat> cats, LocalDateTime stayEndAt) {
+    private List<VaccineConflictViolationDTO> findVaccineConflicts(List<Cat> cats, LocalDateTime stayStartAt,
+                                                                    LocalDateTime stayEndAt) {
+        LocalDate stayStartDate = stayStartAt.toLocalDate();
         LocalDate stayEndDate = stayEndAt.toLocalDate();
         List<VaccineConflictViolationDTO> conflicts = new ArrayList<>();
 
         for (Cat cat : cats) {
             for (var conflict : StayVaccineCoverage.findConflicts(
-                    cat.getLastRabiesDate(), cat.getLastTripleFelineDate(), stayEndDate)) {
+                    cat.getLastRabiesDate(), cat.getLastTripleFelineDate(), stayStartDate, stayEndDate)) {
                 conflicts.add(VaccineConflictViolationDTO.builder()
                         .catId(cat.getId())
                         .catName(cat.getName())

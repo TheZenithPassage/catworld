@@ -67,6 +67,7 @@ const partialCats = document.querySelector('#partial-cats');
 const cards = [];
 let catalogOptions = {};
 let foodVarieties = [];
+let vaccineDateRange;
 let allowNewCats = false;
 let newCatNumber = 0;
 let labelNumber = 0;
@@ -360,6 +361,11 @@ function createLitterField(title, initialValue, required) {
 }
 
 function dateLimits(input) {
+  if (VACCINES.includes(input.name)) {
+    input.min = vaccineDateRange?.min ?? '';
+    input.max = vaccineDateRange?.max ?? '';
+    return;
+  }
   input.min = `${MIN_BIRTH_YEAR}-01-01`;
   input.max = localToday();
 }
@@ -430,9 +436,9 @@ function createField([key, title, type, requiredForNew, maxLength, hint], initia
   } else {
     if (type !== 'textarea') input.type = type;
     if (maxLength) input.maxLength = maxLength;
-    if (type === 'date') dateLimits(input);
   }
   input.name = key;
+  if (type === 'date') dateLimits(input);
   input.required = required;
   input.value = initialValue;
   const guidance = catalog
@@ -847,6 +853,44 @@ function setCatalogOptions(invitation) {
   foodVarieties = invitation.foodVarieties ?? [];
 }
 
+function setVaccineDateRange(range) {
+  vaccineDateRange = range;
+  for (const card of cards) {
+    for (const key of VACCINES) dateLimits(card.inputs.get(key).input);
+  }
+}
+
+function showVaccineDateError(input) {
+  const displayDate = (date) => date.split('-').reverse().join('/');
+  const { min, max } = vaccineDateRange;
+  editable.disabled = false;
+  showError(`Ingresá una fecha de aplicación entre el ${displayDate(min)} y el ${displayDate(max)}.`, input);
+}
+
+function changedVaccines({ card, fields }) {
+  return VACCINES.filter((key) => fields[key] && fields[key] !== card.initial[key]);
+}
+
+async function validateVaccineDates(entries) {
+  if (!entries.some((entry) => changedVaccines(entry).length)) return true;
+  const latest = await request('/api/intake/request');
+  if (unavailableStatus(latest.status)) {
+    endAccess();
+    return false;
+  }
+  if (!latest.ok) throw new Error('Request failed');
+  setVaccineDateRange((await latest.json()).vaccineDateRange);
+  const { min, max } = vaccineDateRange;
+  for (const entry of entries) {
+    const invalid = changedVaccines(entry).find((key) => entry.fields[key] < min || entry.fields[key] > max);
+    if (invalid) {
+      showVaccineDateError(entry.card.inputs.get(invalid).input);
+      return false;
+    }
+  }
+  return true;
+}
+
 async function load() {
   if (!token) {
     endAccess();
@@ -868,6 +912,7 @@ async function load() {
     stale = false;
     allowNewCats = invitation.allowNewCats === true;
     setCatalogOptions(invitation);
+    setVaccineDateRange(invitation.vaccineDateRange);
     existingHint.hidden = !invitation.cats.some((cat) => cat.catId);
     for (const cat of invitation.cats) addCard(cat);
     if (cards.length === 0 && allowNewCats) addCard();
@@ -944,7 +989,8 @@ function validateCards(drafts) {
         showError('Ingresá un año de nacimiento válido.', input);
         return false;
       }
-      if (input.validity.badInput || (value && !input.validity.valid)) {
+      // Vaccine bounds come from CatWorld and are refreshed before sending new dates.
+      if (input.validity.badInput || (value && !VACCINES.includes(key) && !input.validity.valid)) {
         showError('Revisá este dato antes de enviar la ficha.', input);
         return false;
       }
@@ -1148,6 +1194,7 @@ async function submitDraft(body, entries, hasProposals) {
   editable.disabled = true;
   send.textContent = 'Enviando…';
   try {
+    if (!(await validateVaccineDates(entries))) return;
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
       closeForm(
@@ -1170,9 +1217,15 @@ async function submitDraft(body, entries, hasProposals) {
     } else if (response.status === 413) {
       showError('Las fotos son demasiado grandes. Elegí archivos más chicos y volvé a enviar.');
     } else if (response.status === 400 || response.status === 415 || response.status === 422) {
-      showError(
-        'Revisá los datos y los comprobantes. Las fotos deben ser JPEG, PNG, WebP, HEIC o HEIF.',
-      );
+      const problem = await response.json().catch(() => null);
+      if (problem?.code === 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE') {
+        setVaccineDateRange(problem.vaccineDateRange);
+        showVaccineDateError(entries[problem.catIndex]?.card.inputs.get(problem.field)?.input);
+      } else {
+        showError(
+          'Revisá los datos y los comprobantes. Las fotos deben ser JPEG, PNG, WebP, HEIC o HEIF.',
+        );
+      }
     } else {
       showError('No se pudo confirmar el envío. Volvé a intentar.');
     }

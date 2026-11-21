@@ -73,7 +73,7 @@ public class HouseholdIntakePreparation {
         if (!StringUtils.hasText(litterBrand)) {
             fields.add("litterBrand");
         }
-        for (var conflict : StayVaccineCoverage.findConflicts(lastRabiesDate, lastTripleFelineDate, through)) {
+        for (var conflict : StayVaccineCoverage.findConflicts(lastRabiesDate, lastTripleFelineDate, through, through)) {
             fields.add(switch (conflict.vaccineType()) {
                 case RABIES -> "lastRabiesDate";
                 case TRIPLE_FELINE -> "lastTripleFelineDate";

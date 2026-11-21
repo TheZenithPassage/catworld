@@ -83,8 +83,12 @@ must answer at least one prompt. The form asks for confirmation before a valid
 partial submission and lists the remaining prompts for each cat. It compares
 the effective draft with the original values and includes previous proposals
 that are still in place. Reporting a rabies or triple feline dose requires
-its date and an image. One image can cover both doses. A tutor's new
-registration requires name, birth date or year, sex, breed, coat, color,
+its date and an image. One image can cover both doses. For a new or changed
+dose, the household form and submission endpoint accept dates from one calendar
+year before the current business date through that date, inclusive. Corrections
+can retain historical dates, and administrators can apply historical dates in
+review. The form receives the date bounds from `GET /api/intake/request`.
+A tutor's new registration requires name, birth date or year, sex, breed, coat, color,
 personality, food brand and detail, and litter. An invalid registration fails
 the whole submission. Vaccines and deworming details are optional. Internal
 profile creation and approval of pending registrations use the existing name,
@@ -476,12 +480,14 @@ through `daysAhead` calendar days from today, inclusive, in the business
 timezone. The default is seven days ahead; zero means today only.
 `includeStartedToday` defaults to true, keeping today's arrivals until business
 midnight. When false, the endpoint excludes stays at their scheduled start.
-The dashboard's **Upcoming stays** view remembers these filters in the browser
-and uses the server's `X-Arrivals-Refresh-After-Ms` header to refresh at the
-next start that changes the results or at business midnight.
+The dashboard's **Upcoming stays** view puts these filters in a collapsed
+**Settings** disclosure and remembers both values in the browser. It uses the
+server's `X-Arrivals-Refresh-After-Ms` header to refresh at the next start that
+changes the results or at business midnight.
 
-The warnings apply the same coverage rule as stay creation and extensions
-to the stay's local departure date, including doses that expire that day.
+The warnings apply the same coverage rule as stay creation and extensions.
+They identify missing dates, expiry by arrival, and expiry during the stay
+through the local departure date, with the expiry date when available.
 The screen marks missing or blank food and litter brands as **To confirm**.
 A stay without preparation items or visible proposals shows one complete
 message. `ADMIN` can generate a household link from any displayed arrival.
@@ -654,8 +660,9 @@ Current rules:
 - Outstanding Payments includes non-cancelled stays with an explicitly
   pending price or a known positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
-  stay. Each operational expiry is the stored vaccination date plus one year;
-  a missing date or a stay ending on or after expiry is a vaccine conflict.
+  stay. Each vaccine expires on its recorded date plus one calendar year.
+  The conflict reports a missing date, expiry on or before arrival, or expiry
+  after arrival through checkout, including the expiry date when available.
 - Stay creation and updates that extend `endAt` beyond the currently persisted
   value aggregate every conflicting cat-vaccine pair into a structured `409
   Conflict`. Updates that keep or shorten the persisted end time skip the

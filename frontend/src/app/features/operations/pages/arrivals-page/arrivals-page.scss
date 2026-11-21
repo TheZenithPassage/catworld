@@ -37,6 +37,12 @@
   color: var(--color-text-muted);
 }
 
+.arrival-settings summary {
+  width: fit-content;
+  padding-block: 0.5rem;
+  cursor: pointer;
+}
+
 .arrival-filters,
 .arrival-filters label {
   display: flex;
@@ -46,6 +52,7 @@
 }
 
 .arrival-filters {
+  padding-inline-start: 1rem;
   column-gap: 1.25rem;
 }
 
