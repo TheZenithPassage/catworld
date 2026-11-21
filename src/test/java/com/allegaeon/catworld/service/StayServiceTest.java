@@ -29,6 +29,7 @@ import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
@@ -2231,6 +2232,7 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             stay.setStartAt(LocalDateTime.now(clock).minusDays(3));
             stay.setEndAt(LocalDateTime.now(clock).minusDays(1));
+            stay.setMovementStatus(StayStatus.CHECKED_OUT);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
@@ -2741,6 +2743,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
+                    .movementStatus(StayStatus.CHECKED_OUT)
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -3058,6 +3061,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
+                    .movementStatus(StayStatus.CHECKED_OUT)
                     .build();
 
             StayUpdateDTO requestDto = StayUpdateDTO.builder()

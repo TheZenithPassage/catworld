@@ -78,7 +78,7 @@ public class StayActualMovementService {
         if (!correction && (existing != null || !canRecord(type, status))) {
             throw new ConflictException("The stay does not allow this movement");
         }
-        if (correction && !canCorrectArrival(actor, existing)) {
+        if (correction && !canManageArrival(actor, existing)) {
             throw new ForbiddenException("Staff can correct only their own arrivals");
         }
 
@@ -120,18 +120,19 @@ public class StayActualMovementService {
     public StayActualMovementsDTO resetArrival(UUID stayId, long expectedRevision) {
         Stay stay = lockStay(stayId);
         UserAccount actor = enabledActor();
-        if (actor.getRole() != UserRole.ADMIN) {
-            throw new ForbiddenException("Only an administrator can reset the arrival");
-        }
         checkRevision(stay, expectedRevision);
         if (stay.status() != StayStatus.CHECKED_IN) {
             throw new ConflictException("Only a checked-in stay can be reset to pending");
         }
 
         var movements = currentMovements(stayId);
+        StayActualMovement arrival = movements.get(ARRIVAL);
+        if (!canManageArrival(actor, arrival)) {
+            throw new ForbiddenException("Staff can reset only their own arrivals");
+        }
         lockCats(stay);
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
-        StayActualMovement arrival = movements.remove(ARRIVAL);
+        movements.remove(ARRIVAL);
         entityManager.persist(new StayArrivalReset(stay, arrival, actor, now));
         if (arrival != null) {
             movementRepository.delete(arrival);
@@ -191,8 +192,9 @@ public class StayActualMovementService {
         return status == (type == ARRIVAL ? StayStatus.RESERVED : StayStatus.CHECKED_IN);
     }
 
-    private static boolean canCorrectArrival(UserAccount actor, StayActualMovement arrival) {
-        return actor.getRole() == UserRole.ADMIN || actor.getId().equals(arrival.getRecordedById());
+    private static boolean canManageArrival(UserAccount actor, StayActualMovement arrival) {
+        return actor.getRole() == UserRole.ADMIN
+                || (arrival != null && actor.getId().equals(arrival.getRecordedById()));
     }
 
     private static StayActualMovementsDTO toResponse(Stay stay, EnumMap<StayMovementType, StayActualMovement> movements,
@@ -206,8 +208,8 @@ public class StayActualMovementService {
         boolean canRecordArrival = enabled && arrival == null && canRecord(ARRIVAL, status) && !arrivalDay.isAfter(today);
         boolean canRecordDeparture = enabled && departure == null && canRecord(DEPARTURE, status) && !departureDay.isAfter(today);
         boolean canCorrectArrival = enabled && status == StayStatus.CHECKED_IN && arrival != null
-                && !arrivalDay.isAfter(today) && canCorrectArrival(actor, arrival);
-        boolean canReset = enabled && status == StayStatus.CHECKED_IN && actor.getRole() == UserRole.ADMIN;
+                && !arrivalDay.isAfter(today) && canManageArrival(actor, arrival);
+        boolean canReset = enabled && status == StayStatus.CHECKED_IN && canManageArrival(actor, arrival);
         return new StayActualMovementsDTO(stay.getStartAt(), stay.getEndAt(), status == StayStatus.CANCELLED, status,
                 stay.getMovementRevision(), toMovement(arrival, canCorrectArrival), toMovement(departure, false),
                 canRecordArrival, canRecordDeparture, canReset,

@@ -22,6 +22,8 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.ResultSetMetaData;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
@@ -539,7 +541,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
 
     private Path catalogMigrationFiles(String name, boolean catalogs, boolean ownLitter, boolean breeds, boolean pricing)
             throws IOException {
-        var directory = migrationFiles(name, "26_2", "26_3", "26_4", "27", "28");
+        var directory = migrationFiles(name, "26_2", "26_3", "26_4", "27", "28", "29");
         if (catalogs) {
             String script = "V26_3__manage_cat_profile_catalogs.sql";
             Files.copy(Path.of("src/main/resources/db/migration").resolve(script), directory.resolve(script));
@@ -556,6 +558,89 @@ class PendingPriceMigrationMySqlIntegrationTest {
             Files.writeString(directory.resolve("V28__allow_unconfirmed_stay_litter.sql"), "SELECT 'pricing follow-up fixture';");
         }
         return directory;
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void backfillsAtActivationAndPreservesOriginalMovementRows(boolean originalMovementHistory) throws IOException {
+        Path initial = originalMovementHistory
+                ? migrationFiles("initial", "14", "15", "16", "17")
+                : migrationFiles("initial", "21");
+        Flyway.configure().dataSource(dataSource).locations(location(initial))
+                .target(originalMovementHistory ? "21" : "28").load().migrate();
+        jdbc.update("""
+                insert into user_accounts(id, username, password_hash, role, enabled, created_at, updated_at)
+                values (?, 'historical-operator', 'unused', 'ADMIN', true, now(), now())
+                """, id(1));
+        jdbc.update("""
+                insert into owners(id, full_name, primary_phone, created_by_id, created_at, updated_at)
+                values (?, 'Historical owner', '555-0100', ?, now(), now())
+                """, id(2), id(1));
+
+        var zone = ZoneId.of("Pacific/Kiritimati");
+        var localNow = LocalDateTime.now(zone).withNano(0);
+        legacyStay(50, localNow.minusDays(3), localNow.minusDays(2), null);
+        legacyStay(51, localNow.minusDays(1), localNow.plusDays(1), null);
+        legacyStay(52, localNow.plusDays(1), localNow.plusDays(2), null);
+        legacyStay(53, localNow.minusDays(2), localNow.minusDays(1), localNow.minusDays(2));
+        legacyStay(54, localNow.minusDays(2), localNow.plusDays(1), null);
+        legacyStay(55, localNow.plusDays(1), localNow.plusDays(2), null);
+        // The instant is ongoing in the configured zone but still reserved with the default zone.
+        legacyStay(56, localNow.minusHours(1), localNow.plusDays(1), null);
+
+        List<String> originalRows = List.of();
+        if (originalMovementHistory) {
+            legacyMovement(50, "ARRIVAL", "2026-11-11 10:30:00.123456", 3);
+            legacyMovement(53, "ARRIVAL", "2026-11-11 10:30:00.234567", 9);
+            legacyMovement(54, "DEPARTURE", "2026-11-13 10:30:00.345678", 1);
+            legacyMovement(55, "ARRIVAL", "2026-11-11 10:30:00.456789", 2);
+            originalRows = snapshotRows("stay_actual_movements", Set.of());
+        }
+
+        var previousHistory = history();
+        var startup = Flyway.configure().dataSource(dataSource)
+                .placeholders(Map.of("catworld_business_zone", zone.getId())).load();
+        HistoricalMigrationConfig.migrate(startup);
+
+        assertTrue(history().containsAll(previousHistory));
+        assertTrue(installedRank("29") < installedRank("30"));
+        if (originalMovementHistory) {
+            assertTrue(installedRank("21") < installedRank("14"));
+            assertTrue(installedRank("17") < installedRank("29"));
+        } else {
+            assertTrue(installedRank("28") < installedRank("21"));
+            assertTrue(installedRank("21") < installedRank("29"));
+        }
+        assertEquals(originalRows, snapshotRows("stay_actual_movements", Set.of()));
+        assertEquals(List.of("CHECKED_OUT", "CHECKED_IN", "RESERVED", "CANCELLED",
+                        originalMovementHistory ? "CHECKED_OUT" : "CHECKED_IN",
+                        originalMovementHistory ? "CHECKED_IN" : "RESERVED", "CHECKED_IN"),
+                jdbc.queryForList("""
+                        select if(cancelled_at is null, movement_status, 'CANCELLED')
+                        from stays order by id
+                        """, String.class));
+        assertEquals(List.of(0L), jdbc.queryForList("select distinct movement_revision from stays", Long.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from stay_arrival_resets", Integer.class));
+        var applied = history();
+        HistoricalMigrationConfig.migrate(startup);
+        assertEquals(applied, history());
+    }
+
+    private void legacyStay(int number, LocalDateTime start, LocalDateTime end, LocalDateTime cancelled) {
+        jdbc.update("""
+                insert into stays(id, owner_id, created_by_id, start_at, end_at,
+                                  cancelled_at, created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, now(), now())
+                """, id(number), id(2), id(1), start, end, cancelled);
+    }
+
+    private void legacyMovement(int stay, String movementType, String occurred, int version) {
+        jdbc.update("""
+                insert into stay_actual_movements
+                    (stay_id, movement_type, occurred_at_utc, recorded_by_id, recorded_by,
+                     corrected_by_id, corrected_by, version)
+                values (?, ?, ?, ?, 'historical-recorder', ?, 'historical-corrector', ?)
+                """, id(stay), movementType, occurred, id(3), id(4), version);
     }
 
     private Path migrationFiles(String name, String... omittedVersions) throws IOException {
@@ -652,7 +737,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
             Set<String> excludedColumns = new HashSet<>(switch (table) {
                 case "cats" -> excludedCatColumnNames;
                 case "owners" -> Set.of("deceased");
-                case "stays" -> Set.of("price_pending");
+                case "stays" -> Set.of("price_pending", "movement_status", "movement_revision");
                 default -> Set.of();
             });
             excludedColumns.addAll(excludedNewColumns.getOrDefault(table, Set.of()));

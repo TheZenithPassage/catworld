@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,7 +33,6 @@ public class Stay extends AuditableEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(nullable = false, length = 11)
     private StayStatus movementStatus = StayStatus.RESERVED;
 

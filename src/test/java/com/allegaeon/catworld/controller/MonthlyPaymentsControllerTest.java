@@ -4,6 +4,7 @@ import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.UserAccount;
@@ -146,7 +147,7 @@ class MonthlyPaymentsControllerTest {
     }
 
     @Test
-    void allOutstandingStaysIncludeOlderPendingPricesAndIdentifyArrivalsAlreadyStarted() throws Exception {
+    void allOutstandingStaysIncludeOlderPendingPricesAndIdentifyConfirmedArrivals() throws Exception {
         LocalDate today = LocalDate.now(clock);
         UserAccount actor = UserAccount.builder().username("all-outstanding-test").passwordHash("unused")
                 .role(UserRole.ADMIN).enabled(true).build();
@@ -155,7 +156,9 @@ class MonthlyPaymentsControllerTest {
         entities.persist(owner);
 
         Stay olderPending = collectionStay(owner, actor, today.minusMonths(2), null, true, false);
+        olderPending.setMovementStatus(StayStatus.CHECKED_OUT);
         payment(olderPending, actor, today.minusMonths(3), "20", false);
+        Stay awaitingArrival = collectionStay(owner, actor, today.minusDays(2), "8", false, false);
         Stay futureBalance = collectionStay(owner, actor, today.plusMonths(2), "100", false, false);
         payment(futureBalance, actor, today, "30", false);
         payment(futureBalance, actor, today, "15", true);
@@ -166,14 +169,16 @@ class MonthlyPaymentsControllerTest {
 
         mvc.perform(get("/api/payments/outstanding").param("scope", "all").with(user("admin").roles("ADMIN")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.knownTotal").value("70"))
+                .andExpect(jsonPath("$.knownTotal").value("78"))
                 .andExpect(jsonPath("$.pendingPriceCount").value(1))
-                .andExpect(jsonPath("$.stays.totalElements").value(2))
+                .andExpect(jsonPath("$.stays.totalElements").value(3))
                 .andExpect(jsonPath("$.stays.items[0].stayId").value(olderPending.getId().toString()))
                 .andExpect(jsonPath("$.stays.items[0].paidAmount").value("20"))
                 .andExpect(jsonPath("$.stays.items[0].started").value(true))
-                .andExpect(jsonPath("$.stays.items[1].stayId").value(futureBalance.getId().toString()))
-                .andExpect(jsonPath("$.stays.items[1].started").value(false));
+                .andExpect(jsonPath("$.stays.items[1].stayId").value(awaitingArrival.getId().toString()))
+                .andExpect(jsonPath("$.stays.items[1].started").value(false))
+                .andExpect(jsonPath("$.stays.items[2].stayId").value(futureBalance.getId().toString()))
+                .andExpect(jsonPath("$.stays.items[2].started").value(false));
 
         mvc.perform(get("/api/payments/outstanding").param("scope", "all").with(user("staff").roles("STAFF")))
                 .andExpect(status().isForbidden());
