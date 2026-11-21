@@ -321,6 +321,9 @@ test('own litter submits the selected catalog ID and shared litter ignores the d
     choice.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
   }
   choose(portal, card, 'own');
+  const partialDetail = enter(portal.window, card, 'litterBrand', 'las de Cat');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(portal.window.document.activeElement, partialDetail);
   const detail = enter(portal.window, card, 'litterBrand', ownType);
   assert.equal(await portal.submit(), undefined);
   detail.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
@@ -348,6 +351,50 @@ test('own litter submits the selected catalog ID and shared litter ignores the d
   [cat] = JSON.parse(await post.body.get('submission').text()).cats;
   assert.deepEqual(cat.fields, { litterBrand: 'Usa las de CatWorld' });
   assert.equal(cat.optionIds, undefined);
+});
+
+test('each own-litter input has its own plain label and keeps new descriptions in the draft', async (t) => {
+  const ownLitter = 'Trae sus propias piedritas';
+  const invitation = {
+    allowNewCats: false,
+    cats: [
+      { ...existing, requestedFields: ['litterBrand'] },
+      {
+        ...existing,
+        catId: 'second-cat',
+        fields: { name: 'Sol', litterBrand: ownLitter, litterDetail: 'Arcilla' },
+        requestedFields: [],
+      },
+    ],
+    catalogOptions: { litterDetail: [{ id: 'pine', name: 'Pino' }] },
+  };
+  const portal = await openForm(t, invitation);
+  const [mora, sol] = portal.entries();
+  const choice = mora.querySelector('select');
+  choice.value = 'own';
+  choice.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  const detail = enter(portal.window, mora, 'litterBrand', 'Sílice');
+  const solDetail = sol.querySelector('[name="litterBrand"]');
+
+  for (const input of [detail, solDetail]) {
+    assert.equal(input.labels.length, 1);
+    assert.equal(input.labels[0].textContent, 'Marca o tipo de piedritas');
+    assert.equal(input.labels[0].htmlFor, input.id);
+    assert.equal(input.hasAttribute('aria-describedby'), false);
+  }
+  assert.notEqual(detail.id, solDetail.id);
+
+  const post = await portal.submit();
+  const [cat] = JSON.parse(await post.body.get('submission').text()).cats;
+  assert.deepEqual(cat.fields, { litterBrand: 'Sílice', litterDetail: 'Sílice' });
+  assert.equal(cat.optionIds, undefined);
+
+  const reopened = await openForm(t, {
+    ...invitation,
+    cats: [{ ...invitation.cats[0], revision: 1, proposedFields: cat.fields }, invitation.cats[1]],
+  });
+  const [draft] = reopened.entries();
+  assert.equal(draft.querySelector('[name="litterBrand"]').value, 'Sílice');
 });
 
 test('reopening a partial submission shows both pending data and the submitted status', async (t) => {

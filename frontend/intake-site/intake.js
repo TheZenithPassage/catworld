@@ -379,8 +379,7 @@ function createLitterField(title, initialValue, initialDetail, required, catalog
   own.value = ownLitterDetail({ litterBrand: initialValue, litterDetail: initialDetail });
   choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue.trim() ? 'own' : '';
   const ownTitle = 'Marca o tipo de piedritas';
-  const ownLabel = fieldLabel(ownTitle, own, 'Buscá una opción o escribí un nombre nuevo.');
-  const detail = createCatalogField(ownTitle, ownLabel, own, catalog.options, catalog.id, true);
+  const detail = createCatalogField(ownTitle, ownTitle, own, catalog.options, catalog.id, true);
   function updateChoice() {
     detail.control.hidden = choice.value !== 'own';
     own.disabled = detail.control.hidden;
