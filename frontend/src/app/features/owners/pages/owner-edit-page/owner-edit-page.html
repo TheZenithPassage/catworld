@@ -145,7 +145,7 @@
               {{ text().owners.detail.cancel }}
             </button>
           }
-          <button mat-flat-button type="submit" [disabled]="submitting()">
+          <button mat-flat-button type="submit" [disabled]="saveDisabled()">
             {{ submitting() ? text().owners.edit.submitting : text().owners.edit.submit }}
           </button>
         </div>

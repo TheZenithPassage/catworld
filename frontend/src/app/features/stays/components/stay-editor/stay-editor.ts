@@ -149,6 +149,15 @@ export class StayEditor {
     return current !== null && canModifyStay(current, this.businessTime.currentLocalDateTime());
   });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
+  readonly saveDisabled = computed(
+    () =>
+      this.loading() ||
+      !this.canEditStay() ||
+      this.submitting() ||
+      this.previewLoading() ||
+      (this.pricingPreview()?.pricingDecisionRequired === true && !this.isAdmin()) ||
+      (this.pricingConfirmationRequired() && !this.pricingConfirmed()),
+  );
   readonly applicableCurrentRate = computed(() => {
     const preview = this.pricingPreview();
     const currentRate = preview?.currentApplicableNightlyRate ?? null;
@@ -284,6 +293,7 @@ export class StayEditor {
   }
 
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.notesError.set(null);
 

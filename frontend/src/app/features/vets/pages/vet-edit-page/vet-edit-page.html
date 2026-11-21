@@ -100,7 +100,7 @@
               {{ text().vets.detail.cancel }}
             </button>
           }
-          <button mat-flat-button type="submit" [disabled]="submitting()">
+          <button mat-flat-button type="submit" [disabled]="saveDisabled()">
             {{ submitting() ? text().vets.edit.submitting : text().vets.edit.submit }}
           </button>
         </div>

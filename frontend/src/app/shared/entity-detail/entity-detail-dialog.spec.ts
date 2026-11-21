@@ -224,16 +224,32 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
 
-    (
-      fixture.nativeElement.querySelector(
-        'app-owner-detail button[mat-flat-button]',
-      ) as HTMLButtonElement
-    ).click();
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
     fixture.detectChanges();
     const editor = fixture.debugElement.query(By.directive(OwnerEditor))
       .componentInstance as OwnerEditor;
+    const headerSave = root.querySelector<HTMLButtonElement>('.header-save-button')!;
+    const form = root.querySelector<HTMLFormElement>('app-owner-editor form')!;
+
+    editor.fullName.set('  ');
+    headerSave.click();
+    fixture.detectChanges();
+    expect(editor.fullNameError()).toBe(editor.text().owners.edit.errors.fullNameRequired);
+    expect(api.updateOwner).not.toHaveBeenCalled();
+
     editor.fullName.set('Ada Byron');
-    editor.submit();
+    const pending = new Subject<Owner>();
+    api.updateOwner.mockReturnValueOnce(pending);
+    headerSave.click();
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+    expect(api.updateOwner).toHaveBeenCalledOnce();
+    expect(headerSave.disabled).toBe(true);
+    expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('.header-cancel-button')!.disabled).toBe(true);
+    pending.next(updated);
+    pending.complete();
     fixture.detectChanges();
 
     expect(api.updateOwner).toHaveBeenCalled();
@@ -241,6 +257,53 @@ describe('EntityDetailDialog', () => {
     expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
     expect(fixture.componentInstance.editing()).toBe(false);
     expect(emitted).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'owner-1' });
+  });
+
+  it('offers owner intake sharing in the header and footer only to administrators', async () => {
+    const open = vi.fn();
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: MatDialog, useValue: { open } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    const auth = TestBed.inject(AuthSessionService);
+    const credentials = { username: 'operator', password: 'test' };
+    const root = fixture.nativeElement as HTMLElement;
+    const buttons = () =>
+      Array.from(root.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (button) =>
+          button.textContent?.trim() ===
+          fixture.componentInstance.text().owners.detail.requestIntake,
+      );
+
+    auth.login({ username: 'operator', role: 'STAFF' }, credentials);
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(0);
+
+    auth.login({ username: 'operator', role: 'ADMIN' }, credentials);
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(2);
+    root.querySelector<HTMLButtonElement>('.header-intake-button')!.click();
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+    expect(open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: { ownerId: owner.id, ownerName: owner.fullName } }),
+    );
+    root.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(2);
   });
 
   it('owns cancel and reference-change discard transitions and handles Stay explicitly', async () => {
@@ -463,10 +526,16 @@ describe('EntityDetailDialog', () => {
       const back = () =>
         fixture.nativeElement.querySelector('[data-dialog-focus]') as HTMLButtonElement;
       const close = () => fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement;
+      const headerSave = () =>
+        fixture.nativeElement.querySelector('.header-save-button') as HTMLButtonElement;
+      const headerCancel = () =>
+        fixture.nativeElement.querySelector('.header-cancel-button') as HTMLButtonElement;
 
       submit().click();
       fixture.detectChanges();
       expect(cancel().disabled).toBe(true);
+      expect(headerSave().disabled).toBe(true);
+      expect(headerCancel().disabled).toBe(true);
       expect(back().disabled).toBe(true);
       expect(close().disabled).toBe(true);
       expect(dialogRef.disableClose).toBe(true);
@@ -495,7 +564,7 @@ describe('EntityDetailDialog', () => {
             : (editor as VetEditor).name(),
       ).toBe(draft);
 
-      submit().click();
+      headerSave().click();
       fixture.detectChanges();
       expect(dialogRef.disableClose).toBe(true);
       succeeded.next(
@@ -1173,7 +1242,7 @@ describe('EntityDetailDialog', () => {
     const confirmation = dialog.openDialogs[1];
     const kept = firstValueFrom(confirmation.afterClosed());
     expect(document.querySelector('app-discard-changes-dialog h2')?.textContent?.trim()).toBe(
-      '¿Descartar los cambios sin guardar?',
+      TestBed.inject(I18nService).text().entityDetail.discardChanges.title,
     );
     const keepButton = document.querySelector<HTMLButtonElement>('.keep-editing')!;
     await vi.waitFor(() => expect(document.activeElement).toBe(keepButton));
@@ -1182,7 +1251,7 @@ describe('EntityDetailDialog', () => {
     expect(gallery.files()).toEqual([picture]);
     expect(editorNode().componentInstance).toBe(editor);
 
-    editor.cancel();
+    document.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
     TestBed.tick();
     const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
     document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
@@ -1642,12 +1711,16 @@ describe('EntityDetailDialog', () => {
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
     buttonContaining(fixture, 'Reserved').click();
     fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(
+      root.querySelector('.header-edit-button, .header-cancel-button, .header-save-button'),
+    ).toBeNull();
     buttonContaining(fixture, fixture.componentInstance.text().stays.detail.edit).click();
     fixture.detectChanges();
     let editor = fixture.debugElement.query(By.directive(StayEditor))
       .componentInstance as StayEditor;
     editor.notes.set('discard me');
-    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.cancelEdit).click();
+    root.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
 
@@ -1656,13 +1729,14 @@ describe('EntityDetailDialog', () => {
     editor = fixture.debugElement.query(By.directive(StayEditor)).componentInstance as StayEditor;
     expect(editor.notes()).toBe('');
     editor.notes.set('retained rejected draft');
-    buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
+    root.querySelector<HTMLButtonElement>('.header-save-button')!.click();
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
     expect(editor.notes()).toBe('retained rejected draft');
 
     buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
     fixture.detectChanges();
+    expect(root.querySelector<HTMLButtonElement>('.header-save-button')!.disabled).toBe(true);
     expect(dialogRef.disableClose).toBe(true);
     expect(
       (fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement).disabled,

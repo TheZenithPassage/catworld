@@ -1,4 +1,14 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -121,8 +131,8 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
             <button
               mat-flat-button
               type="button"
-              [disabled]="deleting()"
-              (click)="editRequested.emit()"
+              [disabled]="editDisabled()"
+              (click)="requestEdit()"
             >
               {{ text().vets.detail.edit }}
             </button>
@@ -155,6 +165,11 @@ export class VetDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly editor = viewChild(VetEditor);
+  readonly editAvailable = computed(
+    () => this.detail()?.vet.id === this.entityId() && !this.error() && !this.editing(),
+  );
+  readonly editDisabled = computed(() => this.loading() || this.deleting());
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -166,6 +181,9 @@ export class VetDetail {
       if (this.loadedEntityId !== entityId) this.detail.set(null);
       this.load(entityId);
     });
+  }
+  requestEdit(): void {
+    if (this.editAvailable() && !this.editDisabled()) this.editRequested.emit();
   }
   confirmPermanentDeletion(vet: Vet): void {
     if (this.deleting() || vet.id !== this.entityId() || vet.canDelete !== true) return;

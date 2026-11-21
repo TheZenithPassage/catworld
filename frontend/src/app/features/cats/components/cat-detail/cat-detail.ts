@@ -55,7 +55,7 @@ export class CatDetail {
   private readonly api = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
-  private readonly editor = viewChild(CatEditor);
+  readonly editor = viewChild(CatEditor);
   private loadGeneration = 0;
   private deletionGeneration = 0;
   private loadedEntityId: string | null = null;

@@ -148,6 +148,9 @@ export class CatEditor {
   readonly formRevision = signal(0);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly catLoaded = signal(false);
+  readonly saveDisabled = computed(
+    () => this.loadingData() || !this.catLoaded() || this.staleEdit() || this.submitting(),
+  );
   readonly hasSavedPhoto = signal(false);
   readonly hasUnsavedChanges = computed(() => {
     const initial = this.initialDraft();

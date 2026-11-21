@@ -1,4 +1,14 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
@@ -164,12 +174,12 @@ import type { CatIntakeInvitationDialogData } from '../../../cat-intake/cat-inta
             }
           </div>
           <div class="detail-actions-end">
-            @if (auth.hasRole('ADMIN')) {
+            @if (intakeAvailable()) {
               <button
                 mat-stroked-button
                 type="button"
-                [disabled]="deleting() || loadingIntake()"
-                (click)="openCatIntake(owner)"
+                [disabled]="intakeDisabled()"
+                (click)="openCatIntake()"
               >
                 {{ text().owners.detail.requestIntake }}
               </button>
@@ -177,8 +187,8 @@ import type { CatIntakeInvitationDialogData } from '../../../cat-intake/cat-inta
             <button
               mat-flat-button
               type="button"
-              [disabled]="deleting()"
-              (click)="editRequested.emit()"
+              [disabled]="editDisabled()"
+              (click)="requestEdit()"
             >
               {{ text().owners.detail.edit }}
             </button>
@@ -191,7 +201,7 @@ import type { CatIntakeInvitationDialogData } from '../../../cat-intake/cat-inta
 export class OwnerDetail {
   private readonly api = inject(OwnerApiService);
   private readonly i18n = inject(I18nService);
-  readonly auth = inject(AuthSessionService);
+  private readonly auth = inject(AuthSessionService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
   private loadGeneration = 0;
@@ -215,6 +225,13 @@ export class OwnerDetail {
   readonly error = signal(false);
   readonly deleting = signal(false);
   readonly loadingIntake = signal(false);
+  readonly editor = viewChild(OwnerEditor);
+  readonly editAvailable = computed(
+    () => this.detail()?.owner.id === this.entityId() && !this.error() && !this.editing(),
+  );
+  readonly editDisabled = computed(() => this.loading() || this.deleting());
+  readonly intakeAvailable = computed(() => this.editAvailable() && this.auth.hasRole('ADMIN'));
+  readonly intakeDisabled = computed(() => this.editDisabled() || this.loadingIntake());
   readonly deletionError = createLanguageResetError(this.i18n.language);
   readonly intakeError = createLanguageResetError(this.i18n.language);
   constructor() {
@@ -232,14 +249,18 @@ export class OwnerDetail {
     });
   }
 
-  async openCatIntake(owner: Owner): Promise<void> {
+  requestEdit(): void {
+    if (this.editAvailable() && !this.editDisabled()) this.editRequested.emit();
+  }
+
+  async openCatIntake(): Promise<void> {
+    const owner = this.detail()?.owner;
     const canOpen = () =>
       !this.destroyRef.destroyed &&
-      owner.id === this.entityId() &&
-      this.auth.hasRole('ADMIN') &&
-      !this.deleting() &&
-      !this.editing();
-    if (!canOpen() || this.loadingIntake()) return;
+      owner?.id === this.entityId() &&
+      this.intakeAvailable() &&
+      !this.editDisabled();
+    if (!owner || !canOpen() || this.loadingIntake()) return;
     this.loadingIntake.set(true);
     this.intakeError.set(null);
     try {

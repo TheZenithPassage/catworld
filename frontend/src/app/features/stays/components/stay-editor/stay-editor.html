@@ -264,12 +264,7 @@
               id="update-stay-submit"
               mat-flat-button
               type="submit"
-              [disabled]="
-                submitting() ||
-                previewLoading() ||
-                (pricingPreview()?.pricingDecisionRequired === true && !isAdmin()) ||
-                (pricingConfirmationRequired() && !pricingConfirmed())
-              "
+              [disabled]="saveDisabled()"
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
             </button>
