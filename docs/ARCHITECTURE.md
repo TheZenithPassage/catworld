@@ -507,27 +507,34 @@ Possible statuses:
 
 This avoids storing redundant state that can become inconsistent with the dates.
 
-### Arrival Preparation
+### Upcoming Stays
 
-`GET /api/operations/arrivals` returns non-cancelled stays starting today
-through `daysAhead` calendar days from today, inclusive, in the business
-timezone. The default is seven days ahead; zero means today only.
-`includeStartedToday` defaults to true, keeping today's arrivals until business
-midnight. When false, the endpoint excludes stays at their scheduled start.
-The dashboard's **Upcoming stays** view puts these filters in a collapsed
-**Settings** disclosure and remembers both values in the browser. It uses the
-server's `X-Arrivals-Refresh-After-Ms` header to refresh at the next start that
-changes the results or at business midnight.
+`GET /api/operations/arrivals` and `GET /api/operations/departures` return
+outstanding movements through the end of the business date `daysAhead` days
+from today. The default is seven. Zero includes today and earlier unresolved
+movements. Arrivals include reserved stays, and departures include reserved
+and checked-in stays. Cancelled stays are excluded. Each list sorts by its
+scheduled movement time and stay ID, groups all cats in one row per stay, and
+reports the transfer requirement for that leg.
+
+Rows mark movements scheduled on an earlier business date as overdue and
+indicate whether they can be recorded with the current time. This action is
+available on the scheduled business date, and departure requires check-in.
+Both endpoints send `X-Arrivals-Refresh-After-Ms` for the next business midnight.
+The dashboard's **Upcoming stays** view remembers one horizon for both lists
+in the browser. It uses the stay details to record an earlier unresolved
+movement with its actual time.
 
 The warnings apply the same coverage rule as stay creation and extensions.
 They identify missing dates, expiry by arrival, and expiry during the stay
 through the local departure date, with the expiry date when available.
-The screen marks missing or blank food and litter brands as **To confirm**.
+Arrivals flag a missing food brand or litter preference as **To confirm**.
 A stay without preparation items or visible proposals shows one complete
 message. `ADMIN` can generate a household link from any displayed arrival.
 The link uses that stay's departure for its participating eligible cats.
 `ADMIN` can also open pending profile proposals for living booked cats that
-still belong to the proposal's tutor. Staff retain access to the operational alerts.
+still belong to the proposal's tutor. Staff retain access to the operational
+alerts. In departure rows, cat entries contain only their identifiers and names.
 
 ### Stay Nights Are Response-Derived
 

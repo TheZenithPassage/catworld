@@ -7,6 +7,7 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatRepository;
@@ -97,30 +98,31 @@ class HouseholdIntakePreparationTest {
     }
 
     @Test
-    void usesSelectedStartedTodayEvenWhenAnotherStayIsUpcomingForThatCat() {
+    void usesSelectedOverdueArrivalEvenWhenAnotherStayIsUpcomingForThatCat() {
         Cat cat = saveCat(owner, "Alba", false);
         Cat deceased = saveCat(owner, "Absent", true);
         Cat foreign = saveCat(saveOwner("Another tutor"), "Foreign", false);
-        Stay started = saveStay(owner, new Arrival("2026-11-20T08:00", "2026-11-21T09:00"),
+        Stay overdue = saveStay(owner, new Arrival("2026-11-19T08:00", "2026-11-21T09:00"),
                 null, cat, deceased, foreign);
         saveStay(owner, new Arrival("2026-11-24T09:00", "2026-11-26T09:00"), null, cat);
 
-        var result = preparation.prepare(owner.getId(), List.of(cat, deceased, foreign), started.getId());
+        var result = preparation.prepare(owner.getId(), List.of(cat, deceased, foreign), overdue.getId());
 
         assertThat(result).containsOnlyKeys(cat.getId());
         assertThat(result.get(cat.getId()).through()).isEqualTo("2026-11-21");
     }
 
     @Test
-    void rejectsForeignCancelledAndPreviousDayArrivalsAtIssuance() {
+    void rejectsForeignCancelledAndConfirmedArrivalsAtIssuance() {
         Cat cat = saveCat(owner, "Alba", false);
         Owner foreignOwner = saveOwner("Another tutor");
         Stay foreign = saveStay(foreignOwner, new Arrival("2026-11-21T09:00", "2026-11-22T09:00"), null);
         Stay cancelled = saveStay(owner, new Arrival("2026-11-21T09:00", "2026-11-22T09:00"),
                 LocalDateTime.now(CLOCK), cat);
-        Stay previousDay = saveStay(owner, new Arrival("2026-11-19T23:59", "2026-11-23T09:00"), null, cat);
+        Stay checkedIn = saveStay(owner, new Arrival("2026-11-20T19:00", "2026-11-23T09:00"), null, cat);
+        checkedIn.setMovementStatus(StayStatus.CHECKED_IN);
 
-        for (Stay stay : List.of(foreign, cancelled, previousDay)) {
+        for (Stay stay : List.of(foreign, cancelled, checkedIn)) {
             assertThatThrownBy(() -> preparation.prepare(owner.getId(), List.of(cat), stay.getId()))
                     .isInstanceOf(ResourceNotFoundException.class);
         }

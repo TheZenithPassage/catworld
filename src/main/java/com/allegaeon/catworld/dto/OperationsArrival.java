@@ -1,5 +1,7 @@
 package com.allegaeon.catworld.dto;
 
+import com.allegaeon.catworld.model.LitterPreference;
+import com.allegaeon.catworld.model.StayStatus;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -9,10 +11,9 @@ import java.util.List;
 import java.util.UUID;
 
 public record OperationsArrival(UUID id, LocalDateTime startAt, LocalDateTime endAt,
-                                ArrivalOwner owner, List<ArrivalCat> cats) {
-    public record ArrivalOwner(UUID id, String fullName) {}
-
-    public record ArrivalCat(UUID id, String name, String foodBrand, String litterBrand,
+                                OperationsStayOwner owner, List<ArrivalCat> cats, boolean transferRequired,
+                                StayStatus status, boolean overdue, boolean canRecord) {
+    public record ArrivalCat(UUID id, String name, String foodBrand, String litterBrand, LitterPreference litterChoice,
                              List<VaccineWarning> vaccineWarnings,
                              @JsonInclude(JsonInclude.Include.NON_NULL) List<PendingReview> pendingReviews) {}
 

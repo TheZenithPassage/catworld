@@ -21,7 +21,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-import static com.allegaeon.catworld.controller.OperationsArrivalsController.REFRESH_HEADER;
+import static com.allegaeon.catworld.controller.UpcomingStaysController.REFRESH_HEADER;
 
 @Configuration
 @RequiredArgsConstructor
@@ -41,6 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates", "/api/operations/arrivals",
+                                "/api/operations/departures",
                                 "/api/food-brands", "/api/food-brands/varieties", "/api/cat-profile-options", "/api/litter-rate")
                         .hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/cat-profile-options").hasRole("ADMIN")
