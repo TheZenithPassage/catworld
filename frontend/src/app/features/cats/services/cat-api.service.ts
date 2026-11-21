@@ -5,9 +5,11 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../../../core/config/api.config';
 import {
   Cat,
+  CatInformationalPhoto,
   CatLookup,
   CatOverviewItem,
   CreateCatRequest,
+  FoodBrandOption,
   UpdateCatRequest,
 } from '../models/cat.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
@@ -48,8 +50,35 @@ export class CatApiService {
     return this.http.get<CatDetailResponse>(`${this.baseUrl}/${catId}/detail`);
   }
 
+  getFoodBrands(): Observable<FoodBrandOption[]> {
+    return this.http.get<FoodBrandOption[]>(`${API_BASE_URL}/food-brands`);
+  }
+
   getCatPhoto(catId: string): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob' });
+  }
+
+  listInformationalPhotos(catId: string): Observable<CatInformationalPhoto[]> {
+    return this.http.get<CatInformationalPhoto[]>(`${this.baseUrl}/${catId}/informational-photos`);
+  }
+
+  getInformationalPhoto(catId: string, photoId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${catId}/informational-photos/${photoId}`, {
+      responseType: 'blob',
+    });
+  }
+
+  addInformationalPhoto(catId: string, file: File): Observable<CatInformationalPhoto> {
+    const body = new FormData();
+    body.append('photo', file);
+    return this.http.post<CatInformationalPhoto>(
+      `${this.baseUrl}/${catId}/informational-photos`,
+      body,
+    );
+  }
+
+  deleteInformationalPhoto(catId: string, photoId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${catId}/informational-photos/${photoId}`);
   }
 
   getCatStays(catId: string, page = 0): Observable<StayRelationshipPage> {

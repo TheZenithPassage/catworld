@@ -21,6 +21,9 @@ export interface CatsTranslations {
   form: {
     name: string;
     birthDate: string;
+    birthYear: string;
+    birthYearOnly: string;
+    birthYearInvalid: string;
     sex: string;
     selectSex: string;
     male: string;
@@ -33,11 +36,29 @@ export interface CatsTranslations {
     createVet: string;
     breed: string;
     coat: string;
+    coatLengths: Record<'Corto' | 'Largo' | 'Sin pelo', string>;
     color: string;
     foodBrand: string;
+    foodDetail: string;
+    catalogNames: Record<
+      'breed' | 'foodBrand' | 'lastInternalDewormerName' | 'lastExternalDewormerName',
+      string
+    >;
+    varietyCatalog: (brand: string) => string;
+    publishOption: (name: string, catalog: string) => string;
+    publishedOption: (name: string, catalog: string) => string;
+    publishOptionError: string;
+    catalogSelection: string;
+    catalogPublicationHint: string;
     litterBrand: string;
+    sharedLitter: string;
+    ownLitter: string;
+    unconfirmedLitter: string;
+    ownLitterDetail: string;
     personality: string;
     notes: string;
+    careInstructions: string;
+    careInstructionsTooLong: string;
     lastInternalDewormerName: string;
     lastInternalDewormingDate: string;
     lastExternalDewormerName: string;
@@ -66,6 +87,23 @@ export interface CatsTranslations {
       intentConflict: string;
     };
   };
+  informationalPhotos: {
+    title: string;
+    photo: string;
+    photoAlt: (catName: string) => string;
+    add: string;
+    view: (number: number) => string;
+    remove: string;
+    removeNamed: (number: number) => string;
+    confirmRemove: string;
+    removePrompt: string;
+    empty: string;
+    loading: string;
+    saving: string;
+    loadFailed: string;
+    addFailed: string;
+    removeFailed: string;
+  };
   create: {
     title: string;
     description: string;
@@ -87,6 +125,7 @@ export interface CatsTranslations {
     title: string;
     description: string;
     backToCats: string;
+    reload: string;
     loading: string;
     submit: string;
     submitting: string;
@@ -94,6 +133,7 @@ export interface CatsTranslations {
       catIdMissing: string;
       loadFormDataFailed: string;
       dataNotLoaded: string;
+      staleEdit: string;
       nameRequired: string;
       birthDateRequired: string;
       sexRequired: string;
@@ -159,9 +199,29 @@ export const CATS_TRANSLATIONS = {
       photoLoadFailed: 'Error al cargar la foto.',
       photoAlt: (catName) => `Foto de ${catName}`,
     },
+    informationalPhotos: {
+      title: 'Fotos informativas',
+      photo: 'Foto informativa',
+      photoAlt: (catName) => `Foto informativa de ${catName}`,
+      add: 'Adjuntar foto',
+      view: (number) => `Ver foto ${number}`,
+      remove: 'Quitar',
+      removeNamed: (number) => `Quitar foto ${number}`,
+      confirmRemove: 'Quitar foto',
+      removePrompt: '¿Querés quitar esta foto?',
+      empty: 'Todavía no hay fotos adjuntas.',
+      loading: 'Cargando fotos…',
+      saving: 'Guardando cambios…',
+      loadFailed: 'No se pudieron cargar las fotos.',
+      addFailed: 'No se pudo adjuntar la foto.',
+      removeFailed: 'No se pudo quitar la foto.',
+    },
     form: {
       name: 'Nombre',
       birthDate: 'Fecha de nacimiento',
+      birthYear: 'Año de nacimiento',
+      birthYearOnly: 'Solo sé el año',
+      birthYearInvalid: 'Introducí un año de cuatro cifras, hasta el año actual',
       sex: 'Sexo',
       selectSex: 'Seleccioná sexo',
       male: 'Macho',
@@ -173,16 +233,38 @@ export const CATS_TRANSLATIONS = {
       noVet: 'Sin veterinario',
       createVet: 'Crear veterinario',
       breed: 'Raza',
-      coat: 'Pelaje',
-      color: 'Color',
+      coat: 'Largo del pelo',
+      coatLengths: { Corto: 'Corto', Largo: 'Largo', 'Sin pelo': 'Sin pelo' },
+      color: 'Color y marcas',
       foodBrand: 'Marca de comida',
-      litterBrand: 'Marca de arena',
+      foodDetail: 'Variedad del alimento',
+      catalogNames: {
+        breed: 'Razas',
+        foodBrand: 'Marcas de comida',
+        lastInternalDewormerName: 'Desparasitantes internos',
+        lastExternalDewormerName: 'Pipetas antipulgas',
+      },
+      varietyCatalog: (brand) => 'Variedades de «' + brand + '»',
+      publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
+      publishedOption: (name, catalog) => 'Se agregó «' + name + '» a ' + catalog + '.',
+      publishOptionError: 'No se pudo agregar al catálogo.',
+      catalogSelection: 'Opción del catálogo',
+      catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
+      litterBrand: 'Piedritas',
+      ownLitter: 'Trae sus propias piedritas',
+      unconfirmedLitter: 'Por confirmar',
+      ownLitterDetail: 'Marca o tipo de piedritas',
+
+      sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
-      notes: 'Notas',
+      notes: 'Notas internas del equipo',
+      careInstructions: 'Indicaciones de cuidado del tutor',
+
+      careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
-      lastExternalDewormerName: 'Pipetas para pulgas o comprimidos',
-      lastExternalDewormingDate: 'Fecha del último tratamiento antipulgas',
+      lastExternalDewormerName: 'Última pipeta antipulgas',
+      lastExternalDewormingDate: 'Fecha de la última pipeta antipulgas',
       lastTripleFelineDate: 'Fecha de la última vacunación triple felina',
       lastRabiesDate: 'Fecha de la última vacunación antirrábica',
     },
@@ -231,6 +313,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Editar gato',
       description: 'Actualizar información del gato.',
       backToCats: 'Volver',
+      reload: 'Recargar ficha',
       loading: 'Cargando gato...',
       submit: 'Guardar cambios',
       submitting: 'Guardando...',
@@ -238,6 +321,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Falta el id del gato',
         loadFormDataFailed: 'Error al cargar los datos del formulario del gato',
         dataNotLoaded: 'Los datos del gato no están cargados',
+        staleEdit:
+          'La ficha cambió mientras la editabas. Si la recargás, se perderán los cambios sin guardar.',
         nameRequired: 'El nombre es obligatorio',
         birthDateRequired: 'La fecha de nacimiento es obligatoria',
         sexRequired: 'El sexo es obligatorio',
@@ -271,14 +356,14 @@ export const CATS_TRANSLATIONS = {
       },
       care: {
         food: 'Comida',
-        litter: 'Arena',
+        litter: 'Piedritas',
         personality: 'Personalidad',
       },
       health: {
         tripleFeline: 'Triple felina',
         rabies: 'Rabia',
         internalDeworming: 'Desparasitación interna',
-        externalDeworming: 'Pipetas para pulgas o comprimidos',
+        externalDeworming: 'Última pipeta antipulgas',
       },
       edit: 'Editar',
     },
@@ -301,9 +386,29 @@ export const CATS_TRANSLATIONS = {
       photoLoadFailed: 'Error loading photo.',
       photoAlt: (catName) => `Photo of ${catName}`,
     },
+    informationalPhotos: {
+      title: 'Informational photos',
+      photo: 'Informational photo',
+      photoAlt: (catName) => `Informational photo of ${catName}`,
+      add: 'Attach photo',
+      view: (number) => `View photo ${number}`,
+      remove: 'Remove',
+      removeNamed: (number) => `Remove photo ${number}`,
+      confirmRemove: 'Remove photo',
+      removePrompt: 'Remove this photo?',
+      empty: 'No photos attached yet.',
+      loading: 'Loading photos…',
+      saving: 'Saving changes…',
+      loadFailed: 'Could not load the photos.',
+      addFailed: 'Could not attach the photo.',
+      removeFailed: 'Could not remove the photo.',
+    },
     form: {
       name: 'Name',
       birthDate: 'Birth date',
+      birthYear: 'Birth year',
+      birthYearOnly: 'I only know the year',
+      birthYearInvalid: 'Enter a four-digit year no later than the current year',
       sex: 'Sex',
       selectSex: 'Select sex',
       male: 'Male',
@@ -315,15 +420,37 @@ export const CATS_TRANSLATIONS = {
       noVet: 'No vet',
       createVet: 'Create vet',
       breed: 'Breed',
-      coat: 'Coat',
-      color: 'Color',
+      coat: 'Coat length',
+      coatLengths: { Corto: 'Short', Largo: 'Long', 'Sin pelo': 'Hairless' },
+      color: 'Color and markings',
       foodBrand: 'Food brand',
-      litterBrand: 'Litter brand',
+      foodDetail: 'Food variety',
+      catalogNames: {
+        breed: 'Breeds',
+        foodBrand: 'Food brands',
+        lastInternalDewormerName: 'Internal dewormers',
+        lastExternalDewormerName: 'Flea treatments',
+      },
+      varietyCatalog: (brand) => 'varieties for “' + brand + '”',
+      publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
+      publishedOption: (name, catalog) => 'Added “' + name + '” to ' + catalog + '.',
+      publishOptionError: 'Could not add this option to the catalog.',
+      catalogSelection: 'Catalog option selected',
+      catalogPublicationHint: 'This value will be added to the catalog when approved.',
+      litterBrand: 'Litter',
+      ownLitter: 'Brings their own litter',
+      unconfirmedLitter: 'To be confirmed',
+      ownLitterDetail: 'Litter brand or type',
+
+      sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
-      notes: 'Notes',
+      notes: 'Internal team notes',
+      careInstructions: 'Caretaker’s care instructions',
+
+      careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
-      lastExternalDewormerName: 'Flea treatment (pipette or tablet)',
+      lastExternalDewormerName: 'Last flea spot-on treatment',
       lastExternalDewormingDate: 'Date of last flea treatment',
       lastTripleFelineDate: 'Date of last feline triple vaccination',
       lastRabiesDate: 'Date of last rabies vaccination',
@@ -372,6 +499,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Edit cat',
       description: 'Update cat information.',
       backToCats: 'Back to cats',
+      reload: 'Reload profile',
       loading: 'Loading cat...',
       submit: 'Save changes',
       submitting: 'Saving...',
@@ -379,6 +507,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Cat id is missing',
         loadFormDataFailed: 'Error loading cat form data',
         dataNotLoaded: 'Cat data is not loaded',
+        staleEdit:
+          'This profile changed while you were editing. Reloading discards unsaved changes.',
         nameRequired: 'Name is required',
         birthDateRequired: 'Birth date is required',
         sexRequired: 'Sex is required',

@@ -1,3 +1,6 @@
+import type { CatCatalogSelection } from '../../features/cats/models/cat.model';
+import type { StayLitterChoices } from '../../features/stays/models/stay.model';
+
 export const CREATION_FLOW_QUERY_PARAM = 'creationFlowId';
 
 export type CreationFlowId = string & { readonly __creationFlowId: unique symbol };
@@ -7,13 +10,18 @@ export type CreationFlowFrameKind = CreationFlowRoot;
 export interface CatCreationDraft {
   name: string;
   birthDate: string;
+  birthYear?: string;
+  yearOnly?: boolean;
   sex: 'MALE' | 'FEMALE' | '';
   breed: string;
   coat: string;
   color: string;
   foodBrand: string;
+  foodDetail?: string;
+  catalogSelection?: CatCatalogSelection;
   litterBrand: string;
   personality: string;
+  careInstructions?: string;
   notes: string;
   lastInternalDewormerName: string;
   lastInternalDewormingDate: string;
@@ -39,6 +47,7 @@ export interface StayCreationDraft {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface CreationFlowFrames {

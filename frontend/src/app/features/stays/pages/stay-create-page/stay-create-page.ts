@@ -25,6 +25,7 @@ import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-en
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
 import { OwnerLookup } from '../../../owners/models/owner.model';
+import { StayLitter } from '../../components/stay-litter/stay-litter';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -34,6 +35,8 @@ import {
   CreationPricingPreview,
   isStalePricingConfirmationError,
   isVaccineConflictError,
+  StayLitterChoice,
+  StayLitterChoices,
   VaccineConflictResponse,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
@@ -53,6 +56,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatLabel,
     MatProgressSpinner,
     RemoteEntitySelector,
+    StayLitter,
     UiStateComponent,
   ],
   templateUrl: './stay-create-page.html',
@@ -76,6 +80,13 @@ export class StayCreatePage implements AfterViewInit {
 
   readonly selectedOwnerId = computed(() => this.selectedOwner()?.id ?? '');
   readonly selectedCatIds = signal<string[]>([]);
+  readonly litterChoices = signal<StayLitterChoices>({});
+  readonly selectedCats = computed(() => {
+    const selected = new Set(this.selectedCatIds());
+    return this.availableCats()
+      .filter(({ id }) => selected.has(id))
+      .map(({ id, name }) => ({ catId: id, name }));
+  });
 
   readonly startAt = signal(this.getDefaultDateTimeLocalValue(0));
   readonly endAt = signal(this.getDefaultDateTimeLocalValue(7));
@@ -167,7 +178,10 @@ export class StayCreatePage implements AfterViewInit {
   private ownerResetGeneration = 0;
   private vaccineOverrideRecoveryBasis: string | null = null;
   private returnQuerySelectionApplicable = true;
-  private pendingRestoredRelationships: { ownerId: string; catIds: string[] } | null = null;
+  private pendingRestoredRelationships: Pick<
+    StayCreationDraft,
+    'ownerId' | 'catIds' | 'litterChoices'
+  > | null = null;
 
   constructor() {
     this.transferRateApiService.getCurrentRate().subscribe({
@@ -205,6 +219,14 @@ export class StayCreatePage implements AfterViewInit {
       this.selectedCatIds.set(
         [...new Set(pendingRelationships.catIds)].filter((catId) => validCatIds.has(catId)),
       );
+      const selected = new Set(this.selectedCatIds());
+      this.litterChoices.set(
+        Object.fromEntries(
+          Object.entries(pendingRelationships.litterChoices ?? {}).filter(([catId]) =>
+            selected.has(catId),
+          ),
+        ),
+      );
       this.pendingRestoredRelationships = null;
       this.refreshPricingPreview();
       return;
@@ -230,6 +252,7 @@ export class StayCreatePage implements AfterViewInit {
     this.ownerResetGeneration++;
     this.clearVaccineOverrideRecovery();
     this.selectedCatIds.set([]);
+    this.litterChoices.set({});
     this.previewRequestSequence++;
     this.pricingPreview.set(null);
     this.previewLoading.set(false);
@@ -248,6 +271,17 @@ export class StayCreatePage implements AfterViewInit {
     }
 
     this.selectedCatIds.update((catIds) => catIds.filter((currentCatId) => currentCatId !== catId));
+    this.litterChoices.update((choices) => {
+      const next = { ...choices };
+      delete next[catId];
+      return next;
+    });
+    this.refreshPricingPreview();
+  }
+
+  changeLitterChoice({ catId, choice }: { catId: string; choice: StayLitterChoice }): void {
+    this.clearVaccineOverrideRecovery();
+    this.litterChoices.update((choices) => ({ ...choices, [catId]: choice }));
     this.refreshPricingPreview();
   }
 
@@ -410,6 +444,7 @@ export class StayCreatePage implements AfterViewInit {
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
       ...this.transferInputs(),
+      ...this.litterInputs(),
       pricingDecision: this.pricePending()
         ? { pricePending: true }
         : {
@@ -544,14 +579,7 @@ export class StayCreatePage implements AfterViewInit {
     }
 
     const catIds = [...this.selectedCatIds()].sort();
-    const basis = JSON.stringify([
-      this.startAt(),
-      this.endAt(),
-      catIds,
-      this.arrivalTransferRequired(),
-      this.departureTransferRequired(),
-      this.transferWaived(),
-    ]);
+    const basis = this.currentPreviewBasis();
     this.previewLoading.set(true);
 
     this.stayApiService
@@ -560,6 +588,7 @@ export class StayCreatePage implements AfterViewInit {
         endAt: this.endAt(),
         catIds,
         ...this.transferInputs(),
+        ...this.litterInputs(),
       })
       .subscribe({
         next: (preview) => {
@@ -586,6 +615,7 @@ export class StayCreatePage implements AfterViewInit {
       this.arrivalTransferRequired(),
       this.departureTransferRequired(),
       this.transferWaived(),
+      this.litterChoices(),
     ]);
   }
 
@@ -595,6 +625,11 @@ export class StayCreatePage implements AfterViewInit {
       ...(this.departureTransferRequired() ? { departureTransferRequired: true } : {}),
       ...(this.transferWaived() ? { transferWaived: true } : {}),
     };
+  }
+
+  private litterInputs(): { litterChoices?: StayLitterChoices } {
+    const litterChoices = this.litterChoices();
+    return Object.keys(litterChoices).length ? { litterChoices } : {};
   }
 
   private scrollToSubmit(): void {
@@ -622,6 +657,9 @@ export class StayCreatePage implements AfterViewInit {
       arrivalTransferRequired: this.arrivalTransferRequired(),
       departureTransferRequired: this.departureTransferRequired(),
       transferWaived: this.transferWaived(),
+      ...(pendingRelationships?.litterChoices
+        ? { litterChoices: pendingRelationships.litterChoices }
+        : this.litterInputs()),
     };
   }
 
@@ -665,7 +703,13 @@ export class StayCreatePage implements AfterViewInit {
 
     if (!ownerId) return;
     this.returnQuerySelectionApplicable = false;
-    this.pendingRestoredRelationships = { ownerId, catIds };
+    this.pendingRestoredRelationships = {
+      ownerId,
+      catIds,
+      ...(ownerId === draft.ownerId && draft.litterChoices
+        ? { litterChoices: draft.litterChoices }
+        : {}),
+    };
     this.ownerSelector().resolveKnownId(ownerId);
   }
 

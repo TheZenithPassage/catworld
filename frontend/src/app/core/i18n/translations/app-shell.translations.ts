@@ -9,6 +9,7 @@ export interface AppShellTranslations {
     stays: string;
     calendar: string;
     cats: string;
+    catIntake: string;
     owners: string;
     vets: string;
     accounts: string;
@@ -39,6 +40,7 @@ export const APP_SHELL_TRANSLATIONS = {
       stays: 'Estadías',
       calendar: 'Calendario',
       cats: 'Gatos',
+      catIntake: 'Fichas recibidas',
       owners: 'Dueños',
       vets: 'Veterinarios',
       accounts: 'Cuentas',
@@ -67,6 +69,7 @@ export const APP_SHELL_TRANSLATIONS = {
       stays: 'Stays',
       calendar: 'Calendar',
       cats: 'Cats',
+      catIntake: 'Cat submissions',
       owners: 'Owners',
       vets: 'Vets',
       accounts: 'Accounts',

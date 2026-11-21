@@ -87,6 +87,77 @@
           }
         </mat-card-content>
       </mat-card>
+      <mat-card appearance="outlined" class="rate-card">
+        @let copy = text().nightlyRates;
+        <mat-card-header
+          ><mat-card-title>{{ copy.litter.title }}</mat-card-title></mat-card-header
+        >
+        <mat-card-content>
+          @if (litterLoading()) {
+            <app-ui-state kind="loading" [message]="copy.loading" />
+          } @else if (litterLoadError()) {
+            <app-ui-state
+              kind="error"
+              [message]="copy.litter.loadError"
+              [actionLabel]="copy.retry"
+              (actionTriggered)="loadLitterRate()"
+            />
+          } @else {
+            <p class="current-rate" [class.unavailable]="litterRate() === null">
+              {{ litterRate() ?? copy.transfer.unavailable }}
+            </p>
+            @if (isAdmin()) {
+              <div class="rate-editor">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ copy.litter.rateLabel }}</mat-label>
+                  <input
+                    matInput
+                    id="litter-rate"
+                    name="litterRatePerKg"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    [ngModel]="litterEntry()"
+                    (ngModelChange)="setLitterEntry($event)"
+                    [disabled]="litterPending() !== null"
+                    [attr.aria-describedby]="litterValidationError() ? 'litter-rate-error' : null"
+                  />
+                </mat-form-field>
+                @if (litterValidationError(); as error) {
+                  <p id="litter-rate-error" class="field-error" role="alert">
+                    {{ copy.form.errors[error] }}
+                  </p>
+                }
+                <div class="rate-actions">
+                  <button
+                    mat-flat-button
+                    type="button"
+                    [disabled]="litterPending() !== null"
+                    (click)="saveLitterRate()"
+                  >
+                    {{
+                      litterPending() === 'save'
+                        ? copy.form.saving
+                        : litterRate() === null
+                          ? copy.form.configure
+                          : copy.form.change
+                    }}
+                  </button>
+                  @if (litterRate() !== null) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      [disabled]="litterPending() !== null"
+                      (click)="clearLitterRate()"
+                    >
+                      {{ litterPending() === 'clear' ? copy.form.clearing : copy.form.clear }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </mat-card-content>
+      </mat-card>
       @for (key of keys; track key) {
         <mat-card appearance="outlined" class="rate-card">
           <mat-card-header

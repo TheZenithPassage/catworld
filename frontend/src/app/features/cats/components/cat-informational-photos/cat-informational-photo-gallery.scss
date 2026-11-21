@@ -1,0 +1,50 @@
+.gallery {
+  margin-block-start: 1.25rem;
+}
+
+header,
+.confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+h3,
+p {
+  margin: 0;
+}
+
+ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  min-width: 0;
+  padding: 0.4rem;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+}
+
+.view-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0.25rem;
+}
+
+.thumbnail-placeholder {
+  display: block;
+  height: 6rem;
+  background: var(--mat-sys-surface-container-low);
+  border-radius: 0.5rem;
+}
+
+.error {
+  color: var(--mat-sys-error);
+}

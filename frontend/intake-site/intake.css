@@ -1,0 +1,458 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  color: #292720;
+  background: #f6f1e8;
+  --text: #292720;
+  --muted: #5b594f;
+  --line: #d4cdbd;
+  --surface: #fffdf8;
+  --green: #2e594b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.page {
+  width: min(100% - 2rem, 43rem);
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+}
+
+.page-header .brand {
+  margin: 0;
+  color: var(--green);
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+h1 {
+  margin: 0.35rem 0;
+  font-size: clamp(1.9rem, 6vw, 2.7rem);
+  line-height: 1.1;
+}
+
+.page-header p {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cat-card {
+  position: relative;
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: var(--surface);
+}
+
+.cat-card > details > summary {
+  padding: 1rem 1.1rem;
+  color: var(--green);
+  font-weight: 750;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.cat-card > details[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.cat-content {
+  padding: clamp(0.9rem, 3vw, 1.25rem);
+}
+
+.cat-state {
+  display: inline-block;
+  max-inline-size: 100%;
+  margin-block: 0.15rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.cat-state--pending {
+  color: #693c09;
+  background: #ffe2a6;
+  font-weight: 750;
+}
+
+.cat-state--dirty {
+  color: #744039;
+  background: #f9e8e4;
+}
+
+.cat-state--submitted {
+  color: #254766;
+  background: #e5eff8;
+}
+
+.cat-state--complete {
+  color: var(--green);
+  background: #e6f0e8;
+}
+
+.other-fields > summary {
+  padding-block: 0.75rem;
+  color: var(--green);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+
+.food-fields {
+  grid-column: 1 / -1;
+}
+
+.fields:not(:empty) + .other-fields,
+.attachments + .other-fields {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.field {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: 0.3rem;
+}
+
+.field > span {
+  font-weight: 620;
+}
+
+.birth-field,
+.catalog-field {
+  min-width: 0;
+}
+
+.birth-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.35rem;
+}
+
+.catalog-suggestions,
+.retained-photos,
+.selected-photos {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.catalog-suggestions {
+  display: grid;
+  gap: 0.25rem;
+  max-block-size: 12rem;
+  overflow: auto;
+  padding: 0.2rem;
+}
+
+.catalog-suggestions button {
+  width: 100%;
+  border-color: var(--line);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+input.catalog-input--selected {
+  border-color: var(--green);
+  background: #edf6ee;
+}
+
+.catalog-selection {
+  margin: 0.3rem 0 0;
+  color: var(--green);
+  font-size: 0.9rem;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0.4rem 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+input,
+select,
+textarea,
+button {
+  min-height: 2.75rem;
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--green);
+  border-radius: 0.5rem;
+  color: #fff;
+  background: var(--green);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.secondary {
+  color: var(--green);
+  background: transparent;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+}
+
+.attachments {
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.attachments button {
+  margin-top: 0.5rem;
+}
+
+.remove-cat {
+  position: absolute;
+  inset-block-start: 0.5rem;
+  inset-inline-end: 0.6rem;
+  max-inline-size: 43%;
+}
+
+.cat-card:has(> .remove-cat:not([hidden])) > details > summary {
+  min-block-size: 3.75rem;
+  padding-inline-end: 48%;
+}
+
+.retained-photos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  margin: 0 0 0.8rem;
+  gap: 0.7rem;
+}
+
+.selected-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.selected-photos .photo-preview {
+  width: min(8rem, 100%);
+}
+
+.selected-photos .photo-preview img {
+  height: 5.5rem;
+}
+
+.photo-preview .photo-enlarge {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo-preview img {
+  display: block;
+  width: 100%;
+  max-height: 10rem;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+
+:root:has(.photo-viewer[open]) {
+  overflow: hidden;
+}
+
+.photo-viewer {
+  width: min(52rem, 100% - 2rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.photo-viewer::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+
+.photo-viewer header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.photo-viewer h2 {
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.photo-viewer img {
+  display: block;
+  width: 100%;
+  max-height: 75dvh;
+  object-fit: contain;
+}
+
+.keep-photo,
+.birth-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.birth-toggle {
+  max-width: 7rem;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.keep-photo input,
+.birth-toggle input {
+  flex: 0 0 1.1rem;
+  width: 1.1rem;
+  min-height: auto;
+  accent-color: var(--green);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+#partial-submission {
+  width: min(100% - 2rem, 32rem);
+  max-height: calc(100% - 2rem);
+  padding: 1.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+#partial-submission::backdrop {
+  background: rgb(41 39 32 / 50%);
+}
+
+#partial-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+#partial-cats,
+#partial-cats ul {
+  padding-inline-start: 1.25rem;
+}
+
+#partial-cats {
+  max-block-size: min(42vh, 20rem);
+  overflow: auto;
+}
+
+#partial-cats > li + li {
+  margin-top: 0.6rem;
+}
+
+.notice {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  line-height: 1.45;
+}
+
+.error {
+  border-color: #a33b2c;
+  color: #922c20;
+}
+
+.field > .field-error {
+  color: #922c20;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: #a33b2c;
+}
+
+@media (max-width: 32rem) {
+  .actions button {
+    width: 100%;
+  }
+}

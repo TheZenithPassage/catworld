@@ -5,11 +5,13 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
-import { Cat } from '../../models/cat.model';
+import { catLitterLabel } from '../../utils/cat-litter-label';
+import { CAT_COAT_LENGTHS, Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
+import { CatInformationalPhotoGallery } from '../cat-informational-photos/cat-informational-photo-gallery';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
@@ -29,6 +31,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
     MatProgressSpinner,
     UiStateComponent,
     CatEditor,
+    CatInformationalPhotoGallery,
     StayRelationshipLabel,
   ],
   host: {
@@ -56,13 +59,14 @@ export class CatDetail {
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
-  readonly openPhoto = output<{ catId: string; catName: string; ownerName: string }>();
+  readonly openPhoto = output<CatPhotoViewRequest>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly detail = signal<CatDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly updatingGallery = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -103,11 +107,18 @@ export class CatDetail {
     this.saveCompleted.emit();
     this.load();
   }
+  reloaded(cat: Cat): void {
+    this.detail.update((detail) => detail && { ...detail, cat });
+  }
   canDelete(detail: CatDetailResponse): boolean {
     return detail.cat.id === this.entityId() && detail.cat.canDelete === true;
   }
+  galleryBusyChanged(busy: boolean): void {
+    this.updatingGallery.set(busy);
+    this.submittingChanged.emit(busy);
+  }
   confirmPermanentDeletion(detail: CatDetailResponse): void {
-    if (this.deleting() || !this.canDelete(detail)) return;
+    if (this.deleting() || this.updatingGallery() || !this.canDelete(detail)) return;
     const cat = detail.cat;
     this.dialog
       .open<PermanentDeletionConfirmationDialog, PermanentDeletionConfirmationDialogData>(
@@ -148,8 +159,15 @@ export class CatDetail {
     this.submittingChanged.emit(false);
     this.deletionCompleted.emit({ entityType: 'cat', entityId: catId });
   }
-  value(v: string | null): string {
+  value(v: string | null | undefined): string {
     return v || this.text().cats.emptyValue;
+  }
+  coatValue(value: string | null): string {
+    const length = CAT_COAT_LENGTHS.find((length) => length === value);
+    return length ? this.text().cats.form.coatLengths[length] : this.value(value);
+  }
+  litterValue(value: string | null): string {
+    return catLitterLabel(value, this.text().cats.form);
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

@@ -48,6 +48,12 @@ public class StayAgreedAmountCorrection {
     @Digits(integer = 19, fraction = 0)
     private BigDecimal newAgreedAmount;
 
+    @Column(precision = 19, scale = 0, updatable = false)
+    private BigDecimal litterRatePerKg;
+
+    @Column(columnDefinition = "TEXT", updatable = false)
+    private String litterChoices;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "decided_by_id", nullable = false, updatable = false)
     private UserAccount decidedBy;

@@ -223,8 +223,41 @@ The cat-photo resource's digest ETag is another check, not a substitute for
 reading the restored bytes. Do not claim a successful restore from a completed
 SQL import alone.
 
+Keep the intake listener disabled for the first startup after a restore.
+Before enabling the listener, review and revoke restored links that were
+closed, replaced or revoked after the backup.
+
 The creator-attribution checks once needed for migration #146 were a
 historical rollout decision, not a standing pre-deployment command. For every
 deployment, let Flyway apply the committed migrations and investigate any
 schema/data incompatibility against the actual source and backup before
 continuing; never invent creator attribution or bypass a failed migration.
+
+When upgrading a database that already has V16, startup applies a missing V14
+(pending stay prices) or V15 (private cat photo gallery) in a version-limited
+Flyway pass before continuing with the remaining migrations. Flyway still
+validates applied checksums and rejects other unexpected gaps.
+
+The earlier intake candidate applied V1–V13, V15 and V17. For that
+exact recorded sequence, startup applies the original V14 and V16 scripts
+before continuing. A restart can finish V16 if V14 already succeeded during
+that upgrade. The V17 intake data stays in place.
+
+## Enable private cat intake links
+
+When authorized, download `compose.cat-intake.yml` next to `compose.prod.yml`
+from the same pinned source commit. Add `--enable-listener intake` to
+`production_pair.py --deploy` on each deployment that should expose the intake
+listener. Route `fichas.catworld.com.ar` to it in Cloudflare Tunnel (default port
+4202) and set `CATWORLD_INTAKE_URL` to the external HTTPS origin used in
+invitations. Keep the administrative listener behind Cloudflare Access.
+The intake listener serves the standalone form and the token-protected form,
+submission, photo preview and staged photo endpoints. Invitation management,
+review and informational gallery access use the administrative listener.
+
+Use a synthetic household to check the link on a phone. Submit vaccination
+evidence, reopen the link to view the staged photo, and approve selected
+evidence from the administration origin. Verify that administrative routes
+return 404 from the intake listener and that the staged photo requires its
+active invitation. Share real links individually after verifying the domain.
+Revoke a link from the tutor's record if it reaches the wrong recipient.

@@ -10,8 +10,12 @@ JSON. Every normal Cat response includes required `hasPhoto` metadata, with
 collections populated by one bounded presence query.
 
 Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
-`removePhoto=false`). Native normalization finishes before a separate proxied
-service transaction atomically mutates Cat and CatPhoto. The authenticated
+`removePhoto=false`). The PUT `cat` part requires `expectedUpdatedAt` from the
+current cat response. The service checks it under a write lock before updating
+the profile or its photo and returns `409 CAT_EDIT_STALE` for an outdated
+edit. The editor keeps the draft until the operator explicitly reloads it.
+Native normalization finishes before a separate proxied service transaction
+atomically mutates Cat and CatPhoto. The authenticated
 `GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
 `Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
 and returns the same 404 shape for absent cats and absent photos. The native
@@ -20,6 +24,111 @@ under Java 25 native access. Embedded ICC profiles are transformed through
 Little CMS to built-in sRGB before metadata is stripped; alpha is canonicalized
 to 8-bit and premultiplied while resizing before being flattened onto white.
 Native objects remain inside `Vips.run`.
+
+Each cat has either an exact `birthDate` or an approximate integer
+`birthYear`. V24 keeps existing dates at their stored precision, including
+January 1, and enforces that one representation is present. Creation requires
+one representation. On internal updates, supplying either representation
+replaces the pair, and omitting both preserves it. Optional
+`careInstructions` are shared with the tutor. The cat and tutor notes are
+private administration fields. V24 leaves care instructions unset on existing
+profiles.
+
+Cat informational photos are separate attachments for vaccination records and
+other reference images. The cat detail gallery lists attachment IDs and upload
+timestamps from `GET /api/cats/{catId}/informational-photos`. The same
+authenticated collection accepts one multipart `photo` per POST. Individual
+items support JPEG reads with `Cache-Control: no-store` and deletion. Both
+operations match the cat and photo IDs. Uploads use the same formats, size
+limits and JPEG normalization as profile photos. Deleting the cat removes the
+attachments through the database foreign key. Vaccination checks use the
+dates recorded in the cat's fields.
+
+When the application loses its authenticated session, open entity detail
+dialogs close and release any enlarged photo's object URL.
+
+Private cat intake uses separate invitation, review and photo staging tables.
+An administrator issues one active invitation per tutor. It includes the
+tutor's current living cats and can permit new registrations. For each cat
+booked on the selected arrival, preparation checks vaccination coverage
+through that stay's local departure date. Other cats use the departure of
+their next non-cancelled stay that has yet to start, or today's business date
+when they have no upcoming stay. The invitation captures the resulting
+prompts. A newly issued invitation that requests a missing brand also requests
+its variety. Earlier invitations keep their original prompts. The form exposes
+editable cat fields, including the tutor's care instructions. Staff notes on
+cats and tutors remain on the administration origin. The server rechecks eligibility and
+ownership before displaying an existing cat or accepting or approving changes.
+
+The token uses 32 random bytes and is stored as a SHA-256 digest. The link
+carries it in the URL fragment and expires after seven days. Replacement or
+revocation ends recipient access to the previous link and keeps received
+proposals available for review. The recipient sends the token as a Bearer
+credential to the form, submission and photo endpoints. Their allowed browser
+origin comes from `CATWORLD_INTAKE_URL`. `GET /api/intake/photos/{id}` serves
+staged JPEGs on pending proposals from that open invitation.
+`POST /api/intake/photo-preview` validates and normalizes one multipart
+`photo` upload for an open invitation and returns the JPEG without staging
+evidence or changing the invitation. The recipient can enlarge thumbnails of
+new and retained evidence in a dialog within the form. The admin endpoint
+`GET /api/cat-intake/review/{id}/photos/{photoId}` scopes each photo to its
+review. The photo responses use `Cache-Control: no-store`. Cat profiles and
+the informational gallery remain behind staff authentication on the
+protected administration origin.
+
+Recipients can return to edit pending proposals and reuse staged evidence.
+Restoring an existing cat's original values and removing all staged evidence
+withdraws its proposal while leaving the invitation open. A requested update
+must answer at least one prompt. The form asks for confirmation before a valid
+partial submission and lists the remaining prompts for each cat. It compares
+the effective draft with the original values and includes previous proposals
+that are still in place. Reporting a rabies or triple feline dose requires
+its date and an image. One image can cover both doses. A tutor's new
+registration requires name, birth date or year, sex, breed, coat, color,
+personality, food brand and detail, and litter. An invalid registration fails
+the whole submission. Vaccines and deworming details are optional. Internal
+profile creation and approval of pending registrations use the existing name,
+birth and sex minimum. A submission can include up to 20 cats, with up to five
+normalized JPEGs per cat, including retained evidence. New uploads are limited
+to 8 MiB per image and 32 MiB across the submission. Intake fields are strings,
+using `birthYear` instead of `birthDate` when only the year is known.
+
+Administrators compare proposed fields with the current profile and review each
+cat independently. Review lists unanswered prompts from the invitation
+snapshot alongside the submitted fields. V17 invitations lack this snapshot.
+Review treats both birth representations as one field. Administrators can move
+between adjustment and summary while keeping their corrections, field decisions
+and evidence selections. The summary shows the values and evidence selected for
+approval.
+Approval and dismissal check the proposal revision and verify the profile
+timestamp under the same cat row lock used by the internal editor.
+Approval applies the selected fields and moves selected evidence to the
+informational gallery. A review can include a `foodVarietyId` to select an
+approved replacement variety. The server verifies that the ID identifies the
+selected value for the brand being saved or retained. Dismissal discards the
+staged values and photos without changing the cat profile or registering a new
+cat. Both decisions prevent further edits to that proposal through the
+invitation. The link closes when the last outstanding cat is resolved.
+
+Cat profiles suggest approved breeds, food brands, brand-specific food
+varieties, and the last internal and external dewormers. A tutor must select
+a matching option by ID, including when the query matches part of the name.
+Unmatched text can be proposed for review. Coat length is limited to Corto,
+Largo and Sin pelo for new entries. Color and markings are free text.
+Historical profile text, catalog references and pending submissions retain
+their stored values.
+
+Staff can select catalog options by ID or save a local description.
+Administrators can publish a catalog option with an explicit action in the
+editor or by applying the proposed field during intake review. The editor
+can read options through `GET /api/cat-profile-options` and scoped varieties
+through `GET /api/food-brands/varieties`. A selected variety references its
+brand and uses the same ID as the household form. A brand change removes
+an incompatible variety association.
+
+Litter stays optional in administration. The existing `litterBrand` value
+indicates CatWorld litter, personal litter with an optional description, or
+an unconfirmed choice. Tutors choose one of the two supplies for a new cat.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
@@ -40,8 +149,8 @@ CatWorld currently covers:
 - ADMIN-only application account management with fixed `ADMIN` and `STAFF` roles.
 - Safe ADMIN-only application account deletion with creator and enabled-admin protection.
 - Lookup of current, future, completed and cancelled stays.
-- Stay pricing previews, explicit agreement confirmation, retained nightly and
-  transfer rates, and immutable pricing decisions and corrections.
+- Stay pricing previews, explicit agreement confirmation, retained nightly,
+  transfer and litter rates, and immutable pricing decisions and corrections.
 - Individual stay payments, derived balances and payment conditions, with
   immutable evidence for sensitive economic changes and removals.
 - Optional normalized cat profile photos stored in MySQL.
@@ -171,6 +280,7 @@ A `Stay` contains:
 - `notes`
 - nullable retained nightly reference rate
 - independent arrival and departure transfer requirements, a pricing-only waiver, and a nullable captured per-leg transfer rate
+- nullable retained litter rate per kilogram
 - nullable agreed whole-stay amount
 - `owner`
 - participating cats through `StayCat`
@@ -186,7 +296,9 @@ retains only the monetary amount, never the source nightly-rate key.
 
 #### StayCat
 
-Represents the link between a `Stay` and a `Cat`.
+Represents the link between a `Stay` and a `Cat` and records the choice of
+own litter, half a kilogram per day, or one kilogram per day for that booking.
+A null choice leaves litter unconfirmed.
 
 The project uses an explicit link entity instead of a plain `@ManyToMany`.
 
@@ -224,6 +336,7 @@ It records the category, exact previous and new nullable amounts, the
 Represents one immutable pricing confirmation for a stay. It records selected retained nightly and transfer rates, arrival/departure requirements, waiver, previous and new authoritative night counts, previous and new agreed amounts, optional reason, deciding `UserAccount` and
 application-clock timestamp. It stores the stay UUID as audit evidence rather
 than a foreign key so the history survives operational stay deletion.
+Litter evidence includes the captured rate and per-cat consumption choices.
 
 #### StayAgreedAmountCorrection
 
@@ -231,7 +344,8 @@ Represents one immutable administrative correction of a stay's agreed amount.
 It records the nullable exact previous amount, exact new amount, required
 reason, deciding `UserAccount` and application-clock timestamp. It stores the
 stay UUID as indexed audit evidence without an operational foreign key, so the
-history survives cancellation and permanent stay deletion.
+history survives cancellation and permanent stay deletion. The event also
+captures the retained litter rate and consumption choices.
 
 #### StayPayment
 
@@ -360,6 +474,26 @@ Possible statuses:
 
 This avoids storing redundant state that can become inconsistent with the dates.
 
+### Arrival Preparation
+
+`GET /api/operations/arrivals` returns non-cancelled stays starting today
+through `daysAhead` calendar days from today, inclusive, in the business
+timezone. The default is seven days ahead; zero means today only.
+`includeStartedToday` defaults to true, keeping today's arrivals until business
+midnight. When false, the endpoint excludes stays at their scheduled start.
+The dashboard's **Upcoming stays** view remembers these filters in the browser
+and uses the server's `X-Arrivals-Refresh-After-Ms` header to refresh at the
+next start that changes the results or at business midnight.
+
+The warnings apply the same coverage rule as stay creation and extensions
+to the stay's local departure date, including doses that expire that day.
+The screen marks missing or blank food and litter brands as **To confirm**.
+A stay without preparation items or visible proposals shows one complete
+message. `ADMIN` can generate a household link from any displayed arrival.
+The link uses that stay's departure for its participating eligible cats.
+`ADMIN` can also open pending profile proposals for living booked cats that
+still belong to the proposal's tutor. Staff retain access to the operational alerts.
+
 ### Stay Nights Are Response-Derived
 
 Stay responses expose `numberOfNights` as an authoritative backend calculation.
@@ -375,9 +509,13 @@ on the `Stay` entity or in the database schema.
 
 Creation resolves the effective nullable nightly rate from the actual cat count
 and authoritative number of nights, including one-cat fallback, and snapshots
-that resolved amount onto the stay. It does not retain the key that supplied the
-amount. Later reference-rate changes never reprice the stay. Responses
-derive an authoritative accommodation subtotal from retained accommodation rate times authoritative nights, then derive suggestedAmount by adding captured transfer rate times required legs. Pricing previews expose both exact components and the complete suggestion. Transfer is zero for no legs, a waiver, or unavailable captured rate. The accommodation subtotal and complete suggestion are null when accommodation is unavailable, and neither is persisted.
+that resolved amount onto the stay. The backend derives the accommodation
+subtotal from the retained nightly rate and authoritative nights, then adds
+the transfer and litter subtotals. Previews expose the components and, when
+available, the complete suggestion. Transfer is zero for no legs, a waiver,
+or an unavailable captured rate. When accommodation or chargeable litter is
+missing its rate, the complete suggestion is null and the operator can still
+enter an explicit agreement or leave the price pending.
 
 Both authenticated roles can create a stay with a confirmed amount or an
 explicit pending price. A confirmed amount is a non-negative whole number of
@@ -387,8 +525,10 @@ stores `pricePending: true` and a null agreed amount, while retaining the
 usual rate basis. The creation path does not record an agreement event until
 there is an amount to agree.
 
-A change to authoritative night count or to the complete monetary transfer contribution is pricing-affecting. Zero-charge transfer flag changes remain operational-only. Such an
-update requires `ADMIN`, a fresh explicit pricing decision and a selected
+A change to authoritative night count, the monetary transfer contribution,
+or the per-cat litter choices is pricing-affecting. Zero-charge transfer flag
+changes remain operational-only. A pricing-affecting update requires
+`ADMIN`, a fresh explicit pricing decision and a selected
 retained rate that is either the locked stay's original nullable amount or the
 effective current amount resolved for the requested new number of nights. The
 service derives the suggestion from that selected rate, then changes the
@@ -457,17 +597,24 @@ are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
 For explicitly pending stays, `GET /api/stays/{id}/pending-price-preview`
-shows the saved rates, nights and chargeable transfer legs for administrators.
+shows the nights, chargeable transfer legs and per-cat litter choices for
+administrators. Before the first agreement, use the explicit choice on the
+stay, then the cat's approved preference, or leave the choice unconfirmed.
+Shared litter uses the retained rate if available or the current reference
+rate. Administrators can use `POST /api/stays/{id}/pending-price-preview`
+to preview changes to individual choices.
 The first agreement requires a reason when it overrides a complete suggestion.
-Accepting the suggestion or entering the first amount when a rate is missing
-records a system reason if none was supplied. Confirming a reopened agreement
-still requires a reason. The dialog sends the preview version as
+Accepting the suggestion or entering the first amount when the suggestion is
+incomplete records a system reason if none was supplied. Confirming a reopened
+agreement uses its retained litter choices and rate and still requires a reason.
+The dialog sends the preview version as
 `expectedPendingPriceVersion`. A stale version returns `409 Conflict` and the
 dialog refreshes the price breakdown while keeping the draft.
 
 The service takes the existing pessimistic `Stay` lock before persisted-account
-authorization and current-value comparison. A real change updates only
-`agreedAmount` and its pending flag and inserts one immutable event in the same
+authorization and current-value comparison. A real change updates
+`agreedAmount` and its pending flag, retains any confirmed first-agreement litter
+basis, and inserts one immutable event in the same
 transaction. The exact previous and new values therefore form a serialized
 chain for competing corrections, and neither half can commit without the
 other. Correction evidence is retained after cancellation or permanent
@@ -643,6 +790,12 @@ Important schema points:
 - `stays` does not have `cat_id`.
 - `stay_cat` stores the relationship between stays and cats.
 - `stay_cat` prevents duplicate pairs through primary key `(stay_id, cat_id)`.
+- V27 adds the current singleton `litter_rates` row, a nullable retained
+  litter rate on stays, per-cat choices on `stay_cat`, and litter evidence
+  on pricing decisions and agreed-amount corrections. The upgrade initializes
+  earlier bookings to the own-litter choice with no captured rate or charge.
+- V28 leaves ambiguous V27 own-litter choices unconfirmed on stays awaiting a
+  first agreement. It preserves shared choices, saved rates, agreements and payments.
 - `status` is not persisted.
 - `user_accounts` stores persistent application users for HTTP Basic authentication.
 - `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
@@ -1414,10 +1567,10 @@ change time in `nightly_reference_rate_changes`. These rows have no update
 path, are not a generic event log, and retain their actor through a restrictive
 foreign key and account-deletion pre-check.
 
-Stay pricing history records the immutable nightly and transfer bases,
-operational transfer flags, waiver, and exact component evidence with every
-pricing decision. Audit reads derive historic complete suggestions from that
-row only; they never read the live stay or current transfer configuration.
+Stay pricing history records the immutable nightly, transfer and litter
+bases, operational transfer flags, waiver and exact component evidence with
+every pricing decision. Audit reads derive historic complete suggestions
+from that row alone.
 
 Stay pricing history is a second focused append-only audit model. Creation and
 each pricing-affecting update preserve exact retained, previous and new values,
@@ -1474,6 +1627,8 @@ Current focus:
 - overlap validation
 - cancellation flow
 - update flow rules
+- household intake eligibility and preparation through the business date or
+  scheduled checkout, including vaccine expiration on that day
 - nightly reference-rate authorization, current-state transitions and audit
   construction
 - stay pricing selection, explicit confirmation, role policy, reconfirmation
@@ -1581,6 +1736,25 @@ both arrival and departure legs by default; either leg can then be cleared
 individually. Disabling transfer assistance clears both leg selections and the
 waiver, so none of those controls contributes a required leg, waiver or charge
 to the resulting request or pricing preview.
+
+## Litter pricing
+
+`GET /api/litter-rate` exposes the current nullable rate per kilogram to
+`ADMIN` and `STAFF`. `ADMIN` can configure or clear it through `PUT` and
+`DELETE`. The private household form shows the rate, when available, and
+the usual consumption of half a kilogram per cat per day when CatWorld
+supplies litter. The form changes the cat's preference through the existing
+review flow. New stays use the approved preference as the default. When a
+new stay's price remains pending, its explicit choices carry forward to
+the first agreement and any other choices can follow the approved preference.
+
+The backend multiplies total daily consumption by `max(1, nights)` and
+the captured rate, then rounds the litter subtotal to a whole monetary unit.
+An own-litter choice contributes zero. An unconfirmed choice or an unavailable
+rate for a CatWorld-litter cat leaves the full suggestion incomplete. An
+administrator can still confirm a manual amount subject to the active
+payment floor. Pricing confirmations compare the recalculated per-cat choices,
+quantities and rate before saving the agreement.
 
 ## Public Repository Notes
 

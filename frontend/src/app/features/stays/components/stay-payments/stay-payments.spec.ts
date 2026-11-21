@@ -85,6 +85,7 @@ describe('StayPayments', () => {
   }
 
   it('renders history and launches focused payment dialogs with no inline forms', () => {
+    TestBed.inject(I18nService).language.set('es');
     const fixture = create();
     const host = fixture.nativeElement as HTMLElement;
     expect(host.querySelectorAll('.payment-row')).toHaveLength(2);

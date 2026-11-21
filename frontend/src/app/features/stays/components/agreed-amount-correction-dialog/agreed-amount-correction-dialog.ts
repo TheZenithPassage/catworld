@@ -18,10 +18,14 @@ import { MatInput } from '@angular/material/input';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+import { StayLitter } from '../stay-litter/stay-litter';
 import {
   isStalePricingConfirmationError,
   PendingPricePreview,
+  PendingPricePreviewRequest,
   Stay,
+  StayLitterChoice,
+  StayLitterChoices,
 } from '../../models/stay.model';
 import { StayApiService } from '../../services/stay-api.service';
 import { sameWholeMoney } from '../../utils/stay-money.util';
@@ -44,6 +48,7 @@ type PreviewState =
     MatFormField,
     MatInput,
     MatLabel,
+    StayLitter,
     UiStateComponent,
   ],
   templateUrl: './agreed-amount-correction-dialog.html',
@@ -62,6 +67,9 @@ export class AgreedAmountCorrectionDialog {
   readonly attempted = signal(false);
   readonly submitting = signal(false);
   readonly previewState = signal<PreviewState>({ status: 'loading' });
+  readonly previewRefreshing = signal(false);
+  readonly litterChoices = signal<StayLitterChoices>({});
+  private previewSequence = 0;
   readonly error = createLanguageResetError(this.i18n.language);
   readonly preview = computed(() => {
     const state = this.previewState();
@@ -95,17 +103,37 @@ export class AgreedAmountCorrectionDialog {
   }
 
   loadPreview(): void {
-    this.previewState.set({ status: 'loading' });
-    this.api
-      .previewPendingPrice(this.stay.stayId)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (price) => this.previewState.set({ status: 'loaded', price }),
-        error: (error) =>
-          this.previewState.set({
-            status: isStalePricingConfirmationError(error) ? 'no-longer-pending' : 'error',
-          }),
-      });
+    const sequence = ++this.previewSequence;
+    const inputs = this.litterInputs();
+    const request = Object.keys(inputs).length
+      ? this.api.previewPendingPrice(this.stay.stayId, inputs)
+      : this.api.previewPendingPrice(this.stay.stayId);
+    if (this.preview()) this.previewRefreshing.set(true);
+    else this.previewState.set({ status: 'loading' });
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (price) => {
+        if (sequence !== this.previewSequence) return;
+        this.previewState.set({ status: 'loaded', price });
+        this.previewRefreshing.set(false);
+      },
+      error: (error) => {
+        if (sequence !== this.previewSequence) return;
+        this.previewState.set({
+          status: isStalePricingConfirmationError(error) ? 'no-longer-pending' : 'error',
+        });
+        this.previewRefreshing.set(false);
+      },
+    });
+  }
+
+  changeLitterChoice({ catId, choice }: { catId: string; choice: StayLitterChoice }): void {
+    this.litterChoices.update((choices) => ({ ...choices, [catId]: choice }));
+    this.loadPreview();
+  }
+
+  private litterInputs(): PendingPricePreviewRequest {
+    const litterChoices = this.litterChoices();
+    return Object.keys(litterChoices).length ? { litterChoices } : {};
   }
 
   formatAmount(value: string | null): string {
@@ -116,7 +144,8 @@ export class AgreedAmountCorrectionDialog {
 
   submit(): void {
     const preview = this.preview();
-    if (this.submitting() || (this.stay.pricePending && !preview)) return;
+    if (this.submitting() || (this.stay.pricePending && (!preview || this.previewRefreshing())))
+      return;
     this.attempted.set(true);
     this.error.set(null);
     if (
@@ -135,7 +164,9 @@ export class AgreedAmountCorrectionDialog {
           : {
               agreedAmount: this.amount(),
               reason: reason || null,
-              ...(preview ? { expectedPendingPriceVersion: preview.version } : {}),
+              ...(preview
+                ? { expectedPendingPriceVersion: preview.version, ...this.litterInputs() }
+                : {}),
             },
       )
       .pipe(takeUntilDestroyed(this.destroyRef))

@@ -55,6 +55,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
     }
 
+    @ExceptionHandler(CatIntakeCatalogChangedException.class)
+    public ResponseEntity<Map<String, String>> handleIntakeCatalogChanged(CatIntakeCatalogChangedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("code", "CAT_INTAKE_CATALOG_CHANGED", "field", exception.getField()));
+    }
+
+    @ExceptionHandler(StaleCatEditException.class)
+    public ResponseEntity<Map<String, String>> handleStaleCatEdit(StaleCatEditException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CAT_EDIT_STALE"));
+    }
+
     @ExceptionHandler(StalePricingConfirmationException.class)
     public ResponseEntity<StalePricingConfirmationResponseDTO> handleStalePricingConfirmation(
             StalePricingConfirmationException exception) {

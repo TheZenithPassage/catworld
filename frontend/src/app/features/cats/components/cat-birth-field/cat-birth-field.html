@@ -1,0 +1,39 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ yearOnly() ? text().cats.form.birthYear : text().cats.form.birthDate }}</mat-label>
+  @if (yearOnly()) {
+    <input
+      matInput
+      type="text"
+      inputmode="numeric"
+      name="birthYear"
+      maxlength="4"
+      required
+      [disabled]="disabled()"
+      [errorStateMatcher]="errorStateMatcher"
+      [ngModel]="birthYear()"
+      (ngModelChange)="birthYear.set($event); error.set(null)"
+    />
+  } @else {
+    <input
+      matInput
+      type="date"
+      name="birthDate"
+      required
+      [disabled]="disabled()"
+      [errorStateMatcher]="errorStateMatcher"
+      [ngModel]="birthDate()"
+      (ngModelChange)="birthDate.set($event); error.set(null)"
+    />
+  }
+  @if (error(); as message) {
+    <mat-error>{{ message }}</mat-error>
+  }
+</mat-form-field>
+
+<mat-checkbox
+  [disabled]="disabled()"
+  [checked]="yearOnly()"
+  (change)="changePrecision($event.checked)"
+>
+  {{ text().cats.form.birthYearOnly }}
+</mat-checkbox>

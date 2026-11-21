@@ -21,6 +21,7 @@ public class StayPricingPreviewResponseDTO {
     private boolean transferWaived;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
+    private StayLitterBreakdown litter;
     private boolean transferRateUnavailable;
     private CreationPricingConfirmationDTO confirmation;
 }

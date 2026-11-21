@@ -1,5 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, output, signal, ViewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -7,7 +17,6 @@ import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
-import { of } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
@@ -20,10 +29,21 @@ import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.di
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
-import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
+import {
+  CAT_COAT_LENGTHS,
+  Cat,
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+  Sex,
+  UpdateCatRequest,
+} from '../../models/cat.model';
+import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
+import { CatBirthField, parseBirthYear } from '../cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
+import { CatCareFields } from '../cat-care-fields/cat-care-fields';
 
 @Component({
   selector: 'app-cat-editor',
@@ -40,6 +60,9 @@ import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
     TrimRequiredDirective,
     UiStateComponent,
     CatPhotoInput,
+    CatCareFields,
+    CatBirthField,
+    CatProfileOptionField,
   ],
   templateUrl: '../../pages/cat-edit-page/cat-edit-page.html',
   styleUrl: '../../pages/cat-edit-page/cat-edit-page.scss',
@@ -50,11 +73,13 @@ export class CatEditor {
   private vetSelector?: RemoteEntitySelector<VetLookup>;
   private initialCat: Cat | null = null;
   private readonly api = inject(CatApiService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
   readonly entity = input<Cat | null>(null);
   readonly routed = input(false);
   readonly saved = output<Cat>();
+  readonly reloaded = output<Cat>();
   readonly cancelled = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly text = this.i18n.text;
@@ -63,6 +88,8 @@ export class CatEditor {
   readonly name = signal('');
   readonly deceased = signal(false);
   readonly birthDate = signal('');
+  readonly birthYear = signal('');
+  readonly yearOnly = signal(false);
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
   readonly vetId = signal('');
@@ -71,8 +98,13 @@ export class CatEditor {
   readonly coat = signal('');
   readonly color = signal('');
   readonly foodBrand = signal('');
+  readonly foodDetail = signal('');
+  readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly coatLengths = CAT_COAT_LENGTHS;
+  readonly historicalCoat = signal('');
   readonly litterBrand = signal('');
   readonly personality = signal('');
+  readonly careInstructions = signal('');
   readonly notes = signal('');
   readonly lastInternalDewormerName = signal('');
   readonly lastInternalDewormingDate = signal('');
@@ -82,6 +114,8 @@ export class CatEditor {
   readonly lastRabiesDate = signal('');
   readonly loadingData = signal(false);
   readonly submitting = signal(false);
+  readonly staleEdit = signal(false);
+  readonly formRevision = signal(0);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly catLoaded = signal(false);
   readonly hasSavedPhoto = signal(false);
@@ -89,9 +123,32 @@ export class CatEditor {
   readonly birthDateError = createLanguageResetError(this.i18n.language);
   readonly sexError = createLanguageResetError(this.i18n.language);
   readonly notesError = createLanguageResetError(this.i18n.language);
+  readonly careInstructionsError = createLanguageResetError(this.i18n.language);
+  readonly careInstructionsErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.careInstructionsError() !== null,
+  };
   readonly notesErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.notesError() !== null,
   };
+
+  setCatalogSelection(field: CatCatalogSelectionField, id?: string): void {
+    this.catalogSelection.update((current) => ({ ...current, [field]: id }));
+  }
+
+  changeFoodBrand(value: string): void {
+    if (value !== this.foodBrand()) {
+      this.foodBrand.set(value);
+      this.foodDetail.set('');
+      this.setCatalogSelection('foodDetail');
+    }
+  }
+
+  updateCareInstructions(value: string): void {
+    this.careInstructions.set(value);
+    this.careInstructionsError.set(
+      value.trim().length > 2000 ? this.text().cats.form.careInstructionsTooLong : null,
+    );
+  }
 
   updateNotes(value: string): void {
     this.notes.set(value);
@@ -99,8 +156,14 @@ export class CatEditor {
   }
   constructor() {
     effect(() => {
+      const id = this.entityId();
       const entity = this.entity();
-      this.loadData(entity);
+      if (entity?.id === id) {
+        if (entity !== this.initialCat) this.setValues(entity);
+      } else {
+        this.catLoaded.set(false);
+        this.loadCat(id);
+      }
     });
   }
   @ViewChild('ownerSelector')
@@ -119,41 +182,64 @@ export class CatEditor {
       );
     }
   }
-  loadData(entity: Cat | null = this.entity()): void {
+  reloadCat(): void {
+    if (this.staleEdit() && !this.loadingData()) this.loadCat(this.entityId(), true);
+  }
+  private loadCat(id: string, reload = false): void {
     this.error.set(null);
-    this.catLoaded.set(false);
-    if (!this.entityId()) {
+    if (!id) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
       return;
     }
     this.loadingData.set(true);
-    (entity ? of(entity) : this.api.getCatById(this.entityId())).subscribe({
-      next: (cat) => {
-        this.setValues(cat);
-        this.loadingData.set(false);
-      },
-      error: (e) => {
-        this.error.set(this.apiMessage(e, this.text().cats.edit.errors.loadFormDataFailed));
-        this.loadingData.set(false);
-      },
-    });
+    this.api
+      .getCatById(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (cat) => {
+          if (id !== this.entityId()) return;
+          this.setValues(cat);
+          this.loadingData.set(false);
+          if (reload) {
+            this.formRevision.update((revision) => revision + 1);
+            this.reloaded.emit(cat);
+          }
+        },
+        error: (e) => {
+          if (id !== this.entityId()) return;
+          this.error.set(this.apiMessage(e, this.text().cats.edit.errors.loadFormDataFailed));
+          this.loadingData.set(false);
+        },
+      });
   }
   submit(): void {
+    if (this.staleEdit() || this.loadingData()) return;
     this.error.set(null);
     this.nameError.set(null);
     this.birthDateError.set(null);
     this.sexError.set(null);
     this.notesError.set(null);
+    this.careInstructionsError.set(null);
     if (this.photoInput && !this.photoInput.valid()) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
+      return;
+    }
+    const expectedUpdatedAt = this.initialCat?.updatedAt;
+    if (!expectedUpdatedAt) {
+      this.error.set(this.text().cats.edit.errors.dataNotLoaded);
       return;
     }
     if (!this.name().trim()) {
       this.nameError.set(this.text().cats.edit.errors.nameRequired);
       return;
     }
-    if (!this.birthDate()) {
+    const birthYear = this.yearOnly() ? parseBirthYear(this.birthYear()) : null;
+    if (this.yearOnly() && birthYear === null) {
+      this.birthDateError.set(this.text().cats.form.birthYearInvalid);
+      return;
+    }
+    if (!this.yearOnly() && !this.birthDate()) {
       this.birthDateError.set(this.text().cats.edit.errors.birthDateRequired);
       return;
     }
@@ -165,24 +251,50 @@ export class CatEditor {
       this.notesError.set(this.text().cats.edit.errors.notesTooLong);
       return;
     }
+    const careInstructions = this.careInstructions().trim();
+    if (careInstructions.length > 2000) {
+      this.careInstructionsError.set(this.text().cats.form.careInstructionsTooLong);
+      return;
+    }
+
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
+    const original = this.initialCat;
     const request: UpdateCatRequest = {
+      expectedUpdatedAt,
       name: this.name().trim(),
       deceased: this.deceased(),
-      birthDate: this.birthDate(),
+      birthDate: this.yearOnly() ? null : this.birthDate(),
+      ...(birthYear === null ? {} : { birthYear }),
       sex: this.sex() as Sex,
-      breed: this.optional(this.breed()),
-      coat: this.optional(this.coat()),
-      color: this.optional(this.color()),
-      foodBrand: this.optional(this.foodBrand()),
-      litterBrand: this.optional(this.litterBrand()),
+      breed: this.storedValue(this.breed(), original?.breed),
+      coat: this.storedValue(this.coat(), original?.coat),
+      color: this.storedValue(this.color(), original?.color),
+      ...(this.foodBrand() !== (original?.foodBrand ?? '')
+        ? { foodBrand: this.optional(this.foodBrand()) }
+        : {}),
+      ...(this.foodDetail() !== (this.initialCat?.foodDetail ?? '')
+        ? { foodDetail: this.optional(this.foodDetail()) }
+        : {}),
+      ...catCatalogSelectionRequest(this.catalogSelection(), this.savedCatalogSelection(original)),
+      ...(this.litterBrand() !== (this.initialCat?.litterBrand ?? '')
+        ? { litterBrand: this.optional(this.litterBrand()) }
+        : {}),
       personality: this.optional(this.personality()),
+      ...(this.careInstructions() !== (this.initialCat?.careInstructions ?? '')
+        ? { careInstructions: careInstructions || null }
+        : {}),
       notes: this.optional(this.notes()),
-      lastInternalDewormerName: this.optional(this.lastInternalDewormerName()),
+      lastInternalDewormerName: this.storedValue(
+        this.lastInternalDewormerName(),
+        original?.lastInternalDewormerName,
+      ),
       lastInternalDewormingDate: this.optional(this.lastInternalDewormingDate()),
-      lastExternalDewormerName: this.optional(this.lastExternalDewormerName()),
+      lastExternalDewormerName: this.storedValue(
+        this.lastExternalDewormerName(),
+        original?.lastExternalDewormerName,
+      ),
       lastExternalDewormingDate: this.optional(this.lastExternalDewormingDate()),
       lastTripleFelineDate: this.optional(this.lastTripleFelineDate()),
       lastRabiesDate: this.optional(this.lastRabiesDate()),
@@ -200,10 +312,18 @@ export class CatEditor {
           this.saved.emit(c);
         },
         error: (e) => {
-          this.error.set(
-            catPhotoErrorMessage(e, this.text().cats.photo.errors) ??
-              this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
-          );
+          if (
+            e instanceof HttpErrorResponse &&
+            e.status === 409 &&
+            e.error?.code === 'CAT_EDIT_STALE'
+          ) {
+            this.staleEdit.set(true);
+          } else {
+            this.error.set(
+              catPhotoErrorMessage(e, this.text().cats.photo.errors) ??
+                this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
+            );
+          }
           this.setSubmitting(false);
         },
       });
@@ -226,19 +346,31 @@ export class CatEditor {
   private setValues(c: Cat): void {
     this.initialCat = c;
     this.photoInput?.reset();
+    this.staleEdit.set(false);
+    this.notesError.set(null);
+    this.careInstructionsError.set(null);
     this.name.set(c.name);
     this.deceased.set(c.deceased ?? false);
-    this.birthDate.set(c.birthDate);
+    this.birthDateError.set(null);
+    this.birthDate.set(c.birthDate ?? '');
+    this.birthYear.set(c.birthYear?.toString() ?? '');
+    this.yearOnly.set(!c.birthDate && c.birthYear != null);
     this.sex.set(c.sex);
     this.ownerId.set(c.ownerId);
     this.vetId.set(c.vetId ?? '');
     this.vetRawContentPresent.set(c.vetId !== null);
     this.breed.set(c.breed ?? '');
     this.coat.set(c.coat ?? '');
+    this.historicalCoat.set(
+      this.coatLengths.some((length) => length === c.coat) ? '' : (c.coat ?? ''),
+    );
     this.color.set(c.color ?? '');
     this.foodBrand.set(c.foodBrand ?? '');
+    this.foodDetail.set(c.foodDetail ?? '');
+    this.catalogSelection.set(this.savedCatalogSelection(c));
     this.litterBrand.set(c.litterBrand ?? '');
     this.personality.set(c.personality ?? '');
+    this.careInstructions.set(c.careInstructions ?? '');
     this.notes.set(c.notes ?? '');
     this.lastInternalDewormerName.set(c.lastInternalDewormerName ?? '');
     this.lastInternalDewormingDate.set(c.lastInternalDewormingDate ?? '');
@@ -252,6 +384,18 @@ export class CatEditor {
     this.vetSelector?.trustInitialValue(
       c.vetId && c.vetName ? { id: c.vetId, label: c.vetName } : null,
     );
+  }
+  private savedCatalogSelection(cat: Cat | null): CatCatalogSelection {
+    return {
+      breed: cat?.catalogOptionIds?.breed,
+      foodBrand: cat?.foodBrandId ?? undefined,
+      foodDetail: cat?.catalogOptionIds?.foodDetail,
+      lastInternalDewormerName: cat?.catalogOptionIds?.lastInternalDewormerName,
+      lastExternalDewormerName: cat?.catalogOptionIds?.lastExternalDewormerName,
+    };
+  }
+  private storedValue(value: string, saved?: string | null): string | null {
+    return value === saved ? saved : this.optional(value);
   }
   private optional(v: string): string | null {
     return v.trim() || null;

@@ -1,8 +1,6 @@
 import { Routes } from '@angular/router';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
 import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
-import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
-import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 import { LoginPage } from './features/auth/pages/login-page/login-page';
@@ -21,6 +19,12 @@ export const routes: Routes = [
       import('./features/dashboard/pages/dashboard-page/dashboard-page').then(
         (m) => m.DashboardPage,
       ),
+  },
+  {
+    path: 'operations/arrivals',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/operations/pages/arrivals-page/arrivals-page').then((m) => m.ArrivalsPage),
   },
   {
     path: 'stays',
@@ -81,12 +85,14 @@ export const routes: Routes = [
   {
     path: 'cats/new',
     canActivate: [authGuard],
-    component: CatCreatePage,
+    loadComponent: () =>
+      import('./features/cats/pages/cat-create-page/cat-create-page').then((m) => m.CatCreatePage),
   },
   {
     path: 'cats/:id/edit',
     canActivate: [authGuard],
-    component: CatEditPage,
+    loadComponent: () =>
+      import('./features/cats/pages/cat-edit-page/cat-edit-page').then((m) => m.CatEditPage),
   },
   {
     path: 'vets',
@@ -121,6 +127,12 @@ export const routes: Routes = [
       import('./features/accounts/pages/account-management-page/account-management-page').then(
         (m) => m.AccountManagementPage,
       ),
+  },
+  {
+    path: 'cat-intake',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/cat-intake/cat-intake-review').then((m) => m.CatIntakeReview),
   },
   {
     path: 'payments',

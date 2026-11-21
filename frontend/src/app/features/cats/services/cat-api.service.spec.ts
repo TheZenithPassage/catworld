@@ -73,8 +73,9 @@ describe('CatApiService', () => {
     request.flush({});
   });
 
-  it('encodes each update photo intent as exact multipart fields', () => {
+  it('encodes the exact timestamp and each update photo intent as multipart fields', async () => {
     const photo = new File(['photo'], 'milo.jpg', { type: 'image/jpeg' });
+    const update = { ...cat, expectedUpdatedAt: '2026-10-05T13:00:00.123456Z' };
     const cases = [
       { photo: null, remove: false },
       { photo, remove: false },
@@ -83,11 +84,13 @@ describe('CatApiService', () => {
     ];
 
     for (const value of cases) {
-      service.updateCat('cat-1', cat, value.photo, value.remove).subscribe();
+      service.updateCat('cat-1', update, value.photo, value.remove).subscribe();
       const request = httpTestingController.expectOne(`${API_BASE_URL}/cats/cat-1`);
       expect(request.request.method).toBe('PUT');
       expect(request.request.headers.has('Content-Type')).toBe(false);
       const body = request.request.body as FormData;
+      const catPart = body.get('cat') as Blob;
+      expect(JSON.parse(await catPart.text())).toEqual(update);
       expect(body.get('photo')).toBe(value.photo);
       expect(body.get('removePhoto')).toBe(String(value.remove));
       request.flush({});

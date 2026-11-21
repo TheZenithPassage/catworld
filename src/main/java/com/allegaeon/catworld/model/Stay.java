@@ -49,6 +49,11 @@ public class Stay extends AuditableEntity {
     private boolean transferWaived;
 
     @Column(precision = 19, scale = 0)
+    @DecimalMin(value = "0", inclusive = false)
+    @Digits(integer = 19, fraction = 0)
+    private BigDecimal retainedLitterRatePerKg;
+
+    @Column(precision = 19, scale = 0)
     @DecimalMin("0")
     @Digits(integer = 19, fraction = 0)
     private BigDecimal agreedAmount;

@@ -26,6 +26,17 @@ export interface StaysTranslations {
     transferAssistance: string;
     transferRate: string;
     transferUnavailable: string;
+    litter: {
+      title: string;
+      catLabel: (name: string) => string;
+      choices: Record<'OWN' | 'HALF' | 'ONE', string>;
+      perKg: (rate: string) => string;
+      totalKg: (weight: string) => string;
+      charge: (amount: string) => string;
+      unavailable: string;
+      change: string;
+      unconfirmed: string;
+    };
     arrivalTransfer: string;
     departureTransfer: string;
     transferWaived: string;
@@ -78,6 +89,7 @@ export interface StaysTranslations {
   };
   pricingPage: {
     title: string;
+    breakdown: string;
     description: string;
     back: string;
     loading: string;
@@ -315,6 +327,22 @@ export const STAYS_TRANSLATIONS = {
       transferAssistance: 'Asistencia de traslado',
       transferRate: 'Tarifa de traslado aplicada',
       transferUnavailable: 'No hay tarifa de traslado disponible; el traslado aporta 0.',
+      litter: {
+        title: 'Piedritas',
+        catLabel: (name) => `Piedritas para ${name}`,
+        choices: {
+          OWN: 'Trae sus propias piedritas',
+          HALF: 'Usa las de CatWorld (½ kg/día)',
+          ONE: 'Usa las de CatWorld (1 kg/día)',
+        },
+        perKg: (rate) => `Tarifa de piedritas de ${rate} pesos por kg`,
+        totalKg: (weight) => `${weight} kg en la estadía`,
+        charge: (amount) => `${amount} pesos`,
+        unavailable:
+          'La cotización está incompleta porque falta la tarifa de piedritas de CatWorld.',
+        change: 'Cambiar',
+        unconfirmed: 'Por confirmar',
+      },
       arrivalTransfer: 'Requiere traslado de llegada',
       departureTransfer: 'Requiere traslado de salida',
       transferWaived: 'Traslado exento',
@@ -368,6 +396,7 @@ export const STAYS_TRANSLATIONS = {
     },
     pricingPage: {
       title: 'Precios y pagos',
+      breakdown: 'Desglose del precio',
       description: 'Consultá el acuerdo económico y el historial de pagos de la estadía.',
       back: 'Volver',
       loading: 'Cargando precios y pagos...',
@@ -628,6 +657,21 @@ export const STAYS_TRANSLATIONS = {
       transferAssistance: 'Transfer assistance',
       transferRate: 'Retained transfer rate',
       transferUnavailable: 'No transfer rate is available; transfer contributes 0.',
+      litter: {
+        title: 'Litter',
+        catLabel: (name) => `Litter for ${name}`,
+        choices: {
+          OWN: 'Supplied by the owner (0 kg/day)',
+          HALF: 'CatWorld (½ kg/day)',
+          ONE: 'CatWorld (1 kg/day)',
+        },
+        perKg: (rate) => `Litter rate of ${rate} pesos per kg`,
+        totalKg: (weight) => `${weight} kg for the stay`,
+        charge: (amount) => `${amount} pesos`,
+        unavailable: 'The quote is incomplete because the CatWorld litter rate is unavailable.',
+        change: 'Change',
+        unconfirmed: 'To confirm',
+      },
       arrivalTransfer: 'Arrival transfer required',
       departureTransfer: 'Departure transfer required',
       transferWaived: 'Transfer waived',
@@ -681,6 +725,7 @@ export const STAYS_TRANSLATIONS = {
     },
     pricingPage: {
       title: 'Pricing & Payments',
+      breakdown: 'Price breakdown',
       description: "Review the stay's economic agreement and payment history.",
       back: 'Back',
       loading: 'Loading pricing and payments...',

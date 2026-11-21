@@ -24,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(CatController.class)
 public class CatControllerTest {
+
+    private static final Instant UPDATED_AT = Instant.parse("2026-10-05T13:00:00.123456Z");
 
     @Autowired
     private MockMvc mockMvc;
@@ -83,7 +86,7 @@ public class CatControllerTest {
 
         private CatRequestDTO validRequest() {
             return CatRequestDTO.builder().name("Milo").birthDate(LocalDate.of(2020, 1, 1))
-                    .sex(Sex.MALE).ownerId(UUID.randomUUID()).build();
+                    .sex(Sex.MALE).ownerId(UUID.randomUUID()).expectedUpdatedAt(UPDATED_AT).build();
         }
     }
 
@@ -248,12 +251,29 @@ public class CatControllerTest {
     class PutCatTests {
 
         @Test
+        void rejectsAValidEditWithoutTheExpectedUpdateTimestamp() throws Exception {
+            UUID catId = UUID.randomUUID();
+            CatRequestDTO request = CatRequestDTO.builder()
+                    .name("Milo")
+                    .birthDate(LocalDate.of(2020, 1, 1))
+                    .sex(Sex.MALE)
+                    .ownerId(UUID.randomUUID())
+                    .build();
+            var catPart = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE,
+                    objectMapper.writeValueAsBytes(request));
+            mockMvc.perform(multipart(HttpMethod.PUT, "/api/cats/{id}", catId).file(catPart))
+                    .andExpect(status().isBadRequest());
+            verify(catService, never()).updateCat(eq(catId), any(CatRequestDTO.class), any(), anyBoolean());
+        }
+
+        @Test
         void shouldReturnOk_whenPutCatRequestIsValid() throws Exception {
             UUID catId = UUID.randomUUID();
             UUID ownerId = UUID.randomUUID();
 
             CatRequestDTO request = CatRequestDTO.builder()
                     .name("Updated Milo")
+                    .expectedUpdatedAt(UPDATED_AT)
                     .birthDate(LocalDate.of(2020, 1, 1))
                     .sex(Sex.MALE)
                     .ownerId(ownerId)
@@ -274,7 +294,8 @@ public class CatControllerTest {
                     .andExpect(jsonPath("$.id").value(catId.toString()))
                     .andExpect(jsonPath("$.name").value("Updated Milo"));
 
-            verify(catService).updateCat(eq(catId), any(CatRequestDTO.class), isNull(), eq(false));
+            verify(catService).updateCat(eq(catId),
+                    argThat(value -> UPDATED_AT.equals(value.getExpectedUpdatedAt())), isNull(), eq(false));
         }
 
         @Test

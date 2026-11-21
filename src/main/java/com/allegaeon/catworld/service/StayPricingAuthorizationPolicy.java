@@ -30,6 +30,12 @@ public class StayPricingAuthorizationPolicy {
         }
     }
 
+    public void authorizeLitterChange(UserAccount currentUser) {
+        if (!canChangeNightCount(currentUser)) {
+            throw new ForbiddenException("Only administrators can change an existing stay's litter quantities");
+        }
+    }
+
     public boolean canCreate(UserAccount currentUser) {
         return currentUser != null
                 && (currentUser.getRole() == UserRole.ADMIN

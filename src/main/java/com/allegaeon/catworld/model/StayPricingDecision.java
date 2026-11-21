@@ -47,6 +47,15 @@ public class StayPricingDecision {
     @Column(precision = 19, scale = 0, updatable = false) private BigDecimal retainedTransferRate;
     @Column(nullable = false, updatable = false) private boolean transferWaived;
 
+    @Column(precision = 19, scale = 0, updatable = false)
+    private BigDecimal litterRatePerKg;
+
+    @Column(nullable = false, updatable = false)
+    private int litterDailyHalfKilos;
+
+    @Column(columnDefinition = "TEXT", updatable = false)
+    private String litterChoices;
+
     @Column(updatable = false)
     private Long previousNumberOfNights;
 

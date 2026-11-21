@@ -6,13 +6,19 @@ import { Observable, Subject, of, throwError } from 'rxjs';
 
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { PermanentDeletionConfirmationDialog } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
+import { I18nService } from '../../../../core/i18n/i18n.service';
+import { OWN_LITTER } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatDetail } from './cat-detail';
 
 describe('CatDetail permanent deletion', () => {
   let fixture: ComponentFixture<CatDetail>;
   let component: CatDetail;
-  let api: { getCatDetail: ReturnType<typeof vi.fn>; deleteCat: ReturnType<typeof vi.fn> };
+  let api: {
+    getCatDetail: ReturnType<typeof vi.fn>;
+    listInformationalPhotos: ReturnType<typeof vi.fn>;
+    deleteCat: ReturnType<typeof vi.fn>;
+  };
   let dialogResults: Subject<boolean | undefined>[];
   let dialog: { open: ReturnType<typeof vi.fn> };
 
@@ -21,6 +27,7 @@ describe('CatDetail permanent deletion', () => {
     dialogResults = [];
     api = {
       getCatDetail: vi.fn(() => of(detail())),
+      listInformationalPhotos: vi.fn(() => of([])),
       deleteCat: vi.fn(() => of(undefined)),
     };
     dialog = {
@@ -66,14 +73,45 @@ describe('CatDetail permanent deletion', () => {
   it('renders present multiline notes and the normal empty value', () => {
     component.detail.set({ ...detail(), cat: { ...detail().cat, notes: 'line one\nline two' } });
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
-      'line one\nline two',
-    );
+    expect(
+      fixture.nativeElement.querySelector('.detail-field-internal-notes').textContent,
+    ).toContain('line one\nline two');
     component.detail.set(detail());
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.detail-field-notes').textContent).toContain(
-      component.text().cats.emptyValue,
+    expect(
+      fixture.nativeElement.querySelector('.detail-field-internal-notes').textContent,
+    ).toContain(component.text().cats.emptyValue);
+  });
+
+  it('renders a birth year distinctly from an exact January 1 and care instructions from notes', () => {
+    const current = detail();
+    const form = fixture.nativeElement as HTMLElement;
+    const birth = form.querySelector<HTMLElement>('.detail-field-birth')!;
+    expect(birth.querySelector('dt')?.textContent).toContain(component.text().cats.form.birthDate);
+    expect(birth.querySelector('dd')?.textContent).toBe(component.date('2020-01-01'));
+
+    component.detail.set({
+      ...current,
+      cat: {
+        ...current.cat,
+        birthDate: null,
+        birthYear: 2020,
+        careInstructions: 'Serve wet food separately',
+        litterBrand: OWN_LITTER,
+        notes: 'Private note',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(birth.querySelector('dt')?.textContent).toContain(component.text().cats.form.birthYear);
+    expect(birth.querySelector('dd')?.textContent).toBe('2020');
+    expect(form.querySelector('.detail-field-care-instructions dd')?.textContent).toBe(
+      'Serve wet food separately',
     );
+    expect(form.querySelector('.detail-field-internal-notes dd')?.textContent).toBe('Private note');
+    TestBed.inject(I18nService).language.set('en');
+    fixture.detectChanges();
+    expect(form.textContent).toContain('Brings their own litter');
   });
 
   it('uses the human-readable Cat and Owner subject and cancellation sends no request', () => {
@@ -217,6 +255,7 @@ function detail(canDelete: boolean | undefined = true): CatDetailResponse {
   return {
     cat: {
       id: 'cat-1',
+      updatedAt: '2026-10-05T13:00:00Z',
       canDelete,
       name: 'Mochi',
       birthDate: '2020-01-01',

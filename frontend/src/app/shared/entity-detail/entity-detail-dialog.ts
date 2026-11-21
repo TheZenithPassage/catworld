@@ -30,6 +30,7 @@ import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { CatRelationshipPage } from './relationship.models';
 import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
+import { CatPhotoViewRequest } from '../../features/cats/models/cat.model';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
 import { Observable } from 'rxjs';
 import { Subscription } from 'rxjs';
@@ -43,7 +44,7 @@ type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' 
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
   | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number }
-  | { kind: 'cat-photo'; catId: string; catName: string; ownerName: string };
+  | ({ kind: 'cat-photo' } & CatPhotoViewRequest);
 type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
@@ -120,7 +121,9 @@ export class EntityDetailDialog {
     if (this.entry().kind === 'list') return this.relationshipTitle();
     if (this.entry().kind === 'cat-photo') {
       const entry = this.entry() as Extract<HistoryEntry, { kind: 'cat-photo' }>;
-      return `${this.text().cats.detail.photo} — ${entry.catName} (${entry.ownerName})`;
+      const { detail, informationalPhotos } = this.text().cats;
+      const label = entry.informationalPhotoId ? informationalPhotos.photo : detail.photo;
+      return `${label} — ${entry.catName} (${entry.ownerName})`;
     }
     const text = this.text();
     return this.reference().entityType === 'owner'
@@ -143,7 +146,11 @@ export class EntityDetailDialog {
   }
   photoAlt(): string {
     const entry = this.entry();
-    return entry.kind === 'cat-photo' ? this.text().cats.detail.photoAlt(entry.catName) : '';
+    if (entry.kind !== 'cat-photo') return '';
+    const { detail, informationalPhotos } = this.text().cats;
+    return entry.informationalPhotoId
+      ? informationalPhotos.photoAlt(entry.catName)
+      : detail.photoAlt(entry.catName);
   }
   showReference(reference: EntityReference): void {
     if (this.submitting()) return;
@@ -209,7 +216,7 @@ export class EntityDetailDialog {
     }
     this.focusContent();
   }
-  openCatPhoto(photo: { catId: string; catName: string; ownerName: string }): void {
+  openCatPhoto(photo: CatPhotoViewRequest): void {
     if (this.submitting()) return;
     this.captureContentGeometry();
     this.leavePhoto();
@@ -218,7 +225,10 @@ export class EntityDetailDialog {
     this.entry.set(entry);
     this.photoState.set('loading');
     const generation = ++this.requestGeneration;
-    this.photoSubscription = this.catApi.getCatPhoto(photo.catId).subscribe({
+    const image = photo.informationalPhotoId
+      ? this.catApi.getInformationalPhoto(photo.catId, photo.informationalPhotoId)
+      : this.catApi.getCatPhoto(photo.catId);
+    this.photoSubscription = image.subscribe({
       next: (blob) => {
         if (generation !== this.requestGeneration || this.entry() !== entry) return;
         const url = URL.createObjectURL(blob);

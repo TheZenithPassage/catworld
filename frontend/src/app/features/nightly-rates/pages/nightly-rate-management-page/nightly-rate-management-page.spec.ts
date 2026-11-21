@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
+import { LitterRateApiService } from '../../services/litter-rate-api.service';
 import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 import { NightlyRateManagementPage } from './nightly-rate-management-page';
 
@@ -28,6 +29,11 @@ describe('NightlyRateManagementPage', () => {
     clearRate: ReturnType<typeof vi.fn>;
   };
   let auth: AuthSessionService;
+  let litterApi: {
+    getCurrentRate: ReturnType<typeof vi.fn>;
+    configureRate: ReturnType<typeof vi.fn>;
+    clearRate: ReturnType<typeof vi.fn>;
+  };
   let transferApi: {
     getCurrentRate: ReturnType<typeof vi.fn>;
     configureRate: ReturnType<typeof vi.fn>;
@@ -49,12 +55,20 @@ describe('NightlyRateManagementPage', () => {
       configureRate: vi.fn().mockReturnValue(of({ transferRate: '25' })),
       clearRate: vi.fn().mockReturnValue(of(undefined)),
     };
+    litterApi = {
+      getCurrentRate: vi.fn().mockReturnValue(of({ litterRatePerKg: null })),
+      configureRate: vi
+        .fn()
+        .mockImplementation((litterRatePerKg: string) => of({ litterRatePerKg })),
+      clearRate: vi.fn().mockReturnValue(of(undefined)),
+    };
     await TestBed.configureTestingModule({
       imports: [NightlyRateManagementPage],
       providers: [
         provideNoopAnimations(),
         { provide: NightlyReferenceRateApiService, useValue: api },
         { provide: TransferRateApiService, useValue: transferApi },
+        { provide: LitterRateApiService, useValue: litterApi },
       ],
     }).compileComponents();
     auth = TestBed.inject(AuthSessionService);
@@ -85,8 +99,9 @@ describe('NightlyRateManagementPage', () => {
   it('keeps STAFF read-only while preserving all categories', async () => {
     await create('STAFF');
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('mat-card').length).toBe(7);
+    expect(root.querySelectorAll('mat-card').length).toBe(8);
     expect(root.textContent).toContain('Transfer assistance');
+    expect(root.textContent).toContain('CatWorld litter');
     expect(root.querySelector('input')).toBeNull();
     expect(root.querySelector('.rate-actions')).toBeNull();
   });
@@ -94,13 +109,39 @@ describe('NightlyRateManagementPage', () => {
   it('shows ADMIN mutation controls for configured and unavailable categories', async () => {
     await create();
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelectorAll('mat-card').length).toBe(7);
+    expect(root.querySelectorAll('mat-card').length).toBe(8);
     expect(root.querySelectorAll('input[id^="nightly-rate-"]').length).toBe(6);
     expect(root.querySelector('#nightly-rate-ONE_CAT_15_TO_29')).not.toBeNull();
     expect(root.textContent).toContain('Transfer assistance');
     expect(root.textContent).toContain('Change');
     expect(root.textContent).toContain('Configure');
     expect(root.textContent).toContain('Clear rate');
+  });
+
+  it('lets an administrator configure and clear an exact whole-peso litter rate', async () => {
+    await create();
+    const root = fixture.nativeElement as HTMLElement;
+    const input = root.querySelector<HTMLInputElement>('#litter-rate')!;
+    const card = input.closest('mat-card')!;
+    const set = (value: string) => {
+      input.value = value;
+      input.dispatchEvent(new Event('input'));
+    };
+    set('9.5');
+    card.querySelector('button')!.click();
+    expect(litterApi.configureRate).not.toHaveBeenCalled();
+    set('9999999999999999999');
+    card.querySelector('button')!.click();
+    fixture.detectChanges();
+    expect(litterApi.configureRate).toHaveBeenCalledWith('9999999999999999999');
+    expect(card.querySelector('.current-rate')?.textContent?.trim()).toBe('9999999999999999999');
+    card.querySelectorAll('button')[1].click();
+    fixture.detectChanges();
+    expect(litterApi.clearRate).toHaveBeenCalledTimes(1);
+    expect(card.querySelector('.current-rate')?.textContent?.trim()).toBe('Unavailable');
+    TestBed.inject(I18nService).language.set('es');
+    fixture.detectChanges();
+    expect(card.textContent).toContain('Piedritas de CatWorld');
   });
 
   it.each([

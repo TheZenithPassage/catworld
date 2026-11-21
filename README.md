@@ -3,13 +3,15 @@
 ![Backend CI](https://github.com/TheZenithPassage/catworld/actions/workflows/backend-ci.yml/badge.svg)
 ![Frontend CI](https://github.com/TheZenithPassage/catworld/actions/workflows/frontend-ci.yml/badge.svg)
 
-CatWorld is an administration system for cat boarding. Its Angular interface and Spring Boot API manage owners, cats, reference vets, stays, pricing, payments and operational records. The application is for authenticated staff; `catworld.com.ar` is reserved for a separate future public website.
+CatWorld is an administration system for cat boarding. Its Angular interface and Spring Boot API manage owners, cats, reference vets, stays, pricing, payments and operational records. Staff sign in to the administration application. Tutors can open a private cat intake form when an administrator shares an invitation.
 
 ## Features
 
 - Manage owners, cats, reference vets and cat profile photos. Search paginated overviews and open complete record details.
 - Create multi-cat stays for one owner, edit or cancel them, and prevent overlapping active bookings per cat. Stay status and night count are derived from dates and cancellation data.
 - Inspect stays in a monthly FullCalendar view with daily counts and labels, entry/exit display modes and independent filters.
+- Prepare upcoming arrivals from the dashboard with vaccination alerts, food and litter brands, and items to confirm per cat.
+- Administrators can share one private intake link per tutor from the tutor record or an upcoming arrival. Tutors can fill in missing information, propose profile changes, register new cats and submit vaccination evidence. Administrators review and approve each cat separately.
 - Configure nightly reference rates and a transfer rate. Preview the authoritative accommodation and transfer suggestion, then explicitly confirm an agreed amount when creating a stay or making a pricing-affecting change.
 - Register, correct and annul individual stay payments; view payment history, derived paid totals, remaining balance and payment condition. Administrators can make the focused corrections and removals permitted by the backend.
 - Review durable sensitive economic activity with actor and stay context. The backend enforces role and status restrictions for economic changes and permanent deletion.
@@ -77,7 +79,7 @@ These are validation commands, not claims that a particular release or deploymen
 
 ## Architecture and operations
 
-CatWorld remains a layered Spring Boot monolith: `controller -> service -> repository -> database`. DTOs and mappers separate HTTP contracts from JPA entities. Flyway manages the schema. In production the browser receives Angular assets from Nginx, which proxies `/api` to Spring Boot on the internal Compose network; MySQL uses a persistent volume. The only host-bound application port is the frontend loopback port, reached through a Cloudflare Tunnel and protected by Cloudflare Access at `admin.catworld.com.ar`.
+CatWorld remains a layered Spring Boot monolith (`controller -> service -> repository -> database`). DTOs and mappers separate HTTP contracts from JPA entities. Flyway manages the schema. In production Nginx serves Angular assets and proxies API requests to Spring Boot on the internal Compose network. MySQL uses a persistent volume. Cloudflare Tunnel and Access protect the administration listener at `admin.catworld.com.ar`. An optional listener serves private intake links at `fichas.catworld.com.ar`.
 
 - [Architecture and domain contracts](docs/ARCHITECTURE.md)
 - [PlantUML diagrams](docs/uml)
