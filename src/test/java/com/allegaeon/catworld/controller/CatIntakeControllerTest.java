@@ -1168,6 +1168,45 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void approvesCorrectedBrandAndVarietyAndOnlyConfirmsTheLocalBreed() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Cat with corrected diet");
+        cat.setFoodBrand(null);
+        cats.saveAndFlush(cat);
+        var invite = issue(owner, false);
+        var proposed = Map.of("foodBrand", "Household food brand", "foodDetail", "Household variety",
+                "breed", "Household breed");
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields", proposed))))
+                .andExpect(status().isNoContent());
+
+        UUID brand = publishCatalog("foodBrand", "Approved food brand", null);
+        UUID variety = publishCatalog("foodDetail", "Adult food", brand);
+        var review = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        String catUpdatedAt = review.get("catUpdatedAt").asString();
+        var accepted = Map.of("foodBrand", "  APPROVED   food brand ", "foodDetail", "ADULT    food",
+                "breed", "Corrected local breed");
+
+        mvc.perform(approvalRequest(review, accepted, List.of(), catUpdatedAt, null))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED"))
+                .andExpect(jsonPath("$.fields.breed").value("Corrected local breed"))
+                .andExpect(jsonPath("$.fields.foodBrand").doesNotExist())
+                .andExpect(jsonPath("$.fields.foodDetail").doesNotExist());
+        var before = cats.findById(cat.getId()).orElseThrow();
+        assertThat(before.getBreed()).isNull();
+        assertThat(before.getFoodBrandId()).isNull();
+        assertThat(before.getFoodVarietyId()).isNull();
+
+        mvc.perform(approvalRequest(review, accepted, List.of(), catUpdatedAt, Map.of("breed", "Corrected local breed")))
+                .andExpect(status().isNoContent());
+        var approved = cats.findById(cat.getId()).orElseThrow();
+        assertThat(approved.getFoodBrandId()).isEqualTo(brand);
+        assertThat(approved.getFoodVarietyId()).isEqualTo(variety);
+        assertThat(approved.getBreed()).isEqualTo("Corrected local breed");
+        assertThat(approved.getBreedOptionId()).isNull();
+    }
+
+    @Test
     void rejectsPartialApprovalOfAnotherBrandsVarietyAndKeepsThePreviousDietOnBrandChange() throws Exception {
         Owner owner = owner();
         var register = issue(owner, true);
@@ -1191,7 +1230,7 @@ class CatIntakeControllerTest {
         var proposal = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
         assertThat(proposal.get("proposedFoodDetailBrand").asString()).isEqualTo("Other Diet Brand");
         String timestamp = proposal.get("catUpdatedAt").asString();
-        approve(proposal, Map.of("foodDetail", fields.get("foodDetail")), List.of(), timestamp, 400);
+        approve(proposal, Map.of("foodDetail", " OTHER  brand diet "), List.of(), timestamp, 400);
         assertThat(cats.findById(cat.getId()).orElseThrow().getFoodVarietyId()).isEqualTo(cat.getFoodVarietyId());
 
         approve(proposal, Map.of("foodBrand", fields.get("foodBrand")), List.of(), timestamp, 204);

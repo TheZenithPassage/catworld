@@ -239,8 +239,10 @@ final class CatIntakeCatalog {
         }
         UUID acceptedBrandId = brandId;
         UUID expectedBrand = expectedVarietyBrand(previous);
-        if (!replacements.containsKey(FOOD_DETAIL) && !retiredFields.contains(FOOD_DETAIL)
-                && accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
+        boolean keepsProposedVariety = accepted.containsKey(FOOD_DETAIL)
+                && sameName(accepted.get(FOOD_DETAIL), previous.fields().get(FOOD_DETAIL));
+        if (keepsProposedVariety && !replacements.containsKey(FOOD_DETAIL) && !retiredFields.contains(FOOD_DETAIL)
+                && previous.foodDetailBrand() != null
                 && (expectedBrand == null ? !sameName(previous.foodDetailBrand(), brand) : !expectedBrand.equals(acceptedBrandId))) {
             throw new BadRequestException("Approve this variety together with its food brand");
         }
