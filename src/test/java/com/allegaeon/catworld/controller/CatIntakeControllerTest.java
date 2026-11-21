@@ -540,6 +540,37 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void partialReviewKeepsTheRenamedIdAndAnEditedValueCanUseThePublishedHomonym() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Cat with renamed breed");
+        UUID original = publishCatalog("breed", "Original breed", null);
+        cat.setBreed("Original breed");
+        cat.setBreedOptionId(original);
+        cats.saveAndFlush(cat);
+        renameCatalog("breed", original, "Current breed");
+        UUID replacement = publishCatalog("breed", "Original breed", null);
+
+        var firstInvite = issue(owner, false);
+        var coat = Map.of("coat", "Largo");
+        mvc.perform(submission(firstInvite, List.of(Map.of("catId", cat.getId(), "fields", coat))))
+                .andExpect(status().isNoContent());
+        var firstReview = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        approve(firstReview, coat, List.of(), firstReview.get("catUpdatedAt").asString(), 204);
+        var unchanged = cats.findById(cat.getId()).orElseThrow();
+        assertThat(unchanged.getBreedOptionId()).isEqualTo(original);
+        assertThat(unchanged.getDisplayedBreed()).isEqualTo("Current breed");
+
+        var secondInvite = issue(owner, false);
+        var proposed = Map.of("breed", "Household choice");
+        mvc.perform(submission(secondInvite, List.of(Map.of("catId", cat.getId(), "fields", proposed))))
+                .andExpect(status().isNoContent());
+        var secondReview = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        approve(secondReview, Map.of("breed", " ORIGINAL  Breed "), List.of(),
+                secondReview.get("catUpdatedAt").asString(), 204);
+        assertThat(cats.findById(cat.getId()).orElseThrow().getBreedOptionId()).isEqualTo(replacement);
+    }
+
+    @Test
     void approvesLocalVarietyForTheSameLinkedBrandAfterItsNameChanges() throws Exception {
         Owner owner = owner();
         String catalog = "/api/cat-profile-options";

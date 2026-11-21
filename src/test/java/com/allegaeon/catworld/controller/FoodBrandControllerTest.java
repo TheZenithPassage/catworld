@@ -289,6 +289,24 @@ class FoodBrandControllerTest {
     }
 
     @Test
+    void retypingAnOldLabelUsesTheCurrentCatalogOptionAfterRename() throws Exception {
+        var original = publish(admin, Map.of("field", "breed", "name", "Original name"));
+        String originalId = original.get("id").asText();
+        var cat = create(staff, Map.of("catalogOptionIds", Map.of("breed", originalId)));
+        mvc.perform(catalogChange(admin, "breed", originalId, Map.of("name", "Current name")))
+                .andExpect(status().isOk());
+        var replacement = publish(admin, Map.of("field", "breed", "name", "Original name"));
+
+        var unchanged = update(cat, Map.of("breed", "Current name", "color", "Gray"));
+        assertThat(unchanged.get("catalogOptionIds").get("breed")).isEqualTo(original.get("id"));
+        assertThat(unchanged.get("breed").asText()).isEqualTo("Current name");
+
+        var edited = update(unchanged, Map.of("breed", " ORIGINAL  name "));
+        assertThat(edited.get("catalogOptionIds").get("breed")).isEqualTo(replacement.get("id"));
+        assertThat(edited.get("breed").asText()).isEqualTo("Original name");
+    }
+
+    @Test
     void editConfirmsOnlyChangedLocalValues() throws Exception {
         var cat = create(staff, Map.of());
         var values = Map.of("litterPreference", "OWN", "litterDetail", "Own mixed litter", "color", "Gray");

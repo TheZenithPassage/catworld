@@ -280,7 +280,7 @@ public class CatProfileOptionService {
             field.setOption(cat, option.getName(), option.getId());
             return;
         }
-        if (!unlinked && (sameName(field.nameOf(cat), supplied) || sameName(field.displayedNameOf(cat), supplied))) {
+        if (!unlinked && sameName(field.displayedNameOf(cat), supplied)) {
             return;
         }
 
