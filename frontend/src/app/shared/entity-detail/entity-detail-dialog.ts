@@ -63,6 +63,9 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatProgressSpinner,
     StayRelationshipLabel,
   ],
+  host: {
+    '(document:beforeinput)': 'preventBackgroundHistory($event)',
+  },
   templateUrl: './entity-detail-dialog.html',
   styleUrl: './entity-detail-dialog.scss',
 })
@@ -102,6 +105,17 @@ export class EntityDetailDialog {
       this.leavePhoto();
     });
   }
+
+  protected preventBackgroundHistory(event: InputEvent): void {
+    // Native undo and redo can target an editor outside the focused dialog.
+    if (
+      (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') &&
+      !event.composedPath().includes(this.element.nativeElement)
+    ) {
+      event.preventDefault();
+    }
+  }
+
   title(): string {
     if (this.entry().kind === 'list') return this.relationshipTitle();
     if (this.entry().kind === 'cat-photo') {
