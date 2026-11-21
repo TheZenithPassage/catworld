@@ -2,6 +2,8 @@ import type { CatProfileOptionFieldKey } from '../../../shared/cat-profile-optio
 
 export type Sex = 'MALE' | 'FEMALE';
 
+export const CAT_COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'] as const;
+
 export const CATWORLD_LITTER = 'Usa las de CatWorld';
 export const OWN_LITTER = 'Trae sus propias piedritas';
 

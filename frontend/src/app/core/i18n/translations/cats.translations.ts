@@ -36,6 +36,7 @@ export interface CatsTranslations {
     createVet: string;
     breed: string;
     coat: string;
+    coatLengths: Record<'Corto' | 'Largo' | 'Sin pelo', string>;
     color: string;
     foodBrand: string;
     foodDetail: string;
@@ -46,6 +47,8 @@ export interface CatsTranslations {
     litterBrand: string;
     sharedLitter: string;
     ownLitter: string;
+    unconfirmedLitter: string;
+    ownLitterDetail: string;
     litterHelp: string;
     personality: string;
     notes: string;
@@ -226,20 +229,23 @@ export const CATS_TRANSLATIONS = {
       noVet: 'Sin veterinario',
       createVet: 'Crear veterinario',
       breed: 'Raza',
-      coat: 'Pelaje',
-      color: 'Color',
+      coat: 'Largo del pelo',
+      coatLengths: { Corto: 'Corto', Largo: 'Largo', 'Sin pelo': 'Sin pelo' },
+      color: 'Color y marcas',
       foodBrand: 'Marca de comida',
-      foodDetail: 'Variedad o detalle de la dieta',
+      foodDetail: 'Variedad del alimento',
       foodDetailHelp: 'Por ejemplo, alimento húmedo o una dieta especial.',
       approveFoodBrand: 'Añadir esta marca al catálogo',
       approveCatalogOption: 'Añadir este valor al catálogo',
       catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Piedritas',
       ownLitter: 'Trae sus propias piedritas',
+      unconfirmedLitter: 'Por confirmar',
+      ownLitterDetail: 'Marca o tipo de piedritas',
       litterHelp: 'Elegí una opción o ingresá la marca.',
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
-      notes: 'Notas internas · solo para el equipo',
+      notes: 'Notas internas del equipo',
       careInstructions: 'Indicaciones de cuidado del tutor',
       careInstructionsVisibility: 'Visible para el tutor en su ficha.',
       careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
@@ -402,20 +408,23 @@ export const CATS_TRANSLATIONS = {
       noVet: 'No vet',
       createVet: 'Create vet',
       breed: 'Breed',
-      coat: 'Coat',
-      color: 'Color',
+      coat: 'Coat length',
+      coatLengths: { Corto: 'Short', Largo: 'Long', 'Sin pelo': 'Hairless' },
+      color: 'Color and markings',
       foodBrand: 'Food brand',
-      foodDetail: 'Variety or diet details',
+      foodDetail: 'Food variety',
       foodDetailHelp: 'For example, wet food or a special diet.',
       approveFoodBrand: 'Add this brand to the catalog',
       approveCatalogOption: 'Add this value to the catalog',
       catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter',
       ownLitter: 'Brings their own litter',
+      unconfirmedLitter: 'To be confirmed',
+      ownLitterDetail: 'Litter brand or type',
       litterHelp: 'Choose an option or enter the brand.',
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
-      notes: 'Internal notes · staff only',
+      notes: 'Internal team notes',
       careInstructions: 'Caretaker’s care instructions',
       careInstructionsVisibility: 'Visible to the caretaker on their form.',
       careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
