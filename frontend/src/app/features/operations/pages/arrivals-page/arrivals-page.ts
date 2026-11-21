@@ -19,12 +19,10 @@ import {
   CatIntakeInvitationDialog,
   CatIntakeInvitationDialogData,
 } from '../../../cat-intake/cat-intake-invitation-dialog';
-import type { VaccineConflictReason, VaccineType } from '../../../stays/models/stay.model';
+import type { VaccineConflictViolation } from '../../../stays/models/stay.model';
+import { vaccineConflictLabels } from '../../../stays/models/vaccine-conflict-label';
 
-interface VaccineWarning {
-  vaccineType: VaccineType;
-  reason: VaccineConflictReason;
-}
+type VaccineWarning = Pick<VaccineConflictViolation, 'vaccineType' | 'reason' | 'expiresOn'>;
 
 interface ArrivalCat {
   id: string;
@@ -165,11 +163,13 @@ export class ArrivalsPage {
     return this.businessTime.formatInstant(value, this.i18n.dateLocale());
   }
 
-  vaccineWarning({ vaccineType, reason }: VaccineWarning): string {
-    const copy = this.i18n.text().stays.vaccineConflict;
-    const label = vaccineType === 'RABIES' ? copy.vaccine.rabies : copy.vaccine.tripleFeline;
-    const message = reason === 'MISSING' ? copy.reason.missing : copy.reason.expired;
-    return `${label} · ${message}`;
+  vaccineWarning(warning: VaccineWarning): string {
+    const { vaccine, reason } = vaccineConflictLabels(
+      warning,
+      this.i18n.text().stays.vaccineConflict,
+      this.i18n.dateLocale(),
+    );
+    return `${vaccine} · ${reason}`;
   }
 
   private readFilters(): ArrivalFilters {

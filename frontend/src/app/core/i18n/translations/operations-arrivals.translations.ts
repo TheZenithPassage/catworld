@@ -3,13 +3,14 @@ import { AppLanguage } from '../app-language';
 interface ArrivalsTranslations {
   title: string;
   subtitle: string;
+  settings: string;
   daysAhead: string;
   invalidDaysAhead: string;
   includeStartedToday: string;
   arrival: string;
   departure: string;
   openStay: string;
-  familyLink: string;
+  shareProfile: string;
   reviewProposal: string;
   toConfirm: string;
   complete: string;
@@ -24,13 +25,14 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
   es: {
     title: 'Próximas estadías',
     subtitle: 'Revisá qué datos faltan para las próximas estadías.',
+    settings: 'Configuración',
     daysAhead: 'Días a partir de hoy',
     invalidDaysAhead: 'Ingresá un número entero de 0 o más.',
     includeStartedToday: 'Incluir los ingresos de hoy que ya empezaron',
     arrival: 'Ingreso',
     departure: 'Salida',
     openStay: 'Ver estadía',
-    familyLink: 'Enlace familiar',
+    shareProfile: 'Compartir ficha',
     reviewProposal: 'Revisar propuesta de ficha',
     toConfirm: 'Por confirmar',
     complete: 'Sin pendientes de preparación',
@@ -43,13 +45,14 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
   en: {
     title: 'Upcoming stays',
     subtitle: 'Check which information is missing for upcoming stays.',
+    settings: 'Settings',
     daysAhead: 'Days from today',
     invalidDaysAhead: 'Enter a whole number of 0 or more.',
     includeStartedToday: 'Include today’s arrivals that have already started',
     arrival: 'Arrival',
     departure: 'Departure',
     openStay: 'View stay',
-    familyLink: 'Household link',
+    shareProfile: 'Share profile',
     reviewProposal: 'Review profile proposal',
     toConfirm: 'To confirm',
     complete: 'No preparation items pending',

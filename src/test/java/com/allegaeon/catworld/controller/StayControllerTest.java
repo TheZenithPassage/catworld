@@ -325,7 +325,7 @@ public class StayControllerTest {
                     .catId(catId)
                     .catName("Milo")
                     .vaccineType(VaccineType.RABIES)
-                    .reason(VaccineConflictReason.EXPIRED)
+                    .reason(VaccineConflictReason.EXPIRED_BY_ARRIVAL)
                     .vaccinatedOn(vaccinatedOn)
                     .expiresOn(expiresOn)
                     .build();
@@ -349,7 +349,7 @@ public class StayControllerTest {
                     .andExpect(jsonPath("$.violations[0].catId").value(catId.toString()))
                     .andExpect(jsonPath("$.violations[0].catName").value("Milo"))
                     .andExpect(jsonPath("$.violations[0].vaccineType").value("RABIES"))
-                    .andExpect(jsonPath("$.violations[0].reason").value("EXPIRED"))
+                    .andExpect(jsonPath("$.violations[0].reason").value("EXPIRED_BY_ARRIVAL"))
                     .andExpect(jsonPath("$.violations[0].vaccinatedOn").value("2025-08-05"))
                     .andExpect(jsonPath("$.violations[0].expiresOn").value("2026-08-05"))
                     .andExpect(jsonPath("$.violations[1].catId").value(catId.toString()))

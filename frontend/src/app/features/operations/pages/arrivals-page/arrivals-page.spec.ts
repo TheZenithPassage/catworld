@@ -17,7 +17,10 @@ describe('ArrivalsPage', () => {
     name: 'Milo',
     foodBrand: null,
     litterBrand: 'Example Litter',
-    vaccineWarnings: [{ vaccineType: 'RABIES', reason: 'MISSING' }],
+    vaccineWarnings: [
+      { vaccineType: 'RABIES', reason: 'MISSING', expiresOn: null },
+      { vaccineType: 'TRIPLE_FELINE', reason: 'EXPIRES_DURING_STAY', expiresOn: '2026-11-15' },
+    ],
   };
   const stay = {
     id: 'stay-1',
@@ -72,9 +75,15 @@ describe('ArrivalsPage', () => {
     expectArrivals().flush([]);
     fixture.detectChanges();
     const page: HTMLElement = fixture.nativeElement;
+    const settings = page.querySelector<HTMLDetailsElement>('details')!;
     const days = page.querySelector<HTMLInputElement>('input[inputmode="numeric"]')!;
     const include = page.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
 
+    expect(settings.open).toBe(false);
+    expect(settings.querySelector('summary')?.textContent?.trim()).toBe('Configuración');
+    expect(settings.contains(days)).toBe(true);
+    expect(settings.contains(include)).toBe(true);
+    settings.open = true;
     expect(days.labels?.[0].textContent).toContain('Días a partir de hoy');
     expect(include.labels?.[0].textContent).toContain(
       'Incluir los ingresos de hoy que ya empezaron',
@@ -147,6 +156,9 @@ describe('ArrivalsPage', () => {
     expect(milo.textContent).toMatch(
       /Milo.*Marca de comida · Por confirmar.*Rabia · Falta la fecha de vacunación/s,
     );
+    expect(milo.textContent).toContain(
+      'Triple felina · La vacuna vence durante la estadía (15/11/2026)',
+    );
     expect(luna.textContent?.trim()).toBe('Luna');
 
     row.querySelector<HTMLButtonElement>('button[aria-label^="Ver estadía"]')!.click();
@@ -197,7 +209,7 @@ describe('ArrivalsPage', () => {
     expect(row.textContent.match(/Sin pendientes de preparación/g)).toHaveLength(1);
     expect(row.textContent).not.toMatch(/Example Food|Example Litter|Usa las de CatWorld/);
     expect(row.querySelector('a')).toBeNull();
-    expect(row.textContent).not.toContain('Enlace familiar');
+    expect(row.textContent).not.toContain('Compartir ficha');
     row.querySelector<HTMLButtonElement>('li:nth-child(2) button')!.click();
     expect(details.open).toHaveBeenCalledWith({ entityType: 'cat', entityId: 'cat-2' });
   });
@@ -214,7 +226,7 @@ describe('ArrivalsPage', () => {
       'article button',
     );
     const inviteButton = [...buttons].find(
-      (button) => button.textContent.trim() === 'Enlace familiar',
+      (button) => button.textContent.trim() === 'Compartir ficha',
     );
     expect(inviteButton).toBeDefined();
     inviteButton!.click();

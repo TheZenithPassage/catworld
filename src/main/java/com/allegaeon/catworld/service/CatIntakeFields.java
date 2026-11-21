@@ -171,7 +171,7 @@ class CatIntakeFields {
         if (value != null) fields.put(key, value.toString());
     }
 
-    private static LocalDate date(Map<String, String> values, String key) {
+    static LocalDate date(Map<String, String> values, String key) {
         String value = values.get(key);
         if (value == null) return null;
         try {

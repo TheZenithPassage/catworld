@@ -806,14 +806,11 @@ describe('EntityDetailDialog', () => {
     expect(fixture.nativeElement.textContent).not.toContain(
       fixture.componentInstance.text().cats.detail.viewPhoto,
     );
-    const emptyPhotoField = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.detail-field'),
-    ].find(
-      (field) =>
-        field.querySelector('dt')?.textContent?.trim() ===
-        fixture.componentInstance.text().cats.detail.photo,
+    const portrait = (fixture.nativeElement as HTMLElement).querySelector('.detail-portrait');
+    expect(portrait?.querySelector('h3')?.textContent?.trim()).toBe(
+      fixture.componentInstance.text().cats.detail.photo,
     );
-    expect(emptyPhotoField?.querySelector('dd')?.textContent?.trim()).toBe(
+    expect(portrait?.querySelector('p')?.textContent?.trim()).toBe(
       fixture.componentInstance.text().cats.emptyValue,
     );
     const catStay = buttonContaining(fixture, 'Reserved');
@@ -2144,7 +2141,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         catId: 'cat-1',
         catName: 'Milo',
         vaccineType: 'RABIES',
-        reason: 'EXPIRED',
+        reason: 'EXPIRED_BY_ARRIVAL',
         vaccinatedOn: '2025-07-01',
         expiresOn: '2026-07-01',
       },

@@ -1,6 +1,7 @@
-<mat-form-field appearance="outline">
+<mat-form-field appearance="outline" [class.lookup-success]="optionId()">
   <mat-label>{{ label() }}</mat-label>
   <input
+    #catalogInput
     matInput
     type="text"
     [name]="field()"
@@ -8,7 +9,9 @@
     [disabled]="disabled() || publishing()"
     [ngModel]="value()"
     (ngModelChange)="changeValue($event)"
-    (focus)="loadOptions()"
+    [placeholder]="example()"
+    (focus)="focused.set(true); loadOptions()"
+    (blur)="focused.set(false)"
     [matAutocomplete]="approvedOptions"
   />
   <mat-autocomplete
@@ -20,13 +23,34 @@
       <mat-option [value]="option">{{ option.name }}</mat-option>
     }
   </mat-autocomplete>
-  @if (allowApproval() && optionId()) {
-    <span matSuffix role="img" [attr.aria-label]="text().cats.form.catalogSelection">✓</span>
+  @if (value()) {
+    <span matSuffix class="lookup-suffix">
+      @if (optionId()) {
+        <span class="lookup-status">
+          <svg class="success-check" viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+            <path d="m5 12.5 4.2 4.2L19 7" />
+          </svg>
+        </span>
+      }
+      <button
+        mat-icon-button
+        type="button"
+        class="clear-button"
+        [attr.aria-label]="text().entityLookup.clear"
+        [disabled]="disabled() || publishing()"
+        (click)="clear(catalogInput)"
+      >
+        <span class="clear-glyph" aria-hidden="true">×</span>
+      </button>
+    </span>
   }
   @if (showPublicationHint() && canPublish()) {
     <mat-hint>{{ text().cats.form.catalogPublicationHint }}</mat-hint>
   }
 </mat-form-field>
+<span class="selection-announcement" role="status">
+  {{ optionId() ? text().cats.form.catalogSelection(value()) : '' }}
+</span>
 @if (allowApproval() && (canPublish() || publishing())) {
   <button
     mat-stroked-button

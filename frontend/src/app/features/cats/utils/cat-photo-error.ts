@@ -13,6 +13,7 @@ const errorKeys = {
 
 export function catPhotoErrorMessage(error: unknown, errors: PhotoErrors): string | null {
   if (!(error instanceof HttpErrorResponse)) return null;
+  if (error.status === 413) return errors.requestTooLarge;
   const body: unknown = error.error;
   if (!isErrorBody(body)) return null;
   const key = errorKeys[body.code as keyof typeof errorKeys];

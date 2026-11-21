@@ -11,34 +11,39 @@
     }
   </header>
 
-  <div class="arrival-filters">
-    <label class="days-ahead">
-      {{ copy().daysAhead }}
-      <input
-        #days
-        type="text"
-        inputmode="numeric"
-        pattern="[0-9]+"
-        required
-        [value]="daysAhead()"
-        [attr.aria-invalid]="invalidDaysAhead() || null"
-        [attr.aria-describedby]="invalidDaysAhead() ? 'arrivals-days-error' : null"
-        (input)="changeDaysAhead(days.value)"
-      />
-    </label>
-    <label class="include-started">
-      <input
-        #include
-        type="checkbox"
-        [checked]="includeStartedToday()"
-        (change)="changeIncludeStartedToday(include.checked)"
-      />
-      {{ copy().includeStartedToday }}
-    </label>
-    @if (invalidDaysAhead()) {
-      <p id="arrivals-days-error" class="days-error" role="status">{{ copy().invalidDaysAhead }}</p>
-    }
-  </div>
+  <details class="arrival-settings">
+    <summary>{{ copy().settings }}</summary>
+    <div class="arrival-filters">
+      <label class="days-ahead">
+        {{ copy().daysAhead }}
+        <input
+          #days
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]+"
+          required
+          [value]="daysAhead()"
+          [attr.aria-invalid]="invalidDaysAhead() || null"
+          [attr.aria-describedby]="invalidDaysAhead() ? 'arrivals-days-error' : null"
+          (input)="changeDaysAhead(days.value)"
+        />
+      </label>
+      <label class="include-started">
+        <input
+          #include
+          type="checkbox"
+          [checked]="includeStartedToday()"
+          (change)="changeIncludeStartedToday(include.checked)"
+        />
+        {{ copy().includeStartedToday }}
+      </label>
+      @if (invalidDaysAhead()) {
+        <p id="arrivals-days-error" class="days-error" role="status">
+          {{ copy().invalidDaysAhead }}
+        </p>
+      }
+    </div>
+  </details>
 
   @if (state() === 'loading') {
     <app-ui-state kind="loading" [message]="copy().loading" />
@@ -88,10 +93,10 @@
                 <button
                   mat-stroked-button
                   type="button"
-                  [attr.aria-label]="copy().familyLink + ' · ' + stay.owner.fullName"
+                  [attr.aria-label]="copy().shareProfile + ' · ' + stay.owner.fullName"
                   (click)="openInvitation(stay)"
                 >
-                  {{ copy().familyLink }}
+                  {{ copy().shareProfile }}
                 </button>
               }
               <button
