@@ -22,6 +22,7 @@ import { EntityReference } from '../../../../shared/entity-detail/entity-referen
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
 import { CatInformationalPhotoGallery } from '../cat-informational-photos/cat-informational-photo-gallery';
+import { CatPhotoThumbnail } from '../cat-photo-thumbnail/cat-photo-thumbnail';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
@@ -42,6 +43,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
     UiStateComponent,
     CatEditor,
     CatInformationalPhotoGallery,
+    CatPhotoThumbnail,
     StayRelationshipLabel,
   ],
   host: {

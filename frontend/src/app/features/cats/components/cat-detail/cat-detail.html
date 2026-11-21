@@ -21,11 +21,26 @@
       (submittingChanged)="submittingChanged.emit($event)"
     />
   } @else {
-    <dl class="detail-fields">
-      <div class="detail-field">
-        <dt>{{ text().cats.form.name }}</dt>
-        <dd>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></dd>
+    <div class="detail-identity">
+      @if (cat.hasPhoto) {
+        <button
+          class="profile-photo-thumbnail"
+          type="button"
+          [disabled]="deleting()"
+          [attr.aria-label]="text().cats.detail.viewPhoto"
+          (click)="openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })"
+        >
+          <app-cat-photo-thumbnail [catId]="cat.id" />
+        </button>
+      }
+      <div>
+        <h3>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></h3>
+        @if (!cat.hasPhoto) {
+          <p>{{ text().cats.detail.noProfilePhoto }}</p>
+        }
       </div>
+    </div>
+    <dl class="detail-fields">
       <div class="detail-field detail-field-birth">
         @if (cat.birthDate || cat.birthYear == null) {
           <dt>{{ text().cats.form.birthDate }}</dt>
@@ -130,35 +145,19 @@
         <dd>{{ value(cat.notes) }}</dd>
       </div>
     </dl>
-    <div class="detail-photos">
-      <section class="detail-portrait">
-        <h3>{{ text().cats.detail.photo }}</h3>
-        @if (cat.hasPhoto) {
-          <button
-            mat-stroked-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })"
-          >
-            {{ text().cats.detail.viewPhoto }}
-          </button>
-        } @else {
-          <p>{{ text().cats.emptyValue }}</p>
-        }
-      </section>
-      <app-cat-informational-photo-gallery
-        [catId]="cat.id"
-        [disabled]="deleting()"
-        (openPhoto)="
-          openPhoto.emit({
-            catId: cat.id,
-            catName: cat.name,
-            ownerName: cat.ownerName,
-            informationalPhotoId: $event,
-          })
-        "
-      />
-    </div>
+    <app-cat-informational-photo-gallery
+      class="detail-gallery"
+      [catId]="cat.id"
+      [disabled]="deleting()"
+      (openPhoto)="
+        openPhoto.emit({
+          catId: cat.id,
+          catName: cat.name,
+          ownerName: cat.ownerName,
+          informationalPhotoId: $event,
+        })
+      "
+    />
     @if (detail.stays.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().entityDetail.stays }}</h3>

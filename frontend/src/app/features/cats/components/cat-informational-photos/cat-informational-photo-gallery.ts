@@ -32,7 +32,7 @@ import { createLanguageResetError } from '../../../../core/i18n/language-reset-e
 import { CatInformationalPhoto } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CAT_PHOTO_ACCEPT, catPhotoFileError } from '../../utils/cat-photo-file';
-import { CatInformationalPhotoThumbnail } from './cat-informational-photo-thumbnail';
+import { CatPhotoThumbnail } from '../cat-photo-thumbnail/cat-photo-thumbnail';
 
 interface DraftPhoto {
   file: File;
@@ -47,7 +47,7 @@ interface DraftPhoto {
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
-    CatInformationalPhotoThumbnail,
+    CatPhotoThumbnail,
   ],
   templateUrl: './cat-informational-photo-gallery.html',
   styleUrl: './cat-informational-photo-gallery.scss',
