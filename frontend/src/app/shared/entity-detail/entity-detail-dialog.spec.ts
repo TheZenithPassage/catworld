@@ -1,14 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component, DebugElement, getDebugNode } from '@angular/core';
+import { Location } from '@angular/common';
+import { provideLocationMocks } from '@angular/common/testing';
 import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { firstValueFrom, of, Subject, throwError } from 'rxjs';
+import { filter, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { CatEditor } from '../../features/cats/components/cat-editor/cat-editor';
+import { CatInformationalPhotoGallery } from '../../features/cats/components/cat-informational-photos/cat-informational-photo-gallery';
+import { CatPhotoInput } from '../../features/cats/components/cat-photo-input/cat-photo-input';
 import { Cat } from '../../features/cats/models/cat.model';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { VetEditor } from '../../features/vets/components/vet-editor/vet-editor';
@@ -29,8 +34,13 @@ import { StayDetail } from '../../features/stays/components/stay-detail/stay-det
 import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
 import type { EntityDetailUpdate } from './entity-reference';
-import { Router } from '@angular/router';
+import { NavigationEnd, provideRouter, Router, withRouterConfig } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { confirmCatDraftNavigation } from '../../app.routes';
 import { appPaginatorIntl } from '../pagination/app-paginator-intl';
+
+@Component({ template: '' })
+class CatDraftTestRoute {}
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -1043,6 +1053,268 @@ describe('EntityDetailDialog', () => {
       revokeUrl.mockRestore();
     }
   });
+
+  it('keeps an effective cat draft through photo preview, failed save and a refused cancel', async () => {
+    catApi.getCatDetail.mockReturnValueOnce(
+      of({ cat: { ...cat, hasPhoto: true }, stays: { totalElements: 0, items: [] } }),
+    );
+    catApi.updateCat.mockReturnValueOnce(throwError(() => new Error('save rejected')));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+      ],
+    });
+    const dialog = TestBed.inject(MatDialog);
+    TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const editorNode = () =>
+      getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement;
+    const editor = editorNode().componentInstance as CatEditor;
+    const gallery = editorNode().query(By.directive(CatInformationalPhotoGallery))
+      .componentInstance as CatInformationalPhotoGallery;
+    const portrait = editorNode().query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const indicator = () => document.querySelector('.cat-draft-indicator');
+    const beforeUnload = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(indicator()).toBeNull();
+    expect(beforeUnload()).toBe(false);
+
+    editor.name.set('Draft name');
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    expect(beforeUnload()).toBe(true);
+    editor.name.set(cat.name);
+    editor.setCatalogSelection('breed', 'breed-id');
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    editor.setCatalogSelection('breed');
+    TestBed.tick();
+    expect(indicator()).toBeNull();
+    expect(beforeUnload()).toBe(false);
+    portrait.markSavedPhotoForRemoval();
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    portrait.undoRemoval();
+    TestBed.tick();
+    expect(indicator()).toBeNull();
+
+    const picture = new File(['jpeg'], 'record.jpg', { type: 'image/jpeg' });
+    gallery.stage(picture);
+    TestBed.tick();
+    gallery.showDraft(gallery.drafts()[0]);
+    const preview = dialog.openDialogs[1];
+    const previewClosed = firstValueFrom(preview.afterClosed());
+    preview.close();
+    await previewClosed;
+    expect(gallery.files()).toEqual([picture]);
+
+    editor.submit();
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    document
+      .querySelector<HTMLButtonElement>('app-cat-editor .form-actions button[type=button]')!
+      .click();
+    TestBed.tick();
+    const confirmation = dialog.openDialogs[1];
+    const kept = firstValueFrom(confirmation.afterClosed());
+    const keepButton = document.querySelector<HTMLButtonElement>('.keep-cat-editing')!;
+    await vi.waitFor(() => expect(document.activeElement).toBe(keepButton));
+    keepButton.click();
+    await kept;
+    expect(gallery.files()).toEqual([picture]);
+    expect(editorNode().componentInstance).toBe(editor);
+
+    editor.cancel();
+    TestBed.tick();
+    const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
+    document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+    await discarded;
+    TestBed.tick();
+    expect(dialog.openDialogs).toHaveLength(1);
+    expect(document.querySelector('app-cat-editor')).toBeNull();
+    expect(indicator()).toBeNull();
+  });
+
+  it('protects dirty cat edits across Material dismissal and preserves the internal Back destination', async () => {
+    catApi.getCatDetail.mockReturnValueOnce(of({ cat, stays: { totalElements: 0, items: [] } }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+      ],
+    });
+    const auth = TestBed.inject(AuthSessionService);
+    auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+    TestBed.inject(EntityDetailDialogService).open({ entityType: 'owner', entityId: owner.id });
+    const dialog = TestBed.inject(MatDialog);
+    const ref = dialog.openDialogs[0];
+    const shell = ref.componentInstance as EntityDetailDialog;
+    shell.showReference({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const editor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+      .componentInstance as CatEditor;
+    editor.name.set('Draft name');
+    TestBed.tick();
+
+    const dismissals = [
+      () => document.querySelector<HTMLButtonElement>('.close-button')!.click(),
+      () => document.querySelector<HTMLElement>('.cdk-overlay-backdrop')!.click(),
+      () => {
+        const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+        Object.defineProperty(escape, 'keyCode', { value: 27 });
+        document.body.dispatchEvent(escape);
+      },
+    ];
+    for (const dismiss of dismissals) {
+      dismiss();
+      TestBed.tick();
+      expect(dialog.openDialogs).toHaveLength(2);
+      const kept = firstValueFrom(dialog.openDialogs[1].afterClosed());
+      document.querySelector<HTMLButtonElement>('.keep-cat-editing')!.click();
+      await kept;
+      expect(editor.name()).toBe('Draft name');
+      expect(shell.reference().entityType).toBe('cat');
+    }
+
+    document.querySelector<HTMLButtonElement>('.back-button')!.click();
+    TestBed.tick();
+    const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
+    shell.allowClose();
+    expect(dialog.openDialogs).toHaveLength(2);
+    document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+    await discarded;
+    TestBed.tick();
+    expect(dialog.openDialogs).toEqual([ref]);
+    expect(shell.reference().entityType).toBe('owner');
+
+    shell.showReference({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const changedEditor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+      .componentInstance as CatEditor;
+    changedEditor.name.set('Second draft');
+    const portrait = (getDebugNode(document.querySelector('app-cat-photo-input')!) as DebugElement)
+      .componentInstance as CatPhotoInput;
+    portrait.restore(new File(['jpeg'], 'portrait.jpg', { type: 'image/jpeg' }));
+    const portraitUrl = portrait.previewUrl();
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    try {
+      const closed = firstValueFrom(ref.afterClosed());
+      document.querySelector<HTMLButtonElement>('.close-button')!.click();
+      TestBed.tick();
+      expect(dialog.openDialogs).toHaveLength(2);
+      auth.logout();
+      TestBed.tick();
+      expect(revoke).toHaveBeenCalledWith(portraitUrl);
+      await closed;
+      await vi.waitFor(() => expect(dialog.openDialogs).toHaveLength(0));
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it.each([false, true])(
+    'restores browser history on Keep editing and completes the first Back action on discard (superseded=%s)',
+    async (superseded) => {
+      catApi.getCatDetail.mockReturnValueOnce(of({ cat, stays: { totalElements: 0, items: [] } }));
+      TestBed.configureTestingModule({
+        providers: [
+          provideNoopAnimations(),
+          provideLocationMocks(),
+          provideRouter(
+            [
+              { path: 'previous', component: CatDraftTestRoute },
+              {
+                path: 'cats',
+                component: CatDraftTestRoute,
+                canDeactivate: [confirmCatDraftNavigation],
+              },
+            ],
+            withRouterConfig({ canceledNavigationResolution: 'computed' }),
+          ),
+          { provide: CatApiService, useValue: catApi },
+          { provide: OwnerApiService, useValue: api },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+        ],
+      });
+      const router = TestBed.inject(Router);
+      const location = TestBed.inject(Location);
+      router.setUpLocationChangeListener();
+      const previous = '/previous?filter=kept#results';
+      const harness = await RouterTestingHarness.create('/previous?filter=older');
+      await harness.navigateByUrl(previous);
+      await harness.navigateByUrl('/cats');
+      const auth = TestBed.inject(AuthSessionService);
+      auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+      const dialog = TestBed.inject(MatDialog);
+      TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+      TestBed.tick();
+      document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+      TestBed.tick();
+      const editor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+        .componentInstance as CatEditor;
+      editor.name.set('Draft name');
+      TestBed.tick();
+
+      const goBack = async () => {
+        location.back();
+        await vi.waitFor(() => {
+          TestBed.tick();
+          expect(document.querySelector('.keep-cat-editing')).not.toBeNull();
+        });
+        expect(router.url).toBe('/cats');
+        expect(dialog.openDialogs).toHaveLength(2);
+      };
+
+      await goBack();
+      document.querySelector<HTMLButtonElement>('.keep-cat-editing')!.click();
+      await vi.waitFor(() => {
+        expect(dialog.openDialogs).toHaveLength(1);
+        expect(location.path()).toBe('/cats');
+      });
+      expect(editor.name()).toBe('Draft name');
+
+      await goBack();
+      if (superseded) {
+        location.back();
+        await vi.waitFor(() => expect(location.path()).toBe('/cats'));
+        expect(dialog.openDialogs).toHaveLength(2);
+      }
+      const navigated = firstValueFrom(
+        router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+      );
+      document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+      await navigated;
+      expect(router.url).toBe(previous);
+      await vi.waitFor(() => expect(dialog.openDialogs).toHaveLength(0));
+
+      if (!superseded) {
+        const forwarded = firstValueFrom(
+          router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+        );
+        location.forward();
+        await forwarded;
+        expect(router.url).toBe('/cats');
+      }
+    },
+  );
 
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {
     const pricingGate = new Subject<Stay>();

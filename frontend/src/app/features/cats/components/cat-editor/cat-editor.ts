@@ -1,12 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
   input,
   output,
   signal,
+  untracked,
+  viewChild,
   ViewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -73,8 +76,9 @@ import { catPhotoRequestError } from '../../utils/cat-photo-file';
   styleUrl: '../../pages/cat-edit-page/cat-edit-page.scss',
 })
 export class CatEditor {
-  @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
-  @ViewChild(CatInformationalPhotoGallery) private gallery?: CatInformationalPhotoGallery;
+  private readonly photoInput = viewChild(CatPhotoInput);
+  private readonly gallery = viewChild(CatInformationalPhotoGallery);
+  private readonly initialDraft = signal<string | null>(null);
   private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
   private vetSelector?: RemoteEntitySelector<VetLookup>;
   private initialCat: Cat | null = null;
@@ -126,6 +130,19 @@ export class CatEditor {
   readonly error = createLanguageResetError(this.i18n.language);
   readonly catLoaded = signal(false);
   readonly hasSavedPhoto = signal(false);
+  readonly hasUnsavedChanges = computed(() => {
+    const initial = this.initialDraft();
+    const gallery = this.gallery();
+    const photo = this.photoInput()?.mutation();
+    return (
+      initial !== null &&
+      (this.draftValues() !== initial ||
+        !!photo?.photo ||
+        !!photo?.removePhoto ||
+        !!gallery?.drafts().length ||
+        !!gallery?.removals().length)
+    );
+  });
   readonly nameError = createLanguageResetError(this.i18n.language);
   readonly birthDateError = createLanguageResetError(this.i18n.language);
   readonly sexError = createLanguageResetError(this.i18n.language);
@@ -227,7 +244,7 @@ export class CatEditor {
     this.sexError.set(null);
     this.notesError.set(null);
     this.careInstructionsError.set(null);
-    if (this.photoInput && !this.photoInput.valid()) return;
+    if (this.photoInput()?.valid() === false) return;
     if (!this.entityId()) {
       this.error.set(this.text().cats.edit.errors.catIdMissing);
       return;
@@ -267,14 +284,14 @@ export class CatEditor {
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
-    const photoMutation = this.photoInput?.mutation() ?? { photo: null, removePhoto: false };
-    const attachments = this.gallery?.files() ?? [];
+    const photoMutation = this.photoInput()?.mutation() ?? { photo: null, removePhoto: false };
+    const attachments = this.gallery()?.files() ?? [];
     const photoError = catPhotoRequestError(photoMutation.photo, attachments, true);
     if (photoError) {
       this.error.set(this.text().cats.photo.errors[photoError]);
       return;
     }
-    const removedInformationalPhotoIds = this.gallery?.removals();
+    const removedInformationalPhotoIds = this.gallery()?.removals();
     const original = this.initialCat;
     const request: UpdateCatRequest = {
       expectedUpdatedAt,
@@ -326,8 +343,8 @@ export class CatEditor {
       )
       .subscribe({
         next: (c) => {
-          this.photoInput?.reset();
-          this.gallery?.resetDraft();
+          this.releaseDraftMedia();
+          this.initialDraft.set(this.draftValues());
           this.setSubmitting(false);
           this.saved.emit(c);
         },
@@ -349,9 +366,11 @@ export class CatEditor {
       });
   }
   cancel(): void {
-    this.photoInput?.reset();
-    this.gallery?.resetDraft();
     this.cancelled.emit();
+  }
+  releaseDraftMedia(): void {
+    this.photoInput()?.reset();
+    this.gallery()?.resetDraft();
   }
   ownerChanged(state: EntityLookupState<OwnerLookup>): void {
     this.ownerId.set(state.selectedId ?? '');
@@ -366,8 +385,7 @@ export class CatEditor {
   }
   private setValues(c: Cat): void {
     this.initialCat = c;
-    this.photoInput?.reset();
-    this.gallery?.resetDraft();
+    untracked(() => this.releaseDraftMedia());
     this.staleEdit.set(false);
     this.notesError.set(null);
     this.careInstructionsError.set(null);
@@ -407,6 +425,39 @@ export class CatEditor {
     this.vetSelector?.trustInitialValue(
       c.vetId && c.vetName ? { id: c.vetId, label: c.vetName } : null,
     );
+    this.initialDraft.set(untracked(() => this.draftValues()));
+  }
+  private draftValues(): string {
+    const catalogIds = Object.entries(this.catalogSelection())
+      .filter(([, id]) => !!id)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return JSON.stringify([
+      this.name().trim(),
+      this.deceased(),
+      this.yearOnly(),
+      this.yearOnly() ? this.birthYear() : this.birthDate(),
+      this.sex(),
+      this.ownerId(),
+      this.vetId(),
+      this.vetRawContentPresent(),
+      this.breed().trim(),
+      this.coat().trim(),
+      this.color().trim(),
+      this.foodBrand().trim(),
+      this.foodDetail().trim(),
+      catalogIds,
+      this.litterPreference(),
+      this.litterBrand().trim(),
+      this.personality().trim(),
+      this.careInstructions().trim(),
+      this.notes().trim(),
+      this.lastInternalDewormerName().trim(),
+      this.lastInternalDewormingDate(),
+      this.lastExternalDewormerName().trim(),
+      this.lastExternalDewormingDate(),
+      this.lastTripleFelineDate(),
+      this.lastRabiesDate(),
+    ]);
   }
   private litterUpdate(original: Cat | null) {
     const preference = this.litterPreference();

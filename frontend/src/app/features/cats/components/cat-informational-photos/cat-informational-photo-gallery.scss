@@ -63,8 +63,13 @@ li {
   cursor: default;
 }
 
-.remove-photo {
+.remove-photo,
+.restore-photo {
   align-self: center;
+}
+
+.pending-photo-removal {
+  color: var(--color-text-muted);
 }
 
 .thumbnail-placeholder {
