@@ -132,10 +132,14 @@ Largo and Sin pelo for new entries. Color and markings are free text.
 Historical profile text, catalog references and pending submissions retain
 their stored values.
 
-Staff can select catalog options by ID or save a local description.
-Administrators can publish a catalog option with an explicit action in the
-editor or by applying the proposed field during intake review. The editor
-can read options through `GET /api/cat-profile-options` and scoped varieties
+Cat creation, editing and intake approval use an explicitly selected ID or
+link an exact active match after normalizing case and whitespace. Unchanged
+historical text keeps its wording and stays local. Submitted selections retain
+their ID through renames and hiding. A write that would save changed catalog
+fields as local text returns `CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED` with
+the affected field values. Send those values as `confirmedCatalogText` to
+confirm. Only ADMIN can publish through `POST /api/cat-profile-options`.
+The editor can read options through `GET /api/cat-profile-options` and scoped varieties
 through `GET /api/food-brands/varieties`. A selected variety references its
 brand and uses the same ID as the household form. A brand change removes
 an incompatible variety association.
@@ -145,13 +149,12 @@ delete supported options. It covers breeds, food brands, brand-specific
 varieties, own-litter details, internal dewormers and flea treatments.
 Hiding a brand also removes its varieties from suggestions. Existing profiles
 resolve linked labels through their catalog IDs, including hidden options.
-Deletion copies the latest catalog labels into linked profiles, advances their
-editing timestamps and clears their IDs in the same transaction. Deleting a
-food variety retains its brand. Deleting a brand removes its varieties and
-preserves the last labels of both. Local descriptions and review history keep
-their wording. Approving a pending proposal with a deleted option records the
-submitted wording as local text unless the administrator explicitly selects
-an available replacement.
+Permanent deletion requires the option to be unused by saved cats (including
+deceased cats) and pending proposals. A pending variety also protects its
+contextual brand. Deleting an unused brand removes its unused varieties in the
+same transaction. Free text and closed reviews do not prevent deletion.
+Previously retired proposal IDs can still be reviewed as local text or
+explicitly replaced with an available option.
 
 Litter stays optional in administration. `litterPreference` distinguishes
 CatWorld and own litter. Only own litter has an optional `litterDetail`,

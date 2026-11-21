@@ -14,6 +14,18 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CatIntakeReviewRepository extends JpaRepository<CatIntakeReview, UUID> {
+    default boolean referencesPendingOption(UUID id) {
+        // IDs are serialized as quoted UUID values, including a variety's contextual food brand.
+        return existsPendingOptionReference("\"" + id + "\"");
+    }
+
+    @Query("""
+            select count(r) > 0 from CatIntakeReview r
+            where r.approvedAt is null and r.dismissedAt is null
+              and locate(:quotedId, r.proposedOptionIds) > 0
+            """)
+    boolean existsPendingOptionReference(@Param("quotedId") String quotedId);
+
     @Query("""
             select r.id as id, o.id as ownerId, o.fullName as ownerName, r.catId as catId,
                    r.catName as catName, r.submittedAt as submittedAt

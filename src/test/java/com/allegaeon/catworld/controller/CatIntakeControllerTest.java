@@ -23,6 +23,7 @@ import com.allegaeon.catworld.service.LibVipsCatPhotoNormalizer;
 import com.allegaeon.catworld.service.NormalizedCatPhoto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -38,7 +39,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -60,6 +66,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,6 +105,7 @@ class CatIntakeControllerTest {
     @Autowired CatIntakePhotoRepository intakePhotos;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbc;
+    @Autowired PlatformTransactionManager transactions;
     @MockitoBean Clock clock;
     @MockitoBean LibVipsCatPhotoNormalizer normalizer;
 
@@ -115,7 +123,7 @@ class CatIntakeControllerTest {
 
     @BeforeEach
     void setClock() {
-        // Approval publishes shared options. Each scenario starts with its own catalog.
+        // Each scenario starts with its own catalog.
         jdbc.update("""
                 update cats set food_variety_id = null, food_brand_id = null, breed_option_id = null,
                     coat_option_id = null, color_option_id = null, last_internal_dewormer_option_id = null,
@@ -155,25 +163,18 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void removingARenamedBreedFreezesLinkedCatsAndPreservesPendingTextWhenTheNameIsReused() throws Exception {
+    void deletionProtectsDeceasedCatsAndPendingSelectionsButIgnoresFreeTextAndDismissedReviews() throws Exception {
         Owner owner = owner();
         UUID id = publishCatalog("breed", "Original breed", null);
-        Cat linked = cat(owner, "Linked breed for retirement");
+        Cat linked = cat(owner, "Linked breed");
         linked.setBreed("Original breed");
         linked.setBreedOptionId(id);
+        linked.setDeceased(true);
         linked = cats.saveAndFlush(linked);
-        String editorTimestamp = cats.findById(linked.getId()).orElseThrow().getUpdatedAt().toString();
         Cat local = cat(owner, "Independent breed");
         local.setBreed("Original breed");
         local = cats.saveAndFlush(local);
-
-        var invite = issue(owner, true);
-        var proposed = newRegistration("Pending retired breed", Map.of("breed", "Original breed"));
-        mvc.perform(submission(invite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", proposed,
-                        "optionIds", Map.of("breed", id)))))
-                .andExpect(status().isNoContent());
-        var review = rowFor(reviewList(), owner.getId(), "Pending retired breed");
-        renameCatalog("breed", id, "Final breed");
+        assertOptionInUse("breed", id);
 
         var staff = users.saveAndFlush(UserAccount.builder().username("catalog-staff-" + UUID.randomUUID())
                 .passwordHash(passwordEncoder.encode("catalog-test-password")).role(UserRole.STAFF).enabled(true).build());
@@ -181,30 +182,31 @@ class CatIntakeControllerTest {
                 .andExpect(status().isForbidden());
         mvc.perform(delete(catalogPath("lastInternalDewormerName", id)).with(admin()))
                 .andExpect(status().isNotFound());
+        cats.deleteById(linked.getId());
+
+        var invite = issue(owner, true);
+        var proposed = newRegistration("Pending breed", Map.of("breed", "Original breed"));
+        mvc.perform(submission(invite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", proposed,
+                        "optionIds", Map.of("breed", id)))))
+                .andExpect(status().isNoContent());
+        assertOptionInUse("breed", id);
+        var review = detail(rowFor(reviewList(), owner.getId(), "Pending breed").get("id").asString());
+        dismiss(review, 204);
+
         mvc.perform(delete(catalogPath("breed", id)).with(admin())).andExpect(status().isNoContent());
         mvc.perform(delete(catalogPath("breed", id)).with(admin())).andExpect(status().isNotFound());
-        mvc.perform(internalCatEdit(linked, "Largo", editorTimestamp,
-                        Map.of("approveCatalogOptions", List.of("breed"), "breed", "Original breed")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CAT_EDIT_STALE"));
-
-        assertThat(cats.findById(linked.getId()).orElseThrow().getBreed()).isEqualTo("Final breed");
-        assertThat(cats.findById(linked.getId()).orElseThrow().getBreedOptionId()).isNull();
         assertThat(cats.findById(local.getId()).orElseThrow().getBreed()).isEqualTo("Original breed");
-        UUID replacement = publishCatalog("breed", "Original breed", null);
-        assertThat(replacement).isNotEqualTo(id);
-        var reopened = recipientForm(invite).get("cats").valueStream()
-                .filter(card -> card.get("proposedFields").has("breed")).findFirst().orElseThrow();
-        assertThat(reopened.get("proposedFields").get("breed").asString()).isEqualTo("Original breed");
-        assertThat(reopened.get("optionIds").has("breed")).isFalse();
-        mvc.perform(get(REVIEW + "/{id}", review.get("id").asString()).with(admin()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.proposed.breed").value("Original breed"))
-                .andExpect(jsonPath("$.retiredCatalogFields[*]", hasItem("breed")));
-        approve(review, proposed, List.of(), null, 204);
-        var approved = cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).stream()
-                .filter(item -> item.getName().equals("Pending retired breed")).findFirst().orElseThrow();
-        assertThat(approved.getBreed()).isEqualTo("Original breed");
-        assertThat(approved.getBreedOptionId()).isNull();
+        assertThat(cats.findById(local.getId()).orElseThrow().getBreedOptionId()).isNull();
+        assertThat(publishCatalog("breed", "Original breed", null)).isNotEqualTo(id);
+        mvc.perform(submission(issue(owner(), true), List.of(Map.of("draftId", UUID.randomUUID(), "fields", proposed,
+                        "optionIds", Map.of("breed", id)))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_INTAKE_CATALOG_CHANGED"));
+    }
+
+    private void assertOptionInUse(String field, UUID id) throws Exception {
+        mvc.perform(delete(catalogPath(field, id)).with(admin())).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_CATALOG_OPTION_IN_USE"));
     }
 
     @Test
@@ -222,7 +224,10 @@ class CatIntakeControllerTest {
                         Map.of("draftId", UUID.randomUUID(), "fields", first, "optionIds", submittedIds),
                         Map.of("draftId", UUID.randomUUID(), "fields", second, "optionIds", submittedIds))))
                 .andExpect(status().isNoContent());
-        mvc.perform(delete(catalogPath("foodBrand", brand)).with(admin())).andExpect(status().isNoContent());
+        assertOptionInUse("foodDetail", variety);
+        // Simulate pending IDs retired by a release that previously allowed destructive deletion.
+        jdbc.update("delete from food_varieties where id = ?", uuidBytes(variety));
+        jdbc.update("delete from food_brands where id = ?", uuidBytes(brand));
         UUID replacementBrand = publishCatalog("foodBrand", "Original dry food", null);
         UUID replacementVariety = publishCatalog("foodDetail", "Original kitten pellets", replacementBrand);
 
@@ -230,7 +235,8 @@ class CatIntakeControllerTest {
         approve(firstReview, first, List.of(), null, 204);
         var secondReview = detail(rowFor(reviewList(), owner.getId(), "Use a new diet option").get("id").asString());
         var body = Map.of("fields", second, "expectedReviewRevision", secondReview.get("revision").asLong(),
-                "catalogOptionIds", Map.of("foodBrand", replacementBrand, "foodDetail", replacementVariety));
+                "catalogOptionIds", Map.of("foodBrand", replacementBrand, "foodDetail", replacementVariety),
+                "confirmedCatalogText", Map.of("breed", second.get("breed"), "litterDetail", "Tutor litter"));
         mvc.perform(post(REVIEW + "/{id}/approve", secondReview.get("id").asString()).with(admin())
                         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
                 .andExpect(status().isNoContent());
@@ -247,41 +253,149 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void removingVarietiesAndBrandsFreezesOnlyTheirLinkedDiets() throws Exception {
+    void deletionGuardsSavedDietsAndRemovesOnlyUnusedOptions() throws Exception {
         UUID brand = publishCatalog("foodBrand", "Original food", null);
-        UUID removed = publishCatalog("foodDetail", "Original single variety", brand);
+        UUID used = publishCatalog("foodDetail", "Original single variety", brand);
         UUID sibling = publishCatalog("foodDetail", "Original sibling", brand);
         UUID otherBrand = publishCatalog("foodBrand", "Other food", null);
         UUID otherVariety = publishCatalog("foodDetail", "Other variety", otherBrand);
         Owner owner = owner();
-        Cat first = linkedDiet(owner, "Single variety cat", brand, removed);
-        Cat second = linkedDiet(owner, "Sibling variety cat", brand, sibling);
+        Cat linked = linkedDiet(owner, "Single variety cat", brand, used);
         Cat other = linkedDiet(owner, "Other brand cat", otherBrand, otherVariety);
         renameCatalog("foodBrand", brand, "Final food");
-        renameCatalog("foodDetail", removed, "Final single variety");
-        renameCatalog("foodDetail", sibling, "Final sibling");
+        renameCatalog("foodDetail", used, "Final single variety");
 
-        mvc.perform(delete(catalogPath("foodDetail", removed)).with(admin())).andExpect(status().isNoContent());
-        var detachedVariety = cats.findById(first.getId()).orElseThrow();
-        assertThat(detachedVariety.getFoodBrandId()).isEqualTo(brand);
-        assertThat(detachedVariety.getFoodVarietyId()).isNull();
-        assertThat(detachedVariety.getFoodDetail()).isEqualTo("Final single variety");
-        mvc.perform(delete(catalogPath("foodBrand", brand)).with(admin())).andExpect(status().isNoContent());
-        var detachedBrand = cats.findById(first.getId()).orElseThrow();
-        assertThat(detachedBrand.getFoodBrand()).isEqualTo("Final food");
-        assertThat(detachedBrand.getFoodBrandId()).isNull();
-        assertThat(detachedBrand.getFoodDetail()).isEqualTo("Final single variety");
-        var detachedBoth = cats.findById(second.getId()).orElseThrow();
-        assertThat(detachedBoth.getFoodBrand()).isEqualTo("Final food");
-        assertThat(detachedBoth.getFoodBrandId()).isNull();
-        assertThat(detachedBoth.getFoodDetail()).isEqualTo("Final sibling");
-        assertThat(detachedBoth.getFoodVarietyId()).isNull();
-        assertThat(cats.findById(other.getId()).orElseThrow().getFoodVarietyId()).isEqualTo(otherVariety);
+        assertOptionInUse("foodDetail", used);
+        assertOptionInUse("foodBrand", brand);
+        var unchanged = cats.findById(linked.getId()).orElseThrow();
+        assertThat(unchanged.getDisplayedFoodBrand()).isEqualTo("Final food");
+        assertThat(unchanged.getFoodVarietyId()).isEqualTo(used);
+        mvc.perform(delete(catalogPath("foodDetail", sibling)).with(admin())).andExpect(status().isNoContent());
         mvc.perform(delete(catalogPath("foodDetail", sibling)).with(admin())).andExpect(status().isNotFound());
+
+        cats.deleteById(linked.getId());
+        UUID unusedChild = publishCatalog("foodDetail", "Another unused variety", brand);
+        mvc.perform(delete(catalogPath("foodBrand", brand)).with(admin())).andExpect(status().isNoContent());
+        mvc.perform(delete(catalogPath("foodDetail", used)).with(admin())).andExpect(status().isNotFound());
+        mvc.perform(delete(catalogPath("foodDetail", unusedChild)).with(admin())).andExpect(status().isNotFound());
+        assertThat(cats.findById(other.getId()).orElseThrow().getFoodVarietyId()).isEqualTo(otherVariety);
     }
 
     @Test
-    void ownLitterOptionIsSpecificToOwnLitterAndFreezesAfterRenameAndRemoval() throws Exception {
+    void pendingVarietyContextProtectsItsBrandEvenAfterTheCatDetaches() throws Exception {
+        var owner = owner();
+        var cat = cat(owner, "Cat with contextual brand");
+        UUID brand = publishCatalog("foodBrand", "Linked brand", null);
+        cat.setFoodBrand("Linked brand");
+        cat.setFoodBrandId(brand);
+        cat = cats.saveAndFlush(cat);
+        var invite = issue(owner, false);
+        var proposal = Map.of("foodDetail", "A variety that is still local");
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields", proposal))))
+                .andExpect(status().isNoContent());
+        cat.setFoodBrandId(null);
+        cats.saveAndFlush(cat);
+
+        var review = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        assertThat(review.get("currentFoodBrandId").isNull()).isTrue();
+        assertOptionInUse("foodBrand", brand);
+        dismiss(review, 204);
+        mvc.perform(delete(catalogPath("foodBrand", brand)).with(admin())).andExpect(status().isNoContent());
+    }
+
+    @Test
+    @EnabledIfEnvironmentVariable(named = "CATWORLD_NATIVE_MYSQL_URL", matches = "jdbc:mysql:.*")
+    void submissionAndPermanentDeletionSerializeInEitherOrder() throws Exception {
+        var transaction = new TransactionTemplate(transactions);
+        transaction.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+        var observer = new TransactionTemplate(transactions);
+        observer.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        var owner = owner();
+        var invite = issue(owner, true);
+        UUID deletionFirst = publishCatalog("breed", "Deleted first", null);
+        UUID submissionFirst = publishCatalog("breed", "Submitted first", null);
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            Future<ResultActions> lateSubmission = transaction.execute(transactionStatus -> {
+                try {
+                    mvc.perform(delete(catalogPath("breed", deletionFirst)).with(admin()))
+                            .andExpect(status().isNoContent());
+                    var pending = executor.submit(() -> mvc.perform(submitBreed(invite, "Deleted first", deletionFirst)));
+                    awaitCatalogLockWait(observer);
+                    return pending;
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            lateSubmission.get(10, TimeUnit.SECONDS).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("CAT_INTAKE_CATALOG_CHANGED"));
+            assertThat(recipientForm(invite).get("cats")).isEmpty();
+
+            UUID draft = UUID.randomUUID();
+            var initial = newRegistration("Concurrent draft", Map.of("breed", "Initial local breed"));
+            mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", initial))))
+                    .andExpect(status().isNoContent());
+            var selected = newRegistration("Concurrent draft", Map.of("breed", "Submitted first"));
+            var resubmission = Map.of("draftId", draft, "revision", 1, "fields", selected,
+                    "optionIds", Map.of("breed", submissionFirst));
+
+            Future<ResultActions> lateDeletion = transaction.execute(transactionStatus -> {
+                try {
+                    mvc.perform(submission(invite, List.of(resubmission))).andExpect(status().isNoContent());
+                    var pending = executor.submit(() -> mvc.perform(delete(catalogPath("breed", submissionFirst)).with(admin())));
+                    awaitCatalogLockWait(observer);
+                    return pending;
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            lateDeletion.get(10, TimeUnit.SECONDS).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("CAT_CATALOG_OPTION_IN_USE"));
+            assertThat(recipientForm(invite).get("cats").get(0).get("optionIds").get("breed").asString())
+                    .isEqualTo(submissionFirst.toString());
+
+            var review = detail(rowFor(reviewList(), owner.getId(), "Concurrent draft").get("id").asString());
+            Future<ResultActions> deletionAfterApproval = transaction.execute(transactionStatus -> {
+                try {
+                    var confirmed = Map.of("foodBrand", "Tutor food", "foodDetail", "Dry", "litterDetail", "Tutor litter");
+                    mvc.perform(approvalRequest(review, selected, List.of(), null, confirmed))
+                            .andExpect(status().isNoContent());
+                    var pending = executor.submit(() -> mvc.perform(delete(catalogPath("breed", submissionFirst)).with(admin())));
+                    awaitCatalogLockWait(observer);
+                    return pending;
+                } catch (Exception e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            deletionAfterApproval.get(10, TimeUnit.SECONDS).andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("CAT_CATALOG_OPTION_IN_USE"));
+            assertThat(cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged())
+                    .getContent()).singleElement().satisfies(cat -> assertThat(cat.getBreedOptionId()).isEqualTo(submissionFirst));
+        }
+    }
+
+    private MockMultipartHttpServletRequestBuilder submitBreed(Invite invite, String breed, UUID id) {
+        return submission(invite, List.of(Map.of("draftId", UUID.randomUUID(),
+                "fields", newRegistration("Concurrent draft", Map.of("breed", breed)), "optionIds", Map.of("breed", id))));
+    }
+
+    private void awaitCatalogLockWait(TransactionTemplate observer) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+        while (System.nanoTime() < deadline) {
+            Integer waits = observer.execute(status -> jdbc.queryForObject("""
+                    select count(*)
+                    from performance_schema.data_lock_waits w
+                    join performance_schema.data_locks l
+                      on l.engine_lock_id = w.requesting_engine_lock_id
+                    where l.object_schema = database() and l.object_name = 'cat_profile_options'
+                    """, Integer.class));
+            if (waits != null && waits > 0) return;
+            Thread.sleep(25);
+        }
+        throw new AssertionError("Expected MySQL to wait on a catalog option lock");
+    }
+
+    @Test
+    void ownLitterOptionIsSpecificToOwnLitterAndCannotBeDeletedWhileLinked() throws Exception {
         Owner owner = owner();
         Cat cat = cat(owner, "Own litter catalog cat");
         String editorTimestamp = cats.findById(cat.getId()).orElseThrow().getUpdatedAt().toString();
@@ -301,15 +415,15 @@ class CatIntakeControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.litterDetail").value("Original pellets"))
                 .andExpect(jsonPath("$.catalogOptionIds.litterDetail").value(id.toString()));
         renameCatalog("litterDetail", id, "Usa las de CatWorld");
-        mvc.perform(delete(catalogPath("litterDetail", id)).with(admin())).andExpect(status().isNoContent());
+        assertOptionInUse("litterDetail", id);
         mvc.perform(get("/api/cats/{id}", cat.getId()).with(admin()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.litterPreference").value("OWN"))
                 .andExpect(jsonPath("$.litterDetail").value("Usa las de CatWorld"))
-                .andExpect(jsonPath("$.catalogOptionIds.litterDetail").doesNotExist());
+                .andExpect(jsonPath("$.catalogOptionIds.litterDetail").value(id.toString()));
     }
 
     @Test
-    void aNewOwnLitterSuggestionIsPublishedOnlyWhenApproved() throws Exception {
+    void aNewOwnLitterSuggestionCanBeApprovedAsLocalText() throws Exception {
         Owner owner = owner();
         Cat cat = cat(owner, "Litter suggestion cat");
         var invite = issue(owner, false);
@@ -327,7 +441,7 @@ class CatIntakeControllerTest {
         assertThat(review.get("proposed").get("litterDetail").asString()).isEqualTo("Porous pellets");
         approve(review, proposal, List.of(), review.get("catUpdatedAt").asString(), 204);
         var registered = cats.findById(cat.getId()).orElseThrow();
-        assertThat(registered.getLitterDetailOptionId()).isNotNull();
+        assertThat(registered.getLitterDetailOptionId()).isNull();
         mvc.perform(get("/api/cats/{id}", cat.getId()).with(admin())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.litterPreference").value("OWN"))
                 .andExpect(jsonPath("$.litterDetail").value("Porous pellets"));
@@ -426,7 +540,7 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void approvesNewVarietyForTheSameLinkedBrandAfterItsNameChanges() throws Exception {
+    void approvesLocalVarietyForTheSameLinkedBrandAfterItsNameChanges() throws Exception {
         Owner owner = owner();
         String catalog = "/api/cat-profile-options";
         var response = mvc.perform(post(catalog).with(admin()).contentType(MediaType.APPLICATION_JSON)
@@ -459,7 +573,7 @@ class CatIntakeControllerTest {
         mvc.perform(get("/api/cats/{id}", cat.getId()).with(admin()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.foodBrandId").value(brandId.toString()))
                 .andExpect(jsonPath("$.foodDetail").value("A new variety"))
-                .andExpect(jsonPath("$.catalogOptionIds.foodDetail").isNotEmpty());
+                .andExpect(jsonPath("$.catalogOptionIds.foodDetail").doesNotExist());
     }
 
     @Test
@@ -858,7 +972,7 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void intakePublishesOnlyTheCorrectedAndSelectedCatalogField() throws Exception {
+    void intakeConfirmsAndSavesOnlyTheCorrectedAndSelectedLocalField() throws Exception {
         var owner = owner();
         var existing = cat(owner, "Catalog review");
         var invite = issue(owner, false);
@@ -870,15 +984,23 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.catalogOptions.breed[?(@.name == 'European SHORTHAIR')]").isEmpty());
 
         var review = detail(rowFor(reviewList(), owner.getId(), existing.getName()).get("id").asString());
-        approve(review, Map.of("breed", "European Shorthair"), List.of(),
-                review.get("catUpdatedAt").asString(), 204);
+        var accepted = Map.of("breed", "European Shorthair");
+        var request = approvalRequest(review, accepted, List.of(), review.get("catUpdatedAt").asString(), null);
+        mvc.perform(request).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED"))
+                .andExpect(jsonPath("$.fields.breed").value("European Shorthair"))
+                .andExpect(jsonPath("$.fields.color").doesNotExist());
+        assertThat(cats.findById(existing.getId()).orElseThrow().getBreed()).isNull();
+        mvc.perform(approvalRequest(review, accepted, List.of(), review.get("catUpdatedAt").asString(), accepted))
+                .andExpect(status().isNoContent());
         var updated = cats.findById(existing.getId()).orElseThrow();
         assertThat(updated.getBreed()).isEqualTo("European Shorthair");
+        assertThat(updated.getBreedOptionId()).isNull();
         assertThat(updated.getColor()).isNull();
         var otherInvite = issue(owner(), true);
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, otherInvite.authorization()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.catalogOptions.breed[*].name", hasItem("European Shorthair")))
+                .andExpect(jsonPath("$.catalogOptions.breed[?(@.name == 'European Shorthair')]").isEmpty())
                 .andExpect(jsonPath("$.catalogOptions.color").doesNotExist());
     }
 
@@ -931,12 +1053,8 @@ class CatIntakeControllerTest {
 
     @Test
     void requiresASelectionForMatchingCatalogTextAndRejectsContradictoryIds() throws Exception {
-        Owner publisher = owner();
-        var firstInvite = issue(publisher, true);
-        var first = newRegistration("Publisher", Map.of("foodBrand", "Royal Nutrition API", "breed", "Forest cat API"));
-        mvc.perform(submission(firstInvite, List.of(Map.of("draftId", UUID.randomUUID(), "fields", first))))
-                .andExpect(status().isNoContent());
-        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), first, List.of(), null, 204);
+        publishCatalog("foodBrand", "Royal Nutrition API", null);
+        publishCatalog("breed", "Forest cat API", null);
 
         Owner recipient = owner();
         var invite = issue(recipient, true);
@@ -971,7 +1089,7 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void publishesFoodVarietiesOnlyOnApprovalAndScopesTheirIdentityToTheBrand() throws Exception {
+    void offersFoodVarietiesOnlyAfterExplicitPublicationAndScopesTheirIdentityToTheBrand() throws Exception {
         Owner publisher = owner();
         var firstInvite = issue(publisher, true);
         var first = newRegistration("Variety publisher", Map.of("foodBrand", "My Scope Brand", "foodDetail", "Gastro Kitten"));
@@ -981,6 +1099,10 @@ class CatIntakeControllerTest {
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, firstInvite.authorization()))
                 .andExpect(jsonPath("$.foodVarieties[?(@.name == 'Gastro Kitten')]").isEmpty());
         approve(rowFor(reviewList(), publisher.getId(), "Variety publisher"), first, List.of(), null, 204);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, issue(owner(), true).authorization()))
+                .andExpect(jsonPath("$.foodVarieties[?(@.name == 'Gastro Kitten')]").isEmpty());
+        UUID publishedBrand = publishCatalog("foodBrand", "My Scope Brand", null);
+        publishCatalog("foodDetail", "Gastro Kitten", publishedBrand);
 
         Owner recipient = owner();
         var invite = issue(recipient, true);
@@ -1022,6 +1144,8 @@ class CatIntakeControllerTest {
                 Map.of("foodBrand", "Original Diet Brand", "foodDetail", "Familiar Puppy-Free Diet"));
         mvc.perform(submission(register, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
                 .andExpect(status().isNoContent());
+        UUID publishedBrand = publishCatalog("foodBrand", registration.get("foodBrand"), null);
+        publishCatalog("foodDetail", registration.get("foodDetail"), publishedBrand);
         approve(rowFor(reviewList(), owner.getId(), "Cat with diet"), registration, List.of(), null, 204);
         Cat cat = cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent().getFirst();
         assertThat(cat.getFoodVarietyId()).isNotNull();
@@ -1056,6 +1180,8 @@ class CatIntakeControllerTest {
                 Map.of("foodBrand", "Retainable Diet Brand", "foodDetail", "Adult Care"));
         mvc.perform(submission(register, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
                 .andExpect(status().isNoContent());
+        UUID publishedBrand = publishCatalog("foodBrand", registration.get("foodBrand"), null);
+        publishCatalog("foodDetail", registration.get("foodDetail"), publishedBrand);
         approve(rowFor(reviewList(), owner.getId(), "Cat with retained diet"), registration, List.of(), null, 204);
         Cat cat = cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent().getFirst();
         UUID retainedVarietyId = cat.getFoodVarietyId();
@@ -1090,21 +1216,14 @@ class CatIntakeControllerTest {
 
     @Test
     void simultaneousApprovalsShareOneNormalizedVarietyForTheSameBrand() throws Exception {
-        Owner publisher = owner();
-        var publish = issue(publisher, true);
-        var registration = newRegistration("Publisher", Map.of("foodBrand", "One Variety Brand"));
-        mvc.perform(submission(publish, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
-                .andExpect(status().isNoContent());
-        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), registration, List.of(), null, 204);
-
-        var form = recipientForm(issue(owner(), true));
-        UUID brandId = UUID.fromString(catalogId(form, "foodBrand", registration.get("foodBrand")));
+        String brandName = "One Variety Brand";
+        UUID brandId = publishCatalog("foodBrand", brandName, null);
         Cat first = cat(owner(), "First concurrent cat");
-        first.setFoodBrand(registration.get("foodBrand"));
+        first.setFoodBrand(brandName);
         first.setFoodBrandId(brandId);
         cats.saveAndFlush(first);
         Cat second = cat(owner(), "Second concurrent cat");
-        second.setFoodBrand(registration.get("foodBrand"));
+        second.setFoodBrand(brandName);
         second.setFoodBrandId(brandId);
         cats.saveAndFlush(second);
         var firstFields = Map.of("foodDetail", "Digestive Balance");
@@ -1113,6 +1232,7 @@ class CatIntakeControllerTest {
                 .andExpect(status().isNoContent());
         mvc.perform(submission(issue(second.getOwner(), false), List.of(Map.of("catId", second.getId(), "fields", secondFields))))
                 .andExpect(status().isNoContent());
+        UUID varietyId = publishCatalog("foodDetail", "Digestive Balance", brandId);
         var pending = reviewList();
         var firstReview = detail(rowFor(pending, first.getOwner().getId(), first.getName()).get("id").asString());
         var secondReview = detail(rowFor(pending, second.getOwner().getId(), second.getName()).get("id").asString());
@@ -1136,11 +1256,12 @@ class CatIntakeControllerTest {
 
         Cat firstApproved = cats.findById(first.getId()).orElseThrow();
         Cat secondApproved = cats.findById(second.getId()).orElseThrow();
-        assertThat(firstApproved.getFoodVarietyId()).isNotNull().isEqualTo(secondApproved.getFoodVarietyId());
+        assertThat(firstApproved.getFoodVarietyId()).isEqualTo(varietyId);
+        assertThat(secondApproved.getFoodVarietyId()).isEqualTo(varietyId);
         assertThat(firstApproved.getFoodDetail()).isEqualTo(secondApproved.getFoodDetail());
         var refreshed = recipientForm(issue(owner(), true));
         assertThat(refreshed.get("foodVarieties").valueStream()
-                .filter(variety -> variety.get("brandId").asString().equals(brandId.toString()))).hasSize(2);
+                .filter(variety -> variety.get("brandId").asString().equals(brandId.toString()))).hasSize(1);
     }
 
     @Test
@@ -1160,12 +1281,7 @@ class CatIntakeControllerTest {
         var historical = reviews.saveAndFlush(new CatIntakeReview(invitation, existing.getId(), draftId, existing.getName(),
                 "{}", "{\"foodBrand\":\"R\",\"foodDetail\":\"Historical Diet\"}", NOW));
 
-        Owner publisher = owner();
-        var publish = issue(publisher, true);
-        var registration = newRegistration("Publisher", Map.of("foodBrand", "Royal Nutrition Historic"));
-        mvc.perform(submission(publish, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
-                .andExpect(status().isNoContent());
-        approve(rowFor(reviewList(), publisher.getId(), "Publisher"), registration, List.of(), null, 204);
+        publishCatalog("foodBrand", "Royal Nutrition Historic", null);
 
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(jsonPath("$.cats[0].requestedFields.length()").value(1))
@@ -1183,7 +1299,7 @@ class CatIntakeControllerTest {
     }
 
     @Test
-    void onlyOffersFoodBrandsAfterApprovalAndMatchesTheCompleteNormalizedName() throws Exception {
+    void onlyOffersExplicitlyPublishedFoodBrandsAndMatchesTheCompleteNormalizedName() throws Exception {
         Owner owner = owner();
         var invite = issue(owner, true);
         var first = newRegistration("First", Map.of("foodBrand", "Northern Lights Food"));
@@ -1193,6 +1309,9 @@ class CatIntakeControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.brands[?(@.name == 'Northern Lights Food')]").isEmpty());
         approve(rowFor(reviewList(), owner.getId(), "First"), first, List.of(), null, 204);
+        UUID brandId = publishCatalog("foodBrand", first.get("foodBrand"), null);
+        publishCatalog("foodDetail", first.get("foodDetail"), brandId);
+        publishCatalog("breed", first.get("breed"), null);
 
         var secondInvite = issue(owner(), true);
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, secondInvite.authorization()))
@@ -1691,14 +1810,27 @@ class CatIntakeControllerTest {
 
     private void approve(JsonNode row, Map<String, String> fields, List<String> photoIds, String updatedAt, int status)
             throws Exception {
+        var response = mvc.perform(approvalRequest(row, fields, photoIds, updatedAt, null));
+        if (status == 204 && response.andReturn().getResponse().getStatus() == 409) {
+            response.andExpect(jsonPath("$.code").value("CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED"));
+            var confirmed = new HashMap<String, String>();
+            json.readTree(response.andReturn().getResponse().getContentAsByteArray()).get("fields").properties()
+                    .forEach(entry -> confirmed.put(entry.getKey(), entry.getValue().asString()));
+            response = mvc.perform(approvalRequest(row, fields, photoIds, updatedAt, confirmed));
+        }
+        response.andExpect(status().is(status));
+    }
+
+    private MockHttpServletRequestBuilder approvalRequest(JsonNode row, Map<String, String> fields, List<String> photoIds,
+                                                           String updatedAt, Map<String, String> confirmedCatalogText) {
         var body = new java.util.HashMap<String, Object>();
         body.put("fields", fields);
         body.put("photoIds", photoIds);
         body.put("expectedCatUpdatedAt", updatedAt);
         body.put("expectedReviewRevision", row.has("revision") ? row.get("revision").asLong() : 1L);
-        mvc.perform(post(REVIEW + "/{id}/approve", row.get("id").asString()).with(admin())
-                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body)))
-                .andExpect(status().is(status));
+        if (confirmedCatalogText != null) body.put("confirmedCatalogText", confirmedCatalogText);
+        return post(REVIEW + "/{id}/approve", row.get("id").asString()).with(admin())
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor admin() {

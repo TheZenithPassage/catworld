@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -20,6 +21,13 @@ final class CatalogOptionName {
     static byte[] key(String name) {
         // Use a binary key so database collation cannot merge distinct spellings.
         return name.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8);
+    }
+
+    static boolean sameName(String left, String right) {
+        String a = cleanName(left);
+        String b = cleanName(right);
+        return a == null || b == null ? Objects.equals(a, b)
+                : a.toLowerCase(Locale.ROOT).equals(b.toLowerCase(Locale.ROOT));
     }
 
     static byte[] binaryId(UUID id) {

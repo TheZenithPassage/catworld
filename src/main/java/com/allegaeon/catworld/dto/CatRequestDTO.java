@@ -4,6 +4,7 @@ import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.LitterPreference;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
@@ -23,6 +24,7 @@ import java.util.UUID;
 @Getter @Setter
 @NoArgsConstructor(onConstructor_ = @JsonCreator)
 @AllArgsConstructor
+@JsonIgnoreProperties({"approveFoodBrand", "approveCatalogOptions"})
 @Builder
 public class CatRequestDTO {
 
@@ -104,15 +106,11 @@ public class CatRequestDTO {
     private String foodDetail;
     private UUID foodVarietyId;
 
-    private boolean approveFoodBrand;
-    private Set<String> approveCatalogOptions;
     private Map<String, UUID> catalogOptionIds;
+    private Map<String, String> confirmedCatalogText;
 
     @JsonIgnore
     private boolean reviewedIntake;
-
-    @JsonIgnore
-    private boolean approveFoodVariety;
 
     @JsonIgnore
     private Set<String> unlinkedIntakeOptions;

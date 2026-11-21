@@ -233,8 +233,11 @@ public class CatIntakeService {
                     .collect(Collectors.toMap(CatIntakeReview::getDraftId, review -> review));
             var eligibleById = eligible.stream().collect(Collectors.toMap(Cat::getId, cat -> cat));
             var vaccineDates = vaccineDateRange(LocalDate.ofInstant(now, clock.getZone()));
-            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog(), vaccineDates);
+            var catalog = catalog();
+            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog, vaccineDates);
             validateRequestedAnswer(drafts, requested, eligible, byCat);
+            // A deletion may have committed since the catalog snapshot was read.
+            profileOptions.lockSubmittedReferences(catalog.submittedReferences(drafts.stream().map(Draft::proposal).toList()));
             drafts.forEach(draft -> saveDraft(locked, draft, normalized, now));
         });
     }
@@ -264,7 +267,7 @@ public class CatIntakeService {
                 unansweredRequestedFields(review, proposed),
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
                 cat == null ? null : cat.getUpdatedAt(), review.getRevision(), varietyBrand,
-                catalog.retiredFields(proposal));
+                catalog.retiredFields(proposal), cat == null ? null : cat.getFoodBrandId());
     }
 
     @Transactional(readOnly = true)
@@ -292,7 +295,7 @@ public class CatIntakeService {
         var catalog = catalog();
         var retiredFields = new HashSet<>(catalog.retiredFields(proposal));
         var replacements = approvalSelections(approval);
-        var reviewedOptions = catalog.revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
+        var reviewedOptions = catalog.revalidateApproval(accepted, cat == null ? null : cat.getDisplayedFoodBrand(),
                 cat == null ? null : cat.getFoodBrandId(), cat == null ? null : cat.getCoat(),
                 proposal, replacements, retiredFields);
         if (cat != null) {
@@ -317,7 +320,8 @@ public class CatIntakeService {
         retiredFields.retainAll(accepted.keySet());
         retiredFields.removeAll(replacements.keySet());
         request.setUnlinkedIntakeOptions(retiredFields);
-        profileOptions.selectForApproval(request, accepted);
+        request.setReviewedIntake(true);
+        request.setConfirmedCatalogText(approval.confirmedCatalogText());
         if (accepted.containsKey(FOOD_BRAND)) {
             request.setFoodBrand(accepted.get(FOOD_BRAND));
             request.setFoodBrandId(replacements.remove(FOOD_BRAND));
@@ -325,8 +329,6 @@ public class CatIntakeService {
         if (accepted.containsKey(FOOD_DETAIL)) {
             request.setFoodDetail(accepted.get(FOOD_DETAIL));
             request.setFoodVarietyId(replacements.remove(FOOD_DETAIL));
-            request.setApproveFoodVariety(!retiredFields.contains(FOOD_DETAIL)
-                    && (request.getFoodVarietyId() != null || proposal.foodDetailBrand() != null));
         }
         if (accepted.containsKey(LITTER_DETAIL)) {
             request.setLitterPreference(LitterPreference.OWN);

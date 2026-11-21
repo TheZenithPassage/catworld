@@ -205,7 +205,7 @@ class FoodBrandControllerTest {
         var breed = publish(admin, Map.of("field", "breed", "name", "  Crema  Ártica\t" + suffix + "  "));
         var local = create(staff, Map.of("breed", name, "coat", "Corto", "color", name));
         assertThat(local.get("breed").asText()).isEqualTo(name);
-        assertThat(local.get("catalogOptionIds").has("breed")).isFalse();
+        assertThat(local.get("catalogOptionIds").get("breed")).isEqualTo(breed.get("id"));
         var matched = create(staff, Map.of("catalogOptionIds", Map.of("breed", breed.get("id").asText())));
         assertThat(matched.get("breed").asText()).isEqualTo(name);
         assertThat(matched.get("catalogOptionIds").get("breed")).isEqualTo(breed.get("id"));
@@ -228,8 +228,10 @@ class FoodBrandControllerTest {
     @Test
     void unchangedHistoricalValuesRemainLocalAndChangingAnApprovedValueClearsItsId() throws Exception {
         String legacy = "  Historical treatment " + UUID.randomUUID() + "  ";
+        publish(admin, Map.of("field", "lastExternalDewormerName", "name", "Existing catalog treatment"));
         Cat cat = cats.saveAndFlush(Cat.builder().name("Historical cat").birthDate(LocalDate.of(2020, 3, 2))
                 .sex(Sex.MALE).lastExternalDewormerName(legacy).coat("Curly").owner(owner).createdBy(admin).build());
+        publish(admin, Map.of("field", "lastExternalDewormerName", "name", legacy));
         var existing = json.readTree(mvc.perform(get("/api/cats/{id}", cat.getId())
                         .with(httpBasic(admin.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
@@ -243,39 +245,64 @@ class FoodBrandControllerTest {
         assertThat(changed.get("coat").asText()).isEqualTo("Largo");
         assertThat(changed.get("catalogOptionIds").has("coat")).isFalse();
         mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.lastExternalDewormerName").isEmpty());
+                .andExpect(status().isOk()).andExpect(jsonPath("$.lastExternalDewormerName.length()").value(2));
     }
 
     @Test
-    void staffMayUseApprovedOrLocalBrandWithoutPublishingAProposal() throws Exception {
+    void confirmsOnlyNewLocalValuesAndResolvesKnownCatalogText() throws Exception {
         String suffix = UUID.randomUUID().toString();
-        String approvedName = "Royal Çat " + suffix;
-        JsonNode approved = create(admin, Map.of("foodBrand", "  Royal  Çat\t" + suffix + "  ",
-                "approveFoodBrand", true, "foodDetail", "Sensitive digestion",
-                "litterBrand", "Usa las de CatWorld"));
-        assertThat(approved.get("foodBrand").asText()).isEqualTo(approvedName);
-        assertThat(approved.get("litterBrand").asText()).isEqualTo("Usa las de CatWorld");
-        assertThat(approved.get("foodDetail").asText()).isEqualTo("Sensitive digestion");
-        assertThat(approved.get("foodBrandId").asText()).isNotBlank();
+        String brand = "Royal Çat " + suffix;
+        String brandId = publish(admin, Map.of("field", "foodBrand", "name", brand)).get("id").asText();
+        String varietyId = publish(admin, Map.of("field", "foodDetail", "name", "Sensitive Digestion",
+                "brandId", brandId)).get("id").asText();
+        String otherBrand = publish(admin, Map.of("field", "foodBrand", "name", "Other " + suffix)).get("id").asText();
+        publish(admin, Map.of("field", "foodDetail", "name", "Different Brand Only", "brandId", otherBrand));
 
-        JsonNode known = create(staff, Map.of("foodBrand", "royal\u00a0çat " + suffix));
-        assertThat(known.get("foodBrand").asText()).isEqualTo("royal\u00a0çat " + suffix);
-        assertThat(known.get("foodBrandId").isNull()).isTrue();
-        JsonNode selected = create(staff, Map.of("foodBrandId", approved.get("foodBrandId").asText()));
-        assertThat(selected.get("foodBrand").asText()).isEqualTo(approvedName);
-        assertThat(selected.get("foodBrandId")).isEqualTo(approved.get("foodBrandId"));
+        var text = Map.of("breed", "Local breed " + suffix, "foodDetail", "Different Brand Only");
+        var values = new LinkedHashMap<String, Object>(text);
+        values.put("foodBrand", "royal\u00a0çat  " + suffix.toUpperCase(java.util.Locale.ROOT));
+        values.put("approveCatalogOptions", List.of("breed"));
+        mvc.perform(createRequest(admin, values)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED"))
+                .andExpect(jsonPath("$.fields.breed").value(text.get("breed")))
+                .andExpect(jsonPath("$.fields.foodDetail").value(text.get("foodDetail")))
+                .andExpect(jsonPath("$.fields.foodBrand").doesNotExist());
+        values.put("confirmedCatalogText", Map.of("breed", "A different breed", "foodDetail", text.get("foodDetail")));
+        mvc.perform(createRequest(admin, values)).andExpect(status().isConflict());
+        values.put("confirmedCatalogText", text);
+        JsonNode approved = create(admin, values);
+        assertThat(approved.get("foodBrandId").asText()).isEqualTo(brandId);
+        assertThat(approved.get("catalogOptionIds").has("foodDetail")).isFalse();
+        assertThat(approved.get("catalogOptionIds").has("breed")).isFalse();
+        assertThat(approved.get("foodDetail").asText()).isEqualTo(text.get("foodDetail"));
 
-        String localName = "Royal Cat " + suffix;
-        JsonNode local = create(staff, Map.of("foodBrand", localName));
-        assertThat(local.get("foodBrand").asText()).isEqualTo(localName);
-        assertThat(local.get("foodBrandId").isNull()).isTrue();
-        mvc.perform(createRequest(staff, Map.of("foodBrand", localName, "approveFoodBrand", true)))
-                .andExpect(status().isForbidden());
-        assertThat(catalogNames(staff)).contains(approvedName).doesNotContain(localName);
+        JsonNode known = create(staff, Map.of("foodBrandId", brandId, "foodDetail", " SENSITIVE   digestion "));
+        assertThat(known.get("catalogOptionIds").get("foodDetail").asText()).isEqualTo(varietyId);
+        assertThat(known.get("foodDetail").asText()).isEqualTo("Sensitive Digestion");
 
-        JsonNode updated = update(approved, Map.of("foodBrand", approvedName, "color", "Gray"));
-        assertThat(updated.get("foodDetail")).isEqualTo(approved.get("foodDetail"));
+        var updated = update(approved, Map.of("foodBrand", brand, "foodDetail", text.get("foodDetail"),
+                "breed", text.get("breed"), "color", "Gray"));
         assertThat(updated.get("foodBrandId")).isEqualTo(approved.get("foodBrandId"));
+        assertThat(updated.get("foodDetail")).isEqualTo(approved.get("foodDetail"));
+        assertThat(updated.get("breed")).isEqualTo(approved.get("breed"));
+        assertThat(updated.get("catalogOptionIds").has("breed")).isFalse();
+    }
+
+    @Test
+    void editConfirmsOnlyChangedLocalValues() throws Exception {
+        var cat = create(staff, Map.of());
+        var values = Map.of("litterPreference", "OWN", "litterDetail", "Own mixed litter", "color", "Gray");
+        mvc.perform(updateRequest(cat, values)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED"))
+                .andExpect(jsonPath("$.fields.litterDetail").value("Own mixed litter"))
+                .andExpect(jsonPath("$.fields.color").doesNotExist());
+        assertThat(cats.findById(UUID.fromString(cat.get("id").asText())).orElseThrow().getColor()).isNull();
+
+        var confirmed = new LinkedHashMap<String, Object>(values);
+        confirmed.put("confirmedCatalogText", Map.of("litterDetail", "Own mixed litter"));
+        var updated = update(cat, confirmed);
+        assertThat(updated.get("litterDetail").asText()).isEqualTo("Own mixed litter");
+        assertThat(updated.get("catalogOptionIds").has("litterDetail")).isFalse();
     }
 
     @Test
@@ -296,32 +323,21 @@ class FoodBrandControllerTest {
     }
 
     @Test
-    void concurrentApprovalReusesTheSameCatalogEntryInEachCategory() throws Exception {
-        String suffix = UUID.randomUUID().toString();
-        String brandA = "Nutri Cat " + suffix;
-        String brandB = "NUTRI CAT " + suffix;
+    void concurrentExplicitPublicationReusesTheSameOption() throws Exception {
+        String option = "Nutri Cat " + UUID.randomUUID();
         var start = new CountDownLatch(1);
         try (var pool = Executors.newFixedThreadPool(2)) {
             var first = pool.submit(() -> {
                 start.await();
-                return create(admin, Map.of("foodBrand", brandA, "approveFoodBrand", true,
-                        "lastInternalDewormerName", brandA, "approveCatalogOptions", List.of("lastInternalDewormerName")));
+                return publish(admin, Map.of("field", "foodBrand", "name", option));
             });
             var second = pool.submit(() -> {
                 start.await();
-                return create(admin, Map.of("foodBrand", brandB,
-                        "lastInternalDewormerName", brandB, "approveCatalogOptions", List.of("foodBrand", "lastInternalDewormerName")));
+                return publish(admin, Map.of("field", "foodBrand", "name", option.toUpperCase(java.util.Locale.ROOT)));
             });
             start.countDown();
-            JsonNode firstCat = first.get(15, TimeUnit.SECONDS);
-            JsonNode secondCat = second.get(15, TimeUnit.SECONDS);
-            assertThat(firstCat.get("foodBrand")).isEqualTo(secondCat.get("foodBrand"));
-            assertThat(firstCat.get("foodBrandId").asText()).isNotBlank();
-            assertThat(firstCat.get("foodBrandId")).isEqualTo(secondCat.get("foodBrandId"));
-            assertThat(firstCat.get("catalogOptionIds").get("lastInternalDewormerName").asText()).isNotBlank();
-            assertThat(firstCat.get("catalogOptionIds").get("lastInternalDewormerName"))
-                    .isEqualTo(secondCat.get("catalogOptionIds").get("lastInternalDewormerName"));
-            assertThat(catalogNames(admin).stream().filter(name -> name.endsWith(suffix))).hasSize(1);
+            assertThat(first.get(15, TimeUnit.SECONDS)).isEqualTo(second.get(15, TimeUnit.SECONDS));
+            assertThat(catalogNames(admin)).containsOnlyOnce(first.get().get("name").asText());
         }
     }
 
@@ -340,11 +356,16 @@ class FoodBrandControllerTest {
     }
 
     private JsonNode update(JsonNode cat, Map<String, ?> values) throws Exception {
+        return json.readTree(mvc.perform(updateRequest(cat, values))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private MockMultipartHttpServletRequestBuilder updateRequest(JsonNode cat, Map<String, ?> values) {
         var update = new LinkedHashMap<String, Object>(values);
         update.put("expectedUpdatedAt", cat.get("updatedAt").asText());
-        return json.readTree(mvc.perform(multipart(HttpMethod.PUT, "/api/cats/{id}", cat.get("id").asText())
-                        .file(profile(update)).with(httpBasic(admin.getUsername(), PASSWORD)))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var request = multipart(HttpMethod.PUT, "/api/cats/{id}", cat.get("id").asText()).file(profile(update));
+        request.with(httpBasic(admin.getUsername(), PASSWORD));
+        return request;
     }
 
     private MockMultipartFile profile(Map<String, ?> values) {
