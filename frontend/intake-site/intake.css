@@ -204,20 +204,29 @@ fieldset {
 
 .catalog-control > input.catalog-input--selected {
   padding-inline-end: 4.5rem;
-  border-color: var(--green);
-  color: var(--green);
-  background: #edf6ee;
+  border-color: var(--color-success);
+  color: var(--color-success-text);
+  background: var(--color-success-soft);
+  caret-color: var(--color-success);
+}
+
+.catalog-control > input.catalog-input--selected:hover {
+  border-color: var(--color-success-strong);
+}
+
+.catalog-control > input.catalog-input--selected:focus-visible {
+  outline-color: var(--color-success);
 }
 
 .catalog-suffix {
   display: flex;
   align-items: center;
   justify-self: end;
-  color: var(--green);
 }
 
 .catalog-check {
   margin-inline-start: 0.5rem;
+  color: var(--color-success-strong);
   font-weight: 750;
 }
 
@@ -235,6 +244,11 @@ fieldset {
 .catalog-clear {
   border-color: transparent;
   background: transparent;
+  color: var(--muted);
+}
+
+.catalog-control:has(.catalog-input--selected) .catalog-clear {
+  color: var(--color-success-strong);
 }
 
 .sr-only {
