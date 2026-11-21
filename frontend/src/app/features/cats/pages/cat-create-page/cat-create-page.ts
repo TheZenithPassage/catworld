@@ -25,10 +25,12 @@ import {
   CAT_COAT_LENGTHS,
   CatCatalogSelection,
   CatCatalogSelectionField,
+  CatLitterPreference,
   CreateCatRequest,
   Sex,
 } from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { catLitterRequest } from '../../utils/cat-litter-label';
 import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../../components/cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
@@ -90,6 +92,7 @@ export class CatCreatePage implements AfterViewInit {
   readonly catalogSelection = signal<CatCatalogSelection>({});
   readonly coatLengths = CAT_COAT_LENGTHS;
   readonly litterBrand = signal('');
+  readonly litterPreference = signal<CatLitterPreference | null | undefined>(undefined);
   readonly personality = signal('');
   readonly careInstructions = signal('');
   readonly notes = signal('');
@@ -156,6 +159,7 @@ export class CatCreatePage implements AfterViewInit {
       this.foodDetail.set(draft.foodDetail ?? '');
       this.catalogSelection.set(draft.catalogSelection ?? {});
       this.litterBrand.set(draft.litterBrand);
+      this.litterPreference.set(draft.litterPreference);
       this.personality.set(draft.personality);
       this.careInstructions.set(draft.careInstructions ?? '');
       this.notes.set(draft.notes);
@@ -251,7 +255,7 @@ export class CatCreatePage implements AfterViewInit {
       foodBrand: this.toNullableString(this.foodBrand()),
       ...(foodDetail ? { foodDetail } : {}),
       ...catCatalogSelectionRequest(this.catalogSelection()),
-      litterBrand: this.toNullableString(this.litterBrand()),
+      ...catLitterRequest(this.litterBrand(), this.litterPreference()),
       personality: this.toNullableString(this.personality()),
       ...(careInstructions ? { careInstructions } : {}),
       notes: this.toNullableString(this.notes()),
@@ -402,6 +406,7 @@ export class CatCreatePage implements AfterViewInit {
       foodDetail: this.foodDetail(),
       catalogSelection: this.catalogSelection(),
       litterBrand: this.litterBrand(),
+      litterPreference: this.litterPreference(),
       personality: this.personality(),
       careInstructions: this.careInstructions(),
       notes: this.notes(),

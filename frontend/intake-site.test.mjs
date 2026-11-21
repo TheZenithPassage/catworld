@@ -270,6 +270,43 @@ test('choosing personal litter answers the request without a brand and reopens a
   assert.equal(received.querySelector('[name="litterBrand"]').value, '');
 });
 
+test('own litter submits the selected catalog ID and shared litter ignores the detail', async (t) => {
+  const invitation = {
+    allowNewCats: false,
+    cats: [{ ...existing, requestedFields: ['litterBrand'] }],
+    catalogOptions: { litterDetail: [{ id: 'pine', name: 'Pine pellets' }] },
+  };
+  const portal = await openForm(t, invitation);
+  const [card] = portal.entries();
+  function choose(portal, card, value) {
+    const choice = [...card.querySelectorAll('select')].find((select) =>
+      [...select.options].some((option) => option.value === 'own'),
+    );
+    choice.value = value;
+    choice.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  }
+  choose(portal, card, 'own');
+  const detail = enter(portal.window, card, 'litterBrand', 'pine pellets');
+  assert.equal(await portal.submit(), undefined);
+  detail.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
+  let post = await portal.submit();
+  let [cat] = JSON.parse(await post.body.get('submission').text()).cats;
+  assert.deepEqual(cat.fields, { litterBrand: 'Pine pellets', litterDetail: 'Pine pellets' });
+  assert.deepEqual(cat.optionIds, { litterDetail: 'pine' });
+
+  const next = await openForm(t, {
+    ...invitation,
+    cats: [
+      { ...invitation.cats[0], revision: 1, proposedFields: cat.fields, optionIds: cat.optionIds },
+    ],
+  });
+  choose(next, next.entries()[0], 'shared');
+  post = await next.submit();
+  [cat] = JSON.parse(await post.body.get('submission').text()).cats;
+  assert.deepEqual(cat.fields, { litterBrand: 'Usa las de CatWorld' });
+  assert.equal(cat.optionIds, undefined);
+});
+
 test('reopening a partial submission shows both pending data and the submitted status', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: true,

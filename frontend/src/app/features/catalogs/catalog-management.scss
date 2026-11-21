@@ -66,3 +66,11 @@
     color: var(--color-text-muted);
   }
 }
+
+.varieties {
+  display: grid;
+  gap: 0.65rem;
+  margin-block-start: 0.75rem;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 0.2rem solid var(--mat-sys-outline-variant);
+}

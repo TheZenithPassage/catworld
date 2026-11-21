@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -9,6 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { finalize, Observable } from 'rxjs';
@@ -16,11 +18,12 @@ import { finalize, Observable } from 'rxjs';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-profile-options.service';
+import { PermanentDeletionConfirmationDialog } from '../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 
 const FIELDS = [
   'breed',
   'foodBrand',
-  'foodDetail',
+  'litterDetail',
   'lastInternalDewormerName',
   'lastExternalDewormerName',
 ] as const;
@@ -29,20 +32,21 @@ type Field = (typeof FIELDS)[number];
 interface ManagedOption {
   id: string;
   name: string;
-  field: Field;
+  field: Field | 'foodDetail';
   brandId: string | null;
   active: boolean;
 }
 
 @Component({
   selector: 'app-catalog-management',
-  imports: [MatButton, MatFormField, MatLabel, MatInput],
+  imports: [NgTemplateOutlet, MatButton, MatFormField, MatLabel, MatInput],
   templateUrl: './catalog-management.html',
   styleUrl: './catalog-management.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CatalogManagement {
   private readonly http = inject(HttpClient);
+  private readonly dialog = inject(MatDialog);
   private readonly optionsService = inject(CatProfileOptionsService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly endpoint = `${API_BASE_URL}/cat-profile-options/manage`;
@@ -53,32 +57,24 @@ export class CatalogManagement {
   protected readonly field = signal<Field>('breed');
   protected readonly brandId = signal('');
   protected readonly name = signal('');
+  protected readonly varietyName = signal('');
   protected readonly renameId = signal<string | null>(null);
   protected readonly renameName = signal('');
   protected readonly items = signal<ManagedOption[]>([]);
   protected readonly loading = signal(true);
   protected readonly saving = signal(false);
   protected readonly loadError = signal(false);
-  protected readonly saveError = signal<'duplicate' | 'saveError' | null>(null);
+  protected readonly saveError = signal<'duplicate' | 'saveError' | 'deleteError' | null>(null);
   protected readonly saved = signal(false);
-  protected readonly brands = computed(() =>
-    this.items().filter((option) => option.field === 'foodBrand'),
-  );
-  protected readonly brand = computed(() =>
-    this.brands().find((brand) => brand.id === this.brandId()),
-  );
   protected readonly options = computed(() =>
+    this.items().filter((option) => option.field === this.field()),
+  );
+  protected readonly varieties = computed(() =>
     this.items().filter(
-      (option) =>
-        option.field === this.field() &&
-        (this.field() !== 'foodDetail' || option.brandId === this.brandId()),
+      (option) => option.field === 'foodDetail' && option.brandId === this.brandId(),
     ),
   );
-  protected readonly maxLength = computed(() => (this.field() === 'foodDetail' ? 255 : 100));
   protected readonly disabled = computed(() => this.loading() || this.saving());
-  protected readonly canAdd = computed(
-    () => this.field() !== 'foodDetail' || this.brand()?.active === true,
-  );
 
   constructor() {
     this.load();
@@ -94,7 +90,14 @@ export class CatalogManagement {
         finalize(() => this.loading.set(false)),
       )
       .subscribe({
-        next: (items) => this.items.set(items),
+        next: (items) => {
+          this.items.set(items);
+          if (
+            !items.some((option) => option.field === 'foodBrand' && option.id === this.brandId())
+          ) {
+            this.brandId.set('');
+          }
+        },
         error: () => this.loadError.set(true),
       });
   }
@@ -102,30 +105,27 @@ export class CatalogManagement {
   protected selectField(field: string): void {
     if (!this.fields.some((option) => option === field)) return;
     this.field.set(field as Field);
+    this.brandId.set('');
     this.resetForm();
   }
 
-  protected selectBrand(id: string): void {
-    this.brandId.set(id);
-    this.resetForm();
+  protected toggleBrand(option: ManagedOption): void {
+    this.brandId.update((id) => (id === option.id ? '' : option.id));
+    this.varietyName.set('');
+    this.cancelRename();
   }
 
-  protected add(): void {
-    const name = this.name().trim();
-    if (!name || this.disabled() || !this.canAdd()) return;
+  protected add(brand?: ManagedOption): void {
+    const name = (brand ? this.varietyName() : this.name()).trim();
+    if (!name || this.disabled() || brand?.active === false) return;
+    const options = brand ? this.varieties() : this.options();
     const key = (value: string) => value.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-    if (this.options().some((option) => key(name) === key(option.name))) {
+    if (options.some((option) => key(name) === key(option.name))) {
       this.saved.set(false);
       this.saveError.set('duplicate');
       return;
     }
-    this.mutate(
-      this.optionsService.publish(
-        this.field(),
-        name,
-        this.field() === 'foodDetail' ? this.brandId() : undefined,
-      ),
-    );
+    this.mutate(this.optionsService.publish(brand ? 'foodDetail' : this.field(), name, brand?.id));
   }
 
   protected beginRename(option: ManagedOption): void {
@@ -151,11 +151,37 @@ export class CatalogManagement {
     this.change(option, { active: !option.active });
   }
 
-  private change(option: ManagedOption, change: { name: string } | { active: boolean }): void {
-    this.mutate(this.http.patch(`${this.endpoint}/${option.field}/${option.id}`, change));
+  protected deleteOption(option: ManagedOption): void {
+    if (this.disabled()) return;
+    this.dialog
+      .open(PermanentDeletionConfirmationDialog, {
+        data: {
+          subject: option.name,
+          extraDescription:
+            option.field === 'foodBrand' ? this.copy().deleteBrand : this.copy().deleteOption,
+        },
+      })
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmed) => {
+        if (confirmed === true) {
+          this.mutate(this.http.delete(this.optionEndpoint(option)), 'deleteError');
+        }
+      });
   }
 
-  private mutate(request: Observable<unknown>): void {
+  private optionEndpoint(option: ManagedOption): string {
+    return [this.endpoint, option.field, option.id].join('/');
+  }
+
+  private change(option: ManagedOption, change: { name: string } | { active: boolean }): void {
+    this.mutate(this.http.patch(this.optionEndpoint(option), change));
+  }
+
+  private mutate(
+    request: Observable<unknown>,
+    errorMessage: 'saveError' | 'deleteError' = 'saveError',
+  ): void {
     this.saving.set(true);
     this.saved.set(false);
     this.saveError.set(null);
@@ -173,12 +199,15 @@ export class CatalogManagement {
           this.optionsService.loadVarieties();
         },
         error: (error: HttpErrorResponse) =>
-          this.saveError.set(error.status === 409 ? 'duplicate' : 'saveError'),
+          this.saveError.set(
+            error.status === 409 && errorMessage === 'saveError' ? 'duplicate' : errorMessage,
+          ),
       });
   }
 
   private resetForm(): void {
     this.name.set('');
+    this.varietyName.set('');
     this.cancelRename();
     this.saveError.set(null);
     this.saved.set(false);

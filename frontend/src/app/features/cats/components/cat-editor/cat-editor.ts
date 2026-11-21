@@ -34,10 +34,12 @@ import {
   Cat,
   CatCatalogSelection,
   CatCatalogSelectionField,
+  CatLitterPreference,
   Sex,
   UpdateCatRequest,
 } from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { catLitterRequest } from '../../utils/cat-litter-label';
 import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
@@ -103,6 +105,7 @@ export class CatEditor {
   readonly coatLengths = CAT_COAT_LENGTHS;
   readonly historicalCoat = signal('');
   readonly litterBrand = signal('');
+  readonly litterPreference = signal<CatLitterPreference | null | undefined>(undefined);
   readonly personality = signal('');
   readonly careInstructions = signal('');
   readonly notes = signal('');
@@ -278,9 +281,7 @@ export class CatEditor {
         ? { foodDetail: this.optional(this.foodDetail()) }
         : {}),
       ...catCatalogSelectionRequest(this.catalogSelection(), this.savedCatalogSelection(original)),
-      ...(this.litterBrand() !== (this.initialCat?.litterBrand ?? '')
-        ? { litterBrand: this.optional(this.litterBrand()) }
-        : {}),
+      ...this.litterUpdate(original),
       personality: this.optional(this.personality()),
       ...(this.careInstructions() !== (this.initialCat?.careInstructions ?? '')
         ? { careInstructions: careInstructions || null }
@@ -368,7 +369,8 @@ export class CatEditor {
     this.foodBrand.set(c.foodBrand ?? '');
     this.foodDetail.set(c.foodDetail ?? '');
     this.catalogSelection.set(this.savedCatalogSelection(c));
-    this.litterBrand.set(c.litterBrand ?? '');
+    this.litterPreference.set(c.litterPreference);
+    this.litterBrand.set((c.litterPreference === undefined ? c.litterBrand : c.litterDetail) ?? '');
     this.personality.set(c.personality ?? '');
     this.careInstructions.set(c.careInstructions ?? '');
     this.notes.set(c.notes ?? '');
@@ -385,11 +387,29 @@ export class CatEditor {
       c.vetId && c.vetName ? { id: c.vetId, label: c.vetName } : null,
     );
   }
+  private litterUpdate(original: Cat | null) {
+    const preference = this.litterPreference();
+    const value = this.litterBrand();
+    const originalValue =
+      original?.litterPreference === undefined ? original?.litterBrand : original.litterDetail;
+    const selection = this.catalogSelection().litterDetail;
+    const newSelection = selection && selection !== original?.catalogOptionIds?.litterDetail;
+    if (
+      preference !== original?.litterPreference ||
+      value !== (originalValue ?? '') ||
+      newSelection
+    ) {
+      return catLitterRequest(value, newSelection ? 'OWN' : preference);
+    }
+    return {};
+  }
+
   private savedCatalogSelection(cat: Cat | null): CatCatalogSelection {
     return {
       breed: cat?.catalogOptionIds?.breed,
       foodBrand: cat?.foodBrandId ?? undefined,
       foodDetail: cat?.catalogOptionIds?.foodDetail,
+      litterDetail: cat?.catalogOptionIds?.litterDetail,
       lastInternalDewormerName: cat?.catalogOptionIds?.lastInternalDewormerName,
       lastExternalDewormerName: cat?.catalogOptionIds?.lastExternalDewormerName,
     };

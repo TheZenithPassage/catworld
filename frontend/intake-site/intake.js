@@ -328,7 +328,12 @@ function createCatalogField(title, label, input, options, initialId, showAllWhen
   };
 }
 
-function createLitterField(title, initialValue, required) {
+function ownLitterDetail({ litterBrand, litterDetail }) {
+  if (!litterBrand || litterBrand === SHARED_LITTER) return '';
+  return (litterDetail ?? (litterBrand === OWN_LITTER ? '' : litterBrand)).trim();
+}
+
+function createLitterField(title, initialValue, initialDetail, required, catalog) {
   const field = element('div', 'field');
   const choice = element('select');
   choice.add(new Option('Por confirmar', ''));
@@ -340,28 +345,36 @@ function createLitterField(title, initialValue, required) {
   const own = element('input');
   own.name = 'litterBrand';
   own.maxLength = 100;
-  own.value = initialValue === SHARED_LITTER || initialValue === OWN_LITTER ? '' : initialValue;
+  own.value = ownLitterDetail({ litterBrand: initialValue, litterDetail: initialDetail });
   choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue.trim() ? 'own' : '';
-  const ownLabel = fieldLabel('Marca o tipo de piedritas', own);
+  const ownTitle = 'Marca o tipo de piedritas';
+  const ownLabel = fieldLabel(ownTitle, own, 'Buscá una opción o escribí un nombre nuevo.');
+  const detail = createCatalogField(ownTitle, ownLabel, own, catalog.options, catalog.id, true);
   function updateChoice() {
-    ownLabel.hidden = choice.value !== 'own';
-    own.disabled = ownLabel.hidden;
+    detail.control.hidden = choice.value !== 'own';
+    own.disabled = detail.control.hidden;
   }
   updateChoice();
   choice.addEventListener('change', updateChoice);
 
-  field.append(choiceLabel, ownLabel);
+  field.append(choiceLabel, detail.control);
   return {
     control: field,
     hasEnteredValue: () => Boolean(choice.value || own.value.trim()),
     get input() {
       return choice.value === 'own' && own.value.trim() ? own : choice;
     },
+    get option() {
+      return choice.value === 'own' ? detail.option : undefined;
+    },
+    requiresChoice: () => choice.value === 'own' && detail.requiresChoice(),
+    readLitterDetail: () => (choice.value === 'own' ? own.value.trim() : ''),
+    refreshOptions: () => detail.refreshOptions(),
     read: () => {
       if (choice.value === 'shared') return SHARED_LITTER;
       if (choice.value !== 'own') return '';
-      const detail = own.value.trim();
-      return detail && detail !== SHARED_LITTER ? detail : OWN_LITTER;
+      const value = own.value.trim();
+      return value && value !== SHARED_LITTER ? value : OWN_LITTER;
     },
   };
 }
@@ -420,7 +433,9 @@ function createField([key, title, type, requiredForNew, maxLength, hint], initia
   const labelText = required ? title + ' *' : title;
   const initialValue = initial[key] ?? '';
   if (type === 'birth') return createBirthField(labelText, initial, required);
-  if (type === 'litter') return createLitterField(labelText, initialValue, required);
+  if (type === 'litter') {
+    return createLitterField(labelText, initialValue, initial.litterDetail, required, catalog);
+  }
   const input = element(
     type === 'coat' ? 'select' : ['select', 'textarea'].includes(type) ? type : 'input',
   );
@@ -701,6 +716,12 @@ function addCard(
   const initial = { ...fields, ...proposedFields };
   if (proposedFields.birthDate) delete initial.birthYear;
   if (proposedFields.birthYear) delete initial.birthDate;
+  if (
+    Object.hasOwn(proposedFields, 'litterBrand') &&
+    !Object.hasOwn(proposedFields, 'litterDetail')
+  ) {
+    delete initial.litterDetail;
+  }
   const card = element('div', 'cat-card');
   const disclosure = element('details');
   const fallbackTitle = isNew ? 'Gato nuevo ' + ++newCatNumber : 'Datos del gato';
@@ -731,14 +752,15 @@ function addCard(
 
   for (const field of FIELDS) {
     const key = field[0];
-    const isCatalog = CATALOG_FIELDS.has(key);
+    const catalogField = key === 'litterBrand' ? 'litterDetail' : key;
+    const isCatalog = CATALOG_FIELDS.has(key) || key === 'litterBrand';
     const options = () => {
-      if (key !== 'foodDetail') return catalogOptions[key] ?? [];
+      if (key !== 'foodDetail') return catalogOptions[catalogField] ?? [];
       const brand = inputs.get('foodBrand');
       const brandId = brand.option?.id;
       return foodVarieties.filter((variety) => variety.brandId === brandId);
     };
-    const catalog = isCatalog ? { options, id: optionIds?.[key] } : undefined;
+    const catalog = isCatalog ? { options, id: optionIds?.[catalogField] } : undefined;
     const ui = createField(field, initial, isNew, catalog);
     const container = isNew || requestedFields.includes(key) ? primaryFields : otherFields;
     if (key === 'foodBrand') {
@@ -899,6 +921,28 @@ function submissionCard(card) {
       }
       continue;
     }
+    if (key === 'litterBrand') {
+      const original = card.fields.litterBrand?.trim() ?? '';
+      const initial = card.initial.litterBrand?.trim() ?? '';
+      const entered = field.read().trim();
+      const value = entered || original;
+      const originalDetail = ownLitterDetail(card.fields);
+      const text = entered ? field.readLitterDetail() : originalDetail;
+      const optionId = field.option?.id;
+      const matchesInitial = value === initial && text === ownLitterDetail(card.initial);
+      const newSelection = optionId && optionId !== card.initialLitterOptionId;
+      if (!matchesInitial || newSelection || (entered && card.initialLitterOptionId && !optionId)) {
+        changed = true;
+      }
+      if (value !== original || text !== originalDetail || newSelection) {
+        fields.litterBrand = value;
+        if (text && (!matchesInitial || Object.hasOwn(card.initial, 'litterDetail') || optionId)) {
+          fields.litterDetail = field.option?.name ?? text;
+        }
+        if (optionId) optionIds.litterDetail = optionId;
+      }
+      continue;
+    }
     const original = card.fields[key]?.trim() ?? '';
     const entered = field.read().trim();
     const value = entered || original;
@@ -958,7 +1002,9 @@ function validateCards(drafts) {
       if (
         fields[key] &&
         field.requiresChoice?.() &&
-        (varietyBrandChanged || !sameFieldValue(key, value, card.initial[key] ?? ''))
+        (varietyBrandChanged ||
+          (key === 'litterBrand' && field.readLitterDetail() !== ownLitterDetail(card.initial)) ||
+          !sameFieldValue(key, value, card.initial[key] ?? ''))
       ) {
         showError('Elegí una de las opciones para este dato.', input);
         return false;
@@ -1048,16 +1094,17 @@ async function refreshCatalogConflict(response, entries) {
     for (const card of cards) {
       for (const field of card.inputs.values()) field.refreshOptions?.();
     }
-    const affected = entries.filter(({ fields }) => Object.hasOwn(fields, conflict.field));
+    const fieldKey = conflict.field === 'litterDetail' ? 'litterBrand' : conflict.field;
+    const affected = entries.filter(({ fields }) => Object.hasOwn(fields, fieldKey));
     const entry =
       affected.find(({ card, optionIds }) => {
-        const field = card.inputs.get(conflict.field);
+        const field = card.inputs.get(fieldKey);
         return field?.requiresChoice?.() || (optionIds[conflict.field] && !field?.option);
       }) ?? affected[0];
     editable.disabled = false;
     showError(
       'Las opciones de este dato cambiaron. Revisalo antes de enviar.',
-      entry?.card.inputs.get(conflict.field)?.input,
+      entry?.card.inputs.get(fieldKey)?.input,
     );
   } catch {
     showError('No se pudieron actualizar las opciones. Volvé a intentar.');

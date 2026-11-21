@@ -9,6 +9,8 @@ export type CatCatalogSelection = Partial<Record<CatCatalogSelectionField, strin
 
 export const CAT_COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'] as const;
 
+export type CatLitterPreference = 'OWN' | 'SHARED';
+
 export const CATWORLD_LITTER = 'Usa las de CatWorld';
 export const OWN_LITTER = 'Trae sus propias piedritas';
 
@@ -46,6 +48,8 @@ export interface Cat {
   catalogOptionIds?: Partial<Record<CatProfileOptionFieldKey | 'foodDetail', string>>;
   foodDetail?: string | null;
   litterBrand: string | null;
+  litterPreference?: CatLitterPreference | null;
+  litterDetail?: string | null;
   personality: string | null;
   careInstructions?: string | null;
   notes: string | null;
@@ -79,6 +83,8 @@ export interface CreateCatRequest {
     Record<Exclude<CatCatalogSelectionField, 'foodBrand' | 'foodDetail'>, string>
   >;
   litterBrand?: string | null;
+  litterPreference?: CatLitterPreference | null;
+  litterDetail?: string | null;
   personality: string | null;
   careInstructions?: string | null;
   notes: string | null;

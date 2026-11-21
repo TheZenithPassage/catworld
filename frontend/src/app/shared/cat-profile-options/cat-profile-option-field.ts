@@ -44,6 +44,7 @@ export class CatProfileOptionField {
   readonly text = inject(I18nService).text;
   readonly field = input.required<CatProfileOptionFieldKey | 'foodDetail'>();
   readonly label = input.required<string>();
+  readonly controlName = input<string>();
   readonly disabled = input(false);
   readonly allowApproval = input(true);
   readonly showPublicationHint = input(false);

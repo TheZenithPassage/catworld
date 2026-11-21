@@ -1,3 +1,5 @@
+import type { CatCatalogSelection, CatCatalogSelectionField } from '../cats/models/cat.model';
+
 export const CAT_INTAKE_FIELDS = [
   { key: 'name', kind: 'text', required: true, maxLength: 100 },
   { key: 'birthDate', kind: 'date', required: true },
@@ -20,7 +22,7 @@ export const CAT_INTAKE_FIELDS = [
 
 export type CatIntakeField = (typeof CAT_INTAKE_FIELDS)[number];
 export type CatIntakeFieldKey = CatIntakeField['key'] | 'birthYear';
-export type CatIntakeFields = Partial<Record<CatIntakeFieldKey, string | null>>;
+export type CatIntakeFields = Partial<Record<CatIntakeFieldKey | 'litterDetail', string | null>>;
 
 export interface CatIntakeInvitationRequest {
   ownerId: string;
@@ -54,6 +56,7 @@ export interface CatIntakeReviewDetail extends CatIntakeReviewItem {
   conflictFields: CatIntakeFieldKey[];
   unansweredRequestedFields: CatIntakeFieldKey[];
   proposedFoodDetailBrand?: string | null;
+  retiredCatalogFields?: CatCatalogSelectionField[];
   photos: { id: string }[];
   catUpdatedAt: string | null;
   revision: number;
@@ -68,4 +71,5 @@ export interface CatIntakeApproval extends CatIntakeReviewVersion {
   fields: CatIntakeFields;
   photoIds: string[];
   foodVarietyId?: string;
+  catalogOptionIds?: CatCatalogSelection;
 }

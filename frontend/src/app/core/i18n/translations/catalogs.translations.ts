@@ -2,12 +2,18 @@ export const CATALOGS_TRANSLATIONS = {
   es: {
     title: 'Catálogos',
     category: 'Catálogo',
-    brand: 'Marca de comida',
-    chooseBrand: 'Seleccioná una marca',
+    varieties: 'Variedades del alimento',
+    varietyName: 'Nombre de la variedad',
+    addVariety: 'Agregar variedad',
+    remove: 'Eliminar',
+    deleteOption: 'Las fichas de los gatos conservarán el nombre actual como texto.',
+    deleteBrand:
+      'También se eliminarán sus variedades. Las fichas de los gatos conservarán los nombres actuales como texto.',
+    deleteError: 'No se pudo eliminar la opción. Volvé a intentar.',
     fields: {
       breed: 'Razas',
       foodBrand: 'Marcas de comida',
-      foodDetail: 'Variedades del alimento',
+      litterDetail: 'Marca o tipo de piedritas',
       lastInternalDewormerName: 'Desparasitantes internos',
       lastExternalDewormerName: 'Tratamientos contra pulgas',
     },
@@ -33,12 +39,18 @@ export const CATALOGS_TRANSLATIONS = {
   en: {
     title: 'Catalogs',
     category: 'Catalog',
-    brand: 'Food brand',
-    chooseBrand: 'Select a brand',
+    varieties: 'Food varieties',
+    varietyName: 'Variety name',
+    addVariety: 'Add variety',
+    remove: 'Delete',
+    deleteOption: 'Cat profiles will keep the current name as plain text.',
+    deleteBrand:
+      'This also deletes its varieties. Cat profiles will keep the current names as plain text.',
+    deleteError: 'The option could not be deleted. Try again.',
     fields: {
       breed: 'Breeds',
       foodBrand: 'Food brands',
-      foodDetail: 'Food varieties',
+      litterDetail: 'Litter brand or type',
       lastInternalDewormerName: 'Internal dewormers',
       lastExternalDewormerName: 'Flea treatments',
     },

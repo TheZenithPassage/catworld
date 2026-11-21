@@ -41,7 +41,11 @@ export interface CatsTranslations {
     foodBrand: string;
     foodDetail: string;
     catalogNames: Record<
-      'breed' | 'foodBrand' | 'lastInternalDewormerName' | 'lastExternalDewormerName',
+      | 'breed'
+      | 'foodBrand'
+      | 'litterDetail'
+      | 'lastInternalDewormerName'
+      | 'lastExternalDewormerName',
       string
     >;
     varietyCatalog: (brand: string) => string;
@@ -241,6 +245,7 @@ export const CATS_TRANSLATIONS = {
       catalogNames: {
         breed: 'Razas',
         foodBrand: 'Marcas de comida',
+        litterDetail: 'Marca o tipo de piedritas',
         lastInternalDewormerName: 'Desparasitantes internos',
         lastExternalDewormerName: 'Pipetas antipulgas',
       },
@@ -428,6 +433,7 @@ export const CATS_TRANSLATIONS = {
       catalogNames: {
         breed: 'Breeds',
         foodBrand: 'Food brands',
+        litterDetail: 'Litter brand or type',
         lastInternalDewormerName: 'Internal dewormers',
         lastExternalDewormerName: 'Flea treatments',
       },

@@ -1,4 +1,7 @@
-import type { CatCatalogSelection } from '../../features/cats/models/cat.model';
+import type {
+  CatCatalogSelection,
+  CatLitterPreference,
+} from '../../features/cats/models/cat.model';
 
 export const CREATION_FLOW_QUERY_PARAM = 'creationFlowId';
 
@@ -19,6 +22,7 @@ export interface CatCreationDraft {
   foodDetail?: string;
   catalogSelection?: CatCatalogSelection;
   litterBrand: string;
+  litterPreference?: CatLitterPreference | null;
   personality: string;
   careInstructions?: string;
   notes: string;
