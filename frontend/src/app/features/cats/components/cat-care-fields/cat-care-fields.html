@@ -3,6 +3,7 @@
   <select
     matNativeControl
     name="litterChoice"
+    [disabled]="disabled()"
     [ngModel]="choice()"
     (ngModelChange)="changeChoice($event)"
   >
@@ -15,6 +16,7 @@
   <app-cat-profile-option-field
     field="litterDetail"
     controlName="litterBrand"
+    [disabled]="disabled()"
     [label]="text().cats.form.ownLitterDetail"
     [value]="ownDetail()"
     (valueChange)="changeOwnDetail($event)"

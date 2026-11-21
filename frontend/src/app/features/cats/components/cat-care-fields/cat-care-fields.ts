@@ -1,4 +1,4 @@
-import { Component, computed, inject, model } from '@angular/core';
+import { Component, computed, inject, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
@@ -15,6 +15,7 @@ import { CatLitterPreference } from '../../models/cat.model';
 })
 export class CatCareFields {
   readonly text = inject(I18nService).text;
+  readonly disabled = input(false);
   readonly litterBrand = model.required<string>();
   readonly litterPreference = model<CatLitterPreference | null>();
   readonly litterOptionId = model<string>();

@@ -5,10 +5,25 @@ export const CATALOGS_TRANSLATIONS = {
     varieties: 'Variedades del alimento',
     varietyName: 'Nombre de la variedad',
     addVariety: 'Agregar variedad',
+    saveText: {
+      title: 'Guardar valores como texto',
+      description: 'Estos valores quedarán como texto en la ficha de este gato.',
+      review: 'Volver a revisar',
+      save: 'Guardar como texto',
+    },
+    publish: {
+      confirm: 'Agregar al catálogo',
+      description: (name: string, catalog: string) =>
+        '«' + name + '» se agregará a ' + catalog + ' y estará disponible para futuras fichas.',
+      publishing: 'Agregando…',
+    },
     remove: 'Eliminar',
-    deleteOption: 'Las fichas de los gatos conservarán el nombre actual como texto.',
+    deleteOption: 'Solo podés eliminar opciones que no se usan en fichas ni propuestas pendientes.',
+    inUse: (name: string) => '«' + name + '» está vinculada a fichas o propuestas pendientes.',
+    brandInUse: (name: string) =>
+      '«' + name + '» o alguna de sus variedades está vinculada a fichas o propuestas pendientes.',
     deleteBrand:
-      'También se eliminarán sus variedades. Las fichas de los gatos conservarán los nombres actuales como texto.',
+      'También se eliminarán sus variedades si la marca y sus variedades no se usan en fichas ni propuestas pendientes.',
     deleteError: 'No se pudo eliminar la opción. Volvé a intentar.',
     fields: {
       breed: 'Razas',
@@ -42,10 +57,25 @@ export const CATALOGS_TRANSLATIONS = {
     varieties: 'Food varieties',
     varietyName: 'Variety name',
     addVariety: 'Add variety',
+    saveText: {
+      title: 'Save values as text',
+      description: 'These values will be saved as text on this cat’s profile.',
+      review: 'Go back and review',
+      save: 'Save as text',
+    },
+    publish: {
+      confirm: 'Add to catalog',
+      description: (name: string, catalog: string) =>
+        '“' + name + '” will be added to ' + catalog + ' and available for future profiles.',
+      publishing: 'Adding…',
+    },
     remove: 'Delete',
-    deleteOption: 'Cat profiles will keep the current name as plain text.',
+    deleteOption: 'You can only delete options that are unused in profiles and pending proposals.',
+    inUse: (name: string) => '“' + name + '” is linked to profiles or pending proposals.',
+    brandInUse: (name: string) =>
+      '“' + name + '” or one of its varieties is linked to profiles or pending proposals.',
     deleteBrand:
-      'This also deletes its varieties. Cat profiles will keep the current names as plain text.',
+      'This also deletes its varieties if the brand and all its varieties are unused in profiles and pending proposals.',
     deleteError: 'The option could not be deleted. Try again.',
     fields: {
       breed: 'Breeds',

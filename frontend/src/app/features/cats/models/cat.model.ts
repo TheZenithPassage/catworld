@@ -6,6 +6,7 @@ export type CatCatalogSelectionField =
   | Exclude<CatProfileOptionFieldKey, 'coat' | 'color'>
   | 'foodDetail';
 export type CatCatalogSelection = Partial<Record<CatCatalogSelectionField, string>>;
+export type CatCatalogText = Partial<Record<CatCatalogSelectionField, string>>;
 
 export const CAT_COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'] as const;
 
@@ -79,6 +80,7 @@ export interface CreateCatRequest {
   foodBrandId?: string;
   foodDetail?: string | null;
   foodVarietyId?: string;
+  confirmedCatalogText?: CatCatalogText;
   catalogOptionIds?: Partial<
     Record<Exclude<CatCatalogSelectionField, 'foodBrand' | 'foodDetail'>, string>
   >;

@@ -64,6 +64,7 @@ describe('CatIntakeReview', () => {
     { id: 'variety-2', brandId: 'brand-2', name: 'Turkey' },
   ]);
   const details = { open: vi.fn(() => EMPTY) };
+  const publish = vi.fn();
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -85,7 +86,7 @@ describe('CatIntakeReview', () => {
         { provide: CatIntakeApi, useValue: api },
         {
           provide: CatProfileOptionsService,
-          useValue: { load: vi.fn(), loadVarieties: vi.fn(), catalog, varieties },
+          useValue: { load: vi.fn(), loadVarieties: vi.fn(), catalog, varieties, publish },
         },
         { provide: AuthSessionService, useValue: { hasRole: () => true } },
         { provide: EntityDetailDialogService, useValue: details },
@@ -142,6 +143,41 @@ describe('CatIntakeReview', () => {
       expectedCatUpdatedAt: conflicting.catUpdatedAt,
       expectedReviewRevision: 3,
     });
+  });
+
+  it('opens adjustments from the direct approval warning without losing the draft', async () => {
+    api.getReview.mockReturnValue(
+      of({ ...conflicting, proposed: { breed: 'Unlisted breed' }, conflictFields: [] }),
+    );
+    api.approve.mockReturnValueOnce(
+      throwError(
+        () =>
+          new HttpErrorResponse({
+            status: 409,
+            error: {
+              code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED',
+              fields: { breed: 'Unlisted breed' },
+            },
+          }),
+      ),
+    );
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    await fixture.whenStable();
+    const dialog = document.querySelector('mat-dialog-container')!;
+    expect(dialog.textContent).toContain('Unlisted breed');
+    expect(api.approve).toHaveBeenCalledTimes(1);
+    dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(root.querySelector<HTMLInputElement>('[name="breed"]')?.value).toBe('Unlisted breed');
+    expect(root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')?.checked).toBe(true);
+    expect(api.getReview).toHaveBeenCalledTimes(1);
+    expect(api.approve).toHaveBeenCalledTimes(1);
   });
 
   it('shows unanswered requests outside the editable fields and simplifies a single change', () => {
@@ -248,11 +284,12 @@ describe('CatIntakeReview', () => {
     expect(fixture.componentInstance.notice()).toBe('dismissed');
   });
 
-  it('can replace a linked variety with a catalog choice for the retained brand', () => {
+  it('can replace a linked variety with a catalog choice for the retained brand', async () => {
     api.getReview.mockReturnValue(
       of({
         ...conflicting,
         current: { foodBrand: 'Current Food' },
+        currentFoodBrandId: 'brand-2',
         proposed: { foodBrand: 'Proposed Food', foodDetail: 'Chicken' },
         proposedFoodDetailBrand: 'Proposed Food',
         conflictFields: [],
@@ -271,23 +308,37 @@ describe('CatIntakeReview', () => {
     fixture.detectChanges();
     const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(approve.disabled).toBe(true);
-    const variety = root.querySelector<HTMLSelectElement>('[name="food-variety"]');
-    expect(variety).not.toBeNull();
-    expect([...variety!.options].map(({ value }) => value)).toEqual(['', 'variety-2']);
-    variety!.value = 'variety-2';
-    variety!.dispatchEvent(new Event('change'));
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const variety = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name="foodDetail"]' }),
+    );
+    const chooseTurkey = async () => {
+      await variety.focus();
+      await variety.clear();
+      await variety.enterText('Tur');
+      expect((await variety.getOptions()).length).toBe(1);
+      await variety.selectOption({ text: 'Turkey' });
+    };
+    await chooseTurkey();
     fixture.detectChanges();
+    expect(fixture.componentInstance.catalogSelection().foodDetail).toBe('variety-2');
     brand.value = 'apply';
     brand.dispatchEvent(new Event('change'));
     fixture.detectChanges();
-    expect(variety!.value).toBe('');
-    expect(root.querySelector<HTMLInputElement>('[name="foodDetail"]')?.value).toBe('Chicken');
+    await fixture.whenStable();
+    expect(
+      root
+        .querySelector('[name="foodDetail"]')!
+        .closest('app-cat-profile-option-field')
+        ?.querySelector('.success-check'),
+    ).toBeNull();
+    expect(fixture.componentInstance.selectedFields().foodDetail).toBe('Chicken');
+    expect(await variety.getValue()).toBe('Chicken');
     brand.value = 'keep';
     brand.dispatchEvent(new Event('change'));
     fixture.detectChanges();
     expect(approve.disabled).toBe(true);
-    variety!.value = 'variety-2';
-    variety!.dispatchEvent(new Event('change'));
+    await chooseTurkey();
     fixture.detectChanges();
 
     root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
@@ -300,6 +351,58 @@ describe('CatIntakeReview', () => {
     expect(api.approve).toHaveBeenCalledWith(
       item.id,
       expect.objectContaining({ fields: { foodDetail: 'Turkey' }, foodVarietyId: 'variety-2' }),
+    );
+  });
+
+  it('publishes a variety only after explicitly publishing its new brand', async () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        proposed: { foodBrand: 'New brand', foodDetail: 'New variety' },
+        proposedFoodDetailBrand: 'New brand',
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    publish
+      .mockReturnValueOnce(of({ id: 'new-brand', name: 'New brand' }))
+      .mockReturnValueOnce(of({ id: 'new-variety', name: 'New variety' }));
+    api.approve.mockReturnValue(of(undefined));
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    adjust();
+
+    const publicationField = (name: string) =>
+      root.querySelector('[name="' + name + '"]')?.closest('app-cat-profile-option-field');
+    const publishButton = (name: string) =>
+      publicationField(name)?.querySelector<HTMLButtonElement>('.publish-option') ?? null;
+    const confirm = async () => {
+      await fixture.whenStable();
+      const dialog = document.querySelector('mat-dialog-container')!;
+      const description = dialog.querySelector('mat-dialog-content')?.textContent;
+      dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return description;
+    };
+    expect(publishButton('foodDetail')).toBeNull();
+    publishButton('foodBrand')!.click();
+    expect(publish).not.toHaveBeenCalled();
+    await confirm();
+    expect(publish).toHaveBeenNthCalledWith(1, 'foodBrand', 'New brand', undefined);
+    publishButton('foodDetail')!.click();
+    expect(await confirm()).toContain('New brand');
+    expect(publish).toHaveBeenNthCalledWith(2, 'foodDetail', 'New variety', 'new-brand');
+    expect(publicationField('foodDetail')?.querySelector('.success-check')).not.toBeNull();
+    expect(api.approve).not.toHaveBeenCalled();
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({
+        catalogOptionIds: { foodBrand: 'new-brand' },
+        foodVarietyId: 'new-variety',
+      }),
     );
   });
 
@@ -625,15 +728,16 @@ describe('CatIntakeReview', () => {
     adjust();
     const root = fixture.nativeElement as HTMLElement;
     const input = root.querySelector<HTMLInputElement>('[name="foodBrand"]')!;
-    const hint = () => input.closest('mat-form-field')?.querySelector('mat-hint')?.textContent;
-    expect(hint()).toBeUndefined();
+    const publication = () =>
+      input.closest('app-cat-profile-option-field')?.querySelector('.publish-option');
+    expect(publication()).toBeNull();
 
     for (const value of ['  PROPOSED   Food  ', 'Proposed Foods']) {
       input.value = value;
       input.dispatchEvent(new Event('input'));
       fixture.detectChanges();
-      if (value === 'Proposed Foods') expect(hint()).toContain('se añadirá al catálogo');
-      else expect(hint()).toBeUndefined();
+      if (value === 'Proposed Foods') expect(publication()).not.toBeNull();
+      else expect(publication()).toBeNull();
     }
   });
 

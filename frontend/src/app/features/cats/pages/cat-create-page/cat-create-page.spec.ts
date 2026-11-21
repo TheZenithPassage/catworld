@@ -402,6 +402,13 @@ describe('CatCreatePage', () => {
     expect(breedApproval()?.textContent).toContain('Agregar «Mixed» a Razas');
     expect(profileOptions.publish).not.toHaveBeenCalled();
     breedApproval()!.click();
+    await fixture.whenStable();
+    expect(profileOptions.publish).not.toHaveBeenCalled();
+    const publication = document.querySelector('mat-dialog-container')!;
+    expect(publication.textContent).toContain('Mixed');
+    expect(publication.textContent).toContain('Razas');
+    publication.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
+    await fixture.whenStable();
     expect(profileOptions.publish).toHaveBeenCalledWith('breed', 'Mixed', undefined);
     expect(catApiService.createCat).not.toHaveBeenCalled();
     await fixture.whenStable();
@@ -420,6 +427,49 @@ describe('CatCreatePage', () => {
     expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('birthYear');
     expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('approveCatalogOptions');
     expect(profileOptions.publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries one confirmed group of catalog values with the same staged photo', async () => {
+    createComponent();
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-01');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    component.breed.set('Unlisted breed');
+    component.foodBrand.set('Unlisted brand');
+    fixture.detectChanges();
+    const photo = new File(['image'], 'milo.jpg', { type: 'image/jpeg' });
+    fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance.restore(photo);
+    const fields = { breed: 'Unlisted breed', foodBrand: 'Unlisted brand' };
+    catApiService.createCat
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED', fields },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdCat));
+
+    component.submit();
+    await fixture.whenStable();
+    const dialog = document.querySelector('mat-dialog-container')!;
+    expect(dialog.textContent).toContain('Unlisted breed');
+    expect(dialog.textContent).toContain('Unlisted brand');
+    expect(catApiService.createCat).toHaveBeenCalledTimes(1);
+    dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
+    await fixture.whenStable();
+
+    expect(catApiService.createCat).toHaveBeenCalledTimes(2);
+    const [original, sentPhoto] = catApiService.createCat.mock.calls[0];
+    expect(sentPhoto).toBe(photo);
+    expect(catApiService.createCat.mock.calls[1]).toEqual([
+      { ...original, confirmedCatalogText: fields },
+      photo,
+      [],
+    ]);
   });
 
   it('submits only the known birth year and keeps tutor instructions separate from notes', async () => {

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
@@ -17,6 +18,7 @@ import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { EntityLookupState } from '../../../../shared/entity-lookup/entity-lookup.models';
@@ -39,6 +41,12 @@ import {
   UpdateCatRequest,
 } from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { CatalogTextConfirmation } from '../../../../shared/cat-profile-options/catalog-text-confirmation';
+import {
+  catalogOptionKey,
+  CatProfileOptionsService,
+  matchingFoodBrandId,
+} from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { catLitterRequest } from '../../utils/cat-litter-label';
 import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../cat-birth-field/cat-birth-field';
@@ -80,6 +88,8 @@ export class CatEditor {
   private initialCat: Cat | null = null;
   private readonly api = inject(CatApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly profileOptions = inject(CatProfileOptionsService);
+  private readonly catalogTextConfirmation = inject(CatalogTextConfirmation);
   private readonly i18n = inject(I18nService);
   readonly entityId = input.required<string>();
   readonly entity = input<Cat | null>(null);
@@ -106,6 +116,16 @@ export class CatEditor {
   readonly foodBrand = signal('');
   readonly foodDetail = signal('');
   readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly foodBrandId = computed(() => {
+    const selected = this.catalogSelection().foodBrand;
+    const name = this.foodBrand();
+    return (
+      selected ??
+      (name !== (this.initialCat?.foodBrand ?? '')
+        ? matchingFoodBrandId(this.profileOptions.catalog()?.foodBrand, name)
+        : undefined)
+    );
+  });
   readonly coatLengths = CAT_COAT_LENGTHS;
   readonly historicalCoat = signal('');
   readonly litterBrand = signal('');
@@ -143,8 +163,9 @@ export class CatEditor {
   }
 
   changeFoodBrand(value: string): void {
-    if (value !== this.foodBrand()) {
-      this.foodBrand.set(value);
+    const previous = this.foodBrand();
+    this.foodBrand.set(value);
+    if (catalogOptionKey(value) !== catalogOptionKey(previous)) {
       this.foodDetail.set('');
       this.setCatalogSelection('foodDetail');
     }
@@ -220,7 +241,7 @@ export class CatEditor {
       });
   }
   submit(): void {
-    if (this.staleEdit() || this.loadingData()) return;
+    if (this.submitting() || this.staleEdit() || this.loadingData()) return;
     this.error.set(null);
     this.nameError.set(null);
     this.birthDateError.set(null);
@@ -315,14 +336,23 @@ export class CatEditor {
       ownerId: this.ownerId(),
       vetId: this.optional(this.vetId()),
     };
+    const id = this.entityId();
     this.setSubmitting(true);
-    this.api
-      .updateCat(
-        this.entityId(),
-        request,
-        photoMutation.photo,
-        photoMutation.removePhoto,
-        attachments,
+    this.catalogTextConfirmation
+      .save((confirmedCatalogText) =>
+        this.api.updateCat(
+          id,
+          confirmedCatalogText ? { ...request, confirmedCatalogText } : request,
+          photoMutation.photo,
+          photoMutation.removePhoto,
+          attachments,
+        ),
+      )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => {
+          if (!this.destroyRef.destroyed && this.submitting()) this.setSubmitting(false);
+        }),
       )
       .subscribe({
         next: (c) => {
@@ -344,7 +374,6 @@ export class CatEditor {
                 this.apiMessage(e, this.text().cats.edit.errors.updateFailed),
             );
           }
-          this.setSubmitting(false);
         },
       });
   }

@@ -28,6 +28,21 @@ export type CatProfileOptions = Record<
   litterDetail?: CatProfileOption[];
 };
 
+export function catalogOptionKey(value: string): string {
+  return value
+    .replace(/[\t-\r\u0085\p{Z}]+/gu, ' ')
+    .replace(/^ | $/g, '')
+    .toLowerCase();
+}
+
+export function matchingFoodBrandId(
+  brands: CatProfileOption[] | undefined,
+  name: string,
+): string | undefined {
+  const key = catalogOptionKey(name);
+  return brands?.find((brand) => catalogOptionKey(brand.name) === key)?.id;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CatProfileOptionsService {
   private readonly http = inject(HttpClient);

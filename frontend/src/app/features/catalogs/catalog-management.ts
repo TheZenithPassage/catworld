@@ -17,7 +17,10 @@ import { finalize, Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../core/config/api.config';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-profile-options.service';
+import {
+  catalogOptionKey,
+  CatProfileOptionsService,
+} from '../../shared/cat-profile-options/cat-profile-options.service';
 import { PermanentDeletionConfirmationDialog } from '../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 
 const FIELDS = [
@@ -65,6 +68,7 @@ export class CatalogManagement {
   protected readonly saving = signal(false);
   protected readonly loadError = signal(false);
   protected readonly saveError = signal<'duplicate' | 'saveError' | 'deleteError' | null>(null);
+  protected readonly inUse = signal<ManagedOption | null>(null);
   protected readonly saved = signal(false);
   protected readonly options = computed(() =>
     this.items().filter((option) => option.field === this.field()),
@@ -113,14 +117,15 @@ export class CatalogManagement {
     this.brandId.update((id) => (id === option.id ? '' : option.id));
     this.varietyName.set('');
     this.cancelRename();
+    this.inUse.set(null);
   }
 
   protected add(brand?: ManagedOption): void {
     const name = (brand ? this.varietyName() : this.name()).trim();
     if (!name || this.disabled() || brand?.active === false) return;
     const options = brand ? this.varieties() : this.options();
-    const key = (value: string) => value.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-    if (options.some((option) => key(name) === key(option.name))) {
+    const key = catalogOptionKey(name);
+    if (options.some((option) => key === catalogOptionKey(option.name))) {
       this.saved.set(false);
       this.saveError.set('duplicate');
       return;
@@ -151,6 +156,10 @@ export class CatalogManagement {
     this.change(option, { active: !option.active });
   }
 
+  protected hideInUse(option: ManagedOption): void {
+    if (!this.disabled() && option.active) this.change(option, { active: false });
+  }
+
   protected deleteOption(option: ManagedOption): void {
     if (this.disabled()) return;
     this.dialog
@@ -165,7 +174,7 @@ export class CatalogManagement {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmed) => {
         if (confirmed === true) {
-          this.mutate(this.http.delete(this.optionEndpoint(option)), 'deleteError');
+          this.mutate(this.http.delete(this.optionEndpoint(option)), option);
         }
       });
   }
@@ -178,13 +187,11 @@ export class CatalogManagement {
     this.mutate(this.http.patch(this.optionEndpoint(option), change));
   }
 
-  private mutate(
-    request: Observable<unknown>,
-    errorMessage: 'saveError' | 'deleteError' = 'saveError',
-  ): void {
+  private mutate(request: Observable<unknown>, deleting?: ManagedOption): void {
     this.saving.set(true);
     this.saved.set(false);
     this.saveError.set(null);
+    this.inUse.set(null);
     request
       .pipe(
         takeUntilDestroyed(this.destroyRef),
@@ -198,10 +205,19 @@ export class CatalogManagement {
           this.optionsService.load();
           this.optionsService.loadVarieties();
         },
-        error: (error: HttpErrorResponse) =>
-          this.saveError.set(
-            error.status === 409 && errorMessage === 'saveError' ? 'duplicate' : errorMessage,
-          ),
+        error: (error: HttpErrorResponse) => {
+          if (
+            deleting &&
+            error.status === 409 &&
+            error.error?.code === 'CAT_CATALOG_OPTION_IN_USE'
+          ) {
+            this.inUse.set(deleting);
+          } else {
+            this.saveError.set(
+              deleting ? 'deleteError' : error.status === 409 ? 'duplicate' : 'saveError',
+            );
+          }
+        },
       });
   }
 
@@ -210,6 +226,7 @@ export class CatalogManagement {
     this.varietyName.set('');
     this.cancelRename();
     this.saveError.set(null);
+    this.inUse.set(null);
     this.saved.set(false);
   }
 }

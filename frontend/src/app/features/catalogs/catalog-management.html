@@ -23,6 +23,25 @@
   @if (saveError(); as error) {
     <p class="error" role="alert">{{ copy()[error] }}</p>
   }
+  @if (inUse(); as option) {
+    <div class="feedback catalog-in-use">
+      <p role="alert">
+        {{
+          option.field === 'foodBrand' ? copy().brandInUse(option.name) : copy().inUse(option.name)
+        }}
+      </p>
+      @if (option.active) {
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="disabled()"
+          (click)="hideInUse(option)"
+        >
+          {{ copy().hide }} {{ option.name }}
+        </button>
+      }
+    </div>
+  }
   @if (loading()) {
     <p role="status">{{ copy().loading }}</p>
   } @else if (loadError()) {
