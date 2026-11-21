@@ -4,10 +4,6 @@ export interface CatsTranslations {
   emptyValue: string;
   draft: {
     unsaved: string;
-    title: string;
-    message: string;
-    keepEditing: string;
-    discard: string;
   };
   detail: {
     title: string;
@@ -197,10 +193,6 @@ export const CATS_TRANSLATIONS = {
     emptyValue: '-',
     draft: {
       unsaved: 'Cambios sin guardar',
-      title: '¿Descartar los cambios?',
-      message: 'Si salís de la edición, se perderán los cambios y las fotos pendientes.',
-      keepEditing: 'Seguir editando',
-      discard: 'Descartar cambios',
     },
     detail: {
       title: 'Detalles del gato',
@@ -399,10 +391,6 @@ export const CATS_TRANSLATIONS = {
     emptyValue: '-',
     draft: {
       unsaved: 'Unsaved changes',
-      title: 'Discard changes?',
-      message: 'If you leave the editor, your changes and pending photos will be lost.',
-      keepEditing: 'Keep editing',
-      discard: 'Discard changes',
     },
     detail: {
       title: 'Cat details',

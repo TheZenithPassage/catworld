@@ -9,14 +9,12 @@ import {
   Injector,
   output,
   signal,
-  TemplateRef,
   viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
   MatDialog,
-  MatDialogActions,
   MatDialogClose,
   MatDialogContent,
   MatDialogTitle,
@@ -45,6 +43,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
+import {
+  DiscardChangesDialog,
+  openDiscardChangesDialog,
+} from '../discard-changes-dialog/discard-changes-dialog';
 
 const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
 
@@ -60,7 +62,6 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     DeceasedMarker,
     MatButton,
     MatIconButton,
-    MatDialogActions,
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
@@ -90,8 +91,7 @@ export class EntityDetailDialog {
   private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
   private readonly injector = inject(Injector);
-  private readonly discardTemplate = viewChild.required<TemplateRef<unknown>>('discardCatDraft');
-  private discardConfirmation?: MatDialogRef<unknown, boolean>;
+  private discardConfirmation?: MatDialogRef<DiscardChangesDialog, boolean>;
   private closing = false;
   private requestGeneration = 0;
   private geometryGeneration = 0;
@@ -492,12 +492,7 @@ export class EntityDetailDialog {
   }
   private openDiscardConfirmation(): Observable<boolean> | null {
     if (this.submitting() || this.discardConfirmation || this.closing) return null;
-    const confirmation = this.dialog.open<unknown, unknown, boolean>(this.discardTemplate(), {
-      width: '30rem',
-      maxWidth: 'calc(100vw - 2rem)',
-      autoFocus: '.keep-cat-editing',
-      closeOnNavigation: false,
-    });
+    const confirmation = openDiscardChangesDialog(this.dialog);
     this.discardConfirmation = confirmation;
     confirmation
       .afterClosed()

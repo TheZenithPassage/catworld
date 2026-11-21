@@ -11,6 +11,12 @@ export interface EntityDetailTranslations {
   deceased: string;
   loadFailed: string;
   retry: string;
+  discardChanges: {
+    title: string;
+    message: string;
+    keepEditing: string;
+    discard: string;
+  };
   associatedRecords: (count: number) => string;
   paginator: {
     itemsPerPage: string;
@@ -34,6 +40,12 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     deceased: 'Falleció',
     loadFailed: 'No se pudieron cargar los registros relacionados.',
     retry: 'Reintentar',
+    discardChanges: {
+      title: '¿Descartar los cambios sin guardar?',
+      message: 'Si salís de la edición, se perderán los cambios pendientes.',
+      keepEditing: 'Seguir editando',
+      discard: 'Descartar cambios',
+    },
     associatedRecords: (count) => `Ver ${count} registros relacionados`,
     paginator: {
       itemsPerPage: 'Elementos por página',
@@ -58,6 +70,12 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     deceased: 'Deceased',
     loadFailed: 'Related records could not be loaded.',
     retry: 'Retry',
+    discardChanges: {
+      title: 'Discard unsaved changes?',
+      message: 'If you leave the editor, your unsaved changes will be lost.',
+      keepEditing: 'Keep editing',
+      discard: 'Discard changes',
+    },
     associatedRecords: (count) => `View ${count} associated records`,
     paginator: {
       itemsPerPage: 'Items per page',

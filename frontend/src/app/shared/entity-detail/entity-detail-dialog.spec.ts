@@ -1172,7 +1172,10 @@ describe('EntityDetailDialog', () => {
     TestBed.tick();
     const confirmation = dialog.openDialogs[1];
     const kept = firstValueFrom(confirmation.afterClosed());
-    const keepButton = document.querySelector<HTMLButtonElement>('.keep-cat-editing')!;
+    expect(document.querySelector('app-discard-changes-dialog h2')?.textContent?.trim()).toBe(
+      '¿Descartar los cambios sin guardar?',
+    );
+    const keepButton = document.querySelector<HTMLButtonElement>('.keep-editing')!;
     await vi.waitFor(() => expect(document.activeElement).toBe(keepButton));
     keepButton.click();
     await kept;
@@ -1182,7 +1185,7 @@ describe('EntityDetailDialog', () => {
     editor.cancel();
     TestBed.tick();
     const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
-    document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+    document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
     await discarded;
     TestBed.tick();
     expect(dialog.openDialogs).toHaveLength(1);
@@ -1230,7 +1233,7 @@ describe('EntityDetailDialog', () => {
       TestBed.tick();
       expect(dialog.openDialogs).toHaveLength(2);
       const kept = firstValueFrom(dialog.openDialogs[1].afterClosed());
-      document.querySelector<HTMLButtonElement>('.keep-cat-editing')!.click();
+      document.querySelector<HTMLButtonElement>('.keep-editing')!.click();
       await kept;
       expect(editor.name()).toBe('Draft name');
       expect(shell.reference().entityType).toBe('cat');
@@ -1241,7 +1244,7 @@ describe('EntityDetailDialog', () => {
     const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
     shell.allowClose();
     expect(dialog.openDialogs).toHaveLength(2);
-    document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+    document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
     await discarded;
     TestBed.tick();
     expect(dialog.openDialogs).toEqual([ref]);
@@ -1322,14 +1325,14 @@ describe('EntityDetailDialog', () => {
         location.back();
         await vi.waitFor(() => {
           TestBed.tick();
-          expect(document.querySelector('.keep-cat-editing')).not.toBeNull();
+          expect(document.querySelector('.keep-editing')).not.toBeNull();
         });
         expect(router.url).toBe('/cats');
         expect(dialog.openDialogs).toHaveLength(2);
       };
 
       await goBack();
-      document.querySelector<HTMLButtonElement>('.keep-cat-editing')!.click();
+      document.querySelector<HTMLButtonElement>('.keep-editing')!.click();
       await vi.waitFor(() => {
         expect(dialog.openDialogs).toHaveLength(1);
         expect(location.path()).toBe('/cats');
@@ -1345,7 +1348,7 @@ describe('EntityDetailDialog', () => {
       const navigated = firstValueFrom(
         router.events.pipe(filter((e) => e instanceof NavigationEnd)),
       );
-      document.querySelector<HTMLButtonElement>('.discard-cat-changes')!.click();
+      document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
       await navigated;
       expect(router.url).toBe(previous);
       await vi.waitFor(() => expect(dialog.openDialogs).toHaveLength(0));
