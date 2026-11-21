@@ -132,10 +132,14 @@ Largo and Sin pelo for new entries. Color and markings are free text.
 Historical profile text, catalog references and pending submissions retain
 their stored values.
 
-Staff can select catalog options by ID or save a local description.
-Administrators can publish a catalog option with an explicit action in the
-editor or by applying the proposed field during intake review. The editor
-can read options through `GET /api/cat-profile-options` and scoped varieties
+Cat creation, editing and intake approval use an explicitly selected ID or
+link an exact active match after normalizing case and whitespace. Unchanged
+historical text keeps its wording and stays local. Submitted selections retain
+their ID through renames and hiding. A write that would save changed catalog
+fields as local text returns `CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED` with
+the affected field values. Send those values as `confirmedCatalogText` to
+confirm. Only ADMIN can publish through `POST /api/cat-profile-options`.
+The editor can read options through `GET /api/cat-profile-options` and scoped varieties
 through `GET /api/food-brands/varieties`. A selected variety references its
 brand and uses the same ID as the household form. A brand change removes
 an incompatible variety association.

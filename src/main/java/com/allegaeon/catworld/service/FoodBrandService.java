@@ -27,6 +27,7 @@ import static com.allegaeon.catworld.service.CatProfileOptionService.hiddenName;
 import static com.allegaeon.catworld.service.CatalogOptionName.binaryId;
 import static com.allegaeon.catworld.service.CatalogOptionName.cleanName;
 import static com.allegaeon.catworld.service.CatalogOptionName.key;
+import static com.allegaeon.catworld.service.CatalogOptionName.sameName;
 
 @Service
 @RequiredArgsConstructor
@@ -112,23 +113,18 @@ public class FoodBrandService {
                 variety.getBrandId(), variety.isActive());
     }
 
-    // A cat mutation owns the transaction, including any new catalog entry.
-    void applyProfile(Cat cat, CatRequestDTO request, boolean approve, Map<String, UUID> reviewedOptions) {
+    void applyProfile(Cat cat, CatRequestDTO request, Map<String, UUID> reviewedOptions) {
         UUID previousBrand = cat.getFoodBrandId();
-        applyBrand(cat, request, approve, reviewedOptions.get(CatIntakeCatalog.FOOD_BRAND));
-        if (!Objects.equals(previousBrand, cat.getFoodBrandId())) {
+        applyBrand(cat, request, reviewedOptions.get(CatIntakeCatalog.FOOD_BRAND));
+        boolean brandChanged = !Objects.equals(previousBrand, cat.getFoodBrandId());
+        if (brandChanged) {
             cat.setFoodDetail(cat.getDisplayedFoodDetail());
             cat.setFoodVarietyId(null);
         }
-        applyVariety(cat, request, reviewedOptions.get(CatIntakeCatalog.FOOD_DETAIL));
+        applyVariety(cat, request, reviewedOptions.get(CatIntakeCatalog.FOOD_DETAIL), brandChanged);
     }
 
-    private void applyBrand(Cat cat, CatRequestDTO request, boolean approve, UUID reviewedId) {
-        if (request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_BRAND)) {
-            cat.setFoodBrand(request.getFoodBrand());
-            cat.setFoodBrandId(null);
-            return;
-        }
+    private void applyBrand(Cat cat, CatRequestDTO request, UUID reviewedId) {
         UUID brandId = reviewedId == null ? request.getFoodBrandId() : reviewedId;
         if (brandId != null) {
             if (brandId.equals(cat.getFoodBrandId())) return;
@@ -138,20 +134,17 @@ public class FoodBrandService {
             cat.setFoodBrandId(brand.getId());
             return;
         }
-        if (!approve && !request.hasFoodBrandUpdate()) return;
-
-        if (!approve && (Objects.equals(cat.getFoodBrand(), request.getFoodBrand())
-                || Objects.equals(cat.getDisplayedFoodBrand(), request.getFoodBrand()))) return;
-        String name = cleanName(request.getFoodBrand());
-        if (name == null) {
-            if (approve) throw new BadRequestException("A food brand is required for approval");
-            cat.setFoodBrand(null);
-            cat.setFoodBrandId(null);
+        if (!request.hasFoodBrandUpdate()) return;
+        String supplied = request.getFoodBrand();
+        boolean unlinked = request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_BRAND);
+        if (!unlinked && (sameName(cat.getFoodBrand(), supplied) || sameName(cat.getDisplayedFoodBrand(), supplied))) {
             return;
         }
 
-        var brand = approve ? findOrPublishBrand(name) : null;
-        cat.setFoodBrand(brand == null ? request.getFoodBrand() : brand.getName());
+        String name = cleanName(supplied);
+        var brand = name == null || unlinked ? null
+                : brands.findLockedByNormalizedKey(key(name)).filter(FoodBrand::isActive).orElse(null);
+        cat.setFoodBrand(brand == null ? (name == null ? null : supplied) : brand.getName());
         cat.setFoodBrandId(brand == null ? null : brand.getId());
     }
 
@@ -164,12 +157,7 @@ public class FoodBrandService {
         return brand;
     }
 
-    private void applyVariety(Cat cat, CatRequestDTO request, UUID reviewedId) {
-        if (request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL)) {
-            cat.setFoodDetail(request.getFoodDetail());
-            cat.setFoodVarietyId(null);
-            return;
-        }
+    private void applyVariety(Cat cat, CatRequestDTO request, UUID reviewedId, boolean brandChanged) {
         UUID selectedId = reviewedId == null ? request.getFoodVarietyId() : reviewedId;
         if (selectedId != null) {
             if (selectedId.equals(cat.getFoodVarietyId())) return;
@@ -184,26 +172,26 @@ public class FoodBrandService {
         }
         if (!request.hasFoodDetailUpdate()) return;
         String supplied = request.getFoodDetail();
-        String detail = supplied == null || supplied.isBlank() ? null : supplied.strip();
-        if (!request.isApproveFoodVariety()) {
-            if (Objects.equals(cat.getFoodDetail(), detail) || Objects.equals(cat.getDisplayedFoodDetail(), detail)) return;
-            cat.setFoodVarietyId(null);
-            cat.setFoodDetail(detail);
+        boolean unlinked = request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL);
+        if (!brandChanged && !unlinked
+                && (sameName(cat.getFoodDetail(), supplied) || sameName(cat.getDisplayedFoodDetail(), supplied))) {
             return;
         }
 
-        String name = cleanName(detail);
-        if (name == null) throw new BadRequestException("A food variety name is required for approval");
+        String name = cleanName(supplied);
         UUID brandId = cat.getFoodBrandId();
-        if (brandId == null) {
-            cat.setFoodDetail(detail);
-            cat.setFoodVarietyId(null);
-            return;
+        FoodVariety variety = null;
+        if (name != null && brandId != null && !unlinked
+                && brands.findLockedById(brandId).filter(FoodBrand::isActive).isPresent()) {
+            variety = varieties.findLockedByBrandIdAndNormalizedKey(brandId, key(name))
+                    .filter(FoodVariety::isActive).orElse(null);
         }
-        requireActiveBrand(brandId);
-        var variety = findOrPublishVariety(name, brandId);
-        if (!variety.isActive()) throw hiddenName();
-        setVariety(cat, variety);
+        if (variety != null) {
+            setVariety(cat, variety);
+        } else {
+            cat.setFoodDetail(name == null ? null : supplied.strip());
+            cat.setFoodVarietyId(null);
+        }
     }
 
     private void requireActiveBrand(UUID brandId) {

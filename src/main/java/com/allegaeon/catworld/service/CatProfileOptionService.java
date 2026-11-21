@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.CatProfileOptionDto;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.CatCatalogTextConfirmationException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -23,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,6 +35,7 @@ import static com.allegaeon.catworld.model.CatProfileOptionField.LITTER_DETAIL;
 import static com.allegaeon.catworld.service.CatalogOptionName.binaryId;
 import static com.allegaeon.catworld.service.CatalogOptionName.cleanName;
 import static com.allegaeon.catworld.service.CatalogOptionName.key;
+import static com.allegaeon.catworld.service.CatalogOptionName.sameName;
 
 @Service
 @RequiredArgsConstructor
@@ -161,55 +162,64 @@ public class CatProfileOptionService {
         }
     }
 
-    void selectForApproval(CatRequestDTO request, Map<String, String> selected) {
-        request.setReviewedIntake(true);
-        Set<String> approvals = new LinkedHashSet<>(PROFILE_CATALOG_FIELDS);
-        approvals.retainAll(selected.keySet());
-        approvals.removeIf(request::isUnlinkedIntakeOption);
-        request.setApproveCatalogOptions(approvals);
-        if (approvals.contains(FOOD_BRAND.key())) request.setFoodBrand(selected.get(FOOD_BRAND.key()));
-    }
-
-    // The enclosing cat mutation owns the transaction, including newly approved options.
+    // The cat mutation owns the transaction. A confirmation response rolls back the entire profile.
     void applyProfile(Cat cat, CatRequestDTO request, Map<String, UUID> reviewedOptions) {
-        Set<String> approvals = request.getApproveCatalogOptions() == null
-                ? Set.of() : request.getApproveCatalogOptions();
-        if (!PROFILE_CATALOG_FIELDS.containsAll(approvals)) {
-            throw new BadRequestException("An unknown cat profile option was selected for approval");
-        }
-        boolean approveFood = request.isApproveFoodBrand() || approvals.contains(FOOD_BRAND.key());
-        if (approveFood || request.isApproveFoodVariety() || !approvals.isEmpty()) requireAdministrator();
-
         Map<String, UUID> selected = request.getCatalogOptionIds() == null ? Map.of() : request.getCatalogOptionIds();
         if (!PROFILE_CATALOG_FIELDS.containsAll(selected.keySet()) || selected.containsKey(FOOD_BRAND.key())
                 || selected.values().stream().anyMatch(Objects::isNull)) {
             throw new BadRequestException("An unknown cat profile option was selected");
         }
+
+        var previousLabels = new LinkedHashMap<String, String>();
         for (var field : CatProfileOptionField.values()) {
+            if (field.isCatalogManaged() && (!request.isUnlinkedIntakeOption(field.key()) || field.idOf(cat) == null)) {
+                previousLabels.put(field.key(), field.displayedNameOf(cat));
+            }
+        }
+        if (!request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL) || cat.getFoodVarietyId() == null) {
+            previousLabels.put(CatIntakeCatalog.FOOD_DETAIL, cat.getDisplayedFoodDetail());
+        }
+        for (var field : CatProfileOptionField.values()) {
+            UUID reviewedId = reviewedOptions.get(field.key());
+            UUID selectedId = reviewedId == null ? selected.get(field.key()) : reviewedId;
             if (field == FOOD_BRAND) {
-                foodBrands.applyProfile(cat, request, approveFood, reviewedOptions);
+                foodBrands.applyProfile(cat, request, reviewedOptions);
             } else if (field == LITTER_DETAIL) {
-                UUID reviewedId = reviewedOptions.get(field.key());
-                applyLitter(cat, request, approvals.contains(field.key()),
-                        reviewedId == null ? selected.get(field.key()) : reviewedId, reviewedId != null);
+                applyLitter(cat, request, selectedId, reviewedId != null);
             } else {
                 String supplied = suppliedName(field, request);
                 if (field.isCatalogManaged()) {
-                    boolean approve = approvals.contains(field.key());
-                    UUID reviewedId = reviewedOptions.get(field.key());
-                    UUID selectedId = reviewedId == null ? selected.get(field.key()) : reviewedId;
-                    boolean unlinked = request.isUnlinkedIntakeOption(field.key());
-                    if (selectedId != null || approve || unlinked || hasTextUpdate(field, request)) {
-                        applyOption(field, cat, supplied, approve, selectedId, reviewedId != null, unlinked);
+                    if (selectedId != null || hasTextUpdate(field, request)) {
+                        applyOption(field, cat, supplied, selectedId, reviewedId != null,
+                                request.isUnlinkedIntakeOption(field.key()));
                     }
                 } else {
                     applyDescription(field, cat, supplied, request.isReviewedIntake());
                 }
             }
         }
+
+        var localText = new LinkedHashMap<String, String>();
+        for (var field : CatProfileOptionField.values()) {
+            if (field.isCatalogManaged() && field.idOf(cat) == null) {
+                addChangedText(localText, field.key(), field.nameOf(cat), previousLabels);
+            }
+        }
+        if (cat.getFoodVarietyId() == null) {
+            addChangedText(localText, CatIntakeCatalog.FOOD_DETAIL, cat.getFoodDetail(), previousLabels);
+        }
+        Map<String, String> confirmed = request.getConfirmedCatalogText();
+        if (!localText.isEmpty() && (confirmed == null || !confirmed.entrySet().containsAll(localText.entrySet()))) {
+            throw new CatCatalogTextConfirmationException(localText);
+        }
     }
 
-    private void applyLitter(Cat cat, CatRequestDTO request, boolean approve, UUID selected, boolean reviewed) {
+    private static void addChangedText(Map<String, String> localText, String field, String saved,
+                                       Map<String, String> previousLabels) {
+        if (cleanName(saved) != null && !sameName(saved, previousLabels.get(field))) localText.put(field, saved);
+    }
+
+    private void applyLitter(Cat cat, CatRequestDTO request, UUID selected, boolean reviewed) {
         String supplied = request.getLitterDetail();
         boolean hasDetail = request.hasLitterDetailUpdate();
         if (request.hasLitterPreferenceUpdate()) {
@@ -221,15 +231,15 @@ public class CatProfileOptionService {
             hasDetail = true;
         }
         if (cat.getLitterPreference() != LitterPreference.OWN) {
-            if (selected != null || approve || cleanName(supplied) != null) {
+            if (selected != null || cleanName(supplied) != null) {
                 throw new BadRequestException("A litter detail can only be saved for own litter");
             }
             return;
         }
-        boolean unlinked = request.isUnlinkedIntakeOption(LITTER_DETAIL.key());
-        if (selected != null || approve || hasDetail || unlinked) {
+        if (selected != null || hasDetail) {
             cat.setLitterPreference(LitterPreference.OWN);
-            applyOption(LITTER_DETAIL, cat, supplied, approve, selected, reviewed, unlinked);
+            applyOption(LITTER_DETAIL, cat, supplied, selected, reviewed,
+                    request.isUnlinkedIntakeOption(LITTER_DETAIL.key()));
         }
     }
 
@@ -243,12 +253,8 @@ public class CatProfileOptionService {
         field.setOption(cat, reviewedIntake && description != null ? supplied : description, null);
     }
 
-    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve, UUID selected,
+    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, UUID selected,
                              boolean reviewed, boolean unlinked) {
-        if (unlinked) {
-            field.setOption(cat, supplied, null);
-            return;
-        }
         if (selected != null) {
             if (selected.equals(field.idOf(cat))) return;
             var option = options.findLockedById(selected)
@@ -257,18 +263,15 @@ public class CatProfileOptionService {
             field.setOption(cat, option.getName(), option.getId());
             return;
         }
-        if (!approve && (Objects.equals(field.nameOf(cat), supplied)
-                || Objects.equals(field.displayedNameOf(cat), supplied))) return;
-
-        String name = cleanName(supplied);
-        if (name == null) {
-            if (approve) throw new BadRequestException("A name is required to approve " + field.key());
-            field.setOption(cat, null, null);
+        if (!unlinked && (sameName(field.nameOf(cat), supplied) || sameName(field.displayedNameOf(cat), supplied))) {
             return;
         }
 
-        var option = approve ? findOrPublishOption(field.key(), name) : null;
-        field.setOption(cat, option == null ? supplied : option.getName(), option == null ? null : option.getId());
+        String name = cleanName(supplied);
+        var option = name == null || unlinked ? null : options.findLockedByCategoryAndNormalizedKey(field.key(), key(name))
+                .filter(CatProfileOption::isActive).orElse(null);
+        field.setOption(cat, option == null ? (name == null ? null : supplied) : option.getName(),
+                option == null ? null : option.getId());
     }
 
     private CatProfileOption findOrPublishOption(String field, String name) {

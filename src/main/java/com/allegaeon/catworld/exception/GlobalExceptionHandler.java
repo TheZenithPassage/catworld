@@ -62,6 +62,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
     }
 
+    @ExceptionHandler(CatCatalogTextConfirmationException.class)
+    public ResponseEntity<Map<String, Object>> handleCatalogTextConfirmation(
+            CatCatalogTextConfirmationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("code", "CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED", "fields", exception.getFields()));
+    }
+
     @ExceptionHandler(CatIntakeCatalogChangedException.class)
     public ResponseEntity<Map<String, String>> handleIntakeCatalogChanged(CatIntakeCatalogChangedException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

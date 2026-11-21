@@ -216,7 +216,8 @@ final class CatIntakeCatalog {
                 brandId = null;
             } else {
                 UUID reviewedBrand = reviewedSelection(FOOD_BRAND, brand, previous);
-                brandId = reviewedBrand == null ? exactId(FOOD_BRAND, brand, null) : reviewedBrand;
+                if (reviewedBrand != null) brandId = reviewedBrand;
+                else if (!CatalogOptionName.sameName(brand, currentBrand)) brandId = exactId(FOOD_BRAND, brand, null);
             }
         }
         UUID acceptedBrandId = brandId;
@@ -235,7 +236,7 @@ final class CatIntakeCatalog {
             if (!isOption(field)) return name;
             UUID replacement = replacements.get(field);
             if (replacement != null) return requireSelection(field, name, replacement, acceptedBrandId).name();
-            if (retiredFields.contains(field) || (FOOD_DETAIL.equals(field) && previous.foodDetailBrand() == null)) {
+            if (retiredFields.contains(field)) {
                 return name;
             }
             UUID persisted = reviewedSelection(field, name, previous);
@@ -243,9 +244,7 @@ final class CatIntakeCatalog {
                 reviewed.put(field, persisted);
                 return name; // The mutation resolves the label using the accepted ID.
             }
-            UUID exact = exactId(field, name, acceptedBrandId);
-            if (exact != null) return byId.get(exact).name();
-            return FOOD_DETAIL.equals(field) ? name : CatalogOptionName.cleanName(name);
+            return name;
         });
         return reviewed;
     }
@@ -317,7 +316,7 @@ final class CatIntakeCatalog {
     private UUID exactId(String field, String name, UUID brandId) {
         if (name == null) return null;
         return byId.values().stream()
-                .filter(option -> option.active() && inScope(option, field, brandId) && sameName(option.name(), name))
+                .filter(option -> option.active() && inScope(option, field, brandId) && CatalogOptionName.sameName(option.name(), name))
                 .map(Option::id).findFirst().orElse(null);
     }
 
