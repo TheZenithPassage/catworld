@@ -1054,11 +1054,31 @@ describe('EntityDetailDialog', () => {
     }
   });
 
-  it('keeps an effective cat draft through photo preview, failed save and a refused cancel', async () => {
+  it('keeps an effective cat draft through photo preview, a refused catalog warning, a failed save and a refused cancel', async () => {
+    const savedBreed = 'Saved breed';
     catApi.getCatDetail.mockReturnValueOnce(
-      of({ cat: { ...cat, hasPhoto: true }, stays: { totalElements: 0, items: [] } }),
+      of({
+        cat: {
+          ...cat,
+          breed: savedBreed,
+          catalogOptionIds: { breed: 'saved-breed-id' },
+          hasPhoto: true,
+        },
+        stays: { totalElements: 0, items: [] },
+      }),
     );
-    catApi.updateCat.mockReturnValueOnce(throwError(() => new Error('save rejected')));
+    const catalogText = { breed: 'Unlisted breed', foodBrand: 'Unlisted food brand' };
+    catApi.updateCat
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED', fields: catalogText },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(throwError(() => new Error('save rejected')));
     TestBed.configureTestingModule({
       providers: [
         provideNoopAnimations(),
@@ -1094,10 +1114,12 @@ describe('EntityDetailDialog', () => {
     expect(indicator()).not.toBeNull();
     expect(beforeUnload()).toBe(true);
     editor.name.set(cat.name);
-    editor.setCatalogSelection('breed', 'breed-id');
+    editor.breed.set('Another breed');
+    editor.setCatalogSelection('breed', 'another-breed-id');
     TestBed.tick();
     expect(indicator()).not.toBeNull();
-    editor.setCatalogSelection('breed');
+    editor.breed.set(savedBreed);
+    editor.setCatalogSelection('breed', 'saved-breed-id');
     TestBed.tick();
     expect(indicator()).toBeNull();
     expect(beforeUnload()).toBe(false);
@@ -1117,6 +1139,31 @@ describe('EntityDetailDialog', () => {
     preview.close();
     await previewClosed;
     expect(gallery.files()).toEqual([picture]);
+
+    editor.breed.set(catalogText.breed);
+    editor.setCatalogSelection('breed');
+    editor.changeFoodBrand(catalogText.foodBrand);
+    editor.submit();
+    TestBed.tick();
+    expect(dialog.openDialogs).toHaveLength(2);
+    expect(editor.submitting()).toBe(true);
+    expect(indicator()).not.toBeNull();
+    const warningRef = dialog.openDialogs[1];
+    const warning = document.getElementById(warningRef.id)!;
+    expect(warning.textContent).toContain(catalogText.breed);
+    expect(warning.textContent).toContain(catalogText.foodBrand);
+    const reviewed = firstValueFrom(warningRef.afterClosed());
+    warning
+      .querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!
+      .click();
+    await reviewed;
+    TestBed.tick();
+    expect(catApi.updateCat).toHaveBeenCalledTimes(1);
+    expect(editor.submitting()).toBe(false);
+    expect(editor.breed()).toBe(catalogText.breed);
+    expect(editor.foodBrand()).toBe(catalogText.foodBrand);
+    expect(gallery.files()).toEqual([picture]);
+    expect(indicator()).not.toBeNull();
 
     editor.submit();
     TestBed.tick();
