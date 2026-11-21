@@ -23,6 +23,10 @@ public enum CatProfileOptionField {
     private final Function<Cat, UUID> idReader;
     private final BiConsumer<Cat, UUID> idWriter;
 
+    public boolean isCatalogManaged() {
+        return this != COAT && this != COLOR;
+    }
+
     public String key() {
         return key;
     }

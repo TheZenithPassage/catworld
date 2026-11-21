@@ -1,5 +1,5 @@
+import type { CatCatalogSelection } from '../../features/cats/models/cat.model';
 import type { StayLitterChoices } from '../../features/stays/models/stay.model';
-import type { CatProfileOptionFieldKey } from '../../shared/cat-profile-options/cat-profile-options.service';
 
 export const CREATION_FLOW_QUERY_PARAM = 'creationFlowId';
 
@@ -18,7 +18,7 @@ export interface CatCreationDraft {
   color: string;
   foodBrand: string;
   foodDetail?: string;
-  catalogApprovals?: CatProfileOptionFieldKey[];
+  catalogSelection?: CatCatalogSelection;
   litterBrand: string;
   personality: string;
   careInstructions?: string;

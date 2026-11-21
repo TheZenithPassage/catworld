@@ -47,11 +47,15 @@
         }
         <form (submit)="approve($event)">
           <fieldset class="review-form" [disabled]="!!saving()">
-            @if (!adjusting()) {
-              <button mat-stroked-button type="button" data-adjust (click)="adjust()">
-                {{ copy().adjust }}
-              </button>
-            }
+            <button
+              mat-stroked-button
+              type="button"
+              [attr.data-adjust]="adjusting() ? null : ''"
+              [attr.data-summary]="adjusting() ? '' : null"
+              (click)="toggleAdjustment()"
+            >
+              {{ adjusting() ? copy().summary : copy().adjust }}
+            </button>
             @if (photos().length) {
               <section class="proofs">
                 <h4>{{ copy().images }}</h4>
@@ -93,6 +97,14 @@
                             />
                             {{ copy().keepPhoto(index + 1) }}
                           </label>
+                        } @else {
+                          <p class="photo-note">
+                            {{
+                              photo.selected
+                                ? copy().photoSelected(index + 1)
+                                : copy().photoExcluded(index + 1)
+                            }}
+                          </p>
                         }
                       } @else if (photo.state === 'loading') {
                         <p role="status">{{ copy().photoLoading(index + 1) }}</p>
@@ -166,17 +178,46 @@
                           <option value="unresolved">{{ copy().choose }}</option>
                         }
                         <option value="apply">{{ copy().useReviewed }}</option>
-                        <option value="keep">
-                          {{
-                            hasCurrentValue(row.field.key, detail.current)
-                              ? copy().keepCurrent
-                              : copy().skipField
-                          }}
-                        </option>
+                        <option value="keep">{{ keepLabel(row.field.key, detail.current) }}</option>
                       </select>
                     </label>
                   }
+                  @if (!adjusting()) {
+                    @if (row.decision === 'keep') {
+                      <p class="field-decision">{{ keepLabel(row.field.key, detail.current) }}</p>
+                    } @else if (row.decision === 'apply') {
+                      @if (
+                        selectedFields()[row.field.key === 'birthDate' ? birthKey() : row.field.key]
+                      ) {
+                        <dl class="field-decision">
+                          <dt>{{ copy().reviewed }}</dt>
+                          <dd>{{ displayField(row.field.key, selectedFields()) }}</dd>
+                        </dl>
+                      }
+                    }
+                  }
                   @if (adjusting() && row.decision === 'apply') {
+                    @if (row.field.key === 'foodDetail' && foodVarietiesForApproval().length) {
+                      <label class="control">
+                        {{ copy().foodVarietyChoice }}
+                        <select
+                          name="food-variety"
+                          (change)="chooseFoodVariety($any($event.target).value)"
+                        >
+                          <option value="" [selected]="!foodVarietyForApproval()">
+                            {{ copy().choose }}
+                          </option>
+                          @for (variety of foodVarietiesForApproval(); track variety.id) {
+                            <option
+                              [value]="variety.id"
+                              [selected]="foodVarietyForApproval()?.id === variety.id"
+                            >
+                              {{ variety.name }}
+                            </option>
+                          }
+                        </select>
+                      </label>
+                    }
                     @if (row.field.kind === 'option') {
                       <app-cat-profile-option-field
                         [field]="row.field.key"
@@ -193,24 +234,24 @@
                           {{ copy().litterSource }}
                           <select
                             name="litter-source"
-                            [value]="row.value === sharedLitter ? 'shared' : row.value ? 'own' : ''"
+                            [value]="litterChoice(row.value)"
                             (change)="setLitterSource($any($event.target).value)"
                           >
                             @if (!detail.catId) {
-                              <option value="">{{ copy().choose }}</option>
+                              <option value="">{{ catCopy().form.unconfirmedLitter }}</option>
                             }
                             <option value="shared">{{ catCopy().form.sharedLitter }}</option>
                             <option value="own">{{ catCopy().form.ownLitter }}</option>
                           </select>
                         </label>
-                        @if (row.value && row.value !== sharedLitter) {
+                        @if (litterChoice(row.value) === 'own') {
                           <label class="control">
-                            {{ copy().litterDescription }}
+                            {{ catCopy().form.ownLitterDetail }} ({{ copy().optional }})
                             <input
                               type="text"
                               name="litterBrand"
                               [attr.maxlength]="maxLength(row.field)"
-                              [value]="row.value === ownLitter ? '' : row.value"
+                              [value]="ownLitterDetail(row.value)"
                               (input)="setLitterDescription($any($event.target).value)"
                             />
                           </label>
@@ -241,6 +282,28 @@
                               <option value="">{{ catCopy().form.selectSex }}</option>
                               <option value="FEMALE">{{ catCopy().form.female }}</option>
                               <option value="MALE">{{ catCopy().form.male }}</option>
+                            </select>
+                          } @else if (row.field.kind === 'coat') {
+                            <select
+                              name="coat"
+                              (change)="setValue('coat', $any($event.target).value)"
+                            >
+                              <option value="" [selected]="!row.value">{{ copy().choose }}</option>
+                              @for (length of coatLengths; track length) {
+                                <option [value]="length" [selected]="row.value === length">
+                                  {{ catCopy().form.coatLengths[length] }}
+                                </option>
+                              }
+                              @if (detail.proposed.coat; as submittedCoat) {
+                                @if (!isFixedCoatLength(submittedCoat)) {
+                                  <option
+                                    [value]="submittedCoat"
+                                    [selected]="row.value === submittedCoat"
+                                  >
+                                    {{ submittedCoat }}
+                                  </option>
+                                }
+                              }
                             </select>
                           } @else if (row.field.kind === 'textarea') {
                             <textarea
@@ -288,7 +351,7 @@
                 {{ copy().foodDetailBrandMismatch(detail.proposedFoodDetailBrand!) }}
               </p>
             }
-            @if (emptyApproval() && adjusting()) {
+            @if (emptyApproval()) {
               <p class="empty-approval" role="status">{{ copy().emptyApproval }}</p>
             }
             <div class="review-actions">

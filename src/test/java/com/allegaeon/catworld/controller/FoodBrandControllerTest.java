@@ -22,6 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -39,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +96,39 @@ class FoodBrandControllerTest {
     }
 
     @Test
+    void staffCanReadScopedVarietiesAndOnlyAdministratorsCanPublishThem() throws Exception {
+        var brand = publish(admin, Map.of("field", "foodBrand", "name", "Variety brand " + UUID.randomUUID()));
+        var other = publish(admin, Map.of("field", "foodBrand", "name", "Other brand " + UUID.randomUUID()));
+        var varietyInput = Map.of("field", "foodDetail", "name", "Kitten", "brandId", brand.get("id").asText());
+        mvc.perform(publication(staff, varietyInput)).andExpect(status().isForbidden());
+        var variety = publish(admin, varietyInput);
+        assertThat(publish(admin, varietyInput)).isEqualTo(variety);
+
+        var staffVarieties = json.readTree(mvc.perform(get(CATALOG + "/varieties")
+                        .with(httpBasic(staff.getUsername(), PASSWORD))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(staffVarieties.valueStream().filter(option -> option.get("id").equals(variety.get("id")))
+                .map(option -> option.get("brandId")).toList()).containsExactly(brand.get("id"));
+        var chosen = create(staff, Map.of("foodBrandId", brand.get("id").asText(),
+                "foodVarietyId", variety.get("id").asText()));
+        assertThat(chosen.get("foodDetail").asText()).isEqualTo("Kitten");
+        assertThat(chosen.get("catalogOptionIds").get("foodDetail")).isEqualTo(variety.get("id"));
+        mvc.perform(createRequest(staff, Map.of("foodBrandId", other.get("id").asText(),
+                "foodVarietyId", variety.get("id").asText()))).andExpect(status().isBadRequest());
+    }
+
+    private JsonNode publish(UserAccount user, Map<String, ?> body) throws Exception {
+        return json.readTree(mvc.perform(publication(user, body)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private MockHttpServletRequestBuilder publication(
+            UserAccount user, Map<String, ?> body) {
+        return post(PROFILE_OPTIONS).with(httpBasic(user.getUsername(), PASSWORD))
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body));
+    }
+
+    @Test
     void profileCatalogSeparatesCategoriesAndRequiresAdministratorToPublishOptions() throws Exception {
         String suffix = UUID.randomUUID().toString();
         String name = "Crema Ártica " + suffix;
@@ -103,32 +138,31 @@ class FoodBrandControllerTest {
         mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
                 .andExpect(status().isOk());
 
-        var local = create(staff, Map.of("coat", name));
-        assertThat(local.get("coat").asText()).isEqualTo(name);
-        assertThat(local.get("catalogOptionIds").has("coat")).isFalse();
-        mvc.perform(createRequest(staff, Map.of("breed", name, "approveCatalogOptions", List.of("breed"))))
+        mvc.perform(publication(admin, Map.of("field", "coat", "name", name)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(publication(admin, Map.of("field", "color", "name", name)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(publication(staff, Map.of("field", "breed", "name", name)))
                 .andExpect(status().isForbidden());
 
-        var approved = create(admin, Map.of("breed", "  Crema  Ártica\t" + suffix + "  ", "color", name,
-                "approveCatalogOptions", List.of("breed", "color")));
-        var matched = create(staff, Map.of("breed", "crema\u00a0ártica " + suffix, "coat", name,
-                "color", "Crema Artica " + suffix));
-        assertThat(approved.get("breed").asText()).isEqualTo(name);
-        assertThat(matched.get("breed")).isEqualTo(approved.get("breed"));
-        assertThat(matched.get("catalogOptionIds").get("breed"))
-                .isEqualTo(approved.get("catalogOptionIds").get("breed"))
-                .isNotEqualTo(approved.get("catalogOptionIds").get("color"));
-        assertThat(matched.get("catalogOptionIds").has("coat")).isFalse();
-        assertThat(matched.get("catalogOptionIds").has("color")).isFalse();
+        var breed = publish(admin, Map.of("field", "breed", "name", "  Crema  Ártica\t" + suffix + "  "));
+        var local = create(staff, Map.of("breed", name, "coat", "Corto", "color", name));
+        assertThat(local.get("breed").asText()).isEqualTo(name);
+        assertThat(local.get("catalogOptionIds").has("breed")).isFalse();
+        var matched = create(staff, Map.of("catalogOptionIds", Map.of("breed", breed.get("id").asText())));
+        assertThat(matched.get("breed").asText()).isEqualTo(name);
+        assertThat(matched.get("catalogOptionIds").get("breed")).isEqualTo(breed.get("id"));
+        mvc.perform(createRequest(staff, Map.of("catalogOptionIds",
+                        Map.of("lastInternalDewormerName", breed.get("id").asText()))))
+                .andExpect(status().isBadRequest());
+        assertThat(local.get("catalogOptionIds").has("coat")).isFalse();
+        assertThat(local.get("catalogOptionIds").has("color")).isFalse();
 
         var catalog = json.readTree(mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
         assertThat(catalog.get("breed").valueStream()
                 .filter(option -> option.get("name").asText().equals(name))
-                .map(option -> option.get("id")).toList())
-                .containsExactly(approved.get("catalogOptionIds").get("breed"));
-        assertThat(catalog.get("coat").valueStream().map(option -> option.get("name").asText()).toList())
-                .doesNotContain(name);
+                .map(option -> option.get("id")).toList()).containsExactly(breed.get("id"));
         assertThat(catalog.get("lastInternalDewormerName").isArray()).isTrue();
         assertThat(catalog.get("lastExternalDewormerName").isArray()).isTrue();
         assertThat(catalog.get("foodBrand").isArray()).isTrue();
@@ -138,18 +172,18 @@ class FoodBrandControllerTest {
     void unchangedHistoricalValuesRemainLocalAndChangingAnApprovedValueClearsItsId() throws Exception {
         String legacy = "  Historical treatment " + UUID.randomUUID() + "  ";
         Cat cat = cats.saveAndFlush(Cat.builder().name("Historical cat").birthDate(LocalDate.of(2020, 3, 2))
-                .sex(Sex.MALE).lastExternalDewormerName(legacy).owner(owner).createdBy(admin).build());
+                .sex(Sex.MALE).lastExternalDewormerName(legacy).coat("Curly").owner(owner).createdBy(admin).build());
         var existing = json.readTree(mvc.perform(get("/api/cats/{id}", cat.getId())
                         .with(httpBasic(admin.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        var updated = update(existing, Map.of("lastExternalDewormerName", legacy, "coat", "Curly",
-                "approveCatalogOptions", List.of("coat")));
+        var updated = update(existing, Map.of("lastExternalDewormerName", legacy, "coat", "Curly"));
         assertThat(updated.get("lastExternalDewormerName").asText()).isEqualTo(legacy);
         assertThat(updated.get("catalogOptionIds").has("lastExternalDewormerName")).isFalse();
-        assertThat(updated.get("catalogOptionIds").has("coat")).isTrue();
+        assertThat(updated.get("coat").asText()).isEqualTo("Curly");
+        assertThat(updated.get("catalogOptionIds").has("coat")).isFalse();
 
-        var changed = update(updated, Map.of("lastExternalDewormerName", legacy, "coat", "Curly and white"));
-        assertThat(changed.get("coat").asText()).isEqualTo("Curly and white");
+        var changed = update(updated, Map.of("lastExternalDewormerName", legacy, "coat", "Largo"));
+        assertThat(changed.get("coat").asText()).isEqualTo("Largo");
         assertThat(changed.get("catalogOptionIds").has("coat")).isFalse();
         mvc.perform(get(PROFILE_OPTIONS).with(httpBasic(staff.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.lastExternalDewormerName").isEmpty());
@@ -168,8 +202,8 @@ class FoodBrandControllerTest {
         assertThat(approved.get("foodBrandId").asText()).isNotBlank();
 
         JsonNode known = create(staff, Map.of("foodBrand", "royal\u00a0çat " + suffix));
-        assertThat(known.get("foodBrand").asText()).isEqualTo(approvedName);
-        assertThat(known.get("foodBrandId")).isEqualTo(approved.get("foodBrandId"));
+        assertThat(known.get("foodBrand").asText()).isEqualTo("royal\u00a0çat " + suffix);
+        assertThat(known.get("foodBrandId").isNull()).isTrue();
         JsonNode selected = create(staff, Map.of("foodBrandId", approved.get("foodBrandId").asText()));
         assertThat(selected.get("foodBrand").asText()).isEqualTo(approvedName);
         assertThat(selected.get("foodBrandId")).isEqualTo(approved.get("foodBrandId"));

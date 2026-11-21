@@ -28,8 +28,20 @@ describe('ArrivalsPage', () => {
   const details = { open: vi.fn(() => EMPTY) };
   let fixture: ComponentFixture<ArrivalsPage>;
   let http: HttpTestingController;
+  const storageKey = 'catworld.arrivals.filters';
+
+  function expectArrivals(daysAhead = '7', includeStartedToday = true) {
+    return http.expectOne(
+      (req) =>
+        req.method === 'GET' &&
+        req.url === '/api/operations/arrivals' &&
+        req.params.get('daysAhead') === daysAhead &&
+        req.params.get('includeStartedToday') === String(includeStartedToday),
+    );
+  }
 
   beforeEach(() => {
+    localStorage.removeItem(storageKey);
     details.open.mockClear();
     TestBed.configureTestingModule({
       imports: [ArrivalsPage],
@@ -45,7 +57,72 @@ describe('ArrivalsPage', () => {
     fixture = TestBed.createComponent(ArrivalsPage);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    try {
+      fixture.destroy();
+      http.verify();
+    } finally {
+      localStorage.removeItem(storageKey);
+      vi.useRealTimers();
+      TestBed.resetTestingModule();
+    }
+  });
+
+  it('loads valid date-range preferences immediately and remembers them when reopened', () => {
+    expectArrivals().flush([]);
+    fixture.detectChanges();
+    const page: HTMLElement = fixture.nativeElement;
+    const days = page.querySelector<HTMLInputElement>('input[inputmode="numeric"]')!;
+    const include = page.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+
+    expect(days.labels?.[0].textContent).toContain('Días a partir de hoy');
+    expect(include.labels?.[0].textContent).toContain(
+      'Incluir los ingresos de hoy que ya empezaron',
+    );
+    expect(days.value).toBe('7');
+    expect(include.checked).toBe(true);
+
+    days.value = '-1';
+    days.dispatchEvent(new Event('input'));
+    http.expectNone((req) => req.url === '/api/operations/arrivals');
+
+    days.value = '0';
+    days.dispatchEvent(new Event('input'));
+    expectArrivals('0').flush([]);
+    include.click();
+    expectArrivals('0', false).flush([]);
+    days.value = '100000000000000000000';
+    days.dispatchEvent(new Event('input'));
+    expectArrivals('100000000000000000000', false).flush([]);
+
+    fixture.destroy();
+    fixture = TestBed.createComponent(ArrivalsPage);
+    expectArrivals('100000000000000000000', false).flush([]);
+  });
+
+  it('reloads at the next business boundary even when no stays are listed', () => {
+    vi.useFakeTimers();
+    expectArrivals().flush([], { headers: { 'X-Arrivals-Refresh-After-Ms': '1500' } });
+
+    vi.advanceTimersByTime(1499);
+    http.expectNone((req) => req.url === '/api/operations/arrivals');
+    vi.advanceTimersByTime(1);
+    expectArrivals().flush([{ ...stay, cats: [cat] }]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('article')?.textContent).toContain('Ana Example');
+  });
+
+  it('reloads when the page is visible again after a suspended timer', () => {
+    expectArrivals().flush([]);
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+
+    document.dispatchEvent(new Event('visibilitychange'));
+    http.expectNone((req) => req.url === '/api/operations/arrivals');
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    expectArrivals().flush([]);
+    visibility.mockRestore();
+  });
 
   it('shows arrival preparation and opens the existing stay detail', () => {
     const complete = {
@@ -55,9 +132,7 @@ describe('ArrivalsPage', () => {
       foodBrand: 'Example Food',
       vaccineWarnings: [],
     };
-    http
-      .expectOne({ method: 'GET', url: '/api/operations/arrivals' })
-      .flush([{ ...stay, cats: [cat, complete] }]);
+    expectArrivals().flush([{ ...stay, cats: [cat, complete] }]);
     fixture.detectChanges();
     const row = (fixture.nativeElement as HTMLElement).querySelector('article')!;
 
@@ -84,7 +159,7 @@ describe('ArrivalsPage', () => {
       { username: 'admin', password: 'test' },
     );
     const pendingReviews = [{ id: 'proposal-1', submittedAt: '2026-11-12T15:00:00Z' }];
-    http.expectOne('/api/operations/arrivals').flush([
+    expectArrivals().flush([
       {
         ...stay,
         cats: [{ ...cat, foodBrand: 'Example Food', vaccineWarnings: [], pendingReviews }],
@@ -104,7 +179,7 @@ describe('ArrivalsPage', () => {
       { username: 'staff', password: 'test' },
     );
     const complete = { ...cat, foodBrand: 'Example Food', vaccineWarnings: [] };
-    http.expectOne('/api/operations/arrivals').flush([
+    expectArrivals().flush([
       {
         ...stay,
         cats: [
@@ -133,7 +208,7 @@ describe('ArrivalsPage', () => {
       { username: 'admin', password: 'test' },
     );
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
-    http.expectOne('/api/operations/arrivals').flush([{ ...stay, cats: [cat] }]);
+    expectArrivals().flush([{ ...stay, cats: [cat] }]);
     fixture.detectChanges();
     const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
       'article button',

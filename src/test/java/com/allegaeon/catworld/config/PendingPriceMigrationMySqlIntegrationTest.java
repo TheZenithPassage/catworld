@@ -349,6 +349,27 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertThrows(DataAccessException.class,
                 () -> jdbc.update("update cats set food_brand_id = null, food_variety_id = ? where id = ?", id(68), id(4)));
         withVarieties.validate();
+
+        jdbc.update("""
+                insert into cat_profile_options (id, category, name, normalized_key)
+                values (?, 'breed', '  COMUN  ', X'636F6D756E')
+                """, id(69));
+        jdbc.update("update cats set breed_option_id = ? where id = ?", id(69), id(4));
+        var catsBeforeBreeds = dataSnapshot();
+        var reviewsBeforeBreeds = householdSnapshot();
+        Flyway withBreeds = Flyway.configure().dataSource(dataSource).target("26.2").load();
+        HistoricalMigrationConfig.migrate(withBreeds);
+        assertEquals("26.2", withBreeds.info().current().getVersion().getVersion());
+        assertEquals(Set.of("  COMUN  ", "Siamés", "Persa"), new HashSet<>(jdbc.queryForList(
+                "select name from cat_profile_options where category = 'breed'", String.class)));
+        assertArrayEquals(HexFormat.of().parseHex("7369616dc3a973"), jdbc.queryForObject(
+                "select normalized_key from cat_profile_options where id = ?", byte[].class,
+                HexFormat.of().parseHex("d58827db0efe488f84b393e7ad1d9a8a")));
+        assertEquals(catsBeforeBreeds, dataSnapshot());
+        assertEquals(reviewsBeforeBreeds, householdSnapshot());
+        assertArrayEquals(id(69), jdbc.queryForObject("select breed_option_id from cats where id = ?",
+                byte[].class, id(4)));
+        withBreeds.validate();
     }
 
     @ParameterizedTest

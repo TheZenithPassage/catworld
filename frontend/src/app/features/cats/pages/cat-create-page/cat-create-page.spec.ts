@@ -94,6 +94,12 @@ describe('CatCreatePage', () => {
 
   const profileOptions = {
     load: vi.fn(),
+    loadVarieties: vi.fn(),
+    publish: vi.fn(),
+    varieties: signal([
+      { id: 'variety-royal-kitten', brandId: 'brand-1', name: 'Kitten' },
+      { id: 'variety-other-kitten', brandId: 'brand-2', name: 'Kitten Other' },
+    ]),
     catalog: signal({
       breed: [],
       coat: [],
@@ -206,7 +212,7 @@ describe('CatCreatePage', () => {
       .join(' ');
   }
 
-  it('submits a selected food brand, free-text diet and the shared litter choice', async () => {
+  it('submits a brand and only its selected variety with the shared litter choice', async () => {
     createComponent();
     fixture.detectChanges();
     catApiService.createCat.mockReturnValue(of(createdCat));
@@ -221,18 +227,27 @@ describe('CatCreatePage', () => {
     );
     await food.enterText('royal');
     await food.selectOption({ text: 'Royal Canin' });
-    setInputValue('foodDetail', 'Sensitive digestion');
-    const litter = await loader.getHarness(
-      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    const variety = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodDetail]' }),
     );
-    await litter.enterText('CatWorld');
-    await litter.selectOption({ text: /CatWorld/ });
+    await variety.enterText('Kit');
+    const options = await variety.getOptions();
+    expect(await Promise.all(options.map((option) => option.getText()))).toEqual(['Kitten']);
+    await variety.selectOption({ text: 'Kitten' });
+    const litter = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+      '[name=litterChoice]',
+    )!;
+    litter.value = 'shared';
+    litter.dispatchEvent(new Event('change', { bubbles: true }));
+    await fixture.whenStable();
     component.submit();
 
     expect(catApiService.createCat).toHaveBeenCalledWith(
       expect.objectContaining({
         foodBrand: 'Royal Canin',
-        foodDetail: 'Sensitive digestion',
+        foodBrandId: 'brand-1',
+        foodDetail: 'Kitten',
+        foodVarietyId: 'variety-royal-kitten',
         litterBrand: 'Usa las de CatWorld',
       }),
       null,
@@ -254,17 +269,21 @@ describe('CatCreatePage', () => {
     component.color.set('Orange');
     fixture.detectChanges();
 
+    profileOptions.publish.mockReturnValue(of({ id: 'breed-mixed', name: 'Mixed' }));
     const rendered = fixture.nativeElement as HTMLElement;
     const breedApproval = () =>
-      rendered.querySelector<HTMLInputElement>(
-        'app-cat-profile-option-field[field=breed] mat-checkbox input',
+      rendered.querySelector<HTMLButtonElement>(
+        'app-cat-profile-option-field[field=breed] .publish-option',
       );
     expect(breedApproval()).toBeNull();
 
     session.login({ username: credentials.username, role: 'ADMIN' }, credentials);
     fixture.detectChanges();
-    expect(breedApproval()).not.toBeNull();
+    expect(breedApproval()?.textContent).toContain('Agregar «Mixed» a Razas');
+    expect(profileOptions.publish).not.toHaveBeenCalled();
     breedApproval()!.click();
+    expect(profileOptions.publish).toHaveBeenCalledWith('breed', 'Mixed', undefined);
+    expect(catApiService.createCat).not.toHaveBeenCalled();
     await fixture.whenStable();
     component.submit();
 
@@ -273,11 +292,13 @@ describe('CatCreatePage', () => {
         birthDate: '2020-01-01',
         breed: 'Mixed',
         color: 'Orange',
-        approveCatalogOptions: ['breed'],
+        catalogOptionIds: { breed: 'breed-mixed' },
       }),
       null,
     );
     expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('birthYear');
+    expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('approveCatalogOptions');
+    expect(profileOptions.publish).toHaveBeenCalledTimes(1);
   });
 
   it('submits only the known birth year and keeps tutor instructions separate from notes', async () => {
@@ -327,7 +348,9 @@ describe('CatCreatePage', () => {
 
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(20);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelector('select[name=sex]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=coat]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=litterChoice]')).not.toBeNull();
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
     expect(ownerApiService.getOwners).not.toHaveBeenCalled();
     expect(vetApiService.getVets).not.toHaveBeenCalled();
@@ -697,7 +720,7 @@ describe('CatCreatePage', () => {
     preview.mockRestore();
   });
 
-  it('restores a year-only draft with its distinct care instructions and catalog approvals', () => {
+  it('restores a year-only draft with its distinct care instructions and catalog selections', () => {
     arriveWithDraft(
       '/vets/new',
       {},
@@ -707,7 +730,7 @@ describe('CatCreatePage', () => {
         birthYear: '2021',
         yearOnly: true,
         careInstructions: 'Feed separately',
-        catalogApprovals: ['breed'],
+        catalogSelection: { breed: 'breed-existing' },
       },
     );
 
@@ -715,7 +738,7 @@ describe('CatCreatePage', () => {
     expect(component.birthYear()).toBe('2021');
     expect(component.birthDate()).toBe('2020-01-01');
     expect(component.careInstructions()).toBe('Feed separately');
-    expect(component.catalogApprovals()).toEqual(['breed']);
+    expect(component.catalogSelection()).toEqual({ breed: 'breed-existing' });
 
     component.createRelated('owner', new Event('click'));
     returnFromCancelledRelated('owner', latestCreatedFlowId());
@@ -723,7 +746,7 @@ describe('CatCreatePage', () => {
     expect(component.birthYear()).toBe('2021');
     expect(component.birthDate()).toBe('2020-01-01');
     expect(component.careInstructions()).toBe('Feed separately');
-    expect(component.catalogApprovals()).toEqual(['breed']);
+    expect(component.catalogSelection()).toEqual({ breed: 'breed-existing' });
   });
 
   it('overlays only a returned Vet and restores both saved relations after child cancel', () => {

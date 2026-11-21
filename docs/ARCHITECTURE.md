@@ -96,32 +96,39 @@ using `birthYear` instead of `birthDate` when only the year is known.
 Administrators compare proposed fields with the current profile and review each
 cat independently. Review lists unanswered prompts from the invitation
 snapshot alongside the submitted fields. V17 invitations lack this snapshot.
-Review treats both birth representations as one field.
+Review treats both birth representations as one field. Administrators can move
+between adjustment and summary while keeping their corrections, field decisions
+and evidence selections. The summary shows the values and evidence selected for
+approval.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
 Approval applies the selected fields and moves selected evidence to the
-informational gallery. Dismissal discards the staged values and photos without
-changing the cat profile or registering a new cat. Both decisions prevent
-further edits to that proposal through the invitation. The link closes when
-the last outstanding cat is resolved.
+informational gallery. A review can include a `foodVarietyId` to select an
+approved replacement variety. The server verifies that the ID identifies the
+selected value for the brand being saved or retained. Dismissal discards the
+staged values and photos without changing the cat profile or registering a new
+cat. Both decisions prevent further edits to that proposal through the
+invitation. The link closes when the last outstanding cat is resolved.
 
-Cat profiles suggest approved options for breed, coat, color, food brand, and
-the last internal and external dewormers. `GET /api/cat-profile-options` lists
-options by field for `ADMIN` and `STAFF`. The Bearer-authorized private form
-receives the same options in `catalogOptions`. The tutor selects an approved
-option by ID whenever the typed text matches part or all of an option's name
-after normalizing case and whitespace. The server validates the selection and
-preserves its ID in the proposal. A direct cat edit can keep a local
-value. Only administrators can publish a new option, either by selecting it
-for the catalog in the editor or by applying the field during intake review.
-Historical text remains on cat profiles, and approved selections reference
-catalog IDs. `GET /api/food-brands`, `foodBrandId` and the private form's
-`brands` list continue to use the existing food brand IDs. The form receives
-`foodVarieties` scoped by brand. An administrator can approve a proposed
-variety for its brand. Cat profiles retain existing diet descriptions even
-when a brand change removes the variety association. Historical descriptions
-stay on their profiles. Tutors can bring their own litter,
-with an optional description, or choose the shared CatWorld supply.
+Cat profiles suggest approved breeds, food brands, brand-specific food
+varieties, and the last internal and external dewormers. A tutor must select
+a matching option by ID, including when the query matches part of the name.
+Unmatched text can be proposed for review. Coat length is limited to Corto,
+Largo and Sin pelo for new entries. Color and markings are free text.
+Historical profile text, catalog references and pending submissions retain
+their stored values.
+
+Staff can select catalog options by ID or save a local description.
+Administrators can publish a catalog option with an explicit action in the
+editor or by applying the proposed field during intake review. The editor
+can read options through `GET /api/cat-profile-options` and scoped varieties
+through `GET /api/food-brands/varieties`. A selected variety references its
+brand and uses the same ID as the household form. A brand change removes
+an incompatible variety association.
+
+Litter stays optional in administration. The existing `litterBrand` value
+indicates CatWorld litter, personal litter with an optional description, or
+an unconfirmed choice. Tutors choose one of the two supplies for a new cat.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 
@@ -469,20 +476,23 @@ This avoids storing redundant state that can become inconsistent with the dates.
 
 ### Arrival Preparation
 
-`GET /api/operations/arrivals` returns one row per reserved stay starting
-strictly after the business clock's current time and before local midnight
-following the seventh day after today. Each row contains the stay dates, its
-owner's name and ID, and each booked cat's name, ID, current food and litter
-brands, and vaccine warnings. The dashboard's **Prepare arrivals** link opens
-this view and uses the existing stay, owner, and cat details.
+`GET /api/operations/arrivals` returns non-cancelled stays starting today
+through `daysAhead` calendar days from today, inclusive, in the business
+timezone. The default is seven days ahead; zero means today only.
+`includeStartedToday` defaults to true, keeping today's arrivals until business
+midnight. When false, the endpoint excludes stays at their scheduled start.
+The dashboard's **Upcoming stays** view remembers these filters in the browser
+and uses the server's `X-Arrivals-Refresh-After-Ms` header to refresh at the
+next start that changes the results or at business midnight.
 
 The warnings apply the same coverage rule as stay creation and extensions
 to the stay's local departure date, including doses that expire that day.
 The screen marks missing or blank food and litter brands as **To confirm**.
 A stay without preparation items or visible proposals shows one complete
-message. `ADMIN` can generate a household link from the arrival and open
-pending profile proposals for living booked cats that still belong to the
-proposal's tutor. Staff retain access to the operational alerts.
+message. `ADMIN` can generate a household link from any displayed arrival.
+The link uses that stay's departure for its participating eligible cats.
+`ADMIN` can also open pending profile proposals for living booked cats that
+still belong to the proposal's tutor. Staff retain access to the operational alerts.
 
 ### Stay Nights Are Response-Derived
 

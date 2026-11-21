@@ -48,10 +48,17 @@ describe('CatIntakeReview', () => {
     breed: [],
     coat: [],
     color: [],
-    foodBrand: [{ id: 'brand-1', name: 'Proposed Food' }],
+    foodBrand: [
+      { id: 'brand-1', name: 'Proposed Food' },
+      { id: 'brand-2', name: 'Current Food' },
+    ],
     lastInternalDewormerName: [],
     lastExternalDewormerName: [],
   });
+  const varieties = signal([
+    { id: 'variety-1', brandId: 'brand-1', name: 'Chicken' },
+    { id: 'variety-2', brandId: 'brand-2', name: 'Turkey' },
+  ]);
   const details = { open: vi.fn(() => EMPTY) };
 
   beforeEach(async () => {
@@ -71,7 +78,10 @@ describe('CatIntakeReview', () => {
       providers: [
         provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
         { provide: CatIntakeApi, useValue: api },
-        { provide: CatProfileOptionsService, useValue: { load: vi.fn(), catalog } },
+        {
+          provide: CatProfileOptionsService,
+          useValue: { load: vi.fn(), loadVarieties: vi.fn(), catalog, varieties },
+        },
         { provide: AuthSessionService, useValue: { hasRole: () => true } },
         { provide: EntityDetailDialogService, useValue: details },
       ],
@@ -187,9 +197,20 @@ describe('CatIntakeReview', () => {
     decide('foodBrand');
     const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(approve.disabled).toBe(true);
-    expect(root.textContent).toContain('Para aplicar la variedad o dieta');
+    expect(root.textContent).toContain('Para aplicar la variedad del alimento');
     decide('foodDetail');
     expect(approve.disabled).toBe(false);
+    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
+    fixture.detectChanges();
+    const variety = root.querySelector('[aria-label="Variedad del alimento"]')!;
+    expect(variety.querySelector('.field-decision')?.textContent).toContain('Omitir este dato');
+    adjust();
+    const varietyChoice = root.querySelector<HTMLSelectElement>('[name="decision-foodDetail"]')!;
+    varietyChoice.value = 'apply';
+    varietyChoice.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(approve.disabled).toBe(true);
+    decide('foodDetail');
     approve.click();
     expect(api.approve).toHaveBeenCalledWith(
       item.id,
@@ -219,6 +240,145 @@ describe('CatIntakeReview', () => {
       expectedReviewRevision: 3,
     });
     expect(fixture.componentInstance.notice()).toBe('dismissed');
+  });
+
+  it('can replace a linked variety with a catalog choice for the retained brand', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { foodBrand: 'Current Food' },
+        proposed: { foodBrand: 'Proposed Food', foodDetail: 'Chicken' },
+        proposedFoodDetailBrand: 'Proposed Food',
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    adjust();
+
+    const brand = root.querySelector<HTMLSelectElement>('[name="decision-foodBrand"]')!;
+    brand.value = 'keep';
+    brand.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.disabled).toBe(true);
+    const variety = root.querySelector<HTMLSelectElement>('[name="food-variety"]');
+    expect(variety).not.toBeNull();
+    expect([...variety!.options].map(({ value }) => value)).toEqual(['', 'variety-2']);
+    variety!.value = 'variety-2';
+    variety!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    brand.value = 'apply';
+    brand.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(variety!.value).toBe('');
+    expect(root.querySelector<HTMLInputElement>('[name="foodDetail"]')?.value).toBe('Chicken');
+    brand.value = 'keep';
+    brand.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(approve.disabled).toBe(true);
+    variety!.value = 'variety-2';
+    variety!.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
+    fixture.detectChanges();
+    expect(
+      root.querySelector('[aria-label="Variedad del alimento"] .field-decision')?.textContent,
+    ).toContain('Turkey');
+    expect(approve.disabled).toBe(false);
+    approve.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({ fields: { foodDetail: 'Turkey' }, foodVarietyId: 'variety-2' }),
+    );
+  });
+
+  it('shows the selected partial approval and preserves decisions when toggling the views', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { foodBrand: 'Purina Pro Plan' },
+        proposed: { foodBrand: 'Hola', litterBrand: 'Pellets' },
+        conflictFields: ['foodBrand'],
+        photos: [{ id: 'photo-1' }],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    adjust();
+
+    const brand = root.querySelector<HTMLSelectElement>('[name="decision-foodBrand"]')!;
+    brand.value = 'keep';
+    brand.dispatchEvent(new Event('change'));
+    const litter = root.querySelector<HTMLInputElement>('[name="litterBrand"]')!;
+    litter.value = '';
+    litter.dispatchEvent(new Event('input'));
+    root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.click();
+    fixture.detectChanges();
+
+    root.querySelector<HTMLButtonElement>('[data-summary]')?.click();
+    fixture.detectChanges();
+    expect(root.querySelector('[data-adjust]')).not.toBeNull();
+    expect(root.querySelector('[name="litterBrand"]')).toBeNull();
+    const brandRow = root.querySelector('[aria-label="Marca de comida"]')!;
+    const litterRow = root.querySelector('[aria-label="Piedritas"]')!;
+    expect(brandRow.textContent).toContain('Conservar el actual');
+    expect(litterRow.textContent).toContain('Valor que se guardará');
+    expect(litterRow.textContent).toContain('Trae sus propias piedritas');
+    expect(root.querySelector('.proof-grid')?.textContent).toContain('excluido de la aprobación');
+
+    adjust();
+    expect(root.querySelector<HTMLSelectElement>('[name="decision-foodBrand"]')?.value).toBe(
+      'keep',
+    );
+    expect(root.querySelector<HTMLInputElement>('[name="litterBrand"]')?.value).toBe('');
+    expect(root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')?.checked).toBe(false);
+    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
+    fixture.detectChanges();
+    root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+    expect(api.approve).toHaveBeenCalledWith(
+      item.id,
+      expect.objectContaining({
+        fields: { litterBrand: 'Trae sus propias piedritas' },
+        photoIds: [],
+      }),
+    );
+  });
+
+  it('displays a previously proposed coat length and only offers fixed choices and the historical value', () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: { coat: 'Corto', color: 'Gray' },
+        proposed: { coat: 'Semilargo histórico', color: 'White' },
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('[aria-label="Largo del pelo"]')?.textContent).toContain(
+      'Semilargo histórico',
+    );
+    expect(root.querySelector('[aria-label="Color y marcas"]')?.textContent).toContain('White');
+    adjust();
+    const coat = root.querySelector<HTMLSelectElement>('select[name="coat"]')!;
+    expect(coat.value).toBe('Semilargo histórico');
+    expect([...coat.options].map(({ value }) => value)).toEqual([
+      '',
+      'Corto',
+      'Largo',
+      'Sin pelo',
+      'Semilargo histórico',
+    ]);
+    expect(root.querySelector('input[name="color"]')?.closest('label.control')).toBeTruthy();
   });
 
   it('requires at least one field or photo to approve an existing proposal', () => {

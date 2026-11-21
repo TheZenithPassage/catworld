@@ -4,8 +4,8 @@
     matInput
     type="text"
     [name]="field()"
-    maxlength="100"
-    [disabled]="disabled()"
+    [maxlength]="field() === 'foodDetail' ? 255 : 100"
+    [disabled]="disabled() || publishing()"
     [ngModel]="value()"
     (ngModelChange)="changeValue($event)"
     (focus)="loadOptions()"
@@ -13,22 +13,33 @@
   />
   <mat-autocomplete
     #approvedOptions="matAutocomplete"
-    (optionSelected)="changeValue($event.option.value)"
+    [displayWith]="displayName"
+    (optionSelected)="select($event.option.value)"
   >
     @for (option of suggestions(); track option.id) {
-      <mat-option [value]="option.name">{{ option.name }}</mat-option>
+      <mat-option [value]="option">{{ option.name }}</mat-option>
     }
   </mat-autocomplete>
+  @if (allowApproval() && optionId()) {
+    <span matSuffix role="img" [attr.aria-label]="text().cats.form.catalogSelection">✓</span>
+  }
   @if (showPublicationHint() && canPublish()) {
     <mat-hint>{{ text().cats.form.catalogPublicationHint }}</mat-hint>
   }
 </mat-form-field>
-@if (allowApproval() && canPublish()) {
-  <mat-checkbox [checked]="approve()" (change)="approve.set($event.checked)">
-    {{
-      field() === 'foodBrand'
-        ? text().cats.form.approveFoodBrand
-        : text().cats.form.approveCatalogOption
-    }}
-  </mat-checkbox>
+@if (allowApproval() && (canPublish() || publishing())) {
+  <button
+    mat-stroked-button
+    type="button"
+    class="publish-option"
+    [disabled]="publishing()"
+    (click)="publish()"
+  >
+    {{ text().cats.form.publishOption(value().trim(), catalogName()) }}
+  </button>
+}
+@if (publicationStatus()) {
+  <p class="publication-status" [attr.role]="publicationFailed() ? 'alert' : 'status'">
+    {{ publicationStatus() }}
+  </p>
 }

@@ -94,7 +94,7 @@
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.coat }}</dt>
-        <dd>{{ value(cat.coat) }}</dd>
+        <dd>{{ coatValue(cat.coat) }}</dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.color }}</dt>
@@ -104,7 +104,7 @@
         <dt>{{ text().cats.form.foodBrand }}</dt>
         <dd>{{ value(cat.foodBrand) }}</dd>
       </div>
-      <div>
+      <div class="detail-field">
         <dt>{{ text().cats.form.foodDetail }}</dt>
         <dd>{{ value(cat.foodDetail) }}</dd>
       </div>
@@ -117,17 +117,8 @@
         <dd>{{ value(cat.personality) }}</dd>
       </div>
       <div class="detail-field detail-field-notes detail-field-care-instructions">
-        <dt>
-          {{ text().cats.form.careInstructions }}
-          <span class="care-instructions-visibility">
-            {{ text().cats.form.careInstructionsVisibility }}
-          </span>
-        </dt>
+        <dt>{{ text().cats.form.careInstructions }}</dt>
         <dd>{{ value(cat.careInstructions) }}</dd>
-      </div>
-      <div class="detail-field detail-field-notes detail-field-internal-notes">
-        <dt>{{ text().cats.form.notes }}</dt>
-        <dd>{{ value(cat.notes) }}</dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.lastInternalDewormerName }}</dt>
@@ -152,6 +143,10 @@
       <div class="detail-field">
         <dt>{{ text().cats.form.lastRabiesDate }}</dt>
         <dd>{{ date(cat.lastRabiesDate) }}</dd>
+      </div>
+      <div class="detail-field detail-field-notes detail-field-internal-notes">
+        <dt>{{ text().cats.form.notes }}</dt>
+        <dd>{{ value(cat.notes) }}</dd>
       </div>
     </dl>
     <app-cat-informational-photo-gallery

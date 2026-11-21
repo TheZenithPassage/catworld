@@ -62,7 +62,7 @@ fieldset {
   position: relative;
   margin-bottom: 0.8rem;
   border: 1px solid var(--line);
-  border-radius: 0.75rem;
+  border-radius: 0.65rem;
   background: var(--surface);
 }
 
@@ -79,7 +79,7 @@ fieldset {
 }
 
 .cat-content {
-  padding: 1rem 1.1rem 1.2rem;
+  padding: clamp(0.9rem, 3vw, 1.25rem);
 }
 
 .cat-state {
@@ -123,7 +123,7 @@ fieldset {
 .fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .food-fields {
@@ -150,6 +150,13 @@ fieldset {
 .birth-field,
 .catalog-field {
   min-width: 0;
+}
+
+.birth-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.35rem;
 }
 
 .catalog-suggestions,
@@ -366,12 +373,14 @@ button:disabled {
 }
 
 .birth-toggle {
-  justify-content: flex-end;
+  max-width: 7rem;
   font-size: 0.9rem;
+  line-height: 1.15;
 }
 
 .keep-photo input,
 .birth-toggle input {
+  flex: 0 0 1.1rem;
   width: 1.1rem;
   min-height: auto;
   accent-color: var(--green);

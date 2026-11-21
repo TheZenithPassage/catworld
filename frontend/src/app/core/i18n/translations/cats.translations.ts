@@ -36,21 +36,28 @@ export interface CatsTranslations {
     createVet: string;
     breed: string;
     coat: string;
+    coatLengths: Record<'Corto' | 'Largo' | 'Sin pelo', string>;
     color: string;
     foodBrand: string;
     foodDetail: string;
-    foodDetailHelp: string;
-    approveFoodBrand: string;
-    approveCatalogOption: string;
+    catalogNames: Record<
+      'breed' | 'foodBrand' | 'lastInternalDewormerName' | 'lastExternalDewormerName',
+      string
+    >;
+    varietyCatalog: (brand: string) => string;
+    publishOption: (name: string, catalog: string) => string;
+    publishedOption: (name: string, catalog: string) => string;
+    publishOptionError: string;
+    catalogSelection: string;
     catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
     ownLitter: string;
-    litterHelp: string;
+    unconfirmedLitter: string;
+    ownLitterDetail: string;
     personality: string;
     notes: string;
     careInstructions: string;
-    careInstructionsVisibility: string;
     careInstructionsTooLong: string;
     lastInternalDewormerName: string;
     lastInternalDewormingDate: string;
@@ -226,22 +233,33 @@ export const CATS_TRANSLATIONS = {
       noVet: 'Sin veterinario',
       createVet: 'Crear veterinario',
       breed: 'Raza',
-      coat: 'Pelaje',
-      color: 'Color',
+      coat: 'Largo del pelo',
+      coatLengths: { Corto: 'Corto', Largo: 'Largo', 'Sin pelo': 'Sin pelo' },
+      color: 'Color y marcas',
       foodBrand: 'Marca de comida',
-      foodDetail: 'Variedad o detalle de la dieta',
-      foodDetailHelp: 'Por ejemplo, alimento húmedo o una dieta especial.',
-      approveFoodBrand: 'Añadir esta marca al catálogo',
-      approveCatalogOption: 'Añadir este valor al catálogo',
+      foodDetail: 'Variedad del alimento',
+      catalogNames: {
+        breed: 'Razas',
+        foodBrand: 'Marcas de comida',
+        lastInternalDewormerName: 'Desparasitantes internos',
+        lastExternalDewormerName: 'Pipetas antipulgas',
+      },
+      varietyCatalog: (brand) => 'Variedades de «' + brand + '»',
+      publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
+      publishedOption: (name, catalog) => 'Se agregó «' + name + '» a ' + catalog + '.',
+      publishOptionError: 'No se pudo agregar al catálogo.',
+      catalogSelection: 'Opción del catálogo',
       catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Piedritas',
       ownLitter: 'Trae sus propias piedritas',
-      litterHelp: 'Elegí una opción o ingresá la marca.',
+      unconfirmedLitter: 'Por confirmar',
+      ownLitterDetail: 'Marca o tipo de piedritas',
+
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
-      notes: 'Notas internas · solo para el equipo',
+      notes: 'Notas internas del equipo',
       careInstructions: 'Indicaciones de cuidado del tutor',
-      careInstructionsVisibility: 'Visible para el tutor en su ficha.',
+
       careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
@@ -402,22 +420,33 @@ export const CATS_TRANSLATIONS = {
       noVet: 'No vet',
       createVet: 'Create vet',
       breed: 'Breed',
-      coat: 'Coat',
-      color: 'Color',
+      coat: 'Coat length',
+      coatLengths: { Corto: 'Short', Largo: 'Long', 'Sin pelo': 'Hairless' },
+      color: 'Color and markings',
       foodBrand: 'Food brand',
-      foodDetail: 'Variety or diet details',
-      foodDetailHelp: 'For example, wet food or a special diet.',
-      approveFoodBrand: 'Add this brand to the catalog',
-      approveCatalogOption: 'Add this value to the catalog',
+      foodDetail: 'Food variety',
+      catalogNames: {
+        breed: 'Breeds',
+        foodBrand: 'Food brands',
+        lastInternalDewormerName: 'Internal dewormers',
+        lastExternalDewormerName: 'Flea treatments',
+      },
+      varietyCatalog: (brand) => 'varieties for “' + brand + '”',
+      publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
+      publishedOption: (name, catalog) => 'Added “' + name + '” to ' + catalog + '.',
+      publishOptionError: 'Could not add this option to the catalog.',
+      catalogSelection: 'Catalog option selected',
       catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter',
       ownLitter: 'Brings their own litter',
-      litterHelp: 'Choose an option or enter the brand.',
+      unconfirmedLitter: 'To be confirmed',
+      ownLitterDetail: 'Litter brand or type',
+
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
-      notes: 'Internal notes · staff only',
+      notes: 'Internal team notes',
       careInstructions: 'Caretaker’s care instructions',
-      careInstructionsVisibility: 'Visible to the caretaker on their form.',
+
       careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',

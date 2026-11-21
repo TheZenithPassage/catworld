@@ -15,6 +15,7 @@ import lombok.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Year;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -79,9 +80,14 @@ public class CatRequestDTO {
 
     @Size(max = 255, message = "Food detail must not exceed 255 characters")
     private String foodDetail;
+    private UUID foodVarietyId;
 
     private boolean approveFoodBrand;
     private Set<String> approveCatalogOptions;
+    private Map<String, UUID> catalogOptionIds;
+
+    @JsonIgnore
+    private boolean reviewedIntake;
 
     @JsonIgnore
     private boolean approveFoodVariety;

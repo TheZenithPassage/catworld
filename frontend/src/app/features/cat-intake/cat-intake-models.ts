@@ -3,8 +3,8 @@ export const CAT_INTAKE_FIELDS = [
   { key: 'birthDate', kind: 'date', required: true },
   { key: 'sex', kind: 'sex', required: true },
   { key: 'breed', kind: 'option' },
-  { key: 'coat', kind: 'option' },
-  { key: 'color', kind: 'option' },
+  { key: 'coat', kind: 'coat' },
+  { key: 'color', kind: 'text', maxLength: 100 },
   { key: 'personality', kind: 'text', maxLength: 255 },
   { key: 'careInstructions', kind: 'textarea', maxLength: 2000 },
   { key: 'foodBrand', kind: 'option' },
@@ -67,4 +67,5 @@ export interface CatIntakeReviewVersion {
 export interface CatIntakeApproval extends CatIntakeReviewVersion {
   fields: CatIntakeFields;
   photoIds: string[];
+  foodVarietyId?: string;
 }

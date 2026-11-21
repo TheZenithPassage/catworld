@@ -2,7 +2,10 @@ import { AppLanguage } from '../app-language';
 
 interface ArrivalsTranslations {
   title: string;
-  period: string;
+  subtitle: string;
+  daysAhead: string;
+  invalidDaysAhead: string;
+  includeStartedToday: string;
   arrival: string;
   departure: string;
   openStay: string;
@@ -19,8 +22,11 @@ interface ArrivalsTranslations {
 
 export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
   es: {
-    title: 'Preparar ingresos',
-    period: 'Próximas reservas de hoy y de los siguientes siete días.',
+    title: 'Próximas estadías',
+    subtitle: 'Revisá qué datos faltan para las próximas estadías.',
+    daysAhead: 'Días a partir de hoy',
+    invalidDaysAhead: 'Ingresá un número entero de 0 o más.',
+    includeStartedToday: 'Incluir los ingresos de hoy que ya empezaron',
     arrival: 'Ingreso',
     departure: 'Salida',
     openStay: 'Ver estadía',
@@ -35,8 +41,11 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
     refresh: 'Actualizar',
   },
   en: {
-    title: 'Prepare arrivals',
-    period: 'Upcoming bookings for today and the next seven days.',
+    title: 'Upcoming stays',
+    subtitle: 'Check which information is missing for upcoming stays.',
+    daysAhead: 'Days from today',
+    invalidDaysAhead: 'Enter a whole number of 0 or more.',
+    includeStartedToday: 'Include today’s arrivals that have already started',
     arrival: 'Arrival',
     departure: 'Departure',
     openStay: 'View stay',

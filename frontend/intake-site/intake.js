@@ -9,11 +9,10 @@ const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
 const MIN_BIRTH_YEAR = 1000;
 const SHARED_LITTER = 'Usa las de CatWorld';
 const OWN_LITTER = 'Trae sus propias piedritas';
+const COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'];
 const VACCINES = ['lastTripleFelineDate', 'lastRabiesDate'];
 const CATALOG_FIELDS = new Set([
   'breed',
-  'coat',
-  'color',
   'foodBrand',
   'foodDetail',
   'lastInternalDewormerName',
@@ -23,12 +22,12 @@ const FIELDS = [
   ['name', 'Nombre', 'text', true, 100],
   ['birthDate', 'Fecha de nacimiento', 'birth', true],
   ['sex', 'Sexo', 'select', true],
-  ['breed', 'Raza', 'text', true, 100, 'Por ejemplo, Sin raza definida.'],
-  ['coat', 'Pelaje', 'text', true, 100],
-  ['color', 'Color', 'text', true, 100],
+  ['breed', 'Raza', 'text', true, 100, 'Por ejemplo, Común.'],
+  ['coat', 'Largo del pelo', 'coat', true],
+  ['color', 'Color y marcas', 'text', true, 100],
   ['personality', 'Personalidad', 'text', true, 255],
   ['foodBrand', 'Marca de comida', 'text', true, 100, 'Por ejemplo, Royal Canin.'],
-  ['foodDetail', 'Variedad o dieta', 'text', true, 255, 'Por ejemplo, Kitten.'],
+  ['foodDetail', 'Variedad del alimento', 'text', true, 255, 'Por ejemplo, Kitten.'],
   ['litterBrand', 'Piedritas', 'litter', true],
   [
     'careInstructions',
@@ -326,7 +325,7 @@ function createCatalogField(title, label, input, options, initialId, showAllWhen
 function createLitterField(title, initialValue, required) {
   const field = element('div', 'field');
   const choice = element('select');
-  choice.add(new Option('Seleccioná una opción', ''));
+  choice.add(new Option('Por confirmar', ''));
   choice.add(new Option(SHARED_LITTER, 'shared'));
   choice.add(new Option(OWN_LITTER, 'own'));
   choice.required = required;
@@ -346,8 +345,8 @@ function createLitterField(title, initialValue, required) {
   own.name = 'litterBrand';
   own.maxLength = 100;
   own.value = initialValue === SHARED_LITTER || initialValue === OWN_LITTER ? '' : initialValue;
-  choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue ? 'own' : '';
-  const ownLabel = fieldLabel('Marca o tipo de piedritas (opcional)', own);
+  choice.value = initialValue === SHARED_LITTER ? 'shared' : initialValue.trim() ? 'own' : '';
+  const ownLabel = fieldLabel('Marca o tipo de piedritas', own);
   function updateChoice() {
     ownLabel.hidden = choice.value !== 'own';
     own.disabled = ownLabel.hidden;
@@ -367,7 +366,9 @@ function createLitterField(title, initialValue, required) {
     },
     read: () => {
       if (choice.value === 'shared') return SHARED_LITTER;
-      return choice.value === 'own' ? own.value.trim() || OWN_LITTER : '';
+      if (choice.value !== 'own') return '';
+      const detail = own.value.trim();
+      return detail && detail !== SHARED_LITTER ? detail : OWN_LITTER;
     },
   };
 }
@@ -398,7 +399,7 @@ function createBirthField(title, initial, required) {
   onlyYear.type = 'checkbox';
   onlyYear.checked = Boolean(initial.birthYear);
   const toggle = element('label', 'birth-toggle');
-  toggle.append(element('span', '', 'Solo sé el año'), onlyYear);
+  toggle.append(onlyYear, element('span', '', 'Solo sé el año'));
   function updatePrecision() {
     dateLabel.hidden = date.disabled = onlyYear.checked;
     yearLabel.hidden = year.disabled = !onlyYear.checked;
@@ -427,8 +428,16 @@ function createField([key, title, type, requiredForNew, maxLength, hint], initia
   const initialValue = initial[key] ?? '';
   if (type === 'birth') return createBirthField(labelText, initial, required);
   if (type === 'litter') return createLitterField(labelText, initialValue, required);
-  const input = element(type === 'select' || type === 'textarea' ? type : 'input');
-  if (type === 'select') {
+  const input = element(
+    type === 'coat' ? 'select' : ['select', 'textarea'].includes(type) ? type : 'input',
+  );
+  if (type === 'coat') {
+    input.add(new Option('Seleccioná una opción', ''));
+    for (const length of COAT_LENGTHS) input.add(new Option(length, length));
+    if (initialValue && !COAT_LENGTHS.includes(initialValue)) {
+      input.add(new Option(initialValue, initialValue));
+    }
+  } else if (type === 'select') {
     input.add(new Option('Seleccioná una opción', ''));
     input.add(new Option('Hembra', 'FEMALE'));
     input.add(new Option('Macho', 'MALE'));
