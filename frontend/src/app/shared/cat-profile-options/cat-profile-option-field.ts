@@ -1,14 +1,26 @@
-import { Component, computed, DestroyRef, inject, input, model, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  model,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
 import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
+import { MatDialog } from '@angular/material/dialog';
+import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { finalize } from 'rxjs';
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { CatalogPublication, CatalogPublicationDialog } from './catalog-publication-dialog';
 import {
+  catalogOptionKey,
   CatProfileOption,
   CatProfileOptionFieldKey,
   CatProfileOptionsService,
@@ -24,7 +36,6 @@ import {
     MatButton,
     MatIconButton,
     MatFormField,
-    MatHint,
     MatInput,
     MatLabel,
     MatSuffix,
@@ -35,6 +46,7 @@ import {
 export class CatProfileOptionField {
   private readonly options = inject(CatProfileOptionsService);
   private readonly auth = inject(AuthSessionService);
+  private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly text = inject(I18nService).text;
@@ -42,16 +54,12 @@ export class CatProfileOptionField {
   readonly label = input.required<string>();
   readonly controlName = input<string>();
   readonly disabled = input(false);
-  readonly allowApproval = input(true);
-  readonly showPublicationHint = input(false);
   readonly brandId = input<string>();
   readonly brandName = input('');
   readonly value = model.required<string>();
   readonly optionId = model<string>();
   readonly focused = signal(false);
-  readonly publishing = signal(false);
-  readonly publicationStatus = signal('');
-  readonly publicationFailed = signal(false);
+  readonly confirmingPublication = signal(false);
 
   private readonly entries = computed(() => {
     const field = this.field();
@@ -61,9 +69,9 @@ export class CatProfileOptionField {
       ? (this.options.varieties()?.filter((option) => option.brandId === brandId) ?? null)
       : [];
   });
-  private readonly search = computed(() => optionKey(this.value()));
+  private readonly search = computed(() => catalogOptionKey(this.value()));
   readonly suggestions = computed(() =>
-    (this.entries() ?? []).filter(({ name }) => optionKey(name).includes(this.search())),
+    (this.entries() ?? []).filter(({ name }) => catalogOptionKey(name).includes(this.search())),
   );
   readonly example = computed(() => {
     const field = this.field();
@@ -84,16 +92,25 @@ export class CatProfileOptionField {
   readonly canPublish = computed(
     () =>
       !this.disabled() &&
+      !this.confirmingPublication() &&
       this.auth.hasRole('ADMIN') &&
       !!this.catalogName() &&
       !!this.search() &&
       !this.optionId() &&
       (this.field() !== 'foodDetail' || !!this.brandId()) &&
-      this.entries()?.every(({ name }) => optionKey(name) !== this.search()) === true,
+      this.entries()?.every(({ name }) => catalogOptionKey(name) !== this.search()) === true,
   );
 
   readonly displayName = (value: string | CatProfileOption | null): string =>
     typeof value === 'string' ? value : (value?.name ?? '');
+
+  constructor() {
+    effect(() => {
+      if (this.field() === 'foodDetail' && this.brandId() && !this.options.varieties()) {
+        this.options.loadVarieties();
+      }
+    });
+  }
 
   loadOptions(): void {
     if (this.field() === 'foodDetail') {
@@ -107,7 +124,6 @@ export class CatProfileOptionField {
     if (typeof value !== 'string' || value === this.value()) return;
     this.value.set(value);
     this.optionId.set(undefined);
-    this.publicationStatus.set('');
   }
 
   clear(input: HTMLInputElement): void {
@@ -118,38 +134,35 @@ export class CatProfileOptionField {
   select(option: CatProfileOption): void {
     this.value.set(option.name);
     this.optionId.set(option.id);
-    this.publicationStatus.set('');
   }
 
   publish(): void {
-    if (!this.allowApproval() || !this.canPublish() || this.publishing()) return;
-    const catalog = this.catalogName();
-    this.publishing.set(true);
-    this.publicationStatus.set('');
-    this.options
-      .publish(this.field(), this.value(), this.brandId())
+    if (!this.canPublish()) return;
+    const dialog = this.dialog.open<CatalogPublicationDialog, CatalogPublication, CatProfileOption>(
+      CatalogPublicationDialog,
+      {
+        data: {
+          field: this.field(),
+          name: this.value().trim(),
+          brandId: this.brandId(),
+          catalog: this.catalogName(),
+        },
+      },
+    );
+    this.confirmingPublication.set(true);
+    dialog
+      .afterClosed()
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        finalize(() => this.publishing.set(false)),
+        finalize(() => {
+          dialog.close();
+          this.confirmingPublication.set(false);
+        }),
       )
-      .subscribe({
-        next: (option) => {
-          this.select(option);
-          this.publicationFailed.set(false);
-          this.publicationStatus.set(this.text().cats.form.publishedOption(option.name, catalog));
-          this.loadOptions();
-        },
-        error: () => {
-          this.publicationFailed.set(true);
-          this.publicationStatus.set(this.text().cats.form.publishOptionError);
-        },
+      .subscribe((option) => {
+        if (!option) return;
+        this.select(option);
+        this.loadOptions();
       });
   }
-}
-
-function optionKey(value: string): string {
-  return value
-    .replace(/[\t-\r\u0085\p{Z}]+/gu, ' ')
-    .replace(/^ | $/g, '')
-    .toLowerCase();
 }

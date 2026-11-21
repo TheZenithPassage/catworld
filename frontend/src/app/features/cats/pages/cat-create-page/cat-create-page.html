@@ -135,7 +135,7 @@
     <app-cat-profile-option-field
       field="foodDetail"
       [label]="text().cats.form.foodDetail"
-      [brandId]="catalogSelection().foodBrand"
+      [brandId]="foodBrandId()"
       [brandName]="foodBrand()"
       [(value)]="foodDetail"
       [optionId]="catalogSelection().foodDetail"
@@ -144,6 +144,7 @@
     />
 
     <app-cat-care-fields
+      [disabled]="submitting()"
       [(litterBrand)]="litterBrand"
       [(litterPreference)]="litterPreference"
       [litterOptionId]="catalogSelection().litterDetail"

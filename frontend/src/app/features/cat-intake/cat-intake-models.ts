@@ -1,4 +1,8 @@
-import type { CatCatalogSelection, CatCatalogSelectionField } from '../cats/models/cat.model';
+import type {
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+  CatCatalogText,
+} from '../cats/models/cat.model';
 
 export const CAT_INTAKE_FIELDS = [
   { key: 'name', kind: 'text', required: true, maxLength: 100 },
@@ -10,7 +14,7 @@ export const CAT_INTAKE_FIELDS = [
   { key: 'personality', kind: 'text', maxLength: 255 },
   { key: 'careInstructions', kind: 'textarea', maxLength: 2000 },
   { key: 'foodBrand', kind: 'option' },
-  { key: 'foodDetail', kind: 'text', maxLength: 255 },
+  { key: 'foodDetail', kind: 'option' },
   { key: 'litterBrand', kind: 'text', maxLength: 100 },
   { key: 'lastTripleFelineDate', kind: 'date' },
   { key: 'lastRabiesDate', kind: 'date' },
@@ -56,6 +60,7 @@ export interface CatIntakeReviewDetail extends CatIntakeReviewItem {
   conflictFields: CatIntakeFieldKey[];
   unansweredRequestedFields: CatIntakeFieldKey[];
   proposedFoodDetailBrand?: string | null;
+  currentFoodBrandId?: string | null;
   retiredCatalogFields?: CatCatalogSelectionField[];
   photos: { id: string }[];
   catUpdatedAt: string | null;
@@ -70,6 +75,7 @@ export interface CatIntakeReviewVersion {
 export interface CatIntakeApproval extends CatIntakeReviewVersion {
   fields: CatIntakeFields;
   photoIds: string[];
+  confirmedCatalogText?: CatCatalogText;
   foodVarietyId?: string;
   catalogOptionIds?: CatCatalogSelection;
 }

@@ -30,6 +30,7 @@ export const CAT_INTAKE_TRANSLATIONS = {
       detailFailed: 'No se pudo abrir la ficha.',
       unavailable: 'Esta ficha ya no está disponible para revisión.',
       approveFailed: 'No se pudo aprobar la ficha. Revisá los datos e intentá de nuevo.',
+      catalogChanged: 'Una opción del catálogo cambió. Revisá la selección antes de aprobar.',
       approved: 'Ficha aprobada.',
       dismissed: 'Propuesta cerrada sin aplicar.',
       dismissFailed: 'No se pudo cerrar la propuesta. Intentá de nuevo.',
@@ -49,12 +50,10 @@ export const CAT_INTAKE_TRANSLATIONS = {
       yearOnly: 'Solo el año',
       formatYearOnly: (year: string) => `${year} (solo año)`,
       foodDetail: 'Variedad del alimento',
-      foodVarietyChoice: 'Variedades de esta marca',
       unansweredRequests: 'Datos sin responder',
       foodDetailBrandMismatch: (brand: string) =>
         `Para aplicar la variedad del alimento, elegí la marca ${brand}, seleccioná una variedad de la marca que se guardará u omití la variedad.`,
       litterSource: 'Origen de las piedritas',
-      optional: 'opcional',
       retiredOption:
         'Se eliminó la opción del catálogo. Podés conservar el valor como texto o elegir una opción disponible al ajustar los cambios.',
       conflict: 'Este dato cambió en CatWorld después de generar el enlace.',
@@ -122,6 +121,7 @@ export const CAT_INTAKE_TRANSLATIONS = {
       detailFailed: 'The submission could not be opened.',
       unavailable: 'This submission is no longer available to review.',
       approveFailed: 'The submission could not be approved. Review the data and try again.',
+      catalogChanged: 'A catalog option changed. Review the selection before approving.',
       approved: 'Submission approved.',
       dismissed: 'Submission closed without applying changes.',
       dismissFailed: 'The submission could not be closed. Try again.',
@@ -141,12 +141,10 @@ export const CAT_INTAKE_TRANSLATIONS = {
       yearOnly: 'Year only',
       formatYearOnly: (year: string) => `${year} (year only)`,
       foodDetail: 'Food variety',
-      foodVarietyChoice: 'Varieties from this brand',
       unansweredRequests: 'Unanswered requests',
       foodDetailBrandMismatch: (brand: string) =>
         `To apply a food variety, choose the brand ${brand}, select a variety from the brand that will be saved or skip the variety.`,
       litterSource: 'Litter source',
-      optional: 'optional',
       retiredOption:
         'This catalog option was deleted. You can keep the value as plain text or choose an available option when adjusting changes.',
       conflict: 'This value changed in CatWorld after the link was generated.',

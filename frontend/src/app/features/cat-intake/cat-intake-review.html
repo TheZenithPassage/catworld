@@ -188,34 +188,15 @@
                     }
                   }
                   @if (adjusting() && row.decision === 'apply') {
-                    @if (row.field.key === 'foodDetail' && foodVarietiesForApproval().length) {
-                      <label class="control">
-                        {{ copy().foodVarietyChoice }}
-                        <select
-                          name="food-variety"
-                          (change)="chooseFoodVariety($any($event.target).value)"
-                        >
-                          <option value="" [selected]="!foodVarietyForApproval()">
-                            {{ copy().choose }}
-                          </option>
-                          @for (variety of foodVarietiesForApproval(); track variety.id) {
-                            <option
-                              [value]="variety.id"
-                              [selected]="foodVarietyForApproval()?.id === variety.id"
-                            >
-                              {{ variety.name }}
-                            </option>
-                          }
-                        </select>
-                      </label>
-                    }
                     @if (row.field.kind === 'option') {
                       <app-cat-profile-option-field
                         [field]="row.field.key"
                         [label]="copy().reviewed"
                         [value]="row.value"
-                        [allowApproval]="false"
-                        [showPublicationHint]="!retiredOption(row.field.key)"
+                        [brandId]="
+                          row.field.key === 'foodDetail' ? foodBrandIdForApproval() : undefined
+                        "
+                        [brandName]="foodBrandForApproval()"
                         [disabled]="!!saving()"
                         [optionId]="catalogSelection()[row.field.key]"
                         (optionIdChange)="setOptionId(row.field.key, $event)"
@@ -241,11 +222,9 @@
                           <app-cat-profile-option-field
                             field="litterDetail"
                             controlName="litterBrand"
-                            [label]="catCopy().form.ownLitterDetail + ' (' + copy().optional + ')'"
+                            [label]="catCopy().form.ownLitterDetail"
                             [value]="ownLitterDetail(row.value)"
                             [optionId]="catalogSelection().litterDetail"
-                            [allowApproval]="false"
-                            [showPublicationHint]="!retiredOption('litterBrand')"
                             [disabled]="!!saving()"
                             (valueChange)="setLitterDescription($event)"
                             (optionIdChange)="setOptionId('litterDetail', $event)"

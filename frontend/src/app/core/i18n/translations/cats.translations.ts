@@ -50,11 +50,9 @@ export interface CatsTranslations {
     >;
     varietyCatalog: (brand: string) => string;
     publishOption: (name: string, catalog: string) => string;
-    publishedOption: (name: string, catalog: string) => string;
     publishOptionError: string;
     catalogSelection: (name: string) => string;
     catalogExamples: Record<'breed' | 'foodBrand' | 'foodDetail', string>;
-    catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
     ownLitter: string;
@@ -252,7 +250,6 @@ export const CATS_TRANSLATIONS = {
       },
       varietyCatalog: (brand) => 'Variedades de «' + brand + '»',
       publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
-      publishedOption: (name, catalog) => 'Se agregó «' + name + '» a ' + catalog + '.',
       publishOptionError: 'No se pudo agregar al catálogo.',
       catalogSelection: (name) => 'Seleccionado: ' + name,
       catalogExamples: {
@@ -260,7 +257,6 @@ export const CATS_TRANSLATIONS = {
         foodBrand: 'Por ejemplo, Royal Canin.',
         foodDetail: 'Por ejemplo, Kitten o Senior.',
       },
-      catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Piedritas',
       ownLitter: 'Trae sus propias piedritas',
       unconfirmedLitter: 'Por confirmar',
@@ -448,7 +444,6 @@ export const CATS_TRANSLATIONS = {
       },
       varietyCatalog: (brand) => 'varieties for “' + brand + '”',
       publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
-      publishedOption: (name, catalog) => 'Added “' + name + '” to ' + catalog + '.',
       publishOptionError: 'Could not add this option to the catalog.',
       catalogSelection: (name) => 'Selected: ' + name,
       catalogExamples: {
@@ -456,7 +451,6 @@ export const CATS_TRANSLATIONS = {
         foodBrand: 'For example, Royal Canin.',
         foodDetail: 'For example, Kitten or Senior.',
       },
-      catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter',
       ownLitter: 'Brings their own litter',
       unconfirmedLitter: 'To be confirmed',

@@ -98,7 +98,7 @@ describe('CatalogManagement', () => {
     http.verify();
   });
 
-  it('confirms that deleting a brand includes its varieties and keeps the cats’ descriptions', async () => {
+  it('offers to hide an in-use brand after confirmed deletion is refused', async () => {
     const fixture = TestBed.createComponent(CatalogManagement);
     const http = TestBed.inject(HttpTestingController);
     const endpoint = API_BASE_URL + '/cat-profile-options/manage';
@@ -118,7 +118,7 @@ describe('CatalogManagement', () => {
     await fixture.whenStable();
     let dialog = document.querySelector('mat-dialog-container')!;
     expect(dialog.textContent).toContain('sus variedades');
-    expect(dialog.textContent).toContain('como texto');
+    expect(dialog.textContent).toContain('propuestas pendientes');
     dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button')!.click();
     await fixture.whenStable();
     http.expectNone(endpoint + '/foodBrand/brand');
@@ -130,12 +130,23 @@ describe('CatalogManagement', () => {
     await fixture.whenStable();
     const deletion = http.expectOne(endpoint + '/foodBrand/brand');
     expect(deletion.request.method).toBe('DELETE');
-    deletion.flush(null, { status: 204, statusText: 'No Content' });
+    deletion.flush({ code: 'CAT_CATALOG_OPTION_IN_USE' }, { status: 409, statusText: 'Conflict' });
+    fixture.detectChanges();
+    http.expectNone((request) => request.method === 'PATCH');
+    const hide = root.querySelector<HTMLButtonElement>('.catalog-in-use button')!;
+    expect(hide.textContent).toContain('Ocultar');
+    hide.click();
+    const request = http.expectOne(endpoint + '/foodBrand/brand');
+    expect(request.request.method).toBe('PATCH');
+    expect(request.request.body).toEqual({ active: false });
+    request.flush(null);
     http.expectOne(API_BASE_URL + '/cat-profile-options').flush({});
     http.expectOne(API_BASE_URL + '/food-brands/varieties').flush([]);
-    http.expectOne(endpoint).flush([]);
+    http
+      .expectOne(endpoint)
+      .flush([{ id: 'brand', field: 'foodBrand', name: 'My brand', brandId: null, active: false }]);
     fixture.detectChanges();
-    expect(root.textContent).not.toContain('My brand');
+    expect(root.querySelector('[aria-label="Restaurar My brand"]')).not.toBeNull();
     http.verify();
   });
 });

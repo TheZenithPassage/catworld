@@ -6,7 +6,7 @@
     type="text"
     [name]="controlName() ?? field()"
     [maxlength]="field() === 'foodDetail' ? 255 : 100"
-    [disabled]="disabled() || publishing()"
+    [disabled]="disabled()"
     [ngModel]="value()"
     (ngModelChange)="changeValue($event)"
     [placeholder]="example()"
@@ -37,33 +37,25 @@
         type="button"
         class="clear-button"
         [attr.aria-label]="text().entityLookup.clear"
-        [disabled]="disabled() || publishing()"
+        [disabled]="disabled()"
         (click)="clear(catalogInput)"
       >
         <span class="clear-glyph" aria-hidden="true">×</span>
       </button>
     </span>
   }
-  @if (showPublicationHint() && canPublish()) {
-    <mat-hint>{{ text().cats.form.catalogPublicationHint }}</mat-hint>
-  }
 </mat-form-field>
 <span class="selection-announcement" role="status">
   {{ optionId() ? text().cats.form.catalogSelection(value()) : '' }}
 </span>
-@if (allowApproval() && (canPublish() || publishing())) {
+@if (canPublish() || confirmingPublication()) {
   <button
     mat-stroked-button
     type="button"
     class="publish-option"
-    [disabled]="publishing()"
+    [disabled]="confirmingPublication()"
     (click)="publish()"
   >
     {{ text().cats.form.publishOption(value().trim(), catalogName()) }}
   </button>
-}
-@if (publicationStatus()) {
-  <p class="publication-status" [attr.role]="publicationFailed() ? 'alert' : 'status'">
-    {{ publicationStatus() }}
-  </p>
 }

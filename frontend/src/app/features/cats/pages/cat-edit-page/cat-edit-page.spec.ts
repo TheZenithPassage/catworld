@@ -7,7 +7,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
-import { NEVER, of, Subject, throwError } from 'rxjs';
+import { EMPTY, NEVER, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { Owner, OwnerLookup } from '../../../owners/models/owner.model';
@@ -627,7 +627,7 @@ describe('CatEditor', () => {
 
   it('submits unchanged, removal, replacement, and restored saved-photo intents', () => {
     catApiService.getCatById.mockReturnValue(of({ ...cat, hasPhoto: true }));
-    catApiService.updateCat.mockReturnValue(NEVER);
+    catApiService.updateCat.mockReturnValue(EMPTY);
     createComponent();
     const photoInput = fixture.debugElement.query(By.directive(CatPhotoInput))
       .componentInstance as CatPhotoInput;
@@ -645,6 +645,44 @@ describe('CatEditor', () => {
     photoInput.removeSelection();
     component.submit();
     expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2, 4)).toEqual([null, false]);
+  });
+
+  it('retains a staged replacement when returning to edit from catalog confirmation', async () => {
+    createComponent();
+    const input = fixture.debugElement.query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
+    input.restore(photo);
+    component.breed.set('Unlisted breed');
+    catApiService.updateCat
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: {
+                code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED',
+                fields: { breed: 'Unlisted breed' },
+              },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(EMPTY);
+
+    component.submit();
+    component.submit();
+    await fixture.whenStable();
+    const dialog = document.querySelector('mat-dialog-container')!;
+    expect(dialog.textContent).toContain('Unlisted breed');
+    dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!.click();
+    await fixture.whenStable();
+
+    expect(component.breed()).toBe('Unlisted breed');
+    expect(input.mutation().photo).toBe(photo);
+    expect(catApiService.updateCat).toHaveBeenCalledTimes(1);
+    component.submit();
+    expect(catApiService.updateCat).toHaveBeenCalledTimes(2);
+    expect(catApiService.updateCat.mock.lastCall?.[1]).not.toHaveProperty('confirmedCatalogText');
   });
 
   it('preserves a saved photo after rejecting an oversized replacement and retains fields', () => {

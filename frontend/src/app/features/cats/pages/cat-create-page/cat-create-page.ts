@@ -1,11 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CREATION_FLOW_QUERY_PARAM } from '../../../../core/creation-flow/creation-flow.models';
@@ -30,6 +40,12 @@ import {
   Sex,
 } from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { CatalogTextConfirmation } from '../../../../shared/cat-profile-options/catalog-text-confirmation';
+import {
+  catalogOptionKey,
+  CatProfileOptionsService,
+  matchingFoodBrandId,
+} from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { catLitterRequest } from '../../utils/cat-litter-label';
 import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../../components/cat-birth-field/cat-birth-field';
@@ -67,6 +83,9 @@ export class CatCreatePage implements AfterViewInit {
   @ViewChild('ownerSelector') private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
   @ViewChild('vetSelector') private vetSelector?: RemoteEntitySelector<VetLookup>;
   private readonly catApiService = inject(CatApiService);
+  private readonly profileOptions = inject(CatProfileOptionsService);
+  private readonly catalogTextConfirmation = inject(CatalogTextConfirmation);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
@@ -94,6 +113,11 @@ export class CatCreatePage implements AfterViewInit {
   readonly foodBrand = signal('');
   readonly foodDetail = signal('');
   readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly foodBrandId = computed(
+    () =>
+      this.catalogSelection().foodBrand ??
+      matchingFoodBrandId(this.profileOptions.catalog()?.foodBrand, this.foodBrand()),
+  );
   readonly coatLengths = CAT_COAT_LENGTHS;
   readonly litterBrand = signal('');
   readonly litterPreference = signal<CatLitterPreference | null | undefined>(undefined);
@@ -126,8 +150,9 @@ export class CatCreatePage implements AfterViewInit {
   }
 
   changeFoodBrand(value: string): void {
-    if (value !== this.foodBrand()) {
-      this.foodBrand.set(value);
+    const previous = this.foodBrand();
+    this.foodBrand.set(value);
+    if (catalogOptionKey(value) !== catalogOptionKey(previous)) {
       this.foodDetail.set('');
       this.setCatalogSelection('foodDetail');
     }
@@ -210,6 +235,7 @@ export class CatCreatePage implements AfterViewInit {
   }
 
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.clearValidationErrors();
     if (this.photoInput && !this.photoInput.valid()) return;
@@ -282,21 +308,31 @@ export class CatCreatePage implements AfterViewInit {
       return;
     }
     this.submitting.set(true);
-    this.catApiService.createCat(request, photo, attachments).subscribe({
-      next: (cat) => {
-        this.photoInput?.reset();
-        this.gallery?.resetDraft();
-        this.submitting.set(false);
-        this.navigateAfterSuccess(cat.id, cat.ownerId);
-      },
-      error: (error: unknown) => {
-        this.error.set(
-          catPhotoErrorMessage(error, this.text().cats.photo.errors) ??
-            this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed),
-        );
-        this.submitting.set(false);
-      },
-    });
+    this.catalogTextConfirmation
+      .save((confirmedCatalogText) =>
+        this.catApiService.createCat(
+          confirmedCatalogText ? { ...request, confirmedCatalogText } : request,
+          photo,
+          attachments,
+        ),
+      )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.submitting.set(false)),
+      )
+      .subscribe({
+        next: (cat) => {
+          this.photoInput?.reset();
+          this.gallery?.resetDraft();
+          this.navigateAfterSuccess(cat.id, cat.ownerId);
+        },
+        error: (error: unknown) => {
+          this.error.set(
+            catPhotoErrorMessage(error, this.text().cats.photo.errors) ??
+              this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed),
+          );
+        },
+      });
   }
 
   cancel(): void {
