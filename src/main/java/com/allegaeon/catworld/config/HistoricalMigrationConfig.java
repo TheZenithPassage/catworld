@@ -21,10 +21,11 @@ public class HistoricalMigrationConfig {
     private static final MigrationVersion PENDING_PRICE_VERSION = MigrationVersion.fromVersion("14");
     private static final MigrationVersion CAT_PHOTO_GALLERY_VERSION = MigrationVersion.fromVersion("15");
     private static final MigrationVersion DECEASED_MARKERS_VERSION = MigrationVersion.fromVersion("16");
-    private static final MigrationVersion CATALOG_MANAGEMENT_VERSION = MigrationVersion.fromVersion("26.3");
+    private static final MigrationVersion OWN_LITTER_CATALOG_VERSION = MigrationVersion.fromVersion("26.4");
     private static final String BRAND_VARIETIES_SCRIPT = "V26_1__add_food_variety_catalog.sql";
     private static final String BREED_SEEDS_SCRIPT = "V26_2__seed_common_breeds.sql";
     private static final String CATALOG_MANAGEMENT_SCRIPT = "V26_3__manage_cat_profile_catalogs.sql";
+    private static final String OWN_LITTER_CATALOG_SCRIPT = "V26_4__add_own_litter_catalog.sql";
     private static final String STAY_LITTER_PRICING_SCRIPT = "V27__add_stay_litter_pricing.sql";
     private static final List<String> PUBLISHED_INTAKE_HISTORY = List.of(
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "15", "17");
@@ -53,7 +54,7 @@ public class HistoricalMigrationConfig {
         } else if (matchesPublishedIntakeHistory(info.applied(), ignored)) {
             target = DECEASED_MARKERS_VERSION;
         } else if (matchesLitterPricingHistory(info.applied(), ignored)) {
-            target = CATALOG_MANAGEMENT_VERSION;
+            target = OWN_LITTER_CATALOG_VERSION;
         }
         if (target != null) {
             Flyway.configure().configuration(flyway.getConfiguration())
@@ -72,8 +73,11 @@ public class HistoricalMigrationConfig {
                         || migration.getState() == MigrationState.OUT_OF_ORDER)
                 .map(MigrationInfo::getScript).collect(Collectors.toSet());
         if (!installed.contains(BRAND_VARIETIES_SCRIPT) || !installed.contains(STAY_LITTER_PRICING_SCRIPT)) return false;
-        return (missing.equals(Set.of(CATALOG_MANAGEMENT_SCRIPT)) && installed.contains(BREED_SEEDS_SCRIPT))
-                || missing.equals(Set.of(BREED_SEEDS_SCRIPT, CATALOG_MANAGEMENT_SCRIPT));
+        return (missing.equals(Set.of(OWN_LITTER_CATALOG_SCRIPT))
+                        && installed.containsAll(Set.of(BREED_SEEDS_SCRIPT, CATALOG_MANAGEMENT_SCRIPT)))
+                || (missing.equals(Set.of(CATALOG_MANAGEMENT_SCRIPT, OWN_LITTER_CATALOG_SCRIPT))
+                        && installed.contains(BREED_SEEDS_SCRIPT))
+                || missing.equals(Set.of(BREED_SEEDS_SCRIPT, CATALOG_MANAGEMENT_SCRIPT, OWN_LITTER_CATALOG_SCRIPT));
     }
 
     private static boolean matchesPublishedIntakeHistory(MigrationInfo[] applied, List<MigrationInfo> ignored) {

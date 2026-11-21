@@ -161,8 +161,13 @@ export class CatDetail {
     const length = CAT_COAT_LENGTHS.find((length) => length === value);
     return length ? this.text().cats.form.coatLengths[length] : this.value(value);
   }
-  litterValue(value: string | null): string {
-    return catLitterLabel(value, this.text().cats.form);
+  litterValue(cat: Cat): string {
+    return catLitterLabel(
+      cat.litterBrand,
+      this.text().cats.form,
+      cat.litterPreference,
+      cat.litterDetail,
+    );
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

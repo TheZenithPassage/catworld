@@ -55,6 +55,8 @@ export const CAT_INTAKE_TRANSLATIONS = {
         `Para aplicar la variedad del alimento, elegí la marca ${brand}, seleccioná una variedad de la marca que se guardará u omití la variedad.`,
       litterSource: 'Origen de las piedritas',
       optional: 'opcional',
+      retiredOption:
+        'Se eliminó la opción del catálogo. Podés conservar el valor como texto o elegir una opción disponible al ajustar los cambios.',
       conflict: 'Este dato cambió en CatWorld después de generar el enlace.',
       decision: 'Qué guardar',
       choose: 'Elegí una opción',
@@ -145,6 +147,8 @@ export const CAT_INTAKE_TRANSLATIONS = {
         `To apply a food variety, choose the brand ${brand}, select a variety from the brand that will be saved or skip the variety.`,
       litterSource: 'Litter source',
       optional: 'optional',
+      retiredOption:
+        'This catalog option was deleted. You can keep the value as plain text or choose an available option when adjusting changes.',
       conflict: 'This value changed in CatWorld after the link was generated.',
       decision: 'What to save',
       choose: 'Choose an option',

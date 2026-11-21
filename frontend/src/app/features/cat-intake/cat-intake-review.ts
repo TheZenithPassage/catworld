@@ -20,7 +20,13 @@ import { CatProfileOptionField } from '../../shared/cat-profile-options/cat-prof
 import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-profile-options.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
-import { CAT_COAT_LENGTHS, CATWORLD_LITTER, OWN_LITTER } from '../cats/models/cat.model';
+import {
+  CAT_COAT_LENGTHS,
+  CATWORLD_LITTER,
+  OWN_LITTER,
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+} from '../cats/models/cat.model';
 import { foodBrandKey } from '../cats/utils/food-brand-key';
 import {
   catLitterChoice,
@@ -89,7 +95,8 @@ export class CatIntakeReview {
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
   readonly litterChoice = catLitterChoice;
-  readonly ownLitterDetail = catOwnLitterDetail;
+  readonly litterDetail = signal<string | undefined>(undefined);
+  readonly catalogSelection = signal<CatCatalogSelection>({});
   readonly coatLengths = CAT_COAT_LENGTHS;
   readonly pending = signal<CatIntakeReviewItem[]>([]);
   readonly groups = computed(() => {
@@ -131,6 +138,13 @@ export class CatIntakeReview {
     for (const { field, decision, value } of this.fields()) {
       const key = field.key === 'birthDate' ? this.birthKey() : field.key;
       if (decision === 'apply' && value.trim()) selected[key] = value.trim();
+    }
+    const explicitLitter = this.litterDetail()?.trim();
+    const litterDetail =
+      explicitLitter ??
+      (this.catalogSelection().litterDetail ? catOwnLitterDetail(selected.litterBrand).trim() : '');
+    if (catLitterChoice(selected.litterBrand) === 'own' && litterDetail) {
+      selected.litterDetail = litterDetail;
     }
     return selected;
   });
@@ -236,6 +250,7 @@ export class CatIntakeReview {
       this.api.getReview(id).subscribe({
         next: (detail) => {
           this.detail.set(detail);
+          this.litterDetail.set(detail.proposed.litterDetail ?? undefined);
           this.birthKey.set(detail.proposed.birthYear ? 'birthYear' : 'birthDate');
           this.fields.set(
             CAT_INTAKE_FIELDS.filter(
@@ -298,7 +313,10 @@ export class CatIntakeReview {
     if (!this.adjusting()) return;
     const hasFoodVariety = this.fields().some(({ field }) => field.key === 'foodDetail');
     if (hasFoodVariety) this.profileOptions.loadVarieties();
-    if (hasFoodVariety || this.fields().some(({ field }) => field.kind === 'option'))
+    if (
+      hasFoodVariety ||
+      this.fields().some(({ field }) => field.kind === 'option' || field.key === 'litterBrand')
+    )
       this.profileOptions.load();
   }
 
@@ -326,14 +344,31 @@ export class CatIntakeReview {
   }
 
   setLitterSource(source: string): void {
+    this.litterDetail.set(undefined);
+    this.setOptionId('litterDetail');
     this.setValue(
       'litterBrand',
       source === 'shared' ? CATWORLD_LITTER : source === 'own' ? OWN_LITTER : '',
     );
   }
 
+  ownLitterDetail(value: string): string {
+    return this.litterDetail() ?? catOwnLitterDetail(value);
+  }
+
   setLitterDescription(description: string): void {
-    this.setValue('litterBrand', description.trim() ? description : OWN_LITTER);
+    const detail = description.trim();
+    this.litterDetail.set(description);
+    this.setValue('litterBrand', detail && detail !== CATWORLD_LITTER ? description : OWN_LITTER);
+  }
+
+  setOptionId(field: CatCatalogSelectionField, id?: string): void {
+    this.catalogSelection.update((selection) => ({ ...selection, [field]: id }));
+  }
+
+  retiredOption(key: CatIntakeFieldKey): boolean {
+    const field = key === 'litterBrand' ? 'litterDetail' : key;
+    return this.detail()?.retiredCatalogFields?.some((retired) => retired === field) ?? false;
   }
 
   isFixedCoatLength(value: string): value is (typeof CAT_COAT_LENGTHS)[number] {
@@ -430,6 +465,9 @@ export class CatIntakeReview {
   displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {
     if (key === 'birthDate' && fields?.birthYear)
       return this.copy().formatYearOnly(fields.birthYear);
+    if (key === 'litterBrand' && fields?.litterDetail) {
+      return catLitterLabel(fields.litterBrand, this.catCopy().form, 'OWN', fields.litterDetail);
+    }
     return this.displayValue(key, fields?.[key]);
   }
 
@@ -455,13 +493,20 @@ export class CatIntakeReview {
     const detail = this.detail();
     if (!detail || !this.canApprove()) return;
     const foodVarietyId = this.foodVarietyForApproval()?.id;
+    const fields = this.selectedFields();
+    const catalogOptionIds = Object.fromEntries(
+      Object.entries(this.catalogSelection()).filter(
+        ([field, id]) => id && fields[field as keyof CatIntakeFields],
+      ),
+    );
     this.save(
       detail.id,
       'approve',
       this.api.approve(detail.id, {
-        fields: this.selectedFields(),
+        fields,
         photoIds: this.selectedPhotoIds(),
         ...(foodVarietyId ? { foodVarietyId } : {}),
+        ...(Object.keys(catalogOptionIds).length ? { catalogOptionIds } : {}),
         ...this.version(detail),
       }),
     );
@@ -524,6 +569,8 @@ export class CatIntakeReview {
     this.detail.set(null);
     this.photos.set([]);
     this.fields.set([]);
+    this.litterDetail.set(undefined);
+    this.catalogSelection.set({});
     this.chosenFoodVarietyId.set(null);
     this.adjusting.set(false);
     this.confirmingDismiss.set(false);

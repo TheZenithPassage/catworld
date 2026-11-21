@@ -1,6 +1,9 @@
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { EMPTY, of, Subject, throwError } from 'rxjs';
@@ -52,6 +55,7 @@ describe('CatIntakeReview', () => {
       { id: 'brand-1', name: 'Proposed Food' },
       { id: 'brand-2', name: 'Current Food' },
     ],
+    litterDetail: [{ id: 'pine', name: 'Pine pellets' }],
     lastInternalDewormerName: [],
     lastExternalDewormerName: [],
   });
@@ -76,6 +80,7 @@ describe('CatIntakeReview', () => {
     await TestBed.configureTestingModule({
       imports: [CatIntakeReview],
       providers: [
+        provideNoopAnimations(),
         provideRouter([{ path: 'cat-intake', component: CatIntakeReview }]),
         { provide: CatIntakeApi, useValue: api },
         {
@@ -298,6 +303,52 @@ describe('CatIntakeReview', () => {
     );
   });
 
+  it('can keep deleted litter text or explicitly link a replacement in review', async () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        current: {},
+        proposed: { litterBrand: 'Old wood', litterDetail: 'Old wood' },
+        retiredCatalogFields: ['litterDetail'],
+        conflictFields: [],
+        photos: [],
+      }),
+    );
+    api.approve.mockReturnValue(of(undefined));
+    const root = fixture.nativeElement as HTMLElement;
+    const open = () => {
+      root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+      fixture.detectChanges();
+    };
+    const approve = () => {
+      root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
+      fixture.detectChanges();
+    };
+    open();
+    expect(root.querySelector('[aria-label="Piedritas"]')?.textContent).toContain('como texto');
+    approve();
+    expect(api.approve.mock.lastCall?.[1]).toMatchObject({
+      fields: { litterBrand: 'Old wood', litterDetail: 'Old wood' },
+    });
+    expect(api.approve.mock.lastCall?.[1]).not.toHaveProperty('catalogOptionIds');
+
+    open();
+    adjust();
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const litter = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    await litter.focus();
+    await litter.clear();
+    await litter.enterText('pine');
+    await litter.selectOption({ text: 'Pine pellets' });
+    approve();
+    expect(api.approve.mock.lastCall?.[1]).toMatchObject({
+      fields: { litterBrand: 'Pine pellets', litterDetail: 'Pine pellets' },
+      catalogOptionIds: { litterDetail: 'pine' },
+    });
+  });
+
   it('shows the selected partial approval and preserves decisions when toggling the views', () => {
     api.getReview.mockReturnValue(
       of({
@@ -465,7 +516,7 @@ describe('CatIntakeReview', () => {
     });
   });
 
-  it('keeps a historical litter description editable and accepts own litter without a brand', () => {
+  it('keeps a historical litter description editable and accepts own litter without a brand', async () => {
     api.getReview.mockReturnValue(
       of({
         ...conflicting,
@@ -483,10 +534,11 @@ describe('CatIntakeReview', () => {
     adjust();
     const source = root.querySelector<HTMLSelectElement>('[name="litter-source"]')!;
     expect(source.value).toBe('own');
-    const description = root.querySelector<HTMLInputElement>('[name="litterBrand"]')!;
-    expect(description.value).toBe('Wood pellets');
-    description.value = '';
-    description.dispatchEvent(new Event('input'));
+    const description = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    expect(await description.getValue()).toBe('Wood pellets');
+    await description.clear();
     fixture.detectChanges();
     root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
 

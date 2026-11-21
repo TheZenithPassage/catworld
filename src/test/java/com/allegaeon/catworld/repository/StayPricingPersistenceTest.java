@@ -17,6 +17,7 @@ import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.LitterChoice;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
@@ -160,6 +161,8 @@ class StayPricingPersistenceTest {
         Cat existingCat = catRepository.findById(catId).orElseThrow();
         Cat second = catRepository.saveAndFlush(Cat.builder()
                 .name("Second litter cat").sex(Sex.FEMALE).birthDate(existingCat.getBirthDate())
+                .litterPreference(LitterPreference.OWN).litterDetail("Usa las de CatWorld")
+                .litterBrand("Usa las de CatWorld")
                 .owner(existingCat.getOwner()).createdBy(fixture.actor()).build());
         litterRates.configure(new BigDecimal("3"));
         LocalDateTime start = fixture.startAt().plusDays(12);
@@ -231,7 +234,9 @@ class StayPricingPersistenceTest {
         assertEquals(new BigDecimal("94000"), one.suggestedAmount());
 
         Cat cat = catRepository.findById(catId).orElseThrow();
-        cat.setLitterBrand("Arena de muestra");
+        cat.setLitterPreference(LitterPreference.OWN);
+        cat.setLitterDetail("Usa las de CatWorld");
+        cat.setLitterBrand("Usa las de CatWorld");
         catRepository.saveAndFlush(cat);
         assertThrows(StalePricingConfirmationException.class, () -> stayService.correctAgreedAmount(stayId,
                 PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("86000"))
@@ -240,7 +245,7 @@ class StayPricingPersistenceTest {
         assertEquals(new BigDecimal("78000"), own.suggestedAmount());
         assertEquals(LitterChoice.OWN, own.litter().cats().getFirst().choice());
 
-        cat.setLitterBrand(null);
+        cat.setLitterPreference(null);
         catRepository.saveAndFlush(cat);
         var unknown = stayService.previewPendingPrice(stayId);
         assertNull(unknown.suggestedAmount());

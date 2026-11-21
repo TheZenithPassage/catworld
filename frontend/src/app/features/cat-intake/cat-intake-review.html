@@ -150,6 +150,9 @@
                   @if (row.conflict) {
                     <p class="conflict-note">{{ copy().conflict }}</p>
                   }
+                  @if (retiredOption(row.field.key)) {
+                    <p class="field-decision">{{ copy().retiredOption }}</p>
+                  }
                   @if (
                     row.conflict ||
                     (adjusting() &&
@@ -212,8 +215,10 @@
                         [label]="copy().reviewed"
                         [value]="row.value"
                         [allowApproval]="false"
-                        [showPublicationHint]="true"
+                        [showPublicationHint]="!retiredOption(row.field.key)"
                         [disabled]="!!saving()"
+                        [optionId]="catalogSelection()[row.field.key]"
+                        (optionIdChange)="setOptionId(row.field.key, $event)"
                         (valueChange)="setValue(row.field.key, $event)"
                       />
                     } @else {
@@ -233,16 +238,18 @@
                           </select>
                         </label>
                         @if (litterChoice(row.value) === 'own') {
-                          <label class="control">
-                            {{ catCopy().form.ownLitterDetail }} ({{ copy().optional }})
-                            <input
-                              type="text"
-                              name="litterBrand"
-                              [attr.maxlength]="maxLength(row.field)"
-                              [value]="ownLitterDetail(row.value)"
-                              (input)="setLitterDescription($any($event.target).value)"
-                            />
-                          </label>
+                          <app-cat-profile-option-field
+                            field="litterDetail"
+                            controlName="litterBrand"
+                            [label]="catCopy().form.ownLitterDetail + ' (' + copy().optional + ')'"
+                            [value]="ownLitterDetail(row.value)"
+                            [optionId]="catalogSelection().litterDetail"
+                            [allowApproval]="false"
+                            [showPublicationHint]="!retiredOption('litterBrand')"
+                            [disabled]="!!saving()"
+                            (valueChange)="setLitterDescription($event)"
+                            (optionIdChange)="setOptionId('litterDetail', $event)"
+                          />
                         }
                       } @else if (row.field.key === 'birthDate') {
                         <label class="control">

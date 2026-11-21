@@ -105,6 +105,7 @@ describe('CatCreatePage', () => {
       coat: [],
       color: [],
       foodBrand: [{ id: 'brand-1', name: 'Royal Canin' }],
+      litterDetail: [{ id: 'pine', name: 'Pine pellets' }],
       lastInternalDewormerName: [],
       lastExternalDewormerName: [],
     }),
@@ -302,6 +303,39 @@ describe('CatCreatePage', () => {
         foodDetail: 'Kitten',
         foodVarietyId: 'variety-royal-kitten',
         litterBrand: 'Usa las de CatWorld',
+      }),
+      null,
+      [],
+    );
+  });
+
+  it('links an explicitly selected own-litter option when creating a cat', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[name=litterBrand]')).toBeNull();
+    const choice = root.querySelector<HTMLSelectElement>('[name=litterChoice]')!;
+    choice.value = 'own';
+    choice.dispatchEvent(new Event('change', { bubbles: true }));
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const litter = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    await litter.enterText('pine');
+    await litter.selectOption({ text: 'Pine pellets' });
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        litterPreference: 'OWN',
+        litterDetail: 'Pine pellets',
+        catalogOptionIds: { litterDetail: 'pine' },
       }),
       null,
       [],

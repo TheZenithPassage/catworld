@@ -52,6 +52,14 @@ public class Cat extends AuditableEntity {
     @Formula("(select catalog.name from food_varieties catalog where catalog.id = food_variety_id)")
     private String currentFoodDetail;
     private String litterBrand;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 6)
+    private LitterPreference litterPreference;
+    @Column(length = 100)
+    private String litterDetail;
+    private UUID litterDetailOptionId;
+    @Formula("(select catalog.name from cat_profile_options catalog where catalog.id = litter_detail_option_id)")
+    private String currentLitterDetail;
     private String personality;
 
     @Column(length = 2000)
@@ -110,6 +118,44 @@ public class Cat extends AuditableEntity {
     public void setFoodVarietyId(UUID id) {
         foodVarietyId = id;
         currentFoodDetail = null;
+    }
+
+    public LitterPreference getLitterPreference() {
+        return litterPreference == null ? LitterPreference.fromLegacyValue(litterBrand) : litterPreference;
+    }
+
+    public String getLitterDetail() {
+        return litterPreference == null ? LitterPreference.detailFromLegacyValue(litterBrand) : litterDetail;
+    }
+
+    public String getDisplayedLitterDetail() {
+        return currentLitterDetail == null ? getLitterDetail() : currentLitterDetail;
+    }
+
+    public String getStoredLitterValue() {
+        return litterValue(getLitterDetail());
+    }
+
+    public String getDisplayedLitterValue() {
+        return litterValue(getDisplayedLitterDetail());
+    }
+
+    private String litterValue(String detail) {
+        LitterPreference preference = getLitterPreference();
+        if (preference == null) return null;
+        return preference.legacyValueWithDetail(detail);
+    }
+
+    public void setLitterPreference(LitterPreference preference) {
+        litterDetail = preference == LitterPreference.OWN ? getLitterDetail() : null;
+        litterPreference = preference;
+        litterBrand = preference == null ? null : preference.legacyValue();
+        if (preference != LitterPreference.OWN) setLitterDetailOptionId(null);
+    }
+
+    public void setLitterDetailOptionId(UUID id) {
+        litterDetailOptionId = id;
+        currentLitterDetail = null;
     }
 
     public String getDisplayedLastInternalDewormerName() {

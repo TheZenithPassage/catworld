@@ -1,3 +1,5 @@
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgModel } from '@angular/forms';
 import { signal } from '@angular/core';
@@ -581,7 +583,10 @@ describe('CatEditor', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector<HTMLSelectElement>('[name=coat]')?.value).toBe('Semilargo');
     expect(root.querySelector<HTMLSelectElement>('[name=litterChoice]')?.value).toBe('own');
-    expect(root.querySelector<HTMLInputElement>('[name=litterBrand]')?.value).toBe('Pine pellets');
+    const litter = await TestbedHarnessEnvironment.loader(fixture).getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    expect(await litter.getValue()).toBe('Pine pellets');
     component.name.set('New name');
     component.submit();
     expect(catApiService.updateCat.mock.lastCall?.[1]).toEqual(

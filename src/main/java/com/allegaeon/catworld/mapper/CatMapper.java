@@ -39,7 +39,9 @@ public class CatMapper {
                 .foodBrandId(cat.getFoodBrandId())
                 .catalogOptionIds(catalogOptionIds(cat))
                 .foodDetail(cat.getDisplayedFoodDetail())
-                .litterBrand(cat.getLitterBrand())
+                .litterBrand(cat.getDisplayedLitterValue())
+                .litterPreference(cat.getLitterPreference())
+                .litterDetail(cat.getDisplayedLitterDetail())
                 .personality(cat.getPersonality())
                 .careInstructions(cat.getCareInstructions())
                 .notes(cat.getNotes())
@@ -68,7 +70,6 @@ public class CatMapper {
                 .birthDate(catRequestDTO.getBirthDate())
                 .birthYear(catRequestDTO.getBirthYear())
                 .sex(catRequestDTO.getSex())
-                .litterBrand(catRequestDTO.getLitterBrand())
                 .personality(catRequestDTO.getPersonality())
                 .careInstructions(normalizeOptional(catRequestDTO.getCareInstructions()))
                 .notes(normalizeOptional(catRequestDTO.getNotes()))
@@ -93,7 +94,6 @@ public class CatMapper {
             cat.setBirthYear(catRequestDTO.getBirthYear());
         }
         cat.setSex(catRequestDTO.getSex());
-        if (catRequestDTO.hasLitterBrandUpdate()) cat.setLitterBrand(catRequestDTO.getLitterBrand());
         cat.setPersonality(catRequestDTO.getPersonality());
         if (catRequestDTO.hasCareInstructionsUpdate()) {
             cat.setCareInstructions(normalizeOptional(catRequestDTO.getCareInstructions()));

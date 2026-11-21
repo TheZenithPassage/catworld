@@ -143,7 +143,12 @@
       [disabled]="submitting()"
     />
 
-    <app-cat-care-fields [(litterBrand)]="litterBrand" />
+    <app-cat-care-fields
+      [(litterBrand)]="litterBrand"
+      [(litterPreference)]="litterPreference"
+      [litterOptionId]="catalogSelection().litterDetail"
+      (litterOptionIdChange)="setCatalogSelection('litterDetail', $event)"
+    />
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().cats.form.personality }}</mat-label>

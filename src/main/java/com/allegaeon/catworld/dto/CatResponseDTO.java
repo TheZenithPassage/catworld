@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import com.allegaeon.catworld.model.Sex;
+import com.allegaeon.catworld.model.LitterPreference;
 import lombok.*;
 
 import java.time.Instant;
@@ -29,6 +30,8 @@ public class CatResponseDTO {
     private Map<String, UUID> catalogOptionIds;
     private String foodDetail;
     private String litterBrand;
+    private LitterPreference litterPreference;
+    private String litterDetail;
     private String personality;
     private String careInstructions;
     private String notes;

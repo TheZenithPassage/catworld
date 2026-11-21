@@ -38,7 +38,7 @@ public class CatMutationTransactionService {
 
     @Transactional
     public Cat create(CatRequestDTO request, NormalizedCatPhoto photo) {
-        return create(request, photo, List.of());
+        return create(request, photo, List.of(), Map.of());
     }
 
     @Transactional
@@ -47,8 +47,8 @@ public class CatMutationTransactionService {
     }
 
     // Intake manages its own transaction and can apply previously submitted catalog selections.
-    Cat create(CatRequestDTO request, NormalizedCatPhoto photo, Map<String, UUID> reviewedOptions) {
-        return create(request, photo, List.of(), reviewedOptions);
+    Cat createFromIntake(CatRequestDTO request, Map<String, UUID> reviewedOptions) {
+        return create(request, null, List.of(), reviewedOptions);
     }
 
     private Cat create(CatRequestDTO request, NormalizedCatPhoto photo, List<NormalizedCatPhoto> additions,

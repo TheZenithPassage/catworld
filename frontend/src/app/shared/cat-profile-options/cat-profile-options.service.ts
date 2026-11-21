@@ -8,6 +8,7 @@ export type CatProfileOptionFieldKey =
   | 'coat'
   | 'color'
   | 'foodBrand'
+  | 'litterDetail'
   | 'lastInternalDewormerName'
   | 'lastExternalDewormerName';
 
@@ -20,7 +21,12 @@ export interface FoodVarietyOption extends CatProfileOption {
   brandId: string;
 }
 
-export type CatProfileOptions = Record<CatProfileOptionFieldKey, CatProfileOption[]>;
+export type CatProfileOptions = Record<
+  Exclude<CatProfileOptionFieldKey, 'litterDetail'>,
+  CatProfileOption[]
+> & {
+  litterDetail?: CatProfileOption[];
+};
 
 @Injectable({ providedIn: 'root' })
 export class CatProfileOptionsService {

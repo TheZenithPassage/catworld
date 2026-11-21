@@ -35,6 +35,7 @@ import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.LitterChoice;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.StayPaymentAnnulment;
 import com.allegaeon.catworld.model.StayPaymentEdit;
@@ -685,7 +686,7 @@ public class StayService implements IStayService {
         // Read inherited choices under the cat locks before acquiring the litter rate lock.
         var litter = previouslyAgreed ? previousLitter : StayLitterPricing.forPendingConfirmation(
                 stay, request.litterChoices(), nights,
-                forUpdate ? this::litterPreferenceForUpdate : Cat::getLitterBrand,
+                forUpdate ? this::litterPreferenceForUpdate : Cat::getLitterPreference,
                 forUpdate ? litterRates::currentRateForUpdate : litterRates::currentRate);
         BigDecimal total = StayLitterPricing.combine(accommodation, transfer, litter.subtotal());
         // Include the price inputs in case two edits share a persisted audit timestamp.
@@ -711,11 +712,11 @@ public class StayService implements IStayService {
         );
     }
 
-    private String litterPreferenceForUpdate(Cat cat) {
+    private LitterPreference litterPreferenceForUpdate(Cat cat) {
         UUID catId = cat.getId();
         return catRepository.findByIdForUpdate(catId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cat", catId))
-                .getLitterBrand();
+                .getLitterPreference();
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.StayLitterBreakdown.CatLitter;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.LitterChoice;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 
@@ -14,13 +15,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public final class StayLitterPricing {
-    private static final String CATWORLD_LITTER_PREFERENCE = "Usa las de CatWorld";
     private static final BigDecimal HALF_KILO = new BigDecimal("0.5");
 
     private StayLitterPricing() {}
@@ -28,7 +29,7 @@ public final class StayLitterPricing {
     static StayLitterBreakdown forCreation(List<Cat> cats, Map<UUID, LitterChoice> overrides,
             long nights, Supplier<BigDecimal> currentRate) {
         Map<UUID, LitterChoice> defaults = cats.stream().collect(Collectors.toMap(Cat::getId,
-                cat -> CATWORLD_LITTER_PREFERENCE.equals(cat.getLitterBrand()) ? LitterChoice.HALF : LitterChoice.OWN));
+                cat -> Objects.requireNonNullElse(choiceFromPreference(cat.getLitterPreference()), LitterChoice.OWN)));
         validateOverrides(defaults, overrides);
         defaults.putAll(overrides == null ? Map.of() : overrides);
         return breakdown(defaults, nights, usesLitter(defaults) ? currentRate.get() : null);
@@ -52,7 +53,7 @@ public final class StayLitterPricing {
     }
 
     static StayLitterBreakdown forPendingConfirmation(Stay stay, Map<UUID, LitterChoice> overrides,
-            long nights, Function<Cat, String> approvedPreference, Supplier<BigDecimal> currentRate) {
+            long nights, Function<Cat, LitterPreference> approvedPreference, Supplier<BigDecimal> currentRate) {
         Map<UUID, LitterChoice> choices = retainedChoices(stay);
         validateOverrides(choices, overrides);
         choices.putAll(overrides == null ? Map.of() : overrides);
@@ -177,11 +178,12 @@ public final class StayLitterPricing {
         return choice == null ? 0 : choice.halfKilosPerDay();
     }
 
-    private static LitterChoice choiceFromPreference(String preference) {
-        if (preference == null || preference.isBlank()) {
-            return null;
-        }
-        return CATWORLD_LITTER_PREFERENCE.equals(preference.strip()) ? LitterChoice.HALF : LitterChoice.OWN;
+    private static LitterChoice choiceFromPreference(LitterPreference preference) {
+        return switch (preference) {
+            case OWN -> LitterChoice.OWN;
+            case SHARED -> LitterChoice.HALF;
+            case null -> null;
+        };
     }
 
     private static void validateOverrides(Map<UUID, LitterChoice> scope, Map<UUID, LitterChoice> overrides) {

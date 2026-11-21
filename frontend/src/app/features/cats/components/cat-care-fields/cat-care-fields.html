@@ -12,15 +12,12 @@
   </select>
 </mat-form-field>
 @if (choice() === 'own') {
-  <mat-form-field appearance="outline">
-    <mat-label>{{ text().cats.form.ownLitterDetail }}</mat-label>
-    <input
-      matInput
-      type="text"
-      name="litterBrand"
-      maxlength="100"
-      [ngModel]="ownDetail()"
-      (ngModelChange)="changeOwnDetail($event)"
-    />
-  </mat-form-field>
+  <app-cat-profile-option-field
+    field="litterDetail"
+    controlName="litterBrand"
+    [label]="text().cats.form.ownLitterDetail"
+    [value]="ownDetail()"
+    (valueChange)="changeOwnDetail($event)"
+    [(optionId)]="litterOptionId"
+  />
 }

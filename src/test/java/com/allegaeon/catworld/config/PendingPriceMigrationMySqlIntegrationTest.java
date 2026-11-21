@@ -120,7 +120,8 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals(before, dataSnapshot(LITTER_PRICING_COLUMNS,
                 "food_brand_id", "food_detail", "birth_year", "care_instructions",
                 "breed_option_id", "coat_option_id", "color_option_id",
-                "last_internal_dewormer_option_id", "last_external_dewormer_option_id", "food_variety_id"));
+                "last_internal_dewormer_option_id", "last_external_dewormer_option_id", "food_variety_id",
+                "litter_preference", "litter_detail", "litter_detail_option_id"));
         assertEquals(0, jdbc.queryForObject("""
                 select count(*) from cats where food_brand_id is not null or food_detail is not null
                 """, Integer.class), "V23 must leave food brand references and diet details unset for historical cats");
@@ -197,7 +198,8 @@ class PendingPriceMigrationMySqlIntegrationTest {
         Flyway candidate = Flyway.configure().dataSource(dataSource).target("27").load();
         HistoricalMigrationConfig.migrate(candidate);
 
-        assertEquals(before, dataSnapshot(LITTER_PRICING_COLUMNS));
+        assertEquals(before, dataSnapshot(LITTER_PRICING_COLUMNS,
+                "litter_preference", "litter_detail", "litter_detail_option_id"));
         assertTrue(history().containsAll(historyBefore));
         assertEquals(1, jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where version = '27' and success = 1", Integer.class));
@@ -460,16 +462,20 @@ class PendingPriceMigrationMySqlIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"true, true", "true, false", "false, true"})
-    void accommodatesCatalogsAndLitterPricingInEitherOrder(boolean pricingFirst, boolean breedSeedsPresent)
+    @CsvSource({"true, true, true", "true, true, false", "true, false, false", "false, true, true"})
+    void accommodatesCatalogsAndLitterPricingInEitherOrder(
+            boolean pricingFirst, boolean breedSeedsPresent, boolean catalogManagerPresent)
             throws IOException {
-        var initial = catalogMigrationFiles("catalog-initial", !pricingFirst, breedSeedsPresent, pricingFirst);
+        var initial = catalogMigrationFiles("catalog-initial", catalogManagerPresent, !pricingFirst,
+                breedSeedsPresent, pricingFirst);
         var initialFlyway = Flyway.configure().dataSource(dataSource).locations(location(initial));
         if (pricingFirst && !breedSeedsPresent) initialFlyway.target("27");
         initialFlyway.load().migrate();
+        populate(false, false);
+        var dataBefore = dataSnapshot("litter_preference", "litter_detail", "litter_detail_option_id");
         var historyBefore = history();
 
-        var combined = catalogMigrationFiles("catalog-combined", true, true, true);
+        var combined = catalogMigrationFiles("catalog-combined", true, true, true, true);
         var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
         HistoricalMigrationConfig.migrate(startup);
 
@@ -479,20 +485,29 @@ class PendingPriceMigrationMySqlIntegrationTest {
                     where table_schema = database() and table_name = ? and column_name = 'active'
                     """, Integer.class, table));
         }
+        assertEquals(dataBefore, dataSnapshot("litter_preference", "litter_detail", "litter_detail_option_id"));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*) from cats
+                where litter_preference is not null or litter_detail is not null or litter_detail_option_id is not null
+                """, Integer.class));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "update cats set litter_preference = 'SHARED', litter_detail = 'Pellets' where id = ?", id(4)));
         assertTrue(history().containsAll(historyBefore));
-        assertEquals(pricingFirst, installedRank("27") < installedRank("26.3"));
+        assertEquals(pricingFirst && !catalogManagerPresent, installedRank("27") < installedRank("26.3"));
+        assertEquals(pricingFirst, installedRank("27") < installedRank("26.4"));
         assertTrue(installedRank("26.2") < installedRank("26.3"));
+        assertTrue(installedRank("26.3") < installedRank("26.4"));
         assertTrue(installedRank("27") < installedRank("28"));
         startup.validate();
     }
 
     @Test
     void rejectsPricingChecksumMismatchBeforeRunningLateCatalogMigration() throws IOException {
-        var initial = catalogMigrationFiles("catalog-initial", false, true, true);
+        var initial = catalogMigrationFiles("catalog-initial", false, false, true, true);
         Flyway.configure().dataSource(dataSource).locations(location(initial)).load().migrate();
         var historyBefore = history();
 
-        var combined = catalogMigrationFiles("catalog-combined", true, true, true);
+        var combined = catalogMigrationFiles("catalog-combined", true, true, true, true);
         Files.writeString(combined.resolve("V27__add_stay_litter_pricing.sql"), "SELECT 'bad checksum';");
         var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
         assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(startup));
@@ -500,10 +515,15 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertEquals(historyBefore, history());
     }
 
-    private Path catalogMigrationFiles(String name, boolean catalogs, boolean breeds, boolean pricing) throws IOException {
-        var directory = migrationFiles(name, "26_2", "26_3", "27", "28");
+    private Path catalogMigrationFiles(String name, boolean catalogs, boolean ownLitter, boolean breeds, boolean pricing)
+            throws IOException {
+        var directory = migrationFiles(name, "26_2", "26_3", "26_4", "27", "28");
         if (catalogs) {
             String script = "V26_3__manage_cat_profile_catalogs.sql";
+            Files.copy(Path.of("src/main/resources/db/migration").resolve(script), directory.resolve(script));
+        }
+        if (ownLitter) {
+            String script = "V26_4__add_own_litter_catalog.sql";
             Files.copy(Path.of("src/main/resources/db/migration").resolve(script), directory.resolve(script));
         }
         if (breeds) {

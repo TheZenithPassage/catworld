@@ -6,6 +6,9 @@
     <strong class="deletion-subject">{{ data.subject }}</strong
     >. {{ text().deletion.confirmation.descriptionSuffix }}
   </p>
+  @if (data.extraDescription) {
+    <p>{{ data.extraDescription }}</p>
+  }
   @if (reasonRequired()) {
     <mat-form-field appearance="outline">
       <mat-label>{{ data.reasonLabel }}</mat-label>

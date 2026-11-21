@@ -304,6 +304,52 @@ test('shows the litter reference only for shared use and keeps an optional own-l
   );
 });
 
+test('own litter submits the selected catalog ID and shared litter ignores the detail', async (t) => {
+  const ownType = 'Usa las de CatWorld';
+  const invitation = {
+    allowNewCats: false,
+    cats: [{ ...existing, requestedFields: ['litterBrand'] }],
+    catalogOptions: { litterDetail: [{ id: 'personal', name: ownType }] },
+  };
+  const portal = await openForm(t, invitation);
+  const [card] = portal.entries();
+  function choose(portal, card, value) {
+    const choice = [...card.querySelectorAll('select')].find((select) =>
+      [...select.options].some((option) => option.value === 'own'),
+    );
+    choice.value = value;
+    choice.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  }
+  choose(portal, card, 'own');
+  const detail = enter(portal.window, card, 'litterBrand', ownType);
+  assert.equal(await portal.submit(), undefined);
+  detail.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
+  let post = await portal.submit();
+  let [cat] = JSON.parse(await post.body.get('submission').text()).cats;
+  assert.deepEqual(cat.fields, {
+    litterBrand: 'Trae sus propias piedritas',
+    litterDetail: ownType,
+  });
+  assert.deepEqual(cat.optionIds, { litterDetail: 'personal' });
+
+  const next = await openForm(t, {
+    ...invitation,
+    cats: [
+      { ...invitation.cats[0], revision: 1, proposedFields: cat.fields, optionIds: cat.optionIds },
+    ],
+  });
+  const [reopened] = next.entries();
+  assert.equal(
+    reopened.querySelector('.catalog-input--selected[name="litterBrand"]').value,
+    ownType,
+  );
+  choose(next, reopened, 'shared');
+  post = await next.submit();
+  [cat] = JSON.parse(await post.body.get('submission').text()).cats;
+  assert.deepEqual(cat.fields, { litterBrand: 'Usa las de CatWorld' });
+  assert.equal(cat.optionIds, undefined);
+});
+
 test('reopening a partial submission shows both pending data and the submitted status', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: true,

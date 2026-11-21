@@ -4,7 +4,7 @@
     #catalogInput
     matInput
     type="text"
-    [name]="field()"
+    [name]="controlName() ?? field()"
     [maxlength]="field() === 'foodDetail' ? 255 : 100"
     [disabled]="disabled() || publishing()"
     [ngModel]="value()"
