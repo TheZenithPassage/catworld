@@ -16,6 +16,7 @@ describe('CatDetail permanent deletion', () => {
   let component: CatDetail;
   let api: {
     getCatDetail: ReturnType<typeof vi.fn>;
+    getCatPhoto: ReturnType<typeof vi.fn>;
     listInformationalPhotos: ReturnType<typeof vi.fn>;
     deleteCat: ReturnType<typeof vi.fn>;
   };
@@ -27,6 +28,7 @@ describe('CatDetail permanent deletion', () => {
     dialogResults = [];
     api = {
       getCatDetail: vi.fn(() => of(detail())),
+      getCatPhoto: vi.fn(() => of(new Blob(['portrait'], { type: 'image/jpeg' }))),
       listInformationalPhotos: vi.fn(() => of([])),
       deleteCat: vi.fn(() => of(undefined)),
     };
@@ -137,7 +139,9 @@ describe('CatDetail permanent deletion', () => {
     component.submittingChanged.subscribe(submission);
 
     buttons()
-      .find((button) => button.textContent.includes(component.text().cats.detail.viewPhoto))
+      .find(
+        (button) => button.getAttribute('aria-label') === component.text().cats.detail.viewPhoto,
+      )
       ?.click();
     buttons()
       .find((button) => button.textContent.includes('Ada Lovelace'))

@@ -1,5 +1,10 @@
 @let t = text().cats.informationalPhotos;
-<section class="gallery" [attr.aria-label]="t.title" [attr.aria-busy]="loading()">
+<section
+  class="gallery"
+  [class.gallery--read-only]="!editable()"
+  [attr.aria-label]="t.title"
+  [attr.aria-busy]="loading()"
+>
   <header>
     <h3>{{ t.title }}</h3>
     @if (editable()) {
@@ -28,7 +33,7 @@
   }
 
   @if (visiblePhotos().length || drafts().length) {
-    <ul>
+    <ul class="photo-tiles">
       @if (catId(); as id) {
         @for (photo of visiblePhotos(); track photo.id) {
           <li>
@@ -38,11 +43,11 @@
               [disabled]="disabled()"
               (click)="showSaved(photo.id)"
             >
-              @defer (on viewport) {
-                <app-cat-informational-photo-thumbnail [catId]="id" [photoId]="photo.id" />
-              } @placeholder {
-                <span class="thumbnail-placeholder" aria-hidden="true"></span>
-              }
+              <span #thumbnail class="thumbnail">
+                @defer (on viewport(thumbnail)) {
+                  <app-cat-photo-thumbnail [catId]="id" [informationalPhotoId]="photo.id" />
+                }
+              </span>
               {{ t.view(photo.number) }}
             </button>
             @if (editable()) {
@@ -93,7 +98,7 @@
             [disabled]="disabled()"
             (click)="showDraft(draft)"
           >
-            <span class="thumbnail-placeholder">
+            <span class="thumbnail">
               <img #thumbnail [src]="draft.url" alt="" (error)="thumbnail.hidden = true" />
             </span>
             {{ draft.file.name }}

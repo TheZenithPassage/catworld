@@ -882,18 +882,16 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.reference()).toEqual({ entityType: 'cat', entityId: 'cat-1' });
     expect(catApi.getCatDetail).toHaveBeenCalledWith('cat-1');
-    expect(fixture.nativeElement.textContent).not.toContain(
-      fixture.componentInstance.text().cats.detail.viewPhoto,
-    );
-    const portrait = (fixture.nativeElement as HTMLElement).querySelector('.detail-portrait');
-    expect(portrait?.querySelector('h3')?.textContent?.trim()).toBe('Profile photo');
-    expect(portrait?.querySelector('p')?.textContent?.trim()).toBe(
-      fixture.componentInstance.text().cats.emptyValue,
-    );
+    const catElement = (fixture.nativeElement as HTMLElement).querySelector('app-cat-detail')!;
+    const identity = catElement.querySelector('.detail-identity');
+    expect(identity?.querySelector('h3')?.textContent?.trim()).toBe('Milo');
+    expect(identity?.querySelector('p')?.textContent?.trim()).toBe('No profile photo');
+    expect(identity?.querySelector('button')).toBeNull();
     const sections = Array.from(fixture.nativeElement.querySelector('app-cat-detail').children);
     expect(sections.map((section) => (section as Element).className)).toEqual([
+      'detail-identity',
       'detail-fields',
-      'detail-photos',
+      'detail-gallery',
       'relationship-group',
       'detail-actions',
     ]);
@@ -2273,6 +2271,8 @@ describe('EntityDetailDialog', () => {
 });
 
 describe('EntityDetailDialog cat photo destination', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('owns private loading, success, missing, error, back, and URL cleanup states', async () => {
     const photo = new Subject<Blob>();
     const beforeClosed = new Subject<void>();
@@ -2307,16 +2307,18 @@ describe('EntityDetailDialog cat photo destination', () => {
           stays: { totalElements: 0, items: [] },
         }),
       ),
-      getCatPhoto: vi.fn(() => photo.asObservable()),
+      getCatPhoto: vi
+        .fn(() => photo.asObservable())
+        .mockReturnValueOnce(of(new Blob(['thumbnail'], { type: 'image/jpeg' }))),
     };
     const createUrl = vi
-      .fn<() => string>()
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:profile-thumbnail')
       .mockReturnValueOnce('blob:cat-photo')
       .mockReturnValueOnce('blob:portrait-photo')
       .mockReturnValueOnce('blob:broken-photo')
       .mockReturnValueOnce('blob:close-photo');
-    const revokeUrl = vi.fn();
-    vi.stubGlobal('URL', { ...URL, createObjectURL: createUrl, revokeObjectURL: revokeUrl });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -2343,19 +2345,17 @@ describe('EntityDetailDialog cat photo destination', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const viewPhoto = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
-      (button) =>
-        button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
-    )!;
-    expect(
-      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].filter(
-        (button) =>
-          button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
-      ),
-    ).toHaveLength(1);
+    const root = fixture.nativeElement as HTMLElement;
+    const viewPhoto = root.querySelector<HTMLButtonElement>('.detail-identity button')!;
+    expect(viewPhoto?.getAttribute('aria-label')).toBe(
+      fixture.componentInstance.text().cats.detail.viewPhoto,
+    );
+    expect(viewPhoto.querySelector('img')?.getAttribute('src')).toBe('blob:profile-thumbnail');
+    expect(catApi.getCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
     viewPhoto.click();
     fixture.detectChanges();
-    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(1);
+    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(2);
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:profile-thumbnail');
     expect(fixture.componentInstance.photoState()).toBe('loading');
     expect(fixture.componentInstance.title()).toBe(
       `${fixture.componentInstance.text().cats.detail.photo} — Milo (Ada)`,
@@ -2363,7 +2363,7 @@ describe('EntityDetailDialog cat photo destination', () => {
 
     photo.next(new Blob(['jpeg'], { type: 'image/jpeg' }));
     fixture.detectChanges();
-    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect(createUrl).toHaveBeenCalledTimes(2);
     expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(
       'blob:cat-photo',
     );
@@ -2387,10 +2387,10 @@ describe('EntityDetailDialog cat photo destination', () => {
       'min(52rem, calc(100vw - 2rem))',
       '',
     );
-    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:cat-photo');
+    expect(revokeUrl).toHaveBeenLastCalledWith('blob:cat-photo');
     expect(fixture.componentInstance.entry().kind).toBe('detail');
     firstImage.dispatchEvent(new Event('error'));
-    expect(revokeUrl).toHaveBeenCalledTimes(1);
+    expect(revokeUrl).toHaveBeenCalledTimes(2);
 
     catApi.getCatPhoto.mockReturnValueOnce(of(new Blob(['portrait'], { type: 'image/jpeg' })));
     fixture.componentInstance.openCatPhoto({
@@ -2444,7 +2444,7 @@ describe('EntityDetailDialog cat photo destination', () => {
     beforeClosed.next();
     expect(closePhoto.observers).toHaveLength(0);
     closePhoto.next(new Blob(['late'], { type: 'image/jpeg' }));
-    expect(createUrl).toHaveBeenCalledTimes(3);
+    expect(createUrl).toHaveBeenCalledTimes(4);
 
     const loadedBeforeClose = new Subject<Blob>();
     catApi.getCatPhoto.mockReturnValueOnce(loadedBeforeClose.asObservable());
@@ -2458,7 +2458,6 @@ describe('EntityDetailDialog cat photo destination', () => {
     const revokeCount = revokeUrl.mock.calls.length;
     fixture.destroy();
     expect(revokeUrl).toHaveBeenCalledTimes(revokeCount);
-    vi.unstubAllGlobals();
   });
 });
 describe('Route-free StayEditor migrated coverage', () => {

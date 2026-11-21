@@ -1,29 +1,47 @@
-.detail-photos {
-  display: grid;
-  grid-template-columns: minmax(10rem, 1fr) minmax(0, 3fr);
-  gap: 1rem;
+.detail-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-identity h3,
+.detail-identity p {
+  margin: 0;
+}
+
+.detail-identity p {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.profile-photo-thumbnail {
+  --cat-thumbnail-fit: cover;
+
+  flex: 0 0 auto;
+  inline-size: 4.75rem;
+  block-size: 4.75rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.profile-photo-thumbnail:disabled {
+  cursor: default;
+}
+
+.detail-gallery {
   padding: 1rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
-.detail-portrait {
-  display: grid;
-  gap: 0.5rem;
-  align-content: start;
-  justify-items: start;
-}
-
-.detail-portrait h3,
-.detail-portrait p {
-  margin: 0;
-}
-
 @media (max-width: 36rem) {
-  .detail-photos {
-    grid-template-columns: minmax(0, 1fr);
+  .detail-gallery {
     padding: 0.85rem;
   }
 }

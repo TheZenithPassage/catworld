@@ -216,6 +216,14 @@ body {
   line-height: 1.5;
 }
 
+html[data-theme='dark'] .catworld-dialog-backdrop {
+  background-color: rgb(0 0 0 / 0.68);
+}
+
+html[data-theme='dark'] .mat-mdc-dialog-surface {
+  outline: 1px solid var(--color-border-strong);
+}
+
 a {
   color: var(--color-primary-hover);
   font-weight: 700;

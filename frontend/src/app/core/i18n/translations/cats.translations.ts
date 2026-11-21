@@ -16,6 +16,7 @@ export interface CatsTranslations {
     openDetails: string;
     photo: string;
     viewPhoto: string;
+    noProfilePhoto: string;
     photoLoading: string;
     photoMissing: string;
     photoLoadFailed: string;
@@ -204,7 +205,8 @@ export const CATS_TRANSLATIONS = {
       close: 'Cerrar',
       openDetails: 'Ver detalles',
       photo: 'Foto de perfil',
-      viewPhoto: 'Ver foto',
+      viewPhoto: 'Ver foto de perfil',
+      noProfilePhoto: 'Sin foto de perfil',
       photoLoading: 'Cargando foto...',
       photoMissing: 'Este gato no tiene foto.',
       photoLoadFailed: 'Error al cargar la foto.',
@@ -402,7 +404,8 @@ export const CATS_TRANSLATIONS = {
       close: 'Close',
       openDetails: 'View details',
       photo: 'Profile photo',
-      viewPhoto: 'View photo',
+      viewPhoto: 'View profile photo',
+      noProfilePhoto: 'No profile photo',
       photoLoading: 'Loading photo...',
       photoMissing: 'This cat has no photo.',
       photoLoadFailed: 'Error loading photo.',

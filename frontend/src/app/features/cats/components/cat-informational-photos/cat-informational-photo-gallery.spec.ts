@@ -27,14 +27,25 @@ describe('CatInformationalPhotoGallery', () => {
     fixture.detectChanges();
   });
 
-  it('opens the saved photo in read mode and leaves mutation controls in the editor', () => {
+  it('opens the last saved photo in a seven-photo gallery without mutation controls', () => {
+    const photos = Array.from({ length: 7 }, (_, index) => ({
+      ...first,
+      id: `photo-${index + 1}`,
+    }));
+    api.listInformationalPhotos.mockReturnValue(of(photos));
+    fixture.componentInstance.load();
+    fixture.detectChanges();
     const opened = vi.fn();
     fixture.componentInstance.openPhoto.subscribe(opened);
 
     expect(fixture.nativeElement.querySelector('input')).toBeNull();
     expect(fixture.nativeElement.querySelector('.remove-photo')).toBeNull();
-    fixture.nativeElement.querySelector('.view-photo').click();
-    expect(opened).toHaveBeenCalledWith(first.id);
+    const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      '.view-photo',
+    );
+    expect(buttons).toHaveLength(7);
+    buttons[6].click();
+    expect(opened).toHaveBeenCalledWith('photo-7');
   });
 
   it('only stages a saved photo removal after explicit confirmation', () => {
