@@ -6,7 +6,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -18,43 +17,12 @@ import java.util.UUID;
 
 @Repository
 public interface CatRepository extends JpaRepository<Cat, UUID> {
-    // A catalog deletion may commit in the same clock tick as the editor's original read.
-    String ADVANCE_UPDATED_AT = "greatest(current_timestamp(6), timestampadd(microsecond, 1, updated_at))";
-
-    @Modifying
-    @Query(value = "update cats set breed = :name, breed_option_id = null, updated_at = " + ADVANCE_UPDATED_AT
-            + " where breed_option_id = :id", nativeQuery = true)
-    void freezeBreed(byte[] id, String name);
-
-    @Modifying
-    @Query(value = "update cats set last_internal_dewormer_name = :name, last_internal_dewormer_option_id = null,"
-            + " updated_at = " + ADVANCE_UPDATED_AT + " where last_internal_dewormer_option_id = :id", nativeQuery = true)
-    void freezeInternalDewormer(byte[] id, String name);
-
-    @Modifying
-    @Query(value = "update cats set last_external_dewormer_name = :name, last_external_dewormer_option_id = null,"
-            + " updated_at = " + ADVANCE_UPDATED_AT + " where last_external_dewormer_option_id = :id", nativeQuery = true)
-    void freezeExternalDewormer(byte[] id, String name);
-
-    @Modifying
-    @Query(value = "update cats set litter_detail = :name, litter_detail_option_id = null, updated_at = "
-            + ADVANCE_UPDATED_AT + " where litter_detail_option_id = :id", nativeQuery = true)
-    void freezeLitterDetail(byte[] id, String name);
-
-    @Modifying
-    @Query(value = "update cats set food_detail = :name, food_variety_id = null, updated_at = " + ADVANCE_UPDATED_AT
-            + " where food_variety_id = :id", nativeQuery = true)
-    void freezeFoodVariety(byte[] id, String name);
-
-    @Modifying
-    @Query(value = """
-            update cats set
-                food_detail = case when food_variety_id is null then food_detail
-                    else (select v.name from food_varieties v where v.id = cats.food_variety_id) end,
-                food_variety_id = null, food_brand = :name, food_brand_id = null,
-                updated_at =
-            """ + ADVANCE_UPDATED_AT + " where food_brand_id = :id", nativeQuery = true)
-    void freezeFoodBrand(byte[] id, String name);
+    boolean existsByBreedOptionId(UUID id);
+    boolean existsByLastInternalDewormerOptionId(UUID id);
+    boolean existsByLastExternalDewormerOptionId(UUID id);
+    boolean existsByLitterDetailOptionId(UUID id);
+    boolean existsByFoodBrandId(UUID id);
+    boolean existsByFoodVarietyId(UUID id);
 
     @Query(value = "select c from Cat c join fetch c.owner", countQuery = "select count(c) from Cat c")
     Page<Cat> findOverview(Pageable pageable);

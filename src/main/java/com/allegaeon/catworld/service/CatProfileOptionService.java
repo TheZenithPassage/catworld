@@ -4,7 +4,9 @@ import com.allegaeon.catworld.dto.CatProfileOptionDto;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.CatCatalogOptionInUseException;
 import com.allegaeon.catworld.exception.CatCatalogTextConfirmationException;
+import com.allegaeon.catworld.exception.CatIntakeCatalogChangedException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
@@ -13,12 +15,14 @@ import com.allegaeon.catworld.model.CatProfileOption;
 import com.allegaeon.catworld.model.CatProfileOptionField;
 import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.model.UserRole;
+import com.allegaeon.catworld.repository.CatIntakeReviewRepository;
 import com.allegaeon.catworld.repository.CatProfileOptionRepository;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -52,6 +56,7 @@ public class CatProfileOptionService {
 
     private final CatProfileOptionRepository options;
     private final CatRepository cats;
+    private final CatIntakeReviewRepository reviews;
     private final FoodBrandService foodBrands;
     private final CurrentUserAccountService users;
 
@@ -118,7 +123,8 @@ public class CatProfileOptionService {
         }
     }
 
-    @Transactional
+    // Read references after obtaining the same option locks as profile and proposal writers.
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deleteOption(String field, UUID id) {
         requireAdministrator();
         if (FOOD_BRAND.key().equals(field) || CatIntakeCatalog.FOOD_DETAIL.equals(field)) {
@@ -128,15 +134,26 @@ public class CatProfileOptionService {
         var option = options.findLockedById(id)
                 .filter(entry -> field.equals(entry.getCategory()) && PROFILE_CATALOG_FIELDS.contains(field))
                 .orElseThrow(() -> new ResourceNotFoundException("Catalog option", id));
-        byte[] reference = binaryId(id);
-        switch (field) {
-            case "breed" -> cats.freezeBreed(reference, option.getName());
-            case "lastInternalDewormerName" -> cats.freezeInternalDewormer(reference, option.getName());
-            case "lastExternalDewormerName" -> cats.freezeExternalDewormer(reference, option.getName());
-            case "litterDetail" -> cats.freezeLitterDetail(reference, option.getName());
+        boolean saved = switch (field) {
+            case "breed" -> cats.existsByBreedOptionId(id);
+            case "lastInternalDewormerName" -> cats.existsByLastInternalDewormerOptionId(id);
+            case "lastExternalDewormerName" -> cats.existsByLastExternalDewormerOptionId(id);
+            case "litterDetail" -> cats.existsByLitterDetailOptionId(id);
             default -> throw new ResourceNotFoundException("Catalog option", id);
-        }
+        };
+        if (saved || reviews.referencesPendingOption(id)) throw new CatCatalogOptionInUseException();
         options.delete(option);
+    }
+
+    void lockSubmittedReferences(Map<String, Set<UUID>> references) {
+        // Match the order of profile writes, with food brands before varieties.
+        foodBrands.lockSubmittedReferences(references);
+        for (var field : CatProfileOptionField.values()) {
+            if (field == FOOD_BRAND) continue;
+            for (UUID id : references.getOrDefault(field.key(), Set.of())) {
+                if (options.findLockedById(id).isEmpty()) throw new CatIntakeCatalogChangedException(field.key());
+            }
+        }
     }
 
     private static ManagedCatProfileOption managedOption(CatProfileOption option) {
@@ -179,12 +196,12 @@ public class CatProfileOptionService {
         if (!request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL) || cat.getFoodVarietyId() == null) {
             previousLabels.put(CatIntakeCatalog.FOOD_DETAIL, cat.getDisplayedFoodDetail());
         }
+        foodBrands.applyProfile(cat, request, reviewedOptions);
         for (var field : CatProfileOptionField.values()) {
+            if (field == FOOD_BRAND) continue;
             UUID reviewedId = reviewedOptions.get(field.key());
             UUID selectedId = reviewedId == null ? selected.get(field.key()) : reviewedId;
-            if (field == FOOD_BRAND) {
-                foodBrands.applyProfile(cat, request, reviewedOptions);
-            } else if (field == LITTER_DETAIL) {
+            if (field == LITTER_DETAIL) {
                 applyLitter(cat, request, selectedId, reviewedId != null);
             } else {
                 String supplied = suppliedName(field, request);

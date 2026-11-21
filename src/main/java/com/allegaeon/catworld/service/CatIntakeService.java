@@ -233,8 +233,11 @@ public class CatIntakeService {
                     .collect(Collectors.toMap(CatIntakeReview::getDraftId, review -> review));
             var eligibleById = eligible.stream().collect(Collectors.toMap(Cat::getId, cat -> cat));
             var vaccineDates = vaccineDateRange(LocalDate.ofInstant(now, clock.getZone()));
-            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog(), vaccineDates);
+            var catalog = catalog();
+            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog, vaccineDates);
             validateRequestedAnswer(drafts, requested, eligible, byCat);
+            // A deletion may have committed since the catalog snapshot was read.
+            profileOptions.lockSubmittedReferences(catalog.submittedReferences(drafts.stream().map(Draft::proposal).toList()));
             drafts.forEach(draft -> saveDraft(locked, draft, normalized, now));
         });
     }

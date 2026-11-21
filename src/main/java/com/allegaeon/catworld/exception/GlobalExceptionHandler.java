@@ -62,6 +62,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
     }
 
+    @ExceptionHandler(CatCatalogOptionInUseException.class)
+    public ResponseEntity<Map<String, String>> handleCatalogOptionInUse() {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CAT_CATALOG_OPTION_IN_USE"));
+    }
+
     @ExceptionHandler(CatCatalogTextConfirmationException.class)
     public ResponseEntity<Map<String, Object>> handleCatalogTextConfirmation(
             CatCatalogTextConfirmationException exception) {

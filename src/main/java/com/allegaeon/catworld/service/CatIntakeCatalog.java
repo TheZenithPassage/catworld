@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -159,6 +160,22 @@ final class CatIntakeCatalog {
             result.remove(LITTER_VALUE);
         }
         return new Proposal(result, selected, foodDetailBrand);
+    }
+
+    Map<String, Set<UUID>> submittedReferences(List<Proposal> proposals) {
+        Map<String, Set<UUID>> references = new HashMap<>();
+        for (var proposal : proposals) {
+            for (UUID id : proposal.optionIds().values()) {
+                var option = byId.get(id);
+                // Earlier proposals can carry IDs retired before deletion was restricted.
+                if (option == null) continue;
+                references.computeIfAbsent(option.field(), field -> new TreeSet<>()).add(id);
+                if (option.brandId() != null) {
+                    references.computeIfAbsent(FOOD_BRAND, field -> new TreeSet<>()).add(option.brandId());
+                }
+            }
+        }
+        return references;
     }
 
     Map<String, UUID> displaySelections(Map<String, UUID> originalIds, Proposal proposed) {

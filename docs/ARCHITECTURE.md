@@ -149,13 +149,12 @@ delete supported options. It covers breeds, food brands, brand-specific
 varieties, own-litter details, internal dewormers and flea treatments.
 Hiding a brand also removes its varieties from suggestions. Existing profiles
 resolve linked labels through their catalog IDs, including hidden options.
-Deletion copies the latest catalog labels into linked profiles, advances their
-editing timestamps and clears their IDs in the same transaction. Deleting a
-food variety retains its brand. Deleting a brand removes its varieties and
-preserves the last labels of both. Local descriptions and review history keep
-their wording. Approving a pending proposal with a deleted option records the
-submitted wording as local text unless the administrator explicitly selects
-an available replacement.
+Permanent deletion requires the option to be unused by saved cats (including
+deceased cats) and pending proposals. A pending variety also protects its
+contextual brand. Deleting an unused brand removes its unused varieties in the
+same transaction. Free text and closed reviews do not prevent deletion.
+Previously retired proposal IDs can still be reviewed as local text or
+explicitly replaced with an available option.
 
 Litter stays optional in administration. `litterPreference` distinguishes
 CatWorld and own litter. Only own litter has an optional `litterDetail`,

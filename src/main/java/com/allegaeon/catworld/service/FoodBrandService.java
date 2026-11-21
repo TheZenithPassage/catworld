@@ -6,10 +6,13 @@ import com.allegaeon.catworld.dto.FoodBrandOption;
 import com.allegaeon.catworld.dto.FoodVarietyOption;
 import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.CatCatalogOptionInUseException;
+import com.allegaeon.catworld.exception.CatIntakeCatalogChangedException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.FoodBrand;
 import com.allegaeon.catworld.model.FoodVariety;
+import com.allegaeon.catworld.repository.CatIntakeReviewRepository;
 import com.allegaeon.catworld.repository.FoodBrandRepository;
 import com.allegaeon.catworld.repository.FoodVarietyRepository;
 import com.allegaeon.catworld.repository.CatRepository;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import static com.allegaeon.catworld.service.CatProfileOptionService.hiddenName;
@@ -35,6 +39,7 @@ public class FoodBrandService {
     private final FoodBrandRepository brands;
     private final FoodVarietyRepository varieties;
     private final CatRepository cats;
+    private final CatIntakeReviewRepository reviews;
 
     @Transactional(readOnly = true)
     public List<FoodBrandOption> approvedBrands() {
@@ -88,19 +93,39 @@ public class FoodBrandService {
 
     void deleteOption(String field, UUID id) {
         if (CatIntakeCatalog.FOOD_DETAIL.equals(field)) {
-            var variety = varieties.findLockedById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Food variety", id));
-            cats.freezeFoodVariety(binaryId(id), variety.getName());
+            var missing = new ResourceNotFoundException("Food variety", id);
+            var brandId = varieties.findById(id).map(FoodVariety::getBrandId).orElseThrow(() -> missing);
+            brands.findLockedById(brandId).orElseThrow(() -> missing);
+            var variety = varieties.findLockedById(id).orElseThrow(() -> missing);
+            requireUnusedVariety(id);
             varieties.delete(variety);
             return;
         }
         var brand = brands.findLockedById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Food brand", id));
-        // Hold the variety locks while copying labels, including when a variety was renamed independently.
-        varieties.findLockedByBrandIdOrderById(id);
-        cats.freezeFoodBrand(binaryId(id), brand.getName());
+        if (cats.existsByFoodBrandId(id) || reviews.referencesPendingOption(id)) {
+            throw new CatCatalogOptionInUseException();
+        }
+        for (var variety : varieties.findLockedByBrandIdOrderById(id)) {
+            requireUnusedVariety(variety.getId());
+        }
         varieties.deleteVarietiesByBrandId(id);
         brands.delete(brand);
+    }
+
+    private void requireUnusedVariety(UUID id) {
+        if (cats.existsByFoodVarietyId(id) || reviews.referencesPendingOption(id)) {
+            throw new CatCatalogOptionInUseException();
+        }
+    }
+
+    void lockSubmittedReferences(Map<String, Set<UUID>> references) {
+        for (UUID id : references.getOrDefault(CatIntakeCatalog.FOOD_BRAND, Set.of())) {
+            if (brands.findLockedById(id).isEmpty()) throw new CatIntakeCatalogChangedException(CatIntakeCatalog.FOOD_BRAND);
+        }
+        for (UUID id : references.getOrDefault(CatIntakeCatalog.FOOD_DETAIL, Set.of())) {
+            if (varieties.findLockedById(id).isEmpty()) throw new CatIntakeCatalogChangedException(CatIntakeCatalog.FOOD_DETAIL);
+        }
     }
 
     private static ManagedCatProfileOption managedBrand(FoodBrand brand) {
@@ -161,7 +186,7 @@ public class FoodBrandService {
         UUID selectedId = reviewedId == null ? request.getFoodVarietyId() : reviewedId;
         if (selectedId != null) {
             if (selectedId.equals(cat.getFoodVarietyId())) return;
-            if (reviewedId == null) requireActiveBrand(cat.getFoodBrandId());
+            requireSelectableBrand(cat.getFoodBrandId(), reviewedId != null);
             var variety = varieties.findLockedById(selectedId).filter(entry -> reviewedId != null || entry.isActive())
                     .orElseThrow(() -> new BadRequestException("The selected food variety is unavailable"));
             if (!Objects.equals(variety.getBrandId(), cat.getFoodBrandId())) {
@@ -194,8 +219,8 @@ public class FoodBrandService {
         }
     }
 
-    private void requireActiveBrand(UUID brandId) {
-        if (brandId == null || brands.findLockedById(brandId).filter(FoodBrand::isActive).isEmpty()) {
+    private void requireSelectableBrand(UUID brandId, boolean reviewed) {
+        if (brandId == null || brands.findLockedById(brandId).filter(brand -> reviewed || brand.isActive()).isEmpty()) {
             throw new BadRequestException("The selected food brand is unavailable");
         }
     }
