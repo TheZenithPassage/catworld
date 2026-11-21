@@ -310,8 +310,41 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
-.attachments input[type='file']::file-selector-button {
-  margin-inline-end: 0.65rem;
+.file-picker-input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  min-block-size: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+}
+
+.file-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+
+.file-picker-button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--green);
+  border-radius: 0.5rem;
+  color: var(--green);
+  cursor: pointer;
+}
+
+.file-picker-status {
+  font-weight: 400;
+}
+
+.file-picker-input:focus-visible + .file-picker-row .file-picker-button {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
 }
 
 .remove-cat {

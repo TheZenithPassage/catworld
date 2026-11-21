@@ -647,7 +647,7 @@ function createAttachments(photos) {
   const attachments = element('div', 'attachments');
   const selected = element('ul', 'selected-photos');
   const newPhotos = [];
-  const fileInput = element('input');
+  const fileInput = element('input', 'file-picker-input');
   fileInput.type = 'file';
   fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
@@ -656,9 +656,31 @@ function createAttachments(photos) {
     fileInput,
     'Para informar una vacuna, adjuntá el comprobante de este gato.',
   );
+  const labelId = fileInput.getAttribute('aria-labelledby');
+  const filePicker = element('span', 'file-picker-row');
+  const fileButton = element('span', 'file-picker-button', 'Elegir archivos');
+  const fileStatus = element('span', 'file-picker-status');
+  fileButton.id = labelId + '-picker';
+  fileStatus.id = labelId + '-attachments';
+  fileStatus.setAttribute('role', 'status');
+  fileInput.setAttribute('aria-labelledby', labelId + ' ' + fileButton.id);
+  fileInput.setAttribute('aria-describedby', labelId + '-hint ' + fileStatus.id);
+  filePicker.append(fileButton, fileStatus);
+  fileInput.after(filePicker);
   const retainedCount = () => photos.filter((photo) => photo.keep).length;
 
+  function updateFileStatus() {
+    const count = retainedCount() + newPhotos.length;
+    fileStatus.textContent =
+      count === 0
+        ? 'Sin archivos adjuntos'
+        : count === 1
+          ? '1 archivo adjunto'
+          : `${count} archivos adjuntos`;
+  }
+
   function notifyChange() {
+    updateFileStatus();
     if (errorInput === fileInput) showError('');
     attachments.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -706,6 +728,7 @@ function createAttachments(photos) {
     }
     attachments.append(saved);
   }
+  updateFileStatus();
   attachments.append(fileLabel, selected);
   fileInput.addEventListener('change', () => {
     const files = Array.from(fileInput.files);
@@ -741,6 +764,7 @@ function createAttachments(photos) {
       selected.append(item);
       newPhotos.push(photo);
     }
+    updateFileStatus();
     if (errorInput === fileInput) showError('');
   });
 
@@ -935,7 +959,10 @@ function showVaccineDateError(input) {
   const displayDate = (date) => date.split('-').reverse().join('/');
   const { min, max } = vaccineDateRange;
   editable.disabled = false;
-  showError(`Ingresá una fecha de aplicación entre el ${displayDate(min)} y el ${displayDate(max)}.`, input);
+  showError(
+    `Ingresá una fecha de aplicación entre el ${displayDate(min)} y el ${displayDate(max)}.`,
+    input,
+  );
 }
 
 function changedVaccines({ card, fields }) {
@@ -953,7 +980,9 @@ async function validateVaccineDates(entries) {
   setVaccineDateRange((await latest.json()).vaccineDateRange);
   const { min, max } = vaccineDateRange;
   for (const entry of entries) {
-    const invalid = changedVaccines(entry).find((key) => entry.fields[key] < min || entry.fields[key] > max);
+    const invalid = changedVaccines(entry).find(
+      (key) => entry.fields[key] < min || entry.fields[key] > max,
+    );
     if (invalid) {
       showVaccineDateError(entry.card.inputs.get(invalid).input);
       return false;

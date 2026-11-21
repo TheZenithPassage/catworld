@@ -780,21 +780,30 @@ test('adds photos across chooser sessions and rejects a sixth without losing ear
   );
   const names = () =>
     [...cat.querySelectorAll('.selected-photos .hint')].map((el) => el.textContent);
+  const attachmentCount = () => cat.querySelector('.file-picker-status').textContent;
 
+  assert.equal(cat.querySelector('.file-picker-button').textContent, 'Elegir archivos');
+  assert.equal(attachmentCount(), '2 archivos adjuntos');
   chooseFiles(portal.window, input, files.slice(0, 2));
+  assert.equal(attachmentCount(), '4 archivos adjuntos');
   input.dispatchEvent(new portal.window.Event('cancel', { bubbles: true }));
+  assert.equal(attachmentCount(), '4 archivos adjuntos');
   chooseFiles(portal.window, input, files.slice(2, 3));
   chooseFiles(portal.window, input, files.slice(3));
   assert.match(cat.querySelector('[role="alert"]').textContent, /cinco fotos/);
   assert.deepEqual(names(), ['photo-0.jpg', 'photo-1.jpg', 'photo-2.jpg']);
+  assert.equal(attachmentCount(), '5 archivos adjuntos');
 
   cat.querySelector('button[aria-label="Quitar comprobante 1"]').click();
+  assert.equal(attachmentCount(), '4 archivos adjuntos');
   chooseFiles(portal.window, input, files.slice(3));
   assert.deepEqual(
     names(),
     files.map(({ name }) => name),
   );
   cat.querySelector('button[aria-label="Quitar foto photo-1.jpg"]').click();
+  assert.equal(attachmentCount(), '4 archivos adjuntos');
+  assert.equal(portal.window.document.activeElement, input);
   assert.equal(portal.requests.filter(({ path }) => path === '/api/intake/submissions').length, 0);
 
   const post = await portal.submit();
