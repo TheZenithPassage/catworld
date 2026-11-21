@@ -156,7 +156,9 @@ describe('ArrivalsPage', () => {
     expect(milo.textContent).toMatch(
       /Milo.*Marca de comida · Por confirmar.*Rabia · Falta la fecha de vacunación/s,
     );
-    expect(milo.textContent).toContain('Triple felina · La vacuna vence durante la estadía (15/11/2026)');
+    expect(milo.textContent).toContain(
+      'Triple felina · La vacuna vence durante la estadía (15/11/2026)',
+    );
     expect(luna.textContent?.trim()).toBe('Luna');
 
     row.querySelector<HTMLButtonElement>('button[aria-label^="Ver estadía"]')!.click();
