@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -30,6 +32,15 @@ public class Stay extends AuditableEntity {
     private LocalDateTime endAt;
 
     private LocalDateTime cancelledAt;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(nullable = false, length = 11)
+    private StayStatus movementStatus = StayStatus.RESERVED;
+
+    @Column(nullable = false)
+    private long movementRevision;
 
     @Column(columnDefinition = "TEXT")
     private String notes;
@@ -73,13 +84,20 @@ public class Stay extends AuditableEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StayCat> stayCats = new HashSet<>();
 
-    public StayStatus statusAt(LocalDateTime now) {
-        if (cancelledAt != null) return StayStatus.CANCELLED;
+    public StayStatus status() {
+        return cancelledAt == null ? movementStatus : StayStatus.CANCELLED;
+    }
 
+    public boolean canEdit() {
+        return status() == StayStatus.RESERVED || status() == StayStatus.CHECKED_IN;
+    }
 
-        if (now.isBefore(startAt)) return StayStatus.RESERVED;
-        if (now.isBefore(endAt)) return StayStatus.CHECKED_IN;
-        return StayStatus.CHECKED_OUT;
+    public boolean canCancel() {
+        return status() == StayStatus.RESERVED;
+    }
+
+    public void advanceMovementRevision() {
+        movementRevision++;
     }
 
 }

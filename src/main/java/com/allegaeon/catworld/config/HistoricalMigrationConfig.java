@@ -21,6 +21,14 @@ public class HistoricalMigrationConfig {
     private static final MigrationVersion PENDING_PRICE_VERSION = MigrationVersion.fromVersion("14");
     private static final MigrationVersion CAT_PHOTO_GALLERY_VERSION = MigrationVersion.fromVersion("15");
     private static final MigrationVersion DECEASED_MARKERS_VERSION = MigrationVersion.fromVersion("16");
+    private static final MigrationVersion ACTUAL_MOVEMENTS_VERSION = MigrationVersion.fromVersion("21");
+    private static final MigrationVersion CAT_INTAKE_VERSION = MigrationVersion.fromVersion("17");
+    private static final String ACTUAL_MOVEMENTS_SCRIPT = "V21__create_stay_actual_movements.sql";
+    private static final List<String> EARLY_MOVEMENTS_HISTORY = List.of(
+            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "21");
+    private static final Set<String> EARLY_MOVEMENTS_MISSING_SCRIPTS = Set.of(
+            "V14__pending_stay_prices.sql", "V15__create_cat_informational_photos.sql",
+            "V16__mark_deceased_cats_and_owners.sql", "V17__create_cat_intake.sql");
     private static final MigrationVersion OWN_LITTER_CATALOG_VERSION = MigrationVersion.fromVersion("26.4");
     private static final String BRAND_VARIETIES_SCRIPT = "V26_1__add_food_variety_catalog.sql";
     private static final String BREED_SEEDS_SCRIPT = "V26_2__seed_common_breeds.sql";
@@ -44,6 +52,7 @@ public class HistoricalMigrationConfig {
         var info = flyway.info();
         var ignored = Arrays.stream(info.all())
                 .filter(migration -> migration.getState() == MigrationState.IGNORED)
+                .filter(migration -> !ACTUAL_MOVEMENTS_SCRIPT.equals(migration.getScript()))
                 .toList();
         var ignoredVersions = ignored.stream().map(MigrationInfo::getVersion).toList();
         MigrationVersion target = null;
@@ -56,14 +65,28 @@ public class HistoricalMigrationConfig {
         } else if (matchesLitterPricingHistory(info.applied(), ignored)) {
             target = OWN_LITTER_CATALOG_VERSION;
         }
-        if (target != null) {
-            Flyway.configure().configuration(flyway.getConfiguration())
-                    .outOfOrder(true)
-                    .target(target)
-                    .load()
-                    .migrate();
+        if (EARLY_MOVEMENTS_HISTORY.equals(installedVersions(info.applied()))
+                && EARLY_MOVEMENTS_MISSING_SCRIPTS.equals(ignored.stream()
+                .map(MigrationInfo::getScript).collect(Collectors.toSet()))) {
+            target = CAT_INTAKE_VERSION;
+        }
+        if (target != null) migrateOutOfOrder(flyway, target);
+
+        var remaining = Arrays.stream(flyway.info().all())
+                .filter(migration -> migration.getState() == MigrationState.IGNORED)
+                .map(MigrationInfo::getScript).toList();
+        if (remaining.equals(List.of(ACTUAL_MOVEMENTS_SCRIPT))) {
+            migrateOutOfOrder(flyway, ACTUAL_MOVEMENTS_VERSION);
         }
         flyway.migrate();
+    }
+
+    private static void migrateOutOfOrder(Flyway flyway, MigrationVersion target) {
+        Flyway.configure().configuration(flyway.getConfiguration())
+                .outOfOrder(true)
+                .target(target)
+                .load()
+                .migrate();
     }
 
     private static boolean matchesLitterPricingHistory(MigrationInfo[] applied, List<MigrationInfo> ignored) {
@@ -85,14 +108,18 @@ public class HistoricalMigrationConfig {
             return false;
         }
         var missingScripts = ignored.stream().map(MigrationInfo::getScript).collect(Collectors.toSet());
-        var installedVersions = Arrays.stream(applied)
+        var versions = installedVersions(applied);
+        return (PUBLISHED_INTAKE_MISSING_SCRIPTS.equals(missingScripts)
+                && PUBLISHED_INTAKE_HISTORY.equals(versions))
+                || (Set.of(DECEASED_MARKERS_SCRIPT).equals(missingScripts)
+                && PUBLISHED_INTAKE_WITH_LATE_PRICES.equals(versions));
+    }
+
+    private static List<String> installedVersions(MigrationInfo[] applied) {
+        return Arrays.stream(applied)
                 .filter(MigrationInfo::isVersioned)
                 .sorted(Comparator.comparing(MigrationInfo::getInstalledRank))
                 .map(migration -> migration.getVersion().getVersion())
                 .toList();
-        return (PUBLISHED_INTAKE_MISSING_SCRIPTS.equals(missingScripts)
-                && PUBLISHED_INTAKE_HISTORY.equals(installedVersions))
-                || (Set.of(DECEASED_MARKERS_SCRIPT).equals(missingScripts)
-                && PUBLISHED_INTAKE_WITH_LATE_PRICES.equals(installedVersions));
     }
 }

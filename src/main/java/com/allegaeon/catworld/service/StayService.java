@@ -32,6 +32,7 @@ import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.LitterChoice;
@@ -70,6 +71,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -118,6 +120,7 @@ public class StayService implements IStayService {
     private final StayPricingAuthorizationPolicy stayPricingAuthorizationPolicy;
     private final StayPaymentAuthorizationPolicy stayPaymentAuthorizationPolicy;
     private final Clock clock;
+    private final StayActualMovementService stayActualMovementService;
 
     @Override
     @Transactional(readOnly = true)
@@ -150,15 +153,14 @@ public class StayService implements IStayService {
     public OverviewPage<StayOverviewItem> getStayOverview(int page, Set<com.allegaeon.catworld.model.StayStatus> statuses,
             UUID ownerId, UUID catId, StayDateFilter dates) {
         if (page < 0) throw new BadRequestException("Page must not be negative");
-        LocalDateTime now = LocalDateTime.now(clock);
-        Page<Stay> stays = stayOverviewReadRepository.find(page, OverviewPage.PAGE_SIZE,
-                now, statuses, ownerId, catId, dates);
+        Page<Stay> stays = stayOverviewReadRepository.find(
+                page, OverviewPage.PAGE_SIZE, statuses, ownerId, catId, dates);
         Map<UUID, List<CurrentCatLookupItem>> cats = new HashMap<>();
         if (!stays.isEmpty()) stayCatRepository.findOverviewCatsByStayIds(stays.stream().map(Stay::getId).toList())
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
                         .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName(), sc.getCat().isDeceased())));
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
-                stay.getStartAt(), stay.getEndAt(), stay.statusAt(now),
+                stay.getStartAt(), stay.getEndAt(), stay.status(),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),
                 List.copyOf(cats.getOrDefault(stay.getId(), List.of())),
                 stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired())).toList(), page, stays.getTotalElements());
@@ -241,13 +243,14 @@ public class StayService implements IStayService {
         Owner owner = stay.getOwner();
         RelationshipPreview<CatRelationshipItem> preview =
                 RelationshipResponses.preview(cats, RelationshipResponses::cat);
-        return new StayDetailResponse(stay.getId(), stay.statusAt(LocalDateTime.now(clock)),
+        return new StayDetailResponse(stay.getId(), stay.status(),
                 stay.getStartAt(), stay.getEndAt(),
                 ChronoUnit.DAYS.between(stay.getStartAt().toLocalDate(),
                         stay.getEndAt().toLocalDate()),
                 stay.getNotes(),
                 new OwnerRelationshipItem(owner.getId(), owner.getFullName(), owner.isDeceased()), preview,
-                stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired());
+                stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired(), stay.canEdit(), stay.canCancel(),
+                stayActualMovementService.detailsFor(stay));
     }
 
     @Override
@@ -284,7 +287,7 @@ public class StayService implements IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
         Stay stay = getStayEntity(stayId);
-        validateStayCanBeModified(stay, LocalDateTime.now(clock));
+        validateStayCanBeModified(stay, request.getStartAt());
         boolean arrival = request.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : request.getArrivalTransferRequired();
         boolean departure = request.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : request.getDepartureTransferRequired();
         boolean waived = request.getTransferWaived() == null ? stay.isTransferWaived() : request.getTransferWaived();
@@ -293,7 +296,7 @@ public class StayService implements IStayService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public StayResponseDTO createStay(StayRequestDTO stayRequestDTO) {
 
         validateEndDateIsAfterStartDate(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt());
@@ -364,6 +367,9 @@ public class StayService implements IStayService {
         stay.setRetainedNightlyRate(retainedNightlyRate);
         stay.setAgreedAmount(agreedAmount);
         stay.setPricePending(pricePending);
+        if (stay.getEndAt().toLocalDate().isBefore(LocalDate.now(clock))) {
+            stay.setMovementStatus(StayStatus.CHECKED_OUT);
+        }
 
         Stay savedStay = stayRepository.save(stay);
         if (!pricePending) {
@@ -385,12 +391,19 @@ public class StayService implements IStayService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public StayResponseDTO updateStay(UUID stayId, StayUpdateDTO stayUpdateDTO) {
 
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay, LocalDateTime.now(clock));
+        validateStayCanBeModified(stay, stayUpdateDTO.getStartAt());
+        boolean scheduleChanged = !stay.getStartAt().equals(stayUpdateDTO.getStartAt())
+                || !stay.getEndAt().equals(stayUpdateDTO.getEndAt());
+        List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
+        if (scheduleChanged) {
+            // Match the stay-then-cats order of confirmations and the cat order of creation.
+            cats.stream().map(Cat::getId).sorted().forEach(catRepository::findByIdForUpdate);
+        }
         long previousNumberOfNights = stayMapper.calculateNumberOfNights(
                 stay.getStartAt(),
                 stay.getEndAt()
@@ -515,8 +528,6 @@ public class StayService implements IStayService {
 
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
 
-        List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
-
         for(Cat cat : cats) {
             if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
         }
@@ -536,6 +547,9 @@ public class StayService implements IStayService {
         }
 
         stay = stayMapper.updateEntity(stay, stayUpdateDTO);
+        if (scheduleChanged) {
+            stay.advanceMovementRevision();
+        }
         if (pricingAffecting) {
             StayLitterPricing.retain(stay, litter);
             stay.setRetainedNightlyRate(selectedRetainedNightlyRate);
@@ -728,7 +742,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.statusAt(LocalDateTime.now(clock))
+                stay.status()
         );
         BigDecimal amount = validatePaymentAmount(
                 paymentRequest == null ? null : paymentRequest.getAmount()
@@ -763,7 +777,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.statusAt(LocalDateTime.now(clock))
+                stay.status()
         );
         BigDecimal agreement = requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
@@ -822,7 +836,7 @@ public class StayService implements IStayService {
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
         stayPaymentAuthorizationPolicy.authorizeMutation(
                 currentUser,
-                stay.statusAt(LocalDateTime.now(clock))
+                stay.status()
         );
         requirePaymentAgreement(stay);
         StayPayment payment = getActivePayment(stayId, paymentId);
@@ -911,9 +925,11 @@ public class StayService implements IStayService {
     public void cancelStay(UUID stayId) {
 
         Stay stay = getStayEntityForUpdate(stayId);
-        LocalDateTime now = LocalDateTime.now(clock);
-        validateStayCanBeModified(stay, now);
-        stay.setCancelledAt(now);
+        if (!stay.canCancel()) {
+            throw new ConflictException("Only a reserved stay can be cancelled");
+        }
+        stay.setCancelledAt(LocalDateTime.now(clock));
+        stay.advanceMovementRevision();
 
     }
 
@@ -975,9 +991,12 @@ public class StayService implements IStayService {
         return false;
     }
 
-    private void validateStayCanBeModified(Stay stay, LocalDateTime now) {
-        if (stay.getCancelledAt() != null || !now.isBefore(stay.getEndAt())) {
+    private void validateStayCanBeModified(Stay stay, LocalDateTime proposedStart) {
+        if (!stay.canEdit()) {
             throw new ConflictException("Closed stays cannot be modified");
+        }
+        if (stay.status() == StayStatus.CHECKED_IN && !proposedStart.toLocalDate().equals(stay.getStartAt().toLocalDate())) {
+            throw new ConflictException("The scheduled arrival day cannot change after check-in");
         }
     }
 

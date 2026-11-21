@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.allegaeon.catworld.model.StayStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ public class StayResponseDTO {
     private LocalDateTime startAt;
     private LocalDateTime endAt;
     private LocalDateTime cancelledAt;
+    private StayStatus status;
     private Instant createdAt;
     private Instant updatedAt;
     private String notes;
