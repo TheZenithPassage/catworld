@@ -4,13 +4,18 @@ import { TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { API_BASE_URL } from '../../core/config/api.config';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { CatalogManagement } from './catalog-management';
 
 describe('CatalogManagement', () => {
-  it('expands only the requested brand and keeps hidden entries restorable', () => {
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations()],
     });
+    TestBed.inject(I18nService).language.set('es');
+  });
+
+  it('expands only the requested brand and keeps hidden entries restorable', () => {
     const fixture = TestBed.createComponent(CatalogManagement);
     const http = TestBed.inject(HttpTestingController);
     const endpoint = `${API_BASE_URL}/cat-profile-options/manage`;
@@ -31,9 +36,10 @@ describe('CatalogManagement', () => {
     fixture.detectChanges();
 
     function expand(name: string): void {
-      element
-        .querySelector<HTMLButtonElement>('[aria-label="Variedades del alimento: ' + name + '"]')!
-        .click();
+      const label = `Variedades del alimento: ${name}`;
+      const button = element.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+      expect(button, label).not.toBeNull();
+      button!.click();
       fixture.detectChanges();
     }
     expect(element.textContent).not.toContain('Adult');
@@ -45,7 +51,11 @@ describe('CatalogManagement', () => {
     expand('First brand');
     expect(element.querySelector('.varieties')?.textContent).toContain('Kitten');
     expect(element.querySelector('.varieties')?.textContent).not.toContain('Adult');
-    element.querySelector<HTMLButtonElement>('[aria-label="Restaurar Kitten"]')!.click();
+    const restoreButton = element.querySelector<HTMLButtonElement>(
+      '[aria-label="Restaurar Kitten"]',
+    );
+    expect(restoreButton, 'Restaurar Kitten').not.toBeNull();
+    restoreButton!.click();
     const restore = http.expectOne(`${endpoint}/foodDetail/kitten`);
     expect(restore.request.method).toBe('PATCH');
     expect(restore.request.body).toEqual({ active: true });
@@ -89,9 +99,6 @@ describe('CatalogManagement', () => {
   });
 
   it('confirms that deleting a brand includes its varieties and keeps the cats’ descriptions', async () => {
-    TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideNoopAnimations()],
-    });
     const fixture = TestBed.createComponent(CatalogManagement);
     const http = TestBed.inject(HttpTestingController);
     const endpoint = API_BASE_URL + '/cat-profile-options/manage';
@@ -105,8 +112,9 @@ describe('CatalogManagement', () => {
     category.dispatchEvent(new Event('change'));
     fixture.detectChanges();
 
-    const remove = root.querySelector<HTMLButtonElement>('[aria-label="Eliminar My brand"]')!;
-    remove.click();
+    const remove = root.querySelector<HTMLButtonElement>('[aria-label="Eliminar My brand"]');
+    expect(remove, 'Eliminar My brand').not.toBeNull();
+    remove!.click();
     await fixture.whenStable();
     let dialog = document.querySelector('mat-dialog-container')!;
     expect(dialog.textContent).toContain('sus variedades');
@@ -115,7 +123,7 @@ describe('CatalogManagement', () => {
     await fixture.whenStable();
     http.expectNone(endpoint + '/foodBrand/brand');
 
-    remove.click();
+    remove!.click();
     await fixture.whenStable();
     dialog = document.querySelector('mat-dialog-container')!;
     dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
