@@ -44,6 +44,8 @@ import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../cat-photo-input/cat-photo-input';
 import { CatCareFields } from '../cat-care-fields/cat-care-fields';
+import { CatInformationalPhotoGallery } from '../cat-informational-photos/cat-informational-photo-gallery';
+import { catPhotoRequestError } from '../../utils/cat-photo-file';
 
 @Component({
   selector: 'app-cat-editor',
@@ -60,6 +62,7 @@ import { CatCareFields } from '../cat-care-fields/cat-care-fields';
     TrimRequiredDirective,
     UiStateComponent,
     CatPhotoInput,
+    CatInformationalPhotoGallery,
     CatCareFields,
     CatBirthField,
     CatProfileOptionField,
@@ -69,6 +72,7 @@ import { CatCareFields } from '../cat-care-fields/cat-care-fields';
 })
 export class CatEditor {
   @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
+  @ViewChild(CatInformationalPhotoGallery) private gallery?: CatInformationalPhotoGallery;
   private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
   private vetSelector?: RemoteEntitySelector<VetLookup>;
   private initialCat: Cat | null = null;
@@ -260,9 +264,18 @@ export class CatEditor {
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
+    const photoMutation = this.photoInput?.mutation() ?? { photo: null, removePhoto: false };
+    const attachments = this.gallery?.files() ?? [];
+    const photoError = catPhotoRequestError(photoMutation.photo, attachments, true);
+    if (photoError) {
+      this.error.set(this.text().cats.photo.errors[photoError]);
+      return;
+    }
+    const removedInformationalPhotoIds = this.gallery?.removals();
     const original = this.initialCat;
     const request: UpdateCatRequest = {
       expectedUpdatedAt,
+      ...(removedInformationalPhotoIds?.length ? { removedInformationalPhotoIds } : {}),
       name: this.name().trim(),
       deceased: this.deceased(),
       birthDate: this.yearOnly() ? null : this.birthDate(),
@@ -302,12 +315,18 @@ export class CatEditor {
       vetId: this.optional(this.vetId()),
     };
     this.setSubmitting(true);
-    const photoMutation = this.photoInput?.mutation() ?? { photo: null, removePhoto: false };
     this.api
-      .updateCat(this.entityId(), request, photoMutation.photo, photoMutation.removePhoto)
+      .updateCat(
+        this.entityId(),
+        request,
+        photoMutation.photo,
+        photoMutation.removePhoto,
+        attachments,
+      )
       .subscribe({
         next: (c) => {
           this.photoInput?.reset();
+          this.gallery?.resetDraft();
           this.setSubmitting(false);
           this.saved.emit(c);
         },
@@ -330,6 +349,7 @@ export class CatEditor {
   }
   cancel(): void {
     this.photoInput?.reset();
+    this.gallery?.resetDraft();
     this.cancelled.emit();
   }
   ownerChanged(state: EntityLookupState<OwnerLookup>): void {
@@ -346,6 +366,7 @@ export class CatEditor {
   private setValues(c: Cat): void {
     this.initialCat = c;
     this.photoInput?.reset();
+    this.gallery?.resetDraft();
     this.staleEdit.set(false);
     this.notesError.set(null);
     this.careInstructionsError.set(null);

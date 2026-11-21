@@ -13,9 +13,10 @@ Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
 `removePhoto=false`). The PUT `cat` part requires `expectedUpdatedAt` from the
 current cat response. The service checks it under a write lock before updating
 the profile or its photo and returns `409 CAT_EDIT_STALE` for an outdated
-edit. The editor keeps the draft until the operator explicitly reloads it.
+edit. A failed save leaves the draft available until the operator cancels or
+explicitly reloads.
 Native normalization finishes before a separate proxied service transaction
-atomically mutates Cat and CatPhoto. The authenticated
+atomically mutates the profile, portrait and informational gallery. The authenticated
 `GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
 `Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
 and returns the same 404 shape for absent cats and absent photos. The native
@@ -36,7 +37,12 @@ profiles.
 
 Cat informational photos are separate attachments for vaccination records and
 other reference images. The cat detail gallery lists attachment IDs and upload
-timestamps from `GET /api/cats/{catId}/informational-photos`. The same
+timestamps from `GET /api/cats/{catId}/informational-photos`. The create and edit
+forms stage new images as repeated `informationalPhotos` parts. Edits include
+only the explicitly removed IDs in the `cat` JSON part's
+`removedInformationalPhotoIds`. Deletions match both cat and photo under the
+same transaction. Other attachments, including evidence approved through
+private intake, stay in the gallery. The same
 authenticated collection accepts one multipart `photo` per POST. Individual
 items support JPEG reads with `Cache-Control: no-store` and deletion. Both
 operations match the cat and photo IDs. Uploads use the same formats, size
@@ -45,7 +51,8 @@ attachments through the database foreign key. Vaccination checks use the
 dates recorded in the cat's fields.
 
 When the application loses its authenticated session, open entity detail
-dialogs close and release any enlarged photo's object URL.
+dialogs close and release any enlarged photo's object URL. The editor opens a
+separate preview dialog so enlarging an attachment preserves the draft.
 
 Private cat intake uses separate invitation, review and photo staging tables.
 An administrator issues one active invitation per tutor. It includes the

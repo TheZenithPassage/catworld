@@ -31,6 +31,7 @@ export interface CatCreationDraft {
   ownerId: string;
   vetId: string;
   photo: File | null;
+  informationalPhotos?: File[];
 }
 
 export interface StayCreationDraft {

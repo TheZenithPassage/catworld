@@ -212,6 +212,59 @@ describe('CatCreatePage', () => {
       .join(' ');
   }
 
+  it('queues informational photos for the same create request as the portrait', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    const portrait = new File(['portrait'], 'profile.jpg', { type: 'image/jpeg' });
+    const attachments = [
+      new File(['first'], 'first.jpg', { type: 'image/jpeg' }),
+      new File(['second'], 'second.jpg', { type: 'image/jpeg' }),
+    ];
+    const stage = (selector: string, file: File) => {
+      const input = fixture.nativeElement.querySelector(selector) as HTMLInputElement;
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    stage('app-cat-photo-input input[type=file]', portrait);
+    for (const attachment of attachments) {
+      stage('app-cat-informational-photo-gallery input[type=file]', attachment);
+    }
+
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    await submitRenderedForm();
+    expect(catApiService.createCat).toHaveBeenCalledOnce();
+    expect(catApiService.createCat).toHaveBeenCalledWith(expect.anything(), portrait, attachments);
+  });
+
+  it('explains the combined upload limit and keeps the queued images', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    const gallery = fixture.nativeElement.querySelector('app-cat-informational-photo-gallery');
+    const input = gallery.querySelector('input[type=file]') as HTMLInputElement;
+    for (const name of ['first.jpg', 'second.jpg']) {
+      const file = new File(['record'], name, { type: 'image/jpeg' });
+      Object.defineProperty(file, 'size', { value: 20 * 1024 * 1024 });
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    await submitRenderedForm();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.error()).toContain('33 MiB');
+    expect(gallery.querySelectorAll('li')).toHaveLength(2);
+  });
+
   it('submits a brand and only its selected variety with the shared litter choice', async () => {
     createComponent();
     fixture.detectChanges();
@@ -251,6 +304,7 @@ describe('CatCreatePage', () => {
         litterBrand: 'Usa las de CatWorld',
       }),
       null,
+      [],
     );
   });
 
@@ -327,6 +381,7 @@ describe('CatCreatePage', () => {
         catalogOptionIds: { breed: 'breed-mixed' },
       }),
       null,
+      [],
     );
     expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('birthYear');
     expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('approveCatalogOptions');
@@ -369,6 +424,7 @@ describe('CatCreatePage', () => {
         notes: 'Private note',
       }),
       null,
+      [],
     );
   });
 
@@ -452,6 +508,7 @@ describe('CatCreatePage', () => {
         vetId: 'vet-1',
       },
       null,
+      [],
     );
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
     expect(component.submitting()).toBe(false);
@@ -649,6 +706,7 @@ describe('CatCreatePage', () => {
     expect(catApiService.createCat).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Still Milo' }),
       null,
+      [],
     );
     expect(component.name()).toBe('Still Milo');
   });
