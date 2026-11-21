@@ -45,8 +45,8 @@ export const DASHBOARD_TRANSLATIONS = {
       'Desde aquí podés gestionar las estadías, los dueños y los gatos, y acceder al calendario.',
     links: {
       arrivals: {
-        title: 'Preparar ingresos',
-        description: 'Revisá vacunas, alimento y piedritas para las próximas reservas.',
+        title: 'Próximas estadías',
+        description: 'Revisá qué datos faltan para las próximas estadías.',
       },
       stays: {
         title: 'Estadías',
@@ -82,8 +82,8 @@ export const DASHBOARD_TRANSLATIONS = {
     description: 'Here you can manage stays, owners or cats and access the calendar.',
     links: {
       arrivals: {
-        title: 'Prepare arrivals',
-        description: 'Check vaccinations, food and litter for upcoming bookings.',
+        title: 'Upcoming stays',
+        description: 'Check which information is missing for upcoming stays.',
       },
       stays: {
         title: 'Stays',

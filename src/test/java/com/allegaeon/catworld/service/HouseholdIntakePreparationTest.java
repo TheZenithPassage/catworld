@@ -79,7 +79,7 @@ class HouseholdIntakePreparationTest {
         Cat other = saveCat(owner, "Tilo", false);
         Arrival earlier = new Arrival("2026-11-21T09:00", "2026-11-22T09:00");
         saveStay(owner, earlier, null, booked);
-        Stay selected = saveStay(owner, new Arrival("2026-11-27T23:59", "2026-11-30T10:00"), null, booked);
+        Stay selected = saveStay(owner, new Arrival("2026-11-28T00:00", "2026-11-30T10:00"), null, booked);
         saveStay(owner, new Arrival("2026-11-20T20:00", "2026-11-21T10:00"), null, other);
         saveStay(owner, new Arrival("2026-11-24T10:00", "2026-11-25T10:00"), LocalDateTime.now(CLOCK), other);
         saveStay(owner, new Arrival("2026-12-01T10:00", "2026-12-03T10:00"), null, other);
@@ -97,16 +97,30 @@ class HouseholdIntakePreparationTest {
     }
 
     @Test
-    void rejectsForeignCancelledStartedAndOutOfWindowArrivalsAtIssuance() {
+    void usesSelectedStartedTodayEvenWhenAnotherStayIsUpcomingForThatCat() {
+        Cat cat = saveCat(owner, "Alba", false);
+        Cat deceased = saveCat(owner, "Absent", true);
+        Cat foreign = saveCat(saveOwner("Another tutor"), "Foreign", false);
+        Stay started = saveStay(owner, new Arrival("2026-11-20T08:00", "2026-11-21T09:00"),
+                null, cat, deceased, foreign);
+        saveStay(owner, new Arrival("2026-11-24T09:00", "2026-11-26T09:00"), null, cat);
+
+        var result = preparation.prepare(owner.getId(), List.of(cat, deceased, foreign), started.getId());
+
+        assertThat(result).containsOnlyKeys(cat.getId());
+        assertThat(result.get(cat.getId()).through()).isEqualTo("2026-11-21");
+    }
+
+    @Test
+    void rejectsForeignCancelledAndPreviousDayArrivalsAtIssuance() {
         Cat cat = saveCat(owner, "Alba", false);
         Owner foreignOwner = saveOwner("Another tutor");
         Stay foreign = saveStay(foreignOwner, new Arrival("2026-11-21T09:00", "2026-11-22T09:00"), null);
         Stay cancelled = saveStay(owner, new Arrival("2026-11-21T09:00", "2026-11-22T09:00"),
                 LocalDateTime.now(CLOCK), cat);
-        Stay started = saveStay(owner, new Arrival("2026-11-20T22:00", "2026-11-23T09:00"), null, cat);
-        Stay outOfWindow = saveStay(owner, new Arrival("2026-11-28T00:00", "2026-11-30T09:00"), null, cat);
+        Stay previousDay = saveStay(owner, new Arrival("2026-11-19T23:59", "2026-11-23T09:00"), null, cat);
 
-        for (Stay stay : List.of(foreign, cancelled, started, outOfWindow)) {
+        for (Stay stay : List.of(foreign, cancelled, previousDay)) {
             assertThatThrownBy(() -> preparation.prepare(owner.getId(), List.of(cat), stay.getId()))
                     .isInstanceOf(ResourceNotFoundException.class);
         }

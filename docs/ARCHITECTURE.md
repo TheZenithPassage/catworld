@@ -464,20 +464,23 @@ This avoids storing redundant state that can become inconsistent with the dates.
 
 ### Arrival Preparation
 
-`GET /api/operations/arrivals` returns one row per reserved stay starting
-strictly after the business clock's current time and before local midnight
-following the seventh day after today. Each row contains the stay dates, its
-owner's name and ID, and each booked cat's name, ID, current food and litter
-brands, and vaccine warnings. The dashboard's **Prepare arrivals** link opens
-this view and uses the existing stay, owner, and cat details.
+`GET /api/operations/arrivals` returns non-cancelled stays starting today
+through `daysAhead` calendar days from today, inclusive, in the business
+timezone. The default is seven days ahead; zero means today only.
+`includeStartedToday` defaults to true, keeping today's arrivals until business
+midnight. When false, the endpoint excludes stays at their scheduled start.
+The dashboard's **Upcoming stays** view remembers these filters in the browser
+and uses the server's `X-Arrivals-Refresh-After-Ms` header to refresh at the
+next start that changes the results or at business midnight.
 
 The warnings apply the same coverage rule as stay creation and extensions
 to the stay's local departure date, including doses that expire that day.
 The screen marks missing or blank food and litter brands as **To confirm**.
 A stay without preparation items or visible proposals shows one complete
-message. `ADMIN` can generate a household link from the arrival and open
-pending profile proposals for living booked cats that still belong to the
-proposal's tutor. Staff retain access to the operational alerts.
+message. `ADMIN` can generate a household link from any displayed arrival.
+The link uses that stay's departure for its participating eligible cats.
+`ADMIN` can also open pending profile proposals for living booked cats that
+still belong to the proposal's tutor. Staff retain access to the operational alerts.
 
 ### Stay Nights Are Response-Derived
 
