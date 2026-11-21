@@ -26,6 +26,9 @@
                 type="datetime-local"
                 name="startAt"
                 required
+                [attr.min]="lockedArrivalDay() ? lockedArrivalDay() + 'T00:00' : null"
+                [attr.max]="lockedArrivalDay() ? lockedArrivalDay() + 'T23:59' : null"
+                [attr.aria-describedby]="arrivalDayChanged() ? 'stay-arrival-day-locked' : null"
                 [ngModel]="startAt()"
                 (ngModelChange)="onStartAtChange($event)"
               />
@@ -53,6 +56,12 @@
               >
             </div>
           </div>
+
+          @if (arrivalDayChanged()) {
+            <p id="stay-arrival-day-locked" class="pricing-warning" role="status">
+              {{ text().stays.edit.errors.arrivalDayLocked }}
+            </p>
+          }
 
           @if (transferAssistanceActive()) {
             <section

@@ -1,5 +1,6 @@
 import { Cat } from '../../features/cats/models/cat.model';
 import { Owner } from '../../features/owners/models/owner.model';
+import type { StayActualMovements } from '../../features/stays/models/stay-movement.model';
 import { Vet } from '../../features/vets/models/vet.model';
 
 export interface RelationshipPreview<T> {
@@ -62,6 +63,9 @@ export interface StayDetailResponse {
   endAt: string;
   numberOfNights: number;
   notes: string | null;
+  canEdit?: boolean;
+  canCancel?: boolean;
+  actualMovements?: StayActualMovements;
   owner: OwnerRelationshipItem;
   cats: RelationshipPreview<CatRelationshipItem>;
 }

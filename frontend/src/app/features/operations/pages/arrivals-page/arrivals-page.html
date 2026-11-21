@@ -5,17 +5,26 @@
       <p>{{ copy().subtitle }}</p>
     </div>
     @if (state() === 'ready') {
-      <button mat-stroked-button type="button" (click)="loadArrivals()">
+      <button mat-stroked-button type="button" (click)="loadMovements()">
         {{ copy().refresh }}
       </button>
     }
   </header>
 
+  <nav mat-tab-nav-bar [tabPanel]="movementPanel" [attr.aria-label]="copy().tabs.label">
+    <button mat-tab-link type="button" [active]="isArrivals()" (click)="changeTab('arrivals')">
+      {{ copy().tabs.arrivals }}
+    </button>
+    <button mat-tab-link type="button" [active]="!isArrivals()" (click)="changeTab('departures')">
+      {{ copy().tabs.departures }}
+    </button>
+  </nav>
+
   <details class="arrival-settings">
     <summary>{{ copy().settings }}</summary>
     <div class="arrival-filters">
       <label class="days-ahead">
-        {{ copy().daysAhead }}
+        {{ copy().daysAhead[tab()] }}
         <input
           #days
           type="text"
@@ -27,15 +36,7 @@
           [attr.aria-describedby]="invalidDaysAhead() ? 'arrivals-days-error' : null"
           (input)="changeDaysAhead(days.value)"
         />
-      </label>
-      <label class="include-started">
-        <input
-          #include
-          type="checkbox"
-          [checked]="includeStartedToday()"
-          (change)="changeIncludeStartedToday(include.checked)"
-        />
-        {{ copy().includeStartedToday }}
+        {{ copy().daysAhead.suffix }}
       </label>
       @if (invalidDaysAhead()) {
         <p id="arrivals-days-error" class="days-error" role="status">
@@ -45,125 +46,140 @@
     </div>
   </details>
 
-  @if (state() === 'loading') {
-    <app-ui-state kind="loading" [message]="copy().loading" />
-  } @else if (state() === 'error') {
-    <app-ui-state
-      kind="error"
-      [message]="copy().error"
-      [actionLabel]="copy().retry"
-      (actionTriggered)="loadArrivals()"
-    />
-  } @else if (arrivals().length === 0) {
-    <app-ui-state kind="empty" [message]="copy().empty" />
-  } @else {
-    <div class="arrival-list">
-      @for (stay of arrivals(); track stay.id) {
-        <article class="arrival">
-          <div class="stay-heading">
-            <div>
-              <h3>
-                <button
-                  class="detail-link"
-                  type="button"
-                  (click)="openDetail('owner', stay.owner.id)"
-                >
-                  {{ stay.owner.fullName }}
-                </button>
-              </h3>
-              <dl class="dates">
-                <div>
-                  <dt>{{ copy().arrival }}</dt>
-                  <dd>
-                    <time [attr.datetime]="stay.startAt">{{
-                      formatLocalDateTime(stay.startAt)
-                    }}</time>
-                  </dd>
-                </div>
-                <div>
-                  <dt>{{ copy().departure }}</dt>
-                  <dd>
-                    <time [attr.datetime]="stay.endAt">{{ formatLocalDateTime(stay.endAt) }}</time>
-                  </dd>
-                </div>
-              </dl>
-            </div>
-            <div class="stay-actions">
-              @if (isAdmin()) {
+  <mat-tab-nav-panel #movementPanel>
+    @if (state() === 'loading') {
+      <app-ui-state kind="loading" [message]="copy().loading[tab()]" />
+    } @else if (state() === 'error') {
+      <app-ui-state
+        kind="error"
+        [message]="copy().error[tab()]"
+        [actionLabel]="copy().retry"
+        (actionTriggered)="loadMovements()"
+      />
+    } @else if (stays().length === 0) {
+      <app-ui-state kind="empty" [message]="copy().empty[tab()]" />
+    } @else {
+      <div class="arrival-list">
+        @for (stay of stays(); track stay.id) {
+          <article class="arrival">
+            <div class="stay-heading">
+              <div>
+                <h3>
+                  <button
+                    class="detail-link"
+                    type="button"
+                    (click)="openDetail('owner', stay.owner.id)"
+                  >
+                    {{ stay.owner.fullName }}
+                  </button>
+                </h3>
+                <dl class="dates">
+                  <div>
+                    <dt>{{ copy().arrival }}</dt>
+                    <dd>
+                      <time [attr.datetime]="stay.startAt">{{
+                        formatLocalDateTime(stay.startAt)
+                      }}</time>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{{ copy().departure }}</dt>
+                    <dd>
+                      <time [attr.datetime]="stay.endAt">{{
+                        formatLocalDateTime(stay.endAt)
+                      }}</time>
+                    </dd>
+                  </div>
+                </dl>
+                @if (stay.overdue) {
+                  <p class="movement-note overdue">{{ copy().overdue }}</p>
+                }
+                @if (stay.transferRequired) {
+                  <p class="movement-note">{{ copy().transfer[tab()] }}</p>
+                }
+              </div>
+              <div class="stay-actions">
+                @if (isArrivals() && isAdmin()) {
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [attr.aria-label]="copy().shareProfile + ' · ' + stay.owner.fullName"
+                    (click)="openInvitation(stay)"
+                  >
+                    {{ copy().shareProfile }}
+                  </button>
+                }
                 <button
                   mat-stroked-button
                   type="button"
-                  [attr.aria-label]="copy().shareProfile + ' · ' + stay.owner.fullName"
-                  (click)="openInvitation(stay)"
+                  [attr.aria-label]="
+                    copy().openStay +
+                    ' · ' +
+                    stay.owner.fullName +
+                    ' · ' +
+                    formatLocalDateTime(stay.startAt)
+                  "
+                  (click)="openDetail('stay', stay.id)"
                 >
-                  {{ copy().shareProfile }}
+                  {{ copy().openStay }}
                 </button>
-              }
-              <button
-                mat-stroked-button
-                type="button"
-                [attr.aria-label]="
-                  copy().openStay +
-                  ' · ' +
-                  stay.owner.fullName +
-                  ' · ' +
-                  formatLocalDateTime(stay.startAt)
-                "
-                (click)="openDetail('stay', stay.id)"
-              >
-                {{ copy().openStay }}
-              </button>
+                @if (
+                  stay.canRecord || (stay.overdue && (isArrivals() || stay.status === 'CHECKED_IN'))
+                ) {
+                  <button mat-flat-button type="button" (click)="openMovement(stay)">
+                    {{ movementCopy().title[recordAction()] }}
+                  </button>
+                }
+              </div>
             </div>
-          </div>
 
-          @let hasPending = hasPendingPreparation(stay);
-          @if (stay.cats.length) {
-            <ul class="cats" [class.cats-with-pending]="hasPending">
-              @for (cat of stay.cats; track cat.id) {
-                <li class="cat">
-                  <h4>
-                    <button class="detail-link" type="button" (click)="openDetail('cat', cat.id)">
-                      {{ cat.name }}
-                    </button>
-                  </h4>
-                  @if (
-                    !cat.foodBrand?.trim() || !cat.litterBrand?.trim() || cat.vaccineWarnings.length
-                  ) {
-                    <ul class="preparation-warnings">
-                      @if (!cat.foodBrand?.trim()) {
-                        <li>{{ catForm().foodBrand }} · {{ copy().toConfirm }}</li>
-                      }
-                      @if (!cat.litterBrand?.trim()) {
-                        <li>{{ catForm().litterBrand }} · {{ copy().toConfirm }}</li>
-                      }
-                      @for (warning of cat.vaccineWarnings; track warning.vaccineType) {
-                        <li>{{ vaccineWarning(warning) }}</li>
-                      }
-                    </ul>
-                  }
-                  @if (isAdmin()) {
-                    @for (review of cat.pendingReviews ?? []; track review.id) {
-                      <a
-                        class="review-link"
-                        routerLink="/cat-intake"
-                        [queryParams]="{ reviewId: review.id }"
-                      >
-                        {{ copy().reviewProposal }} ·
-                        <time [attr.datetime]="review.submittedAt">{{
-                          formatInstant(review.submittedAt)
-                        }}</time>
-                      </a>
+            @let hasPending = hasPendingPreparation(stay);
+            @if (stay.cats.length) {
+              <ul class="cats" [class.cats-with-pending]="hasPending">
+                @for (cat of stay.cats; track cat.id) {
+                  <li class="cat">
+                    <h4>
+                      <button class="detail-link" type="button" (click)="openDetail('cat', cat.id)">
+                        {{ cat.name }}
+                      </button>
+                    </h4>
+                    @if (isArrivals() && hasPreparationWarnings(cat)) {
+                      <ul class="preparation-warnings">
+                        @if (!cat.foodBrand?.trim()) {
+                          <li>{{ catForm().foodBrand }} · {{ copy().toConfirm }}</li>
+                        }
+                        @if (!cat.litterChoice) {
+                          <li>{{ catForm().litterBrand }} · {{ copy().toConfirm }}</li>
+                        }
+                        @for (warning of cat.vaccineWarnings ?? []; track warning.vaccineType) {
+                          <li>{{ vaccineWarning(warning) }}</li>
+                        }
+                      </ul>
                     }
-                  }
-                </li>
-              }
-            </ul>
-          }
-          @if (!hasPending) {
-            <p class="preparation-complete">{{ copy().complete }}</p>
-          }
-        </article>
-      }
-    </div>
-  }
+                    @if (isArrivals() && isAdmin()) {
+                      @for (review of cat.pendingReviews ?? []; track review.id) {
+                        <a
+                          class="review-link"
+                          routerLink="/cat-intake"
+                          [queryParams]="{ reviewId: review.id }"
+                        >
+                          {{ copy().reviewProposal }} ·
+                          <time [attr.datetime]="review.submittedAt">{{
+                            formatInstant(review.submittedAt)
+                          }}</time>
+                        </a>
+                      }
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            @if (isArrivals() && !hasPending) {
+              <p class="preparation-complete">{{ copy().complete }}</p>
+            }
+          </article>
+        }
+      </div>
+    }
+  </mat-tab-nav-panel>
 </section>

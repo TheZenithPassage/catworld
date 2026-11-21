@@ -141,6 +141,21 @@ describe('StayPayments', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('[data-payment-action="register"]')).toBeNull();
   });
+  it('uses confirmed checkout even when the scheduled departure is ahead', () => {
+    role = 'STAFF';
+    const fixture = create();
+    fixture.componentRef.setInput('stay', { ...stay, status: 'CHECKED_OUT' });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-payment-action="register"]')).toBeNull();
+
+    role = 'ADMIN';
+    const adminFixture = create();
+    adminFixture.componentRef.setInput('stay', { ...stay, status: 'CHECKED_OUT' });
+    adminFixture.detectChanges();
+    expect(
+      adminFixture.nativeElement.querySelector('[data-payment-action="register"]'),
+    ).not.toBeNull();
+  });
   it('uses shared protected deletion for active and annulled payments', () => {
     const component = create().componentInstance;
     component.remove(payment);

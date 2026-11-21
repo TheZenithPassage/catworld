@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   DestroyRef,
   effect,
   inject,
@@ -8,6 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import {
@@ -20,6 +22,8 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { StayApiService } from '../../services/stay-api.service';
 import { Stay } from '../../models/stay.model';
+import type { StayMovementAction, StayMovementType } from '../../models/stay-movement.model';
+import { StayMovementDialogService } from '../../services/stay-movement-dialog.service';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -36,6 +40,7 @@ import {
   isPermanentDeletionConfirmed,
 } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
+import { STAY_MOVEMENT_TRANSLATIONS } from '../stay-movement-dialog/stay-movement.translations';
 
 @Component({
   selector: 'app-stay-detail',
@@ -53,6 +58,8 @@ export class StayDetail {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly movementDialog = inject(StayMovementDialogService);
+  private readonly destroyRef = inject(DestroyRef);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -73,6 +80,7 @@ export class StayDetail {
   readonly refreshingChanged = output<boolean>();
   readonly contentSettled = output<void>();
   readonly text = this.i18n.text;
+  readonly movementCopy = computed(() => STAY_MOVEMENT_TRANSLATIONS[this.i18n.language()]);
   readonly detail = signal<StayDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
@@ -84,8 +92,18 @@ export class StayDetail {
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
+  readonly movementTypes = ['ARRIVAL', 'DEPARTURE'] as const;
+  readonly movementCatNames = computed(() => {
+    const detail = this.detail();
+    const stay = this.pricingStay();
+    if (!detail) return [];
+    if (stay?.stayId === detail.stayId) return stay.cats.map((cat) => cat.name);
+    return detail.cats.items.length === detail.cats.totalElements
+      ? detail.cats.items.map((cat) => cat.name)
+      : [];
+  });
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
@@ -146,10 +164,27 @@ export class StayDetail {
     });
   }
   canEdit(detail: StayDetailResponse): boolean {
-    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+    return detail.canEdit ?? (detail.status === 'RESERVED' || detail.status === 'CHECKED_IN');
   }
   canCancel(detail: StayDetailResponse): boolean {
-    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+    return detail.canCancel ?? (detail.status === 'RESERVED' || detail.status === 'CHECKED_IN');
+  }
+  openMovement(action: StayMovementAction, stayId: string): void {
+    const catNames = this.movementCatNames();
+    if (!catNames.length || this.loading() || this.deleting()) return;
+    this.movementDialog
+      .open({ stayId, catNames, action, allowHistorical: true })
+      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.entityId() === stayId) this.load();
+        this.updated.emit({ entityType: 'stay', entityId: stayId });
+      });
+  }
+  actualDate(value: string): string {
+    return this.businessTime.formatInstant(value, this.i18n.dateLocale());
+  }
+  isHistorical(status: StayDetailResponse['status'], type: StayMovementType): boolean {
+    return status === 'CHECKED_OUT' || (type === 'ARRIVAL' && status === 'CHECKED_IN');
   }
   canDelete(detail: StayDetailResponse): boolean {
     const stay = this.pricingStay();

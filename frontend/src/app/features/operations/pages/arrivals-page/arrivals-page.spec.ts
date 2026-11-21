@@ -16,7 +16,7 @@ describe('ArrivalsPage', () => {
     id: 'cat-1',
     name: 'Milo',
     foodBrand: null,
-    litterBrand: 'Example Litter',
+    litterChoice: 'OWN',
     vaccineWarnings: [
       { vaccineType: 'RABIES', reason: 'MISSING', expiresOn: null },
       { vaccineType: 'TRIPLE_FELINE', reason: 'EXPIRES_DURING_STAY', expiresOn: '2026-11-15' },
@@ -33,13 +33,13 @@ describe('ArrivalsPage', () => {
   let http: HttpTestingController;
   const storageKey = 'catworld.arrivals.filters';
 
-  function expectArrivals(daysAhead = '7', includeStartedToday = true) {
+  function expectMovements(kind = 'arrivals', daysAhead = '7') {
     return http.expectOne(
       (req) =>
         req.method === 'GET' &&
-        req.url === '/api/operations/arrivals' &&
+        req.url === `/api/operations/${kind}` &&
         req.params.get('daysAhead') === daysAhead &&
-        req.params.get('includeStartedToday') === String(includeStartedToday),
+        !req.params.has('includeStartedToday'),
     );
   }
 
@@ -72,22 +72,19 @@ describe('ArrivalsPage', () => {
   });
 
   it('loads valid date-range preferences immediately and remembers them when reopened', () => {
-    expectArrivals().flush([]);
+    expectMovements().flush([]);
     fixture.detectChanges();
     const page: HTMLElement = fixture.nativeElement;
     const settings = page.querySelector<HTMLDetailsElement>('details')!;
     const days = page.querySelector<HTMLInputElement>('input[inputmode="numeric"]')!;
-    const include = page.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
 
     expect(settings.open).toBe(false);
     expect(settings.querySelector('summary')?.textContent?.trim()).toBe('Configuración');
     expect(settings.contains(days)).toBe(true);
-    expect(settings.contains(include)).toBe(true);
+    expect(settings.querySelector('input[type="checkbox"]')).toBeNull();
     settings.open = true;
-    expect(days.labels?.[0].textContent).toContain('Días a mostrar después de hoy');
-    expect(include.labels?.[0].textContent).toContain('Mostrar todos los ingresos de hoy');
+    expect(days.labels?.[0].textContent).toMatch(/Mostrar los ingresos de los próximos\s+ días/);
     expect(days.value).toBe('7');
-    expect(include.checked).toBe(true);
 
     days.value = '-1';
     days.dispatchEvent(new Event('input'));
@@ -95,39 +92,41 @@ describe('ArrivalsPage', () => {
 
     days.value = '0';
     days.dispatchEvent(new Event('input'));
-    expectArrivals('0').flush([]);
-    include.click();
-    expectArrivals('0', false).flush([]);
+    expectMovements('arrivals', '0').flush([]);
+    page.querySelector<HTMLButtonElement>('[role="tab"]:nth-child(2)')!.click();
+    expectMovements('departures', '0').flush([]);
+    fixture.detectChanges();
+    expect(days.labels?.[0].textContent).toContain('Mostrar las salidas de los próximos');
     days.value = '100000000000000000000';
     days.dispatchEvent(new Event('input'));
-    expectArrivals('100000000000000000000', false).flush([]);
+    expectMovements('departures', '100000000000000000000').flush([]);
 
     fixture.destroy();
     fixture = TestBed.createComponent(ArrivalsPage);
-    expectArrivals('100000000000000000000', false).flush([]);
+    expectMovements('arrivals', '100000000000000000000').flush([]);
   });
 
   it('reloads at the next business boundary even when no stays are listed', () => {
     vi.useFakeTimers();
-    expectArrivals().flush([], { headers: { 'X-Arrivals-Refresh-After-Ms': '1500' } });
+    expectMovements().flush([], { headers: { 'X-Arrivals-Refresh-After-Ms': '1500' } });
 
     vi.advanceTimersByTime(1499);
     http.expectNone((req) => req.url === '/api/operations/arrivals');
     vi.advanceTimersByTime(1);
-    expectArrivals().flush([{ ...stay, cats: [cat] }]);
+    expectMovements().flush([{ ...stay, cats: [cat] }]);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('article')?.textContent).toContain('Ana Example');
   });
 
   it('reloads when the page is visible again after a suspended timer', () => {
-    expectArrivals().flush([]);
+    expectMovements().flush([]);
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
 
     document.dispatchEvent(new Event('visibilitychange'));
     http.expectNone((req) => req.url === '/api/operations/arrivals');
     visibility.mockReturnValue('visible');
     document.dispatchEvent(new Event('visibilitychange'));
-    expectArrivals().flush([]);
+    expectMovements().flush([]);
     visibility.mockRestore();
   });
 
@@ -139,7 +138,7 @@ describe('ArrivalsPage', () => {
       foodBrand: 'Example Food',
       vaccineWarnings: [],
     };
-    expectArrivals().flush([{ ...stay, cats: [cat, complete] }]);
+    expectMovements().flush([{ ...stay, cats: [cat, complete] }]);
     fixture.detectChanges();
     const row = (fixture.nativeElement as HTMLElement).querySelector('article')!;
 
@@ -169,7 +168,7 @@ describe('ArrivalsPage', () => {
       { username: 'admin', password: 'test' },
     );
     const pendingReviews = [{ id: 'proposal-1', submittedAt: '2026-11-12T15:00:00Z' }];
-    expectArrivals().flush([
+    expectMovements().flush([
       {
         ...stay,
         cats: [{ ...cat, foodBrand: 'Example Food', vaccineWarnings: [], pendingReviews }],
@@ -189,7 +188,7 @@ describe('ArrivalsPage', () => {
       { username: 'staff', password: 'test' },
     );
     const complete = { ...cat, foodBrand: 'Example Food', vaccineWarnings: [] };
-    expectArrivals().flush([
+    expectMovements().flush([
       {
         ...stay,
         cats: [
@@ -197,7 +196,7 @@ describe('ArrivalsPage', () => {
             ...complete,
             pendingReviews: [{ id: 'hidden-proposal', submittedAt: '2026-11-12T15:00:00Z' }],
           },
-          { ...complete, id: 'cat-2', name: 'Luna', litterBrand: 'Usa las de CatWorld' },
+          { ...complete, id: 'cat-2', name: 'Luna', litterChoice: 'SHARED' },
         ],
       },
     ]);
@@ -218,7 +217,7 @@ describe('ArrivalsPage', () => {
       { username: 'admin', password: 'test' },
     );
     const open = vi.spyOn(TestBed.inject(MatDialog), 'open');
-    expectArrivals().flush([{ ...stay, cats: [cat] }]);
+    expectMovements().flush([{ ...stay, cats: [cat] }]);
     fixture.detectChanges();
     const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
       'article button',
@@ -239,5 +238,89 @@ describe('ArrivalsPage', () => {
       .expectOne('/api/owners/owner-1/lookup')
       .flush({ ...stay.owner, currentCats: [{ id: cat.id, name: cat.name }] });
     http.expectOne('/api/cat-intake/invitations/active?ownerId=owner-1').flush(null);
+  });
+
+  it('shows projected departures and opens an overdue departure from the stay detail', () => {
+    expectMovements().flush([]);
+    fixture.detectChanges();
+    const page: HTMLElement = fixture.nativeElement;
+    page.querySelector<HTMLButtonElement>('[role="tab"]:nth-child(2)')!.click();
+    expectMovements('departures').flush([
+      {
+        ...stay,
+        id: 'overdue',
+        status: 'CHECKED_IN',
+        overdue: true,
+        transferRequired: true,
+        cats: [{ id: cat.id, name: cat.name }],
+      },
+      {
+        ...stay,
+        id: 'projected',
+        status: 'RESERVED',
+        cats: [{ id: cat.id, name: 'Luna' }],
+      },
+    ]);
+    fixture.detectChanges();
+
+    const [overdue, projected] = page.querySelectorAll('article');
+    expect(overdue.textContent).toMatch(/Pendiente.*Traslado/s);
+    expect(projected.textContent).toContain('Luna');
+    expect(projected.textContent).not.toMatch(
+      /Registrar salida|Compartir ficha|Sin pendientes de preparación/,
+    );
+    [...overdue.querySelectorAll('button')]
+      .find((button) => button.textContent.trim() === 'Registrar salida')!
+      .click();
+    expect(details.open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'overdue' });
+  });
+
+  it('confirms the whole group once and refreshes the selected departures tab after checkout', async () => {
+    expectMovements().flush([]);
+    fixture.detectChanges();
+    const page: HTMLElement = fixture.nativeElement;
+    page.querySelector<HTMLButtonElement>('[role="tab"]:nth-child(2)')!.click();
+    expectMovements('departures').flush([
+      {
+        ...stay,
+        status: 'CHECKED_IN',
+        canRecord: true,
+        cats: [
+          { id: cat.id, name: cat.name },
+          { id: 'cat-2', name: 'Luna' },
+        ],
+      },
+    ]);
+    fixture.detectChanges();
+
+    const record = [...page.querySelectorAll<HTMLButtonElement>('article button')].find(
+      (button) => button.textContent.trim() === 'Registrar salida',
+    )!;
+    record.click();
+    record.click();
+    const url = '/api/stays/stay-1/actual-movements';
+    const current = {
+      ...stay,
+      revision: 4,
+      status: 'CHECKED_IN',
+      canRecordDeparture: true,
+      departureAllowsNow: true,
+    };
+    http.expectOne(url).flush(current);
+    fixture.detectChanges();
+    const dialog = document.querySelector('[role="dialog"]')!;
+    expect(dialog.textContent).toContain('Milo, Luna');
+    expect(dialog.textContent).toContain(
+      'Confirmá solo si el retiro ya ocurrió. La estadía quedará finalizada y no podrás reabrirla ni corregir la hora de salida desde CatWorld',
+    );
+    const actions = [...dialog.querySelectorAll('button')];
+    expect(actions.some((button) => button.textContent.trim() === 'Volver')).toBe(true);
+    const confirm = actions.find((button) => button.textContent.trim() === 'Confirmar salida')!;
+    confirm.click();
+    confirm.click();
+    const request = http.expectOne({ url: url + '/DEPARTURE', method: 'PUT' });
+    expect(request.request.body).toEqual({ expectedRevision: 4, occurredAt: null });
+    request.flush({ ...current, revision: 5, status: 'CHECKED_OUT' });
+    await vi.waitFor(() => expectMovements('departures').flush([]));
   });
 });

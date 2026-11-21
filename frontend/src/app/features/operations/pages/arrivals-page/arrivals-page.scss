@@ -67,14 +67,12 @@
   font: inherit;
 }
 
-.include-started {
-  min-block-size: 2.75rem;
-  cursor: pointer;
+.movement-note {
+  margin: 0.35rem 0 0;
 }
 
-.include-started input {
-  margin: 0;
-  accent-color: var(--color-primary);
+.overdue {
+  font-weight: 600;
 }
 
 .days-error {
