@@ -165,7 +165,7 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.catalogOptionIds.breed").value(optionId.toString()));
         var linkedRead = json.readTree(mvc.perform(get("/api/cats/{id}", linked.getId()).with(admin()))
                 .andReturn().getResponse().getContentAsByteArray());
-        mvc.perform(internalCatEdit(linked, "Short", linkedRead.get("updatedAt").asText()))
+        mvc.perform(internalCatEdit(linked, linked.getCoat(), linkedRead.get("updatedAt").asText()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.catalogOptionIds.breed").value(optionId.toString()))
                 .andExpect(jsonPath("$.breed").value(renamed));
         mvc.perform(get("/api/cats/{id}", local.getId()).with(admin()))
@@ -799,11 +799,15 @@ class CatIntakeControllerTest {
                 .andExpect(status().isNoContent());
         approve(rowFor(reviewList(), publisher.getId(), "Publisher"), registration, List.of(), null, 204);
 
+        var form = recipientForm(issue(owner(), true));
+        UUID brandId = UUID.fromString(catalogId(form, "foodBrand", registration.get("foodBrand")));
         Cat first = cat(owner(), "First concurrent cat");
         first.setFoodBrand(registration.get("foodBrand"));
+        first.setFoodBrandId(brandId);
         cats.saveAndFlush(first);
         Cat second = cat(owner(), "Second concurrent cat");
         second.setFoodBrand(registration.get("foodBrand"));
+        second.setFoodBrandId(brandId);
         cats.saveAndFlush(second);
         var firstFields = Map.of("foodDetail", "Digestive Balance");
         var secondFields = Map.of("foodDetail", "digestive   balance");
@@ -836,10 +840,9 @@ class CatIntakeControllerTest {
         Cat secondApproved = cats.findById(second.getId()).orElseThrow();
         assertThat(firstApproved.getFoodVarietyId()).isNotNull().isEqualTo(secondApproved.getFoodVarietyId());
         assertThat(firstApproved.getFoodDetail()).isEqualTo(secondApproved.getFoodDetail());
-        var form = recipientForm(issue(owner(), true));
-        String brandId = catalogId(form, "foodBrand", registration.get("foodBrand"));
-        assertThat(form.get("foodVarieties").valueStream()
-                .filter(variety -> variety.get("brandId").asString().equals(brandId))).hasSize(2);
+        var refreshed = recipientForm(issue(owner(), true));
+        assertThat(refreshed.get("foodVarieties").valueStream()
+                .filter(variety -> variety.get("brandId").asString().equals(brandId.toString()))).hasSize(2);
     }
 
     @Test
