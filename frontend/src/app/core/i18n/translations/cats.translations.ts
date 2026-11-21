@@ -48,7 +48,8 @@ export interface CatsTranslations {
     publishOption: (name: string, catalog: string) => string;
     publishedOption: (name: string, catalog: string) => string;
     publishOptionError: string;
-    catalogSelection: string;
+    catalogSelection: (name: string) => string;
+    catalogExamples: Record<'breed' | 'foodBrand' | 'foodDetail', string>;
     catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
@@ -85,6 +86,8 @@ export interface CatsTranslations {
       dimensionsTooLarge: string;
       undecodable: string;
       intentConflict: string;
+      requestTooLarge: string;
+      tooManyAttachments: string;
     };
   };
   informationalPhotos: {
@@ -99,10 +102,9 @@ export interface CatsTranslations {
     removePrompt: string;
     empty: string;
     loading: string;
-    saving: string;
+    close: string;
+    previewUnavailable: string;
     loadFailed: string;
-    addFailed: string;
-    removeFailed: string;
   };
   create: {
     title: string;
@@ -211,10 +213,9 @@ export const CATS_TRANSLATIONS = {
       removePrompt: '¿Querés quitar esta foto?',
       empty: 'Todavía no hay fotos adjuntas.',
       loading: 'Cargando fotos…',
-      saving: 'Guardando cambios…',
+      close: 'Cerrar',
+      previewUnavailable: 'La vista previa de esta foto no está disponible.',
       loadFailed: 'No se pudieron cargar las fotos.',
-      addFailed: 'No se pudo adjuntar la foto.',
-      removeFailed: 'No se pudo quitar la foto.',
     },
     form: {
       name: 'Nombre',
@@ -248,7 +249,12 @@ export const CATS_TRANSLATIONS = {
       publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
       publishedOption: (name, catalog) => 'Se agregó «' + name + '» a ' + catalog + '.',
       publishOptionError: 'No se pudo agregar al catálogo.',
-      catalogSelection: 'Opción del catálogo',
+      catalogSelection: (name) => 'Seleccionado: ' + name,
+      catalogExamples: {
+        breed: 'Por ejemplo, Común.',
+        foodBrand: 'Por ejemplo, Royal Canin.',
+        foodDetail: 'Por ejemplo, Kitten o Senior.',
+      },
       catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Piedritas',
       ownLitter: 'Trae sus propias piedritas',
@@ -258,9 +264,9 @@ export const CATS_TRANSLATIONS = {
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
       notes: 'Notas internas del equipo',
-      careInstructions: 'Indicaciones de cuidado del tutor',
+      careInstructions: 'Indicaciones extra',
 
-      careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
+      careInstructionsTooLong: 'Las indicaciones extra no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
       lastExternalDewormerName: 'Última pipeta antipulgas',
@@ -283,6 +289,10 @@ export const CATS_TRANSLATIONS = {
         localFileTooLarge: 'Seleccioná una foto de 32 MiB o menos.',
         localUnsupportedFormat: 'Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         fileTooLarge: 'La foto supera el límite de 32 MiB. Seleccioná un archivo más pequeño.',
+        requestTooLarge:
+          'El guardado admite hasta 33 MiB en total. Quitá alguna foto nueva o usá archivos más pequeños.',
+        tooManyAttachments:
+          'La cantidad de fotos nuevas supera el límite de un guardado. Guardá algunas y adjuntá las restantes después.',
         unsupportedFormat:
           'El formato no es compatible. Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         dimensionsTooLarge:
@@ -398,10 +408,9 @@ export const CATS_TRANSLATIONS = {
       removePrompt: 'Remove this photo?',
       empty: 'No photos attached yet.',
       loading: 'Loading photos…',
-      saving: 'Saving changes…',
+      close: 'Close',
+      previewUnavailable: 'A preview of this photo is unavailable.',
       loadFailed: 'Could not load the photos.',
-      addFailed: 'Could not attach the photo.',
-      removeFailed: 'Could not remove the photo.',
     },
     form: {
       name: 'Name',
@@ -435,7 +444,12 @@ export const CATS_TRANSLATIONS = {
       publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
       publishedOption: (name, catalog) => 'Added “' + name + '” to ' + catalog + '.',
       publishOptionError: 'Could not add this option to the catalog.',
-      catalogSelection: 'Catalog option selected',
+      catalogSelection: (name) => 'Selected: ' + name,
+      catalogExamples: {
+        breed: 'For example, Domestic.',
+        foodBrand: 'For example, Royal Canin.',
+        foodDetail: 'For example, Kitten or Senior.',
+      },
       catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter',
       ownLitter: 'Brings their own litter',
@@ -445,9 +459,9 @@ export const CATS_TRANSLATIONS = {
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
       notes: 'Internal team notes',
-      careInstructions: 'Caretaker’s care instructions',
+      careInstructions: 'Extra instructions',
 
-      careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
+      careInstructionsTooLong: 'Extra instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
       lastExternalDewormerName: 'Last flea spot-on treatment',
@@ -470,6 +484,10 @@ export const CATS_TRANSLATIONS = {
         localFileTooLarge: 'Select a photo that is 32 MiB or smaller.',
         localUnsupportedFormat: 'Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         fileTooLarge: 'The photo exceeds the 32 MiB limit. Select a smaller file.',
+        requestTooLarge:
+          'A save request can be up to 33 MiB. Remove a new photo or use smaller files.',
+        tooManyAttachments:
+          'There are too many new photos for one save. Save some now and attach the rest afterward.',
         unsupportedFormat:
           'This format is not supported. Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         dimensionsTooLarge: 'The photo dimensions are too large. Select a smaller image.',

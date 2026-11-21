@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatIntakeDtos.*;
 import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.CatIntakeVaccineDateException;
 import com.allegaeon.catworld.exception.CatPhotoErrorCode;
 import com.allegaeon.catworld.exception.CatPhotoException;
 import com.allegaeon.catworld.exception.ConflictException;
@@ -38,6 +39,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collection;
@@ -66,7 +68,7 @@ public class CatIntakeService {
     private static final long MAX_TOTAL_PHOTO_BYTES = 32L * 1024 * 1024;
     private static final Pattern TOKEN_PATTERN = Pattern.compile("[A-Za-z0-9_-]{43}");
     private static final Pattern PHOTO_KEY_PATTERN = Pattern.compile("[A-Za-z0-9_-]{1,48}");
-    private static final Set<String> VACCINE_FIELDS = Set.of("lastRabiesDate", "lastTripleFelineDate");
+    private static final List<String> VACCINE_FIELDS = List.of("lastTripleFelineDate", "lastRabiesDate");
 
     private final CatIntakeInvitationRepository invitations;
     private final CatIntakeReviewRepository reviews;
@@ -176,7 +178,7 @@ public class CatIntakeService {
         }
         return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(),
                 catalog.options().get(CatIntakeCatalog.FOOD_BRAND), catalog.options(), catalog.varieties(),
-                litterRates.currentRate());
+                vaccineDateRange(LocalDate.now(clock)), litterRates.currentRate());
     }
 
     @Transactional(readOnly = true)
@@ -221,7 +223,8 @@ public class CatIntakeService {
             var byDraft = submitted.stream().filter(review -> review.getDraftId() != null)
                     .collect(Collectors.toMap(CatIntakeReview::getDraftId, review -> review));
             var eligibleById = eligible.stream().collect(Collectors.toMap(Cat::getId, cat -> cat));
-            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog());
+            var vaccineDates = vaccineDateRange(LocalDate.ofInstant(now, clock.getZone()));
+            var drafts = prepareDrafts(submission, locked, scope, eligibleById, byCat, byDraft, catalog(), vaccineDates);
             validateRequestedAnswer(drafts, requested, eligible, byCat);
             drafts.forEach(draft -> saveDraft(locked, draft, normalized, now));
         });
@@ -369,11 +372,12 @@ public class CatIntakeService {
     private List<Draft> prepareDrafts(Submission submission, CatIntakeInvitation invite,
                                       Map<UUID, Map<String, String>> scope, Map<UUID, Cat> eligible,
                                       Map<UUID, CatIntakeReview> byCat, Map<UUID, CatIntakeReview> byDraft,
-                                      CatIntakeCatalog catalog) {
+                                      CatIntakeCatalog catalog, VaccineDateRange vaccineDates) {
         Set<UUID> includedCats = new HashSet<>();
         Set<UUID> includedDrafts = new HashSet<>();
         List<Draft> drafts = new ArrayList<>();
-        for (var submitted : submission.cats()) {
+        for (int catIndex = 0; catIndex < submission.cats().size(); catIndex++) {
+            var submitted = submission.cats().get(catIndex);
             UUID catId = submitted.catId();
             UUID draftId = submitted.draftId();
             Cat current = catId == null ? null : eligible.get(catId);
@@ -391,6 +395,7 @@ public class CatIntakeService {
             var proposal = catalog.propose(fields.nonBlank(submitted.fields()), selection, original, previousProposal);
             var proposed = proposal.fields();
             if (catId == null) fields.requireRegistrationDetails(proposed);
+            validateVaccineDates(proposed, previousProposal.fields(), vaccineDates, catIndex);
             var oldPhotoIds = previous == null ? List.<UUID>of() : intakePhotos.findIdsByReview(previous.getId());
             var retained = retainedPhotoIds(submitted, oldPhotoIds);
             var uploads = photoKeys(submitted);
@@ -405,13 +410,31 @@ public class CatIntakeService {
             var draft = new Draft(previous, catId, stableDraftId, proposed.getOrDefault("name", original.get("name")),
                     baseline, proposal, retained, uploads);
             if (draft.hasProposal()) {
-                fields.request(invite.getOwner().getId(), current, fields.merge(current, proposed));
+                var merged = fields.merge(current, proposed);
+                // The household range above uses the business clock and only validates changed doses.
+                merged.keySet().removeAll(VACCINE_FIELDS);
+                fields.request(invite.getOwner().getId(), current, merged);
             } else if (previous == null) {
                 continue;
             }
             drafts.add(draft);
         }
         return drafts;
+    }
+
+    private static VaccineDateRange vaccineDateRange(LocalDate today) {
+        return new VaccineDateRange(today.minusYears(1), today);
+    }
+
+    private static void validateVaccineDates(Map<String, String> proposed, Map<String, String> previous,
+                                             VaccineDateRange range, int catIndex) {
+        for (String field : VACCINE_FIELDS) {
+            if (Objects.equals(proposed.get(field), previous.get(field))) continue;
+            LocalDate value = CatIntakeFields.date(proposed, field);
+            if (value != null && (value.isBefore(range.min()) || value.isAfter(range.max()))) {
+                throw new CatIntakeVaccineDateException(catIndex, field, range);
+            }
+        }
     }
 
     private CatIntakeReview previousDraft(SubmittedCat submitted, Map<UUID, CatIntakeReview> byCat,

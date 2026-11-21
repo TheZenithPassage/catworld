@@ -255,7 +255,7 @@ export function isStalePricingConfirmationError(
 
 export type VaccineType = 'RABIES' | 'TRIPLE_FELINE';
 
-export type VaccineConflictReason = 'MISSING' | 'EXPIRED';
+export type VaccineConflictReason = 'MISSING' | 'EXPIRED_BY_ARRIVAL' | 'EXPIRES_DURING_STAY';
 
 export interface VaccineConflictViolation {
   catId: string;
@@ -309,7 +309,7 @@ function isVaccineType(value: unknown): value is VaccineType {
 }
 
 function isVaccineConflictReason(value: unknown): value is VaccineConflictReason {
-  return value === 'MISSING' || value === 'EXPIRED';
+  return value === 'MISSING' || value === 'EXPIRED_BY_ARRIVAL' || value === 'EXPIRES_DURING_STAY';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

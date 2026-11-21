@@ -156,6 +156,66 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void householdVaccineWindowUsesTheBusinessDayAndLeavesHistoricalCorrectionsToAdmin() throws Exception {
+        when(clock.instant()).thenReturn(Instant.parse("2026-11-22T01:00:00Z"));
+        Owner owner = owner();
+        Cat existing = cat(owner, "Historical vaccine");
+        existing.setLastRabiesDate(LocalDate.parse("2024-10-20"));
+        existing.setLastTripleFelineDate(null);
+        cats.saveAndFlush(existing);
+        var invite = issue(owner, false);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vaccineDateRange.min").value("2025-11-21"))
+                .andExpect(jsonPath("$.vaccineDateRange.max").value("2026-11-21"));
+
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+        for (String invalidDate : List.of("2025-11-20", "2026-11-22")) {
+            mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                            "fields", Map.of("lastTripleFelineDate", invalidDate), "photoKeys", List.of("proof"))),
+                            proof("proof")))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE"))
+                    .andExpect(jsonPath("$.field").value("lastTripleFelineDate"))
+                    .andExpect(jsonPath("$.catIndex").value(0));
+        }
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "fields", Map.of("lastRabiesDate", "2024-10-20", "lastTripleFelineDate", "2025-11-21"),
+                        "photoKeys", List.of("proof"))), proof("proof")))
+                .andExpect(status().isNoContent());
+        var row = rowFor(reviewList(), owner.getId(), "Historical vaccine");
+        var first = detail(row.get("id").asString());
+        var retained = first.get("photos").get(0).get("id").asString();
+
+        when(clock.instant()).thenReturn(Instant.parse("2026-11-22T03:00:00Z"));
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
+                        "revision", first.get("revision").asLong(), "retainedPhotoIds", List.of(retained),
+                        "fields", Map.of("lastTripleFelineDate", "2025-11-21", "careInstructions", "Give dry food")))))
+                .andExpect(status().isNoContent());
+        var updated = detail(row.get("id").asString());
+        approve(updated, Map.of("lastTripleFelineDate", "2024-11-20"), List.of(),
+                updated.get("catUpdatedAt").asString(), 204);
+        var approved = cats.findById(existing.getId()).orElseThrow();
+        assertThat(approved.getLastTripleFelineDate()).isEqualTo(LocalDate.parse("2024-11-20"));
+        assertThat(approved.getLastRabiesDate()).isEqualTo(LocalDate.parse("2024-10-20"));
+    }
+
+    @Test
+    void householdVaccineWindowIncludesTodayAndUsesCalendarYearsOnLeapDay() throws Exception {
+        when(clock.instant()).thenReturn(Instant.parse("2024-02-29T14:00:00Z"));
+        var invite = issue(owner(), true);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vaccineDateRange.min").value("2023-02-28"))
+                .andExpect(jsonPath("$.vaccineDateRange.max").value("2024-02-29"));
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+        mvc.perform(submission(invite, List.of(Map.of("draftId", UUID.randomUUID(), "fields",
+                        newRegistration("Leap vaccine", Map.of("lastRabiesDate", "2023-02-28",
+                                "lastTripleFelineDate", "2024-02-29")), "photoKeys", List.of("proof"))), proof("proof")))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void snapshotsTheHouseholdAndKeepsPendingProfilesOpenUntilTheFinalApproval() throws Exception {
         Owner owner = owner();
         Cat withPending = cat(owner, "Pending vaccine");
@@ -865,10 +925,11 @@ class CatIntakeControllerTest {
         mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
                         "fields", Map.of("notes", "Not editable"), "photoKeys", List.of()))))
                 .andExpect(status().isBadRequest());
+        var vaccine = Map.of("lastRabiesDate", "2026-02-03");
         var entries = List.of(
                 Map.of("catId", existing.getId(), "fields",
                         Map.of("name", "Existing", "coat", "Sin pelo", "foodBrand", "   "), "photoKeys", List.of()),
-                Map.of("draftId", UUID.randomUUID(), "fields", newRegistration("New", Map.of("lastRabiesDate", "2025-02-03")),
+                Map.of("draftId", UUID.randomUUID(), "fields", newRegistration("New", vaccine),
                         "photoKeys", List.of("proof")));
         when(normalizer.normalize(any())).thenThrow(new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_UNSUPPORTED_FORMAT));
         mvc.perform(submission(invite, entries, new MockMultipartFile("proof", "fake.jpg", "image/jpeg", new byte[] {1})))
@@ -910,7 +971,7 @@ class CatIntakeControllerTest {
         JsonNode newReview = detail(newRow.get("id").asString());
         String proof = newReview.get("photos").get(0).get("id").asString();
         var correction = Map.of("draftId", newDraft, "revision", newReview.get("revision").asInt(),
-                "retainedPhotoIds", List.of(proof), "fields", newRegistration("New name", Map.of("lastRabiesDate", "2025-02-03")));
+                "retainedPhotoIds", List.of(proof), "fields", newRegistration("New name", vaccine));
         mvc.perform(submission(invite, List.of(correction))).andExpect(status().isNoContent());
         assertThat(rowFor(reviewList(), owner.getId(), "New name").get("id")).isEqualTo(newRow.get("id"));
         mvc.perform(get(REVIEW + "/{id}/photos/{photoId}", newRow.get("id").asString(), proof))
@@ -1130,9 +1191,10 @@ class CatIntakeControllerTest {
         registration.put("birthDate", " ");
         registration.put("birthYear", "2021");
         registration.put("litterBrand", "Tutor litter");
-        registration.put("lastRabiesDate", "2025-02-03");
+        registration.put("lastRabiesDate", "2026-02-03");
         mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", registration))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Vaccination dates require a supporting photo for this cat"));
         registration.remove("lastRabiesDate");
         mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", registration))))
                 .andExpect(status().isNoContent());

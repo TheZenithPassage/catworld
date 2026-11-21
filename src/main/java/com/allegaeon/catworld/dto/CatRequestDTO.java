@@ -32,6 +32,14 @@ public class CatRequestDTO {
     @NotNull(groups = Update.class, message = "Expected update timestamp is required")
     private Instant expectedUpdatedAt;
 
+    private Set<@NotNull UUID> removedInformationalPhotoIds;
+
+    @JsonIgnore
+    @AssertTrue(groups = Create.class, message = "A new cat has no informational photos to remove")
+    public boolean isGalleryRemovalEmpty() {
+        return removedInformationalPhotoIds == null || removedInformationalPhotoIds.isEmpty();
+    }
+
     @NotBlank(message = "Name is required")
     @Size(max = 100, message = "Name must not exceed 100 characters")
     private String name;

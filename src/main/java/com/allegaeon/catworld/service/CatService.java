@@ -145,8 +145,15 @@ public class CatService implements ICatService{
 
     @Override
     public CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo) {
+        return createCat(catRequestDTO, photo, List.of());
+    }
+
+    @Override
+    public CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo,
+                                    List<MultipartFile> informationalPhotos) {
         NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
-        return toResponseDTO(mutationTransactionService.create(catRequestDTO, normalized));
+        return toResponseDTO(mutationTransactionService.create(catRequestDTO, normalized,
+                normalizeInformationalPhotos(informationalPhotos)));
     }
 
     @Override
@@ -156,12 +163,23 @@ public class CatService implements ICatService{
 
     @Override
     public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto) {
+        return updateCat(id, catRequestDTO, photo, removePhoto, List.of());
+    }
+
+    @Override
+    public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto,
+                                    List<MultipartFile> informationalPhotos) {
         if (photo != null && removePhoto) {
             throw new com.allegaeon.catworld.exception.CatPhotoException(
                     com.allegaeon.catworld.exception.CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT);
         }
         NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
-        return toResponseDTO(mutationTransactionService.update(id, catRequestDTO, normalized, removePhoto));
+        return toResponseDTO(mutationTransactionService.update(id, catRequestDTO, normalized, removePhoto,
+                normalizeInformationalPhotos(informationalPhotos)));
+    }
+
+    private List<NormalizedCatPhoto> normalizeInformationalPhotos(List<MultipartFile> uploads) {
+        return uploads == null ? List.of() : uploads.stream().map(photoNormalizer::normalize).toList();
     }
 
     @Override

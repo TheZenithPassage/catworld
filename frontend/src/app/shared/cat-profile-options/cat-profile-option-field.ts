@@ -2,7 +2,7 @@ import { Component, computed, DestroyRef, inject, input, model, signal } from '@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatAutocomplete, MatAutocompleteTrigger, MatOption } from '@angular/material/autocomplete';
-import { MatButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatFormField, MatHint, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { finalize } from 'rxjs';
@@ -22,6 +22,7 @@ import {
     MatAutocompleteTrigger,
     MatOption,
     MatButton,
+    MatIconButton,
     MatFormField,
     MatHint,
     MatInput,
@@ -29,12 +30,7 @@ import {
     MatSuffix,
   ],
   templateUrl: './cat-profile-option-field.html',
-  styles: [
-    ':host { display: block; min-width: 0; }',
-    'mat-form-field { width: 100%; }',
-    '.publish-option { margin-block: -0.65rem 0.5rem; white-space: normal; text-align: left; }',
-    '.publication-status { margin-top: 0; }',
-  ],
+  styleUrl: './cat-profile-option-field.scss',
 })
 export class CatProfileOptionField {
   private readonly options = inject(CatProfileOptionsService);
@@ -51,6 +47,7 @@ export class CatProfileOptionField {
   readonly brandName = input('');
   readonly value = model.required<string>();
   readonly optionId = model<string>();
+  readonly focused = signal(false);
   readonly publishing = signal(false);
   readonly publicationStatus = signal('');
   readonly publicationFailed = signal(false);
@@ -67,6 +64,14 @@ export class CatProfileOptionField {
   readonly suggestions = computed(() =>
     (this.entries() ?? []).filter(({ name }) => optionKey(name).includes(this.search())),
   );
+  readonly example = computed(() => {
+    const field = this.field();
+    return this.focused() &&
+      !this.value() &&
+      (field === 'breed' || field === 'foodBrand' || field === 'foodDetail')
+      ? this.text().cats.form.catalogExamples[field]
+      : '';
+  });
   readonly catalogName = computed(() => {
     const field = this.field();
     if (field === 'coat' || field === 'color') return '';
@@ -102,6 +107,11 @@ export class CatProfileOptionField {
     this.value.set(value);
     this.optionId.set(undefined);
     this.publicationStatus.set('');
+  }
+
+  clear(input: HTMLInputElement): void {
+    this.changeValue('');
+    input.focus();
   }
 
   select(option: CatProfileOption): void {

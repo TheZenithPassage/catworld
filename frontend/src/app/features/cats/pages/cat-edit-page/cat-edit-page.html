@@ -238,6 +238,11 @@
       </mat-form-field>
 
       <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [disabled]="submitting()" />
+      <app-cat-informational-photo-gallery
+        [catId]="entityId()"
+        [editable]="true"
+        [disabled]="submitting()"
+      />
 
       <fieldset class="record-status">
         <legend>{{ text().entityDetail.recordStatus }}</legend>

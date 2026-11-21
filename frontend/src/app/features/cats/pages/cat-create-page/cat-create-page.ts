@@ -35,6 +35,8 @@ import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields';
+import { CatInformationalPhotoGallery } from '../../components/cat-informational-photos/cat-informational-photo-gallery';
+import { catPhotoRequestError } from '../../utils/cat-photo-file';
 
 @Component({
   selector: 'app-cat-create-page',
@@ -49,6 +51,7 @@ import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields'
     RemoteEntitySelector,
     UiStateComponent,
     CatPhotoInput,
+    CatInformationalPhotoGallery,
     CatCareFields,
     CatBirthField,
     CatProfileOptionField,
@@ -58,6 +61,7 @@ import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields'
 })
 export class CatCreatePage implements AfterViewInit {
   @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
+  @ViewChild(CatInformationalPhotoGallery) private gallery?: CatInformationalPhotoGallery;
   @ViewChild('ownerSelector') private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
   @ViewChild('vetSelector') private vetSelector?: RemoteEntitySelector<VetLookup>;
   private readonly catApiService = inject(CatApiService);
@@ -172,6 +176,7 @@ export class CatCreatePage implements AfterViewInit {
       if (ownerId) this.resolveCommittedOwnerId(ownerId);
       if (vetId) this.resolveCommittedVetId(vetId);
       if (draft.photo) this.photoInput?.restore(draft.photo);
+      for (const file of draft.informationalPhotos ?? []) this.gallery?.stage(file);
       return;
     }
     if (!hasFlowMarker) {
@@ -265,11 +270,18 @@ export class CatCreatePage implements AfterViewInit {
       vetId: this.toNullableString(this.vetId()),
     };
 
+    const photo = this.photoInput?.mutation().photo ?? null;
+    const attachments = this.gallery?.files() ?? [];
+    const photoError = catPhotoRequestError(photo, attachments);
+    if (photoError) {
+      this.error.set(this.text().cats.photo.errors[photoError]);
+      return;
+    }
     this.submitting.set(true);
-
-    this.catApiService.createCat(request, this.photoInput?.mutation().photo ?? null).subscribe({
+    this.catApiService.createCat(request, photo, attachments).subscribe({
       next: (cat) => {
         this.photoInput?.reset();
+        this.gallery?.resetDraft();
         this.submitting.set(false);
         this.navigateAfterSuccess(cat.id, cat.ownerId);
       },
@@ -287,6 +299,7 @@ export class CatCreatePage implements AfterViewInit {
     if (this.submitting()) return;
 
     this.photoInput?.reset();
+    this.gallery?.resetDraft();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {
       const queryParams: Record<string, string> = {};
@@ -414,6 +427,7 @@ export class CatCreatePage implements AfterViewInit {
       ownerId: this.currentCommittedOwnerId(),
       vetId: this.currentCommittedVetId(),
       photo: this.photoInput?.mutation().photo ?? null,
+      informationalPhotos: this.gallery?.files() ?? [],
     };
   }
 

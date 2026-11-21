@@ -196,13 +196,13 @@ class CatServiceTest {
                 .build();
 
         mappedCat.setCreatedBy(creator);
-        when(mutationTransactionService.create(request, null)).thenReturn(mappedCat);
+        when(mutationTransactionService.create(request, null, List.of())).thenReturn(mappedCat);
         when(catMapper.toResponseDTO(mappedCat, false)).thenReturn(expectedResponse);
 
         CatResponseDTO result = service.createCat(request);
 
         assertSame(expectedResponse, result);
-        verify(mutationTransactionService).create(request, null);
+        verify(mutationTransactionService).create(request, null, List.of());
         verify(deletionAuthorizationPolicy).canDelete(creator, null);
         verifyNoInteractions(stayCatRepository);
     }

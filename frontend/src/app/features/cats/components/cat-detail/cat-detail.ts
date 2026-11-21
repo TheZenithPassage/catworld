@@ -39,7 +39,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
     '[attr.inert]': 'loading() && detail() ? "" : null',
   },
   templateUrl: './cat-detail.html',
-  styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
+  styleUrls: ['../../../../shared/entity-detail/entity-detail-presenter.scss', './cat-detail.scss'],
 })
 export class CatDetail {
   private readonly api = inject(CatApiService);
@@ -66,7 +66,6 @@ export class CatDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
-  readonly updatingGallery = signal(false);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -113,12 +112,8 @@ export class CatDetail {
   canDelete(detail: CatDetailResponse): boolean {
     return detail.cat.id === this.entityId() && detail.cat.canDelete === true;
   }
-  galleryBusyChanged(busy: boolean): void {
-    this.updatingGallery.set(busy);
-    this.submittingChanged.emit(busy);
-  }
   confirmPermanentDeletion(detail: CatDetailResponse): void {
-    if (this.deleting() || this.updatingGallery() || !this.canDelete(detail)) return;
+    if (this.deleting() || !this.canDelete(detail)) return;
     const cat = detail.cat;
     this.dialog
       .open<PermanentDeletionConfirmationDialog, PermanentDeletionConfirmationDialogData>(
