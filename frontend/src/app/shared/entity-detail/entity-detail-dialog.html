@@ -27,17 +27,53 @@
         {{ text().entityDetail.back }}
       </button>
     }
-    @if (catDetail(); as cat) {
-      @if (cat.editAvailable()) {
+    @if (entry().kind === 'detail') {
+      @if (editing()) {
         <button
-          class="header-edit-button"
+          class="header-cancel-button"
+          mat-stroked-button
+          type="button"
+          [disabled]="submitting()"
+          (click)="cancelEdit()"
+        >
+          {{ text().entityDetail.cancel }}
+        </button>
+        <button
+          class="header-save-button"
           mat-flat-button
           type="button"
-          [disabled]="cat.editDisabled()"
-          (click)="cat.requestEdit()"
+          [disabled]="editor()?.saveDisabled() ?? true"
+          (click)="saveEdit()"
         >
-          {{ text().cats.detail.edit }}
+          {{ submitting() ? text().entityDetail.saving : text().entityDetail.save }}
         </button>
+      } @else {
+        @if (ownerDetail(); as owner) {
+          @if (owner.intakeAvailable()) {
+            <button
+              class="header-intake-button"
+              mat-stroked-button
+              type="button"
+              [disabled]="owner.intakeDisabled()"
+              (click)="owner.openCatIntake()"
+            >
+              {{ text().owners.detail.requestIntake }}
+            </button>
+          }
+        }
+        @if (editableDetail(); as detail) {
+          @if (detail.editAvailable()) {
+            <button
+              class="header-edit-button"
+              mat-flat-button
+              type="button"
+              [disabled]="detail.editDisabled()"
+              (click)="detail.requestEdit()"
+            >
+              {{ text().entityDetail.edit }}
+            </button>
+          }
+        }
       }
     }
     <button
@@ -156,7 +192,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -172,7 +208,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="cancelCatEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -188,7 +224,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -203,7 +239,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="leaveEdit()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"

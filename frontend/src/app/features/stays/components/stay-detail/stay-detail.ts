@@ -1,4 +1,13 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import {
@@ -39,6 +48,7 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
 })
 export class StayDetail {
+  readonly editor = viewChild(StayEditor);
   private readonly api = inject(StayApiService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);

@@ -11,6 +11,10 @@ export interface EntityDetailTranslations {
   deceased: string;
   loadFailed: string;
   retry: string;
+  edit: string;
+  cancel: string;
+  save: string;
+  saving: string;
   discardChanges: {
     title: string;
     message: string;
@@ -40,6 +44,10 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     deceased: 'Falleció',
     loadFailed: 'No se pudieron cargar los registros relacionados.',
     retry: 'Reintentar',
+    edit: 'Editar',
+    cancel: 'Cancelar',
+    save: 'Guardar',
+    saving: 'Guardando…',
     discardChanges: {
       title: '¿Descartar los cambios sin guardar?',
       message: 'Si salís de la edición, se perderán los cambios pendientes.',
@@ -70,6 +78,10 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     deceased: 'Deceased',
     loadFailed: 'Related records could not be loaded.',
     retry: 'Retry',
+    edit: 'Edit',
+    cancel: 'Cancel',
+    save: 'Save',
+    saving: 'Saving…',
     discardChanges: {
       title: 'Discard unsaved changes?',
       message: 'If you leave the editor, your unsaved changes will be lost.',
