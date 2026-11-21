@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.CatProfileOption;
 import com.allegaeon.catworld.model.CatProfileOptionField;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatProfileOptionRepository;
@@ -50,6 +51,30 @@ public class CatProfileOptionService {
         return result;
     }
 
+    @Transactional
+    public CatProfileOptionDto publish(String field, String suppliedName, UUID brandId) {
+        requireAdministrator();
+        String name = cleanName(suppliedName);
+        boolean variety = CatIntakeCatalog.FOOD_DETAIL.equals(field);
+        if (name == null || name.length() > (variety ? 255 : 100)) {
+            throw new BadRequestException("Provide a valid catalog option name");
+        }
+        if (variety) return foodBrands.publishVariety(name, brandId);
+        if (brandId != null || field == null || !FIELD_KEYS.contains(field)
+                || "coat".equals(field) || "color".equals(field)) {
+            throw new BadRequestException("This cat profile field cannot be published");
+        }
+        if (FOOD_BRAND.key().equals(field)) return foodBrands.publishBrand(name);
+        var option = findOrPublishOption(field, name, true);
+        return new CatProfileOptionDto(option.getId(), option.getName());
+    }
+
+    private void requireAdministrator() {
+        if (users.getCurrentUserAccount().getRole() != UserRole.ADMIN) {
+            throw new ForbiddenException("Only administrators can approve cat profile options");
+        }
+    }
+
     void selectForApproval(CatRequestDTO request, Map<String, String> selected) {
         Set<String> approvals = new LinkedHashSet<>(FIELD_KEYS);
         approvals.retainAll(selected.keySet());
@@ -65,10 +90,7 @@ public class CatProfileOptionService {
             throw new BadRequestException("An unknown cat profile option was selected for approval");
         }
         boolean approveFood = request.isApproveFoodBrand() || approvals.contains(FOOD_BRAND.key());
-        if ((approveFood || request.isApproveFoodVariety() || !approvals.isEmpty())
-                && users.getCurrentUserAccount().getRole() != UserRole.ADMIN) {
-            throw new ForbiddenException("Only administrators can approve cat profile options");
-        }
+        if (approveFood || request.isApproveFoodVariety() || !approvals.isEmpty()) requireAdministrator();
 
         for (var field : CatProfileOptionField.values()) {
             if (field == FOOD_BRAND) {
@@ -89,14 +111,19 @@ public class CatProfileOptionService {
             return;
         }
 
-        byte[] normalizedKey = key(name);
-        var option = options.findByCategoryAndNormalizedKey(field.key(), normalizedKey).orElse(null);
-        if (option == null && approve) {
-            options.insertIfAbsent(binaryId(UUID.randomUUID()), field.key(), name, normalizedKey);
-            // A locking read sees a concurrent insert in MySQL repeatable-read transactions.
-            option = options.findLockedByCategoryAndNormalizedKey(field.key(), normalizedKey).orElseThrow();
-        }
+        var option = findOrPublishOption(field.key(), name, approve);
         field.setOption(cat, option == null ? supplied : option.getName(), option == null ? null : option.getId());
+    }
+
+    private CatProfileOption findOrPublishOption(String field, String name, boolean approve) {
+        byte[] normalizedKey = key(name);
+        var option = options.findByCategoryAndNormalizedKey(field, normalizedKey).orElse(null);
+        if (option == null && approve) {
+            options.insertIfAbsent(binaryId(UUID.randomUUID()), field, name, normalizedKey);
+            // A locking read sees a concurrent insert in MySQL repeatable-read transactions.
+            option = options.findLockedByCategoryAndNormalizedKey(field, normalizedKey).orElseThrow();
+        }
+        return option;
     }
 
     private String suppliedName(CatProfileOptionField field, CatRequestDTO request) {

@@ -79,6 +79,7 @@ public class CatRequestDTO {
 
     @Size(max = 255, message = "Food detail must not exceed 255 characters")
     private String foodDetail;
+    private UUID foodVarietyId;
 
     private boolean approveFoodBrand;
     private Set<String> approveCatalogOptions;

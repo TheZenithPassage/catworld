@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.FoodBrandOption;
+import com.allegaeon.catworld.dto.FoodVarietyOption;
 import com.allegaeon.catworld.service.FoodBrandService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,5 +19,10 @@ public class FoodBrandController {
     @GetMapping
     public List<FoodBrandOption> approvedBrands() {
         return brands.approvedBrands();
+    }
+
+    @GetMapping("/varieties")
+    public List<FoodVarietyOption> approvedVarieties() {
+        return brands.approvedVarieties();
     }
 }

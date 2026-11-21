@@ -22,6 +22,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -39,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -91,6 +93,39 @@ class FoodBrandControllerTest {
                 .with(httpBasic(admin.getUsername(), PASSWORD))).andExpect(status().isForbidden());
         mvc.perform(get(CATALOG).with(httpBasic(staff.getUsername(), PASSWORD)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void staffCanReadScopedVarietiesAndOnlyAdministratorsCanPublishThem() throws Exception {
+        var brand = publish(admin, Map.of("field", "foodBrand", "name", "Variety brand " + UUID.randomUUID()));
+        var other = publish(admin, Map.of("field", "foodBrand", "name", "Other brand " + UUID.randomUUID()));
+        var varietyInput = Map.of("field", "foodDetail", "name", "Kitten", "brandId", brand.get("id").asText());
+        mvc.perform(publication(staff, varietyInput)).andExpect(status().isForbidden());
+        var variety = publish(admin, varietyInput);
+        assertThat(publish(admin, varietyInput)).isEqualTo(variety);
+
+        var staffVarieties = json.readTree(mvc.perform(get(CATALOG + "/varieties")
+                        .with(httpBasic(staff.getUsername(), PASSWORD))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertThat(staffVarieties.valueStream().filter(option -> option.get("id").equals(variety.get("id")))
+                .map(option -> option.get("brandId")).toList()).containsExactly(brand.get("id"));
+        var chosen = create(staff, Map.of("foodBrandId", brand.get("id").asText(),
+                "foodVarietyId", variety.get("id").asText()));
+        assertThat(chosen.get("foodDetail").asText()).isEqualTo("Kitten");
+        assertThat(chosen.get("catalogOptionIds").get("foodDetail")).isEqualTo(variety.get("id"));
+        mvc.perform(createRequest(staff, Map.of("foodBrandId", other.get("id").asText(),
+                "foodVarietyId", variety.get("id").asText()))).andExpect(status().isBadRequest());
+    }
+
+    private JsonNode publish(UserAccount user, Map<String, ?> body) throws Exception {
+        return json.readTree(mvc.perform(publication(user, body)).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private MockHttpServletRequestBuilder publication(
+            UserAccount user, Map<String, ?> body) {
+        return post(PROFILE_OPTIONS).with(httpBasic(user.getUsername(), PASSWORD))
+                .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body));
     }
 
     @Test

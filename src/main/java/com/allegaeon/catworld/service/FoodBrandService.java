@@ -1,11 +1,14 @@
 package com.allegaeon.catworld.service;
 
+import com.allegaeon.catworld.dto.CatProfileOptionDto;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.dto.FoodBrandOption;
 import com.allegaeon.catworld.dto.FoodVarietyOption;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.FoodBrand;
+import com.allegaeon.catworld.model.FoodVariety;
 import com.allegaeon.catworld.repository.FoodBrandRepository;
 import com.allegaeon.catworld.repository.FoodVarietyRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,19 @@ public class FoodBrandService {
                 .toList();
     }
 
+    CatProfileOptionDto publishBrand(String name) {
+        var brand = findOrPublishBrand(name, true);
+        return new CatProfileOptionDto(brand.getId(), brand.getName());
+    }
+
+    CatProfileOptionDto publishVariety(String name, UUID brandId) {
+        if (brandId == null || !brands.existsById(brandId)) {
+            throw new BadRequestException("An approved food brand is required");
+        }
+        var variety = findOrPublishVariety(name, brandId);
+        return new CatProfileOptionDto(variety.getId(), variety.getName());
+    }
+
     // A cat mutation owns the transaction, including any new catalog entry.
     void applyProfile(Cat cat, CatRequestDTO request, boolean approve) {
         UUID previousBrand = cat.getFoodBrandId();
@@ -70,6 +86,12 @@ public class FoodBrandService {
             return;
         }
 
+        var brand = findOrPublishBrand(name, approve);
+        cat.setFoodBrand(brand == null ? request.getFoodBrand() : brand.getName());
+        cat.setFoodBrandId(brand == null ? null : brand.getId());
+    }
+
+    private FoodBrand findOrPublishBrand(String name, boolean approve) {
         byte[] key = key(name);
         var brand = brands.findByNormalizedKey(key).orElse(null);
         if (brand == null && approve) {
@@ -77,11 +99,20 @@ public class FoodBrandService {
             // In MySQL's repeatable-read transactions a locking read sees a concurrent insert.
             brand = brands.findLockedByNormalizedKey(key).orElseThrow();
         }
-        cat.setFoodBrand(brand == null ? request.getFoodBrand() : brand.getName());
-        cat.setFoodBrandId(brand == null ? null : brand.getId());
+        return brand;
     }
 
     private void applyVariety(Cat cat, CatRequestDTO request) {
+        UUID selectedId = request.getFoodVarietyId();
+        if (selectedId != null) {
+            var variety = varieties.findById(selectedId)
+                    .orElseThrow(() -> new BadRequestException("The selected food variety is unavailable"));
+            if (!Objects.equals(variety.getBrandId(), cat.getFoodBrandId())) {
+                throw new BadRequestException("The selected variety belongs to a different food brand");
+            }
+            setVariety(cat, variety);
+            return;
+        }
         if (!request.hasFoodDetailUpdate()) return;
         String supplied = request.getFoodDetail();
         String detail = supplied == null || supplied.isBlank() ? null : supplied.strip();
@@ -99,6 +130,10 @@ public class FoodBrandService {
             cat.setFoodVarietyId(null);
             return;
         }
+        setVariety(cat, findOrPublishVariety(name, brandId));
+    }
+
+    private FoodVariety findOrPublishVariety(String name, UUID brandId) {
         byte[] normalizedKey = key(name);
         var variety = varieties.findByBrandIdAndNormalizedKey(brandId, normalizedKey).orElse(null);
         if (variety == null) {
@@ -106,6 +141,10 @@ public class FoodBrandService {
             // The locking read also sees any concurrent insert in MySQL's repeatable-read transaction.
             variety = varieties.findLockedByBrandIdAndNormalizedKey(brandId, normalizedKey).orElseThrow();
         }
+        return variety;
+    }
+
+    private void setVariety(Cat cat, FoodVariety variety) {
         cat.setFoodDetail(variety.getName());
         cat.setFoodVarietyId(variety.getId());
     }
