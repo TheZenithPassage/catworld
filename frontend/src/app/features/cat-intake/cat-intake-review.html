@@ -63,18 +63,6 @@
                 @if (!adjusting()) {
                   <p class="photo-note">{{ copy().photoSelection }}</p>
                 }
-                @if (detail.proposed.lastTripleFelineDate || detail.proposed.lastRabiesDate) {
-                  <dl>
-                    @if (detail.proposed.lastTripleFelineDate; as date) {
-                      <dt>{{ catCopy().form.lastTripleFelineDate }}</dt>
-                      <dd>{{ displayValue('lastTripleFelineDate', date) }}</dd>
-                    }
-                    @if (detail.proposed.lastRabiesDate; as date) {
-                      <dt>{{ catCopy().form.lastRabiesDate }}</dt>
-                      <dd>{{ displayValue('lastRabiesDate', date) }}</dd>
-                    }
-                  </dl>
-                }
                 <ul class="proof-grid">
                   @for (photo of photos(); track photo.id; let index = $index) {
                     <li>

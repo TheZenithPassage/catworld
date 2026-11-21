@@ -13,9 +13,10 @@ Cat creation and update are multipart-only (`cat`, optional `photo`, and PUT
 `removePhoto=false`). The PUT `cat` part requires `expectedUpdatedAt` from the
 current cat response. The service checks it under a write lock before updating
 the profile or its photo and returns `409 CAT_EDIT_STALE` for an outdated
-edit. The editor keeps the draft until the operator explicitly reloads it.
+edit. A failed save leaves the draft available until the operator cancels or
+explicitly reloads.
 Native normalization finishes before a separate proxied service transaction
-atomically mutates Cat and CatPhoto. The authenticated
+atomically mutates the profile, portrait and informational gallery. The authenticated
 `GET /api/cats/{id}/photo` resource returns JPEG with a strong digest ETag and
 `Cache-Control: private, no-cache`, supports weak `If-None-Match` comparison,
 and returns the same 404 shape for absent cats and absent photos. The native
@@ -36,7 +37,12 @@ profiles.
 
 Cat informational photos are separate attachments for vaccination records and
 other reference images. The cat detail gallery lists attachment IDs and upload
-timestamps from `GET /api/cats/{catId}/informational-photos`. The same
+timestamps from `GET /api/cats/{catId}/informational-photos`. The create and edit
+forms stage new images as repeated `informationalPhotos` parts. Edits include
+only the explicitly removed IDs in the `cat` JSON part's
+`removedInformationalPhotoIds`. Deletions match both cat and photo under the
+same transaction. Other attachments, including evidence approved through
+private intake, stay in the gallery. The same
 authenticated collection accepts one multipart `photo` per POST. Individual
 items support JPEG reads with `Cache-Control: no-store` and deletion. Both
 operations match the cat and photo IDs. Uploads use the same formats, size
@@ -45,7 +51,8 @@ attachments through the database foreign key. Vaccination checks use the
 dates recorded in the cat's fields.
 
 When the application loses its authenticated session, open entity detail
-dialogs close and release any enlarged photo's object URL.
+dialogs close and release any enlarged photo's object URL. The editor opens a
+separate preview dialog so enlarging an attachment preserves the draft.
 
 Private cat intake uses separate invitation, review and photo staging tables.
 An administrator issues one active invitation per tutor. It includes the
@@ -77,14 +84,20 @@ the informational gallery remain behind staff authentication on the
 protected administration origin.
 
 Recipients can return to edit pending proposals and reuse staged evidence.
+They can add photos across several file selections and remove individual new
+or retained photos in the draft. The pending proposal changes on submission.
 Restoring an existing cat's original values and removing all staged evidence
 withdraws its proposal while leaving the invitation open. A requested update
 must answer at least one prompt. The form asks for confirmation before a valid
 partial submission and lists the remaining prompts for each cat. It compares
 the effective draft with the original values and includes previous proposals
 that are still in place. Reporting a rabies or triple feline dose requires
-its date and an image. One image can cover both doses. A tutor's new
-registration requires name, birth date or year, sex, breed, coat, color,
+its date and an image. One image can cover both doses. For a new or changed
+dose, the household form and submission endpoint accept dates from one calendar
+year before the current business date through that date, inclusive. Corrections
+can retain historical dates, and administrators can apply historical dates in
+review. The form receives the date bounds from `GET /api/intake/request`.
+A tutor's new registration requires name, birth date or year, sex, breed, coat, color,
 personality, food brand and detail, and litter. An invalid registration fails
 the whole submission. Vaccines and deworming details are optional. Internal
 profile creation and approval of pending registrations use the existing name,
@@ -111,8 +124,9 @@ cat. Both decisions prevent further edits to that proposal through the
 invitation. The link closes when the last outstanding cat is resolved.
 
 Cat profiles suggest approved breeds, food brands, brand-specific food
-varieties, own-litter details, and the last internal and external dewormers. A tutor must select
-a matching option by ID, including when the query matches part of the name.
+varieties, own-litter details, and the last internal and external dewormers. A
+tutor must select a matching option by ID, including when the query matches
+part of the name.
 Unmatched text can be proposed for review. Coat length is limited to Corto,
 Largo and Sin pelo for new entries. Color and markings are free text.
 Historical profile text, catalog references and pending submissions retain
@@ -492,12 +506,14 @@ through `daysAhead` calendar days from today, inclusive, in the business
 timezone. The default is seven days ahead; zero means today only.
 `includeStartedToday` defaults to true, keeping today's arrivals until business
 midnight. When false, the endpoint excludes stays at their scheduled start.
-The dashboard's **Upcoming stays** view remembers these filters in the browser
-and uses the server's `X-Arrivals-Refresh-After-Ms` header to refresh at the
-next start that changes the results or at business midnight.
+The dashboard's **Upcoming stays** view puts these filters in a collapsed
+**Settings** disclosure and remembers both values in the browser. It uses the
+server's `X-Arrivals-Refresh-After-Ms` header to refresh at the next start that
+changes the results or at business midnight.
 
-The warnings apply the same coverage rule as stay creation and extensions
-to the stay's local departure date, including doses that expire that day.
+The warnings apply the same coverage rule as stay creation and extensions.
+They identify missing dates, expiry by arrival, and expiry during the stay
+through the local departure date, with the expiry date when available.
 The screen marks missing or blank food and litter brands as **To confirm**.
 A stay without preparation items or visible proposals shows one complete
 message. `ADMIN` can generate a household link from any displayed arrival.
@@ -670,8 +686,9 @@ Current rules:
 - Outstanding Payments includes non-cancelled stays with an explicitly
   pending price or a known positive remaining amount.
 - Stored rabies and triple-feline vaccination dates must cover the complete
-  stay. Each operational expiry is the stored vaccination date plus one year;
-  a missing date or a stay ending on or after expiry is a vaccine conflict.
+  stay. Each vaccine expires on its recorded date plus one calendar year.
+  The conflict reports a missing date, expiry on or before arrival, or expiry
+  after arrival through checkout, including the expiry date when available.
 - Stay creation and updates that extend `endAt` beyond the currently persisted
   value aggregate every conflicting cat-vaccine pair into a structured `409
   Conflict`. Updates that keep or shorten the persisted end time skip the

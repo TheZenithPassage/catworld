@@ -1,7 +1,7 @@
 export const CAT_INTAKE_TRANSLATIONS = {
   es: {
     invite: {
-      title: 'Enlace familiar',
+      title: 'Enlace de la ficha',
       allowNew: 'Permitir el alta de gatos nuevos',
       existing: 'El enlace incluye a estos gatos',
       empty: 'El tutor no tiene gatos activos registrados.',
@@ -93,7 +93,7 @@ export const CAT_INTAKE_TRANSLATIONS = {
   },
   en: {
     invite: {
-      title: 'Household link',
+      title: 'Profile link',
       allowNew: 'Allow new cats to be registered',
       existing: 'This link includes these cats',
       empty: 'This owner has no current cats on record.',

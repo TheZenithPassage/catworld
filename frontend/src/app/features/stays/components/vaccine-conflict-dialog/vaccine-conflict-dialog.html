@@ -5,10 +5,11 @@
 
   <ul class="violation-list">
     @for (violation of data.violations; track violation.catId + ':' + violation.vaccineType) {
+      @let copy = labels(violation);
       <li>
         <strong>{{ violation.catName }}</strong>
-        <span>{{ vaccineLabel(violation.vaccineType) }}</span>
-        <span class="violation-reason">{{ reasonLabel(violation.reason) }}</span>
+        <span>{{ copy.vaccine }}</span>
+        <span class="violation-reason">{{ copy.reason }}</span>
       </li>
     }
   </ul>

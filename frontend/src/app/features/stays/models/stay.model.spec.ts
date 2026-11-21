@@ -10,7 +10,7 @@ describe('isVaccineConflictError', () => {
         catId: 'cat-1',
         catName: 'Milo',
         vaccineType: 'RABIES',
-        reason: 'EXPIRED',
+        reason: 'EXPIRES_DURING_STAY',
         vaccinatedOn: '2025-07-01',
         expiresOn: '2026-07-01',
       },

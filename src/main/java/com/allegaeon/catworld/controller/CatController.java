@@ -63,16 +63,19 @@ public class CatController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> createCat(
             @Validated({Default.class, CatRequestDTO.Create.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
-            @RequestPart(value = "photo", required = false) MultipartFile photo) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(catService.createCat(catRequestDTO, photo));
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(catService.createCat(catRequestDTO, photo, informationalPhotos));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> updateCat(@PathVariable UUID id,
             @Validated({Default.class, CatRequestDTO.Update.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
             @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos,
             @RequestParam(defaultValue = "false") boolean removePhoto) {
-        return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto));
+        return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto, informationalPhotos));
     }
 
     @GetMapping(value = "/{id}/photo", produces = MediaType.IMAGE_JPEG_VALUE)

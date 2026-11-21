@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,7 +22,8 @@ public final class CatIntakeDtos {
                             Map<String, UUID> optionIds) {}
     public record RecipientForm(boolean allowNewCats, List<ScopedCat> cats, Instant expiresAt,
                                 List<CatProfileOptionDto> brands, Map<String, List<CatProfileOptionDto>> catalogOptions,
-                                List<FoodVarietyOption> foodVarieties) {}
+                                List<FoodVarietyOption> foodVarieties, VaccineDateRange vaccineDateRange) {}
+    public record VaccineDateRange(LocalDate min, LocalDate max) {}
     public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
                                List<UUID> retainedPhotoIds, List<String> photoKeys, Map<String, UUID> optionIds) {}
     public record Submission(List<SubmittedCat> cats) {}

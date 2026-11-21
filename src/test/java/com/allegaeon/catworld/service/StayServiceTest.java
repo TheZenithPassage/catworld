@@ -3345,7 +3345,7 @@ public class StayServiceTest {
 
             assertEquals(2, exception.getViolations().size());
             assertTrue(exception.getViolations().stream()
-                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED));
+                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRES_DURING_STAY));
             assertTrue(exception.getViolations().stream()
                     .allMatch(violation -> violation.getExpiresOn().equals(endAt.toLocalDate())));
             verify(stayRepository, never()).save(any(Stay.class));
@@ -3353,12 +3353,12 @@ public class StayServiceTest {
         }
 
         @Test
-        void createBlocksVaccinesThatExpireBeforeStayEnd() {
+        void createReportsVaccinesThatExpireOnOrBeforeArrival() {
 
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
-            LocalDate vaccinatedOn = endAt.toLocalDate().minusYears(1).minusDays(1);
-            Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn);
+            LocalDate vaccinatedOn = startAt.toLocalDate().minusYears(1);
+            Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn.minusDays(1));
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
 
             stubCreateRequest(cat, request, UserRole.STAFF);
@@ -3369,7 +3369,9 @@ public class StayServiceTest {
 
             assertEquals(2, exception.getViolations().size());
             assertTrue(exception.getViolations().stream()
-                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED));
+                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED_BY_ARRIVAL));
+            assertEquals(startAt.toLocalDate(), exception.getViolations().get(0).getExpiresOn());
+            assertEquals(startAt.toLocalDate().minusDays(1), exception.getViolations().get(1).getExpiresOn());
             verify(stayRepository, never()).save(any(Stay.class));
 
         }

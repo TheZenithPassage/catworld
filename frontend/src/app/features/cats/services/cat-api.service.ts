@@ -87,9 +87,12 @@ export class CatApiService {
     });
   }
 
-  createCat(request: CreateCatRequest, photo: File | null = null): Observable<Cat> {
-    const body = this.catFormData(request);
-    if (photo) body.append('photo', photo);
+  createCat(
+    request: CreateCatRequest,
+    photo: File | null = null,
+    informationalPhotos: File[] = [],
+  ): Observable<Cat> {
+    const body = this.catFormData(request, photo, informationalPhotos);
     return this.http.post<Cat>(this.baseUrl, body);
   }
 
@@ -98,9 +101,9 @@ export class CatApiService {
     request: UpdateCatRequest,
     photo: File | null = null,
     removePhoto = false,
+    informationalPhotos: File[] = [],
   ): Observable<Cat> {
-    const body = this.catFormData(request);
-    if (photo) body.append('photo', photo);
+    const body = this.catFormData(request, photo, informationalPhotos);
     body.append('removePhoto', String(removePhoto));
     return this.http.put<Cat>(`${this.baseUrl}/${catId}`, body);
   }
@@ -109,9 +112,15 @@ export class CatApiService {
     return this.http.delete<void>(`${this.baseUrl}/${catId}`);
   }
 
-  private catFormData(request: CreateCatRequest | UpdateCatRequest): FormData {
+  private catFormData(
+    request: CreateCatRequest | UpdateCatRequest,
+    photo: File | null,
+    informationalPhotos: File[],
+  ): FormData {
     const body = new FormData();
     body.append('cat', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    if (photo) body.append('photo', photo);
+    for (const attachment of informationalPhotos) body.append('informationalPhotos', attachment);
     return body;
   }
 }

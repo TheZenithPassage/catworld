@@ -129,7 +129,8 @@ describe('CatIntakeReview', () => {
 
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('.proof-thumbnail img')).not.toBeNull();
-    expect(root.querySelector('.proofs dl')?.textContent).toContain('2026');
+    expect(root.querySelector('.proofs dl')).toBeNull();
+    expect(root.querySelector('.field-grid')?.textContent).toContain('2026');
     expect(root.querySelector('fieldset input, fieldset select, fieldset textarea')).toBeNull();
     const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(approve.textContent).toContain('Aprobar cambios');

@@ -1,89 +1,136 @@
 @let t = text().cats.informationalPhotos;
-@let controlsDisabled = disabled() || busy();
-<section class="gallery" [attr.aria-label]="t.title" [attr.aria-busy]="loading() || busy()">
+<section class="gallery" [attr.aria-label]="t.title" [attr.aria-busy]="loading()">
   <header>
     <h3>{{ t.title }}</h3>
-    <input #fileInput type="file" hidden [accept]="acceptedFormats" (change)="select($event)" />
-    <button
-      #addButton
-      mat-stroked-button
-      type="button"
-      [disabled]="controlsDisabled"
-      (click)="fileInput.click()"
-    >
-      {{ t.add }}
-    </button>
+    @if (editable()) {
+      <input #fileInput type="file" hidden [accept]="acceptedFormats" (change)="select($event)" />
+      <button
+        #addButton
+        mat-stroked-button
+        type="button"
+        [disabled]="disabled()"
+        (click)="fileInput.click()"
+      >
+        {{ t.add }}
+      </button>
+    }
   </header>
 
   @if (loading()) {
     <p role="status">{{ t.loading }}</p>
   } @else if (loadFailed()) {
     <p role="alert">{{ t.loadFailed }}</p>
-    <button mat-button type="button" [disabled]="controlsDisabled" (click)="load()">
+    <button mat-button type="button" [disabled]="disabled()" (click)="load()">
       {{ text().cats.detail.retry }}
     </button>
-  } @else if (photos().length === 0) {
+  } @else if (visiblePhotos().length === 0 && drafts().length === 0) {
     <p>{{ t.empty }}</p>
-  } @else {
+  }
+
+  @if (visiblePhotos().length || drafts().length) {
     <ul>
-      @for (photo of photos(); track photo.id) {
+      @if (catId(); as id) {
+        @for (photo of visiblePhotos(); track photo.id) {
+          <li>
+            <button
+              class="view-photo"
+              mat-button
+              type="button"
+              [disabled]="disabled()"
+              (click)="showSaved(photo.id)"
+            >
+              @defer (on viewport) {
+                <app-cat-informational-photo-thumbnail [catId]="id" [photoId]="photo.id" />
+              } @placeholder {
+                <span class="thumbnail-placeholder" aria-hidden="true"></span>
+              }
+              {{ t.view($index + 1) }}
+            </button>
+            @if (editable()) {
+              @if (pendingRemoval() === photo.id) {
+                <p>{{ t.removePrompt }}</p>
+                <div class="confirmation-actions">
+                  <button
+                    #cancelButton
+                    mat-button
+                    type="button"
+                    [disabled]="disabled()"
+                    (click)="cancelRemoval(photo.id)"
+                  >
+                    {{ text().cats.detail.cancel }}
+                  </button>
+                  <button
+                    mat-flat-button
+                    type="button"
+                    [disabled]="disabled()"
+                    (click)="removeSaved(photo.id)"
+                  >
+                    {{ t.confirmRemove }}
+                  </button>
+                </div>
+              } @else {
+                <button
+                  #removeButton
+                  class="remove-photo"
+                  mat-button
+                  type="button"
+                  [attr.aria-label]="t.removeNamed($index + 1)"
+                  [attr.data-photo-id]="photo.id"
+                  [disabled]="disabled()"
+                  (click)="requestRemoval(photo.id)"
+                >
+                  {{ t.remove }}
+                </button>
+              }
+            }
+          </li>
+        }
+      }
+      @for (draft of drafts(); track draft) {
         <li>
           <button
             class="view-photo"
             mat-button
             type="button"
-            [disabled]="controlsDisabled"
-            (click)="openPhoto.emit(photo.id)"
+            [disabled]="disabled()"
+            (click)="showDraft(draft)"
           >
-            @defer (on viewport) {
-              <app-cat-informational-photo-thumbnail [catId]="catId()" [photoId]="photo.id" />
-            } @placeholder {
-              <span class="thumbnail-placeholder" aria-hidden="true"></span>
-            }
-            {{ t.view($index + 1) }}
+            <span class="thumbnail-placeholder">
+              <img #thumbnail [src]="draft.url" alt="" (error)="thumbnail.hidden = true" />
+            </span>
+            {{ draft.file.name }}
           </button>
-          @if (pendingRemoval() === photo.id) {
-            <p>{{ t.removePrompt }}</p>
-            <div class="confirmation-actions">
-              <button
-                #cancelButton
-                mat-button
-                type="button"
-                [disabled]="controlsDisabled"
-                (click)="cancelRemoval(photo.id)"
-              >
-                {{ text().cats.detail.cancel }}
-              </button>
-              <button
-                mat-flat-button
-                type="button"
-                [disabled]="controlsDisabled"
-                (click)="remove(photo.id)"
-              >
-                {{ t.confirmRemove }}
-              </button>
-            </div>
-          } @else {
-            <button
-              #removeButton
-              mat-button
-              type="button"
-              [attr.aria-label]="t.removeNamed($index + 1)"
-              [attr.data-photo-id]="photo.id"
-              [disabled]="controlsDisabled"
-              (click)="requestRemoval(photo.id)"
-            >
-              {{ t.remove }}
-            </button>
-          }
+          <button
+            class="remove-photo"
+            mat-button
+            type="button"
+            [attr.aria-label]="t.removeNamed(visiblePhotos().length + $index + 1)"
+            [disabled]="disabled()"
+            (click)="removeDraft(draft)"
+          >
+            {{ t.remove }}
+          </button>
         </li>
       }
     </ul>
-  }
-  @if (busy()) {
-    <p role="status">{{ t.saving }}</p>
   }
   @if (error(); as message) {
     <p class="error" role="alert">{{ message }}</p>
   }
 </section>
+
+<ng-template #preview>
+  <h2 mat-dialog-title>{{ t.photo }}</h2>
+  <mat-dialog-content>
+    @if (previewUrl(); as url) {
+      <img class="enlarged-photo" [src]="url" [alt]="t.photo" (error)="previewUrl.set(null)" />
+    } @else if (previewLoading()) {
+      <p role="status">{{ t.loading }}</p>
+    } @else {
+      <p role="status">{{ t.previewUnavailable }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close type="button">{{ t.close }}</button>
+  </mat-dialog-actions>
+</ng-template>

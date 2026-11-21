@@ -101,6 +101,7 @@ export interface CreateCatRequest {
 export interface UpdateCatRequest extends CreateCatRequest {
   expectedUpdatedAt: string;
   deceased?: boolean;
+  removedInformationalPhotoIds?: string[];
 }
 
 export interface CatPhotoMutation {
