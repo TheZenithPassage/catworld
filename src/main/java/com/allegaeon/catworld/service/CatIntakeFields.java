@@ -116,7 +116,7 @@ class CatIntakeFields {
     }
 
     Map<String, String> merge(Cat current, Map<String, String> changes) {
-        var result = current == null ? new LinkedHashMap<String, String>() : snapshot(current);
+        var result = current == null ? new LinkedHashMap<String, String>() : displayedSnapshot(current);
         if (changes.keySet().stream().anyMatch(BIRTH_FIELDS::contains)) {
             result.keySet().removeAll(BIRTH_FIELDS);
         }
@@ -163,9 +163,9 @@ class CatIntakeFields {
                 .coat(values.get("coat"))
                 .color(values.get("color"))
                 .personality(values.get("personality"))
-                .foodBrand(changedValue(values.get("foodBrand"), current == null ? null : current.getFoodBrand()))
-                .foodDetail(changedValue(values.get("foodDetail"), current == null ? null : current.getFoodDetail()))
-                .litterBrand(changedValue(values.get(LITTER_VALUE), current == null ? null : current.getStoredLitterValue()))
+                .foodBrand(changedValue(values.get("foodBrand"), current == null ? null : current.getDisplayedFoodBrand()))
+                .foodDetail(changedValue(values.get("foodDetail"), current == null ? null : current.getDisplayedFoodDetail()))
+                .litterBrand(changedValue(values.get(LITTER_VALUE), current == null ? null : current.getDisplayedLitterValue()))
                 .careInstructions(values.get("careInstructions"))
                 .lastInternalDewormerName(values.get("lastInternalDewormerName"))
                 .lastInternalDewormingDate(date(values, "lastInternalDewormingDate"))

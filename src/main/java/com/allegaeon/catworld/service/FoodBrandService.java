@@ -162,7 +162,7 @@ public class FoodBrandService {
         if (!request.hasFoodBrandUpdate()) return;
         String supplied = request.getFoodBrand();
         boolean unlinked = request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_BRAND);
-        if (!unlinked && (sameName(cat.getFoodBrand(), supplied) || sameName(cat.getDisplayedFoodBrand(), supplied))) {
+        if (!unlinked && sameName(cat.getDisplayedFoodBrand(), supplied)) {
             return;
         }
 
@@ -198,8 +198,7 @@ public class FoodBrandService {
         if (!request.hasFoodDetailUpdate()) return;
         String supplied = request.getFoodDetail();
         boolean unlinked = request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL);
-        if (!brandChanged && !unlinked
-                && (sameName(cat.getFoodDetail(), supplied) || sameName(cat.getDisplayedFoodDetail(), supplied))) {
+        if (!brandChanged && !unlinked && sameName(cat.getDisplayedFoodDetail(), supplied)) {
             return;
         }
 
