@@ -24,6 +24,19 @@
         {{ text().entityDetail.back }}
       </button>
     }
+    @if (catDetail(); as cat) {
+      @if (cat.editAvailable()) {
+        <button
+          class="header-edit-button"
+          mat-flat-button
+          type="button"
+          [disabled]="cat.editDisabled()"
+          (click)="cat.requestEdit()"
+        >
+          {{ text().cats.detail.edit }}
+        </button>
+      }
+    }
     <button
       class="close-button"
       mat-icon-button

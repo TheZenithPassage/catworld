@@ -807,12 +807,17 @@ describe('EntityDetailDialog', () => {
       fixture.componentInstance.text().cats.detail.viewPhoto,
     );
     const portrait = (fixture.nativeElement as HTMLElement).querySelector('.detail-portrait');
-    expect(portrait?.querySelector('h3')?.textContent?.trim()).toBe(
-      fixture.componentInstance.text().cats.detail.photo,
-    );
+    expect(portrait?.querySelector('h3')?.textContent?.trim()).toBe('Profile photo');
     expect(portrait?.querySelector('p')?.textContent?.trim()).toBe(
       fixture.componentInstance.text().cats.emptyValue,
     );
+    const sections = Array.from(fixture.nativeElement.querySelector('app-cat-detail').children);
+    expect(sections.map((section) => (section as Element).className)).toEqual([
+      'detail-fields',
+      'detail-photos',
+      'relationship-group',
+      'detail-actions',
+    ]);
     const catStay = buttonContaining(fixture, 'Reserved');
     catStay.click();
     fixture.detectChanges();
@@ -821,6 +826,18 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.reference().entityType).toBe('cat');
     expect(fixture.nativeElement.textContent).toContain('Milo');
+
+    const root: HTMLElement = fixture.nativeElement;
+    const content = root.querySelector('mat-dialog-content')!;
+    const headerEdit = root.querySelector<HTMLButtonElement>('.header-edit-button')!;
+    expect(headerEdit.nextElementSibling?.classList.contains('close-button')).toBe(true);
+    content.scrollTop = 120;
+    headerEdit.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(root.querySelector('app-cat-editor')).not.toBeNull();
+    expect(content.scrollTop).toBe(0);
+    expect(root.querySelector('.header-edit-button')).toBeNull();
   });
 
   it('drives rendered associated Stay/Cat lists through paginator, child and restored Back state', async () => {

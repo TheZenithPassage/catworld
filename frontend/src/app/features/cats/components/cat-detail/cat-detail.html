@@ -21,35 +21,6 @@
       (submittingChanged)="submittingChanged.emit($event)"
     />
   } @else {
-    <div class="detail-photos">
-      <section class="detail-portrait">
-        <h3>{{ text().cats.detail.photo }}</h3>
-        @if (cat.hasPhoto) {
-          <button
-            mat-stroked-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })"
-          >
-            {{ text().cats.detail.viewPhoto }}
-          </button>
-        } @else {
-          <p>{{ text().cats.emptyValue }}</p>
-        }
-      </section>
-      <app-cat-informational-photo-gallery
-        [catId]="cat.id"
-        [disabled]="deleting()"
-        (openPhoto)="
-          openPhoto.emit({
-            catId: cat.id,
-            catName: cat.name,
-            ownerName: cat.ownerName,
-            informationalPhotoId: $event,
-          })
-        "
-      />
-    </div>
     <dl class="detail-fields">
       <div class="detail-field">
         <dt>{{ text().cats.form.name }}</dt>
@@ -159,6 +130,35 @@
         <dd>{{ value(cat.notes) }}</dd>
       </div>
     </dl>
+    <div class="detail-photos">
+      <section class="detail-portrait">
+        <h3>{{ text().cats.detail.photo }}</h3>
+        @if (cat.hasPhoto) {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="deleting()"
+            (click)="openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })"
+          >
+            {{ text().cats.detail.viewPhoto }}
+          </button>
+        } @else {
+          <p>{{ text().cats.emptyValue }}</p>
+        }
+      </section>
+      <app-cat-informational-photo-gallery
+        [catId]="cat.id"
+        [disabled]="deleting()"
+        (openPhoto)="
+          openPhoto.emit({
+            catId: cat.id,
+            catName: cat.name,
+            ownerName: cat.ownerName,
+            informationalPhotoId: $event,
+          })
+        "
+      />
+    </div>
     @if (detail.stays.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().entityDetail.stays }}</h3>
@@ -202,12 +202,7 @@
         }
       </div>
       <div class="detail-actions-end">
-        <button
-          mat-flat-button
-          type="button"
-          [disabled]="deleting()"
-          (click)="editRequested.emit()"
-        >
+        <button mat-flat-button type="button" [disabled]="editDisabled()" (click)="requestEdit()">
           {{ text().cats.detail.edit }}
         </button>
       </div>

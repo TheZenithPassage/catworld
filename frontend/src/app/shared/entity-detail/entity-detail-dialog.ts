@@ -1,8 +1,10 @@
 import {
+  afterNextRender,
   Component,
   DestroyRef,
   ElementRef,
   inject,
+  Injector,
   output,
   signal,
   viewChild,
@@ -78,11 +80,13 @@ export class EntityDetailDialog {
   private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
   private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
   private requestGeneration = 0;
   private geometryGeneration = 0;
   private contentResolved = false;
   private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
+  protected readonly catDetail = viewChild(CatDetail);
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
   readonly entry = signal<HistoryEntry>(this.history()[0]);
@@ -382,6 +386,19 @@ export class EntityDetailDialog {
   }
   enterEdit(): void {
     this.editing.set(true);
+    if (this.reference().entityType === 'cat') {
+      afterNextRender(
+        {
+          write: () => {
+            const content = this.contentRegion()?.nativeElement;
+            if (content && this.editing() && this.reference().entityType === 'cat') {
+              content.scrollTop = 0;
+            }
+          },
+        },
+        { injector: this.injector },
+      );
+    }
   }
   leaveEdit(): void {
     this.editing.set(false);

@@ -44,10 +44,23 @@ li {
 .view-photo {
   display: block;
   width: 100%;
-  height: auto;
   padding: 0.25rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-primary-hover);
+  cursor: pointer;
+  font: inherit;
   overflow-wrap: anywhere;
-  white-space: normal;
+}
+
+.view-photo:focus-visible {
+  outline: 2px solid currentColor;
+}
+
+.view-photo:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .remove-photo {
