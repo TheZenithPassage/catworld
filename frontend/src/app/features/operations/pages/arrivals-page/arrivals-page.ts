@@ -1,10 +1,11 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { filter, fromEvent, Subscription } from 'rxjs';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { API_BASE_URL } from '../../../../core/config/api.config';
@@ -42,6 +43,16 @@ interface Arrival {
   cats: ArrivalCat[];
 }
 
+interface ArrivalFilters {
+  daysAhead: string;
+  includeStartedToday: boolean;
+}
+
+const FILTERS_STORAGE_KEY = 'catworld.arrivals.filters';
+const DEFAULT_FILTERS: ArrivalFilters = { daysAhead: '7', includeStartedToday: true };
+const NONNEGATIVE_INTEGER = /^[0-9]+$/;
+const REFRESH_HEADER = 'X-Arrivals-Refresh-After-Ms';
+
 @Component({
   selector: 'app-arrivals-page',
   imports: [MatButton, RouterLink, UiStateComponent],
@@ -50,37 +61,69 @@ interface Arrival {
 })
 export class ArrivalsPage {
   private readonly http = inject(HttpClient);
+  private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly i18n = inject(I18nService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly details = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
   private readonly auth = inject(AuthSessionService);
+  private filters = this.readFilters();
   private request?: Subscription;
+  private refreshTimer?: ReturnType<typeof setTimeout>;
 
   readonly copy = computed(() => OPERATIONS_ARRIVALS_TRANSLATIONS[this.i18n.language()]);
   readonly catForm = computed(() => this.i18n.text().cats.form);
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
   readonly arrivals = signal<Arrival[]>([]);
   readonly state = signal<'loading' | 'error' | 'ready'>('loading');
+  readonly daysAhead = signal(this.filters.daysAhead);
+  readonly invalidDaysAhead = computed(() => !NONNEGATIVE_INTEGER.test(this.daysAhead()));
+  readonly includeStartedToday = signal(this.filters.includeStartedToday);
 
   constructor() {
     this.loadArrivals();
+    this.destroyRef.onDestroy(() => clearTimeout(this.refreshTimer));
+    fromEvent(this.document, 'visibilitychange')
+      .pipe(
+        filter(() => this.document.visibilityState === 'visible'),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.loadArrivals(false));
   }
 
-  loadArrivals(): void {
+  loadArrivals(showLoading = true): void {
+    clearTimeout(this.refreshTimer);
     this.request?.unsubscribe();
-    this.state.set('loading');
+    if (showLoading) this.state.set('loading');
     this.request = this.http
-      .get<Arrival[]>(`${API_BASE_URL}/operations/arrivals`)
+      .get<Arrival[]>(`${API_BASE_URL}/operations/arrivals`, {
+        observe: 'response',
+        params: { ...this.filters },
+      })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (arrivals) => {
-          this.arrivals.set(arrivals);
+        next: (response) => {
+          this.arrivals.set(response.body ?? []);
           this.state.set('ready');
+          const delay = Number(response.headers.get(REFRESH_HEADER));
+          if (Number.isFinite(delay) && delay > 0) {
+            this.refreshTimer = setTimeout(() => this.loadArrivals(false), delay);
+          }
         },
         error: () => this.state.set('error'),
       });
+  }
+
+  changeDaysAhead(value: string): void {
+    this.daysAhead.set(value);
+    if (this.invalidDaysAhead() || value === this.filters.daysAhead) return;
+    this.updateFilters({ ...this.filters, daysAhead: value });
+  }
+
+  changeIncludeStartedToday(value: boolean): void {
+    this.includeStartedToday.set(value);
+    this.updateFilters({ ...this.filters, includeStartedToday: value });
   }
 
   openDetail(entityType: EntityType, entityId: string): void {
@@ -127,5 +170,32 @@ export class ArrivalsPage {
     const label = vaccineType === 'RABIES' ? copy.vaccine.rabies : copy.vaccine.tripleFeline;
     const message = reason === 'MISSING' ? copy.reason.missing : copy.reason.expired;
     return `${label} · ${message}`;
+  }
+
+  private readFilters(): ArrivalFilters {
+    try {
+      const stored: Partial<ArrivalFilters> | null = JSON.parse(
+        this.document.defaultView?.localStorage.getItem(FILTERS_STORAGE_KEY) ?? 'null',
+      );
+      return {
+        daysAhead:
+          typeof stored?.daysAhead === 'string' && NONNEGATIVE_INTEGER.test(stored.daysAhead)
+            ? stored.daysAhead
+            : DEFAULT_FILTERS.daysAhead,
+        includeStartedToday: stored?.includeStartedToday !== false,
+      };
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  }
+
+  private updateFilters(filters: ArrivalFilters): void {
+    this.filters = filters;
+    try {
+      this.document.defaultView?.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+      // The selection still applies when browser storage is unavailable.
+    }
+    this.loadArrivals();
   }
 }

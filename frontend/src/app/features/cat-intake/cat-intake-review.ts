@@ -20,9 +20,13 @@ import { CatProfileOptionField } from '../../shared/cat-profile-options/cat-prof
 import { CatProfileOptionsService } from '../../shared/cat-profile-options/cat-profile-options.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
-import { CATWORLD_LITTER, OWN_LITTER } from '../cats/models/cat.model';
+import { CAT_COAT_LENGTHS, CATWORLD_LITTER, OWN_LITTER } from '../cats/models/cat.model';
 import { foodBrandKey } from '../cats/utils/food-brand-key';
-import { catLitterLabel } from '../cats/utils/cat-litter-label';
+import {
+  catLitterChoice,
+  catLitterLabel,
+  catOwnLitterDetail,
+} from '../cats/utils/cat-litter-label';
 import { CatIntakeApi } from './cat-intake-api';
 import {
   CAT_INTAKE_FIELDS,
@@ -84,8 +88,9 @@ export class CatIntakeReview {
 
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
-  readonly sharedLitter = CATWORLD_LITTER;
-  readonly ownLitter = OWN_LITTER;
+  readonly litterChoice = catLitterChoice;
+  readonly ownLitterDetail = catOwnLitterDetail;
+  readonly coatLengths = CAT_COAT_LENGTHS;
   readonly pending = signal<CatIntakeReviewItem[]>([]);
   readonly groups = computed(() => {
     const groups = new Map<string, ReviewGroup>();
@@ -114,13 +119,14 @@ export class CatIntakeReview {
   readonly fields = signal<ReviewField[]>([]);
   readonly photos = signal<ReviewPhoto[]>([]);
   readonly birthKey = signal<'birthDate' | 'birthYear'>('birthDate');
+  private readonly chosenFoodVarietyId = signal<string | null>(null);
   readonly unansweredRequests = computed(() =>
     (this.detail()?.unansweredRequestedFields ?? []).map((key) => this.fieldLabel(key)).join(', '),
   );
   readonly showExistingFieldChoices = computed(
     () => this.fields().length > 1 || this.photos().length > 0,
   );
-  private readonly selectedFields = computed(() => {
+  readonly selectedFields = computed(() => {
     const selected: CatIntakeFields = {};
     for (const { field, decision, value } of this.fields()) {
       const key = field.key === 'birthDate' ? this.birthKey() : field.key;
@@ -128,12 +134,32 @@ export class CatIntakeReview {
     }
     return selected;
   });
+  private readonly foodBrandForApproval = computed(
+    () => this.selectedFields().foodBrand ?? this.detail()?.current?.foodBrand ?? '',
+  );
+  readonly foodVarietiesForApproval = computed(() => {
+    const brandName = foodBrandKey(this.foodBrandForApproval());
+    const brand = this.profileOptions
+      .catalog()
+      ?.foodBrand.find(({ name }) => foodBrandKey(name) === brandName);
+    return brand
+      ? (this.profileOptions.varieties() ?? []).filter(({ brandId }) => brandId === brand.id)
+      : [];
+  });
+  readonly foodVarietyForApproval = computed(() => {
+    const selected = this.selectedFields().foodDetail;
+    return this.foodVarietiesForApproval().find(
+      ({ id, name }) => id === this.chosenFoodVarietyId() && name === selected,
+    );
+  });
   readonly foodDetailBrandMismatch = computed(() => {
     const detail = this.detail();
     const selected = this.selectedFields();
-    if (!detail?.proposedFoodDetailBrand || !selected.foodDetail) return false;
-    const brand = selected.foodBrand ?? detail.current?.foodBrand ?? '';
-    return foodBrandKey(brand) !== foodBrandKey(detail.proposedFoodDetailBrand);
+    if (!detail?.proposedFoodDetailBrand || !selected.foodDetail || this.foodVarietyForApproval())
+      return false;
+    return (
+      foodBrandKey(this.foodBrandForApproval()) !== foodBrandKey(detail.proposedFoodDetailBrand)
+    );
   });
   private readonly selectedPhotoIds = computed(() =>
     this.photos()
@@ -263,14 +289,27 @@ export class CatIntakeReview {
   }
 
   setValue(key: CatIntakeFieldKey, value: string): void {
-    this.fields.update((fields) =>
-      fields.map((row) => (row.field.key === key ? { ...row, value } : row)),
-    );
+    if (key === 'foodDetail') this.chosenFoodVarietyId.set(null);
+    this.updateField(key, { value });
   }
 
-  adjust(): void {
-    this.adjusting.set(true);
-    if (this.fields().some(({ field }) => field.kind === 'option')) this.profileOptions.load();
+  toggleAdjustment(): void {
+    this.adjusting.update((adjusting) => !adjusting);
+    if (!this.adjusting()) return;
+    const hasFoodVariety = this.fields().some(({ field }) => field.key === 'foodDetail');
+    if (hasFoodVariety) this.profileOptions.loadVarieties();
+    if (hasFoodVariety || this.fields().some(({ field }) => field.kind === 'option'))
+      this.profileOptions.load();
+  }
+
+  chooseFoodVariety(id: string): void {
+    const variety = this.foodVarietiesForApproval().find((option) => option.id === id);
+    if (variety) {
+      this.setValue('foodDetail', variety.name);
+      this.chosenFoodVarietyId.set(variety.id);
+    } else if (this.chosenFoodVarietyId()) {
+      this.setValue('foodDetail', this.detail()?.proposed.foodDetail ?? '');
+    }
   }
 
   setBirthKey(key: string): void {
@@ -289,12 +328,16 @@ export class CatIntakeReview {
   setLitterSource(source: string): void {
     this.setValue(
       'litterBrand',
-      source === 'shared' ? this.sharedLitter : source === 'own' ? this.ownLitter : '',
+      source === 'shared' ? CATWORLD_LITTER : source === 'own' ? OWN_LITTER : '',
     );
   }
 
   setLitterDescription(description: string): void {
-    this.setValue('litterBrand', description.trim() ? description : this.ownLitter);
+    this.setValue('litterBrand', description.trim() ? description : OWN_LITTER);
+  }
+
+  isFixedCoatLength(value: string): value is (typeof CAT_COAT_LENGTHS)[number] {
+    return this.coatLengths.some((length) => length === value);
   }
 
   openCurrentCat(catId: string): void {
@@ -303,9 +346,24 @@ export class CatIntakeReview {
 
   setDecision(key: CatIntakeFieldKey, value: string): void {
     const decision = value === 'keep' || value === 'apply' ? value : 'unresolved';
+    this.updateField(key, { decision });
+  }
+
+  private updateField(
+    key: CatIntakeFieldKey,
+    change: Partial<Pick<ReviewField, 'value' | 'decision'>>,
+  ): void {
+    const previousBrand = this.foodBrandForApproval();
     this.fields.update((fields) =>
-      fields.map((row) => (row.field.key === key ? { ...row, decision } : row)),
+      fields.map((row) => (row.field.key === key ? { ...row, ...change } : row)),
     );
+    if (
+      key === 'foodBrand' &&
+      this.chosenFoodVarietyId() &&
+      foodBrandKey(previousBrand) !== foodBrandKey(this.foodBrandForApproval())
+    ) {
+      this.setValue('foodDetail', this.detail()?.proposed.foodDetail ?? '');
+    }
   }
 
   setPhoto(id: string, selected: boolean): void {
@@ -364,8 +422,9 @@ export class CatIntakeReview {
     }
   }
 
-  hasCurrentValue(key: CatIntakeFieldKey, current: CatIntakeFields | null): boolean {
-    return !!(current?.[key]?.trim() || (key === 'birthDate' && current?.birthYear?.trim()));
+  keepLabel(key: CatIntakeFieldKey, current: CatIntakeFields | null): string {
+    const value = current?.[key]?.trim() || (key === 'birthDate' && current?.birthYear?.trim());
+    return value ? this.copy().keepCurrent : this.copy().skipField;
   }
 
   displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {
@@ -375,8 +434,10 @@ export class CatIntakeReview {
   }
 
   displayValue(key: CatIntakeFieldKey, value: string | null | undefined): string {
-    if (!value) return this.catCopy().emptyValue;
     if (key === 'litterBrand') return catLitterLabel(value, this.catCopy().form);
+    if (!value) return this.catCopy().emptyValue;
+    if (key === 'coat' && this.isFixedCoatLength(value))
+      return this.catCopy().form.coatLengths[value];
     if (key === 'sex')
       return value === 'MALE' ? this.catCopy().form.male : this.catCopy().form.female;
     if (CAT_INTAKE_FIELDS.some((field) => field.key === key && field.kind === 'date')) {
@@ -393,12 +454,14 @@ export class CatIntakeReview {
     event.preventDefault();
     const detail = this.detail();
     if (!detail || !this.canApprove()) return;
+    const foodVarietyId = this.foodVarietyForApproval()?.id;
     this.save(
       detail.id,
       'approve',
       this.api.approve(detail.id, {
         fields: this.selectedFields(),
         photoIds: this.selectedPhotoIds(),
+        ...(foodVarietyId ? { foodVarietyId } : {}),
         ...this.version(detail),
       }),
     );
@@ -461,6 +524,7 @@ export class CatIntakeReview {
     this.detail.set(null);
     this.photos.set([]);
     this.fields.set([]);
+    this.chosenFoodVarietyId.set(null);
     this.adjusting.set(false);
     this.confirmingDismiss.set(false);
   }

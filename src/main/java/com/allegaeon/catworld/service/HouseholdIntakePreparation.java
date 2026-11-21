@@ -33,8 +33,7 @@ public class HouseholdIntakePreparation {
 
     public Map<UUID, Preparation> prepare(UUID ownerId, List<Cat> cats, UUID stayId) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if (stayId != null && !stays.isUpcomingArrivalForOwner(stayId, ownerId, now,
-                OperationsArrivalsService.arrivalWindowEndExclusive(now))) {
+        if (stayId != null && !stays.isArrivalForOwnerFromToday(stayId, ownerId, now.toLocalDate().atStartOfDay())) {
             throw new ResourceNotFoundException("Stay", stayId);
         }
 
@@ -47,12 +46,12 @@ public class HouseholdIntakePreparation {
 
         List<UUID> catIds = household.stream().map(Cat::getId).toList();
         Map<UUID, LocalDate> departures = new HashMap<>();
-        for (var upcoming : stayCats.findUpcomingStaysForOwnerCats(ownerId, catIds, now)) {
-            LocalDate departure = upcoming.getEndAt().toLocalDate();
-            if (upcoming.getStayId().equals(stayId)) {
-                departures.put(upcoming.getCatId(), departure);
+        for (var stay : stayCats.findPreparationStaysForOwnerCats(ownerId, catIds, now, stayId)) {
+            LocalDate departure = stay.getEndAt().toLocalDate();
+            if (stay.getStayId().equals(stayId)) {
+                departures.put(stay.getCatId(), departure);
             } else {
-                departures.putIfAbsent(upcoming.getCatId(), departure);
+                departures.putIfAbsent(stay.getCatId(), departure);
             }
         }
 

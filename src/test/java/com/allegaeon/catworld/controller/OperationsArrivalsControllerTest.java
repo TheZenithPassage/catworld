@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,16 +31,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.InstantSource;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,6 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class OperationsArrivalsControllerTest {
     private static final String ARRIVALS = "/api/operations/arrivals";
+    private static final String INVITATIONS = "/api/cat-intake/invitations";
     private static final Instant NOW = Instant.parse("2026-11-13T01:00:00Z");
     private static final LocalDateTime BUSINESS_NOW = LocalDateTime.parse("2026-11-12T22:00:00");
 
@@ -61,6 +66,7 @@ class OperationsArrivalsControllerTest {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired CatIntakeInvitationRepository invitations;
     @Autowired CatIntakeReviewRepository reviews;
+    @Autowired AtomicReference<Instant> clockTime;
 
     private UserAccount admin;
     private Owner owner;
@@ -68,14 +74,21 @@ class OperationsArrivalsControllerTest {
     @TestConfiguration
     static class FixedBusinessClock {
         @Bean
+        AtomicReference<Instant> arrivalsClockTime() {
+            return new AtomicReference<>(NOW);
+        }
+
+        @Bean
         @Primary
-        Clock arrivalsTestClock() {
-            return Clock.fixed(NOW, ZoneId.of("America/Argentina/Buenos_Aires"));
+        Clock arrivalsTestClock(AtomicReference<Instant> arrivalsClockTime) {
+            InstantSource source = arrivalsClockTime::get;
+            return source.withZone(ZoneId.of("America/Argentina/Buenos_Aires"));
         }
     }
 
     @BeforeEach
     void setUp() {
+        clockTime.set(NOW);
         admin = users.findByUsername("test-admin").orElseThrow();
         owner = owner("Ana Example");
         users.save(UserAccount.builder().username("arrivals-staff")
@@ -84,24 +97,74 @@ class OperationsArrivalsControllerTest {
     }
 
     @Test
-    void listsOnlyReservationsAfterBusinessNowThroughTheLastMomentOfDaySeven() throws Exception {
+    void defaultsToAllOfBusinessTodayThroughTheLastMomentOfDaySeven() throws Exception {
         Cat cat = cat("Milo");
         Stay last = stay("2026-11-19T23:59:59.999999", "2026-11-21T08:00", null, cat);
         stay("2026-11-20T00:00", "2026-11-21T08:00", null, cat);
-        stay("2026-11-12T21:59", "2026-11-15T08:00", null, cat);
-        stay("2026-11-12T22:00", "2026-11-15T08:00", null, cat);
+        stay("2026-11-11T23:59", "2026-11-15T08:00", null, cat);
+        Stay started = stay("2026-11-12T00:00", "2026-11-12T08:00", null, cat);
+        Stay startingNow = stay("2026-11-12T22:00", "2026-11-15T08:00", null, cat);
         stay("2026-11-14T10:00", "2026-11-15T08:00", BUSINESS_NOW, cat);
         Stay first = stay("2026-11-12T22:15", "2026-11-13T08:00", null, cat);
 
         mvc.perform(get(ARRIVALS).with(httpBasic("arrivals-staff", "arrivals-staff-password")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)))
-                .andExpect(jsonPath("$[0].id").value(first.getId().toString()))
+                .andExpect(header().string("X-Arrivals-Refresh-After-Ms", "7200000"))
+                .andExpect(jsonPath("$", hasSize(4)))
+                .andExpect(jsonPath("$[0].id").value(started.getId().toString()))
                 .andExpect(jsonPath("$[0].owner.id").value(owner.getId().toString()))
                 .andExpect(jsonPath("$[0].owner.fullName").value("Ana Example"))
                 .andExpect(jsonPath("$[0].owner.primaryPhone").doesNotExist())
-                .andExpect(jsonPath("$[0].startAt").value("2026-11-12T22:15:00"))
-                .andExpect(jsonPath("$[1].id").value(last.getId().toString()));
+                .andExpect(jsonPath("$[1].id").value(startingNow.getId().toString()))
+                .andExpect(jsonPath("$[2].id").value(first.getId().toString()))
+                .andExpect(jsonPath("$[2].startAt").value("2026-11-12T22:15:00"))
+                .andExpect(jsonPath("$[3].id").value(last.getId().toString()));
+    }
+
+    @Test
+    void todayOnlyWhenUncheckedDropsAStayAtItsStartAndRollsOverAtBusinessMidnight() throws Exception {
+        Cat cat = cat("Milo");
+        Stay next = stay("2026-11-12T22:00:01.500", "2026-11-14T08:00", null, cat);
+        Stay tomorrow = stay("2026-11-13T00:00", "2026-11-14T08:00", null, cat);
+        var request = get(ARRIVALS).param("daysAhead", "0").param("includeStartedToday", "false")
+                .with(httpBasic("arrivals-staff", "arrivals-staff-password"));
+
+        mvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Arrivals-Refresh-After-Ms", "1500"))
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(next.getId().toString()));
+
+        clockTime.set(NOW.plusMillis(1500));
+        mvc.perform(request).andExpect(status().isOk()).andExpect(jsonPath("$").isEmpty());
+
+        clockTime.set(NOW.plusSeconds(7200));
+        mvc.perform(get(ARRIVALS).param("daysAhead", "0")
+                        .with(httpBasic("arrivals-staff", "arrivals-staff-password")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(tomorrow.getId().toString()));
+    }
+
+    @Test
+    void acceptsLongerRangesAndRejectsInvalidValues() throws Exception {
+        Cat cat = cat("Milo");
+        Stay dayEight = stay("2026-11-20T23:59:59.999999", "2026-11-21T08:00", null, cat);
+        stay("2026-11-21T00:00", "2026-11-21T08:00", null, cat);
+        var staff = httpBasic("arrivals-staff", "arrivals-staff-password");
+
+        mvc.perform(get(ARRIVALS).param("daysAhead", "8").with(staff))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(dayEight.getId().toString()));
+        mvc.perform(get(ARRIVALS).param("daysAhead", "100000000000000000000").with(staff))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)));
+        for (String invalid : new String[]{"-1", "1.5", "tomorrow"}) {
+            mvc.perform(get(ARRIVALS).param("daysAhead", invalid).with(staff))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(get(ARRIVALS).param("includeStartedToday", "tomorrow").with(staff))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -161,6 +224,31 @@ class OperationsArrivalsControllerTest {
                 .andExpect(jsonPath("$[0].cats[0].pendingReviews").doesNotHaveJsonPath())
                 .andReturn().getResponse().getContentAsString();
         assertThat(staffResponse).doesNotContain(pending.getId().toString(), "Private proposed brand");
+    }
+
+    @Test
+    void onlyAdminCanIssueForTheDisplayedStayAndItsTutor() throws Exception {
+        Cat cat = cat("Milo");
+        Stay started = stay("2026-11-12T09:00", "2026-11-14T08:00", null, cat);
+        Stay later = stay("2026-11-24T09:00", "2026-11-26T08:00", null, cat);
+        Owner other = owner("Another tutor");
+        var adminCredentials = httpBasic("test-admin", "test-password");
+        var staffCredentials = httpBasic("arrivals-staff", "arrivals-staff-password");
+
+        mvc.perform(post(INVITATIONS).with(staffCredentials).contentType(MediaType.APPLICATION_JSON)
+                .content(invitationFor(owner, started))).andExpect(status().isForbidden());
+        mvc.perform(post(INVITATIONS).with(adminCredentials).contentType(MediaType.APPLICATION_JSON)
+                .content(invitationFor(other, later))).andExpect(status().isNotFound());
+        for (Stay selected : new Stay[]{started, later}) {
+            mvc.perform(post(INVITATIONS).with(adminCredentials).contentType(MediaType.APPLICATION_JSON)
+                    .content(invitationFor(owner, selected))).andExpect(status().isCreated());
+        }
+    }
+
+    private String invitationFor(Owner tutor, Stay stay) {
+        return """
+                {"ownerId":"%s","stayId":"%s","allowNewCats":true}
+                """.formatted(tutor.getId(), stay.getId());
     }
 
     private Owner owner(String name) {

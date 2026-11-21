@@ -27,12 +27,13 @@ public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
             select sc.cat.id as catId, s.id as stayId, s.endAt as endAt
             from StayCat sc join sc.stay s
             where sc.cat.id in :catIds and sc.cat.owner.id = :ownerId and s.owner.id = :ownerId
-                and s.cancelledAt is null and s.startAt > :now
+                and s.cancelledAt is null and (s.startAt > :now or s.id = :selectedStayId)
             order by s.startAt, s.id
             """)
-    List<UpcomingCatStay> findUpcomingStaysForOwnerCats(@Param("ownerId") UUID ownerId,
-                                                       @Param("catIds") Collection<UUID> catIds,
-                                                       @Param("now") LocalDateTime now);
+    List<UpcomingCatStay> findPreparationStaysForOwnerCats(@Param("ownerId") UUID ownerId,
+                                                          @Param("catIds") Collection<UUID> catIds,
+                                                          @Param("now") LocalDateTime now,
+                                                          @Param("selectedStayId") UUID selectedStayId);
 
     interface UpcomingCatStay {
         UUID getCatId();

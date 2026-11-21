@@ -21,6 +21,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import static com.allegaeon.catworld.controller.OperationsArrivalsController.REFRESH_HEADER;
+
 @Configuration
 @RequiredArgsConstructor
 @EnableConfigurationProperties(CatWorldSecurityProperties.class)
@@ -86,7 +88,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(securityProperties.corsAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("WWW-Authenticate"));
+        configuration.setExposedHeaders(List.of("WWW-Authenticate", REFRESH_HEADER));
 
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);
