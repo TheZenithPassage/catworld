@@ -505,6 +505,31 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void partialApprovalOfOwnLitterKeepsExistingFoodAndDoesNotPublishTheOmittedBrand() throws Exception {
+        var owner = owner();
+        var existing = cat(owner, "Litter review");
+        existing.setFoodBrand("Purina Pro Plan");
+        existing.setLitterBrand(null);
+        cats.saveAndFlush(existing);
+        var invite = issue(owner, false);
+        var proposed = Map.of("foodBrand", "Hola", "litterBrand", "Trae sus propias piedritas");
+        mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "fields", proposed))))
+                .andExpect(status().isNoContent());
+
+        var review = detail(rowFor(reviewList(), owner.getId(), existing.getName()).get("id").asString());
+        approve(review, Map.of("litterBrand", "Trae sus propias piedritas"), List.of(),
+                review.get("catUpdatedAt").asString(), 204);
+
+        var updated = cats.findById(existing.getId()).orElseThrow();
+        assertThat(updated.getFoodBrand()).isEqualTo("Purina Pro Plan");
+        assertThat(updated.getLitterBrand()).isEqualTo("Trae sus propias piedritas");
+        var otherInvite = issue(owner(), true);
+        mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, otherInvite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.catalogOptions.foodBrand[?(@.name == 'Hola')]").isEmpty());
+    }
+
+    @Test
     void requiresASelectionForMatchingCatalogTextAndRejectsContradictoryIds() throws Exception {
         Owner publisher = owner();
         var firstInvite = issue(publisher, true);
@@ -621,6 +646,46 @@ class CatIntakeControllerTest {
         assertThat(updated.getFoodVarietyId()).isNull();
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, issue(owner(), true).authorization()))
                 .andExpect(jsonPath("$.foodVarieties[?(@.name == 'Other Brand Diet')]").isEmpty());
+    }
+
+    @Test
+    void acceptsAnExplicitVarietyCorrectionForTheRetainedBrand() throws Exception {
+        Owner owner = owner();
+        var register = issue(owner, true);
+        var registration = newRegistration("Cat with retained diet",
+                Map.of("foodBrand", "Retainable Diet Brand", "foodDetail", "Adult Care"));
+        mvc.perform(submission(register, List.of(Map.of("draftId", UUID.randomUUID(), "fields", registration))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), owner.getId(), "Cat with retained diet"), registration, List.of(), null, 204);
+        Cat cat = cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged()).getContent().getFirst();
+        UUID retainedVarietyId = cat.getFoodVarietyId();
+        assertThat(retainedVarietyId).isNotNull();
+        cat.setLastRabiesDate(LocalDate.of(2026, 8, 12));
+        cat.setLastTripleFelineDate(LocalDate.of(2026, 8, 12));
+        cats.saveAndFlush(cat);
+
+        var invite = issue(owner, false);
+        var proposed = Map.of("foodBrand", "Alternative Diet Brand", "foodDetail", "Kitten Care");
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields", proposed))))
+                .andExpect(status().isNoContent());
+        var review = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
+        assertThat(review.get("proposedFoodDetailBrand").asString()).isEqualTo("Alternative Diet Brand");
+
+        var approval = new HashMap<String, Object>(Map.of(
+                "fields", Map.of("foodDetail", "Adult Care", "foodBrand", "Alternative Diet Brand"),
+                "foodVarietyId", retainedVarietyId, "expectedCatUpdatedAt", review.get("catUpdatedAt").asString(),
+                "expectedReviewRevision", review.get("revision").asLong()));
+        mvc.perform(post(REVIEW + "/{id}/approve", review.get("id").asString()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(approval)))
+                .andExpect(status().isBadRequest());
+
+        approval.put("fields", Map.of("foodDetail", "Adult Care"));
+        mvc.perform(post(REVIEW + "/{id}/approve", review.get("id").asString()).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(approval)))
+                .andExpect(status().isNoContent());
+        Cat approved = cats.findById(cat.getId()).orElseThrow();
+        assertThat(approved.getFoodBrand()).isEqualTo("Retainable Diet Brand");
+        assertThat(approved.getFoodVarietyId()).isEqualTo(retainedVarietyId);
     }
 
     @Test

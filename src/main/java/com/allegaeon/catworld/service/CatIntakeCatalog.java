@@ -136,11 +136,17 @@ final class CatIntakeCatalog {
         return result;
     }
 
-    void revalidateApproval(Map<String, String> accepted, String currentBrand, String currentCoat, Proposal previous) {
+    void revalidateApproval(Map<String, String> accepted, String currentBrand, String currentCoat,
+                            Proposal previous, UUID foodVarietyId) {
         removeBlankOptions(accepted);
         String brand = accepted.getOrDefault(FOOD_BRAND, currentBrand);
         UUID brandId = exactId(FOOD_BRAND, brand, null);
-        if (accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
+        if (foodVarietyId != null) {
+            if (!accepted.containsKey(FOOD_DETAIL)) {
+                throw new BadRequestException("Select the food variety field before approving a catalog choice");
+            }
+            accepted.put(FOOD_DETAIL, requireSelection(FOOD_DETAIL, accepted.get(FOOD_DETAIL), foodVarietyId, brandId).name());
+        } else if (accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
                 && !sameName(previous.foodDetailBrand(), brand)) {
             throw new BadRequestException("Approve this variety together with its food brand");
         }
@@ -151,7 +157,7 @@ final class CatIntakeCatalog {
                 if (sameText(name, currentCoat)) return currentCoat;
             }
             if (!isOption(field)) return name;
-            if (FOOD_DETAIL.equals(field) && previous.foodDetailBrand() == null) return name;
+            if (FOOD_DETAIL.equals(field) && (foodVarietyId != null || previous.foodDetailBrand() == null)) return name;
             UUID persisted = previous.optionIds().get(field);
             if (persisted != null && sameName(name, previous.fields().get(field))) {
                 return requireSelection(field, name, persisted, brandId).name();

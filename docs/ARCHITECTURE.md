@@ -96,14 +96,19 @@ using `birthYear` instead of `birthDate` when only the year is known.
 Administrators compare proposed fields with the current profile and review each
 cat independently. Review lists unanswered prompts from the invitation
 snapshot alongside the submitted fields. V17 invitations lack this snapshot.
-Review treats both birth representations as one field.
+Review treats both birth representations as one field. Administrators can move
+between adjustment and summary while keeping their corrections, field decisions
+and evidence selections. The summary shows the values and evidence selected for
+approval.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
 Approval applies the selected fields and moves selected evidence to the
-informational gallery. Dismissal discards the staged values and photos without
-changing the cat profile or registering a new cat. Both decisions prevent
-further edits to that proposal through the invitation. The link closes when
-the last outstanding cat is resolved.
+informational gallery. A review can include a `foodVarietyId` to select an
+approved replacement variety. The server verifies that the ID identifies the
+selected value for the brand being saved or retained. Dismissal discards the
+staged values and photos without changing the cat profile or registering a new
+cat. Both decisions prevent further edits to that proposal through the
+invitation. The link closes when the last outstanding cat is resolved.
 
 Cat profiles suggest approved breeds, food brands, brand-specific food
 varieties, and the last internal and external dewormers. A tutor must select

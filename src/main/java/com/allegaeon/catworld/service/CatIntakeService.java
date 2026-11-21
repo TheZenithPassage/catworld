@@ -271,7 +271,7 @@ public class CatIntakeService {
         var accepted = fields.nonBlank(approval.fields());
         var proposal = proposalOf(review);
         catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
-                cat == null ? null : cat.getCoat(), proposal);
+                cat == null ? null : cat.getCoat(), proposal, approval.foodVarietyId());
         if (cat != null) {
             if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposal.fields()))) {
                 throw new BadRequestException("Select fields proposed in this review");
@@ -294,7 +294,7 @@ public class CatIntakeService {
         profileOptions.selectForApproval(request, accepted);
         if (accepted.containsKey(CatIntakeCatalog.FOOD_DETAIL)) {
             request.setFoodDetail(accepted.get(CatIntakeCatalog.FOOD_DETAIL));
-            request.setApproveFoodVariety(proposal.foodDetailBrand() != null);
+            request.setApproveFoodVariety(approval.foodVarietyId() != null || proposal.foodDetailBrand() != null);
         }
         if (cat == null) {
             cat = catMutations.create(request, null);
