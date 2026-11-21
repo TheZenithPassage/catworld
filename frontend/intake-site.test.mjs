@@ -262,8 +262,10 @@ test('shows the litter reference only for shared use and keeps an optional own-l
   litter.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
   const hint = portal.window.document.getElementById(litter.getAttribute('aria-describedby'));
   assert.equal(hint.hidden, false);
-  assert.match(hint.textContent, /½ kg por gato por día/);
-  assert.match(hint.textContent, /9\.876\.543\.210\.987\.654\.321 pesos por kg/);
+  assert.equal(
+    hint.textContent,
+    'El consumo habitual es de ½ kg por gato por día. La tarifa actual es de 9.876.543.210.987.654.321 pesos por kg.',
+  );
 
   litter.value = 'own';
   litter.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
@@ -279,8 +281,18 @@ test('shows the litter reference only for shared use and keeps an optional own-l
     cats: [{ ...cat, revision: 1, proposedFields: cats[0].fields }],
   });
   const [received] = reopened.entries();
-  assert.equal(selectLitter(received).value, 'own');
+  const reopenedLitter = selectLitter(received);
+  assert.equal(reopenedLitter.value, 'own');
   assert.equal(received.querySelector('[name="litterBrand"]').value, '');
+  reopenedLitter.value = 'shared';
+  reopenedLitter.dispatchEvent(new reopened.window.Event('change', { bubbles: true }));
+  const unavailableHint = reopened.window.document.getElementById(
+    reopenedLitter.getAttribute('aria-describedby'),
+  );
+  assert.equal(
+    unavailableHint.textContent,
+    'El consumo habitual es de ½ kg por gato por día. La tarifa todavía no está disponible.',
+  );
 });
 
 test('reopening a partial submission shows both pending data and the submitted status', async (t) => {
