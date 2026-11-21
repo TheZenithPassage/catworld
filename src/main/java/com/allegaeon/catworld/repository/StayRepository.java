@@ -30,7 +30,9 @@ public interface StayRepository extends JpaRepository<Stay, UUID> {
     @Query("""
             select s.id as stayId, s.startAt as startAt, s.endAt as endAt,
                    o.id as ownerId, o.fullName as ownerName, c.id as catId, c.name as catName,
-                   coalesce(c.currentFoodBrand, c.foodBrand) as foodBrand, c.litterBrand as litterBrand,
+                   coalesce(c.currentFoodBrand, c.foodBrand) as foodBrand,
+                   coalesce(nullif(coalesce(c.currentLitterDetail, c.litterDetail), 'Usa las de CatWorld'),
+                            c.litterBrand) as litterBrand,
                    c.lastRabiesDate as lastRabiesDate, c.lastTripleFelineDate as lastTripleFelineDate
             from Stay s
             join s.owner o

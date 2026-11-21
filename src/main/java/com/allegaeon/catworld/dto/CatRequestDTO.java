@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import com.allegaeon.catworld.model.Sex;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSetter;
@@ -105,8 +106,44 @@ public class CatRequestDTO {
     @JsonIgnore
     private boolean approveFoodVariety;
 
+    @JsonIgnore
+    private Set<String> unlinkedIntakeOptions;
+
+    public boolean isUnlinkedIntakeOption(String field) {
+        return unlinkedIntakeOptions != null && unlinkedIntakeOptions.contains(field);
+    }
+
     @Size(max = 100, message = "Litter brand must not exceed 100 characters")
     private String litterBrand;
+
+    private LitterPreference litterPreference;
+    @Size(max = 100, message = "Litter detail must not exceed 100 characters")
+    private String litterDetail;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean litterPreferenceSupplied;
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean litterDetailSupplied;
+
+    @JsonSetter("litterPreference")
+    public void setLitterPreference(LitterPreference litterPreference) {
+        this.litterPreference = litterPreference;
+        litterPreferenceSupplied = true;
+    }
+
+    @JsonSetter("litterDetail")
+    public void setLitterDetail(String litterDetail) {
+        this.litterDetail = litterDetail;
+        litterDetailSupplied = true;
+    }
+
+    public boolean hasLitterPreferenceUpdate() {
+        return litterPreferenceSupplied || litterPreference != null;
+    }
+
+    public boolean hasLitterDetailUpdate() {
+        return litterDetailSupplied || litterDetail != null;
+    }
 
     @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
     private boolean foodBrandSupplied;

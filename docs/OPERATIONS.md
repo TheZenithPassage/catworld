@@ -243,12 +243,12 @@ exact recorded sequence, startup applies the original V14 and V16 scripts
 before continuing. A restart can finish V16 if V14 already succeeded during
 that upgrade. The V17 intake data stays in place.
 
-If V27 (litter pricing) was applied before the catalog manager and V26.1
-(food varieties) is already present, startup can apply the missing V26.3
-catalog migration, together with V26.2 breed seeds if needed. Flyway validates
-the existing schema history before applying those migrations. Installations
-that receive the catalogs first continue through V27 and later migrations in
-order.
+If V27 (litter pricing) was applied before the catalog changes and V26.1
+(food varieties) is already present, startup can apply the missing V26.4
+own-litter catalog migration and its V26.2 and V26.3 predecessors where needed.
+Flyway validates the existing schema history before applying those migrations.
+Installations that receive the catalogs first continue through V27 and later
+migrations in order. V26.4 leaves existing litter text and proposal data in place.
 
 ## Enable private cat intake links
 

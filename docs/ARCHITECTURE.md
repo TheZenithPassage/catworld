@@ -103,15 +103,15 @@ approval.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
 Approval applies the selected fields and moves selected evidence to the
-informational gallery. A review can include a `foodVarietyId` to select an
-approved replacement variety. The server verifies that the ID identifies the
-selected value for the brand being saved or retained. Dismissal discards the
+informational gallery. A review can include `catalogOptionIds` to select
+approved replacements. The server checks each replacement's field and name
+and scopes food varieties to the brand being saved or retained. Dismissal discards the
 staged values and photos without changing the cat profile or registering a new
 cat. Both decisions prevent further edits to that proposal through the
 invitation. The link closes when the last outstanding cat is resolved.
 
 Cat profiles suggest approved breeds, food brands, brand-specific food
-varieties, and the last internal and external dewormers. A tutor must select
+varieties, own-litter details, and the last internal and external dewormers. A tutor must select
 a matching option by ID, including when the query matches part of the name.
 Unmatched text can be proposed for review. Coat length is limited to Corto,
 Largo and Sin pelo for new entries. Color and markings are free text.
@@ -126,15 +126,25 @@ through `GET /api/food-brands/varieties`. A selected variety references its
 brand and uses the same ID as the household form. A brand change removes
 an incompatible variety association.
 
-The catalog manager lets ADMIN add, rename, hide, and restore breeds, food
-brands, brand-specific varieties, internal dewormers, and flea treatments.
+The catalog manager lets ADMIN add, rename, hide, restore and permanently
+delete supported options. It covers breeds, food brands, brand-specific
+varieties, own-litter details, internal dewormers and flea treatments.
 Hiding a brand also removes its varieties from suggestions. Existing profiles
 resolve linked labels through their catalog IDs, including hidden options.
-Local descriptions and stored proposal and review history keep their wording.
+Deletion copies the latest catalog labels into linked profiles, advances their
+editing timestamps and clears their IDs in the same transaction. Deleting a
+food variety retains its brand. Deleting a brand removes its varieties and
+preserves the last labels of both. Local descriptions and review history keep
+their wording. Approving a pending proposal with a deleted option records the
+submitted wording as local text unless the administrator explicitly selects
+an available replacement.
 
-Litter stays optional in administration. The existing `litterBrand` value
-indicates CatWorld litter, personal litter with an optional description, or
-an unconfirmed choice. Tutors choose one of the two supplies for a new cat.
+Litter stays optional in administration. `litterPreference` distinguishes
+CatWorld and own litter. Only own litter has an optional `litterDetail`,
+saved as a local description or linked by catalog ID. Historic nonblank text
+represents own litter except for the recorded CatWorld choice. Blank values
+remain unconfirmed. The legacy `litterBrand` view remains available to older
+clients. Tutors choose one of the two supplies for a new cat.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 

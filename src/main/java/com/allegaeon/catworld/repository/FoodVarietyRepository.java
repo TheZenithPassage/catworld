@@ -27,6 +27,13 @@ public interface FoodVarietyRepository extends JpaRepository<FoodVariety, UUID> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<FoodVariety> findLockedByBrandIdAndNormalizedKey(UUID brandId, byte[] normalizedKey);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<FoodVariety> findLockedByBrandIdOrderById(UUID brandId);
+
+    @Modifying
+    @Query("delete from FoodVariety v where v.brandId = :brandId")
+    void deleteVarietiesByBrandId(UUID brandId);
+
     @Modifying
     @Query(value = """
             INSERT INTO food_varieties (id, brand_id, name, normalized_key) VALUES (:id, :brandId, :name, :key)

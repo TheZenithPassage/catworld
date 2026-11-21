@@ -31,8 +31,9 @@ public final class CatIntakeDtos {
     public record ReviewDetail(UUID id, UUID ownerId, String ownerName, UUID catId, String catName, Instant submittedAt,
                                Map<String, String> current, Map<String, String> proposed, List<String> conflictFields,
                                List<String> unansweredRequestedFields, List<ReviewPhoto> photos,
-                               Instant catUpdatedAt, long revision, String proposedFoodDetailBrand) {}
+                               Instant catUpdatedAt, long revision, String proposedFoodDetailBrand,
+                               List<String> retiredCatalogFields) {}
     public record Approval(Map<String, String> fields, List<UUID> photoIds, Instant expectedCatUpdatedAt,
-                           Long expectedReviewRevision, UUID foodVarietyId) {}
+                           Long expectedReviewRevision, UUID foodVarietyId, Map<String, UUID> catalogOptionIds) {}
     public record Dismissal(Instant expectedCatUpdatedAt, @NotNull Long expectedReviewRevision) {}
 }

@@ -5,15 +5,21 @@ import com.allegaeon.catworld.dto.FoodVarietyOption;
 import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.CatIntakeCatalogChangedException;
+import com.allegaeon.catworld.model.LitterPreference;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
+import static com.allegaeon.catworld.service.CatIntakeFields.LITTER_DETAIL;
+import static com.allegaeon.catworld.service.CatIntakeFields.LITTER_VALUE;
 
 final class CatIntakeCatalog {
     static final String FOOD_BRAND = "foodBrand";
@@ -58,6 +64,9 @@ final class CatIntakeCatalog {
             var option = byId.get(id);
             if (option != null && field.equals(option.field())) displayed.put(field, option.name());
         });
+        if (displayed.containsKey(LITTER_DETAIL)) {
+            displayed.put(LITTER_VALUE, LitterPreference.OWN.legacyValueWithDetail(displayed.get(LITTER_DETAIL)));
+        }
         return displayed;
     }
 
@@ -90,7 +99,10 @@ final class CatIntakeCatalog {
             String field = entry.getKey();
             String name = entry.getValue();
             if (!isOption(field)) {
-                if (sameText(name, original.get(field))) {
+                boolean clearsOwnLitterDetail = LITTER_VALUE.equals(field)
+                        && LitterPreference.OWN.legacyValue().equals(name)
+                        && original.containsKey(LITTER_DETAIL) && !supplied.containsKey(LITTER_DETAIL);
+                if (sameText(name, original.get(field)) && !clearsOwnLitterDetail) {
                     result.remove(field);
                 } else if (COAT.equals(field) || COLOR.equals(field)) {
                     String prior = previous.fields().get(field);
@@ -105,13 +117,16 @@ final class CatIntakeCatalog {
             }
 
             boolean variety = FOOD_DETAIL.equals(field);
-            if ((!variety || sameOriginalBrand) && sameName(name, original.get(field))) {
+            UUID id = selection.get(field);
+            UUID previousId = previous.optionIds().get(field);
+            boolean originalSelection = id == null
+                    ? previousId == null || !sameName(name, previous.fields().get(field))
+                    : id.equals(originalIds.get(field));
+            if ((!variety || sameOriginalBrand) && sameName(name, original.get(field)) && originalSelection) {
                 result.remove(field);
                 continue;
             }
 
-            UUID id = selection.get(field);
-            UUID previousId = previous.optionIds().get(field);
             boolean unchanged = (!variety || samePreviousBrand || (previousId != null
                     && byId.containsKey(previousId) && Objects.equals(byId.get(previousId).brandId(), brandId)))
                     && sameName(name, previous.fields().get(field));
@@ -130,11 +145,18 @@ final class CatIntakeCatalog {
         }
         String foodDetailBrand = result.containsKey(FOOD_DETAIL) ? brand : null;
         if (result.containsKey(FOOD_DETAIL)) {
+            UUID persistedBrand = expectedVarietyBrand(previous);
             if (sameName(result.get(FOOD_DETAIL), previous.fields().get(FOOD_DETAIL))
-                    && (samePreviousBrand || (brandId != null && brandId.equals(expectedVarietyBrand(previous))))) {
+                    && (samePreviousBrand || (brandId != null && brandId.equals(persistedBrand)))) {
                 foodDetailBrand = previous.foodDetailBrand();
+                if (brandId == null && isRetired(persistedBrand)) brandId = persistedBrand;
             }
             if (foodDetailBrand != null && brandId != null) selected.put(FOOD_DETAIL_BRAND_ID, brandId);
+        }
+        if (result.containsKey(LITTER_DETAIL)) {
+            result.put(LITTER_VALUE, LitterPreference.OWN.legacyValueWithDetail(result.get(LITTER_DETAIL)));
+        } else if (supplied.containsKey(LITTER_DETAIL)) {
+            result.remove(LITTER_VALUE);
         }
         return new Proposal(result, selected, foodDetailBrand);
     }
@@ -143,8 +165,9 @@ final class CatIntakeCatalog {
         var result = new LinkedHashMap<>(originalIds);
         proposed.fields().keySet().forEach(result::remove);
         if (proposed.fields().containsKey(FOOD_BRAND)) result.remove(FOOD_DETAIL);
+        if (proposed.fields().containsKey(LITTER_VALUE)) result.remove(LITTER_DETAIL);
         proposed.optionIds().forEach((field, id) -> {
-            if (proposed.fields().containsKey(field)) result.put(field, id);
+            if (proposed.fields().containsKey(field) && (!isOption(field) || !isRetired(id))) result.put(field, id);
         });
         return result;
     }
@@ -158,22 +181,49 @@ final class CatIntakeCatalog {
                 ? brand.name() : proposal.foodDetailBrand();
     }
 
+    List<String> retiredFields(Proposal proposal) {
+        var result = new ArrayList<String>();
+        for (String field : proposal.fields().keySet()) {
+            if (isOption(field) && (isRetired(proposal.optionIds().get(field))
+                    || (FOOD_DETAIL.equals(field) && isRetired(expectedVarietyBrand(proposal))))) {
+                result.add(field);
+            }
+        }
+        return result;
+    }
+
+    private boolean isRetired(UUID id) {
+        return id != null && !byId.containsKey(id);
+    }
+
     Map<String, UUID> revalidateApproval(Map<String, String> accepted, String currentBrand, UUID currentBrandId,
-                                         String currentCoat, Proposal previous, UUID foodVarietyId) {
+                                         String currentCoat, Proposal previous, Map<String, UUID> replacements,
+                                         Set<String> retiredFields) {
         removeBlankOptions(accepted);
+        replacements.forEach((field, id) -> {
+            if (!isOption(field) || id == null || !accepted.containsKey(field)) {
+                throw new BadRequestException("Select the field before approving a catalog choice");
+            }
+        });
         String brand = accepted.getOrDefault(FOOD_BRAND, currentBrand);
         var reviewed = new LinkedHashMap<String, UUID>();
-        UUID reviewedBrand = reviewedSelection(FOOD_BRAND, brand, previous);
-        UUID brandId = !accepted.containsKey(FOOD_BRAND) ? currentBrandId
-                : reviewedBrand == null ? exactId(FOOD_BRAND, brand, null) : reviewedBrand;
-        UUID expectedBrand = expectedVarietyBrand(previous);
-        if (foodVarietyId != null) {
-            if (!accepted.containsKey(FOOD_DETAIL)) {
-                throw new BadRequestException("Select the food variety field before approving a catalog choice");
+        UUID brandId = currentBrandId;
+        if (accepted.containsKey(FOOD_BRAND)) {
+            UUID replacement = replacements.get(FOOD_BRAND);
+            if (replacement != null) {
+                brandId = requireSelection(FOOD_BRAND, brand, replacement, null).id();
+            } else if (retiredFields.contains(FOOD_BRAND)) {
+                brandId = null;
+            } else {
+                UUID reviewedBrand = reviewedSelection(FOOD_BRAND, brand, previous);
+                brandId = reviewedBrand == null ? exactId(FOOD_BRAND, brand, null) : reviewedBrand;
             }
-            accepted.put(FOOD_DETAIL, requireSelection(FOOD_DETAIL, accepted.get(FOOD_DETAIL), foodVarietyId, brandId).name());
-        } else if (accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
-                && (expectedBrand == null ? !sameName(previous.foodDetailBrand(), brand) : !expectedBrand.equals(brandId))) {
+        }
+        UUID acceptedBrandId = brandId;
+        UUID expectedBrand = expectedVarietyBrand(previous);
+        if (!replacements.containsKey(FOOD_DETAIL) && !retiredFields.contains(FOOD_DETAIL)
+                && accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
+                && (expectedBrand == null ? !sameName(previous.foodDetailBrand(), brand) : !expectedBrand.equals(acceptedBrandId))) {
             throw new BadRequestException("Approve this variety together with its food brand");
         }
         accepted.replaceAll((field, name) -> {
@@ -183,13 +233,17 @@ final class CatIntakeCatalog {
                 if (sameText(name, currentCoat)) return currentCoat;
             }
             if (!isOption(field)) return name;
-            if (FOOD_DETAIL.equals(field) && (foodVarietyId != null || previous.foodDetailBrand() == null)) return name;
+            UUID replacement = replacements.get(field);
+            if (replacement != null) return requireSelection(field, name, replacement, acceptedBrandId).name();
+            if (retiredFields.contains(field) || (FOOD_DETAIL.equals(field) && previous.foodDetailBrand() == null)) {
+                return name;
+            }
             UUID persisted = reviewedSelection(field, name, previous);
             if (persisted != null) {
                 reviewed.put(field, persisted);
                 return name; // The mutation resolves the label using the accepted ID.
             }
-            UUID exact = exactId(field, name, brandId);
+            UUID exact = exactId(field, name, acceptedBrandId);
             if (exact != null) return byId.get(exact).name();
             return FOOD_DETAIL.equals(field) ? name : CatalogOptionName.cleanName(name);
         });
@@ -217,9 +271,14 @@ final class CatIntakeCatalog {
     }
 
     private boolean retainsSelection(String field, String name, UUID id, UUID brandId, Proposal previous) {
+        // A missing ID can survive a correction only when the server validated it on this proposal earlier.
+        if (!id.equals(previous.optionIds().get(field)) || !sameName(name, previous.fields().get(field))) return false;
         Option option = byId.get(id);
-        return id.equals(previous.optionIds().get(field)) && sameName(name, previous.fields().get(field))
-                && option != null && inScope(option, field, brandId);
+        if (option != null) return inScope(option, field, brandId);
+        if (!isOption(field)) return false;
+        if (!FOOD_DETAIL.equals(field)) return true;
+        UUID expectedBrand = expectedVarietyBrand(previous);
+        return Objects.equals(brandId, expectedBrand) || (brandId == null && isRetired(expectedBrand));
     }
 
     private void requireCoatLength(String name, String proposed, String existing) {

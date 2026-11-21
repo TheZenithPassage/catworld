@@ -12,6 +12,8 @@ public enum CatProfileOptionField {
     COAT("coat", Cat::getCoat, Cat::setCoat, Cat::getCoatOptionId, Cat::setCoatOptionId),
     COLOR("color", Cat::getColor, Cat::setColor, Cat::getColorOptionId, Cat::setColorOptionId),
     FOOD_BRAND("foodBrand", Cat::getFoodBrand, Cat::setFoodBrand, Cat::getFoodBrandId, Cat::setFoodBrandId),
+    LITTER_DETAIL("litterDetail", Cat::getLitterDetail, Cat::setLitterDetail,
+            Cat::getLitterDetailOptionId, Cat::setLitterDetailOptionId),
     INTERNAL_DEWORMER("lastInternalDewormerName", Cat::getLastInternalDewormerName, Cat::setLastInternalDewormerName,
             Cat::getLastInternalDewormerOptionId, Cat::setLastInternalDewormerOptionId),
     EXTERNAL_DEWORMER("lastExternalDewormerName", Cat::getLastExternalDewormerName, Cat::setLastExternalDewormerName,
@@ -39,6 +41,7 @@ public enum CatProfileOptionField {
         return switch (this) {
             case BREED -> cat.getDisplayedBreed();
             case FOOD_BRAND -> cat.getDisplayedFoodBrand();
+            case LITTER_DETAIL -> cat.getDisplayedLitterDetail();
             case INTERNAL_DEWORMER -> cat.getDisplayedLastInternalDewormerName();
             case EXTERNAL_DEWORMER -> cat.getDisplayedLastExternalDewormerName();
             case COAT, COLOR -> nameOf(cat);

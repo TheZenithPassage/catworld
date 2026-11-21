@@ -11,6 +11,7 @@ import com.allegaeon.catworld.model.CatInformationalPhoto;
 import com.allegaeon.catworld.model.CatIntakeInvitation;
 import com.allegaeon.catworld.model.CatIntakePhoto;
 import com.allegaeon.catworld.model.CatIntakeReview;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.repository.CatInformationalPhotoRepository;
 import com.allegaeon.catworld.repository.CatIntakeInvitationRepository;
 import com.allegaeon.catworld.repository.CatIntakePhotoRepository;
@@ -56,6 +57,11 @@ import java.util.regex.Pattern;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.allegaeon.catworld.service.CatIntakeCatalog.FOOD_BRAND;
+import static com.allegaeon.catworld.service.CatIntakeCatalog.FOOD_DETAIL;
+import static com.allegaeon.catworld.service.CatIntakeFields.LITTER_DETAIL;
+import static com.allegaeon.catworld.service.CatIntakeFields.LITTER_VALUE;
 
 @Service
 @RequiredArgsConstructor
@@ -246,12 +252,14 @@ public class CatIntakeService {
         List<String> conflicts = current == null ? List.of() : proposed.keySet().stream()
                 .filter(key -> fields.isConflict(key, original, current)).toList();
         var proposal = proposalOf(review);
-        String varietyBrand = catalog().reviewVarietyBrand(proposal, cat == null ? null : cat.getFoodBrandId());
+        var catalog = catalog();
+        String varietyBrand = catalog.reviewVarietyBrand(proposal, cat == null ? null : cat.getFoodBrandId());
         return new ReviewDetail(id, owner.getId(), owner.getFullName(), review.getCatId(), review.getCatName(),
                 review.getSubmittedAt(), cat == null ? null : fields.displayedSnapshot(cat), proposed, conflicts,
                 unansweredRequestedFields(review, proposed),
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
-                cat == null ? null : cat.getUpdatedAt(), review.getRevision(), varietyBrand);
+                cat == null ? null : cat.getUpdatedAt(), review.getRevision(), varietyBrand,
+                catalog.retiredFields(proposal));
     }
 
     @Transactional(readOnly = true)
@@ -276,9 +284,12 @@ public class CatIntakeService {
 
         var accepted = fields.nonBlank(approval.fields());
         var proposal = proposalOf(review);
-        var reviewedOptions = catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
+        var catalog = catalog();
+        var retiredFields = new HashSet<>(catalog.retiredFields(proposal));
+        var replacements = approvalSelections(approval);
+        var reviewedOptions = catalog.revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
                 cat == null ? null : cat.getFoodBrandId(), cat == null ? null : cat.getCoat(),
-                proposal, approval.foodVarietyId());
+                proposal, replacements, retiredFields);
         if (cat != null) {
             if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposal.fields()))) {
                 throw new BadRequestException("Select fields proposed in this review");
@@ -298,12 +309,28 @@ public class CatIntakeService {
         }
 
         var request = fields.request(ownerId, cat, fields.merge(cat, accepted));
+        retiredFields.retainAll(accepted.keySet());
+        retiredFields.removeAll(replacements.keySet());
+        request.setUnlinkedIntakeOptions(retiredFields);
         profileOptions.selectForApproval(request, accepted);
-        if (accepted.containsKey(CatIntakeCatalog.FOOD_DETAIL)) {
-            request.setFoodDetail(accepted.get(CatIntakeCatalog.FOOD_DETAIL));
-            request.setFoodVarietyId(approval.foodVarietyId());
-            request.setApproveFoodVariety(approval.foodVarietyId() != null || proposal.foodDetailBrand() != null);
+        if (accepted.containsKey(FOOD_BRAND)) {
+            request.setFoodBrand(accepted.get(FOOD_BRAND));
+            request.setFoodBrandId(replacements.remove(FOOD_BRAND));
         }
+        if (accepted.containsKey(FOOD_DETAIL)) {
+            request.setFoodDetail(accepted.get(FOOD_DETAIL));
+            request.setFoodVarietyId(replacements.remove(FOOD_DETAIL));
+            request.setApproveFoodVariety(!retiredFields.contains(FOOD_DETAIL)
+                    && (request.getFoodVarietyId() != null || proposal.foodDetailBrand() != null));
+        }
+        if (accepted.containsKey(LITTER_DETAIL)) {
+            request.setLitterPreference(LitterPreference.OWN);
+            request.setLitterDetail(accepted.get(LITTER_DETAIL));
+        } else if (accepted.containsKey(LITTER_VALUE) && LitterPreference.OWN.legacyValue().equals(accepted.get(LITTER_VALUE))) {
+            request.setLitterPreference(LitterPreference.OWN);
+            request.setLitterDetail(null);
+        }
+        request.setCatalogOptionIds(replacements);
         if (cat == null) {
             cat = catMutations.create(request, null, reviewedOptions);
         } else if (!accepted.isEmpty()) {
@@ -316,6 +343,18 @@ public class CatIntakeService {
         intakePhotos.deleteByReview(id);
         review.approve(approvedCat.getId(), now);
         closeIfComplete(invitation, now);
+    }
+
+    private static Map<String, UUID> approvalSelections(Approval approval) {
+        var result = new LinkedHashMap<String, UUID>();
+        if (approval.catalogOptionIds() != null) result.putAll(approval.catalogOptionIds());
+        if (approval.foodVarietyId() != null) {
+            var previous = result.putIfAbsent(FOOD_DETAIL, approval.foodVarietyId());
+            if (previous != null && !previous.equals(approval.foodVarietyId())) {
+                throw new BadRequestException("Select only one food variety");
+            }
+        }
+        return result;
     }
 
     @Transactional

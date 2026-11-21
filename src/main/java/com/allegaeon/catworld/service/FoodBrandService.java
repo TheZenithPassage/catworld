@@ -12,6 +12,7 @@ import com.allegaeon.catworld.model.FoodBrand;
 import com.allegaeon.catworld.model.FoodVariety;
 import com.allegaeon.catworld.repository.FoodBrandRepository;
 import com.allegaeon.catworld.repository.FoodVarietyRepository;
+import com.allegaeon.catworld.repository.CatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ import static com.allegaeon.catworld.service.CatalogOptionName.key;
 public class FoodBrandService {
     private final FoodBrandRepository brands;
     private final FoodVarietyRepository varieties;
+    private final CatRepository cats;
 
     @Transactional(readOnly = true)
     public List<FoodBrandOption> approvedBrands() {
@@ -83,6 +85,23 @@ public class FoodBrandService {
         return managedVariety(variety);
     }
 
+    void deleteOption(String field, UUID id) {
+        if (CatIntakeCatalog.FOOD_DETAIL.equals(field)) {
+            var variety = varieties.findLockedById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Food variety", id));
+            cats.freezeFoodVariety(binaryId(id), variety.getName());
+            varieties.delete(variety);
+            return;
+        }
+        var brand = brands.findLockedById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Food brand", id));
+        // Hold the variety locks while copying labels, including when a variety was renamed independently.
+        varieties.findLockedByBrandIdOrderById(id);
+        cats.freezeFoodBrand(binaryId(id), brand.getName());
+        varieties.deleteVarietiesByBrandId(id);
+        brands.delete(brand);
+    }
+
     private static ManagedCatProfileOption managedBrand(FoodBrand brand) {
         return new ManagedCatProfileOption(brand.getId(), CatIntakeCatalog.FOOD_BRAND, brand.getName(), null,
                 brand.isActive());
@@ -98,12 +117,18 @@ public class FoodBrandService {
         UUID previousBrand = cat.getFoodBrandId();
         applyBrand(cat, request, approve, reviewedOptions.get(CatIntakeCatalog.FOOD_BRAND));
         if (!Objects.equals(previousBrand, cat.getFoodBrandId())) {
+            cat.setFoodDetail(cat.getDisplayedFoodDetail());
             cat.setFoodVarietyId(null);
         }
         applyVariety(cat, request, reviewedOptions.get(CatIntakeCatalog.FOOD_DETAIL));
     }
 
     private void applyBrand(Cat cat, CatRequestDTO request, boolean approve, UUID reviewedId) {
+        if (request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_BRAND)) {
+            cat.setFoodBrand(request.getFoodBrand());
+            cat.setFoodBrandId(null);
+            return;
+        }
         UUID brandId = reviewedId == null ? request.getFoodBrandId() : reviewedId;
         if (brandId != null) {
             if (brandId.equals(cat.getFoodBrandId())) return;
@@ -140,6 +165,11 @@ public class FoodBrandService {
     }
 
     private void applyVariety(Cat cat, CatRequestDTO request, UUID reviewedId) {
+        if (request.isUnlinkedIntakeOption(CatIntakeCatalog.FOOD_DETAIL)) {
+            cat.setFoodDetail(request.getFoodDetail());
+            cat.setFoodVarietyId(null);
+            return;
+        }
         UUID selectedId = reviewedId == null ? request.getFoodVarietyId() : reviewedId;
         if (selectedId != null) {
             if (selectedId.equals(cat.getFoodVarietyId())) return;

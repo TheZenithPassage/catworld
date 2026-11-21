@@ -4,6 +4,7 @@ import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.CatProfileOptionField;
+import com.allegaeon.catworld.model.LitterPreference;
 import com.allegaeon.catworld.model.Sex;
 import jakarta.validation.Validator;
 import jakarta.validation.groups.Default;
@@ -21,13 +22,15 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 class CatIntakeFields {
+    static final String LITTER_VALUE = "litterBrand";
+    static final String LITTER_DETAIL = "litterDetail";
     private static final Set<String> BIRTH_FIELDS = Set.of("birthDate", "birthYear");
     private static final Set<String> ALLOWED = Set.of("name", "birthDate", "birthYear", "sex", "breed", "coat", "color",
-            "personality", "foodBrand", "foodDetail", "litterBrand", "careInstructions",
+            "personality", "foodBrand", "foodDetail", LITTER_VALUE, LITTER_DETAIL, "careInstructions",
             "lastInternalDewormerName", "lastInternalDewormingDate",
             "lastExternalDewormerName", "lastExternalDewormingDate", "lastTripleFelineDate", "lastRabiesDate");
     private static final Set<String> REQUIRED_REGISTRATION_DETAILS = Set.of(
-            "breed", "coat", "color", "personality", "foodBrand", "foodDetail", "litterBrand");
+            "breed", "coat", "color", "personality", "foodBrand", "foodDetail", LITTER_VALUE);
 
     private final Validator validator;
 
@@ -43,7 +46,8 @@ class CatIntakeFields {
         put(result, "personality", cat.getPersonality());
         put(result, "foodBrand", cat.getFoodBrand());
         put(result, "foodDetail", cat.getFoodDetail());
-        put(result, "litterBrand", cat.getLitterBrand());
+        put(result, LITTER_VALUE, cat.getStoredLitterValue());
+        put(result, LITTER_DETAIL, cat.getLitterDetail());
         put(result, "careInstructions", cat.getCareInstructions());
         put(result, "lastInternalDewormerName", cat.getLastInternalDewormerName());
         put(result, "lastInternalDewormingDate", cat.getLastInternalDewormingDate());
@@ -76,6 +80,7 @@ class CatIntakeFields {
             put(result, field.key(), field.displayedNameOf(cat));
         }
         put(result, CatIntakeCatalog.FOOD_DETAIL, cat.getDisplayedFoodDetail());
+        put(result, LITTER_VALUE, cat.getDisplayedLitterValue());
         return result;
     }
 
@@ -88,6 +93,12 @@ class CatIntakeFields {
         });
         if (result.keySet().containsAll(BIRTH_FIELDS)) {
             throw new BadRequestException("Provide either birth date or birth year");
+        }
+        if (result.containsKey(LITTER_DETAIL)) {
+            if (LitterPreference.fromLegacyValue(result.get(LITTER_VALUE)) == LitterPreference.SHARED) {
+                throw new BadRequestException("A litter detail can only be saved for own litter");
+            }
+            result.put(LITTER_VALUE, LitterPreference.OWN.legacyValueWithDetail(result.get(LITTER_DETAIL)));
         }
         return result;
     }
@@ -109,6 +120,7 @@ class CatIntakeFields {
         if (changes.keySet().stream().anyMatch(BIRTH_FIELDS::contains)) {
             result.keySet().removeAll(BIRTH_FIELDS);
         }
+        if (changes.containsKey(LITTER_VALUE)) result.remove(LITTER_DETAIL);
         result.putAll(changes);
         return result;
     }
@@ -121,6 +133,7 @@ class CatIntakeFields {
 
     boolean canReview(String key, Map<String, String> proposed) {
         return proposed.containsKey(key)
+                || (LITTER_DETAIL.equals(key) && proposed.containsKey(LITTER_VALUE))
                 || (BIRTH_FIELDS.contains(key) && proposed.keySet().stream().anyMatch(BIRTH_FIELDS::contains));
     }
 
@@ -128,7 +141,15 @@ class CatIntakeFields {
         if (BIRTH_FIELDS.contains(key)) {
             return BIRTH_FIELDS.stream().anyMatch(part -> !Objects.equals(original.get(part), current.get(part)));
         }
+        if (LITTER_VALUE.equals(key)) {
+            return !Objects.equals(original.get(key), current.get(key))
+                    || !Objects.equals(effectiveLitterDetail(original), effectiveLitterDetail(current));
+        }
         return !Objects.equals(original.get(key), current.get(key));
+    }
+
+    private static String effectiveLitterDetail(Map<String, String> fields) {
+        return fields.getOrDefault(LITTER_DETAIL, LitterPreference.detailFromLegacyValue(fields.get(LITTER_VALUE)));
     }
 
     CatRequestDTO request(UUID ownerId, Cat current, Map<String, String> values) {
@@ -144,7 +165,7 @@ class CatIntakeFields {
                 .personality(values.get("personality"))
                 .foodBrand(changedValue(values.get("foodBrand"), current == null ? null : current.getFoodBrand()))
                 .foodDetail(changedValue(values.get("foodDetail"), current == null ? null : current.getFoodDetail()))
-                .litterBrand(changedValue(values.get("litterBrand"), current == null ? null : current.getLitterBrand()))
+                .litterBrand(changedValue(values.get(LITTER_VALUE), current == null ? null : current.getStoredLitterValue()))
                 .careInstructions(values.get("careInstructions"))
                 .lastInternalDewormerName(values.get("lastInternalDewormerName"))
                 .lastInternalDewormingDate(date(values, "lastInternalDewormingDate"))
@@ -155,6 +176,10 @@ class CatIntakeFields {
                 .notes(current == null ? null : current.getNotes())
                 .vetId(current == null || current.getVet() == null ? null : current.getVet().getId())
                 .build();
+        String litterDetail = values.get(LITTER_DETAIL);
+        if (litterDetail != null && litterDetail.length() > 100) {
+            throw new BadRequestException("Litter detail must not exceed 100 characters");
+        }
         var violations = validator.validate(request, Default.class, CatRequestDTO.Create.class);
         if (!violations.isEmpty()) {
             var violation = violations.iterator().next();
