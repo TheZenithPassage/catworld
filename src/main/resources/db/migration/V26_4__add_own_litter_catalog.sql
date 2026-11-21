@@ -1,3 +1,9 @@
+ALTER TABLE cat_profile_options DROP CONSTRAINT ck_cat_profile_option_category;
+ALTER TABLE cat_profile_options ADD CONSTRAINT ck_cat_profile_option_category CHECK (
+    category IN ('breed', 'coat', 'color', 'lastInternalDewormerName', 'lastExternalDewormerName')
+    OR (category = 'litterDetail' AND CHAR_LENGTH(category) = CHAR_LENGTH('litterDetail'))
+);
+
 ALTER TABLE cats ADD COLUMN litter_preference VARCHAR(6) NULL;
 ALTER TABLE cats ADD COLUMN litter_detail VARCHAR(100) NULL;
 ALTER TABLE cats ADD COLUMN litter_detail_option_id BINARY(16) NULL;
