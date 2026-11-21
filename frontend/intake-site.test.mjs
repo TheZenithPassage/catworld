@@ -40,7 +40,11 @@ async function openForm(t, invitation, previewOptions = {}) {
     }
     return new Response(null, { status: 204 });
   };
-  Object.assign(window.URL, previewOptions.urls);
+  Object.assign(window.URL, {
+    createObjectURL: () => 'blob:evidence',
+    revokeObjectURL: () => {},
+    ...previewOptions.urls,
+  });
   window.eval(script);
   await tick();
   const form = window.document.querySelector('#intake');
@@ -81,6 +85,11 @@ function enter(window, card, key, value) {
   input.value = value;
   input.dispatchEvent(new window.Event('input', { bubbles: true }));
   return input;
+}
+
+function chooseFiles(window, input, files) {
+  Object.defineProperty(input, 'files', { configurable: true, value: files });
+  input.dispatchEvent(new window.Event('change', { bubbles: true }));
 }
 
 const existing = {
@@ -314,8 +323,7 @@ test('confirms an incomplete household draft and returns to the first unanswered
   enter(window, mora, 'careInstructions', 'Come por la noche');
   const fileInput = mora.querySelector('input[type="file"]');
   const file = new File(['evidence'], 'dose.jpg', { type: 'image/jpeg' });
-  Object.defineProperty(fileInput, 'files', { value: [file] });
-  fileInput.dispatchEvent(new window.Event('change', { bubbles: true }));
+  chooseFiles(window, fileInput, [file]);
   mora.querySelector('details').open = false;
 
   assert.equal(await portal.submit(), undefined);
@@ -399,10 +407,11 @@ test('marks proposal edits and retained photo changes until they are undone', as
   assertDirty();
   enter(portal.window, card, 'foodBrand', 'Royal Canin');
   assertReceived();
-  const keep = card.querySelector('.keep-photo input');
-  keep.click();
+  card.querySelector('button[aria-label="Quitar comprobante 1"]').click();
   assertDirty();
-  keep.click();
+  const restore = card.querySelector('.retained-photos button');
+  assert.equal(restore.textContent, 'Restaurar comprobante 1');
+  restore.click();
   assertReceived();
 });
 
@@ -456,7 +465,14 @@ test('partial and exact catalog matches require a choice even after leaving the 
   assert.equal(suggestions.hidden, false);
   assert.equal(await portal.submit(), undefined);
   suggestions.querySelector('button').click();
-  assert.match(brand.closest('.catalog-field').textContent, /✓.*Seleccionado: Royal Canin/);
+  assert.ok(brand.classList.contains('catalog-input--selected'));
+  assert.equal(
+    brand.closest('.catalog-field').querySelector('.sr-only[role="status"]').textContent,
+    'Seleccionado: Royal Canin',
+  );
+  assert.ok(
+    brand.closest('.catalog-field').querySelector('button[aria-label="Limpiar Marca de comida"]'),
+  );
   enter(portal.window, cat, 'coat', 'Sin pelo');
   const post = await portal.submit();
   const { cats } = JSON.parse(await post.body.get('submission').text());
@@ -498,18 +514,18 @@ test('variety is shown with its brand and selecting a different brand clears the
   await setOpen(cat.querySelector('.other-fields'), true);
   assert.equal(variety.closest('.fields'), brand.closest('.fields'));
   assert.equal(variety.required, false);
-  assert.match(variety.closest('.catalog-field').textContent, /✓.*Seleccionado: Kitten/);
+  assert.ok(variety.classList.contains('catalog-input--selected'));
 
   enter(portal.window, cat, 'foodBrand', 'R');
   brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
   assert.equal(variety.value, 'Kitten');
-  assert.match(variety.closest('.catalog-field').textContent, /✓.*Seleccionado: Kitten/);
+  assert.ok(variety.classList.contains('catalog-input--selected'));
   assert.equal(await portal.submit(), undefined);
 
   enter(portal.window, cat, 'foodBrand', 'Puri');
   brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
   assert.equal(variety.value, '');
-  assert.equal(variety.closest('.catalog-field').querySelector('.catalog-selection').hidden, true);
+  assert.ok(!variety.classList.contains('catalog-input--selected'));
   enter(portal.window, cat, 'foodDetail', 'Kit');
   const choices = [
     ...variety.closest('.catalog-field').querySelectorAll('.catalog-suggestions button'),
@@ -545,9 +561,17 @@ test('an unrelated update preserves historical catalog text and diet', async (t)
     foodVarieties: [{ id: 'royal-kitten', brandId: 'brand-royal', name: 'Kitten' }],
   });
   const [cat] = portal.entries();
-  assert.match(
-    cat.querySelector('[name="foodBrand"]').closest('.catalog-field').textContent,
-    /✓.*Seleccionado: Royal Canin/,
+  const brand = cat.querySelector('[name="foodBrand"]');
+  const variety = cat.querySelector('[name="foodDetail"]');
+  await setOpen(cat.querySelector('details'), true);
+  await setOpen(cat.querySelector('.other-fields'), true);
+  assert.ok(!brand.classList.contains('catalog-input--selected'));
+  assert.equal(variety.value, 'Dieta indicada');
+  enter(portal.window, cat, 'foodDetail', '').focus();
+  assert.equal(variety.getAttribute('placeholder'), 'Por ejemplo, Kitten o Senior.');
+  assert.equal(
+    variety.closest('.catalog-field').querySelector('.catalog-suggestions').hidden,
+    true,
   );
   enter(portal.window, cat, 'personality', 'Tímida');
   const post = await portal.submit();
@@ -595,7 +619,7 @@ for (const partial of [false, true]) {
       const brand = enter(portal.window, cat, 'foodBrand', 'Royal Canin');
       const fileInput = cat.querySelector('input[type="file"]');
       const file = new File(['photo'], 'vaccine.jpg', { type: 'image/jpeg' });
-      Object.defineProperty(fileInput, 'files', { value: [file] });
+      chooseFiles(portal.window, fileInput, [file]);
       const submitDraft = async () => {
         const request = await portal.submit();
         if (!partial) return request;
@@ -607,8 +631,8 @@ for (const partial of [false, true]) {
       assert.equal(portal.entries()[0], cat);
       assert.equal(portal.window.document.activeElement, brand);
       assert.equal(brand.value, 'Royal Canin');
-      assert.equal(fileInput.files[0], file);
-      assert.match(breed.closest('.catalog-field').textContent, /✓.*Seleccionado: Persa/);
+      assert.equal(cat.querySelector('.selected-photos .hint').textContent, file.name);
+      assert.ok(breed.classList.contains('catalog-input--selected'));
       assert.equal(await portal.submit(), undefined);
       brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
       const retry = await submitDraft();
@@ -657,12 +681,7 @@ test('selected HEIC falls back to an authenticated JPEG preview and clearing rev
   const [cat] = portal.entries();
   const input = cat.querySelector('input[type="file"]');
   const file = new File(['photo'], 'dose.HEIC', { type: 'image/heic' });
-  Object.defineProperty(input, 'files', {
-    configurable: true,
-    get: () => (input.value ? [file] : []),
-  });
-  Object.defineProperty(input, 'value', { configurable: true, writable: true, value: 'dose.HEIC' });
-  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
+  chooseFiles(portal.window, input, [file]);
   assert.equal(cat.querySelector('.remove-cat').hidden, true);
 
   const disclosure = cat.querySelector('details');
@@ -695,83 +714,98 @@ test('selected HEIC falls back to an authenticated JPEG preview and clearing rev
     false,
   );
 
-  const clear = [...cat.querySelectorAll('button')].find((button) =>
-    button.textContent.includes('Quitar fotos nuevas'),
-  );
-  clear.click();
+  cat.querySelector('button[aria-label="Quitar foto dose.HEIC"]').click();
   assert.equal(cat.querySelector('img'), null);
   assert.deepEqual(revoked, ['blob:photo-1', 'blob:photo-2']);
   await setOpen(disclosure, false);
   assert.equal(cat.querySelector('.remove-cat').hidden, false);
 });
 
-test('a pending cat can send five kept and new photos after correcting a six-photo selection', async (t) => {
-  const portal = await openForm(
-    t,
-    {
-      cats: [
-        {
-          ...existing,
-          revision: 2,
-          proposedFields: { foodBrand: 'Proposed food' },
-          photos: [{ id: 'first' }, { id: 'second' }],
-        },
-      ],
-    },
-    { urls: { createObjectURL: () => 'blob:photo', revokeObjectURL: () => {} } },
-  );
+test('adds photos across chooser sessions and rejects a sixth without losing earlier photos', async (t) => {
+  const portal = await openForm(t, {
+    cats: [
+      {
+        ...existing,
+        requestedFields: [],
+        revision: 2,
+        proposedFields: { foodBrand: 'Proposed food' },
+        photos: [{ id: 'first' }, { id: 'second' }],
+      },
+    ],
+  });
   const [cat] = portal.entries();
-  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
-  const input = cat.querySelector('input[type="file"]');
-  const files = Array.from({ length: 4 }, (_, index) => new File(['photo'], `photo-${index}.jpg`));
-  Object.defineProperty(input, 'files', { value: files });
-  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
-  assert.equal(await portal.submit(), undefined);
-  assert.match(cat.querySelector('[role="alert"]').textContent, /cinco fotos/);
-  assert.equal(field.value, 'Updated food');
-  assert.equal(input.files.length, 4);
-
-  cat.querySelector('.keep-photo input').click();
-  assert.equal(await portal.submit(), undefined);
-  const post = await portal.confirmPartial();
-  const { cats } = JSON.parse(await post.body.get('submission').text());
-  assert.deepEqual(cats[0].retainedPhotoIds, ['second']);
-  assert.equal(cats[0].photoKeys.length, 4);
-});
-
-test('a photo over 8 MiB leaves the selected file and draft available to correct', async (t) => {
-  const portal = await openForm(t, { cats: [existing] });
-  const [cat] = portal.entries();
-  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
-  const input = cat.querySelector('input[type="file"]');
-  const file = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'large.jpg');
-  Object.defineProperty(input, 'files', { value: [file] });
-  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
-  assert.equal(await portal.submit(), undefined);
-  assert.match(cat.querySelector('[role="alert"]').textContent, /8 MiB/);
-  assert.equal(field.value, 'Updated food');
-  assert.equal(input.files[0], file);
-});
-
-test('new photos over 32 MiB leave the draft available to correct', async (t) => {
-  const portal = await openForm(
-    t,
-    { cats: [existing] },
-    { urls: { createObjectURL: () => 'blob:photo', revokeObjectURL: () => {} } },
-  );
-  const [cat] = portal.entries();
-  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
   const input = cat.querySelector('input[type="file"]');
   const files = Array.from(
-    { length: 5 },
-    (_, index) => new File([new Uint8Array(7 * 1024 * 1024)], `photo-${index}.jpg`),
+    { length: 4 },
+    (_, index) => new File(['photo'], 'photo-' + index + '.jpg'),
   );
-  Object.defineProperty(input, 'files', { value: files });
-  input.dispatchEvent(new portal.window.Event('change', { bubbles: true }));
-  assert.equal(await portal.submit(), undefined);
-  assert.match(portal.form.querySelector('#error').textContent, /32 MiB/);
+  const names = () =>
+    [...cat.querySelectorAll('.selected-photos .hint')].map((el) => el.textContent);
+
+  chooseFiles(portal.window, input, files.slice(0, 2));
+  input.dispatchEvent(new portal.window.Event('cancel', { bubbles: true }));
+  chooseFiles(portal.window, input, files.slice(2, 3));
+  chooseFiles(portal.window, input, files.slice(3));
+  assert.match(cat.querySelector('[role="alert"]').textContent, /cinco fotos/);
+  assert.deepEqual(names(), ['photo-0.jpg', 'photo-1.jpg', 'photo-2.jpg']);
+
+  cat.querySelector('button[aria-label="Quitar comprobante 1"]').click();
+  chooseFiles(portal.window, input, files.slice(3));
+  assert.deepEqual(
+    names(),
+    files.map(({ name }) => name),
+  );
+  cat.querySelector('button[aria-label="Quitar foto photo-1.jpg"]').click();
+  assert.equal(portal.requests.filter(({ path }) => path === '/api/intake/submissions').length, 0);
+
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].retainedPhotoIds, ['second']);
+  assert.deepEqual(
+    cats[0].photoKeys.map((key) => post.body.get(key).name),
+    ['photo-0.jpg', 'photo-2.jpg', 'photo-3.jpg'],
+  );
+});
+
+test('rejects a photo over 8 MiB and keeps the valid draft', async (t) => {
+  const portal = await openForm(t, { cats: [{ ...existing, requestedFields: [] }] });
+  const [cat] = portal.entries();
+  const field = enter(portal.window, cat, 'foodBrand', 'Updated food');
+  const input = cat.querySelector('input[type="file"]');
+  const large = new File([new Uint8Array(8 * 1024 * 1024 + 1)], 'large.jpg');
+  chooseFiles(portal.window, input, [new File(['photo'], 'first.jpg')]);
+  chooseFiles(portal.window, input, [large]);
+  assert.match(cat.querySelector('[role="alert"]').textContent, /8 MiB/);
   assert.equal(field.value, 'Updated food');
-  assert.equal(input.files.length, 5);
+  const post = await portal.submit();
+  assert.equal(post.body.get('photo-0-0').name, 'first.jpg');
+  assert.equal(post.body.has('photo-0-1'), false);
+});
+
+test('rejects more than 32 MiB in new photos across the household and preserves the prior selection', async (t) => {
+  const portal = await openForm(t, {
+    cats: [
+      { ...existing, requestedFields: [] },
+      { ...existing, catId: 'second-cat', requestedFields: [] },
+    ],
+  });
+  const [first, second] = portal.entries();
+  const input = (cat) => cat.querySelector('input[type="file"]');
+  const files = Array.from(
+    { length: 5 },
+    (_, index) => new File([new Uint8Array(8 * 1024 * 1024)], 'photo-' + index + '.jpg'),
+  );
+  chooseFiles(portal.window, input(first), files.slice(0, 3));
+  chooseFiles(portal.window, input(second), files.slice(3, 4));
+  chooseFiles(portal.window, input(second), files.slice(4));
+  assert.match(second.querySelector('[role="alert"]').textContent, /32 MiB/);
+  assert.equal(second.querySelector('.selected-photos .hint').textContent, files[3].name);
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(
+    cats.map(({ photoKeys }) => photoKeys.length),
+    [3, 1],
+  );
 });
 
 test('retained JPEG enlarges in the form, restores focus and closes on departure', async (t) => {

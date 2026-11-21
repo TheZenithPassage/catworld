@@ -48,7 +48,8 @@ export interface CatsTranslations {
     publishOption: (name: string, catalog: string) => string;
     publishedOption: (name: string, catalog: string) => string;
     publishOptionError: string;
-    catalogSelection: string;
+    catalogSelection: (name: string) => string;
+    catalogExamples: Record<'breed' | 'foodBrand' | 'foodDetail', string>;
     catalogPublicationHint: string;
     litterBrand: string;
     sharedLitter: string;
@@ -248,7 +249,12 @@ export const CATS_TRANSLATIONS = {
       publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
       publishedOption: (name, catalog) => 'Se agregó «' + name + '» a ' + catalog + '.',
       publishOptionError: 'No se pudo agregar al catálogo.',
-      catalogSelection: 'Opción del catálogo',
+      catalogSelection: (name) => 'Seleccionado: ' + name,
+      catalogExamples: {
+        breed: 'Por ejemplo, Común.',
+        foodBrand: 'Por ejemplo, Royal Canin.',
+        foodDetail: 'Por ejemplo, Kitten o Senior.',
+      },
       catalogPublicationHint: 'Este valor se añadirá al catálogo al aprobarlo.',
       litterBrand: 'Piedritas',
       ownLitter: 'Trae sus propias piedritas',
@@ -258,9 +264,9 @@ export const CATS_TRANSLATIONS = {
       sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
       notes: 'Notas internas del equipo',
-      careInstructions: 'Indicaciones de cuidado del tutor',
+      careInstructions: 'Indicaciones extra',
 
-      careInstructionsTooLong: 'Las indicaciones de cuidado no pueden superar los 2.000 caracteres',
+      careInstructionsTooLong: 'Las indicaciones extra no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
       lastExternalDewormerName: 'Última pipeta antipulgas',
@@ -435,7 +441,12 @@ export const CATS_TRANSLATIONS = {
       publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
       publishedOption: (name, catalog) => 'Added “' + name + '” to ' + catalog + '.',
       publishOptionError: 'Could not add this option to the catalog.',
-      catalogSelection: 'Catalog option selected',
+      catalogSelection: (name) => 'Selected: ' + name,
+      catalogExamples: {
+        breed: 'For example, Domestic.',
+        foodBrand: 'For example, Royal Canin.',
+        foodDetail: 'For example, Kitten or Senior.',
+      },
       catalogPublicationHint: 'This value will be added to the catalog when approved.',
       litterBrand: 'Litter',
       ownLitter: 'Brings their own litter',
@@ -445,9 +456,9 @@ export const CATS_TRANSLATIONS = {
       sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
       notes: 'Internal team notes',
-      careInstructions: 'Caretaker’s care instructions',
+      careInstructions: 'Extra instructions',
 
-      careInstructionsTooLong: 'Care instructions must not exceed 2,000 characters',
+      careInstructionsTooLong: 'Extra instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
       lastExternalDewormerName: 'Last flea spot-on treatment',
