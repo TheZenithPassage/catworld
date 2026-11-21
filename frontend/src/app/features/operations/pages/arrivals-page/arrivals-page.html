@@ -38,7 +38,9 @@
         {{ copy().includeStartedToday }}
       </label>
       @if (invalidDaysAhead()) {
-        <p id="arrivals-days-error" class="days-error" role="status">{{ copy().invalidDaysAhead }}</p>
+        <p id="arrivals-days-error" class="days-error" role="status">
+          {{ copy().invalidDaysAhead }}
+        </p>
       }
     </div>
   </details>
