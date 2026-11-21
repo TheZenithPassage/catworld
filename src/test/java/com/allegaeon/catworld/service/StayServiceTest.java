@@ -162,6 +162,9 @@ public class StayServiceTest {
     private CurrentUserAccountService currentUserAccountService;
 
     @Mock
+    private StayActualMovementService stayActualMovementService;
+
+    @Mock
     private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
 
     @Spy

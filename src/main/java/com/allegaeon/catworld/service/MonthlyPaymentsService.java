@@ -6,6 +6,7 @@ import com.allegaeon.catworld.dto.overview.OverviewPage;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayPayment;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.repository.MonthlyPaymentsRepository;
 import com.allegaeon.catworld.repository.MonthlyPaymentsRepository.CollectionBalance;
 import com.allegaeon.catworld.repository.StayCatRepository;
@@ -14,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -33,7 +32,6 @@ import java.util.stream.Collectors;
 public class MonthlyPaymentsService {
     private final MonthlyPaymentsRepository monthlyPaymentsRepository;
     private final StayCatRepository stayCatRepository;
-    private final Clock clock;
 
     @Transactional(readOnly = true)
     public MonthlyReceipts getReceipts(String requestedMonth, String scope, UUID ownerId, UUID catId, int page) {
@@ -71,19 +69,18 @@ public class MonthlyPaymentsService {
         var cats = catNamesByStay(ids);
         var stays = ids.isEmpty() ? Map.<UUID, Stay>of() : monthlyPaymentsRepository.findCollectionStays(ids).stream()
                 .collect(Collectors.toMap(Stay::getId, Function.identity()));
-        LocalDateTime now = LocalDateTime.now(clock);
         var rows = pageBalances.stream()
-                .map(balance -> collectionRow(balance, stays.get(balance.stayId()), cats, now))
+                .map(balance -> collectionRow(balance, stays.get(balance.stayId()), cats))
                 .toList();
         return new MonthlyCollections(new OverviewPage<>(rows, actualPage, filteredBalances.size()), knownTotal.toPlainString(), pendingPriceCount);
     }
 
     private MonthlyCollections.StayBalance collectionRow(CollectionBalance balance, Stay stay,
-                                                          Map<UUID, List<String>> cats, LocalDateTime now) {
+                                                          Map<UUID, List<String>> cats) {
         return new MonthlyCollections.StayBalance(stay.getId(), stay.getStartAt(), stay.getOwner().getFullName(),
                 cats.getOrDefault(stay.getId(), List.of()), decimalOrNull(balance.agreed()),
                 balance.paid().toPlainString(), decimalOrNull(balance.remaining()), stay.getNotes(),
-                !stay.getStartAt().isAfter(now));
+                stay.status() == StayStatus.CHECKED_IN || stay.status() == StayStatus.CHECKED_OUT);
     }
 
     private String decimalOrNull(BigDecimal amount) {

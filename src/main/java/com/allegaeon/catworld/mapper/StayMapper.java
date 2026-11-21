@@ -35,6 +35,7 @@ public class StayMapper {
                 .startAt(stay.getStartAt())
                 .endAt(stay.getEndAt())
                 .cancelledAt(stay.getCancelledAt())
+                .status(stay.status())
                 .createdAt(stay.getCreatedAt())
                 .updatedAt(stay.getUpdatedAt())
                 .notes(stay.getNotes())

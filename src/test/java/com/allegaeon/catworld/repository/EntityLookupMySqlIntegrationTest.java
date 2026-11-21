@@ -85,7 +85,7 @@ class EntityLookupMySqlIntegrationTest {
                 .stay(earlier).cat(cat).build());
         entityManager.flush();
 
-        var stayPage = stayOverviews.find(0, 10, LocalDateTime.of(2029, 1, 1, 0, 0),
+        var stayPage = stayOverviews.find(0, 10,
                 Set.of(StayStatus.RESERVED), owner.getId(), cat.getId());
         assertEquals(1, stayPage.getTotalElements());
         assertEquals(earlier.getId(), stayPage.getContent().getFirst().getId());

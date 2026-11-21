@@ -93,7 +93,7 @@ class OperationalOverviewServiceTest {
                 .startAt(LocalDateTime.of(2026, 9, 4, 23, 0))
                 .endAt(LocalDateTime.of(2026, 9, 5, 10, 0)).build();
         var service = mockStayService(fixed);
-        when(stayOverviewReadRepository.find(eq(1), eq(10), eq(LocalDateTime.of(2026, 9, 4, 22, 30)), eq(Set.of(StayStatus.RESERVED)),
+        when(stayOverviewReadRepository.find(eq(1), eq(10), eq(Set.of(StayStatus.RESERVED)),
                 eq(owner.getId()), isNull(), any()))
                 .thenReturn(new PageImpl<>(List.of(stay), org.springframework.data.domain.PageRequest.of(1, 10), 12));
         when(stayCatRepository.findOverviewCatsByStayIds(List.of(stay.getId()))).thenReturn(List.of());
@@ -106,6 +106,6 @@ class OperationalOverviewServiceTest {
     private StayService mockStayService(Clock fixed) {
         return new StayService(null, null, null, null, stayCatRepository, stayOverviewReadRepository,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                fixed);
+                fixed, null);
     }
 }

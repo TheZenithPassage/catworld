@@ -50,6 +50,20 @@ public interface StayCatRepository extends JpaRepository<StayCat, StayCatId> {
     boolean existsByCat_Id(UUID catId);
 
     @Query("""
+            select count(sc) > 0
+            from StayCat sc join sc.stay s
+            left join StayActualMovement d
+                on d.id.stayId = s.id and d.id.type = com.allegaeon.catworld.model.StayMovementType.DEPARTURE
+            where sc.cat.id in :catIds and s.id <> :stayId and s.cancelledAt is null
+              and (s.movementStatus = com.allegaeon.catworld.model.StayStatus.CHECKED_IN
+                or (s.movementStatus = com.allegaeon.catworld.model.StayStatus.CHECKED_OUT
+                  and d.occurredAtUtc > :arrivalUtc))
+            """)
+    boolean hasOverlappingActualOccupancy(@Param("catIds") Collection<UUID> catIds,
+                                          @Param("stayId") UUID stayId,
+                                          @Param("arrivalUtc") LocalDateTime arrivalUtc);
+
+    @Query("""
             select distinct sc.cat.id
             from StayCat sc
             where sc.cat.id in :candidateIds

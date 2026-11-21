@@ -11,7 +11,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -22,19 +21,19 @@ import java.util.UUID;
 public class StayOverviewReadRepository {
     private final EntityManager entityManager;
 
-    public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
+    public Page<Stay> find(int page, int size, Set<StayStatus> statuses,
             UUID ownerId, UUID catId) {
-        return find(page, size, now, statuses, ownerId, catId,
+        return find(page, size, statuses, ownerId, catId,
                 new StayDateFilter(null, null, null));
     }
 
-    public Page<Stay> find(int page, int size, LocalDateTime now, Set<StayStatus> statuses,
+    public Page<Stay> find(int page, int size, Set<StayStatus> statuses,
             UUID ownerId, UUID catId, StayDateFilter dates) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Stay> query = cb.createQuery(Stay.class);
         Root<Stay> stay = query.from(Stay.class);
         stay.fetch("owner", JoinType.INNER);
-        List<Predicate> predicates = predicates(cb, query, stay, now, statuses, ownerId, catId, dates);
+        List<Predicate> predicates = predicates(cb, query, stay, statuses, ownerId, catId, dates);
         query.select(stay).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.asc(stay.get("startAt")), cb.asc(stay.get("id")));
 
@@ -43,7 +42,7 @@ public class StayOverviewReadRepository {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Stay> countStay = countQuery.from(Stay.class);
-        List<Predicate> countPredicates = predicates(cb, countQuery, countStay, now, statuses,
+        List<Predicate> countPredicates = predicates(cb, countQuery, countStay, statuses,
                 ownerId, catId, dates);
         countQuery.select(cb.count(countStay)).where(countPredicates.toArray(Predicate[]::new));
         return new PageImpl<>(items, org.springframework.data.domain.PageRequest.of(page, size),
@@ -60,7 +59,7 @@ public class StayOverviewReadRepository {
     }
 
     private List<Predicate> predicates(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Stay> stay,
-            LocalDateTime now, Set<StayStatus> statuses, UUID ownerId, UUID catId,
+            Set<StayStatus> statuses, UUID ownerId, UUID catId,
             StayDateFilter dates) {
         List<Predicate> result = new ArrayList<>(StayDatePredicates.matching(cb, stay, dates));
         if (ownerId != null) result.add(cb.equal(stay.get("owner").get("id"), ownerId));
@@ -74,9 +73,10 @@ public class StayOverviewReadRepository {
         if (statuses != null && !statuses.isEmpty()) {
             List<Predicate> visible = new ArrayList<>();
             if (statuses.contains(StayStatus.CANCELLED)) visible.add(cb.isNotNull(stay.get("cancelledAt")));
-            if (statuses.contains(StayStatus.RESERVED)) visible.add(cb.and(cb.isNull(stay.get("cancelledAt")), cb.greaterThan(stay.get("startAt"), now)));
-            if (statuses.contains(StayStatus.CHECKED_IN)) visible.add(cb.and(cb.isNull(stay.get("cancelledAt")), cb.lessThanOrEqualTo(stay.get("startAt"), now), cb.greaterThan(stay.get("endAt"), now)));
-            if (statuses.contains(StayStatus.CHECKED_OUT)) visible.add(cb.and(cb.isNull(stay.get("cancelledAt")), cb.lessThanOrEqualTo(stay.get("endAt"), now)));
+            var movementStatuses = statuses.stream().filter(status -> status != StayStatus.CANCELLED).toList();
+            if (!movementStatuses.isEmpty()) {
+                visible.add(cb.and(cb.isNull(stay.get("cancelledAt")), stay.get("movementStatus").in(movementStatuses)));
+            }
             result.add(cb.or(visible.toArray(Predicate[]::new)));
         }
 

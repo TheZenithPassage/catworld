@@ -29,8 +29,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -73,7 +71,6 @@ public class CatService implements ICatService{
     private final CatPhotoRepository catPhotoRepository;
     private final LibVipsCatPhotoNormalizer photoNormalizer;
     private final CatMutationTransactionService mutationTransactionService;
-    private final Clock clock;
 
     @Override
     public List<CatResponseDTO> getAllCats() {
@@ -123,24 +120,22 @@ public class CatService implements ICatService{
     @Override
     @Transactional(readOnly = true)
     public CatDetailResponse getCatDetail(UUID id) {
-        LocalDateTime now = LocalDateTime.now(clock);
         Cat cat = getCatEntity(id);
         Page<com.allegaeon.catworld.model.Stay> stays = stayCatRepository.findStaysByCatId(
                 id, PageRequest.of(0, 4));
         return new CatDetailResponse(toResponseDTO(cat),
-                RelationshipResponses.preview(stays, stay -> RelationshipResponses.stay(stay, now)));
+                RelationshipResponses.preview(stays, RelationshipResponses::stay));
     }
 
     @Override
     @Transactional(readOnly = true)
     public RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page) {
-        LocalDateTime now = LocalDateTime.now(clock);
         getCatEntity(id);
         RelationshipResponses.requireValidPage(page);
         return RelationshipResponses.page(
                 stayCatRepository.findStaysByCatId(id,
                         PageRequest.of(page, RelationshipResponses.PAGE_SIZE)),
-                stay -> RelationshipResponses.stay(stay, now));
+                RelationshipResponses::stay);
     }
 
     @Override

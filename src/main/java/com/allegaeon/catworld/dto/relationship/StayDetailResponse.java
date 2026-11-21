@@ -1,5 +1,6 @@
 package com.allegaeon.catworld.dto.relationship;
 
+import com.allegaeon.catworld.dto.StayActualMovementsDTO;
 import com.allegaeon.catworld.model.StayStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,5 +11,7 @@ public record StayDetailResponse(UUID stayId, StayStatus status,
                                  OwnerRelationshipItem owner,
                                  RelationshipPreview<CatRelationshipItem> cats,
                                  boolean arrivalTransferRequired,
-                                 boolean departureTransferRequired) {
+                                 boolean departureTransferRequired,
+                                 boolean canEdit, boolean canCancel,
+                                 StayActualMovementsDTO actualMovements) {
 }
