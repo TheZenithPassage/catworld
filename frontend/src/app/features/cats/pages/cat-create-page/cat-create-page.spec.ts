@@ -254,6 +254,38 @@ describe('CatCreatePage', () => {
     );
   });
 
+  it('marks an explicitly selected catalog value and clears its text and ID together', async () => {
+    createComponent();
+    fixture.detectChanges();
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const food = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodBrand]' }),
+    );
+    const root = fixture.nativeElement as HTMLElement;
+    const control = root.querySelector('app-cat-profile-option-field[field=foodBrand]')!;
+    const input = control.querySelector('input')!;
+    expect(input.placeholder).toBe('');
+    input.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+    expect(input.placeholder).toContain('Royal Canin');
+
+    await food.enterText('Royal Canin');
+    expect(control.querySelector('.lookup-success')).toBeNull();
+    expect(component.catalogSelection().foodBrand).toBeUndefined();
+    await food.selectOption({ text: 'Royal Canin' });
+    expect(control.querySelector('.lookup-success .success-check')).not.toBeNull();
+    expect(control.querySelector('[role="status"]')?.textContent).toContain('Royal Canin');
+
+    const clear = control.querySelector('button.clear-button')!;
+    expect(clear.getAttribute('aria-label')).toBeTruthy();
+    (clear as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(input.value).toBe('');
+    expect(control.querySelector('.lookup-success')).toBeNull();
+    expect(component.catalogSelection().foodBrand).toBeUndefined();
+    expect(component.foodBrand()).toBe('');
+  });
+
   it('publishes only an explicitly selected catalog field as an administrator', async () => {
     const session = TestBed.inject(AuthSessionService);
     const credentials = { username: 'operator', password: 'password' };

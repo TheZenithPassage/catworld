@@ -1,8 +1,7 @@
 @use '@angular/material' as mat;
+@use 'lookup-control';
 
 :host {
-  --lookup-success-background: var(--color-success-soft);
-
   display: block;
   width: 100%;
   min-width: 0;
@@ -21,44 +20,7 @@ input {
   white-space: nowrap;
 }
 
-.lookup-suffix {
-  display: inline-flex;
-  flex: 0 0 auto;
-  flex-wrap: nowrap;
-  align-items: center;
-}
-
-.lookup-success {
-  @include mat.form-field-overrides(
-    (
-      outlined-outline-color: var(--color-success),
-      outlined-hover-outline-color: var(--color-success-strong),
-      outlined-focus-outline-color: var(--color-success),
-      outlined-label-text-color: var(--color-success),
-      outlined-hover-label-text-color: var(--color-success-strong),
-      outlined-focus-label-text-color: var(--color-success-strong),
-      outlined-input-text-color: var(--color-success-text),
-      outlined-caret-color: var(--color-success),
-      trailing-icon-color: var(--color-success),
-    )
-  );
-
-  border-radius: 0.25rem;
-  background: linear-gradient(var(--lookup-success-background), var(--lookup-success-background))
-    top / 100% 56px no-repeat;
-}
-
-.lookup-success input {
-  background-color: var(--lookup-success-background);
-}
-
-.lookup-status {
-  display: inline-grid;
-  width: 1.5rem;
-  height: 2.5rem;
-  color: var(--color-success-strong);
-  place-items: center;
-}
+@include lookup-control.selection;
 
 .lookup-spinner {
   @include mat.progress-spinner-overrides(
@@ -68,44 +30,11 @@ input {
   );
 }
 
-.success-check {
-  width: 1.35rem;
-  height: 1.35rem;
-  fill: none;
-  stroke: currentcolor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.5;
-}
-
 .invalid-indicator {
   color: var(--color-danger);
   font-size: 1.35rem;
   font-weight: 750;
   line-height: 1;
-}
-
-.clear-button {
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  color: var(--color-text-muted);
-}
-
-.lookup-success .clear-button {
-  color: var(--color-success-strong);
-}
-
-.clear-glyph {
-  display: inline-grid;
-  width: 1em;
-  height: 1em;
-  place-items: center;
-  font-family: Arial, sans-serif;
-  font-size: 1.75rem;
-  font-weight: 300;
-  line-height: 1;
-  transform: translateY(-0.0625rem);
 }
 
 .state {

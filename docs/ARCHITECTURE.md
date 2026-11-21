@@ -77,6 +77,8 @@ the informational gallery remain behind staff authentication on the
 protected administration origin.
 
 Recipients can return to edit pending proposals and reuse staged evidence.
+They can add photos across several file selections and remove individual new
+or retained photos in the draft. The pending proposal changes on submission.
 Restoring an existing cat's original values and removing all staged evidence
 withdraws its proposal while leaving the invitation open. A requested update
 must answer at least one prompt. The form asks for confirmation before a valid
