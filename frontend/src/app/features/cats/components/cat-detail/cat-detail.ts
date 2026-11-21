@@ -1,4 +1,14 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -45,6 +55,7 @@ export class CatDetail {
   private readonly api = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly editor = viewChild(CatEditor);
   private loadGeneration = 0;
   private deletionGeneration = 0;
   private loadedEntityId: string | null = null;
@@ -66,6 +77,11 @@ export class CatDetail {
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly editAvailable = computed(
+    () => this.detail()?.cat.id === this.entityId() && !this.error() && !this.editing(),
+  );
+  readonly editDisabled = computed(() => this.loading() || this.deleting());
+  readonly hasUnsavedChanges = computed(() => this.editor()?.hasUnsavedChanges() === true);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -77,6 +93,12 @@ export class CatDetail {
       if (this.loadedEntityId !== entityId) this.detail.set(null);
       this.load(entityId);
     });
+  }
+  requestEdit(): void {
+    if (this.editAvailable() && !this.editDisabled()) this.editRequested.emit();
+  }
+  releaseDraftMedia(): void {
+    this.editor()?.releaseDraftMedia();
   }
   load(entityId = this.entityId()): void {
     const generation = ++this.loadGeneration;

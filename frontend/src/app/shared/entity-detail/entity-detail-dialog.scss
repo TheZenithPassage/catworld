@@ -23,6 +23,14 @@
   gap: 0.35rem;
 }
 
+.cat-draft-indicator {
+  max-inline-size: 10rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: end;
+}
+
 h2[mat-dialog-title] {
   display: flex;
   flex: 1 1 auto;
@@ -184,6 +192,12 @@ mat-paginator {
 
   .dialog-header-actions {
     gap: 0.2rem;
+  }
+
+  .dialog-header-actions:has(.cat-draft-indicator) {
+    max-inline-size: 55%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   mat-dialog-content {

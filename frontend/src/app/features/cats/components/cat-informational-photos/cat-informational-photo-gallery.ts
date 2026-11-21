@@ -80,9 +80,16 @@ export class CatInformationalPhotoGallery {
   readonly acceptedFormats = CAT_PHOTO_ACCEPT;
   readonly drafts = signal<DraftPhoto[]>([]);
   readonly removals = signal<string[]>([]);
+  private readonly numberedPhotos = computed(() =>
+    this.photos().map(({ id }, index) => ({ id, number: index + 1 })),
+  );
   readonly visiblePhotos = computed(() => {
     const removals = new Set(this.removals());
-    return this.photos().filter((photo) => !removals.has(photo.id));
+    return this.numberedPhotos().filter(({ id }) => !removals.has(id));
+  });
+  readonly removedPhotos = computed(() => {
+    const removals = new Set(this.removals());
+    return this.numberedPhotos().filter(({ id }) => removals.has(id));
   });
   readonly loading = signal(false);
   readonly loadFailed = signal(false);
@@ -169,6 +176,16 @@ export class CatInformationalPhotoGallery {
     this.removals.update((ids) => [...ids, photoId]);
     this.pendingRemoval.set(null);
     this.focusAfterRender(this.addButton);
+  }
+
+  restoreSaved(photoId: string): void {
+    if (this.disabled()) return;
+    this.removals.update((ids) => ids.filter((id) => id !== photoId));
+    this.focusAfterRender(() =>
+      this.removeButtons().find(
+        ({ nativeElement }) => nativeElement.dataset['photoId'] === photoId,
+      ),
+    );
   }
 
   removeDraft(draft: DraftPhoto): void {

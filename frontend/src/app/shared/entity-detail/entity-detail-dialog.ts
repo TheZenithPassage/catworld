@@ -1,19 +1,27 @@
 import {
+  afterNextRender,
   Component,
+  computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
+  Injector,
   output,
   signal,
+  TemplateRef,
   viewChild,
 } from '@angular/core';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogActions,
   MatDialogClose,
   MatDialogContent,
   MatDialogTitle,
   MatDialogRef,
+  MatDialogState,
 } from '@angular/material/dialog';
 import { CatDetail } from '../../features/cats/components/cat-detail/cat-detail';
 import { OwnerDetail } from '../../features/owners/components/owner-detail/owner-detail';
@@ -32,8 +40,8 @@ import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { CatPhotoViewRequest } from '../../features/cats/models/cat.model';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
-import { Observable } from 'rxjs';
-import { Subscription } from 'rxjs';
+import { defaultIfEmpty, map, Observable, shareReplay, Subscription, tap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
@@ -52,6 +60,7 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     DeceasedMarker,
     MatButton,
     MatIconButton,
+    MatDialogActions,
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
@@ -76,13 +85,20 @@ export class EntityDetailDialog {
   private readonly catApi = inject(CatApiService);
   private readonly stayApi = inject(StayApiService);
   private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
+  private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
+  private readonly discardTemplate = viewChild.required<TemplateRef<unknown>>('discardCatDraft');
+  private discardConfirmation?: MatDialogRef<unknown, boolean>;
+  private closing = false;
   private requestGeneration = 0;
   private geometryGeneration = 0;
   private contentResolved = false;
   private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
+  protected readonly catDetail = viewChild(CatDetail);
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
   readonly entry = signal<HistoryEntry>(this.history()[0]);
@@ -90,6 +106,9 @@ export class EntityDetailDialog {
   readonly relationshipLoading = signal(false);
   readonly relationshipError = signal(false);
   readonly editing = signal(false);
+  readonly hasCatDraft = computed(
+    () => this.editing() && this.catDetail()?.hasUnsavedChanges() === true,
+  );
   readonly text = inject(I18nService).text;
   readonly entityUpdated = output<EntityDetailUpdate>();
   readonly submitting = signal(false);
@@ -100,10 +119,27 @@ export class EntityDetailDialog {
   readonly photoWidth = signal<number | null>(null);
   readonly photoHeight = signal<number | null>(null);
   constructor() {
-    this.dialogRef.beforeClosed().subscribe(() => this.leavePhoto());
-    inject(DestroyRef).onDestroy(() => {
+    this.dialogRef.beforeClosed().subscribe(() => {
+      this.closing = true;
+      if (this.discardConfirmation?.getState() === MatDialogState.OPEN) {
+        this.discardConfirmation.close(false);
+      }
+      this.leavePhoto();
+    });
+    this.destroyRef.onDestroy(() => {
       this.geometryGeneration++;
       this.leavePhoto();
+    });
+    effect((onCleanup) => {
+      const window = this.element.nativeElement.ownerDocument.defaultView;
+      if (!window || !this.hasCatDraft()) return;
+      const beforeUnload = (event: BeforeUnloadEvent) => {
+        if (this.closing || !this.hasCatDraft()) return;
+        event.preventDefault();
+        event.returnValue = true;
+      };
+      window.addEventListener('beforeunload', beforeUnload);
+      onCleanup(() => window.removeEventListener('beforeunload', beforeUnload));
     });
   }
 
@@ -154,6 +190,9 @@ export class EntityDetailDialog {
   }
   showReference(reference: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.loadReference(reference));
+  }
+  private loadReference(reference: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.editing.set(false);
@@ -166,6 +205,9 @@ export class EntityDetailDialog {
   }
   openCats(parent: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.showCats(parent));
+  }
+  private showCats(parent: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -185,6 +227,9 @@ export class EntityDetailDialog {
   }
   openStays(parent: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.showStays(parent));
+  }
+  private showStays(parent: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -201,6 +246,9 @@ export class EntityDetailDialog {
   back(): void {
     if (this.submitting()) return;
     if (this.history().length <= 1) return;
+    this.leaveCatDraft(() => this.returnToPreviousEntry());
+  }
+  private returnToPreviousEntry(): void {
     this.captureContentGeometry();
     this.leavePhoto();
     this.editing.set(false);
@@ -382,9 +430,83 @@ export class EntityDetailDialog {
   }
   enterEdit(): void {
     this.editing.set(true);
+    if (this.reference().entityType === 'cat') {
+      afterNextRender(
+        {
+          write: () => {
+            const content = this.contentRegion()?.nativeElement;
+            if (content && this.editing() && this.reference().entityType === 'cat') {
+              content.scrollTop = 0;
+            }
+          },
+        },
+        { injector: this.injector },
+      );
+    }
   }
   leaveEdit(): void {
     this.editing.set(false);
+  }
+  cancelCatEdit(): void {
+    if (!this.submitting()) this.leaveCatDraft(() => this.leaveEdit());
+  }
+  allowClose(): boolean {
+    if (this.closing || !this.hasCatDraft()) return true;
+    this.leaveCatDraft(() => this.closeImmediately());
+    return false;
+  }
+  confirmCatNavigation(destination: string): boolean | Observable<boolean> {
+    if (!this.hasCatDraft()) return true;
+    const navigation = this.router.currentNavigation();
+    const confirmation = this.openDiscardConfirmation();
+    if (!confirmation) return false;
+    const decision = confirmation.pipe(
+      defaultIfEmpty(false),
+      tap((discard) => {
+        if (!discard) return;
+        this.closeImmediately();
+        if (navigation && this.router.currentNavigation()?.id !== navigation.id) {
+          // A second browser action can supersede the first guarded navigation.
+          void this.router.navigateByUrl(destination, { state: navigation.extras.state });
+        }
+      }),
+      shareReplay(1),
+    );
+    // Keep the first decision active even if the Router unsubscribes from the guard.
+    decision.subscribe();
+    return decision;
+  }
+  closeImmediately(): void {
+    this.closing = true;
+    this.catDetail()?.releaseDraftMedia();
+    this.dialogRef.close();
+  }
+  private leaveCatDraft(leave: () => void): void {
+    if (!this.hasCatDraft()) {
+      leave();
+      return;
+    }
+    this.openDiscardConfirmation()?.subscribe((discard) => {
+      if (discard) leave();
+    });
+  }
+  private openDiscardConfirmation(): Observable<boolean> | null {
+    if (this.submitting() || this.discardConfirmation || this.closing) return null;
+    const confirmation = this.dialog.open<unknown, unknown, boolean>(this.discardTemplate(), {
+      width: '30rem',
+      maxWidth: 'calc(100vw - 2rem)',
+      autoFocus: '.keep-cat-editing',
+      closeOnNavigation: false,
+    });
+    this.discardConfirmation = confirmation;
+    confirmation
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => (this.discardConfirmation = undefined));
+    return confirmation.afterClosed().pipe(
+      takeUntilDestroyed(this.destroyRef),
+      map((discard) => discard === true && !this.closing),
+    );
   }
   referenceSaved(): void {
     const reference = this.reference();

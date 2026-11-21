@@ -2,6 +2,13 @@ import { AppLanguage } from '../app-language';
 
 export interface CatsTranslations {
   emptyValue: string;
+  draft: {
+    unsaved: string;
+    title: string;
+    message: string;
+    keepEditing: string;
+    discard: string;
+  };
   detail: {
     title: string;
     loading: string;
@@ -102,6 +109,7 @@ export interface CatsTranslations {
     removeNamed: (number: number) => string;
     confirmRemove: string;
     removePrompt: string;
+    removalPending: (number: number) => string;
     empty: string;
     loading: string;
     close: string;
@@ -187,6 +195,13 @@ export interface CatsTranslations {
 export const CATS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    draft: {
+      unsaved: 'Cambios sin guardar',
+      title: '¿Descartar los cambios?',
+      message: 'Si salís de la edición, se perderán los cambios y las fotos pendientes.',
+      keepEditing: 'Seguir editando',
+      discard: 'Descartar cambios',
+    },
     detail: {
       title: 'Detalles del gato',
       loading: 'Cargando gato...',
@@ -196,7 +211,7 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancelar',
       close: 'Cerrar',
       openDetails: 'Ver detalles',
-      photo: 'Foto',
+      photo: 'Foto de perfil',
       viewPhoto: 'Ver foto',
       photoLoading: 'Cargando foto...',
       photoMissing: 'Este gato no tiene foto.',
@@ -212,6 +227,7 @@ export const CATS_TRANSLATIONS = {
       remove: 'Quitar',
       removeNamed: (number) => `Quitar foto ${number}`,
       confirmRemove: 'Quitar foto',
+      removalPending: (number) => `La foto informativa ${number} se quitará al guardar.`,
       removePrompt: '¿Querés quitar esta foto?',
       empty: 'Todavía no hay fotos adjuntas.',
       loading: 'Cargando fotos…',
@@ -381,6 +397,13 @@ export const CATS_TRANSLATIONS = {
   },
   en: {
     emptyValue: '-',
+    draft: {
+      unsaved: 'Unsaved changes',
+      title: 'Discard changes?',
+      message: 'If you leave the editor, your changes and pending photos will be lost.',
+      keepEditing: 'Keep editing',
+      discard: 'Discard changes',
+    },
     detail: {
       title: 'Cat details',
       loading: 'Loading cat...',
@@ -390,7 +413,7 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancel',
       close: 'Close',
       openDetails: 'View details',
-      photo: 'Photo',
+      photo: 'Profile photo',
       viewPhoto: 'View photo',
       photoLoading: 'Loading photo...',
       photoMissing: 'This cat has no photo.',
@@ -406,6 +429,7 @@ export const CATS_TRANSLATIONS = {
       remove: 'Remove',
       removeNamed: (number) => `Remove photo ${number}`,
       confirmRemove: 'Remove photo',
+      removalPending: (number) => `Informational photo ${number} will be removed when you save.`,
       removePrompt: 'Remove this photo?',
       empty: 'No photos attached yet.',
       loading: 'Loading photos…',

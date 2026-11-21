@@ -23,7 +23,7 @@
     <button mat-button type="button" [disabled]="disabled()" (click)="load()">
       {{ text().cats.detail.retry }}
     </button>
-  } @else if (visiblePhotos().length === 0 && drafts().length === 0) {
+  } @else if (!visiblePhotos().length && !drafts().length && !removedPhotos().length) {
     <p>{{ t.empty }}</p>
   }
 
@@ -34,7 +34,6 @@
           <li>
             <button
               class="view-photo"
-              mat-button
               type="button"
               [disabled]="disabled()"
               (click)="showSaved(photo.id)"
@@ -44,7 +43,7 @@
               } @placeholder {
                 <span class="thumbnail-placeholder" aria-hidden="true"></span>
               }
-              {{ t.view($index + 1) }}
+              {{ t.view(photo.number) }}
             </button>
             @if (editable()) {
               @if (pendingRemoval() === photo.id) {
@@ -74,7 +73,7 @@
                   class="remove-photo"
                   mat-button
                   type="button"
-                  [attr.aria-label]="t.removeNamed($index + 1)"
+                  [attr.aria-label]="t.removeNamed(photo.number)"
                   [attr.data-photo-id]="photo.id"
                   [disabled]="disabled()"
                   (click)="requestRemoval(photo.id)"
@@ -90,7 +89,6 @@
         <li>
           <button
             class="view-photo"
-            mat-button
             type="button"
             [disabled]="disabled()"
             (click)="showDraft(draft)"
@@ -104,11 +102,31 @@
             class="remove-photo"
             mat-button
             type="button"
-            [attr.aria-label]="t.removeNamed(visiblePhotos().length + $index + 1)"
+            [attr.aria-label]="
+              t.removeNamed(visiblePhotos().length + removedPhotos().length + $index + 1)
+            "
             [disabled]="disabled()"
             (click)="removeDraft(draft)"
           >
             {{ t.remove }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+  @if (editable() && removedPhotos().length) {
+    <ul>
+      @for (photo of removedPhotos(); track photo.id) {
+        <li class="pending-photo-removal">
+          <p>{{ t.removalPending(photo.number) }}</p>
+          <button
+            class="restore-photo"
+            mat-button
+            type="button"
+            [disabled]="disabled()"
+            (click)="restoreSaved(photo.id)"
+          >
+            {{ text().cats.photo.undoRemoval }}
           </button>
         </li>
       }

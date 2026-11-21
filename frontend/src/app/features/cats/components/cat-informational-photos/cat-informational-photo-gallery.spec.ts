@@ -57,7 +57,12 @@ describe('CatInformationalPhotoGallery', () => {
     fixture.detectChanges();
     expect(api.deleteInformationalPhoto).not.toHaveBeenCalled();
     expect(fixture.componentInstance.removals()).toEqual([first.id]);
-    expect(fixture.nativeElement.querySelectorAll('li')).toHaveLength(0);
+    expect(fixture.nativeElement.querySelector('.view-photo')).toBeNull();
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('header button'));
+    fixture.nativeElement.querySelector('.restore-photo').click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.removals()).toEqual([]);
+    expect(fixture.nativeElement.querySelector('.view-photo')).not.toBeNull();
+    expect(document.activeElement).toBe(removeButton());
   });
 });

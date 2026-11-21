@@ -12,6 +12,9 @@
     }
   </h2>
   <div class="dialog-header-actions">
+    @if (hasCatDraft()) {
+      <span class="cat-draft-indicator" role="status">{{ text().cats.draft.unsaved }}</span>
+    }
     @if (history().length > 1) {
       <button
         class="back-button"
@@ -23,6 +26,19 @@
       >
         {{ text().entityDetail.back }}
       </button>
+    }
+    @if (catDetail(); as cat) {
+      @if (cat.editAvailable()) {
+        <button
+          class="header-edit-button"
+          mat-flat-button
+          type="button"
+          [disabled]="cat.editDisabled()"
+          (click)="cat.requestEdit()"
+        >
+          {{ text().cats.detail.edit }}
+        </button>
+      }
     }
     <button
       class="close-button"
@@ -156,7 +172,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelCatEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -202,3 +218,16 @@
     }
   }
 </mat-dialog-content>
+
+<ng-template #discardCatDraft>
+  <h2 mat-dialog-title>{{ text().cats.draft.title }}</h2>
+  <mat-dialog-content>{{ text().cats.draft.message }}</mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button class="keep-cat-editing" mat-flat-button type="button" [mat-dialog-close]="false">
+      {{ text().cats.draft.keepEditing }}
+    </button>
+    <button class="discard-cat-changes" mat-button type="button" [mat-dialog-close]="true">
+      {{ text().cats.draft.discard }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>
