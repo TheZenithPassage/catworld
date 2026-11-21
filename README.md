@@ -10,7 +10,7 @@ CatWorld is an administration system for cat boarding. Its Angular interface and
 - Manage owners, cats, reference vets and cat profile photos. Search paginated overviews and open complete record details.
 - Create multi-cat stays for one owner, edit or cancel them, and prevent overlapping active bookings per cat. Stay status and night count are derived from dates and cancellation data.
 - Inspect stays in a monthly FullCalendar view with daily counts and labels, entry/exit display modes and independent filters.
-- Prepare upcoming arrivals from the dashboard with vaccination alerts, food and litter brands, and items to confirm per cat.
+- Review outstanding arrivals and departures from the dashboard, with transfer requirements and preparation items per arriving cat.
 - Administrators can share one private intake link per tutor from the tutor record or an upcoming arrival. Tutors can fill in missing information, propose profile changes, register new cats and submit vaccination evidence. Administrators review and approve each cat separately.
 - Configure nightly reference rates and a transfer rate. Preview the authoritative accommodation and transfer suggestion, then explicitly confirm an agreed amount when creating a stay or making a pricing-affecting change.
 - Register, correct and annul individual stay payments; view payment history, derived paid totals, remaining balance and payment condition. Administrators can make the focused corrections and removals permitted by the backend.

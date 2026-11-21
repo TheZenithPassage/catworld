@@ -33,7 +33,7 @@ public class HouseholdIntakePreparation {
 
     public Map<UUID, Preparation> prepare(UUID ownerId, List<Cat> cats, UUID stayId) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if (stayId != null && !stays.isArrivalForOwnerFromToday(stayId, ownerId, now.toLocalDate().atStartOfDay())) {
+        if (stayId != null && !stays.isPendingArrivalForOwner(stayId, ownerId)) {
             throw new ResourceNotFoundException("Stay", stayId);
         }
 
