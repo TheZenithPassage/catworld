@@ -138,20 +138,18 @@ describe('AgreedAmountCorrectionDialog', () => {
     };
     TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: { ...pendingStay, cats } });
     const editedCat = { ...initial.litter.cats[0], choice: 'ONE', kgPerDay: '1', totalKg: '2' };
-    api.previewPendingPrice
-      .mockReturnValueOnce(of(initial))
-      .mockReturnValueOnce(
-        of({
-          ...initial,
-          version: 'preview-2',
-          suggestedAmount: '168',
-          litter: {
-            ...initial.litter,
-            subtotal: '48',
-            cats: [{ ...editedCat, suggestedAmount: '48' }],
-          },
-        }),
-      );
+    api.previewPendingPrice.mockReturnValueOnce(of(initial)).mockReturnValueOnce(
+      of({
+        ...initial,
+        version: 'preview-2',
+        suggestedAmount: '168',
+        litter: {
+          ...initial.litter,
+          subtotal: '48',
+          cats: [{ ...editedCat, suggestedAmount: '48' }],
+        },
+      }),
+    );
     api.correctAgreedAmount.mockReturnValue(of(stay));
     const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
     await fixture.whenStable();
@@ -186,16 +184,20 @@ describe('AgreedAmountCorrectionDialog', () => {
   it('shows an unresolved litter choice while allowing a manual amount', async () => {
     const cats = [{ catId: 'cat-1', name: 'Milo' }];
     TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: { ...pendingStay, cats } });
-    api.previewPendingPrice.mockReturnValue(of({
-      ...preview,
-      suggestedAmount: null,
-      litter: {
-        ratePerKg: null,
-        rateUnavailable: false,
-        subtotal: null,
-        cats: [{ catId: 'cat-1', choice: null, kgPerDay: null, totalKg: null, suggestedAmount: null }],
-      },
-    }));
+    api.previewPendingPrice.mockReturnValue(
+      of({
+        ...preview,
+        suggestedAmount: null,
+        litter: {
+          ratePerKg: null,
+          rateUnavailable: false,
+          subtotal: null,
+          cats: [
+            { catId: 'cat-1', choice: null, kgPerDay: null, totalKg: null, suggestedAmount: null },
+          ],
+        },
+      }),
+    );
     api.correctAgreedAmount.mockReturnValue(of(stay));
     const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
     await fixture.whenStable();
