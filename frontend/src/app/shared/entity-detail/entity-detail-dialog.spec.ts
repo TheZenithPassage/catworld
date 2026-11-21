@@ -235,6 +235,7 @@ describe('EntityDetailDialog', () => {
     editor.fullName.set('  ');
     headerSave.click();
     fixture.detectChanges();
+    expect(form.classList.contains('ng-submitted')).toBe(true);
     expect(editor.fullNameError()).toBe(editor.text().owners.edit.errors.fullNameRequired);
     expect(api.updateOwner).not.toHaveBeenCalled();
 

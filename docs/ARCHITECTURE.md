@@ -37,7 +37,9 @@ profiles.
 
 Cat informational photos are separate attachments for vaccination records and
 other reference images. The cat detail gallery lists attachment IDs and upload
-timestamps from `GET /api/cats/{catId}/informational-photos`. The create and edit
+timestamps from `GET /api/cats/{catId}/informational-photos`. The detail view
+shows the protected profile thumbnail beside the cat's name and places the
+private gallery between the profile fields and related stays. The create and edit
 forms stage new images as repeated `informationalPhotos` parts. Edits include
 only the explicitly removed IDs in the `cat` JSON part's
 `removedInformationalPhotoIds`. Deletions match both cat and photo under the
@@ -51,8 +53,8 @@ attachments through the database foreign key. Vaccination checks use the
 dates recorded in the cat's fields.
 
 When the application loses its authenticated session, open entity detail
-dialogs close and release any enlarged photo's object URL. The editor opens a
-separate preview dialog so enlarging an attachment preserves the draft.
+dialogs close and release thumbnail and enlarged photo object URLs. The editor
+opens a separate preview dialog so enlarging an attachment preserves the draft.
 
 Private cat intake uses separate invitation, review and photo staging tables.
 An administrator issues one active invitation per tutor. It includes the
@@ -1162,6 +1164,11 @@ entries, so Back restores the actual parent and fixed-five page without changing
 the browser URL, query parameters or storage. Owner-to-cat, owner-to-stay,
 cat-to-stay, vet-to-cat and stay-to-cat navigation all reuse that history,
 late-response guard, page clamping, focus restoration and paginator behavior.
+
+Cat, owner and vet details offer Edit in the dialog header and footer. All
+four editors offer Cancel in both locations and submit the same form from
+either Save button.
+Both owner profile sharing buttons use the same administrator permission check.
 
 The backend exposes typed lightweight detail responses and typed relationship
 preview/page envelopes. A preview loads at most four ordered candidates and
