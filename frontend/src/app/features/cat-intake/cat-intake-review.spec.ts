@@ -242,11 +242,8 @@ describe('CatIntakeReview', () => {
     expect(root.textContent).toContain('Para aplicar la variedad del alimento');
     decide('foodDetail');
     expect(approve.disabled).toBe(false);
-    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
-    fixture.detectChanges();
     const variety = root.querySelector('[aria-label="Variedad del alimento"]')!;
-    expect(variety.querySelector('.field-decision')?.textContent).toContain('Omitir este dato');
-    adjust();
+    expect(variety.querySelector('.field-decision')?.textContent).toContain('Sin dato registrado');
     const varietyChoice = root.querySelector<HTMLSelectElement>('[name="decision-foodDetail"]')!;
     varietyChoice.value = 'apply';
     varietyChoice.dispatchEvent(new Event('change'));
@@ -341,11 +338,7 @@ describe('CatIntakeReview', () => {
     await chooseTurkey();
     fixture.detectChanges();
 
-    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
-    fixture.detectChanges();
-    expect(
-      root.querySelector('[aria-label="Variedad del alimento"] .field-decision')?.textContent,
-    ).toContain('Turkey');
+    expect(await variety.getValue()).toBe('Turkey');
     expect(approve.disabled).toBe(false);
     approve.click();
     expect(api.approve).toHaveBeenCalledWith(
@@ -452,58 +445,124 @@ describe('CatIntakeReview', () => {
     });
   });
 
-  it('shows the selected partial approval and preserves decisions when toggling the views', () => {
+  it('shows the recorded values for retained fields in the summary and adjustments', () => {
     api.getReview.mockReturnValue(
       of({
         ...conflicting,
-        current: { foodBrand: 'Purina Pro Plan' },
-        proposed: { foodBrand: 'Hola', litterBrand: 'Pellets' },
-        conflictFields: ['foodBrand'],
-        photos: [{ id: 'photo-1' }],
+        current: { foodBrand: 'Purina Pro Plan', birthDate: '2022-10-13' },
+        proposed: { foodBrand: 'Hola', birthYear: '2023', color: 'Gray' },
+        conflictFields: ['foodBrand', 'birthYear', 'color'],
+      }),
+    );
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    for (const key of ['foodBrand', 'birthDate', 'color']) changeControl('decision-' + key, 'keep');
+    const checkRetainedValues = () => {
+      const result = (key: string) =>
+        root
+          .querySelector('[name="decision-' + key + '"]')!
+          .closest('.review-field')
+          ?.querySelector('.field-decision');
+      expect(result('foodBrand')?.querySelector('dt')?.textContent).toBe('Valor que se guardará');
+      expect(result('foodBrand')?.querySelector('dd')?.textContent).toBe('Purina Pro Plan');
+      expect(result('birthDate')?.querySelector('dd')?.textContent).toMatch(/13.*10.*2022/);
+      expect(result('color')?.querySelector('dd')?.textContent).toBe('Sin dato registrado');
+    };
+    checkRetainedValues();
+    adjust();
+    checkRetainedValues();
+  });
+
+  it('explains how to fix a whitespace-only change beside the field that blocks approval', () => {
+    api.getReview.mockReturnValue(of({ ...conflicting, conflictFields: [] }));
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    adjust();
+    changeControl('color', '   ', 'input');
+    const color = root.querySelector('[name="color"]')!.closest('.review-field')!;
+    const approve = root.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(approve.disabled).toBe(true);
+    expect(color.querySelector('[role="status"]')?.textContent).toContain('Color y marcas');
+    expect(color.querySelector('[role="status"]')?.textContent).toContain('Conservar el actual');
+    changeControl('decision-color', 'keep');
+    expect(color.querySelector('[role="status"]')).toBeNull();
+    expect(approve.disabled).toBe(false);
+  });
+
+  it('keeps editing with the draft intact and discards to the prior summary on confirmation', async () => {
+    api.getReview.mockReturnValue(
+      of({
+        ...conflicting,
+        proposed: { ...conflicting.proposed, birthDate: '2020-10-13', litterBrand: 'Pellets' },
       }),
     );
     api.approve.mockReturnValue(of(undefined));
     const root = fixture.nativeElement as HTMLElement;
     root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
     fixture.detectChanges();
+    changeControl('decision-color', 'keep');
     adjust();
-
-    const brand = root.querySelector<HTMLSelectElement>('[name="decision-foodBrand"]')!;
-    brand.value = 'keep';
-    brand.dispatchEvent(new Event('change'));
-    const litter = root.querySelector<HTMLInputElement>('[name="litterBrand"]')!;
-    litter.value = '';
-    litter.dispatchEvent(new Event('input'));
+    changeControl('decision-color', 'apply');
+    changeControl('color', '   ', 'input');
+    changeControl('birth-precision', 'birthYear');
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const litter = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name="litterBrand"]' }),
+    );
+    await litter.focus();
+    await litter.clear();
+    await litter.enterText('Pine');
+    await litter.selectOption({ text: 'Pine pellets' });
     root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')!.click();
     fixture.detectChanges();
-
-    root.querySelector<HTMLButtonElement>('[data-summary]')?.click();
-    fixture.detectChanges();
-    expect(root.querySelector('[data-adjust]')).not.toBeNull();
-    expect(root.querySelector('[name="litterBrand"]')).toBeNull();
-    const brandRow = root.querySelector('[aria-label="Marca de comida"]')!;
-    const litterRow = root.querySelector('[aria-label="Piedritas"]')!;
-    expect(brandRow.textContent).toContain('Conservar el actual');
-    expect(litterRow.textContent).toContain('Valor que se guardará');
-    expect(litterRow.textContent).toContain('Trae sus propias piedritas');
-    expect(root.querySelector('.proof-grid')?.textContent).toContain('excluido de la aprobación');
-
-    adjust();
-    expect(root.querySelector<HTMLSelectElement>('[name="decision-foodBrand"]')?.value).toBe(
-      'keep',
-    );
-    expect(root.querySelector<HTMLInputElement>('[name="litterBrand"]')?.value).toBe('');
+    const toggle = root.querySelector<HTMLButtonElement>('[data-cancel-adjustments]')!;
+    expect(toggle.textContent).toContain('Cancelar ajustes');
+    toggle.click();
+    await chooseDiscardAction('Seguir editando');
+    expect(root.querySelector<HTMLInputElement>('[name="color"]')?.value).toBe('   ');
+    expect(root.querySelector<HTMLInputElement>('[name="birthYear"]')?.value).toBe('2020');
+    expect(await litter.getValue()).toBe('Pine pellets');
+    expect(fixture.componentInstance.catalogSelection().litterDetail).toBe('pine');
     expect(root.querySelector<HTMLInputElement>('[name="photo-photo-1"]')?.checked).toBe(false);
-    root.querySelector<HTMLButtonElement>('[data-summary]')!.click();
-    fixture.detectChanges();
+
+    toggle.click();
+    await chooseDiscardAction('Descartar cambios');
+    expect(root.querySelector('[data-adjust]')).not.toBeNull();
+    expect(root.querySelector('[name="color"]')).toBeNull();
+    expect(root.querySelector<HTMLSelectElement>('[name="decision-color"]')?.value).toBe('keep');
+    expect(root.querySelector('.proof-grid')?.textContent).not.toContain(
+      'excluido de la aprobación',
+    );
+    expect(api.approve).not.toHaveBeenCalled();
     root.querySelector<HTMLButtonElement>('button[type="submit"]')!.click();
     expect(api.approve).toHaveBeenCalledWith(
       item.id,
       expect.objectContaining({
-        fields: { litterBrand: 'Trae sus propias piedritas' },
-        photoIds: [],
+        fields: { foodBrand: 'Proposed Food', birthDate: '2020-10-13', litterBrand: 'Pellets' },
+        photoIds: ['photo-1'],
       }),
     );
+    expect(api.approve.mock.lastCall?.[1]).not.toHaveProperty('catalogOptionIds');
+  });
+
+  it('returns to the summary without confirmation after the changes are reverted', () => {
+    const photo = new Subject<Blob>();
+    api.getReviewPhoto.mockReturnValue(photo);
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[data-review-item]')!.click();
+    fixture.detectChanges();
+    adjust();
+    photo.next(new Blob());
+    photo.complete();
+    changeControl('foodBrand', 'Different Food', 'input');
+    changeControl('foodBrand', ' Proposed Food ', 'input');
+    root.querySelector<HTMLButtonElement>('[data-cancel-adjustments]')!.click();
+    fixture.detectChanges();
+    expect(document.querySelector('mat-dialog-container')).toBeNull();
+    expect(root.querySelector('[data-adjust]')).not.toBeNull();
+    expect(root.querySelector('.proof-thumbnail img')).not.toBeNull();
   });
 
   it('displays a previously proposed coat length and only offers fixed choices and the historical value', () => {
@@ -831,6 +890,24 @@ describe('CatIntakeReview', () => {
     (fixture.nativeElement as HTMLElement)
       .querySelector<HTMLButtonElement>('[data-adjust]')!
       .click();
+    fixture.detectChanges();
+  }
+
+  function changeControl(name: string, value: string, event = 'change'): void {
+    const root = fixture.nativeElement as HTMLElement;
+    const control = root.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${name}"]`)!;
+    control.value = value;
+    control.dispatchEvent(new Event(event));
+    fixture.detectChanges();
+  }
+
+  async function chooseDiscardAction(label: string): Promise<void> {
+    await fixture.whenStable();
+    const actions = document.querySelectorAll<HTMLButtonElement>('mat-dialog-actions button');
+    const button = [...actions].find((action) => action.textContent.trim() === label);
+    expect(button).toBeDefined();
+    button!.click();
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 });

@@ -24,6 +24,7 @@ import {
   matchingFoodBrandId,
 } from '../../shared/cat-profile-options/cat-profile-options.service';
 import { formatLocalDate } from '../../shared/date/local-date-format';
+import { openDiscardChangesDialog } from '../../shared/discard-changes-dialog/discard-changes-dialog';
 import { EntityDetailDialogService } from '../../shared/entity-detail/entity-detail-dialog.service';
 import {
   CAT_COAT_LENGTHS,
@@ -65,6 +66,16 @@ type ReviewPhotoState =
 
 type ReviewPhoto = { id: string } & ReviewPhotoState;
 
+interface AdjustmentSnapshot {
+  fields: ReviewField[];
+  photos: ReviewPhoto[];
+  birthKey: 'birthDate' | 'birthYear';
+  litterDetail: string | undefined;
+  catalogSelection: CatCatalogSelection;
+  confirmingDismiss: boolean;
+  photoRetries: Subscription;
+}
+
 interface ReviewGroup {
   ownerId: string;
   ownerName: string;
@@ -97,6 +108,8 @@ export class CatIntakeReview {
   private readonly destroyRef = inject(DestroyRef);
   private detailRequests = new Subscription();
   private photoDialog?: MatDialogRef<unknown>;
+  private adjustment?: AdjustmentSnapshot;
+  private discardDialog?: ReturnType<typeof openDiscardChangesDialog>;
 
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
@@ -142,7 +155,7 @@ export class CatIntakeReview {
   readonly unansweredRequests = computed(() =>
     (this.detail()?.unansweredRequestedFields ?? []).map((key) => this.fieldLabel(key)).join(', '),
   );
-  readonly showExistingFieldChoices = computed(
+  private readonly showExistingFieldChoices = computed(
     () => this.fields().length > 1 || this.photos().length > 0,
   );
   readonly selectedFields = computed(() => {
@@ -210,12 +223,14 @@ export class CatIntakeReview {
       !this.foodDetailBrandMismatch() &&
       Number.isSafeInteger(detail.revision) &&
       this.photos().every(({ state }) => state === 'loaded' || state === 'excluded') &&
-      this.fields().every(({ field, decision, value }) => {
+      this.fields().every((row) => {
+        const { field, decision, value } = row;
         if (decision === 'unresolved') return false;
         if (decision === 'keep') return true;
+        if (this.missingAppliedValue(row, detail.catId !== null)) return false;
         if (field.key === 'birthDate' && this.birthKey() === 'birthYear')
           return this.validBirthYear(value);
-        return !!value.trim() || (detail.catId === null && !this.requiredForCreation(field));
+        return true;
       })
     );
   });
@@ -321,14 +336,18 @@ export class CatIntakeReview {
     this.updateField(key, { value });
   }
 
-  toggleAdjustment(): void {
-    this.setAdjusting(!this.adjusting());
-  }
-
-  private setAdjusting(adjusting: boolean): void {
-    if (this.adjusting() === adjusting) return;
-    this.adjusting.set(adjusting);
-    if (!adjusting) return;
+  startAdjustments(): void {
+    if (this.adjustment) return;
+    this.adjustment = {
+      fields: this.fields(),
+      photos: this.photos(),
+      birthKey: this.birthKey(),
+      litterDetail: this.litterDetail(),
+      catalogSelection: this.catalogSelection(),
+      confirmingDismiss: this.confirmingDismiss(),
+      photoRetries: new Subscription(),
+    };
+    this.adjusting.set(true);
     const hasFoodVariety = this.fields().some(({ field }) => field.key === 'foodDetail');
     if (hasFoodVariety) this.profileOptions.loadVarieties();
     if (
@@ -336,6 +355,67 @@ export class CatIntakeReview {
       this.fields().some(({ field }) => field.kind === 'option' || field.key === 'litterBrand')
     )
       this.profileOptions.load();
+  }
+
+  cancelAdjustments(): void {
+    const snapshot = this.adjustment;
+    if (!snapshot || this.discardDialog || this.saving()) return;
+    if (!this.hasAdjustmentChanges(snapshot)) {
+      this.restoreSummary(snapshot);
+      return;
+    }
+    const dialog = openDiscardChangesDialog(this.dialog);
+    this.discardDialog = dialog;
+    dialog
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((discard) => {
+        if (this.discardDialog === dialog) this.discardDialog = undefined;
+        if (discard && this.adjustment === snapshot) this.restoreSummary(snapshot);
+      });
+  }
+
+  private hasAdjustmentChanges(snapshot: AdjustmentSnapshot): boolean {
+    const selection = this.catalogSelection();
+    return (
+      snapshot.birthKey !== this.birthKey() ||
+      (snapshot.litterDetail?.trim() ?? '') !== (this.litterDetail()?.trim() ?? '') ||
+      Object.keys({ ...snapshot.catalogSelection, ...selection }).some((key) => {
+        const field = key as CatCatalogSelectionField;
+        return snapshot.catalogSelection[field] !== selection[field];
+      }) ||
+      this.fields().some(({ decision, value }, index) => {
+        const original = snapshot.fields[index];
+        return decision !== original.decision || value.trim() !== original.value.trim();
+      }) ||
+      this.photos().some((photo, index) => {
+        const original = snapshot.photos[index];
+        return (
+          photo.state !== original.state ||
+          (photo.state === 'loaded' &&
+            original.state === 'loaded' &&
+            photo.selected !== original.selected)
+        );
+      })
+    );
+  }
+
+  private restoreSummary(snapshot: AdjustmentSnapshot): void {
+    snapshot.photoRetries.unsubscribe();
+    for (const [index, photo] of this.photos().entries()) {
+      // A retry can only replace a failed or excluded photo.
+      if (photo.state === 'loaded' && snapshot.photos[index].state !== 'loaded') {
+        URL.revokeObjectURL(photo.url);
+      }
+    }
+    this.fields.set(snapshot.fields);
+    this.photos.set(snapshot.photos);
+    this.birthKey.set(snapshot.birthKey);
+    this.litterDetail.set(snapshot.litterDetail);
+    this.catalogSelection.set(snapshot.catalogSelection);
+    this.confirmingDismiss.set(snapshot.confirmingDismiss);
+    this.adjustment = undefined;
+    this.adjusting.set(false);
   }
 
   setBirthKey(key: string): void {
@@ -423,17 +503,28 @@ export class CatIntakeReview {
   }
 
   loadPhoto(reviewId: string, photoId: string): void {
+    const adjustment = this.adjustment;
     this.updatePhoto(photoId, { state: 'loading' });
-    this.detailRequests.add(
+    const requests = adjustment?.photoRetries ?? this.detailRequests;
+    const settle = (state: ReviewPhotoState) => {
+      this.updatePhoto(photoId, state);
+      // A download started from the summary can settle while adjustments are open.
+      if (!adjustment && this.adjustment) {
+        this.adjustment.photos = this.adjustment.photos.map((photo) =>
+          photo.id === photoId ? { id: photoId, ...state } : photo,
+        );
+      }
+    };
+    requests.add(
       this.api.getReviewPhoto(reviewId, photoId).subscribe({
         next: (blob) => {
-          this.updatePhoto(photoId, {
+          settle({
             state: 'loaded',
             url: URL.createObjectURL(blob),
             selected: true,
           });
         },
-        error: () => this.updatePhoto(photoId, { state: 'failed' }),
+        error: () => settle({ state: 'failed' }),
       }),
     );
   }
@@ -448,6 +539,22 @@ export class CatIntakeReview {
 
   requiredForCreation(field: CatIntakeField): boolean {
     return 'required' in field && field.required;
+  }
+
+  showFieldChoices(row: ReviewField, existing: boolean): boolean {
+    return (
+      row.conflict ||
+      (this.adjusting() &&
+        (existing ? this.showExistingFieldChoices() : !this.requiredForCreation(row.field)))
+    );
+  }
+
+  missingAppliedValue(row: ReviewField, existing: boolean): boolean {
+    return (
+      row.decision === 'apply' &&
+      !row.value.trim() &&
+      (existing || this.requiredForCreation(row.field))
+    );
   }
 
   maxLength(field: CatIntakeField): number | null {
@@ -466,9 +573,22 @@ export class CatIntakeReview {
     }
   }
 
-  keepLabel(key: CatIntakeFieldKey, current: CatIntakeFields | null): string {
-    const value = current?.[key]?.trim() || (key === 'birthDate' && current?.birthYear?.trim());
-    return value ? this.copy().keepCurrent : this.copy().skipField;
+  private hasCurrentValue(key: CatIntakeField['key'], current: CatIntakeFields | null): boolean {
+    return !!(
+      current?.[key]?.trim() ||
+      (key === 'birthDate' && current?.birthYear?.trim()) ||
+      (key === 'litterBrand' && current?.litterDetail?.trim())
+    );
+  }
+
+  keepLabel(key: CatIntakeField['key'], current: CatIntakeFields | null): string {
+    return this.hasCurrentValue(key, current) ? this.copy().keepCurrent : this.copy().skipField;
+  }
+
+  retainedValue(key: CatIntakeField['key'], current: CatIntakeFields | null): string {
+    return this.hasCurrentValue(key, current)
+      ? this.displayField(key, current)
+      : this.copy().noRecordedValue;
   }
 
   displayField(key: CatIntakeField['key'], fields: CatIntakeFields | null): string {
@@ -525,7 +645,7 @@ export class CatIntakeReview {
             detail.id,
             confirmedCatalogText ? { ...approval, confirmedCatalogText } : approval,
           ),
-        () => this.setAdjusting(true),
+        () => this.startAdjustments(),
       ),
     );
   }
@@ -562,7 +682,7 @@ export class CatIntakeReview {
           if (error instanceof HttpErrorResponse && error.status === 409) {
             const code = error.error?.code;
             if (code === 'CAT_INTAKE_CATALOG_CHANGED') {
-              this.setAdjusting(true);
+              this.startAdjustments();
               this.profileOptions.load();
               this.profileOptions.loadVarieties();
               this.notice.set('catalogChanged');
@@ -596,6 +716,10 @@ export class CatIntakeReview {
   private clearDetail(): void {
     this.detailRequests.unsubscribe();
     this.detailRequests = new Subscription();
+    this.adjustment?.photoRetries.unsubscribe();
+    this.adjustment = undefined;
+    this.discardDialog?.close(false);
+    this.discardDialog = undefined;
     this.photoDialog?.close();
     this.photoDialog = undefined;
     for (const photo of this.photos()) {

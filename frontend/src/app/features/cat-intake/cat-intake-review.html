@@ -51,10 +51,10 @@
               mat-stroked-button
               type="button"
               [attr.data-adjust]="adjusting() ? null : ''"
-              [attr.data-summary]="adjusting() ? '' : null"
-              (click)="toggleAdjustment()"
+              [attr.data-cancel-adjustments]="adjusting() ? '' : null"
+              (click)="adjusting() ? cancelAdjustments() : startAdjustments()"
             >
-              {{ adjusting() ? copy().summary : copy().adjust }}
+              {{ adjusting() ? copy().cancelAdjustments : copy().adjust }}
             </button>
             @if (photos().length) {
               <section class="proofs">
@@ -124,6 +124,7 @@
 
             <div class="field-grid">
               @for (row of fields(); track row.field.key) {
+                @let canChoose = showFieldChoices(row, detail.catId !== null);
                 <div
                   class="review-field"
                   role="group"
@@ -153,11 +154,7 @@
                   @if (retiredOption(row.field.key)) {
                     <p class="field-decision">{{ copy().retiredOption }}</p>
                   }
-                  @if (
-                    row.conflict ||
-                    (adjusting() &&
-                      (detail.catId ? showExistingFieldChoices() : !requiredForCreation(row.field)))
-                  ) {
+                  @if (canChoose) {
                     <label class="control">
                       {{ copy().decision }}
                       <select
@@ -173,18 +170,19 @@
                       </select>
                     </label>
                   }
-                  @if (!adjusting()) {
-                    @if (row.decision === 'keep') {
-                      <p class="field-decision">{{ keepLabel(row.field.key, detail.current) }}</p>
-                    } @else if (row.decision === 'apply') {
-                      @if (
-                        selectedFields()[row.field.key === 'birthDate' ? birthKey() : row.field.key]
-                      ) {
-                        <dl class="field-decision">
-                          <dt>{{ copy().reviewed }}</dt>
-                          <dd>{{ displayField(row.field.key, selectedFields()) }}</dd>
-                        </dl>
-                      }
+                  @if (row.decision === 'keep') {
+                    <dl class="field-decision">
+                      <dt>{{ copy().reviewed }}</dt>
+                      <dd>{{ retainedValue(row.field.key, detail.current) }}</dd>
+                    </dl>
+                  } @else if (!adjusting() && row.decision === 'apply') {
+                    @if (
+                      selectedFields()[row.field.key === 'birthDate' ? birthKey() : row.field.key]
+                    ) {
+                      <dl class="field-decision">
+                        <dt>{{ copy().reviewed }}</dt>
+                        <dd>{{ displayField(row.field.key, selectedFields()) }}</dd>
+                      </dl>
                     }
                   }
                   @if (adjusting() && row.decision === 'apply') {
@@ -297,7 +295,7 @@
                               [value]="row.value"
                               (input)="setValue('birthDate', $any($event.target).value)"
                             />
-                            @if (row.value && !validBirthYear(row.value)) {
+                            @if (row.value.trim() && !validBirthYear(row.value)) {
                               <span class="conflict-note">{{
                                 catCopy().form.birthYearInvalid
                               }}</span>
@@ -314,6 +312,18 @@
                           }
                         </label>
                       }
+                    }
+                    @if (missingAppliedValue(row, detail.catId !== null)) {
+                      <p class="conflict-note" role="status">
+                        {{
+                          canChoose
+                            ? copy().fillOrKeep(
+                                fieldLabel(row.field.key),
+                                keepLabel(row.field.key, detail.current)
+                              )
+                            : copy().fillField(fieldLabel(row.field.key))
+                        }}
+                      </p>
                     }
                   }
                 </div>

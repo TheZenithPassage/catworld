@@ -109,10 +109,12 @@ using `birthYear` instead of `birthDate` when only the year is known.
 Administrators compare proposed fields with the current profile and review each
 cat independently. Review lists unanswered prompts from the invitation
 snapshot alongside the submitted fields. V17 invitations lack this snapshot.
-Review treats both birth representations as one field. Administrators can move
-between adjustment and summary while keeping their corrections, field decisions
-and evidence selections. The summary shows the values and evidence selected for
-approval.
+Review treats both birth representations as one field. The summary and
+adjustments show the recorded result for any retained field, including missing
+values. Administrators can approve from adjustments or cancel and restore
+the previous summary. Cancel asks for confirmation when values, decisions or
+evidence have changed. Explicit catalog publication takes effect immediately
+and remains in the catalog after cancellation.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
 Approval applies the selected fields and moves selected evidence to the
