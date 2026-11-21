@@ -42,6 +42,7 @@ public class SecurityConfig {
                                 "/api/food-brands", "/api/food-brands/varieties", "/api/cat-profile-options")
                         .hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/cat-profile-options").hasRole("ADMIN")
+                        .requestMatchers("/api/cat-profile-options/manage/**").hasRole("ADMIN")
                         .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,

@@ -14,7 +14,10 @@ import java.util.UUID;
 public interface FoodBrandRepository extends JpaRepository<FoodBrand, UUID> {
     List<FoodBrand> findAllByOrderByNameAscIdAsc();
 
-    Optional<FoodBrand> findByNormalizedKey(byte[] normalizedKey);
+    List<FoodBrand> findAllByActiveTrueOrderByNameAscIdAsc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<FoodBrand> findLockedById(UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<FoodBrand> findLockedByNormalizedKey(byte[] normalizedKey);

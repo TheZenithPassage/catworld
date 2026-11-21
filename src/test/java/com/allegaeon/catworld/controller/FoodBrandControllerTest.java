@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -84,6 +85,62 @@ class FoodBrandControllerTest {
         staff = user(UserRole.STAFF);
         owner = owners.saveAndFlush(Owner.builder().fullName("Catalog Owner").primaryPhone("555-0100")
                 .createdBy(admin).build());
+    }
+
+    @Test
+    void administersBrandScopedVarietiesWithoutReactivatingHiddenNames() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        var first = publish(admin, Map.of("field", "foodBrand", "name", "First " + suffix)).get("id").asText();
+        var second = publish(admin, Map.of("field", "foodBrand", "name", "Second " + suffix)).get("id").asText();
+        String name = "Kitten " + suffix;
+        var input = Map.of("field", "foodDetail", "name", name, "brandId", first);
+        var firstVariety = publish(admin, input).get("id").asText();
+        var secondVariety = publish(admin, Map.of("field", "foodDetail", "name", name, "brandId", second))
+                .get("id").asText();
+        assertThat(firstVariety).isNotEqualTo(secondVariety);
+        var linked = create(staff, Map.of("foodBrandId", first, "foodVarietyId", firstVariety));
+
+        var anotherVariety = publish(admin, Map.of("field", "foodDetail", "name", "Adult " + suffix, "brandId", first))
+                .get("id").asText();
+        mvc.perform(catalogChange(admin, "foodDetail", anotherVariety, Map.of("name", "  kitten  " + suffix)))
+                .andExpect(status().isConflict());
+        mvc.perform(catalogChange(admin, "foodBrand", first, Map.of("active", false))).andExpect(status().isOk());
+        mvc.perform(get(CATALOG + "/varieties").with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + firstVariety + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + secondVariety + "')]").isNotEmpty());
+        mvc.perform(publication(admin, Map.of("field", "foodBrand", "name", " first  " + suffix)))
+                .andExpect(status().isConflict());
+        mvc.perform(createRequest(staff, Map.of("foodBrandId", first))).andExpect(status().isBadRequest());
+        var edited = update(linked, Map.of("foodBrandId", first, "foodVarietyId", firstVariety, "color", "Gray"));
+        assertThat(edited.get("foodBrandId").asText()).isEqualTo(first);
+        assertThat(edited.get("catalogOptionIds").get("foodDetail").asText()).isEqualTo(firstVariety);
+        assertThat(edited.get("foodDetail").asText()).isEqualTo(name);
+        mvc.perform(get(PROFILE_OPTIONS + "/manage").with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isForbidden());
+        mvc.perform(catalogChange(staff, "foodBrand", first, Map.of("active", true))).andExpect(status().isForbidden());
+        mvc.perform(get(PROFILE_OPTIONS + "/manage").header(HttpHeaders.ORIGIN, "http://localhost:4202")
+                .with(httpBasic(admin.getUsername(), PASSWORD))).andExpect(status().isForbidden());
+        mvc.perform(get(PROFILE_OPTIONS + "/manage").with(httpBasic(admin.getUsername(), PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + first + "' && @.active == false)]").isNotEmpty());
+        mvc.perform(catalogChange(admin, "foodDetail", firstVariety, Map.of("active", false)))
+                .andExpect(status().isOk());
+        mvc.perform(catalogChange(admin, "foodBrand", first, Map.of("active", true))).andExpect(status().isOk());
+        mvc.perform(get(CATALOG + "/varieties").with(httpBasic(staff.getUsername(), PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + firstVariety + "')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.id == '" + anotherVariety + "')]").isNotEmpty());
+        mvc.perform(publication(admin, input)).andExpect(status().isConflict());
+        mvc.perform(catalogChange(admin, "foodDetail", firstVariety, Map.of("active", true)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(firstVariety));
+    }
+
+    private MockHttpServletRequestBuilder catalogChange(UserAccount actor, String field, String id, Map<String, ?> change) {
+        return patch(
+                        PROFILE_OPTIONS + "/manage/{field}/{id}", field, id)
+                .with(httpBasic(actor.getUsername(), PASSWORD)).contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsBytes(change));
     }
 
     @Test

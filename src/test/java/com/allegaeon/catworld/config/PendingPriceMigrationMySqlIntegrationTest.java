@@ -400,6 +400,63 @@ class PendingPriceMigrationMySqlIntegrationTest {
                 """, Integer.class));
     }
 
+    @ParameterizedTest
+    @CsvSource({"true, true", "true, false", "false, true"})
+    void accommodatesCatalogsAndLitterPricingInEitherOrder(boolean pricingFirst, boolean breedSeedsPresent)
+            throws IOException {
+        var initial = catalogMigrationFiles("catalog-initial", !pricingFirst, breedSeedsPresent, pricingFirst);
+        var initialFlyway = Flyway.configure().dataSource(dataSource).locations(location(initial));
+        if (pricingFirst && !breedSeedsPresent) initialFlyway.target("27");
+        initialFlyway.load().migrate();
+        var historyBefore = history();
+
+        var combined = catalogMigrationFiles("catalog-combined", true, true, true);
+        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
+        HistoricalMigrationConfig.migrate(startup);
+
+        for (String table : List.of("cat_profile_options", "food_brands", "food_varieties")) {
+            assertEquals(1, jdbc.queryForObject("""
+                    select count(*) from information_schema.columns
+                    where table_schema = database() and table_name = ? and column_name = 'active'
+                    """, Integer.class, table));
+        }
+        assertTrue(history().containsAll(historyBefore));
+        assertEquals(pricingFirst, installedRank("27") < installedRank("26.3"));
+        assertTrue(installedRank("26.2") < installedRank("26.3"));
+        assertTrue(installedRank("27") < installedRank("28"));
+        startup.validate();
+    }
+
+    @Test
+    void rejectsPricingChecksumMismatchBeforeRunningLateCatalogMigration() throws IOException {
+        var initial = catalogMigrationFiles("catalog-initial", false, true, true);
+        Flyway.configure().dataSource(dataSource).locations(location(initial)).load().migrate();
+        var historyBefore = history();
+
+        var combined = catalogMigrationFiles("catalog-combined", true, true, true);
+        Files.writeString(combined.resolve("V27__add_stay_litter_pricing.sql"), "SELECT 'bad checksum';");
+        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
+        assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(startup));
+
+        assertEquals(historyBefore, history());
+    }
+
+    private Path catalogMigrationFiles(String name, boolean catalogs, boolean breeds, boolean pricing) throws IOException {
+        var directory = migrationFiles(name, "26_2", "26_3", "27", "28");
+        if (catalogs) {
+            String script = "V26_3__manage_cat_profile_catalogs.sql";
+            Files.copy(Path.of("src/main/resources/db/migration").resolve(script), directory.resolve(script));
+        }
+        if (breeds) {
+            Files.writeString(directory.resolve("V26_2__seed_common_breeds.sql"), "SELECT 'breed seed fixture';");
+        }
+        if (pricing) {
+            Files.writeString(directory.resolve("V27__add_stay_litter_pricing.sql"), "SELECT 'pricing fixture';");
+            Files.writeString(directory.resolve("V28__allow_unconfirmed_stay_litter.sql"), "SELECT 'pricing follow-up fixture';");
+        }
+        return directory;
+    }
+
     private Path migrationFiles(String name, String... omittedVersions) throws IOException {
         Path directory = Files.createDirectory(temporary.resolve(name));
         var omitted = Set.of(omittedVersions);

@@ -236,6 +236,7 @@ function createCatalogField(title, label, input, options, initialId, showAllWhen
   field.append(label, selection, suggestions, results);
 
   let selected;
+  const storedChoice = initialId ? { id: initialId, name: input.value } : undefined;
 
   function updateSelection(option) {
     selected = option;
@@ -245,10 +246,7 @@ function createCatalogField(title, label, input, options, initialId, showAllWhen
   }
   function restoreChoice(value, chosenId) {
     input.value = value;
-    const query = catalogKey(value);
-    updateSelection(
-      options().find(({ id, name }) => (chosenId ? id === chosenId : catalogKey(name) === query)),
-    );
+    updateSelection(chosenId ? { id: chosenId, name: value } : undefined);
   }
   restoreChoice(input.value, initialId);
 
@@ -315,7 +313,16 @@ function createCatalogField(title, label, input, options, initialId, showAllWhen
       renderSuggestions();
     },
     refreshOptions() {
-      updateSelection(selected && options().find(({ id }) => id === selected.id));
+      const available =
+        selected &&
+        options().find(
+          ({ id, name }) => id === selected.id && catalogKey(name) === catalogKey(selected.name),
+        );
+      const retained =
+        storedChoice &&
+        selected?.id === storedChoice.id &&
+        catalogKey(input.value) === catalogKey(storedChoice.name);
+      updateSelection(retained ? storedChoice : available);
       renderSuggestions();
     },
   };
@@ -728,14 +735,7 @@ function addCard(
     const options = () => {
       if (key !== 'foodDetail') return catalogOptions[key] ?? [];
       const brand = inputs.get('foodBrand');
-      const brandName = catalogKey(brand.read() || fields.foodBrand || '');
-      const storedBrand = [initial.foodBrand, fields.foodBrand].some(
-        (name) => name && catalogKey(name) === brandName,
-      );
-      const knownBrand = storedBrand
-        ? catalogOptions.foodBrand?.find(({ name }) => catalogKey(name) === brandName)
-        : undefined;
-      const brandId = (brand.option ?? knownBrand)?.id;
+      const brandId = brand.option?.id;
       return foodVarieties.filter((variety) => variety.brandId === brandId);
     };
     const catalog = isCatalog ? { options, id: optionIds?.[key] } : undefined;

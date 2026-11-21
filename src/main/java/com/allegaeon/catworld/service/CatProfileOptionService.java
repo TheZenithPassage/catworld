@@ -2,8 +2,11 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatProfileOptionDto;
 import com.allegaeon.catworld.dto.CatRequestDTO;
+import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
+import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
+import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.CatProfileOption;
 import com.allegaeon.catworld.model.CatProfileOptionField;
@@ -11,6 +14,7 @@ import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.repository.CatProfileOptionRepository;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +38,7 @@ import static com.allegaeon.catworld.service.CatalogOptionName.key;
 public class CatProfileOptionService {
     private static final List<String> FIELD_KEYS = Arrays.stream(CatProfileOptionField.values())
             .map(CatProfileOptionField::key).toList();
-    private static final List<String> MANAGED_FIELDS = Arrays.stream(CatProfileOptionField.values())
+    private static final List<String> PROFILE_CATALOG_FIELDS = Arrays.stream(CatProfileOptionField.values())
             .filter(CatProfileOptionField::isCatalogManaged).map(CatProfileOptionField::key).toList();
     private static final Set<String> COAT_LENGTHS = Set.of("Corto", "Largo", "Sin pelo");
 
@@ -50,7 +54,7 @@ public class CatProfileOptionService {
     public Map<String, List<CatProfileOptionDto>> approvedOptions() {
         Map<String, List<CatProfileOptionDto>> result = new LinkedHashMap<>();
         FIELD_KEYS.forEach(field -> result.put(field, new ArrayList<>()));
-        for (var option : options.findAllByOrderByNameAscIdAsc()) {
+        for (var option : options.findAllByActiveTrueOrderByNameAscIdAsc()) {
             result.get(option.getCategory()).add(new CatProfileOptionDto(option.getId(), option.getName()));
         }
         result.put(FOOD_BRAND.key(), foodBrands.approvedBrands().stream()
@@ -61,18 +65,69 @@ public class CatProfileOptionService {
     @Transactional
     public CatProfileOptionDto publish(String field, String suppliedName, UUID brandId) {
         requireAdministrator();
-        String name = cleanName(suppliedName);
-        boolean variety = CatIntakeCatalog.FOOD_DETAIL.equals(field);
-        if (name == null || name.length() > (variety ? 255 : 100)) {
-            throw new BadRequestException("Provide a valid catalog option name");
-        }
-        if (variety) return foodBrands.publishVariety(name, brandId);
-        if (brandId != null || field == null || !MANAGED_FIELDS.contains(field)) {
+        String name = validatedName(field, suppliedName);
+        if (CatIntakeCatalog.FOOD_DETAIL.equals(field)) return foodBrands.publishVariety(name, brandId);
+        if (brandId != null || field == null || !PROFILE_CATALOG_FIELDS.contains(field)) {
             throw new BadRequestException("This cat profile field cannot be published");
         }
         if (FOOD_BRAND.key().equals(field)) return foodBrands.publishBrand(name);
         var option = findOrPublishOption(field, name);
         return new CatProfileOptionDto(option.getId(), option.getName());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManagedCatProfileOption> managedOptions() {
+        requireAdministrator();
+        return allManagedOptions();
+    }
+
+    List<ManagedCatProfileOption> allManagedOptions() {
+        var result = new ArrayList<>(foodBrands.managedOptions());
+        options.findAllByOrderByNameAscIdAsc().stream()
+                .filter(option -> PROFILE_CATALOG_FIELDS.contains(option.getCategory()))
+                .map(CatProfileOptionService::managedOption)
+                .forEach(result::add);
+        return result;
+    }
+
+    @Transactional
+    public ManagedCatProfileOption changeOption(String field, UUID id, String suppliedName, Boolean active) {
+        requireAdministrator();
+        if ((!PROFILE_CATALOG_FIELDS.contains(field) && !CatIntakeCatalog.FOOD_DETAIL.equals(field))
+                || (suppliedName == null) == (active == null)) {
+            throw new BadRequestException("Supply a name or visibility for a managed catalog option");
+        }
+        String name = active == null ? validatedName(field, suppliedName) : null;
+        try {
+            if (FOOD_BRAND.key().equals(field) || CatIntakeCatalog.FOOD_DETAIL.equals(field)) {
+                return foodBrands.changeOption(field, id, name, active);
+            }
+            var option = options.findLockedById(id).filter(entry -> field.equals(entry.getCategory()))
+                    .orElseThrow(() -> new ResourceNotFoundException("Catalog option", id));
+            if (name != null) option.rename(name, key(name));
+            else option.setActive(active);
+            options.flush();
+            return managedOption(option);
+        } catch (DataIntegrityViolationException duplicate) {
+            throw new ConflictException("This name is already used in this catalog");
+        }
+    }
+
+    private static ManagedCatProfileOption managedOption(CatProfileOption option) {
+        return new ManagedCatProfileOption(option.getId(), option.getCategory(), option.getName(), null,
+                option.isActive());
+    }
+
+    private static String validatedName(String field, String suppliedName) {
+        String name = cleanName(suppliedName);
+        if (name == null || name.length() > (CatIntakeCatalog.FOOD_DETAIL.equals(field) ? 255 : 100)) {
+            throw new BadRequestException("Provide a valid catalog option name");
+        }
+        return name;
+    }
+
+    static ConflictException hiddenName() {
+        return new ConflictException("Restore this hidden option to offer it again");
     }
 
     private void requireAdministrator() {
@@ -83,34 +138,39 @@ public class CatProfileOptionService {
 
     void selectForApproval(CatRequestDTO request, Map<String, String> selected) {
         request.setReviewedIntake(true);
-        Set<String> approvals = new LinkedHashSet<>(MANAGED_FIELDS);
+        Set<String> approvals = new LinkedHashSet<>(PROFILE_CATALOG_FIELDS);
         approvals.retainAll(selected.keySet());
         request.setApproveCatalogOptions(approvals);
         if (approvals.contains(FOOD_BRAND.key())) request.setFoodBrand(selected.get(FOOD_BRAND.key()));
     }
 
     // The enclosing cat mutation owns the transaction, including newly approved options.
-    void applyProfile(Cat cat, CatRequestDTO request) {
+    void applyProfile(Cat cat, CatRequestDTO request, Map<String, UUID> reviewedOptions) {
         Set<String> approvals = request.getApproveCatalogOptions() == null
                 ? Set.of() : request.getApproveCatalogOptions();
-        if (!MANAGED_FIELDS.containsAll(approvals)) {
+        if (!PROFILE_CATALOG_FIELDS.containsAll(approvals)) {
             throw new BadRequestException("An unknown cat profile option was selected for approval");
         }
         boolean approveFood = request.isApproveFoodBrand() || approvals.contains(FOOD_BRAND.key());
         if (approveFood || request.isApproveFoodVariety() || !approvals.isEmpty()) requireAdministrator();
 
         Map<String, UUID> selected = request.getCatalogOptionIds() == null ? Map.of() : request.getCatalogOptionIds();
-        if (!MANAGED_FIELDS.containsAll(selected.keySet()) || selected.containsKey(FOOD_BRAND.key())
+        if (!PROFILE_CATALOG_FIELDS.containsAll(selected.keySet()) || selected.containsKey(FOOD_BRAND.key())
                 || selected.values().stream().anyMatch(Objects::isNull)) {
             throw new BadRequestException("An unknown cat profile option was selected");
         }
         for (var field : CatProfileOptionField.values()) {
             if (field == FOOD_BRAND) {
-                foodBrands.applyProfile(cat, request, approveFood);
+                foodBrands.applyProfile(cat, request, approveFood, reviewedOptions);
             } else {
                 String supplied = suppliedName(field, request);
                 if (field.isCatalogManaged()) {
-                    applyOption(field, cat, supplied, approvals.contains(field.key()), selected.get(field.key()));
+                    boolean approve = approvals.contains(field.key());
+                    UUID reviewedId = reviewedOptions.get(field.key());
+                    UUID selectedId = reviewedId == null ? selected.get(field.key()) : reviewedId;
+                    if (selectedId != null || approve || hasTextUpdate(field, request)) {
+                        applyOption(field, cat, supplied, approve, selectedId, reviewedId != null);
+                    }
                 } else {
                     applyDescription(field, cat, supplied, request.isReviewedIntake());
                 }
@@ -128,15 +188,18 @@ public class CatProfileOptionService {
         field.setOption(cat, reviewedIntake && description != null ? supplied : description, null);
     }
 
-    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve, UUID selected) {
+    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve, UUID selected,
+                             boolean reviewed) {
         if (selected != null) {
-            var option = options.findById(selected)
-                    .filter(entry -> field.key().equals(entry.getCategory()))
-                    .orElseThrow(() -> new BadRequestException("The selected catalog option does not belong to this field"));
+            if (selected.equals(field.idOf(cat))) return;
+            var option = options.findLockedById(selected)
+                    .filter(entry -> field.key().equals(entry.getCategory()) && (reviewed || entry.isActive()))
+                    .orElseThrow(() -> new BadRequestException("The selected option is unavailable for this field"));
             field.setOption(cat, option.getName(), option.getId());
             return;
         }
-        if (!approve && Objects.equals(field.nameOf(cat), supplied)) return;
+        if (!approve && (Objects.equals(field.nameOf(cat), supplied)
+                || Objects.equals(field.displayedNameOf(cat), supplied))) return;
 
         String name = cleanName(supplied);
         if (name == null) {
@@ -151,13 +214,20 @@ public class CatProfileOptionService {
 
     private CatProfileOption findOrPublishOption(String field, String name) {
         byte[] normalizedKey = key(name);
-        var option = options.findByCategoryAndNormalizedKey(field, normalizedKey).orElse(null);
-        if (option == null) {
-            options.insertIfAbsent(binaryId(UUID.randomUUID()), field, name, normalizedKey);
-            // A locking read sees a concurrent insert in MySQL repeatable-read transactions.
-            option = options.findLockedByCategoryAndNormalizedKey(field, normalizedKey).orElseThrow();
-        }
+        options.insertIfAbsent(binaryId(UUID.randomUUID()), field, name, normalizedKey);
+        // A locking read sees a concurrent insert in MySQL repeatable-read transactions.
+        var option = options.findLockedByCategoryAndNormalizedKey(field, normalizedKey).orElseThrow();
+        if (!option.isActive()) throw hiddenName();
         return option;
+    }
+
+    private boolean hasTextUpdate(CatProfileOptionField field, CatRequestDTO request) {
+        return switch (field) {
+            case BREED -> request.hasBreedUpdate();
+            case INTERNAL_DEWORMER -> request.hasLastInternalDewormerNameUpdate();
+            case EXTERNAL_DEWORMER -> request.hasLastExternalDewormerNameUpdate();
+            default -> false;
+        };
     }
 
     private String suppliedName(CatProfileOptionField field, CatRequestDTO request) {

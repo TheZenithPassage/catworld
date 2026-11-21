@@ -121,6 +121,12 @@ through `GET /api/food-brands/varieties`. A selected variety references its
 brand and uses the same ID as the household form. A brand change removes
 an incompatible variety association.
 
+The catalog manager lets ADMIN add, rename, hide, and restore breeds, food
+brands, brand-specific varieties, internal dewormers, and flea treatments.
+Hiding a brand also removes its varieties from suggestions. Existing profiles
+resolve linked labels through their catalog IDs, including hidden options.
+Local descriptions and stored proposal and review history keep their wording.
+
 Litter stays optional in administration. The existing `litterBrand` value
 indicates CatWorld litter, personal litter with an optional description, or
 an unconfirmed choice. Tutors choose one of the two supplies for a new cat.

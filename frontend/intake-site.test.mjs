@@ -545,15 +545,42 @@ test('an unrelated update preserves historical catalog text and diet', async (t)
     foodVarieties: [{ id: 'royal-kitten', brandId: 'brand-royal', name: 'Kitten' }],
   });
   const [cat] = portal.entries();
-  assert.match(
+  assert.doesNotMatch(
     cat.querySelector('[name="foodBrand"]').closest('.catalog-field').textContent,
-    /✓.*Seleccionado: Royal Canin/,
+    /Seleccionado: Royal Canin/,
   );
   enter(portal.window, cat, 'personality', 'Tímida');
   const post = await portal.submit();
   const { cats } = JSON.parse(await post.body.get('submission').text());
   assert.deepEqual(cats[0].fields, { breed: 'R', personality: 'Tímida' });
   assert.equal(cats[0].optionIds, undefined);
+});
+
+test('retains the saved selection of a renamed option that is no longer offered', async (t) => {
+  const portal = await openForm(t, {
+    allowNewCats: false,
+    cats: [
+      {
+        ...existing,
+        fields: { name: 'Mora' },
+        requestedFields: [],
+        revision: 1,
+        proposedFields: { breed: 'Original breed' },
+        optionIds: { breed: 'hidden-breed' },
+      },
+    ],
+    catalogOptions: { breed: [] },
+  });
+  const [cat] = portal.entries();
+  assert.match(
+    cat.querySelector('[name="breed"]').closest('.catalog-field').textContent,
+    /Seleccionado: Original breed/,
+  );
+  enter(portal.window, cat, 'personality', 'Tímida');
+  const post = await portal.submit();
+  const { cats } = JSON.parse(await post.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, { breed: 'Original breed', personality: 'Tímida' });
+  assert.deepEqual(cats[0].optionIds, { breed: 'hidden-breed' });
 });
 
 for (const partial of [false, true]) {

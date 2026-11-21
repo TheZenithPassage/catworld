@@ -3,6 +3,7 @@ package com.allegaeon.catworld.service;
 import com.allegaeon.catworld.dto.CatRequestDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.CatProfileOptionField;
 import com.allegaeon.catworld.model.Sex;
 import jakarta.validation.Validator;
 import jakarta.validation.groups.Default;
@@ -50,6 +51,31 @@ class CatIntakeFields {
         put(result, "lastExternalDewormingDate", cat.getLastExternalDewormingDate());
         put(result, "lastTripleFelineDate", cat.getLastTripleFelineDate());
         put(result, "lastRabiesDate", cat.getLastRabiesDate());
+        return result;
+    }
+
+    Map<String, UUID> originalSelections(Map<String, String> original, Cat current) {
+        if (current == null) return Map.of();
+        var result = new LinkedHashMap<String, UUID>();
+        for (var field : CatProfileOptionField.values()) {
+            UUID id = field.idOf(current);
+            if (id != null && Objects.equals(original.get(field.key()), field.nameOf(current))) {
+                result.put(field.key(), id);
+            }
+        }
+        if (current.getFoodVarietyId() != null && result.containsKey(CatIntakeCatalog.FOOD_BRAND)
+                && Objects.equals(original.get(CatIntakeCatalog.FOOD_DETAIL), current.getFoodDetail())) {
+            result.put(CatIntakeCatalog.FOOD_DETAIL, current.getFoodVarietyId());
+        }
+        return result;
+    }
+
+    Map<String, String> displayedSnapshot(Cat cat) {
+        var result = snapshot(cat);
+        for (var field : CatProfileOptionField.values()) {
+            put(result, field.key(), field.displayedNameOf(cat));
+        }
+        put(result, CatIntakeCatalog.FOOD_DETAIL, cat.getDisplayedFoodDetail());
         return result;
     }
 

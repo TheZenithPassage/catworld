@@ -53,6 +53,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -162,16 +163,18 @@ public class CatIntakeService {
         var byCat = existingReviews(submitted);
         var catalog = catalog();
         var result = new ArrayList<ScopedCat>();
-        var eligibleIds = catIds(eligible);
+        var eligibleById = eligible.stream().collect(Collectors.toMap(Cat::getId, Function.identity()));
         scope.forEach((catId, original) -> {
             var draft = byCat.get(catId);
-            if (eligibleIds.contains(catId) && (draft == null || draft.isPending())) {
-                result.add(scopedCat(catId, original, requested.getOrDefault(catId, List.of()), draft, catalog));
+            var cat = eligibleById.get(catId);
+            if (cat != null && (draft == null || draft.isPending())) {
+                result.add(scopedCat(catId, original, requested.getOrDefault(catId, List.of()), draft, catalog,
+                        fields.originalSelections(original, cat)));
             }
         });
         if (invite.getAllowNewCats()) {
             submitted.stream().filter(review -> review.getCatId() == null && review.isPending())
-                    .map(draft -> scopedCat(null, Map.of(), List.of(), draft, catalog)).forEach(result::add);
+                    .map(draft -> scopedCat(null, Map.of(), List.of(), draft, catalog, Map.of())).forEach(result::add);
         }
         return new RecipientForm(invite.getAllowNewCats(), result, invite.getExpiresAt(),
                 catalog.options().get(CatIntakeCatalog.FOOD_BRAND), catalog.options(), catalog.varieties());
@@ -242,10 +245,13 @@ public class CatIntakeService {
         var proposed = fieldsOf(review.getProposedFields());
         List<String> conflicts = current == null ? List.of() : proposed.keySet().stream()
                 .filter(key -> fields.isConflict(key, original, current)).toList();
+        var proposal = proposalOf(review);
+        String varietyBrand = catalog().reviewVarietyBrand(proposal, cat == null ? null : cat.getFoodBrandId());
         return new ReviewDetail(id, owner.getId(), owner.getFullName(), review.getCatId(), review.getCatName(),
-                review.getSubmittedAt(), current, proposed, conflicts, unansweredRequestedFields(review, proposed),
+                review.getSubmittedAt(), cat == null ? null : fields.displayedSnapshot(cat), proposed, conflicts,
+                unansweredRequestedFields(review, proposed),
                 intakePhotos.findIdsByReview(id).stream().map(ReviewPhoto::new).toList(),
-                cat == null ? null : cat.getUpdatedAt(), review.getRevision(), review.getProposedFoodDetailBrand());
+                cat == null ? null : cat.getUpdatedAt(), review.getRevision(), varietyBrand);
     }
 
     @Transactional(readOnly = true)
@@ -270,8 +276,8 @@ public class CatIntakeService {
 
         var accepted = fields.nonBlank(approval.fields());
         var proposal = proposalOf(review);
-        catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
-                cat == null ? null : cat.getCoat(), proposal);
+        var reviewedOptions = catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
+                cat == null ? null : cat.getFoodBrandId(), cat == null ? null : cat.getCoat(), proposal);
         if (cat != null) {
             if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposal.fields()))) {
                 throw new BadRequestException("Select fields proposed in this review");
@@ -297,9 +303,9 @@ public class CatIntakeService {
             request.setApproveFoodVariety(proposal.foodDetailBrand() != null);
         }
         if (cat == null) {
-            cat = catMutations.create(request, null);
+            cat = catMutations.create(request, null, reviewedOptions);
         } else if (!accepted.isEmpty()) {
-            catMutations.applyProfile(cat, request);
+            catMutations.applyProfile(cat, request, reviewedOptions);
         }
         Cat approvedCat = cat;
         Instant now = clock.instant();
@@ -386,7 +392,10 @@ public class CatIntakeService {
             var original = catId == null ? Map.<String, String>of() : scope.get(catId);
             var previousProposal = proposalOf(previous);
             var selection = submitted.optionIds() == null ? Map.<String, UUID>of() : submitted.optionIds();
-            var proposal = catalog.propose(fields.nonBlank(submitted.fields()), selection, original, previousProposal);
+            var originalIds = fields.originalSelections(original, current);
+            var displayed = catalog.displayOriginal(original, originalIds);
+            var proposal = catalog.propose(fields.nonBlank(submitted.fields()), selection, displayed, originalIds,
+                    previousProposal);
             var proposed = proposal.fields();
             if (catId == null) fields.requireRegistrationDetails(proposed);
             var oldPhotoIds = previous == null ? List.<UUID>of() : intakePhotos.findIdsByReview(previous.getId());
@@ -545,11 +554,12 @@ public class CatIntakeService {
     }
 
     private ScopedCat scopedCat(UUID id, Map<String, String> original, List<String> requested, CatIntakeReview draft,
-                                CatIntakeCatalog catalog) {
+                                CatIntakeCatalog catalog, Map<String, UUID> originalIds) {
         var proposal = proposalOf(draft);
-        var selections = catalog.displaySelections(original, proposal);
-        if (draft == null) return new ScopedCat(id, original, requested, null, 0, Map.of(), List.of(), selections);
-        return new ScopedCat(id, original, requested, draft.getDraftId(), draft.getRevision(),
+        var displayed = catalog.displayOriginal(original, originalIds);
+        var selections = catalog.displaySelections(originalIds, proposal);
+        if (draft == null) return new ScopedCat(id, displayed, requested, null, 0, Map.of(), List.of(), selections);
+        return new ScopedCat(id, displayed, requested, draft.getDraftId(), draft.getRevision(),
                 proposal.fields(), intakePhotos.findIdsByReview(draft.getId()).stream().map(ReviewPhoto::new).toList(),
                 selections);
     }
@@ -632,7 +642,8 @@ public class CatIntakeService {
     }
 
     private CatIntakeCatalog catalog() {
-        return new CatIntakeCatalog(profileOptions.approvedOptions(), foodBrands.approvedVarieties());
+        return new CatIntakeCatalog(profileOptions.approvedOptions(), foodBrands.approvedVarieties(),
+                profileOptions.allManagedOptions());
     }
 
     private CatIntakeCatalog.Proposal proposalOf(CatIntakeReview review) {

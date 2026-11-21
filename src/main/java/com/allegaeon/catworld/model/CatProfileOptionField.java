@@ -35,6 +35,16 @@ public enum CatProfileOptionField {
         return nameReader.apply(cat);
     }
 
+    public String displayedNameOf(Cat cat) {
+        return switch (this) {
+            case BREED -> cat.getDisplayedBreed();
+            case FOOD_BRAND -> cat.getDisplayedFoodBrand();
+            case INTERNAL_DEWORMER -> cat.getDisplayedLastInternalDewormerName();
+            case EXTERNAL_DEWORMER -> cat.getDisplayedLastExternalDewormerName();
+            case COAT, COLOR -> nameOf(cat);
+        };
+    }
+
     public UUID idOf(Cat cat) {
         return idReader.apply(cat);
     }

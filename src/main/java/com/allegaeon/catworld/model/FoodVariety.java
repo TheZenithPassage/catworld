@@ -9,6 +9,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import java.util.UUID;
 
 @Entity
@@ -28,4 +30,17 @@ public class FoodVariety {
 
     @Column(nullable = false, length = 1020)
     private byte[] normalizedKey;
+
+    @ColumnDefault("true")
+    @Column(nullable = false)
+    private boolean active = true;
+
+    public void rename(String name, byte[] normalizedKey) {
+        this.name = name;
+        this.normalizedKey = normalizedKey;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }
