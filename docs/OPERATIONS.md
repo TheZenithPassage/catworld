@@ -243,6 +243,13 @@ exact recorded sequence, startup applies the original V14 and V16 scripts
 before continuing. A restart can finish V16 if V14 already succeeded during
 that upgrade. The V17 intake data stays in place.
 
+If V27 (litter pricing) was applied before the catalog manager and V26.1
+(food varieties) is already present, startup can apply the missing V26.3
+catalog migration, together with V26.2 breed seeds if needed. Flyway validates
+the existing schema history before applying those migrations. Installations
+that receive the catalogs first continue through V27 and later migrations in
+order.
+
 ## Enable private cat intake links
 
 When authorized, download `compose.cat-intake.yml` next to `compose.prod.yml`
