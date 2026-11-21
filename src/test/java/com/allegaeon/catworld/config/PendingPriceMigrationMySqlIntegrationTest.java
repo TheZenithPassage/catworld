@@ -187,7 +187,7 @@ class PendingPriceMigrationMySqlIntegrationTest {
     }
 
     @Test
-    void upgradesAnAgreedAndPaidMultiCatStayThroughV27() {
+    void upgradesAnAgreedAndPaidMultiCatStayThroughV28() {
         Flyway.configure().dataSource(dataSource).target("26.1").load().migrate();
         populate(false, false);
         jdbc.update("update cats set litter_brand = 'Usa las de CatWorld' where id = ?", id(4));
@@ -204,11 +204,38 @@ class PendingPriceMigrationMySqlIntegrationTest {
         assertHistoricalLitterDefaults();
         assertEquals(List.of("OWN", "OWN"), jdbc.queryForList(
                 "select litter_choice from stay_cat where stay_id = ?", String.class, id(7)));
+        candidate.validate();
+
+        jdbc.update("update stays set price_pending = true where id = ?", id(9));
+        jdbc.update("insert into stay_cat (stay_id, cat_id, litter_choice) values (?, ?, 'OWN'), (?, ?, 'HALF')",
+                id(9), id(4), id(9), id(5));
+        jdbc.update("update stays set agreed_amount = null, price_pending = true where id = ?", id(8));
+        jdbc.update("""
+                insert into stay_agreed_amount_corrections
+                    (id, stay_id, previous_agreed_amount, new_agreed_amount, decided_by_id, decided_at, reason)
+                values (?, ?, 0, null, ?, '2026-11-10 13:00:00', 'Reopened')
+                """, id(32), id(8), id(1));
+        jdbc.update("update stay_cat set litter_choice = 'ONE' where stay_id = ? and cat_id = ?", id(7), id(5));
+        jdbc.update("update stays set retained_litter_rate_per_kg = 4000 where id = ?", id(7));
+        var beforeV28 = dataSnapshot(LITTER_PRICING_COLUMNS);
+
+        HistoricalMigrationConfig.migrate(Flyway.configure().dataSource(dataSource).load());
+
+        assertEquals(beforeV28, dataSnapshot(LITTER_PRICING_COLUMNS));
+        assertNull(jdbc.queryForObject("select litter_choice from stay_cat where stay_id = ? and cat_id = ?",
+                String.class, id(9), id(4)));
+        assertEquals("HALF", jdbc.queryForObject("select litter_choice from stay_cat where stay_id = ? and cat_id = ?",
+                String.class, id(9), id(5)));
+        assertNull(jdbc.queryForObject("select retained_litter_rate_per_kg from stays where id = ?", String.class, id(9)));
+        assertEquals("OWN", jdbc.queryForObject("select litter_choice from stay_cat where stay_id = ?", String.class, id(8)));
+        assertEquals(List.of("OWN", "ONE"), jdbc.queryForList(
+                "select litter_choice from stay_cat where stay_id = ? order by cat_id", String.class, id(7)));
+        assertEquals("4000", jdbc.queryForObject(
+                "select retained_litter_rate_per_kg from stays where id = ?", String.class, id(7)));
         assertEquals("400", jdbc.queryForObject(
                 "select agreed_amount from stays where id = ? and not price_pending", String.class, id(7)));
         assertEquals("125", jdbc.queryForObject(
                 "select sum(amount) from stay_payments where stay_id = ? and not annulled", String.class, id(7)));
-        candidate.validate();
     }
 
     @Test

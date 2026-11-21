@@ -83,25 +83,12 @@
               [litter]="litter"
               [cats]="stay.cats"
               [editable]="!price.previouslyAgreed"
+              [collapseKnownChoices]="true"
               [disabled]="submitting()"
               [updating]="previewRefreshing()"
               [choices]="litterChoices()"
               (choiceChange)="changeLitterChoice($event)"
             />
-            @if (!price.previouslyAgreed && (litter.rateUnavailable || adoptCurrentLitterRate())) {
-              <button
-                mat-stroked-button
-                type="button"
-                [disabled]="submitting() || previewRefreshing()"
-                (click)="toggleLitterRate()"
-              >
-                {{
-                  adoptCurrentLitterRate()
-                    ? copy.litter.keepRetainedRate
-                    : copy.litter.tryCurrentRate
-                }}
-              </button>
-            }
           }
           @if (price.suggestedAmount; as suggestedAmount) {
             <button

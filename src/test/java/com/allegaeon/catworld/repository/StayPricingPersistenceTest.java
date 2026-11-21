@@ -186,17 +186,17 @@ class StayPricingPersistenceTest {
         var fixture = createPricedStay(new BigDecimal("10"), new BigDecimal("20"), true);
         UUID catId = fixture.response().getCatIds().iterator().next();
         UUID stayId = fixture.response().getStayId();
-        assertTrue(fixture.response().getLitter().rateUnavailable());
-        assertNull(fixture.response().getSuggestedAmount());
+        var missingRate = stayService.previewPendingPrice(stayId);
+        assertTrue(missingRate.litter().rateUnavailable());
+        assertNull(missingRate.suggestedAmount());
         when(clock.instant()).thenReturn(Instant.parse("2027-08-05T12:00:00Z"));
         litterRates.configure(new BigDecimal("3"));
-        var request = new PendingPricePreviewRequestDTO(Map.of(catId, LitterChoice.ONE), true);
+        var request = new PendingPricePreviewRequestDTO(Map.of(catId, LitterChoice.ONE));
         var old = stayService.previewPendingPrice(stayId, request);
         assertEquals(new BigDecimal("26"), old.suggestedAmount());
         litterRates.configure(new BigDecimal("5"));
         var decision = PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("26"))
-                .expectedPendingPriceVersion(old.version()).litterChoices(request.litterChoices())
-                .adoptCurrentLitterRate(true).build();
+                .expectedPendingPriceVersion(old.version()).litterChoices(request.litterChoices()).build();
         assertThrows(StalePricingConfirmationException.class, () -> stayService.correctAgreedAmount(stayId, decision));
 
         var current = stayService.previewPendingPrice(stayId, request);
@@ -210,6 +210,91 @@ class StayPricingPersistenceTest {
         var correction = stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).getFirst();
         assertEquals(new BigDecimal("5"), correction.getLitterRatePerKg());
         assertEquals(catId + "=ONE", correction.getLitterChoices());
+    }
+
+    @Test
+    void firstPendingPriceResolvesPreferencesAndKeepsManualAmountsAboveThePaymentFloor() {
+        var fixture = createPricedStay(new BigDecimal("18000"), null, true);
+        UUID stayId = fixture.response().getStayId();
+        UUID catId = fixture.response().getCatIds().iterator().next();
+        var stay = stayRepository.findById(stayId).orElseThrow();
+        stay.setEndAt(stay.getStartAt().plusDays(4));
+        stay.setArrivalTransferRequired(true);
+        stay.setRetainedTransferRate(new BigDecimal("6000"));
+        stayRepository.saveAndFlush(stay);
+        litterRates.configure(new BigDecimal("4000"));
+
+        var half = stayService.previewPendingPrice(stayId);
+        assertEquals(new BigDecimal("86000"), half.suggestedAmount());
+        var one = stayService.previewPendingPrice(stayId,
+                new PendingPricePreviewRequestDTO(Map.of(catId, LitterChoice.ONE)));
+        assertEquals(new BigDecimal("94000"), one.suggestedAmount());
+
+        Cat cat = catRepository.findById(catId).orElseThrow();
+        cat.setLitterBrand("Arena de muestra");
+        catRepository.saveAndFlush(cat);
+        assertThrows(StalePricingConfirmationException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("86000"))
+                        .expectedPendingPriceVersion(half.version()).build()));
+        var own = stayService.previewPendingPrice(stayId);
+        assertEquals(new BigDecimal("78000"), own.suggestedAmount());
+        assertEquals(LitterChoice.OWN, own.litter().cats().getFirst().choice());
+
+        cat.setLitterBrand(null);
+        catRepository.saveAndFlush(cat);
+        var unknown = stayService.previewPendingPrice(stayId);
+        assertNull(unknown.suggestedAmount());
+        assertNull(unknown.litter().cats().getFirst().choice());
+        assertFalse(unknown.litter().rateUnavailable());
+
+        stayService.registerPayment(stayId, PaymentRegistrationRequestDTO.builder()
+                .amount(new BigDecimal("20000")).paymentDate(LocalDateTime.ofInstant(DECIDED_AT, clock.getZone()).toLocalDate())
+                .build());
+        assertThrows(ConflictException.class, () -> stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("19999"))
+                        .expectedPendingPriceVersion(unknown.version()).build()));
+        var confirmed = stayService.correctAgreedAmount(stayId,
+                PricingDecisionRequestDTO.builder().agreedAmount(new BigDecimal("79000"))
+                        .expectedPendingPriceVersion(unknown.version()).build());
+        assertEquals(new BigDecimal("79000"), confirmed.getAgreedAmount());
+        assertEquals(new BigDecimal("20000"), confirmed.getTotalPaid());
+        assertNull(confirmed.getLitter().cats().getFirst().choice());
+    }
+
+    @Test
+    void firstPendingPricePrefersAnExplicitOwnChoiceAndKeepsTheSharedRate() {
+        var fixture = createPricedStay(new BigDecimal("10"), null, true);
+        UUID first = fixture.response().getCatIds().iterator().next();
+        Cat cat = catRepository.findById(first).orElseThrow();
+        UUID second = catRepository.saveAndFlush(Cat.builder()
+                .name("Second litter cat").sex(Sex.FEMALE).birthDate(cat.getBirthDate())
+                .lastRabiesDate(cat.getLastRabiesDate()).lastTripleFelineDate(cat.getLastTripleFelineDate())
+                .litterBrand("Usa las de CatWorld").owner(cat.getOwner()).createdBy(fixture.actor()).build()).getId();
+        var rate = nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.TWO_CATS).orElseThrow();
+        rate.setNightlyRate(new BigDecimal("10"));
+        nightlyReferenceRateRepository.saveAndFlush(rate);
+        litterRates.configure(new BigDecimal("4"));
+        LocalDateTime start = fixture.startAt().plusDays(12);
+        var overrides = Map.of(first, LitterChoice.OWN);
+        var cats = Set.of(first, second);
+        var creation = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder()
+                .startAt(start).endAt(start.plusDays(2)).catIds(cats).litterChoices(overrides).build());
+        UUID stayId = stayService.createStay(StayRequestDTO.builder()
+                .startAt(start).endAt(start.plusDays(2)).catIds(cats).litterChoices(overrides)
+                .confirmation(creation.getConfirmation()).pricingDecision(PricingDecisionRequestDTO.builder()
+                        .pricePending(true).build()).build()).getStayId();
+        var initial = stayService.previewPendingPrice(stayId);
+        assertEquals(new BigDecimal("4"), initial.litter().subtotal());
+        assertEquals(LitterChoice.OWN,
+                initial.litter().cats().stream().filter(row -> row.catId().equals(first)).findFirst().orElseThrow().choice());
+
+        litterRates.configure(new BigDecimal("9"));
+        var confirmed = stayService.correctAgreedAmount(stayId, PricingDecisionRequestDTO.builder()
+                .agreedAmount(initial.suggestedAmount()).expectedPendingPriceVersion(initial.version()).build());
+        assertEquals(new BigDecimal("4"), confirmed.getLitter().ratePerKg());
+        assertEquals(new BigDecimal("4"), confirmed.getLitter().subtotal());
+        assertTrue(stayAgreedAmountCorrectionRepository.findAllByStayId(stayId).getFirst()
+                .getLitterChoices().contains(first + "=OWN"));
     }
 
     @Test

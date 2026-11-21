@@ -353,7 +353,11 @@ public class StayService implements IStayService {
 
         stay.setOwner(owner);
         stay.setStayCats(stayCats);
-        StayLitterPricing.retain(stay, litter);
+        if (pricePending) {
+            StayLitterPricing.retain(stay, stayRequestDTO.getLitterChoices(), litter.ratePerKg());
+        } else {
+            StayLitterPricing.retain(stay, litter);
+        }
         stay.setCreatedBy(currentUser);
         stay.setRetainedNightlyRate(retainedNightlyRate);
         stay.setAgreedAmount(agreedAmount);
@@ -561,7 +565,7 @@ public class StayService implements IStayService {
     @Override
     @Transactional(readOnly = true)
     public PendingPricePreviewDTO previewPendingPrice(UUID stayId) {
-        return previewPendingPrice(stayId, new PendingPricePreviewRequestDTO(null, false));
+        return previewPendingPrice(stayId, new PendingPricePreviewRequestDTO(null));
     }
 
     @Override
@@ -574,7 +578,7 @@ public class StayService implements IStayService {
         if (!stay.isPricePending()) {
             throw new StalePricingConfirmationException();
         }
-        return pendingPricePreview(stay, request, litterRates::currentRate);
+        return pendingPricePreview(stay, request, false);
     }
 
     @Override
@@ -591,16 +595,14 @@ public class StayService implements IStayService {
         String expectedVersion = pricingDecision == null ? null : pricingDecision.getExpectedPendingPriceVersion();
         String requestedReason = pricingDecision == null ? null : pricingDecision.getReason();
         var request = new PendingPricePreviewRequestDTO(
-                pricingDecision == null ? null : pricingDecision.getLitterChoices(),
-                pricingDecision == null ? null : pricingDecision.getAdoptCurrentLitterRate());
-        boolean requestsLitterChanges = request.adoptsCurrentLitterRate()
-                || (request.litterChoices() != null && !request.litterChoices().isEmpty());
+                pricingDecision == null ? null : pricingDecision.getLitterChoices());
+        boolean requestsLitterChanges = request.litterChoices() != null && !request.litterChoices().isEmpty();
         if (requestsLitterChanges && (!stay.isPricePending() || pricePending || expectedVersion == null)) {
             throw new StalePricingConfirmationException();
         }
         PendingPricePreviewDTO pendingPreview = stay.isPricePending()
                 && (expectedVersion != null || requestedReason == null || requestedReason.isBlank())
-                ? pendingPricePreview(stay, request, litterRates::currentRateForUpdate)
+                ? pendingPricePreview(stay, request, true)
                 : null;
         if (expectedVersion != null && (pendingPreview == null || pricePending
                 || !expectedVersion.equals(pendingPreview.version()))) {
@@ -666,8 +668,7 @@ public class StayService implements IStayService {
         throw new BadRequestException("A non-blank reason is required to correct the agreed amount");
     }
 
-    private PendingPricePreviewDTO pendingPricePreview(Stay stay, PendingPricePreviewRequestDTO request,
-            java.util.function.Supplier<BigDecimal> currentRate) {
+    private PendingPricePreviewDTO pendingPricePreview(Stay stay, PendingPricePreviewRequestDTO request, boolean forUpdate) {
         long nights = stayMapper.calculateNumberOfNights(stay.getStartAt(), stay.getEndAt());
         BigDecimal accommodation = stayMapper.calculateSuggestedAmount(stay.getRetainedNightlyRate(), nights);
         boolean transferRateMissing = !stay.isTransferWaived() && stay.getRetainedTransferRate() == null
@@ -676,22 +677,22 @@ public class StayService implements IStayService {
         boolean previouslyAgreed = stayAgreedAmountCorrectionRepository
                 .existsByStayIdAndPreviousAgreedAmountIsNotNull(stay.getId());
         var previousLitter = StayLitterPricing.retained(stay, nights);
-        if (previouslyAgreed && request.adoptsCurrentLitterRate()) {
+        if (previouslyAgreed && request.litterChoices() != null && !request.litterChoices().isEmpty()) {
             throw new StalePricingConfirmationException();
         }
-        var litter = StayLitterPricing.forPendingConfirmation(stay, request.litterChoices(), nights,
-                request.adoptsCurrentLitterRate(), currentRate);
-        if (previouslyAgreed && StayLitterPricing.choicesChanged(previousLitter, litter)) {
-            throw new StalePricingConfirmationException();
-        }
+        // Read inherited choices under the cat locks before acquiring the litter rate lock.
+        var litter = previouslyAgreed ? previousLitter : StayLitterPricing.forPendingConfirmation(
+                stay, request.litterChoices(), nights,
+                forUpdate ? this::litterPreferenceForUpdate : Cat::getLitterBrand,
+                forUpdate ? litterRates::currentRateForUpdate : litterRates::currentRate);
         BigDecimal total = StayLitterPricing.combine(accommodation, transfer, litter.subtotal());
         // Include the price inputs in case two edits share a persisted audit timestamp.
-        String version = "%s|%s|%s|%s|%s|%s|%b|%b|%b|%b|%s|%s|%s|%s|%b".formatted(
+        String version = "%s|%s|%s|%s|%s|%s|%b|%b|%b|%b|%s|%s|%s|%s".formatted(
                 stay.getId(), stay.getUpdatedAt(), stay.getStartAt(), stay.getEndAt(),
                 stay.getRetainedNightlyRate(), stay.getRetainedTransferRate(), stay.isArrivalTransferRequired(),
                 stay.isDepartureTransferRequired(), stay.isTransferWaived(), previouslyAgreed,
                 previousLitter.ratePerKg(), StayLitterPricing.auditChoices(previousLitter),
-                litter.ratePerKg(), StayLitterPricing.auditChoices(litter), request.adoptsCurrentLitterRate());
+                litter.ratePerKg(), StayLitterPricing.auditChoices(litter));
         return new PendingPricePreviewDTO(
                 version,
                 previouslyAgreed,
@@ -706,6 +707,13 @@ public class StayService implements IStayService {
                 total,
                 litter
         );
+    }
+
+    private String litterPreferenceForUpdate(Cat cat) {
+        UUID catId = cat.getId();
+        return catRepository.findByIdForUpdate(catId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cat", catId))
+                .getLitterBrand();
     }
 
     @Override

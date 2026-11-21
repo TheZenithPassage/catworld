@@ -69,7 +69,6 @@ export class AgreedAmountCorrectionDialog {
   readonly previewState = signal<PreviewState>({ status: 'loading' });
   readonly previewRefreshing = signal(false);
   readonly litterChoices = signal<StayLitterChoices>({});
-  readonly adoptCurrentLitterRate = signal(false);
   private previewSequence = 0;
   readonly error = createLanguageResetError(this.i18n.language);
   readonly preview = computed(() => {
@@ -132,17 +131,9 @@ export class AgreedAmountCorrectionDialog {
     this.loadPreview();
   }
 
-  toggleLitterRate(): void {
-    this.adoptCurrentLitterRate.update((adopt) => !adopt);
-    this.loadPreview();
-  }
-
   private litterInputs(): PendingPricePreviewRequest {
     const litterChoices = this.litterChoices();
-    return {
-      ...(Object.keys(litterChoices).length ? { litterChoices } : {}),
-      ...(this.adoptCurrentLitterRate() ? { adoptCurrentLitterRate: true } : {}),
-    };
+    return Object.keys(litterChoices).length ? { litterChoices } : {};
   }
 
   formatAmount(value: string | null): string {

@@ -10,9 +10,12 @@ import com.allegaeon.catworld.validation.WholeMonetaryAmount;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -49,12 +52,17 @@ public final class StayLitterPricing {
     }
 
     static StayLitterBreakdown forPendingConfirmation(Stay stay, Map<UUID, LitterChoice> overrides,
-            long nights, boolean adoptRate, Supplier<BigDecimal> currentRate) {
+            long nights, Function<Cat, String> approvedPreference, Supplier<BigDecimal> currentRate) {
         Map<UUID, LitterChoice> choices = retainedChoices(stay);
         validateOverrides(choices, overrides);
         choices.putAll(overrides == null ? Map.of() : overrides);
+        stay.getStayCats().stream()
+                .map(stayCat -> stayCat.getCat())
+                .filter(cat -> choices.get(cat.getId()) == null)
+                .sorted(Comparator.comparing(Cat::getId))
+                .forEach(cat -> choices.put(cat.getId(), choiceFromPreference(approvedPreference.apply(cat))));
         BigDecimal rate = stay.getRetainedLitterRatePerKg();
-        if (rate == null && adoptRate && usesLitter(choices)) {
+        if (rate == null && usesLitter(choices)) {
             rate = currentRate.get();
         }
         return breakdown(choices, nights, rate);
@@ -66,7 +74,7 @@ public final class StayLitterPricing {
 
     static boolean confirmationMatches(StayLitterBreakdown submitted, StayLitterBreakdown expected) {
         if (submitted == null) {
-            return expected.ratePerKg() == null && dailyHalfKilos(expected) == 0;
+            return expected.ratePerKg() == null && BigDecimal.ZERO.equals(expected.subtotal());
         }
         if (submitted.cats() == null || submitted.cats().size() != expected.cats().size()
                 || !sameNumber(submitted.ratePerKg(), expected.ratePerKg())
@@ -88,20 +96,26 @@ public final class StayLitterPricing {
     }
 
     static void retain(Stay stay, StayLitterBreakdown litter) {
-        Map<UUID, LitterChoice> choices = choices(litter);
-        stay.setRetainedLitterRatePerKg(litter.ratePerKg());
-        stay.getStayCats().forEach(cat -> cat.setLitterChoice(choices.get(cat.getCat().getId())));
+        retain(stay, choices(litter), litter.ratePerKg());
+    }
+
+    static void retain(Stay stay, Map<UUID, LitterChoice> choices, BigDecimal rate) {
+        stay.setRetainedLitterRatePerKg(rate);
+        stay.getStayCats().forEach(cat -> cat.setLitterChoice(
+                choices == null ? null : choices.get(cat.getCat().getId())));
     }
 
     static int dailyHalfKilos(StayLitterBreakdown litter) {
-        return litter.cats().stream().mapToInt(cat -> cat.choice().halfKilosPerDay()).sum();
+        return litter.cats().stream().mapToInt(cat -> halfKilosPerDay(cat.choice())).sum();
     }
 
     static String auditChoices(StayLitterBreakdown litter) {
         if (litter.cats().isEmpty()) {
             return null;
         }
-        return litter.cats().stream().map(cat -> cat.catId() + "=" + cat.choice()).collect(Collectors.joining(","));
+        return litter.cats().stream()
+                .map(cat -> cat.catId() + "=" + (cat.choice() == null ? "UNCONFIRMED" : cat.choice()))
+                .collect(Collectors.joining(","));
     }
 
     public static BigDecimal subtotal(BigDecimal rate, long nights, int dailyHalfKilos) {
@@ -122,11 +136,15 @@ public final class StayLitterPricing {
     private static StayLitterBreakdown breakdown(Map<UUID, LitterChoice> choices, long nights, BigDecimal rate) {
         List<CatLitter> cats = choices.entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .map(entry -> catLitter(entry.getKey(), entry.getValue(), nights, rate)).toList();
-        int dailyHalfKilos = choices.values().stream().mapToInt(LitterChoice::halfKilosPerDay).sum();
-        return new StayLitterBreakdown(rate, subtotal(rate, nights, dailyHalfKilos), dailyHalfKilos > 0 && rate == null, cats);
+        int dailyHalfKilos = choices.values().stream().mapToInt(StayLitterPricing::halfKilosPerDay).sum();
+        BigDecimal subtotal = choices.containsValue(null) ? null : subtotal(rate, nights, dailyHalfKilos);
+        return new StayLitterBreakdown(rate, subtotal, dailyHalfKilos > 0 && rate == null, cats);
     }
 
     private static CatLitter catLitter(UUID catId, LitterChoice choice, long nights, BigDecimal rate) {
+        if (choice == null) {
+            return new CatLitter(catId, null, null, null, null);
+        }
         int halfKilos = choice.halfKilosPerDay();
         BigDecimal perDay = HALF_KILO.multiply(BigDecimal.valueOf(halfKilos)).stripTrailingZeros();
         BigDecimal total = totalKg(nights, halfKilos);
@@ -140,15 +158,30 @@ public final class StayLitterPricing {
     }
 
     private static Map<UUID, LitterChoice> retainedChoices(Stay stay) {
-        return stay.getStayCats().stream().collect(Collectors.toMap(cat -> cat.getCat().getId(), cat -> cat.getLitterChoice()));
+        Map<UUID, LitterChoice> choices = new HashMap<>();
+        stay.getStayCats().forEach(cat -> choices.put(cat.getCat().getId(), cat.getLitterChoice()));
+        return choices;
     }
 
     private static Map<UUID, LitterChoice> choices(StayLitterBreakdown litter) {
-        return litter.cats().stream().collect(Collectors.toMap(CatLitter::catId, CatLitter::choice));
+        Map<UUID, LitterChoice> choices = new HashMap<>();
+        litter.cats().forEach(cat -> choices.put(cat.catId(), cat.choice()));
+        return choices;
     }
 
     private static boolean usesLitter(Map<UUID, LitterChoice> choices) {
-        return choices.values().stream().anyMatch(choice -> choice != LitterChoice.OWN);
+        return choices.values().stream().anyMatch(choice -> halfKilosPerDay(choice) > 0);
+    }
+
+    private static int halfKilosPerDay(LitterChoice choice) {
+        return choice == null ? 0 : choice.halfKilosPerDay();
+    }
+
+    private static LitterChoice choiceFromPreference(String preference) {
+        if (preference == null || preference.isBlank()) {
+            return null;
+        }
+        return CATWORLD_LITTER_PREFERENCE.equals(preference.strip()) ? LitterChoice.HALF : LitterChoice.OWN;
     }
 
     private static void validateOverrides(Map<UUID, LitterChoice> scope, Map<UUID, LitterChoice> overrides) {

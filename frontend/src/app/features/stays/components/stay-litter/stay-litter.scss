@@ -22,3 +22,10 @@
 .litter-warning {
   font-weight: 650;
 }
+
+.litter-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+}

@@ -34,7 +34,6 @@ public class PricingDecisionRequestDTO {
     private String reason;
     private String expectedPendingPriceVersion;
     private Map<UUID, LitterChoice> litterChoices;
-    private Boolean adoptCurrentLitterRate;
 
     public boolean isPricePending() {
         return Boolean.TRUE.equals(pricePending);

@@ -60,9 +60,9 @@ export interface StayLitterBreakdown {
   rateUnavailable: boolean;
   cats: Array<{
     catId: string;
-    choice: StayLitterChoice;
-    kgPerDay: string;
-    totalKg: string;
+    choice: StayLitterChoice | null;
+    kgPerDay: string | null;
+    totalKg: string | null;
     suggestedAmount: MonetaryAmount | null;
   }>;
 }
@@ -105,7 +105,6 @@ export type PricingDecision =
       reason?: string | null;
       expectedPendingPriceVersion?: string;
       litterChoices?: StayLitterChoices;
-      adoptCurrentLitterRate?: boolean;
     }
   | { agreedAmount?: null; pricePending: true; reason?: string | null };
 
@@ -126,7 +125,6 @@ export interface PendingPricePreview {
 
 export interface PendingPricePreviewRequest {
   litterChoices?: StayLitterChoices;
-  adoptCurrentLitterRate?: boolean;
 }
 
 export interface CreationPricingConfirmation {

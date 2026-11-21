@@ -291,6 +291,7 @@ retains only the monetary amount, never the source nightly-rate key.
 
 Represents the link between a `Stay` and a `Cat` and records the choice of
 own litter, half a kilogram per day, or one kilogram per day for that booking.
+A null choice leaves litter unconfirmed.
 
 The project uses an explicit link entity instead of a plain `@ManyToMany`.
 
@@ -586,14 +587,17 @@ are successful no-ops after authorization and do not update the stay timestamp
 or append evidence.
 
 For explicitly pending stays, `GET /api/stays/{id}/pending-price-preview`
-shows the saved rates, nights, chargeable transfer legs and per-cat litter choices
-for administrators. Before the first agreement, administrators can use
-`POST /api/stays/{id}/pending-price-preview` to preview adjusted litter choices
-and request the current litter rate when the stay lacks a retained rate.
+shows the nights, chargeable transfer legs and per-cat litter choices for
+administrators. Before the first agreement, use the explicit choice on the
+stay, then the cat's approved preference, or leave the choice unconfirmed.
+Shared litter uses the retained rate if available or the current reference
+rate. Administrators can use `POST /api/stays/{id}/pending-price-preview`
+to preview changes to individual choices.
 The first agreement requires a reason when it overrides a complete suggestion.
-Accepting the suggestion or entering the first amount when a rate is missing
-records a system reason if none was supplied. Confirming a reopened agreement
-still requires a reason. The dialog sends the preview version as
+Accepting the suggestion or entering the first amount when the suggestion is
+incomplete records a system reason if none was supplied. Confirming a reopened
+agreement uses its retained litter choices and rate and still requires a reason.
+The dialog sends the preview version as
 `expectedPendingPriceVersion`. A stale version returns `409 Conflict` and the
 dialog refreshes the price breakdown while keeping the draft.
 
@@ -780,6 +784,8 @@ Important schema points:
   litter rate on stays, per-cat choices on `stay_cat`, and litter evidence
   on pricing decisions and agreed-amount corrections. The upgrade initializes
   earlier bookings to the own-litter choice with no captured rate or charge.
+- V28 leaves ambiguous V27 own-litter choices unconfirmed on stays awaiting a
+  first agreement. It preserves shared choices, saved rates, agreements and payments.
 - `status` is not persisted.
 - `user_accounts` stores persistent application users for HTTP Basic authentication.
 - `owners`, `cats`, `vets` and `stays` each store a non-null `created_by_id`
@@ -1728,15 +1734,17 @@ to the resulting request or pricing preview.
 `DELETE`. The private household form shows the rate, when available, and
 the usual consumption of half a kilogram per cat per day when CatWorld
 supplies litter. The form changes the cat's preference through the existing
-review flow. New stays use the approved preference as the default, and
-existing bookings use their saved choices.
+review flow. New stays use the approved preference as the default. When a
+new stay's price remains pending, its explicit choices carry forward to
+the first agreement and any other choices can follow the approved preference.
 
 The backend multiplies total daily consumption by `max(1, nights)` and
 the captured rate, then rounds the litter subtotal to a whole monetary unit.
-An own-litter choice contributes zero. If a cat uses CatWorld litter and the
-rate is unavailable, the preview shows the missing rate and keeps the full
-suggestion incomplete. Pricing confirmations compare the recalculated
-per-cat choices, quantities and rate before saving the agreement.
+An own-litter choice contributes zero. An unconfirmed choice or an unavailable
+rate for a CatWorld-litter cat leaves the full suggestion incomplete. An
+administrator can still confirm a manual amount subject to the active
+payment floor. Pricing confirmations compare the recalculated per-cat choices,
+quantities and rate before saving the agreement.
 
 ## Public Repository Notes
 

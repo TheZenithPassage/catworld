@@ -34,8 +34,8 @@ export interface StaysTranslations {
       totalKg: (weight: string) => string;
       charge: (amount: string) => string;
       unavailable: string;
-      tryCurrentRate: string;
-      keepRetainedRate: string;
+      change: string;
+      unconfirmed: string;
     };
     arrivalTransfer: string;
     departureTransfer: string;
@@ -340,8 +340,8 @@ export const STAYS_TRANSLATIONS = {
         charge: (amount) => `${amount} pesos`,
         unavailable:
           'La cotización está incompleta porque falta la tarifa de piedritas de CatWorld.',
-        tryCurrentRate: 'Aplicar la tarifa actual de piedritas',
-        keepRetainedRate: 'Volver a la tarifa de piedritas retenida',
+        change: 'Cambiar',
+        unconfirmed: 'Por confirmar',
       },
       arrivalTransfer: 'Requiere traslado de llegada',
       departureTransfer: 'Requiere traslado de salida',
@@ -669,8 +669,8 @@ export const STAYS_TRANSLATIONS = {
         totalKg: (weight) => `${weight} kg for the stay`,
         charge: (amount) => `${amount} pesos`,
         unavailable: 'The quote is incomplete because the CatWorld litter rate is unavailable.',
-        tryCurrentRate: 'Apply the current litter rate',
-        keepRetainedRate: 'Return to the retained litter rate',
+        change: 'Change',
+        unconfirmed: 'To confirm',
       },
       arrivalTransfer: 'Arrival transfer required',
       departureTransfer: 'Departure transfer required',

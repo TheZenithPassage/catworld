@@ -19,6 +19,8 @@ import com.allegaeon.catworld.service.StayService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -46,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
@@ -97,7 +101,80 @@ class StayPricingMySqlIntegrationTest {
         jdbcTemplate.update("delete from vets");
         jdbcTemplate.update("delete from owners");
         jdbcTemplate.update("update nightly_reference_rates set nightly_rate = null");
+        jdbcTemplate.update("update litter_rates set litter_rate_per_kg = null");
         jdbcTemplate.update("delete from user_accounts");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void firstPendingConfirmationWaitsForPreferenceOrRateAndRejectsChangedQuote(boolean changePreference)
+            throws Exception {
+        UserAccount actor = userAccountRepository.saveAndFlush(UserAccount.builder()
+                .username("pending-litter-" + UUID.randomUUID()).passwordHash(passwordEncoder.encode("password"))
+                .role(UserRole.ADMIN).enabled(true).build());
+        Owner owner = ownerRepository.saveAndFlush(Owner.builder()
+                .fullName("Pending Litter Owner").primaryPhone("555-0199").createdBy(actor).build());
+        LocalDateTime start = LocalDateTime.of(2027, 8, 1, 12, 0);
+        Cat cat = catRepository.saveAndFlush(Cat.builder()
+                .name("Litter Lock Cat").birthDate(start.minusYears(3).toLocalDate())
+                .sex(Sex.FEMALE).owner(owner).createdBy(actor).litterBrand("Usa las de CatWorld")
+                .lastRabiesDate(start.plusYears(1).toLocalDate())
+                .lastTripleFelineDate(start.plusYears(1).toLocalDate()).build());
+        jdbcTemplate.update("update nightly_reference_rates set nightly_rate = 10 where category = 'ONE_CAT'");
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(actor);
+        var cats = Set.of(cat.getId());
+        var creation = stayService.previewCreationPricing(StayCreationPricingPreviewRequestDTO.builder()
+                .startAt(start).endAt(start.plusDays(2)).catIds(cats).build()).getConfirmation();
+        UUID stayId = stayService.createStay(StayRequestDTO.builder()
+                .startAt(start).endAt(start.plusDays(2)).catIds(cats).confirmation(creation)
+                .pricingDecision(PricingDecisionRequestDTO.builder().pricePending(true).build())
+                .build()).getStayId();
+        jdbcTemplate.update("update litter_rates set litter_rate_per_kg = 4 where id = 1");
+        var preview = stayService.previewPendingPrice(stayId);
+        assertEquals(new BigDecimal("24"), preview.suggestedAmount());
+        var request = PricingDecisionRequestDTO.builder().agreedAmount(preview.suggestedAmount())
+                .expectedPendingPriceVersion(preview.version()).build();
+
+        CountDownLatch inputLocked = new CountDownLatch(1);
+        CountDownLatch allowCommit = new CountDownLatch(1);
+        var transaction = new TransactionTemplate(transactionManager);
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> mutation = executor.submit(() -> transaction.executeWithoutResult(status -> {
+                if (changePreference) {
+                    Cat lockedCat = catRepository.findByIdForUpdate(cat.getId()).orElseThrow();
+                    lockedCat.setLitterBrand("Trae sus propias piedritas");
+                    catRepository.flush();
+                } else {
+                    jdbcTemplate.update("update litter_rates set litter_rate_per_kg = 6 where id = 1");
+                }
+                inputLocked.countDown();
+                try {
+                    assertTrue(allowCommit.await(10, TimeUnit.SECONDS));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+            }));
+            assertTrue(inputLocked.await(10, TimeUnit.SECONDS));
+            Future<?> confirmation = executor.submit(() -> stayService.correctAgreedAmount(stayId, request));
+            Thread.sleep(250);
+            assertFalse(confirmation.isDone(), "confirmation must wait for the changed input");
+            allowCommit.countDown();
+            mutation.get(10, TimeUnit.SECONDS);
+            var failure = assertThrows(ExecutionException.class, () -> confirmation.get(10, TimeUnit.SECONDS));
+            assertInstanceOf(StalePricingConfirmationException.class, failure.getCause());
+        } finally {
+            allowCommit.countDown();
+            executor.shutdownNow();
+        }
+
+        var pending = stayRepository.findById(stayId).orElseThrow();
+        assertTrue(pending.isPricePending());
+        assertNull(pending.getAgreedAmount());
+        assertNull(pending.getRetainedLitterRatePerKg());
+        assertEquals(new BigDecimal(changePreference ? "20" : "26"),
+                stayService.previewPendingPrice(stayId).suggestedAmount());
     }
 
     @Test

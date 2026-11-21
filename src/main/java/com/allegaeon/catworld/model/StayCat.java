@@ -27,7 +27,7 @@ public class StayCat {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 4)
+    @Column(length = 4)
     private LitterChoice litterChoice = LitterChoice.OWN;
 
 }

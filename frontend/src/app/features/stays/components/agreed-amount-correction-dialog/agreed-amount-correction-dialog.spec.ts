@@ -122,17 +122,17 @@ describe('AgreedAmountCorrectionDialog', () => {
       expectedPendingPriceVersion: 'preview-2',
     });
   });
-  it('confirms the server quote for the edited litter choice on a first pending agreement', async () => {
+  it('shows the known choice collapsed and confirms an override with the server rate', async () => {
     const cats = [{ catId: 'cat-1', name: 'Milo' }];
     const initial = {
       ...preview,
-      suggestedAmount: null,
+      suggestedAmount: '144',
       litter: {
-        ratePerKg: null,
-        rateUnavailable: true,
-        subtotal: null,
+        ratePerKg: '24',
+        rateUnavailable: false,
+        subtotal: '24',
         cats: [
-          { catId: 'cat-1', choice: 'HALF', kgPerDay: '0.5', totalKg: '1', suggestedAmount: null },
+          { catId: 'cat-1', choice: 'HALF', kgPerDay: '0.5', totalKg: '1', suggestedAmount: '24' },
         ],
       },
     };
@@ -144,18 +144,9 @@ describe('AgreedAmountCorrectionDialog', () => {
         of({
           ...initial,
           version: 'preview-2',
-          litter: { ...initial.litter, cats: [editedCat] },
-        }),
-      )
-      .mockReturnValueOnce(
-        of({
-          ...initial,
-          version: 'preview-3',
           suggestedAmount: '168',
           litter: {
             ...initial.litter,
-            ratePerKg: '24',
-            rateUnavailable: false,
             subtotal: '48',
             cats: [{ ...editedCat, suggestedAmount: '48' }],
           },
@@ -165,6 +156,14 @@ describe('AgreedAmountCorrectionDialog', () => {
     const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;
+    const copy = fixture.componentInstance.text().stays.pricing.litter;
+    expect(root.textContent).toContain(copy.choices.HALF);
+    expect(root.querySelector('[data-litter-cat="cat-1"]')).toBeNull();
+    const change = [...root.querySelectorAll('button')].find(
+      (button) => button.textContent.trim() === copy.change,
+    );
+    change!.click();
+    await fixture.whenStable();
     const choice = root.querySelector<HTMLSelectElement>('[data-litter-cat="cat-1"]')!;
     expect(choice?.value).toBe('HALF');
     choice.value = 'ONE';
@@ -174,25 +173,44 @@ describe('AgreedAmountCorrectionDialog', () => {
     expect(api.previewPendingPrice).toHaveBeenLastCalledWith('s1', {
       litterChoices: { 'cat-1': 'ONE' },
     });
-    const adopt = [...root.querySelectorAll('button')].find(
-      (button) =>
-        button.textContent.trim() ===
-        fixture.componentInstance.text().stays.pricing.litter.tryCurrentRate,
-    );
-    adopt!.click();
-    await fixture.whenStable();
-    expect(api.previewPendingPrice).toHaveBeenLastCalledWith('s1', {
-      litterChoices: { 'cat-1': 'ONE' },
-      adoptCurrentLitterRate: true,
-    });
+    expect(api.previewPendingPrice).toHaveBeenCalledTimes(2);
     fixture.componentInstance.amount.set('168');
     fixture.componentInstance.submit();
     expect(api.correctAgreedAmount).toHaveBeenCalledWith('s1', {
       agreedAmount: '168',
       reason: null,
-      expectedPendingPriceVersion: 'preview-3',
+      expectedPendingPriceVersion: 'preview-2',
       litterChoices: { 'cat-1': 'ONE' },
-      adoptCurrentLitterRate: true,
+    });
+  });
+  it('shows an unresolved litter choice while allowing a manual amount', async () => {
+    const cats = [{ catId: 'cat-1', name: 'Milo' }];
+    TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: { ...pendingStay, cats } });
+    api.previewPendingPrice.mockReturnValue(of({
+      ...preview,
+      suggestedAmount: null,
+      litter: {
+        ratePerKg: null,
+        rateUnavailable: false,
+        subtotal: null,
+        cats: [{ catId: 'cat-1', choice: null, kgPerDay: null, totalKg: null, suggestedAmount: null }],
+      },
+    }));
+    api.correctAgreedAmount.mockReturnValue(of(stay));
+    const fixture = TestBed.createComponent(AgreedAmountCorrectionDialog);
+    await fixture.whenStable();
+    const content = fixture.nativeElement as HTMLElement;
+    const copy = fixture.componentInstance.text().stays.pricing;
+    const select = content.querySelector<HTMLSelectElement>('[data-litter-cat="cat-1"]')!;
+    expect(select.selectedOptions[0].textContent).toBe(copy.litter.unconfirmed);
+    expect(content.textContent).not.toContain(copy.useSuggestedAmount);
+    expect(content.textContent).not.toContain(copy.litter.unavailable);
+    fixture.componentInstance.amount.set('130');
+    fixture.componentInstance.submit();
+    expect(api.correctAgreedAmount).toHaveBeenCalledWith('s1', {
+      agreedAmount: '130',
+      reason: null,
+      expectedPendingPriceVersion: preview.version,
     });
   });
   it.each([

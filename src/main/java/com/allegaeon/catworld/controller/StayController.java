@@ -121,11 +121,8 @@ public class StayController {
     }
 
     @GetMapping("/{id}/pending-price-preview")
-    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id,
-            @RequestParam(defaultValue = "false") boolean adoptCurrentLitterRate) {
-        return adoptCurrentLitterRate
-                ? stayService.previewPendingPrice(id, new PendingPricePreviewRequestDTO(null, true))
-                : stayService.previewPendingPrice(id);
+    public PendingPricePreviewDTO previewPendingPrice(@PathVariable UUID id) {
+        return stayService.previewPendingPrice(id);
     }
 
     @PostMapping("/{id}/pending-price-preview")

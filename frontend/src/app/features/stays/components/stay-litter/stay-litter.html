@@ -4,31 +4,54 @@
   }
   <ul class="litter-cats" [attr.aria-label]="copy().title">
     @for (row of rows(); track row.catId) {
+      @let choice = choices()[row.catId] ?? row.choice;
+      @let canChange = editable() && collapseKnownChoices() && choice !== null;
+      @let expanded = editingCat() === row.catId;
+      @let showEditor = editable() && (!canChange || expanded);
       <li>
-        @if (editable()) {
+        @if (!showEditor || canChange) {
+          <div class="litter-choice">
+            <span>
+              <strong>{{ row.name }}</strong> ·
+              {{ choice ? copy().choices[choice] : copy().unconfirmed }}
+            </span>
+            @if (canChange) {
+              <button
+                mat-button
+                type="button"
+                [attr.aria-label]="copy().change + ' · ' + copy().catLabel(row.name)"
+                [attr.aria-expanded]="expanded"
+                [disabled]="disabled()"
+                (click)="editingCat.set(expanded ? null : row.catId)"
+              >
+                {{ copy().change }}
+              </button>
+            }
+          </div>
+        }
+        @if (showEditor) {
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>{{ copy().catLabel(row.name) }}</mat-label>
             <select
               matNativeControl
               [attr.data-litter-cat]="row.catId"
               [ngModelOptions]="{ standalone: true }"
-              [ngModel]="choices()[row.catId] ?? row.choice"
+              [ngModel]="choice ?? ''"
               [disabled]="disabled()"
-              (ngModelChange)="choiceChange.emit({ catId: row.catId, choice: $event })"
+              (ngModelChange)="selectChoice(row.catId, $event)"
             >
+              @if (!choice) {
+                <option value="" disabled>{{ copy().unconfirmed }}</option>
+              }
               @for (option of options; track option) {
                 <option [value]="option">{{ copy().choices[option] }}</option>
               }
             </select>
           </mat-form-field>
-        } @else {
-          <span
-            ><strong>{{ row.name }}</strong> · {{ copy().choices[row.choice] }}</span
-          >
         }
-        @if (!updating()) {
+        @if (!updating() && row.totalKg !== null) {
           <small>
-            {{ copy().totalKg(format(row.totalKg)) }} ·
+            {{ copy().totalKg(format(row.totalKg!)) }} ·
             {{
               row.suggestedAmount === null
                 ? unavailable()
