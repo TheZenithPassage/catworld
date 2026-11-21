@@ -374,6 +374,28 @@ class PendingPriceMigrationMySqlIntegrationTest {
         withBreeds.validate();
     }
 
+    @Test
+    void admitsOwnLitterOptionsWhenUpgradingTheExistingCatalog() {
+        Flyway.configure().dataSource(dataSource).target("26.3").load().migrate();
+        String insert = "insert into cat_profile_options (id, category, name, normalized_key) values (?, ?, ?, ?)";
+        var existingCategories = List.of("breed", "coat", "color",
+                "lastInternalDewormerName", "lastExternalDewormerName");
+        for (int index = 0; index < existingCategories.size(); index++) {
+            jdbc.update(insert, id(index + 1), existingCategories.get(index), "Fictional option", new byte[]{1});
+        }
+        var existingOptions = snapshotRows("cat_profile_options", Set.of());
+
+        Flyway.configure().dataSource(dataSource).target("26.4").load().migrate();
+
+        assertEquals(existingOptions, snapshotRows("cat_profile_options", Set.of()));
+        assertEquals(1, jdbc.update(insert, id(10), "litterDetail", "Fictional litter", new byte[]{1}));
+        for (String invalidCategory : List.of("litterdetail", "litterDetail ", "unsupported")) {
+            var invalid = assertThrows(DataAccessException.class,
+                    () -> jdbc.update(insert, id(11), invalidCategory, "Fictional invalid option", new byte[]{2}));
+            assertTrue(invalid.getMessage().contains("ck_cat_profile_option_category"));
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"12", "16", "17"})
     void rejectsAnAppliedChecksumMismatchBeforeApplyingLateMigrations(String changedVersion) throws IOException {
