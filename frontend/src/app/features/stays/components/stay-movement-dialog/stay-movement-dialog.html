@@ -1,0 +1,53 @@
+@let labels = copy();
+@let action = data.action;
+
+<h2 mat-dialog-title>{{ labels.title[action] }}</h2>
+<form (submit)="$event.preventDefault(); confirm()">
+  <mat-dialog-content [attr.aria-busy]="loading() || saving()">
+    <p>
+      <strong>{{ data.catNames.join(', ') }}</strong>
+    </p>
+    @if (loading()) {
+      <app-ui-state kind="loading" [message]="labels.loading" />
+    } @else if (available()) {
+      @if (scheduledAt(); as scheduled) {
+        <p>
+          {{ type === 'ARRIVAL' ? labels.scheduledArrival : labels.scheduledDeparture }} ·
+          <time [attr.datetime]="scheduled">{{ formatScheduled(scheduled) }}</time>
+        </p>
+      }
+      <p>{{ labels.instruction[action] }}</p>
+      @if (requiresTime()) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ labels.realTime }}</mat-label>
+          <input
+            #timeInput
+            matInput
+            type="time"
+            required
+            [value]="time()"
+            [disabled]="saving() || needsRefresh()"
+            (input)="time.set(timeInput.value)"
+          />
+        </mat-form-field>
+      } @else if (action !== 'reset-arrival') {
+        <p>{{ labels.useNow }}</p>
+      }
+      @if (error(); as message) {
+        <p role="alert">{{ labels[message] }}</p>
+      }
+    } @else {
+      <app-ui-state kind="error" [message]="movements() ? labels.unavailable : labels.loadFailed" />
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" [disabled]="saving()" (click)="dismiss()">
+      {{ labels.goBack }}
+    </button>
+    @if (available()) {
+      <button mat-flat-button type="submit" [disabled]="submitDisabled()">
+        {{ labels.confirm[action] }}
+      </button>
+    }
+  </mat-dialog-actions>
+</form>

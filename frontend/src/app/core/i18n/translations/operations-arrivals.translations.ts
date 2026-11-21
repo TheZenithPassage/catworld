@@ -4,9 +4,9 @@ interface ArrivalsTranslations {
   title: string;
   subtitle: string;
   settings: string;
-  daysAhead: string;
+  daysAhead: { arrivals: string; departures: string; suffix: string };
   invalidDaysAhead: string;
-  includeStartedToday: string;
+  tabs: { label: string; arrivals: string; departures: string };
   arrival: string;
   departure: string;
   openStay: string;
@@ -14,9 +14,11 @@ interface ArrivalsTranslations {
   reviewProposal: string;
   toConfirm: string;
   complete: string;
-  loading: string;
-  empty: string;
-  error: string;
+  loading: { arrivals: string; departures: string };
+  empty: { arrivals: string; departures: string };
+  error: { arrivals: string; departures: string };
+  overdue: string;
+  transfer: { arrivals: string; departures: string };
   retry: string;
   refresh: string;
 }
@@ -26,9 +28,13 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
     title: 'Próximas estadías',
     subtitle: 'Revisá qué datos faltan para las próximas estadías.',
     settings: 'Configuración',
-    daysAhead: 'Días a mostrar después de hoy',
+    daysAhead: {
+      arrivals: 'Mostrar los ingresos de los próximos',
+      departures: 'Mostrar las salidas de los próximos',
+      suffix: 'días',
+    },
     invalidDaysAhead: 'Ingresá un número entero de 0 o más.',
-    includeStartedToday: 'Mostrar todos los ingresos de hoy',
+    tabs: { label: 'Movimientos de estadías', arrivals: 'Ingresos', departures: 'Salidas' },
     arrival: 'Ingreso',
     departure: 'Salida',
     openStay: 'Ver estadía',
@@ -36,9 +42,17 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
     reviewProposal: 'Revisar propuesta de ficha',
     toConfirm: 'Por confirmar',
     complete: 'Sin pendientes de preparación',
-    loading: 'Cargando próximos ingresos…',
-    empty: 'No hay ingresos previstos para este período.',
-    error: 'No se pudieron cargar los próximos ingresos.',
+    loading: { arrivals: 'Cargando próximos ingresos…', departures: 'Cargando próximas salidas…' },
+    empty: {
+      arrivals: 'No hay ingresos previstos para este período.',
+      departures: 'No hay salidas previstas para este período.',
+    },
+    error: {
+      arrivals: 'No se pudieron cargar los próximos ingresos.',
+      departures: 'No se pudieron cargar las próximas salidas.',
+    },
+    overdue: 'Pendiente de un día anterior',
+    transfer: { arrivals: 'Traslado de ingreso', departures: 'Traslado de salida' },
     retry: 'Reintentar',
     refresh: 'Actualizar',
   },
@@ -46,9 +60,13 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
     title: 'Upcoming stays',
     subtitle: 'Check which information is missing for upcoming stays.',
     settings: 'Settings',
-    daysAhead: 'Days to show after today',
+    daysAhead: {
+      arrivals: 'Show arrivals for the next',
+      departures: 'Show departures for the next',
+      suffix: 'days',
+    },
     invalidDaysAhead: 'Enter a whole number of 0 or more.',
-    includeStartedToday: 'Show all of today’s arrivals',
+    tabs: { label: 'Stay movements', arrivals: 'Arrivals', departures: 'Departures' },
     arrival: 'Arrival',
     departure: 'Departure',
     openStay: 'View stay',
@@ -56,9 +74,17 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
     reviewProposal: 'Review profile proposal',
     toConfirm: 'To confirm',
     complete: 'No preparation items pending',
-    loading: 'Loading upcoming arrivals…',
-    empty: 'There are no arrivals scheduled for this period.',
-    error: 'Upcoming arrivals could not be loaded.',
+    loading: { arrivals: 'Loading upcoming arrivals…', departures: 'Loading upcoming departures…' },
+    empty: {
+      arrivals: 'There are no arrivals scheduled for this period.',
+      departures: 'There are no departures scheduled for this period.',
+    },
+    error: {
+      arrivals: 'Upcoming arrivals could not be loaded.',
+      departures: 'Upcoming departures could not be loaded.',
+    },
+    overdue: 'Pending from an earlier day',
+    transfer: { arrivals: 'Arrival transport', departures: 'Departure transport' },
     retry: 'Try again',
     refresh: 'Refresh',
   },

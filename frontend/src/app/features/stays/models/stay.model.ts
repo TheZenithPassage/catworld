@@ -21,6 +21,7 @@ export interface StayOverviewItem {
 
 export interface Stay {
   stayId: string;
+  status?: StayOverviewStatus;
   canDelete?: boolean;
   startAt: string;
   endAt: string;

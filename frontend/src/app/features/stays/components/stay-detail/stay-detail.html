@@ -36,15 +36,44 @@
       </div>
     }
   } @else {
+    @let movements = stay.actualMovements;
+    @let movementLabels = movementCopy();
     <dl class="detail-fields">
-      <div class="detail-field">
-        <dt>{{ text().stays.detail.start }}</dt>
-        <dd>{{ date(stay.startAt) }}</dd>
-      </div>
-      <div class="detail-field">
-        <dt>{{ text().stays.detail.end }}</dt>
-        <dd>{{ date(stay.endAt) }}</dd>
-      </div>
+      @for (type of movementTypes; track type) {
+        @let isArrival = type === 'ARRIVAL';
+        @let scheduled = isArrival ? stay.startAt : stay.endAt;
+        <div class="detail-field">
+          <dt>
+            {{ isArrival ? movementLabels.scheduledArrival : movementLabels.scheduledDeparture }}
+          </dt>
+          <dd>
+            <time [attr.datetime]="scheduled">{{ date(scheduled) }}</time>
+          </dd>
+        </div>
+        @if (movements) {
+          @let actual = isArrival ? movements.arrival : movements.departure;
+          <div class="detail-field">
+            <dt>{{ isArrival ? movementLabels.actualArrival : movementLabels.actualDeparture }}</dt>
+            <dd>
+              @if (actual) {
+                <time [attr.datetime]="actual.occurredAt">{{ actualDate(actual.occurredAt) }}</time>
+                @if (actual.recordedBy) {
+                  <div>{{ movementLabels.recordedBy }} {{ actual.recordedBy }}</div>
+                }
+                @if (actual.correctedBy) {
+                  <div>{{ movementLabels.correctedBy }} {{ actual.correctedBy }}</div>
+                }
+              } @else {
+                {{
+                  isHistorical(stay.status, type)
+                    ? movementLabels.legacy
+                    : movementLabels.unrecorded
+                }}
+              }
+            </dd>
+          </div>
+        }
+      }
       <div class="detail-field">
         <dt>{{ text().stays.detail.nights }}</dt>
         <dd>{{ stay.numberOfNights }}</dd>
@@ -130,6 +159,48 @@
         }
       </div>
       <div class="detail-actions-end">
+        @if (movements; as actualMovements) {
+          @if (actualMovements.canRecordArrival) {
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('record-arrival', stay.stayId)"
+            >
+              {{ movementLabels.title['record-arrival'] }}
+            </button>
+          }
+          @if (actualMovements.canRecordDeparture) {
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('record-departure', stay.stayId)"
+            >
+              {{ movementLabels.title['record-departure'] }}
+            </button>
+          }
+          @if (actualMovements.arrival?.canEdit) {
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('correct-arrival', stay.stayId)"
+            >
+              {{ movementLabels.title['correct-arrival'] }}
+            </button>
+          }
+          @if (actualMovements.canResetArrival) {
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('reset-arrival', stay.stayId)"
+            >
+              {{ movementLabels.title['reset-arrival'] }}
+            </button>
+          }
+        }
         @if (pricingStay(); as pricing) {
           @if (pricing.agreedAmount !== null || pricing.pricePending) {
             <button

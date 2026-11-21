@@ -1,10 +1,21 @@
-import { Stay } from '../models/stay.model';
+import { Stay, StayOverviewStatus } from '../models/stay.model';
 
 export type StayStatus = 'cancelled' | 'checked-out' | 'checked-in' | 'reserved';
 
-type StayDates = Pick<Stay, 'startAt' | 'endAt' | 'cancelledAt'>;
+type StayDates = Pick<Stay, 'status' | 'startAt' | 'endAt' | 'cancelledAt'>;
+
+const BACKEND_STAY_STATUS: Record<StayOverviewStatus, StayStatus> = {
+  RESERVED: 'reserved',
+  CHECKED_IN: 'checked-in',
+  CHECKED_OUT: 'checked-out',
+  CANCELLED: 'cancelled',
+};
 
 export function getStayStatus(stay: StayDates, businessNow: string): StayStatus {
+  if (stay.status) {
+    return BACKEND_STAY_STATUS[stay.status];
+  }
+
   if (stay.cancelledAt) {
     return 'cancelled';
   }

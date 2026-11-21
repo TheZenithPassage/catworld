@@ -148,6 +148,14 @@ export class StayEditor {
     const current = this.stay();
     return current !== null && canModifyStay(current, this.businessTime.currentLocalDateTime());
   });
+  readonly lockedArrivalDay = computed(() => {
+    const current = this.stay();
+    return current?.status === 'CHECKED_IN' ? current.startAt.slice(0, 10) : null;
+  });
+  readonly arrivalDayChanged = computed(() => {
+    const day = this.lockedArrivalDay();
+    return day !== null && !!this.startAt() && this.startAt().slice(0, 10) !== day;
+  });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
   readonly applicableCurrentRate = computed(() => {
     const preview = this.pricingPreview();
@@ -309,6 +317,11 @@ export class StayEditor {
 
     if (!this.startAt() || !this.endAt()) {
       this.showError(this.text().stays.edit.errors.datesRequired);
+      return;
+    }
+
+    if (this.arrivalDayChanged()) {
+      this.showError(this.text().stays.edit.errors.arrivalDayLocked);
       return;
     }
 
@@ -620,6 +633,7 @@ export class StayEditor {
       !this.stayId ||
       !this.startAt() ||
       !this.endAt() ||
+      this.arrivalDayChanged() ||
       Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')
     ) {
       this.pricingPreview.set(null);

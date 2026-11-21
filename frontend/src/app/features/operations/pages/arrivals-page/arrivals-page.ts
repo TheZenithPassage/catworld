@@ -4,6 +4,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatTabLink, MatTabNav, MatTabNavPanel } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { filter, fromEvent, Subscription } from 'rxjs';
 
@@ -19,41 +20,45 @@ import {
   CatIntakeInvitationDialog,
   CatIntakeInvitationDialogData,
 } from '../../../cat-intake/cat-intake-invitation-dialog';
+import { STAY_MOVEMENT_TRANSLATIONS } from '../../../stays/components/stay-movement-dialog/stay-movement.translations';
+import type { StayMovementAction } from '../../../stays/models/stay-movement.model';
 import type { VaccineConflictViolation } from '../../../stays/models/stay.model';
 import { vaccineConflictLabels } from '../../../stays/models/vaccine-conflict-label';
+import { StayMovementDialogService } from '../../../stays/services/stay-movement-dialog.service';
 
 type VaccineWarning = Pick<VaccineConflictViolation, 'vaccineType' | 'reason' | 'expiresOn'>;
 
-interface ArrivalCat {
+interface UpcomingCat {
   id: string;
   name: string;
-  foodBrand: string | null;
-  litterBrand: string | null;
-  vaccineWarnings: VaccineWarning[];
+  foodBrand?: string | null;
+  litterChoice?: 'OWN' | 'SHARED' | null;
+  vaccineWarnings?: VaccineWarning[];
   pendingReviews?: { id: string; submittedAt: string }[] | null;
 }
 
-interface Arrival {
+interface UpcomingStay {
   id: string;
   startAt: string;
   endAt: string;
   owner: { id: string; fullName: string };
-  cats: ArrivalCat[];
+  cats: UpcomingCat[];
+  status: 'RESERVED' | 'CHECKED_IN';
+  transferRequired: boolean;
+  overdue: boolean;
+  canRecord: boolean;
 }
 
-interface ArrivalFilters {
-  daysAhead: string;
-  includeStartedToday: boolean;
-}
+type MovementTab = 'arrivals' | 'departures';
 
 const FILTERS_STORAGE_KEY = 'catworld.arrivals.filters';
-const DEFAULT_FILTERS: ArrivalFilters = { daysAhead: '7', includeStartedToday: true };
+const DEFAULT_DAYS_AHEAD = '7';
 const NONNEGATIVE_INTEGER = /^[0-9]+$/;
 const REFRESH_HEADER = 'X-Arrivals-Refresh-After-Ms';
 
 @Component({
   selector: 'app-arrivals-page',
-  imports: [MatButton, RouterLink, UiStateComponent],
+  imports: [MatButton, MatTabLink, MatTabNav, MatTabNavPanel, RouterLink, UiStateComponent],
   templateUrl: './arrivals-page.html',
   styleUrl: './arrivals-page.scss',
 })
@@ -65,48 +70,54 @@ export class ArrivalsPage {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly details = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
+  private readonly movementDialog = inject(StayMovementDialogService);
   private readonly auth = inject(AuthSessionService);
-  private filters = this.readFilters();
+  private appliedDaysAhead = this.readDaysAhead();
   private request?: Subscription;
   private refreshTimer?: ReturnType<typeof setTimeout>;
 
   readonly copy = computed(() => OPERATIONS_ARRIVALS_TRANSLATIONS[this.i18n.language()]);
+  readonly movementCopy = computed(() => STAY_MOVEMENT_TRANSLATIONS[this.i18n.language()]);
   readonly catForm = computed(() => this.i18n.text().cats.form);
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
-  readonly arrivals = signal<Arrival[]>([]);
+  readonly tab = signal<MovementTab>('arrivals');
+  readonly isArrivals = computed(() => this.tab() === 'arrivals');
+  readonly recordAction = computed<StayMovementAction>(() =>
+    this.isArrivals() ? 'record-arrival' : 'record-departure',
+  );
+  readonly stays = signal<UpcomingStay[]>([]);
   readonly state = signal<'loading' | 'error' | 'ready'>('loading');
-  readonly daysAhead = signal(this.filters.daysAhead);
+  readonly daysAhead = signal(this.appliedDaysAhead);
   readonly invalidDaysAhead = computed(() => !NONNEGATIVE_INTEGER.test(this.daysAhead()));
-  readonly includeStartedToday = signal(this.filters.includeStartedToday);
 
   constructor() {
-    this.loadArrivals();
+    this.loadMovements();
     this.destroyRef.onDestroy(() => clearTimeout(this.refreshTimer));
     fromEvent(this.document, 'visibilitychange')
       .pipe(
         filter(() => this.document.visibilityState === 'visible'),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => this.loadArrivals(false));
+      .subscribe(() => this.loadMovements(false));
   }
 
-  loadArrivals(showLoading = true): void {
+  loadMovements(showLoading = true): void {
     clearTimeout(this.refreshTimer);
     this.request?.unsubscribe();
     if (showLoading) this.state.set('loading');
     this.request = this.http
-      .get<Arrival[]>(`${API_BASE_URL}/operations/arrivals`, {
+      .get<UpcomingStay[]>(`${API_BASE_URL}/operations/${this.tab()}`, {
         observe: 'response',
-        params: { ...this.filters },
+        params: { daysAhead: this.appliedDaysAhead },
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
-          this.arrivals.set(response.body ?? []);
+          this.stays.set(response.body ?? []);
           this.state.set('ready');
           const delay = Number(response.headers.get(REFRESH_HEADER));
           if (Number.isFinite(delay) && delay > 0) {
-            this.refreshTimer = setTimeout(() => this.loadArrivals(false), delay);
+            this.refreshTimer = setTimeout(() => this.loadMovements(false), delay);
           }
         },
         error: () => this.state.set('error'),
@@ -115,24 +126,51 @@ export class ArrivalsPage {
 
   changeDaysAhead(value: string): void {
     this.daysAhead.set(value);
-    if (this.invalidDaysAhead() || value === this.filters.daysAhead) return;
-    this.updateFilters({ ...this.filters, daysAhead: value });
+    if (this.invalidDaysAhead() || value === this.appliedDaysAhead) return;
+    this.appliedDaysAhead = value;
+    try {
+      this.document.defaultView?.localStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({ daysAhead: value }),
+      );
+    } catch {
+      // The selection still applies when browser storage is unavailable.
+    }
+    this.loadMovements();
   }
 
-  changeIncludeStartedToday(value: boolean): void {
-    this.includeStartedToday.set(value);
-    this.updateFilters({ ...this.filters, includeStartedToday: value });
+  changeTab(tab: MovementTab): void {
+    if (this.tab() === tab) return;
+    this.tab.set(tab);
+    this.loadMovements();
   }
 
   openDetail(entityType: EntityType, entityId: string): void {
     this.details
       .open({ entityType, entityId })
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.loadArrivals());
+      .subscribe(() => this.loadMovements(false));
   }
 
-  openInvitation(stay: Arrival): void {
-    if (!this.isAdmin()) return;
+  openMovement(stay: UpcomingStay): void {
+    if (stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN')) {
+      this.openDetail('stay', stay.id);
+      return;
+    }
+    if (!stay.canRecord) return;
+    this.movementDialog
+      .open({
+        stayId: stay.id,
+        catNames: stay.cats.map((cat) => cat.name),
+        action: this.recordAction(),
+        allowHistorical: false,
+      })
+      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadMovements(false));
+  }
+
+  openInvitation(stay: UpcomingStay): void {
+    if (!this.isArrivals() || !this.isAdmin()) return;
     this.dialog.open(CatIntakeInvitationDialog, {
       data: {
         ownerId: stay.owner.id,
@@ -144,15 +182,18 @@ export class ArrivalsPage {
     });
   }
 
-  hasPendingPreparation(stay: Arrival): boolean {
-    const isAdmin = this.isAdmin();
-    return stay.cats.some(
-      (cat) =>
-        !cat.foodBrand?.trim() ||
-        !cat.litterBrand?.trim() ||
-        cat.vaccineWarnings.length > 0 ||
-        (isAdmin && !!cat.pendingReviews?.length),
+  hasPendingPreparation(stay: UpcomingStay): boolean {
+    return (
+      this.isArrivals() &&
+      stay.cats.some(
+        (cat) =>
+          this.hasPreparationWarnings(cat) || (this.isAdmin() && !!cat.pendingReviews?.length),
+      )
     );
+  }
+
+  hasPreparationWarnings(cat: UpcomingCat): boolean {
+    return !cat.foodBrand?.trim() || !cat.litterChoice || !!cat.vaccineWarnings?.length;
   }
 
   formatLocalDateTime(value: string): string {
@@ -172,30 +213,16 @@ export class ArrivalsPage {
     return `${vaccine} · ${reason}`;
   }
 
-  private readFilters(): ArrivalFilters {
+  private readDaysAhead(): string {
     try {
-      const stored: Partial<ArrivalFilters> | null = JSON.parse(
+      const stored: { daysAhead?: string } | null = JSON.parse(
         this.document.defaultView?.localStorage.getItem(FILTERS_STORAGE_KEY) ?? 'null',
       );
-      return {
-        daysAhead:
-          typeof stored?.daysAhead === 'string' && NONNEGATIVE_INTEGER.test(stored.daysAhead)
-            ? stored.daysAhead
-            : DEFAULT_FILTERS.daysAhead,
-        includeStartedToday: stored?.includeStartedToday !== false,
-      };
+      return typeof stored?.daysAhead === 'string' && NONNEGATIVE_INTEGER.test(stored.daysAhead)
+        ? stored.daysAhead
+        : DEFAULT_DAYS_AHEAD;
     } catch {
-      return DEFAULT_FILTERS;
+      return DEFAULT_DAYS_AHEAD;
     }
-  }
-
-  private updateFilters(filters: ArrivalFilters): void {
-    this.filters = filters;
-    try {
-      this.document.defaultView?.localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filters));
-    } catch {
-      // The selection still applies when browser storage is unavailable.
-    }
-    this.loadArrivals();
   }
 }
