@@ -3,7 +3,7 @@ import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/co
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
-import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
 
@@ -21,9 +21,15 @@ import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-en
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
-import { CreateCatRequest, Sex } from '../../models/cat.model';
+import {
+  CAT_COAT_LENGTHS,
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+  CreateCatRequest,
+  Sex,
+} from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
-import type { CatProfileOptionFieldKey } from '../../../../shared/cat-profile-options/cat-profile-options.service';
+import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../../components/cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
@@ -37,7 +43,6 @@ import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields'
     MatButton,
     MatError,
     MatFormField,
-    MatHint,
     MatInput,
     MatLabel,
     TrimRequiredDirective,
@@ -82,7 +87,8 @@ export class CatCreatePage implements AfterViewInit {
   readonly color = signal('');
   readonly foodBrand = signal('');
   readonly foodDetail = signal('');
-  readonly catalogApprovals = signal<CatProfileOptionFieldKey[]>([]);
+  readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly coatLengths = CAT_COAT_LENGTHS;
   readonly litterBrand = signal('');
   readonly personality = signal('');
   readonly careInstructions = signal('');
@@ -108,10 +114,16 @@ export class CatCreatePage implements AfterViewInit {
     isErrorState: () => this.notesError() !== null,
   };
 
-  setCatalogApproval(key: CatProfileOptionFieldKey, approved: boolean): void {
-    this.catalogApprovals.update((current) =>
-      approved ? [...new Set([...current, key])] : current.filter((field) => field !== key),
-    );
+  setCatalogSelection(field: CatCatalogSelectionField, id?: string): void {
+    this.catalogSelection.update((current) => ({ ...current, [field]: id }));
+  }
+
+  changeFoodBrand(value: string): void {
+    if (value !== this.foodBrand()) {
+      this.foodBrand.set(value);
+      this.foodDetail.set('');
+      this.setCatalogSelection('foodDetail');
+    }
   }
 
   updateCareInstructions(value: string): void {
@@ -142,7 +154,7 @@ export class CatCreatePage implements AfterViewInit {
       this.color.set(draft.color);
       this.foodBrand.set(draft.foodBrand);
       this.foodDetail.set(draft.foodDetail ?? '');
-      this.catalogApprovals.set(draft.catalogApprovals ?? []);
+      this.catalogSelection.set(draft.catalogSelection ?? {});
       this.litterBrand.set(draft.litterBrand);
       this.personality.set(draft.personality);
       this.careInstructions.set(draft.careInstructions ?? '');
@@ -227,7 +239,6 @@ export class CatCreatePage implements AfterViewInit {
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
 
-    const catalogApprovals = this.catalogApprovals();
     const foodDetail = this.toNullableString(this.foodDetail());
     const request: CreateCatRequest = {
       name: this.name().trim(),
@@ -239,7 +250,7 @@ export class CatCreatePage implements AfterViewInit {
       color: this.toNullableString(this.color()),
       foodBrand: this.toNullableString(this.foodBrand()),
       ...(foodDetail ? { foodDetail } : {}),
-      ...(catalogApprovals.length ? { approveCatalogOptions: catalogApprovals } : {}),
+      ...catCatalogSelectionRequest(this.catalogSelection()),
       litterBrand: this.toNullableString(this.litterBrand()),
       personality: this.toNullableString(this.personality()),
       ...(careInstructions ? { careInstructions } : {}),
@@ -389,7 +400,7 @@ export class CatCreatePage implements AfterViewInit {
       color: this.color(),
       foodBrand: this.foodBrand(),
       foodDetail: this.foodDetail(),
-      catalogApprovals: this.catalogApprovals(),
+      catalogSelection: this.catalogSelection(),
       litterBrand: this.litterBrand(),
       personality: this.personality(),
       careInstructions: this.careInstructions(),

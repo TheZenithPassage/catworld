@@ -17,6 +17,8 @@ import java.util.regex.Pattern;
 final class CatIntakeCatalog {
     static final String FOOD_BRAND = "foodBrand";
     static final String FOOD_DETAIL = "foodDetail";
+    private static final String COAT = "coat";
+    private static final String COLOR = "color";
 
     // Use the same whitespace characters as trim() and /\s+/ in the recipient form.
     private static final Pattern FORM_WHITESPACE = Pattern.compile(
@@ -27,7 +29,9 @@ final class CatIntakeCatalog {
     private final Map<UUID, Option> byId = new HashMap<>();
 
     CatIntakeCatalog(Map<String, List<CatProfileOptionDto>> options, List<FoodVarietyOption> varieties) {
-        this.options = options;
+        this.options = new LinkedHashMap<>(options);
+        this.options.remove(COAT);
+        this.options.remove(COLOR);
         this.varieties = varieties;
         options.forEach((field, values) -> values.forEach(option ->
                 byId.put(option.id(), new Option(option.id(), field, null, option.name()))));
@@ -51,7 +55,8 @@ final class CatIntakeCatalog {
         String brand = supplied.getOrDefault(FOOD_BRAND, original.get(FOOD_BRAND));
         UUID brandId = exactId(FOOD_BRAND, brand, null);
         selection.forEach((field, id) -> {
-            if (id == null || !isOption(field) || !supplied.containsKey(field)) {
+            if (id == null || !supplied.containsKey(field)
+                    || (!isOption(field) && !COAT.equals(field) && !COLOR.equals(field))) {
                 throw new BadRequestException("Supply the name for each selected catalog option");
             }
             requireSelection(field, supplied.get(field), id, brandId);
@@ -63,7 +68,17 @@ final class CatIntakeCatalog {
             String field = entry.getKey();
             String name = entry.getValue();
             if (!isOption(field)) {
-                if (Objects.equals(name, original.getOrDefault(field, "").strip())) result.remove(field);
+                if (sameText(name, original.get(field))) {
+                    result.remove(field);
+                } else if (COAT.equals(field) || COLOR.equals(field)) {
+                    String prior = previous.fields().get(field);
+                    if (COAT.equals(field)) requireCoatLength(name, prior, original.get(field));
+                    if (sameText(name, prior)) {
+                        result.put(field, prior);
+                        UUID previousId = previous.optionIds().get(field);
+                        if (previousId != null) selected.put(field, previousId);
+                    }
+                }
                 continue;
             }
 
@@ -121,7 +136,7 @@ final class CatIntakeCatalog {
         return result;
     }
 
-    void revalidateApproval(Map<String, String> accepted, String currentBrand, Proposal previous) {
+    void revalidateApproval(Map<String, String> accepted, String currentBrand, String currentCoat, Proposal previous) {
         removeBlankOptions(accepted);
         String brand = accepted.getOrDefault(FOOD_BRAND, currentBrand);
         UUID brandId = exactId(FOOD_BRAND, brand, null);
@@ -130,6 +145,11 @@ final class CatIntakeCatalog {
             throw new BadRequestException("Approve this variety together with its food brand");
         }
         accepted.replaceAll((field, name) -> {
+            if (COAT.equals(field)) {
+                requireCoatLength(name, previous.fields().get(field), currentCoat);
+                if (sameText(name, previous.fields().get(field))) return previous.fields().get(field);
+                if (sameText(name, currentCoat)) return currentCoat;
+            }
             if (!isOption(field)) return name;
             if (FOOD_DETAIL.equals(field) && previous.foodDetailBrand() == null) return name;
             UUID persisted = previous.optionIds().get(field);
@@ -140,6 +160,16 @@ final class CatIntakeCatalog {
             if (exact != null) return byId.get(exact).name();
             return FOOD_DETAIL.equals(field) ? name : CatalogOptionName.cleanName(name);
         });
+    }
+
+    private void requireCoatLength(String name, String proposed, String existing) {
+        if (!CatProfileOptionService.isFixedCoatLength(name) && !sameText(name, proposed) && !sameText(name, existing)) {
+            throw new BadRequestException("Select a valid coat length");
+        }
+    }
+
+    private boolean sameText(String name, String saved) {
+        return saved != null && name.equals(saved.strip());
     }
 
     private Option requireSelection(String field, String name, UUID id, UUID brandId) {

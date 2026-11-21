@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
 import { ErrorStateMatcher } from '@angular/material/core';
-import { MatError, MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { I18nService } from '../../../../core/i18n/i18n.service';
@@ -29,9 +29,16 @@ import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.di
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
-import { Cat, Sex, UpdateCatRequest } from '../../models/cat.model';
+import {
+  CAT_COAT_LENGTHS,
+  Cat,
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+  Sex,
+  UpdateCatRequest,
+} from '../../models/cat.model';
 import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
-import type { CatProfileOptionFieldKey } from '../../../../shared/cat-profile-options/cat-profile-options.service';
+import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
 import { CatBirthField, parseBirthYear } from '../cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
@@ -47,7 +54,6 @@ import { CatCareFields } from '../cat-care-fields/cat-care-fields';
     MatCheckbox,
     MatError,
     MatFormField,
-    MatHint,
     MatInput,
     MatLabel,
     RemoteEntitySelector,
@@ -93,7 +99,9 @@ export class CatEditor {
   readonly color = signal('');
   readonly foodBrand = signal('');
   readonly foodDetail = signal('');
-  readonly catalogApprovals = signal<CatProfileOptionFieldKey[]>([]);
+  readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly coatLengths = CAT_COAT_LENGTHS;
+  readonly historicalCoat = signal('');
   readonly litterBrand = signal('');
   readonly personality = signal('');
   readonly careInstructions = signal('');
@@ -123,10 +131,16 @@ export class CatEditor {
     isErrorState: () => this.notesError() !== null,
   };
 
-  setCatalogApproval(key: CatProfileOptionFieldKey, approved: boolean): void {
-    this.catalogApprovals.update((current) =>
-      approved ? [...new Set([...current, key])] : current.filter((field) => field !== key),
-    );
+  setCatalogSelection(field: CatCatalogSelectionField, id?: string): void {
+    this.catalogSelection.update((current) => ({ ...current, [field]: id }));
+  }
+
+  changeFoodBrand(value: string): void {
+    if (value !== this.foodBrand()) {
+      this.foodBrand.set(value);
+      this.foodDetail.set('');
+      this.setCatalogSelection('foodDetail');
+    }
   }
 
   updateCareInstructions(value: string): void {
@@ -246,7 +260,7 @@ export class CatEditor {
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
-    const catalogApprovals = this.catalogApprovals();
+    const original = this.initialCat;
     const request: UpdateCatRequest = {
       expectedUpdatedAt,
       name: this.name().trim(),
@@ -254,17 +268,16 @@ export class CatEditor {
       birthDate: this.yearOnly() ? null : this.birthDate(),
       ...(birthYear === null ? {} : { birthYear }),
       sex: this.sex() as Sex,
-      breed: this.optional(this.breed()),
-      coat: this.optional(this.coat()),
-      color: this.optional(this.color()),
-      ...(this.foodBrand() !== (this.initialCat?.foodBrand ?? '') ||
-      catalogApprovals.includes('foodBrand')
+      breed: this.storedValue(this.breed(), original?.breed),
+      coat: this.storedValue(this.coat(), original?.coat),
+      color: this.storedValue(this.color(), original?.color),
+      ...(this.foodBrand() !== (original?.foodBrand ?? '')
         ? { foodBrand: this.optional(this.foodBrand()) }
         : {}),
       ...(this.foodDetail() !== (this.initialCat?.foodDetail ?? '')
         ? { foodDetail: this.optional(this.foodDetail()) }
         : {}),
-      ...(catalogApprovals.length ? { approveCatalogOptions: catalogApprovals } : {}),
+      ...catCatalogSelectionRequest(this.catalogSelection(), this.savedCatalogSelection(original)),
       ...(this.litterBrand() !== (this.initialCat?.litterBrand ?? '')
         ? { litterBrand: this.optional(this.litterBrand()) }
         : {}),
@@ -273,9 +286,15 @@ export class CatEditor {
         ? { careInstructions: careInstructions || null }
         : {}),
       notes: this.optional(this.notes()),
-      lastInternalDewormerName: this.optional(this.lastInternalDewormerName()),
+      lastInternalDewormerName: this.storedValue(
+        this.lastInternalDewormerName(),
+        original?.lastInternalDewormerName,
+      ),
       lastInternalDewormingDate: this.optional(this.lastInternalDewormingDate()),
-      lastExternalDewormerName: this.optional(this.lastExternalDewormerName()),
+      lastExternalDewormerName: this.storedValue(
+        this.lastExternalDewormerName(),
+        original?.lastExternalDewormerName,
+      ),
       lastExternalDewormingDate: this.optional(this.lastExternalDewormingDate()),
       lastTripleFelineDate: this.optional(this.lastTripleFelineDate()),
       lastRabiesDate: this.optional(this.lastRabiesDate()),
@@ -342,10 +361,13 @@ export class CatEditor {
     this.vetRawContentPresent.set(c.vetId !== null);
     this.breed.set(c.breed ?? '');
     this.coat.set(c.coat ?? '');
+    this.historicalCoat.set(
+      this.coatLengths.some((length) => length === c.coat) ? '' : (c.coat ?? ''),
+    );
     this.color.set(c.color ?? '');
     this.foodBrand.set(c.foodBrand ?? '');
     this.foodDetail.set(c.foodDetail ?? '');
-    this.catalogApprovals.set([]);
+    this.catalogSelection.set(this.savedCatalogSelection(c));
     this.litterBrand.set(c.litterBrand ?? '');
     this.personality.set(c.personality ?? '');
     this.careInstructions.set(c.careInstructions ?? '');
@@ -362,6 +384,18 @@ export class CatEditor {
     this.vetSelector?.trustInitialValue(
       c.vetId && c.vetName ? { id: c.vetId, label: c.vetName } : null,
     );
+  }
+  private savedCatalogSelection(cat: Cat | null): CatCatalogSelection {
+    return {
+      breed: cat?.catalogOptionIds?.breed,
+      foodBrand: cat?.foodBrandId ?? undefined,
+      foodDetail: cat?.catalogOptionIds?.foodDetail,
+      lastInternalDewormerName: cat?.catalogOptionIds?.lastInternalDewormerName,
+      lastExternalDewormerName: cat?.catalogOptionIds?.lastExternalDewormerName,
+    };
+  }
+  private storedValue(value: string, saved?: string | null): string | null {
+    return value === saved ? saved : this.optional(value);
   }
   private optional(v: string): string | null {
     return v.trim() || null;

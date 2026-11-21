@@ -41,8 +41,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates", "/api/operations/arrivals",
-                                "/api/food-brands", "/api/cat-profile-options")
+                                "/api/food-brands", "/api/food-brands/varieties", "/api/cat-profile-options")
                         .hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.POST, "/api/cat-profile-options").hasRole("ADMIN")
                         .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,
