@@ -156,6 +156,108 @@ class CatIntakeControllerTest {
     }
 
     @Test
+    void catalogChangesKeepLinkedIdentityAndOriginalProposalWording() throws Exception {
+        Owner owner = owner();
+        String publish = "/api/cat-profile-options";
+        String name = "Original breed";
+        String renamed = "Corrected breed";
+        var published = mvc.perform(post(publish).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsBytes(Map.of("field", "breed", "name", name))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        UUID optionId = UUID.fromString(json.readTree(published).get("id").asString());
+        Cat linked = cat(owner, "Linked cat");
+        linked.setBreed(name);
+        linked.setBreedOptionId(optionId);
+        cats.saveAndFlush(linked);
+        Cat local = cat(owner, "Local cat");
+        local.setBreed(name);
+        cats.saveAndFlush(local);
+
+        var invite = issue(owner, true);
+        UUID draftId = UUID.randomUUID();
+        var proposed = newRegistration("Pending registration", Map.of("breed", name));
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", proposed,
+                        "optionIds", Map.of("breed", optionId)))))
+                .andExpect(status().isNoContent());
+        var review = rowFor(reviewList(), owner.getId(), "Pending registration");
+
+        String change = publish + "/manage/breed/" + optionId;
+        mvc.perform(patch(change).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsBytes(Map.of("name", renamed))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(optionId.toString()));
+        mvc.perform(patch(change).with(admin()).contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/cats/{id}", linked.getId()).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.breed").value(renamed))
+                .andExpect(jsonPath("$.catalogOptionIds.breed").value(optionId.toString()));
+        var linkedRead = json.readTree(mvc.perform(get("/api/cats/{id}", linked.getId()).with(admin()))
+                .andReturn().getResponse().getContentAsByteArray());
+        mvc.perform(internalCatEdit(linked, "Short", linkedRead.get("updatedAt").asText()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.catalogOptionIds.breed").value(optionId.toString()))
+                .andExpect(jsonPath("$.breed").value(renamed));
+        mvc.perform(get("/api/cats/{id}", local.getId()).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.breed").value(name))
+                .andExpect(jsonPath("$.catalogOptionIds.breed").doesNotExist());
+
+        var updated = recipientForm(invite);
+        var linkedCard = updated.get("cats").valueStream().filter(card ->
+                card.get("fields").get("name").asString().equals("Linked cat")).findFirst().orElseThrow();
+        assertThat(linkedCard.get("fields").get("breed").asString()).isEqualTo(renamed);
+        assertThat(linkedCard.get("optionIds").get("breed").asString()).isEqualTo(optionId.toString());
+        assertThat(updated.get("catalogOptions").get("breed")).isEmpty();
+        mvc.perform(get(REVIEW + "/{id}", review.get("id").asText()).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.proposed.breed").value(name));
+
+        approve(review, proposed, List.of(), null, 204);
+        var approved = cats.findAll().stream().filter(cat -> cat.getName().equals("Pending registration"))
+                .filter(cat -> cat.getOwner().getId().equals(owner.getId())).findFirst().orElseThrow();
+        assertThat(approved.getBreedOptionId()).isEqualTo(optionId);
+        mvc.perform(get(publish).with(admin())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.breed").isEmpty());
+        var nextInvite = issue(owner, false);
+        mvc.perform(patch(change).with(admin()).contentType(MediaType.APPLICATION_JSON).content("{\"active\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(optionId.toString()));
+        assertThat(catalogId(recipientForm(nextInvite), "breed", renamed)).isEqualTo(optionId.toString());
+    }
+
+    @Test
+    void approvesNewVarietyForTheSameLinkedBrandAfterItsNameChanges() throws Exception {
+        Owner owner = owner();
+        String catalog = "/api/cat-profile-options";
+        var response = mvc.perform(post(catalog).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsBytes(Map.of("field", "foodBrand", "name", "Initial name"))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        UUID brandId = UUID.fromString(json.readTree(response).get("id").asString());
+        Cat cat = cat(owner, "Linked diet");
+        cat.setFoodBrandId(brandId);
+        cat.setFoodBrand("Initial name");
+        cat.setLitterBrand(null);
+        cat = cats.saveAndFlush(cat);
+
+        var invite = issue(owner, false);
+        String change = catalog + "/manage/foodBrand/" + brandId;
+        mvc.perform(patch(change).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsBytes(Map.of("name", "Intermediate name"))))
+                .andExpect(status().isOk());
+        var proposal = Map.of("foodDetail", "A new variety", "litterBrand", "Own litter");
+        mvc.perform(submission(invite, List.of(Map.of("catId", cat.getId(), "fields", proposal))))
+                .andExpect(status().isNoContent());
+        var row = rowFor(reviewList(), owner.getId(), "Linked diet");
+
+        mvc.perform(patch(change).with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsBytes(Map.of("name", "Final name"))))
+                .andExpect(status().isOk());
+        mvc.perform(get(REVIEW + "/{id}", row.get("id").asText()).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.current.foodBrand").value("Final name"))
+                .andExpect(jsonPath("$.proposedFoodDetailBrand").value("Final name"));
+        approve(row, proposal, List.of(), detail(row.get("id").asText()).get("catUpdatedAt").asText(), 204);
+        mvc.perform(get("/api/cats/{id}", cat.getId()).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.foodBrandId").value(brandId.toString()))
+                .andExpect(jsonPath("$.foodDetail").value("A new variety"))
+                .andExpect(jsonPath("$.catalogOptionIds.foodDetail").isNotEmpty());
+    }
+
+    @Test
     void snapshotsTheHouseholdAndKeepsPendingProfilesOpenUntilTheFinalApproval() throws Exception {
         Owner owner = owner();
         Cat withPending = cat(owner, "Pending vaccine");

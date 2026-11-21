@@ -121,6 +121,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'catalogs',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/catalogs/catalog-management').then((m) => m.CatalogManagement),
+  },
+  {
     path: 'accounts',
     canActivate: [adminGuard],
     loadComponent: () =>

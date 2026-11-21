@@ -68,6 +68,19 @@ public class CatRequestDTO {
     @Size(max = 100, message = "Breed must not exceed 100 characters")
     private String breed;
 
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean breedSupplied;
+
+    @JsonSetter("breed")
+    public void setBreed(String breed) {
+        this.breed = breed;
+        breedSupplied = true;
+    }
+
+    public boolean hasBreedUpdate() {
+        return breedSupplied || breed != null;
+    }
+
     @Size(max = 100, message = "Coat must not exceed 100 characters")
     private String coat;
 
@@ -159,11 +172,37 @@ public class CatRequestDTO {
     @Size(max = 100, message = "Last internal dewormer name must not exceed 100 characters")
     private String lastInternalDewormerName;
 
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean lastInternalDewormerNameSupplied;
+
+    @JsonSetter("lastInternalDewormerName")
+    public void setLastInternalDewormerName(String lastInternalDewormerName) {
+        this.lastInternalDewormerName = lastInternalDewormerName;
+        lastInternalDewormerNameSupplied = true;
+    }
+
+    public boolean hasLastInternalDewormerNameUpdate() {
+        return lastInternalDewormerNameSupplied || lastInternalDewormerName != null;
+    }
+
     @PastOrPresent(message = "Last internal deworming date cannot be in the future")
     private LocalDate lastInternalDewormingDate;
 
     @Size(max = 100, message = "Last external dewormer name must not exceed 100 characters")
     private String lastExternalDewormerName;
+
+    @JsonIgnore @Getter(AccessLevel.NONE) @Setter(AccessLevel.NONE)
+    private boolean lastExternalDewormerNameSupplied;
+
+    @JsonSetter("lastExternalDewormerName")
+    public void setLastExternalDewormerName(String lastExternalDewormerName) {
+        this.lastExternalDewormerName = lastExternalDewormerName;
+        lastExternalDewormerNameSupplied = true;
+    }
+
+    public boolean hasLastExternalDewormerNameUpdate() {
+        return lastExternalDewormerNameSupplied || lastExternalDewormerName != null;
+    }
 
     @PastOrPresent(message = "Last external deworming date cannot be in the future")
     private LocalDate lastExternalDewormingDate;

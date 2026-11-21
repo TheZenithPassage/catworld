@@ -2,6 +2,7 @@ package com.allegaeon.catworld.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Formula;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -36,14 +37,20 @@ public class Cat extends AuditableEntity {
 
     private String breed;
     private UUID breedOptionId;
+    @Formula("(select catalog.name from cat_profile_options catalog where catalog.id = breed_option_id)")
+    private String currentBreed;
     private String coat;
     private UUID coatOptionId;
     private String color;
     private UUID colorOptionId;
     private String foodBrand;
     private UUID foodBrandId;
+    @Formula("(select catalog.name from food_brands catalog where catalog.id = food_brand_id)")
+    private String currentFoodBrand;
     private String foodDetail;
     private UUID foodVarietyId;
+    @Formula("(select catalog.name from food_varieties catalog where catalog.id = food_variety_id)")
+    private String currentFoodDetail;
     private String litterBrand;
     private String personality;
 
@@ -55,9 +62,13 @@ public class Cat extends AuditableEntity {
 
     private String lastInternalDewormerName;
     private UUID lastInternalDewormerOptionId;
+    @Formula("(select catalog.name from cat_profile_options catalog where catalog.id = last_internal_dewormer_option_id)")
+    private String currentLastInternalDewormerName;
     private LocalDate lastInternalDewormingDate;
     private String lastExternalDewormerName;
     private UUID lastExternalDewormerOptionId;
+    @Formula("(select catalog.name from cat_profile_options catalog where catalog.id = last_external_dewormer_option_id)")
+    private String currentLastExternalDewormerName;
     private LocalDate lastExternalDewormingDate;
     private LocalDate lastTripleFelineDate;
     private LocalDate lastRabiesDate;
@@ -73,6 +84,51 @@ public class Cat extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by_id", nullable = false, updatable = false)
     private UserAccount createdBy;
+
+    public String getDisplayedBreed() {
+        return currentBreed == null ? breed : currentBreed;
+    }
+
+    public void setBreedOptionId(UUID id) {
+        breedOptionId = id;
+        currentBreed = null;
+    }
+
+    public String getDisplayedFoodBrand() {
+        return currentFoodBrand == null ? foodBrand : currentFoodBrand;
+    }
+
+    public void setFoodBrandId(UUID id) {
+        foodBrandId = id;
+        currentFoodBrand = null;
+    }
+
+    public String getDisplayedFoodDetail() {
+        return currentFoodDetail == null ? foodDetail : currentFoodDetail;
+    }
+
+    public void setFoodVarietyId(UUID id) {
+        foodVarietyId = id;
+        currentFoodDetail = null;
+    }
+
+    public String getDisplayedLastInternalDewormerName() {
+        return currentLastInternalDewormerName == null ? lastInternalDewormerName : currentLastInternalDewormerName;
+    }
+
+    public void setLastInternalDewormerOptionId(UUID id) {
+        lastInternalDewormerOptionId = id;
+        currentLastInternalDewormerName = null;
+    }
+
+    public String getDisplayedLastExternalDewormerName() {
+        return currentLastExternalDewormerName == null ? lastExternalDewormerName : currentLastExternalDewormerName;
+    }
+
+    public void setLastExternalDewormerOptionId(UUID id) {
+        lastExternalDewormerOptionId = id;
+        currentLastExternalDewormerName = null;
+    }
 
     @Builder.Default
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "cat")

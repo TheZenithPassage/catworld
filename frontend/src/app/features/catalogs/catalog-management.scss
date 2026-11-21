@@ -1,0 +1,68 @@
+.catalog-management {
+  max-width: 56rem;
+  display: grid;
+  gap: 1rem;
+
+  h2,
+  p {
+    margin: 0;
+  }
+}
+
+.selectors,
+.entry-form,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.selectors mat-form-field,
+.entry-form mat-form-field {
+  flex: 1 1 14rem;
+  max-width: 24rem;
+  min-width: 0;
+}
+
+.entry-form button {
+  margin-block-start: 0.55rem;
+}
+
+.feedback {
+  color: var(--color-text-muted);
+}
+
+.error {
+  color: var(--mat-sys-error);
+}
+
+.options {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 0.75rem;
+
+  li {
+    padding: 0.65rem 1rem;
+  }
+
+  li + li {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+}
+
+.option {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  overflow-wrap: anywhere;
+
+  small {
+    display: block;
+    color: var(--color-text-muted);
+  }
+}

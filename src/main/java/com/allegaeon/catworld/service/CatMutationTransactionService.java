@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -32,9 +33,14 @@ public class CatMutationTransactionService {
 
     @Transactional
     public Cat create(CatRequestDTO request, NormalizedCatPhoto photo) {
+        return create(request, photo, Map.of());
+    }
+
+    // Intake manages its own transaction and can apply previously submitted catalog selections.
+    Cat create(CatRequestDTO request, NormalizedCatPhoto photo, Map<String, UUID> reviewedOptions) {
         Cat cat = catMapper.toEntity(request, owner(request.getOwnerId()), vet(request.getVetId()));
         cat.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
-        profileOptions.applyProfile(cat, request);
+        profileOptions.applyProfile(cat, request, reviewedOptions);
         cat = catRepository.saveAndFlush(cat);
         if (photo != null) catPhotoRepository.save(toEntity(cat.getId(), photo));
         entityManager.refresh(cat);
@@ -51,7 +57,7 @@ public class CatMutationTransactionService {
         if (!Objects.equals(cat.getUpdatedAt(), request.getExpectedUpdatedAt())) {
             throw new StaleCatEditException();
         }
-        applyProfile(cat, request);
+        applyProfile(cat, request, Map.of());
         // A profile photo change must also advance the timestamp on the cat row.
         if (removePhoto || photo != null) cat.setUpdatedAt(Instant.now());
         if (removePhoto) catPhotoRepository.deleteById(id);
@@ -62,9 +68,9 @@ public class CatMutationTransactionService {
     }
 
     // The caller holds the write lock in its transaction.
-    void applyProfile(Cat cat, CatRequestDTO request) {
+    void applyProfile(Cat cat, CatRequestDTO request, Map<String, UUID> reviewedOptions) {
         catMapper.updateEntity(cat, request, owner(request.getOwnerId()), vet(request.getVetId()));
-        profileOptions.applyProfile(cat, request);
+        profileOptions.applyProfile(cat, request, reviewedOptions);
     }
 
     private Owner owner(UUID id) {

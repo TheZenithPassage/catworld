@@ -2,6 +2,7 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.dto.CatProfileOptionDto;
 import com.allegaeon.catworld.dto.FoodVarietyOption;
+import com.allegaeon.catworld.dto.ManagedCatProfileOption;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.CatIntakeCatalogChangedException;
 
@@ -19,6 +20,7 @@ final class CatIntakeCatalog {
     static final String FOOD_DETAIL = "foodDetail";
     private static final String COAT = "coat";
     private static final String COLOR = "color";
+    private static final String FOOD_DETAIL_BRAND_ID = "foodDetailBrand";
 
     // Use the same whitespace characters as trim() and /\s+/ in the recipient form.
     private static final Pattern FORM_WHITESPACE = Pattern.compile(
@@ -28,15 +30,18 @@ final class CatIntakeCatalog {
     private final List<FoodVarietyOption> varieties;
     private final Map<UUID, Option> byId = new HashMap<>();
 
-    CatIntakeCatalog(Map<String, List<CatProfileOptionDto>> options, List<FoodVarietyOption> varieties) {
+    CatIntakeCatalog(Map<String, List<CatProfileOptionDto>> options, List<FoodVarietyOption> varieties,
+                     List<ManagedCatProfileOption> managed) {
         this.options = new LinkedHashMap<>(options);
         this.options.remove(COAT);
         this.options.remove(COLOR);
         this.varieties = varieties;
+        managed.forEach(option -> byId.put(option.id(),
+                new Option(option.id(), option.field(), option.brandId(), option.name(), false)));
         options.forEach((field, values) -> values.forEach(option ->
-                byId.put(option.id(), new Option(option.id(), field, null, option.name()))));
+                byId.put(option.id(), new Option(option.id(), field, null, option.name(), true))));
         varieties.forEach(variety ->
-                byId.put(variety.id(), new Option(variety.id(), FOOD_DETAIL, variety.brandId(), variety.name())));
+                byId.put(variety.id(), new Option(variety.id(), FOOD_DETAIL, variety.brandId(), variety.name(), true)));
     }
 
     Map<String, List<CatProfileOptionDto>> options() {
@@ -47,23 +52,40 @@ final class CatIntakeCatalog {
         return varieties;
     }
 
+    Map<String, String> displayOriginal(Map<String, String> original, Map<String, UUID> originalIds) {
+        var displayed = new LinkedHashMap<>(original);
+        originalIds.forEach((field, id) -> {
+            var option = byId.get(id);
+            if (option != null && field.equals(option.field())) displayed.put(field, option.name());
+        });
+        return displayed;
+    }
+
     Proposal propose(Map<String, String> supplied, Map<String, UUID> selection, Map<String, String> original,
-                     Proposal previous) {
+                     Map<String, UUID> originalIds, Proposal previous) {
         removeBlankOptions(supplied);
         Map<String, String> result = new LinkedHashMap<>(supplied);
         Map<String, UUID> selected = new LinkedHashMap<>();
         String brand = supplied.getOrDefault(FOOD_BRAND, original.get(FOOD_BRAND));
-        UUID brandId = exactId(FOOD_BRAND, brand, null);
+        String previousBrand = previous.fields().getOrDefault(FOOD_BRAND, original.get(FOOD_BRAND));
+        UUID brandId = selection.get(FOOD_BRAND);
+        if (brandId == null && sameName(brand, previousBrand)) brandId = previous.optionIds().get(FOOD_BRAND);
+        if (brandId == null && sameName(brand, original.get(FOOD_BRAND))) brandId = originalIds.get(FOOD_BRAND);
+        UUID selectedBrand = brandId;
         selection.forEach((field, id) -> {
             if (id == null || !supplied.containsKey(field)
                     || (!isOption(field) && !COAT.equals(field) && !COLOR.equals(field))) {
                 throw new BadRequestException("Supply the name for each selected catalog option");
             }
-            requireSelection(field, supplied.get(field), id, brandId);
+            if (!retainsSelection(field, supplied.get(field), id, selectedBrand, previous)
+                    && !(id.equals(originalIds.get(field)) && sameName(supplied.get(field), original.get(field))
+                    && (!FOOD_DETAIL.equals(field) || Objects.equals(selectedBrand, originalIds.get(FOOD_BRAND))))) {
+                requireSelection(field, supplied.get(field), id, selectedBrand);
+            }
         });
 
         boolean sameOriginalBrand = sameName(brand, original.get(FOOD_BRAND));
-        boolean samePreviousBrand = sameName(brand, previous.fields().getOrDefault(FOOD_BRAND, original.get(FOOD_BRAND)));
+        boolean samePreviousBrand = sameName(brand, previousBrand);
         for (var entry : supplied.entrySet()) {
             String field = entry.getKey();
             String name = entry.getValue();
@@ -87,67 +109,71 @@ final class CatIntakeCatalog {
                 result.remove(field);
                 continue;
             }
+
             UUID id = selection.get(field);
-            boolean unchanged = (!variety || samePreviousBrand) && sameName(name, previous.fields().get(field));
             UUID previousId = previous.optionIds().get(field);
-            if (id == null && previousId != null && unchanged) {
-                unchanged = matches(byId.get(previousId), field, name, brandId);
-                if (unchanged) id = previousId;
-            }
-            if (unchanged) {
-                // A retained legacy diet predates brand-scoped variety approval.
-                if (variety && previous.foodDetailBrand() == null) id = null;
-            }
-            if (id != null) {
+            boolean unchanged = (!variety || samePreviousBrand || (previousId != null
+                    && byId.containsKey(previousId) && Objects.equals(byId.get(previousId).brandId(), brandId)))
+                    && sameName(name, previous.fields().get(field));
+            if (unchanged && (id == null || id.equals(previousId))) {
+                result.put(field, previous.fields().get(field));
+                if (previousId != null && retainsSelection(field, name, previousId, brandId, previous)) {
+                    selected.put(field, previousId);
+                }
+            } else if (id != null) {
                 result.put(field, requireSelection(field, name, id, brandId).name());
                 selected.put(field, id);
-            } else if (unchanged) {
-                result.put(field, previous.fields().get(field));
             } else {
                 requireUnlisted(field, name, brandId);
                 if (!variety) result.put(field, CatalogOptionName.cleanName(name));
             }
         }
         String foodDetailBrand = result.containsKey(FOOD_DETAIL) ? brand : null;
-        if (samePreviousBrand && sameName(result.get(FOOD_DETAIL), previous.fields().get(FOOD_DETAIL))) {
-            foodDetailBrand = previous.foodDetailBrand();
+        if (result.containsKey(FOOD_DETAIL)) {
+            if (sameName(result.get(FOOD_DETAIL), previous.fields().get(FOOD_DETAIL))
+                    && (samePreviousBrand || (brandId != null && brandId.equals(expectedVarietyBrand(previous))))) {
+                foodDetailBrand = previous.foodDetailBrand();
+            }
+            if (foodDetailBrand != null && brandId != null) selected.put(FOOD_DETAIL_BRAND_ID, brandId);
         }
         return new Proposal(result, selected, foodDetailBrand);
     }
 
-    Map<String, UUID> displaySelections(Map<String, String> original, Proposal proposed) {
-        var values = new LinkedHashMap<>(original);
-        values.putAll(proposed.fields());
-        UUID brandId = exactId(FOOD_BRAND, values.get(FOOD_BRAND), null);
-        Map<String, UUID> result = new LinkedHashMap<>();
-        values.forEach((field, value) -> {
-            if (!isOption(field)) return;
-            if (FOOD_DETAIL.equals(field) && !proposed.fields().containsKey(field)
-                    && !sameName(values.get(FOOD_BRAND), original.get(FOOD_BRAND))) return;
-            UUID persisted = proposed.optionIds().get(field);
-            if (persisted != null) {
-                Option option = byId.get(persisted);
-                if (matches(option, field, value, brandId)) result.put(field, persisted);
-                return;
-            }
-            UUID id = exactId(field, value, brandId);
-            if (id != null) result.put(field, id);
+    Map<String, UUID> displaySelections(Map<String, UUID> originalIds, Proposal proposed) {
+        var result = new LinkedHashMap<>(originalIds);
+        proposed.fields().keySet().forEach(result::remove);
+        if (proposed.fields().containsKey(FOOD_BRAND)) result.remove(FOOD_DETAIL);
+        proposed.optionIds().forEach((field, id) -> {
+            if (proposed.fields().containsKey(field)) result.put(field, id);
         });
         return result;
     }
 
-    void revalidateApproval(Map<String, String> accepted, String currentBrand, String currentCoat,
-                            Proposal previous, UUID foodVarietyId) {
+    String reviewVarietyBrand(Proposal proposal, UUID currentBrandId) {
+        if (proposal.fields().containsKey(FOOD_BRAND) || proposal.foodDetailBrand() == null) {
+            return proposal.foodDetailBrand();
+        }
+        var brand = byId.get(currentBrandId);
+        return brand != null && currentBrandId.equals(expectedVarietyBrand(proposal))
+                ? brand.name() : proposal.foodDetailBrand();
+    }
+
+    Map<String, UUID> revalidateApproval(Map<String, String> accepted, String currentBrand, UUID currentBrandId,
+                                         String currentCoat, Proposal previous, UUID foodVarietyId) {
         removeBlankOptions(accepted);
         String brand = accepted.getOrDefault(FOOD_BRAND, currentBrand);
-        UUID brandId = exactId(FOOD_BRAND, brand, null);
+        var reviewed = new LinkedHashMap<String, UUID>();
+        UUID reviewedBrand = reviewedSelection(FOOD_BRAND, brand, previous);
+        UUID brandId = !accepted.containsKey(FOOD_BRAND) ? currentBrandId
+                : reviewedBrand == null ? exactId(FOOD_BRAND, brand, null) : reviewedBrand;
+        UUID expectedBrand = expectedVarietyBrand(previous);
         if (foodVarietyId != null) {
             if (!accepted.containsKey(FOOD_DETAIL)) {
                 throw new BadRequestException("Select the food variety field before approving a catalog choice");
             }
             accepted.put(FOOD_DETAIL, requireSelection(FOOD_DETAIL, accepted.get(FOOD_DETAIL), foodVarietyId, brandId).name());
         } else if (accepted.containsKey(FOOD_DETAIL) && previous.foodDetailBrand() != null
-                && !sameName(previous.foodDetailBrand(), brand)) {
+                && (expectedBrand == null ? !sameName(previous.foodDetailBrand(), brand) : !expectedBrand.equals(brandId))) {
             throw new BadRequestException("Approve this variety together with its food brand");
         }
         accepted.replaceAll((field, name) -> {
@@ -158,14 +184,42 @@ final class CatIntakeCatalog {
             }
             if (!isOption(field)) return name;
             if (FOOD_DETAIL.equals(field) && (foodVarietyId != null || previous.foodDetailBrand() == null)) return name;
-            UUID persisted = previous.optionIds().get(field);
-            if (persisted != null && sameName(name, previous.fields().get(field))) {
-                return requireSelection(field, name, persisted, brandId).name();
+            UUID persisted = reviewedSelection(field, name, previous);
+            if (persisted != null) {
+                reviewed.put(field, persisted);
+                return name; // The mutation resolves the label using the accepted ID.
             }
             UUID exact = exactId(field, name, brandId);
             if (exact != null) return byId.get(exact).name();
             return FOOD_DETAIL.equals(field) ? name : CatalogOptionName.cleanName(name);
         });
+        return reviewed;
+    }
+
+    private UUID expectedVarietyBrand(Proposal proposal) {
+        UUID brandId = proposal.optionIds().get(FOOD_DETAIL_BRAND_ID);
+        if (brandId != null) return brandId;
+        brandId = proposal.optionIds().get(FOOD_BRAND);
+        if (brandId != null) return brandId;
+        var variety = byId.get(proposal.optionIds().get(FOOD_DETAIL));
+        return variety == null ? null : variety.brandId();
+    }
+
+    private UUID reviewedSelection(String field, String name, Proposal previous) {
+        UUID id = previous.optionIds().get(field);
+        if (id == null || !sameName(name, previous.fields().get(field))) return null;
+        Option option = byId.get(id);
+        if (option == null || !field.equals(option.field())) {
+            // Pre-existing coat and color options are never hidden by catalog management.
+            throw new CatIntakeCatalogChangedException(field);
+        }
+        return id;
+    }
+
+    private boolean retainsSelection(String field, String name, UUID id, UUID brandId, Proposal previous) {
+        Option option = byId.get(id);
+        return id.equals(previous.optionIds().get(field)) && sameName(name, previous.fields().get(field))
+                && option != null && inScope(option, field, brandId);
     }
 
     private void requireCoatLength(String name, String proposed, String existing) {
@@ -180,7 +234,7 @@ final class CatIntakeCatalog {
 
     private Option requireSelection(String field, String name, UUID id, UUID brandId) {
         Option option = byId.get(id);
-        if (option == null) throw new CatIntakeCatalogChangedException(field);
+        if (option == null || !option.active()) throw new CatIntakeCatalogChangedException(field);
         if (!option.field().equals(field)) {
             throw new BadRequestException("The selected catalog option has a different category");
         }
@@ -195,7 +249,7 @@ final class CatIntakeCatalog {
 
     private void requireUnlisted(String field, String name, UUID brandId) {
         String search = searchKey(name);
-        if (byId.values().stream().anyMatch(option -> inScope(option, field, brandId)
+        if (byId.values().stream().anyMatch(option -> option.active() && inScope(option, field, brandId)
                 && searchKey(option.name()).contains(search))) {
             throw new CatIntakeCatalogChangedException(field);
         }
@@ -203,7 +257,8 @@ final class CatIntakeCatalog {
 
     private UUID exactId(String field, String name, UUID brandId) {
         if (name == null) return null;
-        return byId.values().stream().filter(option -> matches(option, field, name, brandId))
+        return byId.values().stream()
+                .filter(option -> option.active() && inScope(option, field, brandId) && sameName(option.name(), name))
                 .map(Option::id).findFirst().orElse(null);
     }
 
@@ -214,10 +269,6 @@ final class CatIntakeCatalog {
     private void removeBlankOptions(Map<String, String> fields) {
         fields.entrySet().removeIf(entry -> isOption(entry.getKey())
                 && (searchKey(entry.getValue()).isEmpty() || CatalogOptionName.cleanName(entry.getValue()) == null));
-    }
-
-    private static boolean matches(Option option, String field, String name, UUID brandId) {
-        return option != null && inScope(option, field, brandId) && sameName(option.name(), name);
     }
 
     private static boolean inScope(Option option, String field, UUID brandId) {
@@ -234,5 +285,5 @@ final class CatIntakeCatalog {
 
     record Proposal(Map<String, String> fields, Map<String, UUID> optionIds, String foodDetailBrand) {}
 
-    private record Option(UUID id, String field, UUID brandId, String name) {}
+    private record Option(UUID id, String field, UUID brandId, String name, boolean active) {}
 }

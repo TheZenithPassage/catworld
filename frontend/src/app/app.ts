@@ -62,6 +62,7 @@ export class App {
 
     if (this.authenticated()?.role === 'ADMIN') {
       items.push({ path: '/cat-intake', label: nav.catIntake, exact: false });
+      items.push({ path: '/catalogs', label: nav.catalogs, exact: false });
       items.push({ path: '/payments', label: nav.payments, exact: false });
       items.push({ path: '/sensitive-activity', label: nav.sensitiveActivity, exact: false });
       items.push({ path: '/accounts', label: nav.accounts, exact: false });

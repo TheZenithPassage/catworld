@@ -14,7 +14,10 @@ import java.util.UUID;
 public interface CatProfileOptionRepository extends JpaRepository<CatProfileOption, UUID> {
     List<CatProfileOption> findAllByOrderByNameAscIdAsc();
 
-    Optional<CatProfileOption> findByCategoryAndNormalizedKey(String category, byte[] normalizedKey);
+    List<CatProfileOption> findAllByActiveTrueOrderByNameAscIdAsc();
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<CatProfileOption> findLockedById(UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<CatProfileOption> findLockedByCategoryAndNormalizedKey(String category, byte[] normalizedKey);

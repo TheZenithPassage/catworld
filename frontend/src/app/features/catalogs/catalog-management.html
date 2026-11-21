@@ -1,0 +1,139 @@
+<section class="catalog-management">
+  <h2>{{ copy().title }}</h2>
+  <div class="selectors">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ copy().category }}</mat-label>
+      <select
+        #categorySelect
+        matNativeControl
+        [value]="field()"
+        [disabled]="disabled()"
+        (change)="selectField(categorySelect.value)"
+      >
+        @for (category of fields; track category) {
+          <option [value]="category">{{ copy().fields[category] }}</option>
+        }
+      </select>
+    </mat-form-field>
+    @if (field() === 'foodDetail') {
+      <mat-form-field appearance="outline">
+        <mat-label>{{ copy().brand }}</mat-label>
+        <select
+          #brandSelect
+          matNativeControl
+          [value]="brandId()"
+          [disabled]="disabled()"
+          (change)="selectBrand(brandSelect.value)"
+        >
+          <option value="">{{ copy().chooseBrand }}</option>
+          @for (brand of brands(); track brand.id) {
+            <option [value]="brand.id">
+              {{ brand.name }}{{ brand.active ? '' : ' · ' + copy().hiddenBrand }}
+            </option>
+          }
+        </select>
+      </mat-form-field>
+    }
+  </div>
+
+  @if (saved()) {
+    <p class="feedback" role="status">{{ copy().saved }}</p>
+  }
+  @if (saveError(); as error) {
+    <p class="error" role="alert">{{ copy()[error] }}</p>
+  }
+  @if (loading()) {
+    <p role="status">{{ copy().loading }}</p>
+  } @else if (loadError()) {
+    <div class="feedback">
+      <p role="alert">{{ copy().loadError }}</p>
+      <button mat-stroked-button type="button" (click)="load()">{{ copy().retry }}</button>
+    </div>
+  } @else if (field() !== 'foodDetail' || brand()) {
+    @if (canAdd()) {
+      <form class="entry-form" (submit)="$event.preventDefault(); add()">
+        <mat-form-field appearance="outline">
+          <mat-label>{{ copy().name }}</mat-label>
+          <input
+            matInput
+            required
+            [maxLength]="maxLength()"
+            [value]="name()"
+            [disabled]="disabled()"
+            (input)="name.set($event.target.value)"
+          />
+        </mat-form-field>
+        <button mat-flat-button [disabled]="disabled() || !name().trim()">{{ copy().add }}</button>
+      </form>
+    } @else {
+      <p class="feedback">{{ copy().hiddenBrandHelp }}</p>
+    }
+
+    @if (options().length) {
+      <ul class="options">
+        @for (option of options(); track option.id) {
+          <li>
+            @if (renameId() === option.id) {
+              <form class="entry-form" (submit)="$event.preventDefault(); rename(option)">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ copy().name }}</mat-label>
+                  <input
+                    matInput
+                    required
+                    [maxLength]="maxLength()"
+                    [value]="renameName()"
+                    [disabled]="disabled()"
+                    (input)="renameName.set($event.target.value)"
+                  />
+                </mat-form-field>
+                <button mat-flat-button [disabled]="disabled() || !renameName().trim()">
+                  {{ copy().save }}
+                </button>
+                <button mat-button type="button" [disabled]="disabled()" (click)="cancelRename()">
+                  {{ copy().cancel }}
+                </button>
+              </form>
+            } @else {
+              <div class="option">
+                <div>
+                  <strong>{{ option.name }}</strong>
+                  <small>{{
+                    !option.active
+                      ? copy().hidden
+                      : brand()?.active === false && field() === 'foodDetail'
+                        ? copy().hiddenBrand
+                        : copy().visible
+                  }}</small>
+                </div>
+                <div class="actions">
+                  <button
+                    mat-button
+                    type="button"
+                    [disabled]="disabled()"
+                    [attr.aria-label]="copy().edit + ' ' + option.name"
+                    (click)="beginRename(option)"
+                  >
+                    {{ copy().edit }}
+                  </button>
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="disabled()"
+                    [attr.aria-label]="
+                      (option.active ? copy().hide : copy().restore) + ' ' + option.name
+                    "
+                    (click)="toggleVisibility(option)"
+                  >
+                    {{ option.active ? copy().hide : copy().restore }}
+                  </button>
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p>{{ copy().empty }}</p>
+    }
+  }
+</section>
