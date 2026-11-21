@@ -85,6 +85,8 @@ export interface CatsTranslations {
       dimensionsTooLarge: string;
       undecodable: string;
       intentConflict: string;
+      requestTooLarge: string;
+      tooManyAttachments: string;
     };
   };
   informationalPhotos: {
@@ -99,10 +101,9 @@ export interface CatsTranslations {
     removePrompt: string;
     empty: string;
     loading: string;
-    saving: string;
+    close: string;
+    previewUnavailable: string;
     loadFailed: string;
-    addFailed: string;
-    removeFailed: string;
   };
   create: {
     title: string;
@@ -211,10 +212,9 @@ export const CATS_TRANSLATIONS = {
       removePrompt: '¿Querés quitar esta foto?',
       empty: 'Todavía no hay fotos adjuntas.',
       loading: 'Cargando fotos…',
-      saving: 'Guardando cambios…',
+      close: 'Cerrar',
+      previewUnavailable: 'La vista previa de esta foto no está disponible.',
       loadFailed: 'No se pudieron cargar las fotos.',
-      addFailed: 'No se pudo adjuntar la foto.',
-      removeFailed: 'No se pudo quitar la foto.',
     },
     form: {
       name: 'Nombre',
@@ -283,6 +283,10 @@ export const CATS_TRANSLATIONS = {
         localFileTooLarge: 'Seleccioná una foto de 32 MiB o menos.',
         localUnsupportedFormat: 'Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         fileTooLarge: 'La foto supera el límite de 32 MiB. Seleccioná un archivo más pequeño.',
+        requestTooLarge:
+          'El guardado admite hasta 33 MiB en total. Quitá alguna foto nueva o usá archivos más pequeños.',
+        tooManyAttachments:
+          'La cantidad de fotos nuevas supera el límite de un guardado. Guardá algunas y adjuntá las restantes después.',
         unsupportedFormat:
           'El formato no es compatible. Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         dimensionsTooLarge:
@@ -398,10 +402,9 @@ export const CATS_TRANSLATIONS = {
       removePrompt: 'Remove this photo?',
       empty: 'No photos attached yet.',
       loading: 'Loading photos…',
-      saving: 'Saving changes…',
+      close: 'Close',
+      previewUnavailable: 'A preview of this photo is unavailable.',
       loadFailed: 'Could not load the photos.',
-      addFailed: 'Could not attach the photo.',
-      removeFailed: 'Could not remove the photo.',
     },
     form: {
       name: 'Name',
@@ -470,6 +473,10 @@ export const CATS_TRANSLATIONS = {
         localFileTooLarge: 'Select a photo that is 32 MiB or smaller.',
         localUnsupportedFormat: 'Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         fileTooLarge: 'The photo exceeds the 32 MiB limit. Select a smaller file.',
+        requestTooLarge:
+          'A save request can be up to 33 MiB. Remove a new photo or use smaller files.',
+        tooManyAttachments:
+          'There are too many new photos for one save. Save some now and attach the rest afterward.',
         unsupportedFormat:
           'This format is not supported. Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         dimensionsTooLarge: 'The photo dimensions are too large. Select a smaller image.',

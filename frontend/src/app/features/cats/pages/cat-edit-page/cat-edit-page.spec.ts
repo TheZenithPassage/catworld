@@ -18,6 +18,7 @@ import { CatEditor } from '../../components/cat-editor/cat-editor';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
 import { CatProfileOptionsService } from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 
 describe('CatEditor', () => {
   let component: CatEditor;
@@ -78,6 +79,10 @@ describe('CatEditor', () => {
   const catApiService = {
     getCatById: vi.fn(),
     updateCat: vi.fn(),
+    listInformationalPhotos: vi.fn(),
+    getInformationalPhoto: vi.fn(),
+    addInformationalPhoto: vi.fn(),
+    deleteInformationalPhoto: vi.fn(),
   };
 
   const profileOptions = {
@@ -108,6 +113,12 @@ describe('CatEditor', () => {
     router.navigate.mockResolvedValue(true);
     routeParams = { id: 'cat-1' };
     catApiService.getCatById.mockReturnValue(of(cat));
+    catApiService.listInformationalPhotos.mockReturnValue(
+      of([{ id: 'attachment-1', createdAt: '2026-11-12T08:00:00Z' }]),
+    );
+    catApiService.getInformationalPhoto.mockReturnValue(
+      of(new Blob(['record'], { type: 'image/jpeg' })),
+    );
     ownerApiService.getOwners.mockReturnValue(of(owners));
     vetApiService.getVets.mockReturnValue(of(vets));
     window.scrollTo = vi.fn();
@@ -186,6 +197,125 @@ describe('CatEditor', () => {
       .map((error) => error.textContent?.trim())
       .join(' ');
   }
+
+  function stageGalleryChanges(): File {
+    const gallery = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-cat-informational-photo-gallery',
+    )!;
+    const remove = gallery.querySelector('li button[aria-label]') as HTMLButtonElement;
+    remove.click();
+    fixture.detectChanges();
+    (gallery.querySelector('.confirmation-actions button:last-child') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    const file = new File(['record'], 'record.jpg', { type: 'image/jpeg' });
+    const input = gallery.querySelector('input[type=file]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    return file;
+  }
+
+  it('discards confirmed removals and new files on cancel without writing them', async () => {
+    createComponent();
+    fixture.componentRef.setInput('routed', false);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    stageGalleryChanges();
+    const cancelled = vi.fn();
+    component.cancelled.subscribe(cancelled);
+    (
+      fixture.nativeElement.querySelector('.form-actions button[type=button]') as HTMLButtonElement
+    ).click();
+
+    expect(cancelled).toHaveBeenCalledOnce();
+    expect(catApiService.updateCat).not.toHaveBeenCalled();
+    expect(catApiService.addInformationalPhoto).not.toHaveBeenCalled();
+    expect(catApiService.deleteInformationalPhoto).not.toHaveBeenCalled();
+  });
+
+  it('sends the gallery changes once and retains the draft after a stale save', async () => {
+    createComponent();
+    await fixture.whenStable();
+    const file = stageGalleryChanges();
+    component.name.set('Milo edited');
+    catApiService.updateCat.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 409, error: { code: 'CAT_EDIT_STALE' } })),
+    );
+
+    await submitRenderedForm();
+    expect(catApiService.updateCat).toHaveBeenCalledOnce();
+    expect(catApiService.updateCat).toHaveBeenCalledWith(
+      cat.id,
+      expect.objectContaining({
+        name: 'Milo edited',
+        removedInformationalPhotoIds: ['attachment-1'],
+      }),
+      null,
+      false,
+      [file],
+    );
+    expect(component.staleEdit()).toBe(true);
+    expect(component.name()).toBe('Milo edited');
+    expect(
+      fixture.nativeElement.querySelector('app-cat-informational-photo-gallery li').textContent,
+    ).toContain(file.name);
+  });
+
+  it('opens an enlarged attachment without replacing the editor and releases images on session loss', async () => {
+    const auth = TestBed.inject(AuthSessionService);
+    auth.login({ username: 'operator', role: 'STAFF' }, { username: 'operator', password: 'pass' });
+    createComponent();
+    fixture.componentRef.setInput('routed', false);
+    component.name.set('Milo draft');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const gallery = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-cat-informational-photo-gallery',
+    )!;
+    const file = new File(['record'], 'local-record.jpg', { type: 'image/jpeg' });
+    const input = gallery.querySelector('input[type=file]') as HTMLInputElement;
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    try {
+      Object.defineProperty(input, 'files', { value: [file] });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+      const localUrl = gallery.querySelector<HTMLImageElement>('img')!.src;
+      (gallery.querySelector('.view-photo') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const preview = document.querySelector<HTMLImageElement>('[role="dialog"] .enlarged-photo');
+      expect(preview?.src).toMatch(/^blob:/);
+      expect(catApiService.getInformationalPhoto).toHaveBeenCalledWith(cat.id, 'attachment-1');
+      const previewUrl = preview!.src;
+
+      document
+        .querySelector<HTMLButtonElement>('[role="dialog"] mat-dialog-actions button')!
+        .click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(revoke).toHaveBeenCalledWith(previewUrl);
+      expect(component.name()).toBe('Milo draft');
+      expect(gallery.querySelectorAll('li')).toHaveLength(2);
+
+      (gallery.querySelector('.view-photo') as HTMLButtonElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      const reopened = document.querySelector<HTMLImageElement>(
+        '[role="dialog"] .enlarged-photo',
+      )!.src;
+      auth.logout();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(document.querySelector('[role="dialog"] .enlarged-photo')).toBeNull();
+      expect(revoke).toHaveBeenCalledWith(reopened);
+      expect(revoke).toHaveBeenCalledWith(localUrl);
+      expect(gallery.querySelectorAll('li')).toHaveLength(0);
+    } finally {
+      revoke.mockRestore();
+    }
+  });
 
   it('loads the cat and renders Material edit fields and actions', async () => {
     createComponent();
@@ -270,6 +400,7 @@ describe('CatEditor', () => {
       }),
       null,
       false,
+      [],
     );
   });
 
@@ -314,6 +445,7 @@ describe('CatEditor', () => {
       expect.objectContaining({ name: 'Draft name', expectedUpdatedAt: cat.updatedAt }),
       draftPhoto,
       false,
+      [],
     );
     expect(component.name()).toBe('Draft name');
     expect(photoInput.mutation().photo).toBe(draftPhoto);
@@ -356,6 +488,7 @@ describe('CatEditor', () => {
       }),
       null,
       false,
+      [],
     );
   });
 
@@ -426,6 +559,7 @@ describe('CatEditor', () => {
       },
       null,
       false,
+      [],
     );
     expect(saved).toHaveBeenCalledWith(cat);
     expect(router.navigate).not.toHaveBeenCalled();
@@ -495,17 +629,17 @@ describe('CatEditor', () => {
     const photo = new File(['photo'], 'replacement.jpg', { type: 'image/jpeg' });
 
     component.submit();
-    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2, 4)).toEqual([null, false]);
     photoInput.markSavedPhotoForRemoval();
     component.submit();
-    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, true]);
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2, 4)).toEqual([null, true]);
     photoInput.undoRemoval();
     photoInput.select(fileChange(photo));
     component.submit();
-    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([photo, false]);
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2, 4)).toEqual([photo, false]);
     photoInput.removeSelection();
     component.submit();
-    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2)).toEqual([null, false]);
+    expect(catApiService.updateCat.mock.calls.at(-1)?.slice(2, 4)).toEqual([null, false]);
   });
 
   it('preserves a saved photo after rejecting an oversized replacement and retains fields', () => {
@@ -526,6 +660,7 @@ describe('CatEditor', () => {
       expect.objectContaining({ name: 'Retained name' }),
       null,
       false,
+      [],
     );
     expect(component.name()).toBe('Retained name');
     expect(photoInput.mutation()).toEqual({ photo: null, removePhoto: false });
@@ -550,6 +685,7 @@ describe('CatEditor', () => {
       expect.objectContaining({ name: 'Retained name' }),
       photo,
       false,
+      [],
     );
     expect(component.name()).toBe('Retained name');
     expect(photoInput.mutation().photo).toBe(photo);
