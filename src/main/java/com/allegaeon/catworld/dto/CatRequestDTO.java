@@ -15,6 +15,7 @@ import lombok.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Year;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -83,6 +84,10 @@ public class CatRequestDTO {
 
     private boolean approveFoodBrand;
     private Set<String> approveCatalogOptions;
+    private Map<String, UUID> catalogOptionIds;
+
+    @JsonIgnore
+    private boolean reviewedIntake;
 
     @JsonIgnore
     private boolean approveFoodVariety;

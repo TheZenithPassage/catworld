@@ -34,6 +34,13 @@ import static com.allegaeon.catworld.service.CatalogOptionName.key;
 public class CatProfileOptionService {
     private static final List<String> FIELD_KEYS = Arrays.stream(CatProfileOptionField.values())
             .map(CatProfileOptionField::key).toList();
+    private static final List<String> MANAGED_FIELDS = Arrays.stream(CatProfileOptionField.values())
+            .filter(CatProfileOptionField::isCatalogManaged).map(CatProfileOptionField::key).toList();
+    private static final Set<String> COAT_LENGTHS = Set.of("Corto", "Largo", "Sin pelo");
+
+    static boolean isFixedCoatLength(String value) {
+        return value != null && COAT_LENGTHS.contains(value);
+    }
 
     private final CatProfileOptionRepository options;
     private final FoodBrandService foodBrands;
@@ -60,12 +67,11 @@ public class CatProfileOptionService {
             throw new BadRequestException("Provide a valid catalog option name");
         }
         if (variety) return foodBrands.publishVariety(name, brandId);
-        if (brandId != null || field == null || !FIELD_KEYS.contains(field)
-                || "coat".equals(field) || "color".equals(field)) {
+        if (brandId != null || field == null || !MANAGED_FIELDS.contains(field)) {
             throw new BadRequestException("This cat profile field cannot be published");
         }
         if (FOOD_BRAND.key().equals(field)) return foodBrands.publishBrand(name);
-        var option = findOrPublishOption(field, name, true);
+        var option = findOrPublishOption(field, name);
         return new CatProfileOptionDto(option.getId(), option.getName());
     }
 
@@ -76,7 +82,8 @@ public class CatProfileOptionService {
     }
 
     void selectForApproval(CatRequestDTO request, Map<String, String> selected) {
-        Set<String> approvals = new LinkedHashSet<>(FIELD_KEYS);
+        request.setReviewedIntake(true);
+        Set<String> approvals = new LinkedHashSet<>(MANAGED_FIELDS);
         approvals.retainAll(selected.keySet());
         request.setApproveCatalogOptions(approvals);
         if (approvals.contains(FOOD_BRAND.key())) request.setFoodBrand(selected.get(FOOD_BRAND.key()));
@@ -86,22 +93,49 @@ public class CatProfileOptionService {
     void applyProfile(Cat cat, CatRequestDTO request) {
         Set<String> approvals = request.getApproveCatalogOptions() == null
                 ? Set.of() : request.getApproveCatalogOptions();
-        if (!FIELD_KEYS.containsAll(approvals)) {
+        if (!MANAGED_FIELDS.containsAll(approvals)) {
             throw new BadRequestException("An unknown cat profile option was selected for approval");
         }
         boolean approveFood = request.isApproveFoodBrand() || approvals.contains(FOOD_BRAND.key());
         if (approveFood || request.isApproveFoodVariety() || !approvals.isEmpty()) requireAdministrator();
 
+        Map<String, UUID> selected = request.getCatalogOptionIds() == null ? Map.of() : request.getCatalogOptionIds();
+        if (!MANAGED_FIELDS.containsAll(selected.keySet()) || selected.containsKey(FOOD_BRAND.key())
+                || selected.values().stream().anyMatch(Objects::isNull)) {
+            throw new BadRequestException("An unknown cat profile option was selected");
+        }
         for (var field : CatProfileOptionField.values()) {
             if (field == FOOD_BRAND) {
                 foodBrands.applyProfile(cat, request, approveFood);
             } else {
-                applyOption(field, cat, suppliedName(field, request), approvals.contains(field.key()));
+                String supplied = suppliedName(field, request);
+                if (field.isCatalogManaged()) {
+                    applyOption(field, cat, supplied, approvals.contains(field.key()), selected.get(field.key()));
+                } else {
+                    applyDescription(field, cat, supplied, request.isReviewedIntake());
+                }
             }
         }
     }
 
-    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve) {
+    private void applyDescription(CatProfileOptionField field, Cat cat, String supplied, boolean reviewedIntake) {
+        if (Objects.equals(field.nameOf(cat), supplied)) return;
+        String description = supplied == null || supplied.isBlank() ? null : supplied.strip();
+        if (field == CatProfileOptionField.COAT && description != null && !reviewedIntake
+                && !isFixedCoatLength(description)) {
+            throw new BadRequestException("Select a valid coat length");
+        }
+        field.setOption(cat, reviewedIntake && description != null ? supplied : description, null);
+    }
+
+    private void applyOption(CatProfileOptionField field, Cat cat, String supplied, boolean approve, UUID selected) {
+        if (selected != null) {
+            var option = options.findById(selected)
+                    .filter(entry -> field.key().equals(entry.getCategory()))
+                    .orElseThrow(() -> new BadRequestException("The selected catalog option does not belong to this field"));
+            field.setOption(cat, option.getName(), option.getId());
+            return;
+        }
         if (!approve && Objects.equals(field.nameOf(cat), supplied)) return;
 
         String name = cleanName(supplied);
@@ -111,14 +145,14 @@ public class CatProfileOptionService {
             return;
         }
 
-        var option = findOrPublishOption(field.key(), name, approve);
+        var option = approve ? findOrPublishOption(field.key(), name) : null;
         field.setOption(cat, option == null ? supplied : option.getName(), option == null ? null : option.getId());
     }
 
-    private CatProfileOption findOrPublishOption(String field, String name, boolean approve) {
+    private CatProfileOption findOrPublishOption(String field, String name) {
         byte[] normalizedKey = key(name);
         var option = options.findByCategoryAndNormalizedKey(field, normalizedKey).orElse(null);
-        if (option == null && approve) {
+        if (option == null) {
             options.insertIfAbsent(binaryId(UUID.randomUUID()), field, name, normalizedKey);
             // A locking read sees a concurrent insert in MySQL repeatable-read transactions.
             option = options.findLockedByCategoryAndNormalizedKey(field, normalizedKey).orElseThrow();

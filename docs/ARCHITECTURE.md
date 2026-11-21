@@ -105,23 +105,25 @@ changing the cat profile or registering a new cat. Both decisions prevent
 further edits to that proposal through the invitation. The link closes when
 the last outstanding cat is resolved.
 
-Cat profiles suggest approved options for breed, coat, color, food brand, and
-the last internal and external dewormers. `GET /api/cat-profile-options` lists
-options by field for `ADMIN` and `STAFF`. The Bearer-authorized private form
-receives the same options in `catalogOptions`. The tutor selects an approved
-option by ID whenever the typed text matches part or all of an option's name
-after normalizing case and whitespace. The server validates the selection and
-preserves its ID in the proposal. A direct cat edit can keep a local
-value. Only administrators can publish a new option, either by selecting it
-for the catalog in the editor or by applying the field during intake review.
-Historical text remains on cat profiles, and approved selections reference
-catalog IDs. `GET /api/food-brands`, `foodBrandId` and the private form's
-`brands` list continue to use the existing food brand IDs. The form receives
-`foodVarieties` scoped by brand. An administrator can approve a proposed
-variety for its brand. Cat profiles retain existing diet descriptions even
-when a brand change removes the variety association. Historical descriptions
-stay on their profiles. Tutors can bring their own litter,
-with an optional description, or choose the shared CatWorld supply.
+Cat profiles suggest approved breeds, food brands, brand-specific food
+varieties, and the last internal and external dewormers. A tutor must select
+a matching option by ID, including when the query matches part of the name.
+Unmatched text can be proposed for review. Coat length is limited to Corto,
+Largo and Sin pelo for new entries. Color and markings are free text.
+Historical profile text, catalog references and pending submissions retain
+their stored values.
+
+Staff can select catalog options by ID or save a local description.
+Administrators can publish a catalog option with an explicit action in the
+editor or by applying the proposed field during intake review. The editor
+can read options through `GET /api/cat-profile-options` and scoped varieties
+through `GET /api/food-brands/varieties`. A selected variety references its
+brand and uses the same ID as the household form. A brand change removes
+an incompatible variety association.
+
+Litter stays optional in administration. The existing `litterBrand` value
+indicates CatWorld litter, personal litter with an optional description, or
+an unconfirmed choice. Tutors choose one of the two supplies for a new cat.
 
 This document describes the currently implemented architecture and domain behavior. It is not a permanent limit on future CatWorld product scope.
 

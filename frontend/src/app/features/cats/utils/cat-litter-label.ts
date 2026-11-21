@@ -7,7 +7,7 @@ export function catLitterChoice(value: string | null | undefined): 'shared' | 'o
 }
 
 export function catOwnLitterDetail(value: string | null | undefined): string {
-  return catLitterChoice(value) === 'own' && value !== OWN_LITTER ? value ?? '' : '';
+  return catLitterChoice(value) === 'own' && value !== OWN_LITTER ? (value ?? '') : '';
 }
 
 export function catLitterLabel(

@@ -3,7 +3,11 @@ import { catLitterChoice, catLitterLabel, catOwnLitterDetail } from './cat-litte
 
 describe('cat litter values', () => {
   it('displays historical text as the detail for personal litter', () => {
-    const labels = { ownLitter: 'Personal', sharedLitter: 'CatWorld', unconfirmedLitter: 'Pending' };
+    const labels = {
+      ownLitter: 'Personal',
+      sharedLitter: 'CatWorld',
+      unconfirmedLitter: 'Pending',
+    };
 
     expect(catLitterChoice('Clay')).toBe('own');
     expect(catOwnLitterDetail('Clay')).toBe('Clay');

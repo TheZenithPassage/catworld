@@ -202,6 +202,32 @@ test('full registration requires its core fields and submits only the selected b
   assert.equal(cats[0].fields.foodDetail, 'Pollo');
 });
 
+test('a legacy coat stays on an existing profile and color stays free text', async (t) => {
+  const portal = await openForm(t, {
+    cats: [{ ...existing, fields: { name: 'Mora', coat: 'Semilargo' }, requestedFields: [] }],
+    catalogOptions: {
+      coat: [{ id: 'coat-legacy', name: 'Semilargo' }],
+      color: [{ id: 'color-gray', name: 'Gris' }],
+    },
+  });
+  const [cat] = portal.entries();
+  cat.querySelector('details').open = true;
+  cat.querySelector('details.other-fields').open = true;
+  const coat = cat.querySelector('[name="coat"]');
+  assert.equal(coat.tagName, 'SELECT');
+  assert.deepEqual(
+    [...coat.options].map(({ value }) => value),
+    ['', 'Corto', 'Largo', 'Sin pelo', 'Semilargo'],
+  );
+  assert.equal(coat.value, 'Semilargo');
+  const color = enter(portal.window, cat, 'color', 'Gris');
+  assert.equal(color.closest('.catalog-field'), null);
+  const submission = await portal.submit();
+  const { cats } = JSON.parse(await submission.body.get('submission').text());
+  assert.deepEqual(cats[0].fields, { color: 'Gris' });
+  assert.equal(cats[0].optionIds, undefined);
+});
+
 test('editing an existing year-only birth can replace it with a precise date', async (t) => {
   const portal = await openForm(t, {
     allowNewCats: false,
@@ -297,7 +323,7 @@ test('confirms an incomplete household draft and returns to the first unanswered
   const cats = [...dialog.querySelectorAll('#partial-cats > li')].map((item) => item.textContent);
   assert.equal(cats.length, 2);
   assert.match(cats[0], /Mora.*antirrábica/);
-  assert.match(cats[1], /Pipa.*Variedad o dieta/);
+  assert.match(cats[1], /Pipa.*Variedad del alimento/);
   assert.doesNotMatch(dialog.textContent, /Marca de comida/);
   assert.equal(window.document.activeElement.id, 'complete-partial');
 
@@ -431,12 +457,12 @@ test('partial and exact catalog matches require a choice even after leaving the 
   assert.equal(await portal.submit(), undefined);
   suggestions.querySelector('button').click();
   assert.match(brand.closest('.catalog-field').textContent, /✓.*Seleccionado: Royal Canin/);
-  enter(portal.window, cat, 'coat', 'Semilargo');
+  enter(portal.window, cat, 'coat', 'Sin pelo');
   const post = await portal.submit();
   const { cats } = JSON.parse(await post.body.get('submission').text());
   assert.deepEqual(cats[0].fields, {
     breed: 'Siamés',
-    coat: 'Semilargo',
+    coat: 'Sin pelo',
     foodBrand: 'Royal Canin',
   });
   assert.deepEqual(cats[0].optionIds, { breed: 'breed-siamese', foodBrand: 'brand-royal' });
@@ -548,7 +574,7 @@ for (const partial of [false, true]) {
           ],
           catalogOptions: {
             foodBrand: catalogChanged ? [{ id: 'brand-royal', name: 'Royal Canin' }] : [],
-            color: [{ id: 'color-gray', name: 'Gris' }],
+            breed: [{ id: 'breed-persian', name: 'Persa' }],
           },
         }),
         {
@@ -564,8 +590,8 @@ for (const partial of [false, true]) {
       );
       const [cat] = portal.entries();
       await setOpen(cat.querySelector('.other-fields'), true);
-      const color = enter(portal.window, cat, 'color', 'G');
-      color.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
+      const breed = enter(portal.window, cat, 'breed', 'Per');
+      breed.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
       const brand = enter(portal.window, cat, 'foodBrand', 'Royal Canin');
       const fileInput = cat.querySelector('input[type="file"]');
       const file = new File(['photo'], 'vaccine.jpg', { type: 'image/jpeg' });
@@ -582,12 +608,12 @@ for (const partial of [false, true]) {
       assert.equal(portal.window.document.activeElement, brand);
       assert.equal(brand.value, 'Royal Canin');
       assert.equal(fileInput.files[0], file);
-      assert.match(color.closest('.catalog-field').textContent, /✓.*Seleccionado: Gris/);
+      assert.match(breed.closest('.catalog-field').textContent, /✓.*Seleccionado: Persa/);
       assert.equal(await portal.submit(), undefined);
       brand.closest('.catalog-field').querySelector('.catalog-suggestions button').click();
       const retry = await submitDraft();
       const { cats } = JSON.parse(await retry.body.get('submission').text());
-      assert.deepEqual(cats[0].optionIds, { foodBrand: 'brand-royal', color: 'color-gray' });
+      assert.deepEqual(cats[0].optionIds, { foodBrand: 'brand-royal', breed: 'breed-persian' });
       assert.equal(retry.body.get(cats[0].photoKeys[0]).name, 'vaccine.jpg');
     },
   );

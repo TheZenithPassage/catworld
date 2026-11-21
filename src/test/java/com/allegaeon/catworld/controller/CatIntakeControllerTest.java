@@ -143,9 +143,9 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.cats.length()").value(2))
                 .andExpect(jsonPath("$.cats[0].requestedFields[0]").value("lastRabiesDate"))
                 .andExpect(jsonPath("$.cats[1].requestedFields").isEmpty());
-        mvc.perform(submission(invite, List.of(Map.of("catId", addedLater.getId(), "fields", Map.of("coat", "Long")))))
+        mvc.perform(submission(invite, List.of(Map.of("catId", addedLater.getId(), "fields", Map.of("coat", "Largo")))))
                 .andExpect(status().isBadRequest());
-        mvc.perform(submission(invite, List.of(Map.of("catId", complete.getId(), "fields", Map.of("coat", "Long")))))
+        mvc.perform(submission(invite, List.of(Map.of("catId", complete.getId(), "fields", Map.of("coat", "Largo")))))
                 .andExpect(status().isBadRequest());
 
         var first = Map.of("catId", withPending.getId(), "fields", Map.of("lastRabiesDate", "2026-09-20"),
@@ -229,7 +229,7 @@ class CatIntakeControllerTest {
 
         var invite = issue(owner, false);
         mvc.perform(submission(invite, List.of(Map.of("catId", first.getId(), "fields",
-                        Map.of("coat", "Short", "foodBrand", "\u00a0")))))
+                        Map.of("coat", "Corto", "foodBrand", "\u00a0")))))
                 .andExpect(status().isNoContent());
         assertThat(reviewList().valueStream().noneMatch(row -> owner.getId().toString().equals(row.get("ownerId").asString())))
                 .isTrue();
@@ -246,12 +246,12 @@ class CatIntakeControllerTest {
                 .andExpect(status().isConflict());
 
         mvc.perform(submission(invite, List.of(Map.of("catId", second.getId(),
-                        "fields", Map.of("litterBrand", "Other pellets", "coat", "Soft")))))
+                        "fields", Map.of("litterBrand", "Other pellets", "coat", "Sin pelo")))))
                 .andExpect(status().isNoContent());
         var secondReview = detail(rowFor(reviewList(), owner.getId(), "Second").get("id").asString());
         mvc.perform(delete(INVITATIONS + "/{id}", invite.id()).with(admin())).andExpect(status().isNoContent());
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization())).andExpect(status().isNotFound());
-        approve(secondReview, Map.of("coat", "Soft"), List.of(), secondReview.get("catUpdatedAt").asString(), 204);
+        approve(secondReview, Map.of("coat", "Sin pelo"), List.of(), secondReview.get("catUpdatedAt").asString(), 204);
     }
 
     @Test
@@ -454,6 +454,7 @@ class CatIntakeControllerTest {
         assertThat(detail.path("unansweredRequestedFields").isArray()).isTrue();
         assertThat(detail.path("unansweredRequestedFields").isEmpty()).isTrue();
         approve(detail, Map.of("coat", "Long"), List.of(), detail.get("catUpdatedAt").asString(), 204);
+        assertThat(cats.findById(selected.getId()).orElseThrow().getCoat()).isEqualTo("Long");
     }
 
     @Test
@@ -478,7 +479,29 @@ class CatIntakeControllerTest {
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, otherInvite.authorization()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.catalogOptions.breed[*].name", hasItem("European Shorthair")))
-                .andExpect(jsonPath("$.catalogOptions.color[?(@.name == 'Unreviewed color')]").isEmpty());
+                .andExpect(jsonPath("$.catalogOptions.color").doesNotExist());
+    }
+
+    @Test
+    void enforcesFixedCoatAndAcceptsMatchingColorAsFreeText() throws Exception {
+        jdbc.update("""
+                insert into cat_profile_options (id, category, name, normalized_key)
+                values (X'00112233445566778899aabbccddeeff', 'color', 'Gris', X'67726973')
+                """);
+        Owner owner = owner();
+        var invite = issue(owner, true);
+        UUID draftId = UUID.randomUUID();
+        var registration = newRegistration("New coat", Map.of("coat", "Semilargo", "color", "Gris"));
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", registration))))
+                .andExpect(status().isBadRequest());
+        registration.put("coat", "Sin pelo");
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", registration))))
+                .andExpect(status().isNoContent());
+        approve(rowFor(reviewList(), owner.getId(), "New coat"), registration, List.of(), null, 204);
+        var saved = cats.findAll().stream().filter(cat -> cat.getName().equals("New coat")).findFirst().orElseThrow();
+        assertThat(saved.getColor()).isEqualTo("Gris");
+        assertThat(saved.getColorOptionId()).isNull();
+        assertThat(saved.getCoat()).isEqualTo("Sin pelo");
     }
 
     @Test
@@ -496,7 +519,7 @@ class CatIntakeControllerTest {
         String brandId = catalogId(form, "foodBrand", "Royal Nutrition API");
         String breedId = catalogId(form, "breed", "Forest cat API");
         var fields = newRegistration("Recipient", Map.of("foodBrand", "R", "breed", "Forest cat API",
-                "coat", "Recipient coat", "color", "Recipient color"));
+                "coat", "Largo", "color", "Recipient color"));
         UUID draftId = UUID.randomUUID();
         mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
                         "optionIds", Map.of("breed", breedId)))))
@@ -543,7 +566,7 @@ class CatIntakeControllerTest {
                 .filter(variety -> variety.get("brandId").asString().equals(brandId))
                 .findFirst().orElseThrow().get("id").asString();
         var fields = newRegistration("Variety recipient", Map.of("foodBrand", "Other Scope Brand", "foodDetail", "Gastro Kitten",
-                "breed", "Variety recipient breed", "coat", "Variety recipient coat", "color", "Variety recipient color"));
+                "breed", "Variety recipient breed", "coat", "Largo", "color", "Variety recipient color"));
         UUID draftId = UUID.randomUUID();
         mvc.perform(submission(invite, List.of(Map.of("draftId", draftId, "fields", fields,
                         "optionIds", Map.of("foodDetail", varietyId)))))
@@ -681,7 +704,7 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.cats[0].proposedFields.foodBrand").value("R"));
         mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(), "draftId", draftId,
                         "revision", historical.getRevision(), "fields", Map.of(
-                        "foodBrand", "R", "foodDetail", "Historical Diet", "coat", "Long")))))
+                        "foodBrand", "R", "foodDetail", "Historical Diet", "coat", "Largo")))))
                 .andExpect(status().isNoContent());
         var updated = detail(historical.getId().toString());
         assertThat(updated.get("proposedFoodDetailBrand").isNull()).isTrue();
@@ -711,8 +734,7 @@ class CatIntakeControllerTest {
         var second = newRegistration("Second", Map.of("foodBrand", "  northern   LIGHTS food  "));
         var third = newRegistration("Third", Map.of("foodBrand", "Nortern Lights Food"));
         var form = recipientForm(secondInvite);
-        var sharedSelections = Map.of("breed", catalogId(form, "breed", first.get("breed")),
-                "coat", catalogId(form, "coat", first.get("coat")), "color", catalogId(form, "color", first.get("color")));
+        var sharedSelections = Map.of("breed", catalogId(form, "breed", first.get("breed")));
         var secondSelections = new HashMap<>(sharedSelections);
         secondSelections.put("foodBrand", catalogId(form, "foodBrand", first.get("foodBrand")));
         secondSelections.put("foodDetail", form.get("foodVarieties").get(0).get("id").asString());
@@ -753,7 +775,7 @@ class CatIntakeControllerTest {
                 .andExpect(status().isBadRequest());
         var entries = List.of(
                 Map.of("catId", existing.getId(), "fields",
-                        Map.of("name", "Existing", "coat", "Soft", "foodBrand", "   "), "photoKeys", List.of()),
+                        Map.of("name", "Existing", "coat", "Sin pelo", "foodBrand", "   "), "photoKeys", List.of()),
                 Map.of("draftId", UUID.randomUUID(), "fields", newRegistration("New", Map.of("lastRabiesDate", "2025-02-03")),
                         "photoKeys", List.of("proof")));
         when(normalizer.normalize(any())).thenThrow(new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_UNSUPPORTED_FORMAT));
@@ -766,30 +788,30 @@ class CatIntakeControllerTest {
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.cats.length()").value(2));
         assertThat(cats.findByOwner_Id(owner.getId(), org.springframework.data.domain.Pageable.unpaged())).hasSize(1);
-        assertThat(cats.findById(existing.getId()).orElseThrow().getCoat()).isEqualTo("Short");
+        assertThat(cats.findById(existing.getId()).orElseThrow().getCoat()).isEqualTo("Corto");
 
         JsonNode rows = reviewList();
         JsonNode existingRow = rowFor(rows, owner.getId(), "Existing");
         JsonNode newRow = rowFor(rows, owner.getId(), "New");
         JsonNode existingReview = detail(existingRow.get("id").asString());
-        assertThat(existingReview.get("proposed").get("coat").asString()).isEqualTo("Soft");
+        assertThat(existingReview.get("proposed").get("coat").asString()).isEqualTo("Sin pelo");
         assertThat(existingReview.get("proposed").has("name")).isFalse();
         assertThat(existingReview.get("proposed").has("foodBrand")).isFalse();
 
-        mvc.perform(internalCatEdit(existing, "Curly", existingReview.get("catUpdatedAt").asString()))
+        mvc.perform(internalCatEdit(existing, "Largo", existingReview.get("catUpdatedAt").asString()))
                 .andExpect(status().isOk());
-        approve(existingRow, Map.of("coat", "Soft"), List.of(), existingReview.get("catUpdatedAt").asString(), 409);
+        approve(existingRow, Map.of("coat", "Sin pelo"), List.of(), existingReview.get("catUpdatedAt").asString(), 409);
         JsonNode conflict = detail(existingRow.get("id").asString());
-        assertThat(conflict.get("current").get("coat").asString()).isEqualTo("Curly");
+        assertThat(conflict.get("current").get("coat").asString()).isEqualTo("Largo");
         assertThat(conflict.get("conflictFields").get(0).asString()).isEqualTo("coat");
-        approve(existingRow, Map.of("coat", "Soft"), List.of(), conflict.get("catUpdatedAt").asString(), 204);
+        approve(existingRow, Map.of("coat", "Sin pelo"), List.of(), conflict.get("catUpdatedAt").asString(), 204);
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.cats.length()").value(1))
                 .andExpect(jsonPath("$.cats[0].proposedFields.name").value("New"));
         var newDraft = entries.get(1).get("draftId");
 
         Cat approvedExisting = cats.findById(existing.getId()).orElseThrow();
-        assertThat(approvedExisting.getCoat()).isEqualTo("Soft");
+        assertThat(approvedExisting.getCoat()).isEqualTo("Sin pelo");
         assertThat(approvedExisting.getFoodBrand()).isEqualTo("Existing brand");
         assertThat(approvedExisting.getNotes()).isEqualTo("Internal");
 
@@ -823,33 +845,33 @@ class CatIntakeControllerTest {
                 .width(10).height(10).byteSize(JPEG.length).sha256("a".repeat(64)).build());
         var invite = issue(owner, false);
         mvc.perform(submission(invite, List.of(Map.of("catId", existing.getId(),
-                        "fields", Map.of("coat", "Approved"), "photoKeys", List.of()))))
+                        "fields", Map.of("coat", "Largo"), "photoKeys", List.of()))))
                 .andExpect(status().isNoContent());
         JsonNode row = rowFor(reviewList(), owner.getId(), "Existing");
         String originalTimestamp = detail(row.get("id").asString()).get("catUpdatedAt").asString();
-        approve(row, Map.of("coat", "Approved"), List.of(), originalTimestamp, 204);
+        approve(row, Map.of("coat", "Largo"), List.of(), originalTimestamp, 204);
 
         mvc.perform(internalCatEdit(existing, "Outdated", originalTimestamp).param("removePhoto", "true"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAT_EDIT_STALE"));
         mvc.perform(get("/api/cats/{id}/detail", existing.getId()).with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.cat.coat").value("Approved"))
+                .andExpect(jsonPath("$.cat.coat").value("Largo"))
                 .andExpect(jsonPath("$.cat.hasPhoto").value(true));
 
         String reloaded = mvc.perform(get("/api/cats/{id}", existing.getId()).with(admin()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String refreshedTimestamp = json.readTree(reloaded).get("updatedAt").asString();
         assertThat(refreshedTimestamp).isNotEqualTo(originalTimestamp);
-        String edited = mvc.perform(internalCatEdit(existing, "Fresh edit", refreshedTimestamp))
+        String edited = mvc.perform(internalCatEdit(existing, "Sin pelo", refreshedTimestamp))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.coat").value("Fresh edit"))
+                .andExpect(jsonPath("$.coat").value("Sin pelo"))
                 .andReturn().getResponse().getContentAsString();
         String savedTimestamp = json.readTree(edited).get("updatedAt").asString();
         mvc.perform(get("/api/cats/{id}/detail", existing.getId()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cat.updatedAt").value(savedTimestamp));
-        String photoRemoved = mvc.perform(internalCatEdit(existing, "Fresh edit", savedTimestamp)
+        String photoRemoved = mvc.perform(internalCatEdit(existing, "Sin pelo", savedTimestamp)
                         .param("removePhoto", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hasPhoto").value(false))
@@ -925,21 +947,21 @@ class CatIntakeControllerTest {
         var firstLink = issue(original, false);
         movedBeforeSubmission.setOwner(other);
         cats.saveAndFlush(movedBeforeSubmission);
-        var firstEntry = Map.of("catId", movedBeforeSubmission.getId(), "fields", Map.of("coat", "Curly"));
+        var firstEntry = Map.of("catId", movedBeforeSubmission.getId(), "fields", Map.of("coat", "Largo"));
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, firstLink.authorization()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.cats.length()").value(1))
                 .andExpect(jsonPath("$.cats[0].catId").value(movedBeforeApproval.getId().toString()));
         mvc.perform(submission(firstLink, List.of(firstEntry))).andExpect(status().isBadRequest());
 
         var secondLink = issue(original, false);
-        var secondEntry = Map.of("catId", movedBeforeApproval.getId(), "fields", Map.of("coat", "Curly"));
+        var secondEntry = Map.of("catId", movedBeforeApproval.getId(), "fields", Map.of("coat", "Largo"));
         mvc.perform(submission(secondLink, List.of(secondEntry))).andExpect(status().isNoContent());
         var row = rowFor(reviewList(), original.getId(), "Second");
         var detail = detail(row.get("id").asString());
         movedBeforeApproval.setOwner(other);
         cats.saveAndFlush(movedBeforeApproval);
-        approve(row, Map.of("coat", "Curly"), List.of(), detail.get("catUpdatedAt").asString(), 409);
-        assertThat(cats.findById(movedBeforeApproval.getId()).orElseThrow().getCoat()).isEqualTo("Short");
+        approve(row, Map.of("coat", "Largo"), List.of(), detail.get("catUpdatedAt").asString(), 409);
+        assertThat(cats.findById(movedBeforeApproval.getId()).orElseThrow().getCoat()).isEqualTo("Corto");
         assertThat(reviewList().valueStream().map(pending -> pending.get("id").asString()))
                 .doesNotContain(row.get("id").asString());
     }
@@ -970,7 +992,7 @@ class CatIntakeControllerTest {
         Cat cat = cat(owner, "With care instructions");
         cat.setNotes("Private cat note");
         var timestamp = cats.findById(cat.getId()).orElseThrow().getUpdatedAt().toString();
-        mvc.perform(internalCatEdit(cat, "Short", timestamp, Map.of("careInstructions", "  Give medication with food  ")))
+        mvc.perform(internalCatEdit(cat, "Corto", timestamp, Map.of("careInstructions", "  Give medication with food  ")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.careInstructions").value("Give medication with food"));
         // Create the private note through the same internal update, then issue the household snapshot.
@@ -1005,7 +1027,7 @@ class CatIntakeControllerTest {
         Cat existing = cat(owner, "Existing");
         var invite = issue(owner, true);
         UUID draft = UUID.randomUUID();
-        var existingUpdate = Map.of("catId", existing.getId(), "fields", Map.of("coat", "Long"));
+        var existingUpdate = Map.of("catId", existing.getId(), "fields", Map.of("coat", "Largo"));
         var registration = newRegistration("Year only", Map.of());
         registration.remove("litterBrand");
         mvc.perform(submission(invite, List.of(existingUpdate, Map.of("draftId", draft, "fields", registration))))
@@ -1078,7 +1100,7 @@ class CatIntakeControllerTest {
 
         Cat yearOnly = cats.findById(cat.getId()).orElseThrow();
         assertThat(yearOnly.getBirthDate()).isNull();
-        mvc.perform(internalCatEdit(yearOnly, "Long", yearOnly.getUpdatedAt().toString(), Map.of()))
+        mvc.perform(internalCatEdit(yearOnly, "Largo", yearOnly.getUpdatedAt().toString(), Map.of()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.birthYear").value(2020));
         var laterInvite = issue(owner, false);
@@ -1087,10 +1109,10 @@ class CatIntakeControllerTest {
                 .andExpect(jsonPath("$.cats[0].fields.birthDate").doesNotExist())
                 .andExpect(jsonPath("$.cats[0].fields.birthYear").value("2020"));
         mvc.perform(submission(laterInvite, List.of(Map.of("catId", cat.getId(),
-                        "fields", Map.of("birthDate", " ", "birthYear", " ", "coat", "Curly")))))
+                        "fields", Map.of("birthDate", " ", "birthYear", " ", "coat", "Sin pelo")))))
                 .andExpect(status().isNoContent());
         var coatReview = detail(rowFor(reviewList(), owner.getId(), cat.getName()).get("id").asString());
-        approve(coatReview, Map.of("coat", "Curly"), List.of(), coatReview.get("catUpdatedAt").asString(), 204);
+        approve(coatReview, Map.of("coat", "Sin pelo"), List.of(), coatReview.get("catUpdatedAt").asString(), 204);
         mvc.perform(get("/api/cats/{id}", cat.getId()).with(admin())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.birthYear").value(2020));
     }
@@ -1110,7 +1132,7 @@ class CatIntakeControllerTest {
 
     private Map<String, String> newRegistration(String name, Map<String, String> changes) {
         var registration = new HashMap<>(Map.of("name", name, "sex", "FEMALE", "birthDate", "2021-08-21",
-                "breed", "Domestic", "coat", "Short", "color", "Black", "personality", "Calm",
+                "breed", "Domestic", "coat", "Corto", "color", "Black", "personality", "Calm",
                 "foodBrand", "Tutor food", "foodDetail", "Dry", "litterBrand", "Tutor litter"));
         registration.putAll(changes);
         return registration;
@@ -1138,7 +1160,7 @@ class CatIntakeControllerTest {
 
     private Cat cat(Owner owner, String name) {
         return cats.saveAndFlush(Cat.builder().owner(owner).createdBy(owner.getCreatedBy()).name(name)
-                .birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.MALE).coat("Short").foodBrand("Existing brand")
+                .birthDate(LocalDate.of(2020, 1, 1)).sex(Sex.MALE).coat("Corto").foodBrand("Existing brand")
                 .litterBrand("Tutor litter").lastRabiesDate(LocalDate.of(2026, 8, 12)).lastTripleFelineDate(LocalDate.of(2026, 8, 12))
                 .notes("Internal").build());
     }

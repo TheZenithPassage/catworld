@@ -2,6 +2,11 @@ import type { CatProfileOptionFieldKey } from '../../../shared/cat-profile-optio
 
 export type Sex = 'MALE' | 'FEMALE';
 
+export type CatCatalogSelectionField =
+  | Exclude<CatProfileOptionFieldKey, 'coat' | 'color'>
+  | 'foodDetail';
+export type CatCatalogSelection = Partial<Record<CatCatalogSelectionField, string>>;
+
 export const CAT_COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'] as const;
 
 export const CATWORLD_LITTER = 'Usa las de CatWorld';
@@ -38,7 +43,7 @@ export interface Cat {
   color: string | null;
   foodBrand: string | null;
   foodBrandId?: string | null;
-  catalogOptionIds?: Partial<Record<CatProfileOptionFieldKey, string>>;
+  catalogOptionIds?: Partial<Record<CatProfileOptionFieldKey | 'foodDetail', string>>;
   foodDetail?: string | null;
   litterBrand: string | null;
   personality: string | null;
@@ -69,8 +74,10 @@ export interface CreateCatRequest {
   foodBrand?: string | null;
   foodBrandId?: string;
   foodDetail?: string | null;
-  approveFoodBrand?: boolean;
-  approveCatalogOptions?: CatProfileOptionFieldKey[];
+  foodVarietyId?: string;
+  catalogOptionIds?: Partial<
+    Record<Exclude<CatCatalogSelectionField, 'foodBrand' | 'foodDetail'>, string>
+  >;
   litterBrand?: string | null;
   personality: string | null;
   careInstructions?: string | null;

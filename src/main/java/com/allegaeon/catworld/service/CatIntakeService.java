@@ -270,7 +270,8 @@ public class CatIntakeService {
 
         var accepted = fields.nonBlank(approval.fields());
         var proposal = proposalOf(review);
-        catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(), proposal);
+        catalog().revalidateApproval(accepted, cat == null ? null : cat.getFoodBrand(),
+                cat == null ? null : cat.getCoat(), proposal);
         if (cat != null) {
             if (accepted.keySet().stream().anyMatch(key -> !fields.canReview(key, proposal.fields()))) {
                 throw new BadRequestException("Select fields proposed in this review");

@@ -6,7 +6,7 @@ import { createLanguageResetError } from '../../../../core/i18n/language-reset-e
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
 import { catLitterLabel } from '../../utils/cat-litter-label';
-import { Cat, CatPhotoViewRequest } from '../../models/cat.model';
+import { CAT_COAT_LENGTHS, Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
@@ -40,20 +40,6 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
   },
   templateUrl: './cat-detail.html',
   styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
-  styles: [
-    `
-      .care-instructions-visibility {
-        display: block;
-        font-weight: 400;
-      }
-
-      .detail-field-internal-notes {
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-      }
-    `,
-  ],
 })
 export class CatDetail {
   private readonly api = inject(CatApiService);
@@ -176,8 +162,12 @@ export class CatDetail {
   value(v: string | null | undefined): string {
     return v || this.text().cats.emptyValue;
   }
-  litterValue(v: string | null): string {
-    return this.value(v && catLitterLabel(v, this.text().cats.form));
+  coatValue(value: string | null): string {
+    const length = CAT_COAT_LENGTHS.find((length) => length === value);
+    return length ? this.text().cats.form.coatLengths[length] : this.value(value);
+  }
+  litterValue(value: string | null): string {
+    return catLitterLabel(value, this.text().cats.form);
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

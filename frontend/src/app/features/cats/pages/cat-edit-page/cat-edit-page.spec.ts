@@ -80,7 +80,12 @@ describe('CatEditor', () => {
     updateCat: vi.fn(),
   };
 
-  const profileOptions = { load: vi.fn(), catalog: signal(null) };
+  const profileOptions = {
+    load: vi.fn(),
+    loadVarieties: vi.fn(),
+    catalog: signal(null),
+    varieties: signal([]),
+  };
 
   const ownerApiService = {
     getOwners: vi.fn(),
@@ -193,7 +198,9 @@ describe('CatEditor', () => {
     expect(catApiService.getCatById).toHaveBeenCalledWith('cat-1');
     expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(20);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelector('select[name=sex]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=coat]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=litterChoice]')).not.toBeNull();
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
     expect(ownerApiService.getOwners).not.toHaveBeenCalled();
     expect(vetApiService.getVets).not.toHaveBeenCalled();
@@ -378,7 +385,7 @@ describe('CatEditor', () => {
     component.vetId.set('');
     component.vetRawContentPresent.set(false);
     component.breed.set('');
-    component.coat.set('short');
+    component.coat.set('Corto');
     component.color.set(' orange ');
     component.foodBrand.set('  ');
     component.litterBrand.set(' pine ');
@@ -402,7 +409,7 @@ describe('CatEditor', () => {
         birthDate: '2020-01-02',
         sex: 'MALE',
         breed: null,
-        coat: 'short',
+        coat: 'Corto',
         color: 'orange',
         foodBrand: null,
         litterBrand: 'pine',
@@ -423,6 +430,30 @@ describe('CatEditor', () => {
     expect(saved).toHaveBeenCalledWith(cat);
     expect(router.navigate).not.toHaveBeenCalled();
     expect(component.submitting()).toBe(false);
+  });
+
+  it('preserves historical coat, markings and own litter when editing another field', async () => {
+    const saved: Cat = {
+      ...cat,
+      coat: 'Semilargo',
+      color: '  White  ',
+      litterBrand: 'Pine pellets',
+    };
+    catApiService.getCatById.mockReturnValue(of(saved));
+    catApiService.updateCat.mockReturnValue(of(saved));
+    createComponent();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector<HTMLSelectElement>('[name=coat]')?.value).toBe('Semilargo');
+    expect(root.querySelector<HTMLSelectElement>('[name=litterChoice]')?.value).toBe('own');
+    expect(root.querySelector<HTMLInputElement>('[name=litterBrand]')?.value).toBe('Pine pellets');
+    component.name.set('New name');
+    component.submit();
+    expect(catApiService.updateCat.mock.lastCall?.[1]).toEqual(
+      expect.objectContaining({ coat: 'Semilargo', color: '  White  ' }),
+    );
+    expect(catApiService.updateCat.mock.lastCall?.[1]).not.toHaveProperty('litterBrand');
   });
 
   it('shows a localized Material error and does not update for overlong notes', async () => {

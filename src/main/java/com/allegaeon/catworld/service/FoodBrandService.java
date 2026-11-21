@@ -44,7 +44,7 @@ public class FoodBrandService {
     }
 
     CatProfileOptionDto publishBrand(String name) {
-        var brand = findOrPublishBrand(name, true);
+        var brand = findOrPublishBrand(name);
         return new CatProfileOptionDto(brand.getId(), brand.getName());
     }
 
@@ -86,15 +86,15 @@ public class FoodBrandService {
             return;
         }
 
-        var brand = findOrPublishBrand(name, approve);
+        var brand = approve ? findOrPublishBrand(name) : null;
         cat.setFoodBrand(brand == null ? request.getFoodBrand() : brand.getName());
         cat.setFoodBrandId(brand == null ? null : brand.getId());
     }
 
-    private FoodBrand findOrPublishBrand(String name, boolean approve) {
+    private FoodBrand findOrPublishBrand(String name) {
         byte[] key = key(name);
         var brand = brands.findByNormalizedKey(key).orElse(null);
-        if (brand == null && approve) {
+        if (brand == null) {
             brands.insertIfAbsent(binaryId(UUID.randomUUID()), name, key);
             // In MySQL's repeatable-read transactions a locking read sees a concurrent insert.
             brand = brands.findLockedByNormalizedKey(key).orElseThrow();
