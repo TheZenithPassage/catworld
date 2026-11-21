@@ -332,8 +332,8 @@ function createLitterField(title, initialValue, required) {
   const hasRate = litterRatePerKg !== null;
   const rate = hasRate ? new Intl.NumberFormat('es-AR').format(BigInt(litterRatePerKg)) : '';
   const expectation = hasRate
-    ? `La tarifa actual es de ${rate} pesos por kg. CatWorld confirma la cantidad y el precio para cada estadía.`
-    : 'La tarifa todavía no está disponible. CatWorld te confirmará el precio para la estadía.';
+    ? `La tarifa actual es de ${rate} pesos por kg.`
+    : 'La tarifa todavía no está disponible.';
   const choiceLabel = fieldLabel(
     title,
     choice,
