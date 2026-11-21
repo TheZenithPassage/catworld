@@ -98,7 +98,7 @@ export class EntityDetailDialog {
   private contentResolved = false;
   private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
-  protected readonly catDetail = viewChild(CatDetail);
+  private readonly catDetail = viewChild(CatDetail);
   protected readonly ownerDetail = viewChild(OwnerDetail);
   private readonly vetDetail = viewChild(VetDetail);
   private readonly stayDetail = viewChild(StayDetail);
@@ -456,8 +456,9 @@ export class EntityDetailDialog {
     if (!this.submitting()) this.leaveCatDraft(() => this.leaveEdit());
   }
   saveEdit(): void {
-    const editor = this.editor();
-    if (this.editing() && editor && !editor.saveDisabled()) editor.submit();
+    if (!this.editing() || this.editor()?.saveDisabled() !== false) return;
+    // Use the active form so Angular marks it submitted and displays errors as it does from the footer.
+    this.contentRegion()?.nativeElement.querySelector('form')?.requestSubmit();
   }
   allowClose(): boolean {
     if (this.closing || !this.hasCatDraft()) return true;
