@@ -194,28 +194,6 @@
             </button>
           }
         }
-        @if (pricingStay(); as pricing) {
-          @if (pricing.agreedAmount !== null || pricing.pricePending) {
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="deleting()"
-              (click)="pricingRequested.emit()"
-            >
-              {{ text().stays.detail.pricing }}
-            </button>
-          }
-        }
-        @if (canEdit(stay)) {
-          <button
-            mat-flat-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="editRequested.emit()"
-          >
-            {{ text().stays.detail.edit }}
-          </button>
-        }
       </div>
     </div>
   }

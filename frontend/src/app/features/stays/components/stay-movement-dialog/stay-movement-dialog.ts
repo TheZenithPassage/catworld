@@ -11,7 +11,7 @@ import {
 } from '@angular/material/dialog';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
-import { finalize } from 'rxjs';
+import { finalize, interval } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
@@ -57,10 +57,16 @@ export class StayMovementDialog {
   readonly time = signal('');
   readonly day = signal('');
   readonly manualTime = signal(false);
+  readonly serverTime = signal<string | null>(null);
+  readonly recording = this.data.action === 'record-arrival' || this.data.action === 'record-departure';
+  private readonly today = computed(() => {
+    const now = this.serverTime();
+    return now ? this.businessTime.instantToLocalDateTime(now).slice(0, 10) : '';
+  });
   readonly latestDay = computed(() => {
-    const today = this.businessTime.currentLocalDateTime().slice(0, 10);
-    const scheduled = this.scheduledAt()?.slice(0, 10) ?? today;
-    return scheduled < today ? scheduled : today;
+    const departure = this.movements()?.endAt.slice(0, 10);
+    const today = this.today();
+    return departure && departure < today ? departure : today;
   });
   readonly earliestDay = computed(() => {
     const movements = this.movements();
@@ -71,18 +77,18 @@ export class StayMovementDialog {
 
   readonly type: StayMovementType =
     this.data.action === 'record-departure' ? 'DEPARTURE' : 'ARRIVAL';
-  readonly scheduledAt = computed(() =>
-    this.type === 'ARRIVAL' ? this.movements()?.startAt : this.movements()?.endAt,
-  );
-  readonly allowsNow = computed(() =>
-    this.type === 'ARRIVAL'
-      ? this.movements()?.arrivalAllowsNow
-      : this.movements()?.departureAllowsNow,
-  );
+  readonly allowsNow = computed(() => {
+    const movements = this.movements();
+    if (!movements) return false;
+    const today = this.today();
+    return this.type === 'ARRIVAL'
+      ? movements.arrivalAllowsNow && today === movements.startAt.slice(0, 10)
+      : movements.departureAllowsNow && today <= movements.endAt.slice(0, 10);
+  });
   readonly requiresTime = computed(
     () =>
       this.data.action === 'correct-arrival' ||
-      (this.data.action !== 'reset-arrival' && (this.manualTime() || !this.allowsNow())),
+      (this.recording && (this.manualTime() || !this.allowsNow())),
   );
   readonly available = computed(() => {
     const movements = this.movements();
@@ -93,9 +99,9 @@ export class StayMovementDialog {
       case 'reset-arrival':
         return movements.canResetArrival;
       case 'record-arrival':
-        return movements.canRecordArrival && (this.data.allowHistorical || this.allowsNow());
+        return movements.canRecordArrival;
       case 'record-departure':
-        return movements.canRecordDeparture && (this.data.allowHistorical || this.allowsNow());
+        return movements.canRecordDeparture;
     }
   });
   readonly submitDisabled = computed(
@@ -103,7 +109,7 @@ export class StayMovementDialog {
       this.saving() ||
       !this.available() ||
       this.needsRefresh() ||
-      (this.requiresTime() && !this.time()),
+      (this.requiresTime() && (!this.day() || !this.time())),
   );
 
   constructor() {
@@ -115,21 +121,29 @@ export class StayMovementDialog {
       )
       .subscribe({
         next: (movements) => {
+          this.serverTime.set(movements.serverNow);
           this.movements.set(movements);
-          this.day.set(this.latestDay());
+          this.day.set(this.type === 'ARRIVAL' ? movements.startAt.slice(0, 10) : this.latestDay());
           if (!this.available()) this.needsRefresh.set(true);
           if (this.data.action === 'correct-arrival' && movements.arrival) {
             const local = this.businessTime.instantToLocalDateTime(movements.arrival.occurredAt);
             this.day.set(local.slice(0, 10));
             this.time.set(local.slice(11, 16));
           }
+          if (this.recording && this.available()) {
+            const sample = Date.parse(movements.serverNow);
+            const receivedAt = performance.now();
+            interval(1000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
+              this.serverTime.set(new Date(sample + performance.now() - receivedAt).toISOString());
+            });
+          }
         },
         error: () => this.needsRefresh.set(true),
       });
   }
 
-  formatScheduled(value: string): string {
-    return this.businessTime.formatLocalDateTime(value, this.i18n.dateLocale());
+  formatServerTime(value: string): string {
+    return this.businessTime.formatInstant(value, this.i18n.dateLocale(), 'medium');
   }
 
   dismiss(): void {

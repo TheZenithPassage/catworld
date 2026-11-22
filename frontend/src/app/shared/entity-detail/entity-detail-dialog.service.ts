@@ -42,6 +42,7 @@ export class EntityDetailDialogService {
       maxWidth: 'calc(100vw - 2rem)',
       maxHeight: 'calc(100dvh - 2rem)',
       autoFocus: 'dialog',
+      ...(reference.initialMovement && { enterAnimationDuration: 0, delayFocusTrap: false }),
       // The Router guard must decide whether to discard a draft before closing on popstate.
       closeOnNavigation: false,
       closePredicate: (_result, _config, component) =>
@@ -50,6 +51,7 @@ export class EntityDetailDialogService {
         component.allowClose(),
     });
     ref.componentInstance.entityUpdated.subscribe((update) => updates.next(update));
+    if (reference.initialMovement) ref.componentInstance.openInitialMovement(reference.initialMovement);
     const locationChanges = this.location.subscribe(() => {
       if (ref.getState() === MatDialogState.OPEN && !ref.componentInstance.hasCatDraft()) {
         ref.componentInstance.closeImmediately();

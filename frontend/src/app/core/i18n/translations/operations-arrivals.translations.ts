@@ -18,6 +18,8 @@ interface ArrivalsTranslations {
   empty: { arrivals: string; departures: string };
   error: { arrivals: string; departures: string };
   overdue: string;
+  unrecordedArrival: string;
+  plannedArrivalPassed: string;
   transfer: { arrivals: string; departures: string };
   retry: string;
   refresh: string;
@@ -52,6 +54,8 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
       departures: 'No se pudieron cargar las próximas salidas.',
     },
     overdue: 'Pendiente de un día anterior',
+    unrecordedArrival: 'Ingreso sin registrar',
+    plannedArrivalPassed: 'Ya pasó la fecha prevista de ingreso.',
     transfer: { arrivals: 'Traslado de ingreso', departures: 'Traslado de salida' },
     retry: 'Reintentar',
     refresh: 'Actualizar',
@@ -84,6 +88,8 @@ export const OPERATIONS_ARRIVALS_TRANSLATIONS = {
       departures: 'Upcoming departures could not be loaded.',
     },
     overdue: 'Pending from an earlier day',
+    unrecordedArrival: 'Arrival not recorded',
+    plannedArrivalPassed: 'The scheduled arrival date has passed.',
     transfer: { arrivals: 'Arrival transport', departures: 'Departure transport' },
     retry: 'Try again',
     refresh: 'Refresh',

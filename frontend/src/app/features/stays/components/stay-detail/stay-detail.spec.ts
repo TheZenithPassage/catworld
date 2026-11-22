@@ -18,6 +18,7 @@ describe('StayDetail confirmed movements', () => {
     status: 'RESERVED',
     startAt: '2026-11-12T14:30:00',
     endAt: '2026-11-15T16:30:00',
+    serverNow: '2026-11-17T18:00:00Z',
     cancelled: false,
     revision: 3,
     arrival: null,
@@ -86,6 +87,13 @@ describe('StayDetail confirmed movements', () => {
 
     const dialog = document.querySelector('[role="dialog"]')!;
     expect(dialog.textContent).toContain('Milo, Luna');
+    expect(dialog.textContent).not.toContain('Ingreso previsto');
+    const day = dialog.querySelector<HTMLInputElement>('input[type="date"]')!;
+    expect(day.value).toBe('2026-11-12');
+    expect(day.min).toBe('2026-11-12');
+    expect(day.max).toBe('2026-11-15');
+    day.value = '2026-11-14';
+    day.dispatchEvent(new Event('input'));
     const confirm = button(dialog, 'Confirmar ingreso')!;
     expect(confirm.disabled).toBe(true);
     const input = dialog.querySelector<HTMLInputElement>('input[type="time"]')!;
@@ -95,7 +103,7 @@ describe('StayDetail confirmed movements', () => {
     confirm.click();
 
     const request = http.expectOne({ url: url + '/actual-movements/ARRIVAL', method: 'PUT' });
-    const occurredAt = '2026-11-12T16:15:00.000Z';
+    const occurredAt = '2026-11-14T16:15:00.000Z';
     expect(request.request.body).toEqual({ expectedRevision: 3, occurredAt });
     const checkedIn: StayActualMovements = {
       ...movements,
@@ -119,7 +127,12 @@ describe('StayDetail confirmed movements', () => {
     const movementInfo = [...document.querySelectorAll('[role="dialog"]')].at(-1)!;
     expect(movementInfo.textContent).toMatch(/Registrado por\s*staff/);
     expect(button(detail, 'Registrar ingreso')).toBeUndefined();
-    expect(button(movementInfo, 'Corregir hora de ingreso')).toBeDefined();
+    button(movementInfo, 'Corregir fecha y hora')!.click();
+    http.expectOne(url + '/actual-movements').flush(checkedIn);
+    fixture.detectChanges();
+    const correction = [...document.querySelectorAll('[role="dialog"]')].at(-1)!;
+    expect(correction.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe('2026-11-14');
+    expect(correction.querySelector<HTMLInputElement>('input[type="time"]')?.value).toBe('13:15');
     expect(button(movementInfo, 'Deshacer ingreso')).toBeDefined();
     expect(button(detail, 'Registrar salida')).toBeDefined();
     expect(button(detail, 'Cancelar estadía')).toBeUndefined();
@@ -129,9 +142,9 @@ describe('StayDetail confirmed movements', () => {
     respondWithStay({ ...movements, status: 'CHECKED_OUT', canRecordArrival: false });
     const detail = fixture.nativeElement as HTMLElement;
 
-    expect(detail.textContent?.match(/Sin hora registrada \(estadía histórica\)/g)).toHaveLength(2);
+    expect(detail.textContent?.match(/Sin hora registrada/g)).toHaveLength(2);
     expect(detail.textContent).not.toContain('Registrado por');
-    expect(button(detail, 'Corregir hora de ingreso')).toBeUndefined();
+    expect(button(detail, 'Corregir fecha y hora')).toBeUndefined();
     expect(button(detail, 'Registrar salida')).toBeUndefined();
   });
 });

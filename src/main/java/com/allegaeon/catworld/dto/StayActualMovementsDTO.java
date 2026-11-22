@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record StayActualMovementsDTO(
         LocalDateTime startAt,
         LocalDateTime endAt,
+        Instant serverNow,
         boolean cancelled,
         StayStatus status,
         long revision,

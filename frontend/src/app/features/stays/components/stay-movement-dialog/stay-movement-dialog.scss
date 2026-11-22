@@ -1,6 +1,55 @@
-.movement-heading { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .75rem; }
-.movement-heading small { font-size: 1rem; overflow-wrap: anywhere; }
-.movement-override { display: block; margin-block: 1rem; }
-mat-form-field { margin-inline-end: .5rem; }
-mat-dialog-actions { display: flex; gap: .5rem; }
-mat-dialog-actions button { flex: 1 1 8rem; }
+form {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+mat-dialog-content {
+  max-block-size: none;
+  min-block-size: 0;
+}
+
+.movement-cats {
+  margin-block: 0 1rem;
+  color: var(--mat-sys-on-surface);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.movement-date-time {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.movement-date-time h3 {
+  margin: 0;
+  color: var(--mat-sys-on-surface);
+  font-size: 1rem;
+}
+
+.movement-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0.65rem;
+}
+
+.movement-fields mat-form-field {
+  min-width: 0;
+}
+
+.movement-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.movement-override {
+  width: fit-content;
+}
+
+mat-dialog-actions {
+  gap: 0.5rem;
+}
+
+mat-dialog-actions button {
+  flex: 1 1 auto;
+  margin: 0;
+}

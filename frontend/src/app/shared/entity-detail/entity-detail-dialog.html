@@ -74,6 +74,43 @@
             </button>
           }
         }
+        @if (stayDetail(); as stay) {
+          @if (stay.editAvailable() || stay.pricingAvailable()) {
+            <div class="stay-header-buttons">
+              @if (stay.pricingAvailable()) {
+                <button mat-stroked-button type="button" [disabled]="stay.actionsDisabled()" (click)="openStayPricing()">
+                  {{ text().stays.detail.pricing }}
+                </button>
+              }
+              @if (stay.editAvailable()) {
+                <button mat-flat-button type="button" [disabled]="stay.actionsDisabled()" (click)="enterEdit()">
+                  {{ text().stays.detail.edit }}
+                </button>
+              }
+            </div>
+            <button
+              class="stay-header-menu"
+              mat-stroked-button
+              type="button"
+              [matMenuTriggerFor]="stayActions"
+              [disabled]="stay.actionsDisabled()"
+            >
+              {{ text().entityDetail.actions }}
+            </button>
+            <mat-menu #stayActions="matMenu">
+              @if (stay.pricingAvailable()) {
+                <button mat-menu-item type="button" [disabled]="stay.actionsDisabled()" (click)="openStayPricing()">
+                  {{ text().stays.detail.pricing }}
+                </button>
+              }
+              @if (stay.editAvailable()) {
+                <button mat-menu-item type="button" [disabled]="stay.actionsDisabled()" (click)="enterEdit()">
+                  {{ text().stays.detail.edit }}
+                </button>
+              }
+            </mat-menu>
+          }
+        }
       }
     }
     <button
@@ -236,10 +273,8 @@
       }
       @case ('stay') {
         <app-stay-detail
-          [initialMovement]="reference().initialMovement"
           [entityId]="reference().entityId"
           [editing]="editing()"
-          (editRequested)="enterEdit()"
           (cancelRequested)="cancelEdit()"
           (saveCompleted)="leaveEdit()"
           (navigate)="showReference($event)"
@@ -248,7 +283,6 @@
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
           (contentSettled)="destinationSettled()"
-          (pricingRequested)="openStayPricing()"
           (deletionCompleted)="deletionCompleted($event)"
         />
       }

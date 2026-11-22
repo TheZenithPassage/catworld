@@ -83,8 +83,7 @@ public class StayActualMovementService {
         }
 
         Instant now = clock.instant();
-        LocalDate planned = (type == ARRIVAL ? stay.getStartAt() : stay.getEndAt()).toLocalDate();
-        Instant occurredAt = validateMovementTime(request.occurredAt(), now, stay.getStartAt().toLocalDate(), planned);
+        Instant occurredAt = validateMovementTime(stay, type, request.occurredAt(), now);
 
         StayActualMovement arrival = movements.get(ARRIVAL);
         if (type == DEPARTURE && arrival != null && occurredAt.isBefore(arrival.occurredAt())) {
@@ -172,14 +171,21 @@ public class StayActualMovementService {
         }
     }
 
-    private Instant validateMovementTime(Instant requested, Instant now, LocalDate earliest, LocalDate latest) {
+    private Instant validateMovementTime(Stay stay, StayMovementType type, Instant requested, Instant now) {
         Instant occurredAt = requested == null ? now : requested;
         if (occurredAt.isBefore(FIRST_STORABLE_INSTANT) || occurredAt.isAfter(now)) {
             throw new BadRequestException("Actual movement time must be within the supported range and not in the future");
         }
+        LocalDate arrivalDay = stay.getStartAt().toLocalDate();
+        LocalDateTime scheduledDeparture = stay.getEndAt();
+        LocalDate latestDay = type == ARRIVAL && requested == null ? arrivalDay : scheduledDeparture.toLocalDate();
         LocalDate day = occurredAt.atZone(clock.getZone()).toLocalDate();
-        if (day.isBefore(earliest) || day.isAfter(latest)) {
+        if (day.isBefore(arrivalDay) || day.isAfter(latestDay)) {
             throw new BadRequestException("Actual movement time is outside the scheduled business dates");
+        }
+        if (type == ARRIVAL && !day.equals(arrivalDay)
+                && occurredAt.isAfter(scheduledDeparture.atZone(clock.getZone()).toInstant())) {
+            throw new BadRequestException("An arrival on a later day must be at or before scheduled departure");
         }
         return occurredAt.truncatedTo(ChronoUnit.MICROS);
     }
@@ -221,7 +227,7 @@ public class StayActualMovementService {
                 && !arrivalDay.isAfter(today) && canManageArrival(actor, arrival);
         Instant deadline = enabled && status == StayStatus.CHECKED_IN ? staffResetDeadline(actor, arrival, now) : null;
         boolean canReset = enabled && status == StayStatus.CHECKED_IN && (actor.getRole() == UserRole.ADMIN || deadline != null);
-        return new StayActualMovementsDTO(stay.getStartAt(), stay.getEndAt(), status == StayStatus.CANCELLED, status,
+        return new StayActualMovementsDTO(stay.getStartAt(), stay.getEndAt(), now, status == StayStatus.CANCELLED, status,
                 stay.getMovementRevision(), toMovement(arrival, canCorrectArrival), toMovement(departure, false),
                 canRecordArrival, canRecordDeparture, canReset,
                 arrivalDay.equals(today) && (canRecordArrival || canCorrectArrival),

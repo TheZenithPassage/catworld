@@ -92,7 +92,12 @@
                   </div>
                 </dl>
                 @if (stay.overdue) {
-                  <p class="movement-note overdue">{{ copy().overdue }}</p>
+                  @if (isArrivals()) {
+                    <p class="movement-note overdue">{{ copy().unrecordedArrival }}</p>
+                    <p class="movement-note">{{ copy().plannedArrivalPassed }}</p>
+                  } @else {
+                    <p class="movement-note overdue">{{ copy().overdue }}</p>
+                  }
                 }
                 @if (stay.transferRequired) {
                   <p class="movement-note">{{ copy().transfer[tab()] }}</p>

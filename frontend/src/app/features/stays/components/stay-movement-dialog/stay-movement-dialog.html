@@ -1,42 +1,64 @@
 @let labels = copy();
 @let action = data.action;
 
-<h2 mat-dialog-title class="movement-heading"><span>{{ labels.title[action] }}</span> <small>{{ data.catNames.join(', ') }}</small></h2>
+<h2 mat-dialog-title>{{ labels.title[action] }}</h2>
 <form (submit)="$event.preventDefault(); confirm()">
   <mat-dialog-content [attr.aria-busy]="loading() || saving()">
+    <p class="movement-cats">{{ data.catNames.join(', ') }}</p>
     @if (loading()) {
       <app-ui-state kind="loading" [message]="labels.loading" />
     } @else if (available()) {
-      @if (scheduledAt(); as scheduled) {
-        <p>
-          {{ type === 'ARRIVAL' ? labels.scheduledArrival : labels.scheduledDeparture }} ·
-          <time [attr.datetime]="scheduled">{{ formatScheduled(scheduled) }}</time>
-        </p>
-      }
       <p>{{ labels.instruction[action] }}</p>
-      @if (allowsNow() && (action === 'record-arrival' || action === 'record-departure')) {
-        <label class="movement-override"><input #override type="checkbox" [checked]="manualTime()" (change)="manualTime.set(override.checked)" /> {{ labels.otherTime }}</label>
-      }
-      @if (requiresTime()) {
-        @if (type === 'DEPARTURE' && earliestDay() !== latestDay()) {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>{{ labels.realDate }}</mat-label>
-            <input #dateInput matInput type="date" required [min]="earliestDay()" [max]="latestDay()" [value]="day()" (input)="day.set(dateInput.value)" />
-          </mat-form-field>
-        }
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>{{ labels.realTime }}</mat-label>
-          <input
-            #timeInput
-            matInput
-            type="time"
-            required
-            [value]="time()"
-            [disabled]="saving() || needsRefresh()"
-            (input)="time.set(timeInput.value)"
-          />
-        </mat-form-field>
-
+      @if (recording || requiresTime()) {
+        <section class="movement-date-time">
+          @if (recording) {
+            <h3>{{ labels.realDateTime }}</h3>
+          }
+          @if (requiresTime()) {
+            <div class="movement-fields">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{ labels.realDate }}</mat-label>
+                <input
+                  #dateInput
+                  matInput
+                  type="date"
+                  required
+                  [min]="earliestDay()"
+                  [max]="latestDay()"
+                  [value]="day()"
+                  [disabled]="saving() || needsRefresh()"
+                  (input)="day.set(dateInput.value)"
+                />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{ labels.realTime }}</mat-label>
+                <input
+                  #timeInput
+                  matInput
+                  type="time"
+                  required
+                  [value]="time()"
+                  [disabled]="saving() || needsRefresh()"
+                  (input)="time.set(timeInput.value)"
+                />
+              </mat-form-field>
+            </div>
+          } @else if (serverTime(); as now) {
+            <time class="movement-clock" [attr.datetime]="now">{{ formatServerTime(now) }}</time>
+          }
+          @if (allowsNow() && recording) {
+            <label class="movement-override">
+              <input
+                #override
+                type="checkbox"
+                [checked]="manualTime()"
+                [disabled]="saving() || needsRefresh()"
+                (change)="manualTime.set(override.checked)"
+              />
+              {{ labels.otherTime }}
+            </label>
+          }
+        </section>
       }
       @if (error(); as message) {
         <p role="alert">{{ labels[message] }}</p>

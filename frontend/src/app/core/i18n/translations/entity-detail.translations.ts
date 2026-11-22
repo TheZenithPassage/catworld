@@ -12,6 +12,7 @@ export interface EntityDetailTranslations {
   loadFailed: string;
   retry: string;
   edit: string;
+  actions: string;
   cancel: string;
   save: string;
   saving: string;
@@ -45,6 +46,7 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     loadFailed: 'No se pudieron cargar los registros relacionados.',
     retry: 'Reintentar',
     edit: 'Editar',
+    actions: 'Acciones',
     cancel: 'Cancelar',
     save: 'Guardar',
     saving: 'Guardando…',
@@ -79,6 +81,7 @@ export const ENTITY_DETAIL_TRANSLATIONS = {
     loadFailed: 'Related records could not be loaded.',
     retry: 'Retry',
     edit: 'Edit',
+    actions: 'Actions',
     cancel: 'Cancel',
     save: 'Save',
     saving: 'Saving…',

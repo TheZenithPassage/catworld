@@ -517,11 +517,13 @@ The stay detail embeds the same evidence and capabilities returned by
 `GET /api/stays/{id}/actual-movements`. Both roles write via `PUT` to
 `/ARRIVAL` or `/DEPARTURE` under that path. Each request carries the current
 stay movement revision and an ISO instant or JSON null for server time.
-An arrival must occur on its scheduled business day. Departure can occur
-at or after arrival and through the scheduled departure day. Extend the stay
-through the existing schedule and pricing flow before recording a later
-checkout. Explicit historical times are accepted within those bounds. Both
-legs reject times in the future.
+The response includes a server clock sample for the confirmation preview.
+Arrival can use server time only on the scheduled arrival day. A manually
+entered arrival can occur on that day or on a later day at or before the
+scheduled departure instant. Departure can occur at or after actual arrival
+and through the scheduled departure day. Extend the stay through the existing
+schedule and pricing flow before recording a later checkout. Both legs reject
+times in the future.
 
 Each confirmation applies to all cats in the stay and stores a UTC instant
 and the recording account. Staff can correct their own arrival. Undo is
@@ -552,12 +554,13 @@ scheduled movement time and stay ID, groups all cats in one row per stay, and
 reports the transfer requirement for that leg.
 
 Rows mark movements scheduled on an earlier business date as overdue and
-indicate whether they can be recorded with the current time. This action is
-available on the scheduled business date, and departure requires check-in.
+indicate whether they can use server time. Overdue arrivals and checked-in
+departures still offer historical recording.
 Both endpoints send `X-Arrivals-Refresh-After-Ms` for the next business midnight.
 The dashboard's **Upcoming stays** view remembers one horizon for both lists
-in the browser. It uses the stay details to record an earlier unresolved
-movement with its actual time.
+in the browser. A confirmation opens over the stay detail and uses current
+server evidence even while the detail loads. Recording refreshes both views,
+and the stay detail remains open.
 
 The warnings apply the same coverage rule as stay creation and extensions.
 They identify missing dates, expiry by arrival, and expiry during the stay

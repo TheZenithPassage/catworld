@@ -272,7 +272,11 @@ describe('ArrivalsPage', () => {
     [...overdue.querySelectorAll('button')]
       .find((button) => button.textContent.trim() === 'Registrar salida')!
       .click();
-    expect(details.open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'overdue', initialMovement: 'record-departure' });
+    expect(details.open).toHaveBeenCalledWith({
+      entityType: 'stay',
+      entityId: 'overdue',
+      initialMovement: { action: 'record-departure', catNames: [cat.name] },
+    });
   });
 
   it('opens the stay with departure confirmation and refreshes the selected tab on update', () => {
@@ -302,12 +306,30 @@ describe('ArrivalsPage', () => {
     expect(details.open).toHaveBeenCalledWith({
       entityType: 'stay',
       entityId: stay.id,
-      initialMovement: 'record-departure',
+      initialMovement: { action: 'record-departure', catNames: [cat.name, 'Luna'] },
     });
     changed.next();
     expectMovements('departures').flush([]);
     expect(record.isConnected).toBe(true);
     fixture.detectChanges();
     expect(record.isConnected).toBe(false);
+  });
+
+  it('explains a missed arrival date and keeps registration available', () => {
+    expectMovements().flush([{ ...stay, overdue: true, canRecord: false, cats: [cat] }]);
+    fixture.detectChanges();
+    const row: HTMLElement = fixture.nativeElement.querySelector('article');
+
+    expect(row.textContent).toContain('Ingreso sin registrar');
+    expect(row.textContent).toContain('Ya pasó la fecha prevista de ingreso.');
+    const record = [...row.querySelectorAll('button')].find(
+      (button) => button.textContent.trim() === 'Registrar ingreso',
+    )!;
+    record.click();
+    expect(details.open).toHaveBeenCalledWith({
+      entityType: 'stay',
+      entityId: stay.id,
+      initialMovement: { action: 'record-arrival', catNames: [cat.name] },
+    });
   });
 });

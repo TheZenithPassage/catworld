@@ -153,7 +153,14 @@ export class ArrivalsPage {
   openMovement(stay: UpcomingStay): void {
     if (!stay.canRecord && !(stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN'))) return;
     this.details
-      .open({ entityType: 'stay', entityId: stay.id, initialMovement: this.recordAction() })
+      .open({
+        entityType: 'stay',
+        entityId: stay.id,
+        initialMovement: {
+          action: this.recordAction(),
+          catNames: stay.cats.map((cat) => cat.name),
+        },
+      })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.loadMovements(false));
   }

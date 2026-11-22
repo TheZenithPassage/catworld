@@ -26,6 +26,25 @@
   gap: 0.35rem;
 }
 
+.stay-header-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.stay-header-menu {
+  display: none;
+}
+
+@media (max-width: 42rem) {
+  .stay-header-buttons {
+    display: none;
+  }
+
+  .stay-header-menu {
+    display: inline-flex;
+  }
+}
+
 .cat-draft-indicator {
   max-inline-size: 10rem;
   color: var(--color-text-muted);

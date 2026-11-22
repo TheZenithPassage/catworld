@@ -122,6 +122,65 @@ class StayActualMovementIntegrationTest {
     }
 
     @Test
+    void recordsOverdueArrivalWithinTheBookingAndAllowsItsCorrection() throws Exception {
+        var currentStay = entityManager.find(Stay.class, stay.getId());
+        currentStay.setEndAt(LocalDateTime.parse("2030-06-02T09:00"));
+        entityManager.flush();
+        entityManager.clear();
+        clock.current = Instant.parse("2030-06-03T14:00:00Z");
+
+        mvc.perform(get(movementsUrl).with(user("movement-staff").roles("STAFF")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serverNow").value("2030-06-03T14:00:00Z"))
+                .andExpect(jsonPath("$.status").value("RESERVED"))
+                .andExpect(jsonPath("$.canRecordArrival").value(true))
+                .andExpect(jsonPath("$.arrivalAllowsNow").value(false))
+                .andExpect(jsonPath("$.canRecordDeparture").value(false));
+        write("DEPARTURE", 0, "2030-06-02T12:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isConflict());
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, "2030-06-02T12:00:00.000000001Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, "2030-06-02T11:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrival.occurredAt").value("2030-06-02T11:00:00Z"))
+                .andExpect(jsonPath("$.startAt").value("2030-06-01T20:00:00"))
+                .andExpect(jsonPath("$.endAt").value("2030-06-02T09:00:00"))
+                .andExpect(jsonPath("$.arrivalResetUntil").value("2030-06-03T14:15:00Z"));
+        write("ARRIVAL", 1, "2030-06-02T12:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrival.occurredAt").value("2030-06-02T12:00:00Z"))
+                .andExpect(jsonPath("$.arrivalResetUntil").value("2030-06-03T14:15:00Z"));
+    }
+
+    @Test
+    void acceptsTheOriginalDayAfterBothDatesPassAndRejectsOtherOutOfRangeDays() throws Exception {
+        clock.current = Instant.parse("2030-06-03T14:00:00Z");
+        write("ARRIVAL", 0, "2030-06-01T02:59:59Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, "2030-06-02T03:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, "2030-06-02T02:50:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrival.occurredAt").value("2030-06-02T02:50:00Z"));
+    }
+
+    @Test
+    void rejectsFutureArrivalAndServerTimeOnADifferentDayWithinTheBooking() throws Exception {
+        var currentStay = entityManager.find(Stay.class, stay.getId());
+        currentStay.setEndAt(LocalDateTime.parse("2030-06-05T09:00"));
+        entityManager.flush();
+        entityManager.clear();
+        clock.current = Instant.parse("2030-06-03T14:00:00Z");
+
+        write("ARRIVAL", 0, "2030-06-03T14:00:01Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isBadRequest());
+        write("ARRIVAL", 0, "2030-06-03T14:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void preservesOriginalAuthorDuringCorrectionAndArchivesOnAdminReset() throws Exception {
         write("ARRIVAL", 0, "2030-06-02T01:20:00Z", "movement-staff", UserRole.STAFF)
                 .andExpect(status().isOk());

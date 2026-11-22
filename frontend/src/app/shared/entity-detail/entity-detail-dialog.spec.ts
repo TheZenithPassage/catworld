@@ -26,14 +26,16 @@ import { EntityDetailDialog } from './entity-detail-dialog';
 import { EntityDetailDialogService } from './entity-detail-dialog.service';
 import { OwnerDetailResponse } from './relationship.models';
 import { Stay, StayDatePricingPreview } from '../../features/stays/models/stay.model';
+import type { StayActualMovements } from '../../features/stays/models/stay-movement.model';
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
 import { TransferRateApiService } from '../../features/nightly-rates/services/transfer-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { STAY_MOVEMENT_TRANSLATIONS } from '../../features/stays/components/stay-movement-dialog/stay-movement.translations';
 import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
-import type { EntityDetailUpdate } from './entity-reference';
+import type { EntityDetailUpdate, EntityReference } from './entity-reference';
 import { NavigationEnd, provideRouter, Router, withRouterConfig } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { confirmCatDraftNavigation } from '../../app.routes';
@@ -1070,6 +1072,87 @@ describe('EntityDetailDialog', () => {
     expect(completed).toHaveBeenCalledOnce();
   });
 
+  it('opens movement confirmation before the stay detail resolves and resumes the detail on close', async () => {
+    const pendingDetail = new Subject<ReturnType<typeof stayDetailResponse>>();
+    const movements: StayActualMovements = {
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      serverNow: '2030-01-01T13:00:42Z',
+      status: 'RESERVED',
+      cancelled: false,
+      revision: 3,
+      arrival: null,
+      departure: null,
+      canRecordArrival: true,
+      canRecordDeparture: false,
+      canResetArrival: false,
+      arrivalAllowsNow: true,
+      departureAllowsNow: false,
+    };
+    stayApi.getStayDetail
+      .mockReturnValueOnce(pendingDetail)
+      .mockReturnValue(of({ ...stayDetailResponse('stay-1'), status: 'CHECKED_IN' }));
+    const getActualMovements = vi.fn(() => of(movements));
+    const saveActualMovement = vi.fn(() => of({ ...movements, status: 'CHECKED_IN' }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: { ...stayApi, getActualMovements, saveActualMovement } },
+      ],
+    });
+    const labels = STAY_MOVEMENT_TRANSLATIONS[TestBed.inject(I18nService).language()];
+    const detailService = TestBed.inject(EntityDetailDialogService);
+    const dialogs = TestBed.inject(MatDialog);
+    const reference: EntityReference = {
+      entityType: 'stay',
+      entityId: 'stay-1',
+      initialMovement: { action: 'record-arrival', catNames: ['Milo', 'Luna'] },
+    };
+
+    const updated = vi.fn();
+    detailService.open(reference).subscribe(updated);
+    TestBed.tick();
+    expect(dialogs.openDialogs).toHaveLength(2);
+    const [detailRef, confirmationRef] = dialogs.openDialogs;
+    expect(getActualMovements).toHaveBeenCalledExactlyOnceWith('stay-1');
+    const confirmation = document.getElementById(confirmationRef.id)!;
+    const detail = document.getElementById(detailRef.id)!;
+    expect(confirmation.querySelector('h2')?.textContent?.trim()).toBe(labels.title['record-arrival']);
+    expect(confirmation.querySelector('.movement-cats')?.textContent?.trim()).toBe('Milo, Luna');
+    expect(confirmation.querySelector('time')?.dateTime).toBe(movements.serverNow);
+    expect(confirmation.contains(document.activeElement)).toBe(true);
+    const back = [...confirmation.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === labels.goBack,
+    )!;
+    const closed = firstValueFrom(confirmationRef.afterClosed());
+    back.click();
+    await closed;
+    await vi.waitFor(() => expect(detail.contains(document.activeElement)).toBe(true));
+    expect(dialogs.openDialogs).toEqual([detailRef]);
+    expect(updated).not.toHaveBeenCalled();
+    pendingDetail.next(stayDetailResponse('stay-1'));
+    detailRef.close();
+    await firstValueFrom(detailRef.afterClosed());
+
+    detailService.open(reference).subscribe(updated);
+    TestBed.tick();
+    const foreground = dialogs.getDialogById('stay-movement-stay-1')!;
+    const foregroundElement = document.getElementById(foreground.id)!;
+    const complete = [...foregroundElement.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === labels.confirm['record-arrival'],
+    )!;
+    const saved = firstValueFrom(foreground.afterClosed());
+    complete.click();
+    await saved;
+    expect(saveActualMovement).toHaveBeenCalledExactlyOnceWith('stay-1', 'ARRIVAL', 3, null);
+    expect(updated).toHaveBeenCalledExactlyOnceWith({ entityType: 'stay', entityId: 'stay-1' });
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(3);
+    expect(dialogs.openDialogs).toHaveLength(1);
+  });
+
   it('closes the detail dialog and releases an enlarged informational photo on session loss', async () => {
     const getInformationalPhoto = vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' })));
     TestBed.configureTestingModule({
@@ -1566,23 +1649,28 @@ describe('EntityDetailDialog', () => {
     ['known', '100', true],
     ['null', null, false],
   ] as const)(
-    'shows pricing only after the full Stay proves a %s agreement',
+    'shows pricing in the header only after the full Stay proves a %s agreement',
     async (_label, agreedAmount, visible) => {
       stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
       stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount }));
       await TestBed.configureTestingModule({
-        imports: [StayDetail],
-        providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+        imports: [EntityDetailDialog],
+        providers: [
+          provideNoopAnimations(),
+          { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+          { provide: OwnerApiService, useValue: api },
+          { provide: CatApiService, useValue: catApi },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+          { provide: MatDialogRef, useValue: dialogRef },
+        ],
       }).compileComponents();
-      const fixture = TestBed.createComponent(StayDetail);
-      fixture.componentRef.setInput('entityId', 'stay-1');
-      fixture.componentRef.setInput('editing', false);
+      const fixture = TestBed.createComponent(EntityDetailDialog);
       fixture.detectChanges();
-      const pricing = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
-        (button) =>
-          button.textContent?.includes(fixture.componentInstance.text().stays.detail.pricing),
-      );
-      expect(pricing !== undefined).toBe(visible);
+      const header = (fixture.nativeElement as HTMLElement).querySelector('header')!;
+      const buttons = [...header.querySelectorAll('button')].map((button) => button.textContent?.trim());
+      expect(buttons.includes(fixture.componentInstance.text().stays.detail.pricing)).toBe(visible);
+      expect(buttons).toContain(fixture.componentInstance.text().stays.detail.edit);
     },
   );
 
@@ -1711,11 +1799,13 @@ describe('EntityDetailDialog', () => {
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
     buttonContaining(fixture, 'Reserved').click();
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
     const root = fixture.nativeElement as HTMLElement;
-    expect(
-      root.querySelector('.header-edit-button, .header-cancel-button, .header-save-button'),
-    ).toBeNull();
-    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.edit).click();
+    expect(root.querySelector('.header-cancel-button, .header-save-button')).toBeNull();
+    const edit = root.querySelector<HTMLButtonElement>('.stay-header-buttons button')!;
+    expect(edit.textContent?.trim()).toBe(fixture.componentInstance.text().stays.detail.edit);
+    edit.click();
     fixture.detectChanges();
     let editor = fixture.debugElement.query(By.directive(StayEditor))
       .componentInstance as StayEditor;
@@ -2017,8 +2107,6 @@ describe('EntityDetailDialog', () => {
     ).toEqual([
       fixture.componentInstance.text().stays.cancellation.action,
       fixture.componentInstance.text().deletion.actions.deletePermanently,
-      fixture.componentInstance.text().stays.detail.pricing,
-      fixture.componentInstance.text().stays.detail.edit,
     ]);
 
     buttonContaining(

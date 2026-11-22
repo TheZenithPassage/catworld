@@ -31,6 +31,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { CatRelationshipPage } from './relationship.models';
@@ -38,6 +39,7 @@ import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { CatPhotoViewRequest } from '../../features/cats/models/cat.model';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
+import { StayMovementDialogService } from '../../features/stays/services/stay-movement-dialog.service';
 import { defaultIfEmpty, map, Observable, shareReplay, Subscription, tap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -65,6 +67,9 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
     OwnerDetail,
     CatDetail,
     VetDetail,
@@ -85,6 +90,7 @@ export class EntityDetailDialog {
   private readonly vetApi = inject(VetApiService);
   private readonly catApi = inject(CatApiService);
   private readonly stayApi = inject(StayApiService);
+  private readonly movementDialog = inject(StayMovementDialogService);
   private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);
@@ -101,7 +107,7 @@ export class EntityDetailDialog {
   private readonly catDetail = viewChild(CatDetail);
   protected readonly ownerDetail = viewChild(OwnerDetail);
   private readonly vetDetail = viewChild(VetDetail);
-  private readonly stayDetail = viewChild(StayDetail);
+  protected readonly stayDetail = viewChild(StayDetail);
   protected readonly editableDetail = computed(
     () => this.catDetail() ?? this.ownerDetail() ?? this.vetDetail(),
   );
@@ -555,6 +561,20 @@ export class EntityDetailDialog {
       this.preservedContentHeight.set(null);
       this.contentResolved = true;
     });
+  }
+  openInitialMovement(movement: NonNullable<EntityReference['initialMovement']>): void {
+    const stayId = this.reference().entityId;
+    this.movementDialog
+      .open({ stayId, ...movement }, this.dialogRef.beforeClosed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((refresh) => {
+        if (this.closing) return;
+        this.focusContent();
+        if (refresh) {
+          this.stayDetail()?.load();
+          this.stayUpdated({ entityType: 'stay', entityId: stayId });
+        }
+      });
   }
   private captureContentGeometry(): void {
     if (!this.contentResolved) return;

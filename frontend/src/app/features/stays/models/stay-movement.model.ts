@@ -18,6 +18,7 @@ export interface StayActualMovement {
 export interface StayActualMovements {
   startAt: string;
   endAt: string;
+  serverNow: string;
   cancelled: boolean;
   status: StayOverviewStatus;
   revision: number;
@@ -35,5 +36,4 @@ export interface StayMovementDialogData {
   stayId: string;
   catNames: string[];
   action: StayMovementAction;
-  allowHistorical: boolean;
 }

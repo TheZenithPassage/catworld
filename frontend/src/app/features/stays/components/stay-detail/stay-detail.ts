@@ -9,7 +9,6 @@ import {
   signal,
   viewChild,
   TemplateRef,
-  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
@@ -70,18 +69,14 @@ export class StayDetail {
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
-  readonly initialMovement = input<'record-arrival' | 'record-departure'>();
-  private initialMovementOpened = false;
   private movementInfoRef?: MatDialogRef<unknown>;
   readonly selectedLeg = signal<StayMovementType>('ARRIVAL');
   readonly resetWindowOpen = signal(true);
-  readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly updated = output<EntityDetailUpdate>();
-  readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();
@@ -98,6 +93,16 @@ export class StayDetail {
   readonly cancellationContextLoading = signal(false);
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
+  readonly actionsDisabled = computed(() => this.loading() || this.deleting());
+  readonly editAvailable = computed(() => {
+    const stay = this.detail();
+    return stay?.stayId === this.entityId() && !this.error() && this.canEdit(stay);
+  });
+  readonly pricingAvailable = computed(() => {
+    const pricing = this.pricingStay();
+    return this.detail()?.stayId === this.entityId() && !this.error() &&
+      pricing?.stayId === this.entityId() && (pricing.agreedAmount !== null || pricing.pricePending);
+  });
   readonly deletionError = createLanguageResetError(this.i18n.language);
   readonly movementTypes = ['ARRIVAL', 'DEPARTURE'] as const;
   readonly movementCatNames = computed(() => {
@@ -117,14 +122,6 @@ export class StayDetail {
       this.invalidateCancellationContext();
       this.invalidateOperational();
       this.deletionGeneration++;
-    });
-    effect(() => {
-      const initial = this.initialMovement();
-      const detail = this.detail();
-      if (initial && !this.initialMovementOpened && detail && !this.loading() && this.movementCatNames().length) {
-        this.initialMovementOpened = true;
-        untracked(() => this.openMovement(initial, detail.stayId));
-      }
     });
     effect((onCleanup) => {
       const deadline = this.detail()?.actualMovements?.arrivalResetUntil;
@@ -202,7 +199,7 @@ export class StayDetail {
     const catNames = this.movementCatNames();
     if (!catNames.length || this.loading() || this.deleting()) return;
     this.movementDialog
-      .open({ stayId, catNames, action, allowHistorical: true })
+      .open({ stayId, catNames, action })
       .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         this.movementInfoRef?.close();
