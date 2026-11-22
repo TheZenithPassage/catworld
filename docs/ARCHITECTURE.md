@@ -4,8 +4,10 @@ CatWorld is a full-stack administration system for cat-boarding operations.
 
 Cat profile photos use one optional `cat_photos` row owned by a Cat through a
 shared UUID primary/foreign key with database cascade deletion. The row stores
-only a normalized JPEG and its width, height, byte size and SHA-256 digest;
-photo bytes are not a Cat association and are never serialized in ordinary Cat
+the complete normalized JPEG, its dimensions, byte size, SHA-256 digest and
+optional square framing. Rows without framing use a centered crop. The admin
+photo endpoint returns framing metadata with the image, and the editor can
+save new framing for the existing image. Photo bytes are not a Cat association and are never serialized in ordinary Cat
 JSON. Every normal Cat response includes required `hasPhoto` metadata, with
 collections populated by one bounded presence query.
 
@@ -119,7 +121,12 @@ evidence have changed. Explicit catalog publication takes effect immediately
 and remains in the catalog after cancellation.
 Approval and dismissal check the proposal revision and verify the profile
 timestamp under the same cat row lock used by the internal editor.
-Approval applies the selected fields and moves selected evidence to the
+New household registrations require a profile photo, both current vaccine
+dates and at least one supporting image. Existing cats may submit any actual
+change, including a portrait alone. The recipient form lists missing items
+before a partial submission. The staged portrait has independent framing and
+does not count toward the five supporting images. Approval applies selected
+fields, promotes the selected portrait, and moves selected evidence to the
 informational gallery. A review can include `catalogOptionIds` to select
 approved replacements. The server checks each replacement's field and name
 and scopes food varieties to the brand being saved or retained. Dismissal discards the
@@ -500,21 +507,27 @@ A reservation remains `RESERVED` until confirmed arrival, becomes
 `CHECKED_IN`, and stays in that state until confirmed departure sets
 `CHECKED_OUT` permanently. `cancelledAt` takes precedence and only a reserved
 stay can be cancelled. New stays created wholly on past business days begin
-as historical `CHECKED_OUT` stays. Scheduled dates still determine booking
-overlap, the calendar, nights and vaccine coverage.
+as historical `CHECKED_OUT` stays. Scheduled dates determine nights, agreed pricing
+and vaccine coverage. Availability, the calendar and the Stay list replace
+each scheduled boundary with its corresponding confirmed time when available.
+An early checkout frees the cat from its actual departure without changing the
+agreement or payments.
 
 The stay detail embeds the same evidence and capabilities returned by
 `GET /api/stays/{id}/actual-movements`. Both roles write via `PUT` to
 `/ARRIVAL` or `/DEPARTURE` under that path. Each request carries the current
 stay movement revision and an ISO instant or JSON null for server time.
-The instant must fall on the scheduled business date, and can be earlier but
-never future. Server time is available on the scheduled day. Recorded departure
-is at or after recorded arrival. To depart on another day, edit the scheduled
-departure first. A checked-in stay keeps its scheduled arrival day.
+An arrival must occur on its scheduled business day. Departure can occur
+at or after arrival and through the scheduled departure day. Extend the stay
+through the existing schedule and pricing flow before recording a later
+checkout. Explicit historical times are accepted within those bounds. Both
+legs reject times in the future.
 
 Each confirmation applies to all cats in the stay and stores a UTC instant
-and the recording account. Staff can correct or undo their own arrival and
-administrators can do so for team arrivals. Undo via
+and the recording account. Staff can correct their own arrival. Undo is
+available to staff for 15 minutes after they recorded it. Correcting the
+declared time preserves that deadline. Administrators can undo any checked-in
+stay, including historical entries without an arrival time. Undo via
 `POST /api/stays/{id}/actual-movements/ARRIVAL/reset` returns a checked-in stay
 to reserved and records the former evidence and the operator who reset it.
 There are no movement corrections after checkout. The stay row lock serializes
@@ -549,7 +562,9 @@ movement with its actual time.
 The warnings apply the same coverage rule as stay creation and extensions.
 They identify missing dates, expiry by arrival, and expiry during the stay
 through the local departure date, with the expiry date when available.
-Arrivals flag a missing food brand or litter preference as **To confirm**.
+Arrivals flag missing profile details using the same assessment as household
+invitations. Either litter preference resolves the Arrivals item. Household
+forms also ask for the optional description when the tutor supplies litter.
 A stay without preparation items or visible proposals shows one complete
 message. `ADMIN` can generate a household link from any displayed arrival.
 The link uses that stay's departure for its participating eligible cats.

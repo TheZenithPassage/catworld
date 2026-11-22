@@ -36,7 +36,9 @@ public interface StayRepository extends JpaRepository<Stay, UUID> {
                    coalesce(c.currentFoodBrand, c.foodBrand) as foodBrand,
                    c.litterPreference as litterChoice, c.litterBrand as legacyLitterBrand,
                    coalesce(c.currentLitterDetail, c.litterDetail) as litterDetail,
-                   c.lastRabiesDate as lastRabiesDate, c.lastTripleFelineDate as lastTripleFelineDate
+                   c.lastRabiesDate as lastRabiesDate, c.lastTripleFelineDate as lastTripleFelineDate,
+                   c as profile, case when exists (select p.catId from CatPhoto p where p.catId = c.id)
+                       then true else false end as hasPhoto
             from Stay s
             join s.owner o
             left join s.stayCats sc
@@ -87,6 +89,8 @@ public interface StayRepository extends JpaRepository<Stay, UUID> {
         String getLitterDetail();
         LocalDate getLastRabiesDate();
         LocalDate getLastTripleFelineDate();
+        com.allegaeon.catworld.model.Cat getProfile();
+        boolean getHasPhoto();
     }
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -1,3 +1,4 @@
+import type { CatPhotoFrame } from '../cats/models/cat.model';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, TemplateRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -111,6 +112,7 @@ export class CatIntakeReview {
   private adjustment?: AdjustmentSnapshot;
   private discardDialog?: ReturnType<typeof openDiscardChangesDialog>;
 
+  readonly text = this.i18n.text;
   readonly copy = computed(() => CAT_INTAKE_TRANSLATIONS[this.i18n.language()].review);
   readonly catCopy = computed(() => this.i18n.text().cats);
   readonly litterChoice = catLitterChoice;
@@ -150,6 +152,12 @@ export class CatIntakeReview {
   readonly adjusting = signal(false);
   readonly confirmingDismiss = signal(false);
   readonly fields = signal<ReviewField[]>([]);
+  readonly portrait = signal<{ id: string; frame?: CatPhotoFrame } | undefined>(undefined);
+  readonly portraitId = computed(() => this.portrait()?.id);
+  readonly portraitPosition = computed(() => {
+    const frame = this.portrait()?.frame;
+    return frame ? frame.frameX + '% ' + frame.frameY + '%' : null;
+  });
   readonly photos = signal<ReviewPhoto[]>([]);
   readonly birthKey = signal<'birthDate' | 'birthYear'>('birthDate');
   readonly unansweredRequests = computed(() =>
@@ -297,6 +305,7 @@ export class CatIntakeReview {
               };
             }),
           );
+          this.portrait.set(detail.photos.find(({ frame }) => frame));
           this.photos.set(detail.photos.map(({ id }) => ({ id, state: 'loading' })));
           this.loadingDetail.set(false);
           for (const photo of detail.photos) this.loadPhoto(detail.id, photo.id);
@@ -561,8 +570,12 @@ export class CatIntakeReview {
     return 'maxLength' in field ? field.maxLength : null;
   }
 
-  fieldLabel(key: CatIntakeFieldKey): string {
+  fieldLabel(key: CatIntakeFieldKey | 'profilePhoto' | 'litterDetail'): string {
     switch (key) {
+      case 'profilePhoto':
+        return this.text().cats.photo.label;
+      case 'litterDetail':
+        return this.text().cats.form.catalogNames.litterDetail;
       case 'birthDate':
       case 'birthYear':
         return this.copy().birth;

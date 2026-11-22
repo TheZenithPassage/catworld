@@ -243,7 +243,7 @@
         }
       </mat-form-field>
 
-      <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [disabled]="submitting()" />
+      <app-cat-photo-input [savedHasPhoto]="hasSavedPhoto()" [catId]="entityId()" [disabled]="submitting()" />
       <app-cat-informational-photo-gallery
         [catId]="entityId()"
         [editable]="true"

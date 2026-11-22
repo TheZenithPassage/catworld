@@ -2,6 +2,8 @@ package com.allegaeon.catworld.service;
 
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.model.Cat;
+import com.allegaeon.catworld.model.LitterPreference;
+import com.allegaeon.catworld.repository.CatPhotoRepository;
 import com.allegaeon.catworld.repository.CatRepository;
 import com.allegaeon.catworld.repository.StayCatRepository;
 import com.allegaeon.catworld.repository.StayRepository;
@@ -26,6 +28,12 @@ public class HouseholdIntakePreparation {
     private final StayRepository stays;
     private final StayCatRepository stayCats;
     private final Clock clock;
+    private final CatPhotoRepository photos;
+
+    private static final List<String> PROFILE_FIELDS = List.of(
+            "name", "sex", "breed", "coat", "color", "personality", "foodBrand", "foodDetail", "litterBrand",
+            "lastInternalDewormerName", "lastInternalDewormingDate",
+            "lastExternalDewormerName", "lastExternalDewormingDate", "careInstructions");
 
     public List<Cat> livingCats(UUID ownerId) {
         return cats.findByOwner_IdAndDeceasedFalseOrderByNameAscIdAsc(ownerId);
@@ -45,6 +53,7 @@ public class HouseholdIntakePreparation {
         }
 
         List<UUID> catIds = household.stream().map(Cat::getId).toList();
+        var photographed = photos.findPresentCatIds(catIds);
         Map<UUID, LocalDate> departures = new HashMap<>();
         for (var stay : stayCats.findPreparationStaysForOwnerCats(ownerId, catIds, now, stayId)) {
             LocalDate departure = stay.getEndAt().toLocalDate();
@@ -58,28 +67,29 @@ public class HouseholdIntakePreparation {
         Map<UUID, Preparation> result = new LinkedHashMap<>();
         for (Cat cat : household) {
             LocalDate through = departures.getOrDefault(cat.getId(), now.toLocalDate());
-            result.put(cat.getId(), new Preparation(through, requestedFields(cat.getFoodBrand(), cat.getLitterBrand(),
-                    cat.getLastRabiesDate(), cat.getLastTripleFelineDate(), through)));
+            var missing = new ArrayList<>(missingProfileFields(cat, photographed.contains(cat.getId())));
+            if (cat.getLitterPreference() == LitterPreference.OWN && !StringUtils.hasText(cat.getDisplayedLitterDetail())) {
+                missing.add("litterDetail");
+            }
+            for (var conflict : StayVaccineCoverage.findConflicts(
+                    cat.getLastRabiesDate(), cat.getLastTripleFelineDate(), through, through)) {
+                missing.add(switch (conflict.vaccineType()) {
+                    case RABIES -> "lastRabiesDate";
+                    case TRIPLE_FELINE -> "lastTripleFelineDate";
+                });
+            }
+            result.put(cat.getId(), new Preparation(through, List.copyOf(missing)));
         }
         return result;
     }
 
-    public static List<String> requestedFields(String foodBrand, String litterBrand, LocalDate lastRabiesDate,
-                                               LocalDate lastTripleFelineDate, LocalDate through) {
-        List<String> fields = new ArrayList<>(4);
-        if (!StringUtils.hasText(foodBrand)) {
-            fields.add("foodBrand");
-        }
-        if (!StringUtils.hasText(litterBrand)) {
-            fields.add("litterBrand");
-        }
-        for (var conflict : StayVaccineCoverage.findConflicts(lastRabiesDate, lastTripleFelineDate, through, through)) {
-            fields.add(switch (conflict.vaccineType()) {
-                case RABIES -> "lastRabiesDate";
-                case TRIPLE_FELINE -> "lastTripleFelineDate";
-            });
-        }
-        return List.copyOf(fields);
+    static List<String> missingProfileFields(Cat cat, boolean hasPhoto) {
+        var profile = CatIntakeFields.displayedSnapshot(cat);
+        List<String> fields = new ArrayList<>();
+        if (!profile.containsKey("birthDate") && !profile.containsKey("birthYear")) fields.add("birthDate");
+        PROFILE_FIELDS.stream().filter(field -> !StringUtils.hasText(profile.get(field))).forEach(fields::add);
+        if (!hasPhoto) fields.add("profilePhoto");
+        return fields;
     }
 
     public record Preparation(LocalDate through, List<String> requestedFields) {}

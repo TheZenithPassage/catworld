@@ -58,11 +58,11 @@ export interface CatIntakeReviewDetail extends CatIntakeReviewItem {
   current: CatIntakeFields | null;
   proposed: CatIntakeFields;
   conflictFields: CatIntakeFieldKey[];
-  unansweredRequestedFields: CatIntakeFieldKey[];
+  unansweredRequestedFields: (CatIntakeFieldKey | "profilePhoto" | "litterDetail")[];
   proposedFoodDetailBrand?: string | null;
   currentFoodBrandId?: string | null;
   retiredCatalogFields?: CatCatalogSelectionField[];
-  photos: { id: string }[];
+  photos: { id: string; frame?: import('../cats/models/cat.model').CatPhotoFrame }[];
   catUpdatedAt: string | null;
   revision: number;
 }

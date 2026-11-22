@@ -2,6 +2,7 @@ package com.allegaeon.catworld.repository;
 
 import com.allegaeon.catworld.model.CatIntakePhoto;
 import com.allegaeon.catworld.model.CatIntakeReview;
+import com.allegaeon.catworld.model.CatPhotoFrame;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CatIntakePhotoRepository extends JpaRepository<CatIntakePhoto, UUID> {
-    @Query("select p.id from CatIntakePhoto p where p.review.id = :reviewId order by p.id")
+    @Query("select p.id from CatIntakePhoto p where p.review.id = :reviewId and p.portraitSha256 is null order by p.id")
     List<UUID> findIdsByReview(@Param("reviewId") UUID reviewId);
 
     @Query("select p.content from CatIntakePhoto p where p.review.id = :reviewId and p.id = :photoId")
@@ -26,6 +27,22 @@ public interface CatIntakePhotoRepository extends JpaRepository<CatIntakePhoto, 
             """)
     Optional<CatIntakeReview> findPendingReview(@Param("inviteId") UUID inviteId, @Param("photoId") UUID photoId);
 
+    interface Portrait {
+        UUID getId();
+        CatPhotoFrame getFrame();
+    }
+
+    @Query("select p.id as id, p.frame as frame from CatIntakePhoto p where p.review.id = :reviewId and p.portraitSha256 is not null")
+    Optional<Portrait> findPortrait(@Param("reviewId") UUID reviewId);
+
+    @Modifying
+    @Query("delete from CatIntakePhoto p where p.review.id = :reviewId and p.portraitSha256 is not null")
+    void deletePortrait(@Param("reviewId") UUID reviewId);
+
+    @Modifying
+    @Query("delete from CatIntakePhoto p where p.review.id = :reviewId and p.portraitSha256 is null")
+    void deleteEvidence(@Param("reviewId") UUID reviewId);
+
     List<CatIntakePhoto> findByReview_IdAndIdIn(UUID reviewId, Collection<UUID> ids);
 
     @Modifying
@@ -33,6 +50,6 @@ public interface CatIntakePhotoRepository extends JpaRepository<CatIntakePhoto, 
     void deleteByReview(@Param("reviewId") UUID reviewId);
 
     @Modifying
-    @Query("delete from CatIntakePhoto p where p.review.id = :reviewId and p.id not in :retainedIds")
+    @Query("delete from CatIntakePhoto p where p.review.id = :reviewId and p.portraitSha256 is null and p.id not in :retainedIds")
     void deleteUnretained(@Param("reviewId") UUID reviewId, @Param("retainedIds") Collection<UUID> retainedIds);
 }

@@ -183,12 +183,19 @@ public class CatService implements ICatService{
     }
 
     @Override
+    public byte[] previewPhoto(MultipartFile photo) {
+        return photoNormalizer.normalize(photo).bytes();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public CatPhotoContent getPhoto(UUID id) {
         if (!catRepository.existsById(id)) throw new ResourceNotFoundException("Cat", id);
         var photo = catPhotoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cat", id));
-        return new CatPhotoContent(photo.getContent().clone(), "\"" + photo.getSha256() + "\"");
+        var frame = photo.getFrame();
+        String revision = frame == null ? "" : "-" + frame.frameX() + "-" + frame.frameY() + "-" + frame.frameZoom();
+        return new CatPhotoContent(photo.getContent().clone(), "\"" + photo.getSha256() + revision + "\"", frame);
     }
 
     @Override

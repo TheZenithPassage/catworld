@@ -161,6 +161,7 @@ export class CatEditor {
       (this.draftValues() !== initial ||
         !!photo?.photo ||
         !!photo?.removePhoto ||
+        !!photo?.frame ||
         !!gallery?.drafts().length ||
         !!gallery?.removals().length)
     );
@@ -318,6 +319,7 @@ export class CatEditor {
     const original = this.initialCat;
     const request: UpdateCatRequest = {
       expectedUpdatedAt,
+      ...(photoMutation.frame ? { photoFrame: photoMutation.frame } : {}),
       ...(removedInformationalPhotoIds?.length ? { removedInformationalPhotoIds } : {}),
       name: this.name().trim(),
       deceased: this.deceased(),

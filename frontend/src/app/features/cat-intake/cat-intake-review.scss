@@ -208,3 +208,9 @@ app-cat-profile-option-field {
   max-width: 100%;
   margin-inline: auto;
 }
+
+.proof-portrait {
+  overflow: hidden;
+
+  img { object-fit: cover; }
+}

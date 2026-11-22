@@ -57,7 +57,7 @@ public class CatMutationTransactionService {
         cat.setCreatedBy(currentUserAccountService.getCurrentUserAccount());
         profileOptions.applyProfile(cat, request, reviewedOptions);
         cat = catRepository.saveAndFlush(cat);
-        if (photo != null) catPhotoRepository.save(toEntity(cat.getId(), photo));
+        if (photo != null) catPhotoRepository.save(photoEntity(cat.getId(), photo, request.getPhotoFrame()));
         addInformationalPhotos(cat, additions);
         entityManager.refresh(cat);
         return cat;
@@ -71,7 +71,7 @@ public class CatMutationTransactionService {
     @Transactional
     public Cat update(UUID id, CatRequestDTO request, NormalizedCatPhoto photo, boolean removePhoto,
                       List<NormalizedCatPhoto> additions) {
-        if (photo != null && removePhoto) {
+        if ((photo != null || request.getPhotoFrame() != null) && removePhoto) {
             throw new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT);
         }
         Cat cat = catRepository.findByIdForUpdate(id)
@@ -81,11 +81,15 @@ public class CatMutationTransactionService {
         }
         applyProfile(cat, request, Map.of());
         Set<UUID> removals = request.getRemovedInformationalPhotoIds();
-        if (removePhoto || photo != null || !additions.isEmpty() || (removals != null && !removals.isEmpty())) {
+        if (removePhoto || photo != null || request.getPhotoFrame() != null || !additions.isEmpty() || (removals != null && !removals.isEmpty())) {
             cat.setUpdatedAt(Instant.now());
         }
         if (removePhoto) catPhotoRepository.deleteById(id);
-        else if (photo != null) catPhotoRepository.save(toEntity(id, photo));
+        else if (photo != null) catPhotoRepository.save(photoEntity(id, photo, request.getPhotoFrame()));
+        else if (request.getPhotoFrame() != null) {
+            catPhotoRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Cat photo", id))
+                    .setFrame(request.getPhotoFrame().checked());
+        }
         if (removals != null) {
             for (UUID photoId : removals) {
                 if (informationalPhotos.deletePhoto(id, photoId) == 0) {
@@ -121,8 +125,9 @@ public class CatMutationTransactionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Vet", id));
     }
 
-    private CatPhoto toEntity(UUID id, NormalizedCatPhoto photo) {
+    static CatPhoto photoEntity(UUID id, NormalizedCatPhoto photo, CatPhotoFrame frame) {
         return CatPhoto.builder().catId(id).content(photo.bytes()).width(photo.width())
-                .height(photo.height()).byteSize(photo.bytes().length).sha256(photo.sha256()).build();
+                .height(photo.height()).byteSize(photo.bytes().length).sha256(photo.sha256())
+                .frame(frame == null ? null : frame.checked()).build();
     }
 }

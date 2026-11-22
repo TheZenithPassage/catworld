@@ -86,7 +86,7 @@ public class UpcomingStaysService {
                     .filter(row -> row.getCatId() != null)
                     .map(row -> new DepartureCat(row.getCatId(), row.getCatName()))
                     .toList();
-            boolean canRecord = scheduledDay.equals(window.today()) && stay.getStatus() == StayStatus.CHECKED_IN;
+            boolean canRecord = !window.today().isAfter(scheduledDay) && stay.getStatus() == StayStatus.CHECKED_IN;
             return new OperationsDeparture(stay.getStayId(), stay.getStartAt(), stay.getEndAt(),
                     new OperationsStayOwner(stay.getOwnerId(), stay.getOwnerName()), cats, stay.getTransferRequired(),
                     stay.getStatus(), scheduledDay.isBefore(window.today()), canRecord);
@@ -146,6 +146,6 @@ public class UpcomingStaysService {
         }
         String litterBrand = litterChoice == null ? null : litterChoice.legacyValueWithDetail(litterDetail);
         return new ArrivalCat(row.getCatId(), row.getCatName(), foodBrand, litterBrand, litterChoice,
-                warnings, pendingReviews);
+                warnings, HouseholdIntakePreparation.missingProfileFields(row.getProfile(), row.getHasPhoto()), pendingReviews);
     }
 }

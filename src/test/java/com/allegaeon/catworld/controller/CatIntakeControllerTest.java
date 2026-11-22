@@ -134,6 +134,8 @@ class CatIntakeControllerTest {
         jdbc.update("delete from cat_profile_options");
         when(clock.instant()).thenReturn(NOW);
         when(clock.getZone()).thenReturn(ZoneId.of("America/Argentina/Buenos_Aires"));
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(
+                org.mockito.ArgumentMatchers.argThat(file -> file != null && "registration-fixture.jpg".equals(file.getOriginalFilename())));
     }
 
     @Test
@@ -680,18 +682,38 @@ class CatIntakeControllerTest {
         withPending.setLastRabiesDate(null);
         cats.saveAndFlush(withPending);
         Cat complete = cat(owner, "Up to date");
+        complete.setBreed("Domestic");
+        complete.setColor("Gray");
+        complete.setPersonality("Calm");
+        complete.setFoodDetail("Dry");
+        complete.setCareInstructions("No special instructions");
+        complete.setLastExternalDewormerName("Prevention A");
+        complete.setLastExternalDewormingDate(LocalDate.of(2026, 10, 1));
+        complete.setLastInternalDewormerName("Prevention B");
+        complete.setLastInternalDewormingDate(LocalDate.of(2026, 10, 1));
+        cats.saveAndFlush(complete);
+        doReturn(new NormalizedCatPhoto(JPEG, 10, 10, "a".repeat(64))).when(normalizer).normalize(any());
+
 
         var invite = issue(owner, false);
         Cat addedLater = cat(owner, "Added later");
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cats.length()").value(2))
-                .andExpect(jsonPath("$.cats[0].requestedFields[0]").value("lastRabiesDate"))
-                .andExpect(jsonPath("$.cats[1].requestedFields").isEmpty());
+                .andExpect(jsonPath("$.cats[0].requestedFields", org.hamcrest.Matchers.hasItem("lastRabiesDate")))
+                .andExpect(jsonPath("$.cats[1].requestedFields", org.hamcrest.Matchers.hasItem("profilePhoto")));
         mvc.perform(submission(invite, List.of(Map.of("catId", addedLater.getId(), "fields", Map.of("coat", "Largo")))))
                 .andExpect(status().isBadRequest());
-        mvc.perform(submission(invite, List.of(Map.of("catId", complete.getId(), "fields", Map.of("coat", "Largo")))))
-                .andExpect(status().isBadRequest());
+        mvc.perform(submission(invite, List.of(Map.of("catId", complete.getId(), "fields", Map.of(),
+                        "portraitKey", "portrait", "portraitFrame", Map.of("frameX", 20, "frameY", 60, "frameZoom", 135))),
+                        proof("portrait"))).andExpect(status().isNoContent());
+        var portraitReview = detail(rowFor(reviewList(), owner.getId(), "Up to date").get("id").asString());
+        var portrait = portraitReview.get("photos").get(0);
+        assertThat(portrait.get("frame").get("frameZoom").asInt()).isEqualTo(135);
+        approve(portraitReview, Map.of(), List.of(portrait.get("id").asString()),
+                portraitReview.get("catUpdatedAt").asString(), 204);
+        mvc.perform(get("/api/cats/{id}/photo", complete.getId()).with(admin()))
+                .andExpect(status().isOk()).andExpect(header().string("X-Cat-Photo-Frame", "20,60,135"));
 
         var first = Map.of("catId", withPending.getId(), "fields", Map.of("lastRabiesDate", "2026-09-20"),
                 "photoKeys", List.of("proof"));
@@ -760,7 +782,7 @@ class CatIntakeControllerTest {
         mvc.perform(get(REVIEW + "/{id}", row.get("id").asString()).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unansweredRequestedFields",
-                        containsInAnyOrder("foodDetail", "litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
+                        org.hamcrest.Matchers.hasItems("profilePhoto", "foodDetail", "litterBrand", "lastRabiesDate", "lastTripleFelineDate")));
     }
 
     @Test
@@ -1342,8 +1364,7 @@ class CatIntakeControllerTest {
         cats.saveAndFlush(existing);
         var invite = issue(owner, false);
         mvc.perform(get(REQUEST).header(HttpHeaders.AUTHORIZATION, invite.authorization()))
-                .andExpect(jsonPath("$.cats[0].requestedFields[0]").value("foodBrand"))
-                .andExpect(jsonPath("$.cats[0].requestedFields[1]").value("foodDetail"));
+                .andExpect(jsonPath("$.cats[0].requestedFields", org.hamcrest.Matchers.hasItems("foodBrand", "foodDetail")));
         var invitation = invitations.findById(UUID.fromString(invite.id())).orElseThrow();
         jdbc.update("update cat_intake_invitations set requested_fields_snapshot = ? where id = ?",
                 json.writeValueAsString(Map.of(existing.getId(), List.of("foodBrand"))), uuidBytes(invitation.getId()));
@@ -1697,10 +1718,9 @@ class CatIntakeControllerTest {
         registration.put("birthYear", "2021");
         registration.put("litterBrand", "Tutor litter");
         registration.put("lastRabiesDate", "2026-02-03");
-        mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", registration))))
+        mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", registration, "retainedPhotoIds", List.of()))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Vaccination dates require a supporting photo for this cat"));
-        registration.remove("lastRabiesDate");
         mvc.perform(submission(invite, List.of(Map.of("draftId", draft, "fields", registration))))
                 .andExpect(status().isNoContent());
 
@@ -1793,6 +1813,9 @@ class CatIntakeControllerTest {
         var registration = new HashMap<>(Map.of("name", name, "sex", "FEMALE", "birthDate", "2021-08-21",
                 "breed", "Domestic", "coat", "Corto", "color", "Black", "personality", "Calm",
                 "foodBrand", "Tutor food", "foodDetail", "Dry", "litterBrand", "Tutor litter"));
+        String vaccineDate = LocalDate.now(clock).toString();
+        registration.put("lastRabiesDate", vaccineDate);
+        registration.put("lastTripleFelineDate", vaccineDate);
         registration.putAll(changes);
         return registration;
     }
@@ -1837,8 +1860,28 @@ class CatIntakeControllerTest {
 
     private MockMultipartHttpServletRequestBuilder submission(Invite invite, List<? extends Map<String, ?>> entries,
                                                               MockMultipartFile... images) {
-        var builder = multipart(SUBMISSIONS).file(new MockMultipartFile("submission", "submission.json",
-                "application/json", json.writeValueAsBytes(Map.of("cats", entries))));
+        var completed = new ArrayList<Map<String, Object>>();
+        var builder = multipart(SUBMISSIONS);
+        for (var entry : entries) {
+            var payload = new HashMap<String, Object>(entry);
+            int index = completed.size();
+            if (!payload.containsKey("catId") && payload.get("fields") instanceof Map<?, ?> profile
+                    && profile.containsKey("breed") && !payload.containsKey("portraitKey")) {
+                String portraitKey = "fixture-portrait-" + index;
+                payload.put("portraitKey", portraitKey);
+                payload.put("portraitFrame", Map.of("frameX", 50, "frameY", 50, "frameZoom", 100));
+                builder.file(new MockMultipartFile(portraitKey, "registration-fixture.jpg", "image/jpeg", JPEG));
+                boolean hasEvidence = payload.get("photoKeys") instanceof List<?> keys && !keys.isEmpty();
+                if (!hasEvidence && !payload.containsKey("retainedPhotoIds")) {
+                    String evidenceKey = "fixture-evidence-" + index;
+                    payload.put("photoKeys", List.of(evidenceKey));
+                    builder.file(new MockMultipartFile(evidenceKey, "registration-fixture.jpg", "image/jpeg", JPEG));
+                }
+            }
+            completed.add(payload);
+        }
+        builder.file(new MockMultipartFile("submission", "submission.json",
+                "application/json", json.writeValueAsBytes(Map.of("cats", completed))));
         for (var image : images) builder.file(image);
         builder.header(HttpHeaders.AUTHORIZATION, invite.authorization());
         return builder;

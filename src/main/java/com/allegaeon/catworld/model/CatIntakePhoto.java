@@ -27,6 +27,21 @@ public class CatIntakePhoto {
     @Column(columnDefinition = "MEDIUMBLOB", nullable = false, updatable = false)
     private byte[] content;
 
+    @Embedded
+    private CatPhotoFrame frame;
+    private Integer portraitWidth;
+    private Integer portraitHeight;
+    private String portraitSha256;
+
+    public CatIntakePhoto(CatIntakeReview review, byte[] content, CatPhotoFrame frame,
+                          int width, int height, String sha256) {
+        this(review, content);
+        this.frame = frame;
+        this.portraitWidth = width;
+        this.portraitHeight = height;
+        this.portraitSha256 = sha256;
+    }
+
     public CatIntakePhoto(CatIntakeReview review, byte[] content) {
         this.review = review;
         this.content = content;

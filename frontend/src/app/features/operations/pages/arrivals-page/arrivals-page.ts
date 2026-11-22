@@ -21,10 +21,8 @@ import {
   CatIntakeInvitationDialogData,
 } from '../../../cat-intake/cat-intake-invitation-dialog';
 import { STAY_MOVEMENT_TRANSLATIONS } from '../../../stays/components/stay-movement-dialog/stay-movement.translations';
-import type { StayMovementAction } from '../../../stays/models/stay-movement.model';
 import type { VaccineConflictViolation } from '../../../stays/models/stay.model';
 import { vaccineConflictLabels } from '../../../stays/models/vaccine-conflict-label';
-import { StayMovementDialogService } from '../../../stays/services/stay-movement-dialog.service';
 
 type VaccineWarning = Pick<VaccineConflictViolation, 'vaccineType' | 'reason' | 'expiresOn'>;
 
@@ -32,6 +30,7 @@ interface UpcomingCat {
   id: string;
   name: string;
   foodBrand?: string | null;
+  missingProfileFields?: string[];
   litterChoice?: 'OWN' | 'SHARED' | null;
   vaccineWarnings?: VaccineWarning[];
   pendingReviews?: { id: string; submittedAt: string }[] | null;
@@ -70,7 +69,6 @@ export class ArrivalsPage {
   private readonly businessTime = inject(BusinessTimeService);
   private readonly details = inject(EntityDetailDialogService);
   private readonly dialog = inject(MatDialog);
-  private readonly movementDialog = inject(StayMovementDialogService);
   private readonly auth = inject(AuthSessionService);
   private appliedDaysAhead = this.readDaysAhead();
   private request?: Subscription;
@@ -82,7 +80,7 @@ export class ArrivalsPage {
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
   readonly tab = signal<MovementTab>('arrivals');
   readonly isArrivals = computed(() => this.tab() === 'arrivals');
-  readonly recordAction = computed<StayMovementAction>(() =>
+  readonly recordAction = computed<'record-arrival' | 'record-departure'>(() =>
     this.isArrivals() ? 'record-arrival' : 'record-departure',
   );
   readonly stays = signal<UpcomingStay[]>([]);
@@ -153,19 +151,10 @@ export class ArrivalsPage {
   }
 
   openMovement(stay: UpcomingStay): void {
-    if (stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN')) {
-      this.openDetail('stay', stay.id);
-      return;
-    }
-    if (!stay.canRecord) return;
-    this.movementDialog
-      .open({
-        stayId: stay.id,
-        catNames: stay.cats.map((cat) => cat.name),
-        action: this.recordAction(),
-        allowHistorical: false,
-      })
-      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
+    if (!stay.canRecord && !(stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN'))) return;
+    this.details
+      .open({ entityType: 'stay', entityId: stay.id, initialMovement: this.recordAction() })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.loadMovements(false));
   }
 
@@ -193,7 +182,21 @@ export class ArrivalsPage {
   }
 
   hasPreparationWarnings(cat: UpcomingCat): boolean {
-    return !cat.foodBrand?.trim() || !cat.litterChoice || !!cat.vaccineWarnings?.length;
+    return !!this.missingProfileFields(cat).length || !!cat.vaccineWarnings?.length;
+  }
+
+  protected missingProfileFields(cat: UpcomingCat): string[] {
+    return cat.missingProfileFields ?? [
+      ...(!cat.foodBrand?.trim() ? ['foodBrand'] : []),
+      ...(!cat.litterChoice ? ['litterBrand'] : []),
+    ];
+  }
+
+  protected profileFieldLabel(key: string): string {
+    const form = this.catForm();
+    if (key === 'profilePhoto') return this.i18n.text().cats.photo.label;
+    const label = form[key as keyof typeof form];
+    return typeof label === 'string' ? label : key;
   }
 
   formatLocalDateTime(value: string): string {

@@ -1,6 +1,8 @@
 package com.allegaeon.catworld.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.allegaeon.catworld.model.CatPhotoFrame;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotNull;
 
@@ -28,11 +30,21 @@ public final class CatIntakeDtos {
                                 @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal litterRatePerKg) {}
     public record VaccineDateRange(LocalDate min, LocalDate max) {}
     public record SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
-                               List<UUID> retainedPhotoIds, List<String> photoKeys, Map<String, UUID> optionIds) {}
+                               List<UUID> retainedPhotoIds, List<String> photoKeys, Map<String, UUID> optionIds,
+                               String portraitKey, CatPhotoFrame portraitFrame) {
+        public SubmittedCat(UUID catId, UUID draftId, Long revision, Map<String, String> fields,
+                            List<UUID> retainedPhotoIds, List<String> photoKeys, Map<String, UUID> optionIds) {
+            this(catId, draftId, revision, fields, retainedPhotoIds, photoKeys, optionIds, null, null);
+        }
+    }
     public record Submission(List<SubmittedCat> cats) {}
 
     public record ReviewRow(UUID id, UUID ownerId, String ownerName, UUID catId, String catName, Instant submittedAt) {}
-    public record ReviewPhoto(UUID id) {}
+    public record ReviewPhoto(UUID id, @JsonInclude(JsonInclude.Include.NON_NULL) CatPhotoFrame frame) {
+        public ReviewPhoto(UUID id) {
+            this(id, null);
+        }
+    }
     public record ReviewDetail(UUID id, UUID ownerId, String ownerName, UUID catId, String catName, Instant submittedAt,
                                Map<String, String> current, Map<String, String> proposed, List<String> conflictFields,
                                List<String> unansweredRequestedFields, List<ReviewPhoto> photos,

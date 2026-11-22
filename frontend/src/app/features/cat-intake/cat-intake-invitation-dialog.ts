@@ -104,6 +104,7 @@ export class CatIntakeInvitationDialog {
           this.active.set({ ...request, id, expiresAt });
           this.link.set(url);
           this.setBusy(false);
+          void this.copyLink();
         },
         error: () => {
           this.feedback.set('issueFailed');
@@ -133,15 +134,15 @@ export class CatIntakeInvitationDialog {
       });
   }
 
-  async copyLink(input: HTMLInputElement): Promise<void> {
+  async copyLink(input?: HTMLInputElement): Promise<void> {
     const link = this.link();
     if (!link) return;
     try {
       await navigator.clipboard.writeText(link);
       this.feedback.set('copied');
     } catch {
-      input.focus();
-      input.select();
+      input?.focus();
+      input?.select();
       this.feedback.set('copyFailed');
     }
   }

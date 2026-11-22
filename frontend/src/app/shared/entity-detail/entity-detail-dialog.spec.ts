@@ -6,7 +6,7 @@ import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { filter, firstValueFrom, of, Subject, throwError } from 'rxjs';
+import { EMPTY, filter, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
@@ -119,6 +119,7 @@ describe('EntityDetailDialog', () => {
     ),
     getCatStays: vi.fn(),
     getCatPhoto: vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' }))),
+    getFramedCatPhoto: vi.fn(() => EMPTY),
     updateCat: vi.fn(() => of(updatedCat)),
   };
   const vetApi = {
@@ -2308,9 +2309,11 @@ describe('EntityDetailDialog cat photo destination', () => {
           stays: { totalElements: 0, items: [] },
         }),
       ),
-      getCatPhoto: vi
-        .fn(() => photo.asObservable())
-        .mockReturnValueOnce(of(new Blob(['thumbnail'], { type: 'image/jpeg' }))),
+      getFramedCatPhoto: vi.fn(() => of({
+        blob: new Blob(['thumbnail'], { type: 'image/jpeg' }),
+        frame: { frameX: 50, frameY: 50, frameZoom: 100 },
+      })),
+      getCatPhoto: vi.fn(() => photo.asObservable()),
     };
     const createUrl = vi
       .spyOn(URL, 'createObjectURL')
@@ -2352,10 +2355,10 @@ describe('EntityDetailDialog cat photo destination', () => {
       fixture.componentInstance.text().cats.detail.viewPhoto,
     );
     expect(viewPhoto.querySelector('img')?.getAttribute('src')).toBe('blob:profile-thumbnail');
-    expect(catApi.getCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
+    expect(catApi.getFramedCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
     viewPhoto.click();
     fixture.detectChanges();
-    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(2);
+    expect(catApi.getCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
     expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:profile-thumbnail');
     expect(fixture.componentInstance.photoState()).toBe('loading');
     expect(fixture.componentInstance.title()).toBe(

@@ -34,7 +34,7 @@ class CatIntakeFields {
 
     private final Validator validator;
 
-    Map<String, String> snapshot(Cat cat) {
+    static Map<String, String> snapshot(Cat cat) {
         Map<String, String> result = new LinkedHashMap<>();
         put(result, "name", cat.getName());
         put(result, "birthDate", cat.getBirthDate());
@@ -74,7 +74,7 @@ class CatIntakeFields {
         return result;
     }
 
-    Map<String, String> displayedSnapshot(Cat cat) {
+    static Map<String, String> displayedSnapshot(Cat cat) {
         var result = snapshot(cat);
         for (var field : CatProfileOptionField.values()) {
             put(result, field.key(), field.displayedNameOf(cat));

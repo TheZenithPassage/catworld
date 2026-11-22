@@ -145,11 +145,8 @@
                     </h4>
                     @if (isArrivals() && hasPreparationWarnings(cat)) {
                       <ul class="preparation-warnings">
-                        @if (!cat.foodBrand?.trim()) {
-                          <li>{{ catForm().foodBrand }} · {{ copy().toConfirm }}</li>
-                        }
-                        @if (!cat.litterChoice) {
-                          <li>{{ catForm().litterBrand }} · {{ copy().toConfirm }}</li>
+                        @for (field of missingProfileFields(cat); track field) {
+                          <li>{{ profileFieldLabel(field) }} · {{ copy().toConfirm }}</li>
                         }
                         @for (warning of cat.vaccineWarnings ?? []; track warning.vaccineType) {
                           <li>{{ vaccineWarning(warning) }}</li>

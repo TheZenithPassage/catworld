@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
-import { EMPTY } from 'rxjs';
+import { EMPTY, Observable, Subject } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
@@ -28,7 +28,7 @@ describe('ArrivalsPage', () => {
     endAt: '2026-11-15T17:00:00',
     owner: { id: 'owner-1', fullName: 'Ana Example' },
   };
-  const details = { open: vi.fn(() => EMPTY) };
+  const details = { open: vi.fn((): Observable<unknown> => EMPTY) };
   let fixture: ComponentFixture<ArrivalsPage>;
   let http: HttpTestingController;
   const storageKey = 'catworld.arrivals.filters';
@@ -45,7 +45,7 @@ describe('ArrivalsPage', () => {
 
   beforeEach(() => {
     localStorage.removeItem(storageKey);
-    details.open.mockClear();
+    details.open.mockReset().mockReturnValue(EMPTY);
     TestBed.configureTestingModule({
       imports: [ArrivalsPage],
       providers: [
@@ -272,10 +272,12 @@ describe('ArrivalsPage', () => {
     [...overdue.querySelectorAll('button')]
       .find((button) => button.textContent.trim() === 'Registrar salida')!
       .click();
-    expect(details.open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'overdue' });
+    expect(details.open).toHaveBeenCalledWith({ entityType: 'stay', entityId: 'overdue', initialMovement: 'record-departure' });
   });
 
-  it('confirms the whole group once and refreshes the selected departures tab after checkout', async () => {
+  it('opens the stay with departure confirmation and refreshes the selected tab on update', () => {
+    const changed = new Subject<void>();
+    details.open.mockReturnValue(changed);
     expectMovements().flush([]);
     fixture.detectChanges();
     const page: HTMLElement = fixture.nativeElement;
@@ -297,30 +299,15 @@ describe('ArrivalsPage', () => {
       (button) => button.textContent.trim() === 'Registrar salida',
     )!;
     record.click();
-    record.click();
-    const url = '/api/stays/stay-1/actual-movements';
-    const current = {
-      ...stay,
-      revision: 4,
-      status: 'CHECKED_IN',
-      canRecordDeparture: true,
-      departureAllowsNow: true,
-    };
-    http.expectOne(url).flush(current);
+    expect(details.open).toHaveBeenCalledWith({
+      entityType: 'stay',
+      entityId: stay.id,
+      initialMovement: 'record-departure',
+    });
+    changed.next();
+    expectMovements('departures').flush([]);
+    expect(record.isConnected).toBe(true);
     fixture.detectChanges();
-    const dialog = document.querySelector('[role="dialog"]')!;
-    expect(dialog.textContent).toContain('Milo, Luna');
-    expect(dialog.textContent).toContain(
-      'Confirmá solo si el retiro ya ocurrió. La estadía quedará finalizada y no podrás reabrirla ni corregir la hora de salida desde CatWorld',
-    );
-    const actions = [...dialog.querySelectorAll('button')];
-    expect(actions.some((button) => button.textContent.trim() === 'Volver')).toBe(true);
-    const confirm = actions.find((button) => button.textContent.trim() === 'Confirmar salida')!;
-    confirm.click();
-    confirm.click();
-    const request = http.expectOne({ url: url + '/DEPARTURE', method: 'PUT' });
-    expect(request.request.body).toEqual({ expectedRevision: 4, occurredAt: null });
-    request.flush({ ...current, revision: 5, status: 'CHECKED_OUT' });
-    await vi.waitFor(() => expectMovements('departures').flush([]));
+    expect(record.isConnected).toBe(false);
   });
 });

@@ -300,7 +300,9 @@ export class CatCreatePage implements AfterViewInit {
       vetId: this.toNullableString(this.vetId()),
     };
 
-    const photo = this.photoInput?.mutation().photo ?? null;
+    const photoMutation = this.photoInput?.mutation();
+    const photo = photoMutation?.photo ?? null;
+    if (photoMutation?.frame) request.photoFrame = photoMutation.frame;
     const attachments = this.gallery?.files() ?? [];
     const photoError = catPhotoRequestError(photo, attachments);
     if (photoError) {

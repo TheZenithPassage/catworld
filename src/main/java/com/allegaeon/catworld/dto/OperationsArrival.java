@@ -14,7 +14,7 @@ public record OperationsArrival(UUID id, LocalDateTime startAt, LocalDateTime en
                                 OperationsStayOwner owner, List<ArrivalCat> cats, boolean transferRequired,
                                 StayStatus status, boolean overdue, boolean canRecord) {
     public record ArrivalCat(UUID id, String name, String foodBrand, String litterBrand, LitterPreference litterChoice,
-                             List<VaccineWarning> vaccineWarnings,
+                             List<VaccineWarning> vaccineWarnings, List<String> missingProfileFields,
                              @JsonInclude(JsonInclude.Include.NON_NULL) List<PendingReview> pendingReviews) {}
 
     public record VaccineWarning(VaccineType vaccineType, VaccineConflictReason reason, LocalDate expiresOn) {}

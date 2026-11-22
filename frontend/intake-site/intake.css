@@ -555,3 +555,33 @@ textarea[aria-invalid='true'] {
     width: 100%;
   }
 }
+
+.profile-photo {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+.profile-photo-preview {
+  width: min(100%, 15rem);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 0.5rem;
+}
+.profile-photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-photo-controls {
+  width: min(100%, 21rem);
+}
+.profile-photo-controls label {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+[data-required-missing] {
+  outline: 2px solid #b3261e;
+  outline-offset: 2px;
+}

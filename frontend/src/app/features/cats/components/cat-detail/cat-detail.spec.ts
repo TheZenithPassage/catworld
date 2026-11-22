@@ -17,6 +17,7 @@ describe('CatDetail permanent deletion', () => {
   let api: {
     getCatDetail: ReturnType<typeof vi.fn>;
     getCatPhoto: ReturnType<typeof vi.fn>;
+    getFramedCatPhoto: ReturnType<typeof vi.fn>;
     listInformationalPhotos: ReturnType<typeof vi.fn>;
     deleteCat: ReturnType<typeof vi.fn>;
   };
@@ -29,6 +30,10 @@ describe('CatDetail permanent deletion', () => {
     api = {
       getCatDetail: vi.fn(() => of(detail())),
       getCatPhoto: vi.fn(() => of(new Blob(['portrait'], { type: 'image/jpeg' }))),
+      getFramedCatPhoto: vi.fn(() => of({
+        blob: new Blob(['portrait'], { type: 'image/jpeg' }),
+        frame: { frameX: 50, frameY: 50, frameZoom: 100 },
+      })),
       listInformationalPhotos: vi.fn(() => of([])),
       deleteCat: vi.fn(() => of(undefined)),
     };

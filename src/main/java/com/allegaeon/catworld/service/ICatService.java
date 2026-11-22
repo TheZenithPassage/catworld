@@ -27,6 +27,8 @@ public interface ICatService {
     CatResponseDTO createCat(CatRequestDTO catRequestDTO);
     CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO);
     CatPhotoContent getPhoto(UUID id);
+
+    byte[] previewPhoto(MultipartFile photo);
     void deleteCat(UUID id);
 
 }

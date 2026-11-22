@@ -84,6 +84,7 @@ export interface CatsTranslations {
     undoRemoval: string;
     previewUnavailable: string;
     previewAlt: string;
+    framing: [string, string, string];
     errors: {
       localFileTooLarge: string;
       localUnsupportedFormat: string;
@@ -295,7 +296,8 @@ export const CATS_TRANSLATIONS = {
       pendingRemoval: 'La foto guardada se eliminará al guardar.',
       undoRemoval: 'Deshacer eliminación',
       previewUnavailable: 'La vista previa no está disponible; el archivo se enviará al guardar.',
-      previewAlt: 'Vista previa completa de la foto de perfil seleccionada',
+      previewAlt: 'Encuadre de la foto de perfil',
+      framing: ['Posición horizontal', 'Posición vertical', 'Zoom'],
       errors: {
         localFileTooLarge: 'Seleccioná una foto de 32 MiB o menos.',
         localUnsupportedFormat: 'Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
@@ -494,7 +496,8 @@ export const CATS_TRANSLATIONS = {
       pendingRemoval: 'The saved photo will be removed when you save.',
       undoRemoval: 'Undo removal',
       previewUnavailable: 'Preview is unavailable; the file will still be uploaded when you save.',
-      previewAlt: 'Complete preview of the selected cat profile photo',
+      previewAlt: 'Profile photo framing',
+      framing: ['Horizontal position', 'Vertical position', 'Zoom'],
       errors: {
         localFileTooLarge: 'Select a photo that is 32 MiB or smaller.',
         localUnsupportedFormat: 'Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',

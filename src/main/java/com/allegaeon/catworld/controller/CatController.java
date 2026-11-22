@@ -78,12 +78,23 @@ public class CatController {
         return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto, informationalPhotos));
     }
 
+    @PostMapping(value = "/photo-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.IMAGE_JPEG_VALUE)
+    public ResponseEntity<byte[]> previewPhoto(@RequestPart("photo") MultipartFile photo) {
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(catService.previewPhoto(photo));
+    }
+
     @GetMapping(value = "/{id}/photo", produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<byte[]> getPhoto(@PathVariable UUID id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         var photo = catService.getPhoto(id);
         var headers = new HttpHeaders();
         headers.setETag(photo.etag());
+        if (photo.frame() != null) {
+            headers.set("X-Cat-Photo-Frame", "%d,%d,%d".formatted(
+                    photo.frame().frameX(), photo.frame().frameY(), photo.frame().frameZoom()));
+            headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "X-Cat-Photo-Frame");
+        }
         headers.setCacheControl("private, no-cache");
         if (matches(ifNoneMatch, photo.etag())) return new ResponseEntity<>(null, headers, HttpStatus.NOT_MODIFIED);
         return new ResponseEntity<>(photo.bytes(), headers, HttpStatus.OK);

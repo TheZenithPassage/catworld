@@ -69,6 +69,7 @@ export interface Cat {
 }
 
 export interface CreateCatRequest {
+  photoFrame?: CatPhotoFrame;
   name: string;
   birthDate: string | null;
   birthYear?: number | null;
@@ -104,9 +105,19 @@ export interface UpdateCatRequest extends CreateCatRequest {
   expectedUpdatedAt: string;
   deceased?: boolean;
   removedInformationalPhotoIds?: string[];
+  photoFrame?: CatPhotoFrame;
 }
 
+export interface CatPhotoFrame {
+  frameX: number;
+  frameY: number;
+  frameZoom: number;
+}
+
+export const CENTERED_PHOTO_FRAME: CatPhotoFrame = { frameX: 50, frameY: 50, frameZoom: 100 };
+
 export interface CatPhotoMutation {
+  frame?: CatPhotoFrame;
   photo: File | null;
   removePhoto: boolean;
 }

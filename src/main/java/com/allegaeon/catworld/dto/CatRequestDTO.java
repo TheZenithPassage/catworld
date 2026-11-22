@@ -2,6 +2,7 @@ package com.allegaeon.catworld.dto;
 
 import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.LitterPreference;
+import com.allegaeon.catworld.model.CatPhotoFrame;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -36,6 +37,7 @@ public class CatRequestDTO {
     private Instant expectedUpdatedAt;
 
     private Set<@NotNull UUID> removedInformationalPhotoIds;
+    private CatPhotoFrame photoFrame;
 
     @JsonIgnore
     @AssertTrue(groups = Create.class, message = "A new cat has no informational photos to remove")

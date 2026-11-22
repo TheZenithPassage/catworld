@@ -32,8 +32,8 @@ const FIELDS = [
   ['foodDetail', 'Variedad del alimento', 'text', true, 255, 'Por ejemplo, Kitten o Senior.'],
   ['litterBrand', 'Piedritas', 'litter', true],
   ['careInstructions', 'Indicaciones extra', 'textarea', false, 2000],
-  ['lastTripleFelineDate', 'Fecha de aplicación de la triple felina', 'date'],
-  ['lastRabiesDate', 'Fecha de aplicación de la antirrábica', 'date'],
+  ['lastTripleFelineDate', 'Fecha de aplicación de la triple felina', 'date', true],
+  ['lastRabiesDate', 'Fecha de aplicación de la antirrábica', 'date', true],
   ['lastInternalDewormerName', 'Último desparasitante interno', 'text', false, 100],
   ['lastInternalDewormingDate', 'Fecha de desparasitación interna', 'date'],
   ['lastExternalDewormerName', 'Última pipeta antipulgas', 'text', false, 100],
@@ -671,7 +671,7 @@ function photoRemovalButton(label) {
   return remove;
 }
 
-function createAttachments(photos) {
+function createAttachments(photos, required) {
   const attachments = element('div', 'attachments');
   const selected = element('ul', 'selected-photos');
   const newPhotos = [];
@@ -680,7 +680,7 @@ function createAttachments(photos) {
   fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
   const fileLabel = fieldLabel(
-    'Fotos de comprobantes',
+    required ? 'Fotos de comprobantes *' : 'Fotos de comprobantes',
     fileInput,
     'Para informar una vacuna, adjuntá el comprobante de este gato.',
   );
@@ -806,6 +806,115 @@ function createAttachments(photos) {
   };
 }
 
+const OPTIONAL_FIELDS = new Set([
+  'careInstructions', 'lastInternalDewormerName', 'lastInternalDewormingDate',
+  'lastExternalDewormerName', 'lastExternalDewormingDate',
+]);
+
+function createPortrait(saved, required) {
+  const control = element('section', 'profile-photo');
+  const label = element('label', '', required ? 'Foto de perfil *' : 'Foto de perfil');
+  const input = element('input');
+  input.type = 'file';
+  input.name = 'profilePhoto';
+  input.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
+  label.append(input);
+  const preview = element('div', 'profile-photo-preview');
+  const image = element('img');
+  image.alt = 'Encuadre de la foto de perfil';
+  preview.append(image);
+  const framing = element('div', 'profile-photo-controls');
+  const ranges = [
+    ['frameX', 'Posición horizontal', 0, 100, 50],
+    ['frameY', 'Posición vertical', 0, 100, 50],
+    ['frameZoom', 'Zoom', 100, 300, 100],
+  ].map(([key, text, min, max, fallback]) => {
+    const field = element('label', '', text);
+    const slider = element('input');
+    slider.type = 'range';
+    slider.min = min;
+    slider.max = max;
+    slider.value = saved?.frame[key] ?? fallback;
+    field.append(slider);
+    framing.append(field);
+    return { key, slider, fallback };
+  });
+  const frame = () => Object.fromEntries(ranges.map(({ key, slider }) => [key, Number(slider.value)]));
+  function paint() {
+    const { frameX, frameY, frameZoom } = frame();
+    const position = frameX + '% ' + frameY + '%';
+    image.style.objectPosition = position;
+    image.style.transformOrigin = position;
+    image.style.transform = 'scale(' + frameZoom / 100 + ')';
+  }
+  const remove = element('button', 'secondary', 'Quitar foto nueva');
+  remove.type = 'button';
+  const feedback = element('p', 'hint');
+  let file;
+  let url;
+  let pending;
+  function release() {
+    pending?.abort();
+    if (url) URL.revokeObjectURL(url);
+    url = undefined;
+  }
+  async function show() {
+    release();
+    preview.hidden = true;
+    framing.hidden = !file;
+    remove.hidden = !file;
+    feedback.textContent = '';
+    if (!file && !saved) return;
+    const controller = new AbortController();
+    pending = controller;
+    try {
+      let blob = file;
+      if (!file) {
+        const response = await request('/api/intake/photos/' + encodeURIComponent(saved.id), { signal: controller.signal });
+        if (!response.ok) throw new Error('Preview unavailable');
+        blob = await response.blob();
+      } else if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        const body = new FormData();
+        body.append('photo', file);
+        const response = await request('/api/intake/photo-preview', { method: 'POST', body, signal: controller.signal });
+        if (!response.ok) throw new Error('Preview unavailable');
+        blob = await response.blob();
+      }
+      if (controller.signal.aborted) return;
+      url = URL.createObjectURL(blob);
+      image.src = url;
+      paint();
+      preview.hidden = false;
+    } catch {
+      if (!controller.signal.aborted) feedback.textContent = 'Vista previa no disponible.';
+    }
+  }
+  input.addEventListener('change', () => {
+    const next = input.files?.[0];
+    input.value = '';
+    if (!next) return;
+    const problem = photoLimitError([next], 0);
+    if (problem) {
+      showError(problem, input);
+      return;
+    }
+    showError('');
+    file = next;
+    for (const { slider, fallback } of ranges) slider.value = fallback;
+    void show();
+  });
+  remove.addEventListener('click', () => {
+    file = undefined;
+    for (const { key, slider, fallback } of ranges) slider.value = saved?.frame[key] ?? fallback;
+    void show();
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  for (const { slider } of ranges) slider.addEventListener('input', paint);
+  control.append(label, preview, framing, remove, feedback);
+  void show();
+  return { control, input, file: () => file, frame, saved, release };
+}
+
 function addCard(
   {
     catId,
@@ -834,7 +943,12 @@ function addCard(
   const summary = element('summary');
   const title = element('span', '', initial.name || fallbackTitle);
   summary.append(title);
-  const hasPending = isNew ? revision === 0 : requestedFields.some((key) => !proposedFields[key]);
+  const hasPending = isNew ? revision === 0 : requestedFields.some((key) => {
+    if (key === 'profilePhoto') return !savedPhotos.some(({ frame }) => frame);
+    if (key === 'birthDate' && proposedFields.birthYear) return false;
+    if (key === 'litterDetail' && proposedFields.litterBrand === SHARED_LITTER) return false;
+    return !proposedFields[key];
+  });
   if (hasPending) {
     summary.append(' ', element('span', 'cat-state cat-state--pending', 'Datos pendientes'));
   }
@@ -867,7 +981,9 @@ function addCard(
     };
     const catalog = isCatalog ? { options, id: optionIds?.[catalogField] } : undefined;
     const ui = createField(field, initial, isNew, catalog);
-    const container = isNew || requestedFields.includes(key) ? primaryFields : otherFields;
+    const requested = requestedFields.includes(key) ||
+      (key === 'litterBrand' && requestedFields.includes('litterDetail'));
+    const container = isNew || requested ? primaryFields : otherFields;
     if (key === 'foodBrand') {
       (requestedFields.includes('foodDetail') ? primaryFields : container).append(foodFields);
     }
@@ -902,13 +1018,18 @@ function addCard(
     title.textContent = target.value.trim() || fallbackTitle;
   });
 
-  const photos = savedPhotos.map(({ id }, index) => ({ id, number: index + 1, keep: true }));
-  const { attachments, fileInput, newFiles, releasePhotos } = createAttachments(photos);
+  const portrait = createPortrait(savedPhotos.find(({ frame }) => frame), isNew);
+  const photos = savedPhotos.filter(({ frame }) => !frame).map(({ id }, index) => ({ id, number: index + 1, keep: true }));
+  const { attachments, fileInput, newFiles, releasePhotos } = createAttachments(photos, isNew);
+  (isNew || requestedFields.includes('profilePhoto') || portrait.saved ? primaryFields : otherFields).append(portrait.control);
   content.append(primaryFields);
   if (isNew || photos.length || VACCINES.some((key) => requestedFields.includes(key))) {
     content.append(attachments);
   } else {
     other.append(attachments);
+  }
+  if (!isNew && !hasPending) {
+    content.append(element('p', 'hint', 'Podés actualizar lo que haya cambiado.'));
   }
   if (!isNew) content.append(other);
 
@@ -925,7 +1046,11 @@ function addCard(
     photos,
     fileInput,
     newFiles,
-    releasePhotos,
+    portrait,
+    releasePhotos: () => {
+      releasePhotos();
+      portrait.release();
+    },
   };
   function refreshDraftState() {
     const dirty =
@@ -947,7 +1072,7 @@ function addCard(
     remove.type = 'button';
     function refreshRemoval() {
       remove.hidden =
-        newFiles().length > 0 ||
+        newFiles().length > 0 || !!portrait.file() ||
         [...inputs.values()].some(
           (field) =>
             field.hasEnteredValue?.() ??
@@ -961,7 +1086,7 @@ function addCard(
       refreshRemoval();
       if (remove.hidden) return;
       if (card.contains(errorInput)) showError('');
-      releasePhotos();
+      entry.releasePhotos();
       cards.splice(cards.indexOf(entry), 1);
       card.remove();
       refreshActions();
@@ -1128,20 +1253,37 @@ function submissionCard(card) {
     optionIds,
     files,
     retainedPhotoIds,
-    changed: changed || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
+    changed: changed || !!card.portrait.file() || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
   };
 }
 
 function validateCards(drafts) {
+  for (const input of form.querySelectorAll('[data-required-missing]')) {
+    input.removeAttribute('data-required-missing');
+    input.removeAttribute('aria-invalid');
+  }
+  const missing = [];
+  for (const { card, files, retainedPhotoIds, changed } of drafts) {
+    if (card.catId !== null || (!changed && card.revision > 0)) continue;
+    for (const field of card.inputs.values()) {
+      if (field.input.required && !field.read().trim() && !field.input.validity.badInput) missing.push(field.input);
+    }
+    if (!card.portrait.file() && !card.portrait.saved) missing.push(card.portrait.input);
+    if (!files.length && !retainedPhotoIds.length) missing.push(card.fileInput);
+  }
+  if (missing.length) {
+    for (const input of missing) {
+      input.setAttribute('data-required-missing', '');
+      input.setAttribute('aria-invalid', 'true');
+    }
+    showError('Completá los campos obligatorios y adjuntá las fotos requeridas.', missing[0]);
+    return false;
+  }
   for (const { card, fields, files, retainedPhotoIds, changed } of drafts) {
     if (!changed && (card.catId !== null || card.revision > 0)) continue;
     for (const [key, field] of card.inputs) {
       const { input } = field;
       const value = field.read().trim();
-      if (input.required && !value && !input.validity.badInput) {
-        showError('Completá este dato para registrar a tu gato.', input);
-        return false;
-      }
       if (
         input.name === 'birthYear' &&
         value &&
@@ -1195,24 +1337,29 @@ function validateCards(drafts) {
   return true;
 }
 
-function validateRequestedAnswer(entries) {
-  const pending = cards.find((card) => card.requestedFields.length);
-  const answersRequest = entries.some(({ card, fields }) =>
-    card.requestedFields.some((key) => fields[key]),
-  );
-  if (pending && !answersRequest && !entries.some(({ card }) => card.catId === null)) {
-    const requested = pending.requestedFields.find((key) => pending.inputs.has(key));
-    showError(
-      'Completá al menos uno de los datos que te pidió CatWorld antes de enviar la ficha.',
-      pending.inputs.get(requested)?.input,
-    );
-    return false;
-  }
-  return true;
+function hasProposal({ card, fields, files, retainedPhotoIds }) {
+  return !!card.portrait.file() || !!card.portrait.saved ||
+    Object.keys(fields).length > 0 || files.length > 0 || retainedPhotoIds.length > 0;
 }
 
-function hasProposal({ fields, files, retainedPhotoIds }) {
-  return Object.keys(fields).length > 0 || files.length > 0 || retainedPhotoIds.length > 0;
+function missingFor({ card, fields }) {
+  const missing = [];
+  const isNew = card.catId === null;
+  for (const [key, label] of FIELDS) {
+    if (card.requestedFields.includes(key) || (isNew && OPTIONAL_FIELDS.has(key))) {
+      const answered = fields[key] || (key === 'birthDate' && fields.birthYear);
+      if (!answered) missing.push([key, label]);
+    }
+  }
+  if (card.requestedFields.includes('profilePhoto') && !card.portrait.file() && !card.portrait.saved) {
+    missing.push(['profilePhoto', 'Foto de perfil']);
+  }
+  const litter = card.inputs.get('litterBrand');
+  if ((isNew || card.requestedFields.includes('litterDetail')) &&
+      litter.read()?.startsWith(OWN_LITTER) && !litter.readLitterDetail()) {
+    missing.push(['litterBrand', 'Marca o tipo de piedritas']);
+  }
+  return { card, fields: missing };
 }
 
 function multipart(entries) {
@@ -1225,6 +1372,12 @@ function multipart(entries) {
       body.append(key, photo);
       return key;
     });
+    const portrait = card.portrait.file();
+    const portraitKey = portrait && 'portrait-' + index;
+    if (portrait) {
+      totalBytes += portrait.size;
+      body.append(portraitKey, portrait);
+    }
     return {
       catId: card.catId,
       draftId: card.draftId,
@@ -1233,6 +1386,7 @@ function multipart(entries) {
       ...(Object.keys(optionIds).length ? { optionIds } : {}),
       retainedPhotoIds,
       photoKeys,
+      ...(portrait ? { portraitKey, portraitFrame: card.portrait.frame() } : {}),
     };
   });
   if (totalBytes > MAX_TOTAL_BYTES) return null;
@@ -1290,7 +1444,7 @@ function showPartialSubmission(missing, body, entries) {
     partialCats.append(item);
   }
   const [{ card, fields }] = missing;
-  partialSubmission = { body, entries, firstPending: card.inputs.get(fields[0][0]).input };
+  partialSubmission = { body, entries, firstPending: card.inputs.get(fields[0][0])?.input ?? card.portrait.input };
   partialDialog.showModal();
 }
 
@@ -1332,17 +1486,13 @@ form.addEventListener('submit', (event) => {
     return;
   }
   const proposals = entries.filter(hasProposal);
-  if (proposals.length && !validateRequestedAnswer(proposals)) return;
   const body = multipart(entries);
   if (!body) {
     showError(TOTAL_PHOTO_ERROR);
     return;
   }
   const missing = drafts
-    .map(({ card, fields }) => ({
-      card,
-      fields: FIELDS.filter(([key]) => card.requestedFields.includes(key) && !fields[key]),
-    }))
+    .map(missingFor)
     .filter(({ fields }) => fields.length);
   if (proposals.length && missing.length) {
     showPartialSubmission(missing, body, entries);

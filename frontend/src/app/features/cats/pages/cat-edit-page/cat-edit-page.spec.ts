@@ -132,7 +132,7 @@ describe('CatEditor', () => {
         { provide: CatProfileOptionsService, useValue: profileOptions },
         {
           provide: CatApiService,
-          useValue: catApiService,
+          useValue: { ...catApiService, getFramedCatPhoto: () => EMPTY },
         },
         {
           provide: OwnerApiService,

@@ -1,13 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../../../core/config/api.config';
 import {
   Cat,
   CatInformationalPhoto,
   CatLookup,
+  CatPhotoFrame,
   CatOverviewItem,
+  CENTERED_PHOTO_FRAME,
   CreateCatRequest,
   FoodBrandOption,
   UpdateCatRequest,
@@ -56,6 +58,22 @@ export class CatApiService {
 
   getCatPhoto(catId: string): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob' });
+  }
+
+  previewCatPhoto(file: File): Observable<Blob> {
+    const body = new FormData();
+    body.append('photo', file);
+    return this.http.post(this.baseUrl + '/photo-preview', body, { responseType: 'blob' });
+  }
+
+  getFramedCatPhoto(catId: string): Observable<{ blob: Blob; frame: CatPhotoFrame }> {
+    return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob', observe: 'response' }).pipe(
+      map(({ body, headers }) => {
+        const [frameX, frameY, frameZoom] = headers.get('X-Cat-Photo-Frame')?.split(',').map(Number) ?? [];
+        const frame = frameZoom ? { frameX, frameY, frameZoom } : CENTERED_PHOTO_FRAME;
+        return { blob: body!, frame };
+      }),
+    );
   }
 
   listInformationalPhotos(catId: string): Observable<CatInformationalPhoto[]> {

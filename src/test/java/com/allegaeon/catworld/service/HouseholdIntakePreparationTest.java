@@ -40,6 +40,7 @@ class HouseholdIntakePreparationTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 11, 20);
 
     @Autowired private CatRepository cats;
+    @Autowired private com.allegaeon.catworld.repository.CatPhotoRepository photos;
     @Autowired private OwnerRepository owners;
     @Autowired private StayRepository stays;
     @Autowired private StayCatRepository stayCats;
@@ -50,7 +51,7 @@ class HouseholdIntakePreparationTest {
 
     @BeforeEach
     void setUp() {
-        preparation = new HouseholdIntakePreparation(cats, stays, stayCats, CLOCK);
+        preparation = new HouseholdIntakePreparation(cats, stays, stayCats, CLOCK, photos);
         creator = users.save(UserAccount.builder().username("household-test").passwordHash("hash")
                 .role(UserRole.ADMIN).enabled(true).build());
         owner = saveOwner("Primary tutor");
@@ -137,7 +138,8 @@ class HouseholdIntakePreparationTest {
         var result = preparation.prepare(owner.getId(), List.of(cat), null).get(cat.getId());
 
         assertThat(result.through()).isEqualTo(TODAY);
-        assertThat(result.requestedFields()).containsExactly("foodBrand", "litterBrand", "lastTripleFelineDate");
+        assertThat(result.requestedFields()).contains("foodBrand", "foodDetail", "litterBrand", "lastTripleFelineDate",
+                "breed", "coat", "profilePhoto", "lastInternalDewormingDate").doesNotContain("lastRabiesDate");
     }
 
     private Cat saveCat(Owner tutor, String name, boolean deceased) {
