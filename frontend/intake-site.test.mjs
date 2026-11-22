@@ -466,12 +466,26 @@ test('confirms an incomplete household draft and returns to the first unanswered
   assert.doesNotMatch(dialog.textContent, /Marca de comida/);
   assert.equal(window.document.activeElement.id, 'complete-partial');
 
+  const focusOptions = [];
+  const firstPending = mora.querySelector('[name="lastRabiesDate"]');
+  const nativeFocus = firstPending.focus.bind(firstPending);
+  firstPending.focus = (options) => {
+    focusOptions.push(options);
+    nativeFocus(options);
+  };
   window.document.querySelector('#complete-partial').click();
   assert.equal(dialog.open, false);
   assert.equal(mora.querySelector('details').open, true);
   assert.equal(window.document.activeElement.name, 'lastRabiesDate');
   assert.equal(mora.querySelector('[name="careInstructions"]').value, 'Come por la noche');
   assert.equal(mora.querySelector('img').getAttribute('src'), 'blob:local-evidence');
+  assert.equal(focusOptions.at(-1)?.preventScroll, true);
+
+  assert.equal(await portal.submit(), undefined);
+  dialog.dispatchEvent(new window.Event('cancel', { cancelable: true }));
+  assert.equal(dialog.open, false);
+  assert.equal(window.document.activeElement, firstPending);
+  assert.equal(focusOptions.at(-1)?.preventScroll, true);
 
   enter(window, pipa, 'foodDetail', 'Pollo');
   assert.equal(await portal.submit(), undefined);
@@ -504,7 +518,7 @@ test('keeps evidence validation and unchanged submissions ahead of partial confi
   assert.equal(await portal.submit(), undefined);
   assert.equal(dialog.open, false);
   assert.equal(window.document.activeElement.type, 'file');
-  assert.match(window.document.querySelector('#field-error').textContent, /Adjuntá/);
+  assert.match(fieldProblem(window.document.activeElement), /Adjuntá/);
 
   enter(window, card, date.name, '');
   assert.equal(await portal.submit(), undefined);
@@ -536,7 +550,7 @@ test('refreshes vaccine bounds on submission and keeps a rejected draft and evid
   vaccineDateRange = { min: '2025-11-22', max: '2026-11-22' };
   assert.equal(await portal.submit(), undefined);
   assert.equal(window.document.activeElement, dose);
-  assert.match(window.document.querySelector('#field-error').textContent, /22\/11\/2025/);
+  assert.match(fieldProblem(dose), /22\/11\/2025/);
   assert.equal(dose.min, '2025-11-22');
   assert.equal(dose.value, '2025-11-21');
   assert.equal(card.querySelector('[name="careInstructions"]').value, 'Come de noche');
@@ -547,6 +561,114 @@ test('refreshes vaccine bounds on submission and keeps a rejected draft and evid
   const { cats } = JSON.parse(await post.body.get('submission').text());
   assert.equal(cats[0].fields.lastRabiesDate, '2026-11-22');
   assert.equal(post.body.get('photo-0-0').name, 'dose.jpg');
+});
+
+function fieldProblem(input) {
+  const ids = input.getAttribute('aria-describedby')?.split(' ') ?? [];
+  return ids.map((id) => input.ownerDocument.getElementById(id)?.textContent).join(' ');
+}
+
+test('marks blocking fields together before offering to send a partial answer', async (t) => {
+  let vaccineDateRange = { min: '2025-11-21', max: '2026-11-21' };
+  const portal = await openForm(t, () => ({
+    allowNewCats: true,
+    vaccineDateRange,
+    cats: [
+      { ...existing, requestedFields: ['lastRabiesDate', 'foodBrand'] },
+      { catId: 'pipa', fields: { name: 'Pipa' }, requestedFields: ['lastTripleFelineDate'] },
+    ],
+  }));
+  const { window } = portal;
+  const [mora, pipa] = portal.entries();
+  portal.add();
+  const newCat = portal.entries()[2];
+  const blank = newCat.querySelector('[name="name"]');
+  const proof = mora.querySelector('input[multiple]');
+  const dose = enter(window, mora, 'lastRabiesDate', '2025-11-21');
+  const incomplete = pipa.querySelector('[name="lastTripleFelineDate"]');
+  let badInput = true;
+  const validity = incomplete.validity;
+  Object.defineProperty(validity, 'badInput', { get: () => badInput });
+  vaccineDateRange = { min: '2025-11-22', max: '2026-11-22' };
+
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(window.document.querySelector('#partial-submission').open, false);
+  assert.equal(window.document.activeElement, dose);
+  for (const field of [dose, incomplete, blank, proof]) {
+    assert.equal(field.getAttribute('aria-invalid'), 'true');
+  }
+  assert.match(fieldProblem(dose), /22\/11\/2025/);
+  assert.match(fieldProblem(incomplete), /fecha .*válida/);
+  assert.match(fieldProblem(blank), /obligatorio/);
+  assert.match(fieldProblem(proof), /Adjuntá/);
+  assert.ok(dose.parentElement.querySelector('.validation-advisory'));
+
+  enter(window, mora, 'lastRabiesDate', '2025-11-20');
+  assert.equal(dose.getAttribute('aria-invalid'), 'true');
+  assert.equal(window.document.querySelector('.validation-advisory'), null);
+  enter(window, mora, 'lastRabiesDate', '2026-11-22');
+  assert.equal(dose.hasAttribute('aria-invalid'), false);
+  assert.equal(incomplete.getAttribute('aria-invalid'), 'true');
+  assert.equal(blank.getAttribute('aria-invalid'), 'true');
+  assert.equal(proof.getAttribute('aria-invalid'), 'true');
+
+  badInput = false;
+  enter(window, pipa, 'lastTripleFelineDate', '');
+  assert.equal(incomplete.hasAttribute('aria-invalid'), false);
+  assert.equal(blank.getAttribute('aria-invalid'), 'true');
+  enter(window, newCat, 'name', 'Sol');
+  assert.equal(blank.hasAttribute('aria-invalid'), false);
+  const otherMandatory = newCat.querySelector('[name="sex"]');
+  assert.equal(otherMandatory.getAttribute('aria-invalid'), 'true');
+
+  chooseFiles(window, proof, [new File(['evidence'], 'proof.jpg', { type: 'image/jpeg' })]);
+  assert.equal(proof.hasAttribute('aria-invalid'), false);
+  enter(window, newCat, 'name', '');
+  newCat.querySelector('.remove-cat').click();
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(window.document.querySelector('#partial-submission').open, true);
+  assert.ok(await portal.confirmPartial());
+});
+
+test('rechecks vaccine dates after partial confirmation and uses the server bounds if they roll over again', async (t) => {
+  let vaccineDateRange = { min: '2025-11-21', max: '2026-11-21' };
+  const serverRange = { min: '2025-11-23', max: '2026-11-23' };
+  const portal = await openForm(t, () => ({
+    vaccineDateRange,
+    cats: [{ ...existing, requestedFields: ['lastRabiesDate', 'foodBrand'] }],
+  }), {
+    submit: () => Response.json({
+      code: 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE',
+      vaccineDateRange: serverRange,
+      catIndex: 0,
+      field: 'lastRabiesDate',
+    }, { status: 422 }),
+  });
+  const { window } = portal;
+  const [cat] = portal.entries();
+  const dose = enter(window, cat, 'lastRabiesDate', '2025-11-21');
+  const proof = cat.querySelector('input[multiple]');
+  chooseFiles(window, proof, [new File(['proof'], 'proof.jpg', { type: 'image/jpeg' })]);
+  const dialog = window.document.querySelector('#partial-submission');
+
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(dialog.open, true);
+  vaccineDateRange = { min: '2025-11-22', max: '2026-11-22' };
+  assert.equal(await portal.confirmPartial(), undefined);
+  assert.equal(dialog.open, false);
+  assert.equal(window.document.activeElement, dose);
+  assert.match(fieldProblem(dose), /22\/11\/2025/);
+
+  enter(window, cat, 'lastRabiesDate', '2025-11-22');
+  assert.equal(await portal.submit(), undefined);
+  assert.equal(dialog.open, true);
+  const post = await portal.confirmPartial();
+  assert.equal(post.body.get('photo-0-0').name, 'proof.jpg');
+  assert.match(fieldProblem(dose), /23\/11\/2025/);
+  assert.equal(dose.min, serverRange.min);
+  assert.equal(dose.value, '2025-11-22');
+  enter(window, cat, 'lastRabiesDate', serverRange.min);
+  assert.equal(dose.hasAttribute('aria-invalid'), false);
 });
 
 test('marks proposal edits and retained photo changes until they are undone', async (t) => {
@@ -639,9 +761,14 @@ test('partial and exact catalog matches require a choice even after leaving the 
     brand.closest('.catalog-field').querySelector('.sr-only[role="status"]').textContent,
     'Seleccionado: Royal Canin',
   );
-  assert.ok(
-    brand.closest('.catalog-field').querySelector('button[aria-label="Limpiar Marca de comida"]'),
-  );
+  const clear = brand.closest('.catalog-field').querySelector('button[aria-label="Limpiar Marca de comida"]');
+  assert.equal(clear.tabIndex, -1);
+  clear.click();
+  assert.equal(brand.value, '');
+  assert.equal(portal.window.document.activeElement, brand);
+  enter(portal.window, cat, 'foodBrand', 'Royal');
+  assert.equal(suggestions.querySelector('button').tabIndex, 0);
+  suggestions.querySelector('button').click();
   enter(portal.window, cat, 'coat', 'Sin pelo');
   const post = await portal.submit();
   const { cats } = JSON.parse(await post.body.get('submission').text());
@@ -1051,4 +1178,57 @@ test('retained JPEG enlarges in the form, restores focus and closes on departure
     portal.requests.some(({ path }) => path === '/api/intake/submissions'),
     false,
   );
+});
+
+test('portrait and proofs share the full-image viewer and dismiss only from the backdrop', async (t) => {
+  const revoked = [];
+  let object = 0;
+  const portal = await openForm(t, {
+    cats: [{ ...existing, requestedFields: ['profilePhoto'] }],
+  }, {
+    urls: {
+      createObjectURL: () => `blob:photo-${++object}`,
+      revokeObjectURL: (url) => revoked.push(url),
+    },
+  });
+  const { window } = portal;
+  const [cat] = portal.entries();
+  const portrait = cat.querySelector('[name="profilePhoto"]');
+  const proof = cat.querySelector('input[multiple]');
+  chooseFiles(window, portrait, [new File(['portrait'], 'portrait.jpg', { type: 'image/jpeg' })]);
+  chooseFiles(window, proof, [new File(['proof'], 'proof.jpg', { type: 'image/jpeg' })]);
+  const zoom = cat.querySelector('.profile-photo-controls label:last-child input');
+  zoom.value = 150;
+  zoom.dispatchEvent(new window.Event('input', { bubbles: true }));
+  const portraitButton = cat.querySelector('button[aria-label="Ampliar foto de perfil"]');
+  const proofButton = cat.querySelector('button[aria-label="Ampliar proof.jpg"]');
+  const viewer = window.document.querySelector('.photo-viewer');
+  viewer.getBoundingClientRect = () => ({ left: 100, right: 300, top: 100, bottom: 300 });
+  const click = (target, coordinate) => {
+    const options = { bubbles: true, clientX: coordinate, clientY: coordinate };
+    target.dispatchEvent(new window.MouseEvent('pointerdown', options));
+    target.dispatchEvent(new window.MouseEvent('click', options));
+  };
+
+  for (const [trigger, source] of [[portraitButton, 'blob:photo-1'], [proofButton, 'blob:photo-2']]) {
+    trigger.click();
+    assert.equal(viewer.open, true);
+    const fullImage = viewer.querySelector('img');
+    assert.equal(fullImage.getAttribute('src'), source);
+    assert.equal(fullImage.style.transform, '');
+    click(fullImage, 150);
+    click(viewer, 150);
+    assert.equal(viewer.open, true);
+    click(viewer, 50);
+    assert.equal(viewer.open, false);
+    assert.equal(window.document.activeElement, trigger);
+  }
+
+  portraitButton.click();
+  viewer.querySelector('button[aria-label="Cerrar imagen"]').click();
+  assert.equal(viewer.open, false);
+  assert.equal(window.document.activeElement, portraitButton);
+  cat.querySelector('button[aria-label="Quitar foto nueva"]').click();
+  assert.equal(window.document.activeElement, portrait);
+  assert.deepEqual(revoked, ['blob:photo-1']);
 });

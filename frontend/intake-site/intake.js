@@ -60,6 +60,11 @@ const photoViewerClose = photoViewer.querySelector('button');
 const partialDialog = document.querySelector('#partial-submission');
 const partialCats = document.querySelector('#partial-cats');
 const cards = [];
+const validationErrors = new Map();
+const validationAdvisory = element(
+  'span', 'validation-advisory', 'Revisá los campos marcados antes de enviar la ficha.',
+);
+validationAdvisory.setAttribute('role', 'alert');
 let catalogOptions = {};
 let foodVarieties = [];
 let litterRatePerKg = null;
@@ -114,40 +119,44 @@ function showStatus(message) {
   status.hidden = !message;
 }
 
-function openField(input) {
+function openField(input, options) {
   for (let parent = input.parentElement; parent; parent = parent.parentElement) {
     if (parent.tagName === 'DETAILS') parent.open = true;
   }
-  input.focus();
+  input.focus(options);
+}
+
+function removeFieldError(input, error) {
+  input.removeAttribute('aria-invalid');
+  const description = input
+    .getAttribute('aria-describedby')
+    ?.split(' ')
+    .filter((id) => id !== error.id)
+    .join(' ');
+  if (description) {
+    input.setAttribute('aria-describedby', description);
+  } else {
+    input.removeAttribute('aria-describedby');
+  }
+  error.remove();
+}
+
+function attachFieldError(input, error) {
+  input.setAttribute('aria-invalid', 'true');
+  const description = input.getAttribute('aria-describedby');
+  input.setAttribute('aria-describedby', description ? error.id + ' ' + description : error.id);
+  input.before(error);
 }
 
 function showError(message, input) {
-  if (errorInput) {
-    errorInput.removeAttribute('aria-invalid');
-    const description = errorInput
-      .getAttribute('aria-describedby')
-      ?.split(' ')
-      .filter((id) => id !== fieldError.id)
-      .join(' ');
-    if (description) {
-      errorInput.setAttribute('aria-describedby', description);
-    } else {
-      errorInput.removeAttribute('aria-describedby');
-    }
-    fieldError.remove();
-  }
+  if (errorInput) removeFieldError(errorInput, fieldError);
   errorInput = input;
   errorMessage.textContent = input ? '' : message;
   errorMessage.hidden = Boolean(input) || !message;
   if (input) {
-    input.setAttribute('aria-invalid', 'true');
-    const description = input.getAttribute('aria-describedby');
-    input.setAttribute(
-      'aria-describedby',
-      description ? fieldError.id + ' ' + description : fieldError.id,
-    );
+    clearValidationError(input);
     fieldError.textContent = message;
-    input.before(fieldError);
+    attachFieldError(input, fieldError);
     openField(input);
   } else if (message) {
     errorMessage.focus();
@@ -157,6 +166,7 @@ function showError(message, input) {
 function clearCards() {
   closePhotoViewer();
   closePartialSubmission();
+  for (const input of validationErrors.keys()) clearValidationError(input);
   for (const { releasePhotos } of cards) releasePhotos();
   cards.length = 0;
   cats.replaceChildren();
@@ -229,6 +239,7 @@ function createCatalogField(
   check.setAttribute('aria-hidden', 'true');
   const clear = element('button', 'catalog-clear', '×');
   clear.type = 'button';
+  clear.tabIndex = -1;
   clear.setAttribute('aria-label', 'Limpiar ' + title);
   suffix.append(check, clear);
   control.append(input, suffix);
@@ -536,6 +547,19 @@ function watchDialogExpiry() {
 }
 
 photoViewerClose.addEventListener('click', () => closePhotoViewer(true));
+function onPhotoBackdrop(event) {
+  if (event.target !== photoViewer) return false;
+  const { left, right, top, bottom } = photoViewer.getBoundingClientRect();
+  return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+}
+let backdropPressed = false;
+photoViewer.addEventListener('pointerdown', (event) => {
+  backdropPressed = onPhotoBackdrop(event);
+});
+photoViewer.addEventListener('click', (event) => {
+  if (backdropPressed && onPhotoBackdrop(event)) closePhotoViewer(true);
+  backdropPressed = false;
+});
 photoViewer.addEventListener('cancel', (event) => {
   event.preventDefault();
   closePhotoViewer(true);
@@ -671,11 +695,28 @@ function photoRemovalButton(label) {
   return remove;
 }
 
+function attachFilePicker(input, buttonText) {
+  const labelId = input.getAttribute('aria-labelledby');
+  const picker = element('span', 'file-picker-row');
+  const button = element('span', 'file-picker-button', buttonText);
+  const status = element('span', 'file-picker-status');
+  button.id = labelId + '-picker';
+  status.id = labelId + '-attachments';
+  status.setAttribute('role', 'status');
+  input.classList.add('file-picker-input');
+  input.setAttribute('aria-labelledby', labelId + ' ' + button.id);
+  const hint = input.getAttribute('aria-describedby');
+  input.setAttribute('aria-describedby', hint ? hint + ' ' + status.id : status.id);
+  picker.append(button, status);
+  input.after(picker);
+  return status;
+}
+
 function createAttachments(photos, required) {
   const attachments = element('div', 'attachments');
   const selected = element('ul', 'selected-photos');
   const newPhotos = [];
-  const fileInput = element('input', 'file-picker-input');
+  const fileInput = element('input');
   fileInput.type = 'file';
   fileInput.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
   fileInput.multiple = true;
@@ -684,17 +725,7 @@ function createAttachments(photos, required) {
     fileInput,
     'Para informar una vacuna, adjuntá el comprobante de este gato.',
   );
-  const labelId = fileInput.getAttribute('aria-labelledby');
-  const filePicker = element('span', 'file-picker-row');
-  const fileButton = element('span', 'file-picker-button', 'Elegir archivos');
-  const fileStatus = element('span', 'file-picker-status');
-  fileButton.id = labelId + '-picker';
-  fileStatus.id = labelId + '-attachments';
-  fileStatus.setAttribute('role', 'status');
-  fileInput.setAttribute('aria-labelledby', labelId + ' ' + fileButton.id);
-  fileInput.setAttribute('aria-describedby', labelId + '-hint ' + fileStatus.id);
-  filePicker.append(fileButton, fileStatus);
-  fileInput.after(filePicker);
+  const fileStatus = attachFilePicker(fileInput, 'Elegir archivos');
   const retainedCount = () => photos.filter((photo) => photo.keep).length;
 
   function updateFileStatus() {
@@ -813,16 +844,17 @@ const OPTIONAL_FIELDS = new Set([
 
 function createPortrait(saved, required) {
   const control = element('section', 'profile-photo');
-  const label = element('label', '', required ? 'Foto de perfil *' : 'Foto de perfil');
   const input = element('input');
   input.type = 'file';
   input.name = 'profilePhoto';
   input.accept = [...PHOTO_TYPES, ...PHOTO_EXTENSIONS].join(',');
-  label.append(input);
+  const label = fieldLabel(required ? 'Foto de perfil *' : 'Foto de perfil', input);
+  const fileStatus = attachFilePicker(input, 'Elegir foto');
   const preview = element('div', 'profile-photo-preview');
   const image = element('img');
-  image.alt = 'Encuadre de la foto de perfil';
-  preview.append(image);
+  image.alt = 'Foto de perfil';
+  const thumbnail = photoThumbnail(image, 'foto de perfil');
+  preview.append(thumbnail);
   const framing = element('div', 'profile-photo-controls');
   const ranges = [
     ['frameX', 'Posición horizontal', 0, 100, 50],
@@ -847,14 +879,16 @@ function createPortrait(saved, required) {
     image.style.transformOrigin = position;
     image.style.transform = 'scale(' + frameZoom / 100 + ')';
   }
-  const remove = element('button', 'secondary', 'Quitar foto nueva');
-  remove.type = 'button';
+  const remove = photoRemovalButton('Quitar foto nueva');
+  const photo = element('div', 'profile-photo-image');
+  photo.append(preview, remove);
   const feedback = element('p', 'hint');
   let file;
   let url;
   let pending;
   function release() {
     pending?.abort();
+    if (photoTrigger === thumbnail) closePhotoViewer();
     if (url) URL.revokeObjectURL(url);
     url = undefined;
   }
@@ -863,6 +897,7 @@ function createPortrait(saved, required) {
     preview.hidden = true;
     framing.hidden = !file;
     remove.hidden = !file;
+    fileStatus.textContent = file?.name ?? (saved ? 'Foto adjunta' : 'Sin foto adjunta');
     feedback.textContent = '';
     if (!file && !saved) return;
     const controller = new AbortController();
@@ -908,9 +943,10 @@ function createPortrait(saved, required) {
     for (const { key, slider, fallback } of ranges) slider.value = saved?.frame[key] ?? fallback;
     void show();
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.focus({ preventScroll: true });
   });
   for (const { slider } of ranges) slider.addEventListener('input', paint);
-  control.append(label, preview, framing, remove, feedback);
+  control.append(label, photo, framing, feedback);
   void show();
   return { control, input, file: () => file, frame, saved, release };
 }
@@ -1086,6 +1122,9 @@ function addCard(
       refreshRemoval();
       if (remove.hidden) return;
       if (card.contains(errorInput)) showError('');
+      for (const input of validationErrors.keys()) {
+        if (card.contains(input)) clearValidationError(input);
+      }
       entry.releasePhotos();
       cards.splice(cards.indexOf(entry), 1);
       card.remove();
@@ -1115,21 +1154,20 @@ function setVaccineDateRange(range) {
   }
 }
 
-function showVaccineDateError(input) {
-  const displayDate = (date) => date.split('-').reverse().join('/');
+function displayDate(isoDate) {
+  return isoDate.split('-').reverse().join('/');
+}
+
+function vaccineDateError() {
   const { min, max } = vaccineDateRange;
-  editable.disabled = false;
-  showError(
-    `Ingresá una fecha de aplicación entre el ${displayDate(min)} y el ${displayDate(max)}.`,
-    input,
-  );
+  return `Ingresá una fecha de aplicación entre el ${displayDate(min)} y el ${displayDate(max)}.`;
 }
 
 function changedVaccines({ card, fields }) {
   return VACCINES.filter((key) => fields[key] && fields[key] !== card.initial[key]);
 }
 
-async function validateVaccineDates(entries) {
+async function refreshVaccineDateRange(entries) {
   if (!entries.some((entry) => changedVaccines(entry).length)) return true;
   const latest = await request('/api/intake/request');
   if (unavailableStatus(latest.status)) {
@@ -1138,16 +1176,6 @@ async function validateVaccineDates(entries) {
   }
   if (!latest.ok) throw new Error('Request failed');
   setVaccineDateRange((await latest.json()).vaccineDateRange);
-  const { min, max } = vaccineDateRange;
-  for (const entry of entries) {
-    const invalid = changedVaccines(entry).find(
-      (key) => entry.fields[key] < min || entry.fields[key] > max,
-    );
-    if (invalid) {
-      showVaccineDateError(entry.card.inputs.get(invalid).input);
-      return false;
-    }
-  }
   return true;
 }
 
@@ -1257,45 +1285,44 @@ function submissionCard(card) {
   };
 }
 
-function validateCards(drafts) {
-  for (const input of form.querySelectorAll('[data-required-missing]')) {
-    input.removeAttribute('data-required-missing');
-    input.removeAttribute('aria-invalid');
-  }
-  const missing = [];
-  for (const { card, files, retainedPhotoIds, changed } of drafts) {
-    if (card.catId !== null || (!changed && card.revision > 0)) continue;
-    for (const field of card.inputs.values()) {
-      if (field.input.required && !field.read().trim() && !field.input.validity.badInput) missing.push(field.input);
-    }
-    if (!card.portrait.file() && !card.portrait.saved) missing.push(card.portrait.input);
-    if (!files.length && !retainedPhotoIds.length) missing.push(card.fileInput);
-  }
-  if (missing.length) {
-    for (const input of missing) {
-      input.setAttribute('data-required-missing', '');
-      input.setAttribute('aria-invalid', 'true');
-    }
-    showError('Completá los campos obligatorios y adjuntá las fotos requeridas.', missing[0]);
-    return false;
-  }
-  for (const { card, fields, files, retainedPhotoIds, changed } of drafts) {
-    if (!changed && (card.catId !== null || card.revision > 0)) continue;
+function validationIssues(drafts) {
+  const issues = new Map();
+  let totalBytes = 0;
+  for (const draft of drafts) {
+    const { card, fields, files, retainedPhotoIds, changed } = draft;
+    const required = card.catId === null && (changed || card.revision === 0);
+    const vaccines = changedVaccines(draft);
     for (const [key, field] of card.inputs) {
       const { input } = field;
       const value = field.read().trim();
+      const { badInput, rangeUnderflow, rangeOverflow, valid } = input.validity;
+      if (badInput) {
+        issues.set(input, 'Ingresá una fecha completa y válida.');
+        continue;
+      }
+      if (required && input.required && !value) {
+        issues.set(input, 'Completá este campo obligatorio.');
+        continue;
+      }
+      if (!changed && !required) continue;
       if (
         input.name === 'birthYear' &&
         value &&
-        (Number(value) < MIN_BIRTH_YEAR || Number(value) > Number(localToday().slice(0, 4)))
+        (!valid || Number(value) < MIN_BIRTH_YEAR || Number(value) > Number(localToday().slice(0, 4)))
       ) {
-        showError('Ingresá un año de nacimiento válido.', input);
-        return false;
+        issues.set(input, 'Ingresá un año de nacimiento válido.');
+        continue;
       }
-      // Vaccine bounds come from CatWorld and are refreshed before sending new dates.
-      if (input.validity.badInput || (value && !VACCINES.includes(key) && !input.validity.valid)) {
-        showError('Revisá este dato antes de enviar la ficha.', input);
-        return false;
+      if (vaccineDateRange && vaccines.includes(key) && (rangeUnderflow || rangeOverflow)) {
+        issues.set(input, vaccineDateError());
+        continue;
+      }
+      if (value && !VACCINES.includes(key) && !valid) {
+        const message = rangeUnderflow || rangeOverflow
+          ? `Ingresá una fecha entre el ${displayDate(input.min)} y el ${displayDate(input.max)}.`
+          : 'Revisá este dato antes de enviar la ficha.';
+        issues.set(input, message);
+        continue;
       }
       const varietyBrandChanged =
         key === 'foodDetail' &&
@@ -1311,31 +1338,69 @@ function validateCards(drafts) {
           (key === 'litterBrand' && field.readLitterDetail() !== ownLitterDetail(card.initial)) ||
           !sameFieldValue(key, value, card.initial[key] ?? ''))
       ) {
-        showError('Elegí una de las opciones para este dato.', input);
-        return false;
+        issues.set(input, 'Elegí una de las opciones para este dato.');
       }
     }
-    if (fields.foodDetail && !fields.foodBrand && !card.fields.foodBrand) {
-      showError('Ingresá la marca para indicar la variedad.', card.inputs.get('foodBrand').input);
-      return false;
+    const brand = card.inputs.get('foodBrand').input;
+    if ((changed || required) && fields.foodDetail && !fields.foodBrand && !card.fields.foodBrand && !issues.has(brand)) {
+      issues.set(brand, 'Ingresá la marca para indicar la variedad.');
+    }
+    const portrait = card.portrait.file();
+    if (required && !portrait && !card.portrait.saved) {
+      issues.set(card.portrait.input, 'Adjuntá la foto de perfil obligatoria.');
+    }
+    if (!changed && !required) continue;
+    if (portrait) {
+      totalBytes += portrait.size;
+      if (totalBytes > MAX_TOTAL_BYTES) issues.set(card.portrait.input, TOTAL_PHOTO_ERROR);
     }
     const count = files.length + retainedPhotoIds.length;
     const photoError = photoLimitError(files, retainedPhotoIds.length);
+    totalBytes += files.reduce((bytes, file) => bytes + file.size, 0);
     if (photoError) {
-      showError(photoError, card.fileInput);
-      return false;
-    }
-    if (VACCINES.some((key) => fields[key]) && count === 0) {
-      showError(
-        'Adjuntá al menos una foto del comprobante de la vacuna de este gato.',
-        card.fileInput,
-      );
-      return false;
+      issues.set(card.fileInput, photoError);
+    } else if ((required || VACCINES.some((key) => fields[key])) && count === 0) {
+      issues.set(card.fileInput, 'Adjuntá al menos una foto del comprobante de la vacuna de este gato.');
+    } else if (files.length && totalBytes > MAX_TOTAL_BYTES) {
+      issues.set(card.fileInput, TOTAL_PHOTO_ERROR);
     }
   }
-
-  return true;
+  return issues;
 }
+
+function clearValidationError(input) {
+  const error = validationErrors.get(input);
+  if (!error) return;
+  if (error.contains(validationAdvisory)) validationAdvisory.remove();
+  removeFieldError(input, error);
+  validationErrors.delete(input);
+}
+
+function updateValidationErrors(issues, markAll = false) {
+  validationAdvisory.remove();
+  for (const [input, error] of validationErrors) {
+    if (!issues.has(input)) clearValidationError(input);
+    else if (error.textContent !== issues.get(input)) error.textContent = issues.get(input);
+  }
+  if (!markAll || !issues.size) return;
+  for (const [input, message] of issues) {
+    if (validationErrors.has(input)) continue;
+    const error = element('span', 'field-error', message);
+    error.id = 'validation-' + ++labelNumber;
+    attachFieldError(input, error);
+    validationErrors.set(input, error);
+  }
+  const first = [...form.querySelectorAll('[aria-invalid="true"]')].find((input) => validationErrors.has(input));
+  validationErrors.get(first).prepend(validationAdvisory);
+  openField(first);
+}
+
+function refreshMarkedFields() {
+  if (validationErrors.size) updateValidationErrors(validationIssues(cards.map(submissionCard)));
+}
+
+form.addEventListener('input', refreshMarkedFields);
+form.addEventListener('change', refreshMarkedFields);
 
 function hasProposal({ card, fields, files, retainedPhotoIds }) {
   return !!card.portrait.file() || !!card.portrait.saved ||
@@ -1364,20 +1429,15 @@ function missingFor({ card, fields }) {
 
 function multipart(entries) {
   const body = new FormData();
-  let totalBytes = 0;
   const updates = entries.map(({ card, fields, optionIds, files, retainedPhotoIds }, index) => {
     const photoKeys = files.map((photo, position) => {
       const key = 'photo-' + index + '-' + position;
-      totalBytes += photo.size;
       body.append(key, photo);
       return key;
     });
     const portrait = card.portrait.file();
     const portraitKey = portrait && 'portrait-' + index;
-    if (portrait) {
-      totalBytes += portrait.size;
-      body.append(portraitKey, portrait);
-    }
+    if (portrait) body.append(portraitKey, portrait);
     return {
       catId: card.catId,
       draftId: card.draftId,
@@ -1389,7 +1449,6 @@ function multipart(entries) {
       ...(portrait ? { portraitKey, portraitFrame: card.portrait.frame() } : {}),
     };
   });
-  if (totalBytes > MAX_TOTAL_BYTES) return null;
   body.append(
     'submission',
     new Blob([JSON.stringify({ cats: updates })], { type: 'application/json' }),
@@ -1459,7 +1518,7 @@ function returnToDraft() {
   if (!partialSubmission) return;
   const { firstPending } = partialSubmission;
   closePartialSubmission();
-  openField(firstPending);
+  openField(firstPending, { preventScroll: true });
 }
 
 document.querySelector('#complete-partial').addEventListener('click', returnToDraft);
@@ -1471,15 +1530,30 @@ document.querySelector('#send-partial').addEventListener('click', () => {
   if (!partialSubmission) return;
   const { body, entries } = partialSubmission;
   closePartialSubmission();
-  void submitDraft(body, entries, true);
+  void submitDraft(body, entries, { hasProposals: true, recheckVaccineDates: true });
 });
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (sending || stale || partialDialog.open || photoViewer.open || cards.length === 0) return;
   showError('');
   const drafts = cards.map(submissionCard);
-  if (!validateCards(drafts)) return;
+  if (drafts.some((draft) => changedVaccines(draft).length)) {
+    sending = true;
+    editable.disabled = true;
+    try {
+      if (!(await refreshVaccineDateRange(drafts))) return;
+    } catch {
+      showError('No se pudieron actualizar las fechas de vacunación. Volvé a intentar.');
+      return;
+    } finally {
+      sending = false;
+      editable.disabled = false;
+    }
+  }
+  const issues = validationIssues(drafts);
+  updateValidationErrors(issues, true);
+  if (issues.size) return;
   const entries = drafts.filter(({ changed }) => changed);
   if (!entries.length) {
     showError('No hay datos nuevos para enviar.');
@@ -1487,10 +1561,6 @@ form.addEventListener('submit', (event) => {
   }
   const proposals = entries.filter(hasProposal);
   const body = multipart(entries);
-  if (!body) {
-    showError(TOTAL_PHOTO_ERROR);
-    return;
-  }
   const missing = drafts
     .map(missingFor)
     .filter(({ fields }) => fields.length);
@@ -1498,15 +1568,24 @@ form.addEventListener('submit', (event) => {
     showPartialSubmission(missing, body, entries);
     return;
   }
-  void submitDraft(body, entries, proposals.length > 0);
+  void submitDraft(body, entries, { hasProposals: proposals.length > 0 });
 });
 
-async function submitDraft(body, entries, hasProposals) {
+async function submitDraft(body, entries, { hasProposals, recheckVaccineDates = false }) {
   sending = true;
   editable.disabled = true;
   send.textContent = 'Enviando…';
   try {
-    if (!(await validateVaccineDates(entries))) return;
+    if (recheckVaccineDates) {
+      if (!(await refreshVaccineDateRange(entries))) return;
+      editable.disabled = false;
+      const issues = validationIssues(entries);
+      if (issues.size) {
+        updateValidationErrors(issues, true);
+        return;
+      }
+      editable.disabled = true;
+    }
     const response = await request('/api/intake/submissions', { method: 'POST', body });
     if (response.ok) {
       closeForm(
@@ -1532,7 +1611,12 @@ async function submitDraft(body, entries, hasProposals) {
       const problem = await response.json().catch(() => null);
       if (problem?.code === 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE') {
         setVaccineDateRange(problem.vaccineDateRange);
-        showVaccineDateError(entries[problem.catIndex]?.card.inputs.get(problem.field)?.input);
+        editable.disabled = false;
+        const issues = validationIssues(entries);
+        const rejected = entries[problem.catIndex]?.card.inputs.get(problem.field)?.input;
+        if (rejected && !issues.has(rejected)) issues.set(rejected, vaccineDateError());
+        if (issues.size) updateValidationErrors(issues, true);
+        else showError(vaccineDateError());
       } else {
         showError(
           'Revisá los datos y los comprobantes. Las fotos deben ser JPEG, PNG, WebP, HEIC o HEIF.',

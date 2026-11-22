@@ -354,11 +354,17 @@ button:disabled {
 
 .file-picker-status {
   font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .file-picker-input:focus-visible + .file-picker-row .file-picker-button {
   outline: 3px solid var(--green);
   outline-offset: 3px;
+}
+
+.file-picker-input[aria-invalid='true'] + .file-picker-row .file-picker-button {
+  border-color: #a33b2c;
+  color: #922c20;
 }
 
 .remove-cat {
@@ -399,14 +405,16 @@ button:disabled {
 
 .photo-remove {
   position: absolute;
-  inset-block-start: 0.2rem;
-  inset-inline-end: 0.2rem;
-  border: 1px solid var(--line);
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
+  background: radial-gradient(circle, var(--surface) 0.8rem, transparent 0.85rem);
+  color: var(--muted);
+  font-size: 1.2rem;
 }
 
-.photo-preview .photo-enlarge {
+.photo-enlarge {
   display: block;
   width: 100%;
   min-height: 0;
@@ -455,6 +463,14 @@ button:disabled {
   margin: 0;
   font-size: 1rem;
   overflow-wrap: anywhere;
+}
+
+.photo-viewer .photo-viewer-close {
+  flex: 0 0 2.75rem;
+  padding: 0;
+  border-color: var(--line);
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .photo-viewer img {
@@ -544,6 +560,12 @@ button:disabled {
   font-weight: 500;
 }
 
+.validation-advisory {
+  display: block;
+  margin-block-end: 0.3rem;
+  font-weight: 700;
+}
+
 input[aria-invalid='true'],
 select[aria-invalid='true'],
 textarea[aria-invalid='true'] {
@@ -557,22 +579,34 @@ textarea[aria-invalid='true'] {
 }
 
 .profile-photo {
+  grid-column: 1 / -1;
   display: grid;
   gap: 0.75rem;
-  justify-items: start;
 }
-.profile-photo-preview {
+.profile-photo-image {
+  position: relative;
+  justify-self: center;
   width: min(100%, 15rem);
+}
+.profile-photo-image:has(.photo-remove:not([hidden])) {
+  min-height: 2.75rem;
+}
+.profile-photo-image:not(:has(.profile-photo-preview:not([hidden]), .photo-remove:not([hidden]))) {
+  display: none;
+}
+.profile-photo-preview .photo-enlarge {
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 0.5rem;
 }
 .profile-photo-preview img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 .profile-photo-controls {
+  justify-self: center;
   width: min(100%, 21rem);
 }
 .profile-photo-controls label {
@@ -581,7 +615,6 @@ textarea[aria-invalid='true'] {
   align-items: center;
   gap: 0.5rem;
 }
-[data-required-missing] {
-  outline: 2px solid #b3261e;
-  outline-offset: 2px;
+.profile-photo > .hint:empty {
+  display: none;
 }
