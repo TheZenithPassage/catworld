@@ -20,7 +20,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StayActualMovementId implements Serializable {
 
-    @Column(nullable = false)
+    @Column(name = "stay_id", nullable = false)
     private UUID stayId;
 
     @Enumerated(EnumType.STRING)

@@ -20,6 +20,8 @@ public class StayResponseDTO {
     private UUID stayId;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
+    private LocalDateTime effectiveStartAt;
+    private LocalDateTime effectiveEndAt;
     private LocalDateTime cancelledAt;
     private StayStatus status;
     private Instant createdAt;

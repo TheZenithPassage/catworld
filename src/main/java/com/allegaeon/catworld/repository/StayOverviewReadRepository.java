@@ -20,6 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class StayOverviewReadRepository {
     private final EntityManager entityManager;
+    private final java.time.Clock clock;
 
     public Page<Stay> find(int page, int size, Set<StayStatus> statuses,
             UUID ownerId, UUID catId) {
@@ -53,7 +54,7 @@ public class StayOverviewReadRepository {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Stay> query = cb.createQuery(Stay.class);
         Root<Stay> stay = query.from(Stay.class);
-        query.select(stay).where(StayDatePredicates.matching(cb, stay, dates).toArray(Predicate[]::new))
+        query.select(stay).where(StayDatePredicates.matching(cb, stay, dates, clock.getZone()).toArray(Predicate[]::new))
                 .orderBy(cb.asc(stay.get("startAt")), cb.asc(stay.get("id")));
         return entityManager.createQuery(query).getResultList();
     }
@@ -61,7 +62,7 @@ public class StayOverviewReadRepository {
     private List<Predicate> predicates(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Stay> stay,
             Set<StayStatus> statuses, UUID ownerId, UUID catId,
             StayDateFilter dates) {
-        List<Predicate> result = new ArrayList<>(StayDatePredicates.matching(cb, stay, dates));
+        List<Predicate> result = new ArrayList<>(StayDatePredicates.matching(cb, stay, dates, clock.getZone()));
         if (ownerId != null) result.add(cb.equal(stay.get("owner").get("id"), ownerId));
         if (catId != null) {
             Subquery<Integer> cats = query.subquery(Integer.class);

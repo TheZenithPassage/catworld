@@ -81,6 +81,17 @@ public class Stay extends AuditableEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StayCat> stayCats = new HashSet<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "stay", fetch = FetchType.LAZY)
+    @org.hibernate.annotations.BatchSize(size = 64)
+    private Set<StayActualMovement> actualMovements = new HashSet<>();
+
+    public LocalDateTime effectiveTime(StayMovementType type, java.time.ZoneId zone) {
+        return actualMovements.stream().filter(movement -> movement.getId().getType() == type)
+                .map(movement -> LocalDateTime.ofInstant(movement.occurredAt(), zone)).findFirst()
+                .orElse(type == StayMovementType.ARRIVAL ? startAt : endAt);
+    }
+
     public StayStatus status() {
         return cancelledAt == null ? movementStatus : StayStatus.CANCELLED;
     }

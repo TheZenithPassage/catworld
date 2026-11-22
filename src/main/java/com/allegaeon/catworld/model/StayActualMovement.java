@@ -25,6 +25,10 @@ public class StayActualMovement {
     @EmbeddedId
     private StayActualMovementId id;
 
+    @jakarta.persistence.ManyToOne(fetch = jakarta.persistence.FetchType.LAZY)
+    @jakarta.persistence.JoinColumn(name = "stay_id", insertable = false, updatable = false)
+    private Stay stay;
+
     // Bind the UTC calendar fields directly to DATETIME, independently of JDBC and JVM time zones.
     @JdbcTypeCode(SqlTypes.LOCAL_DATE_TIME)
     @Column(nullable = false)
@@ -32,6 +36,10 @@ public class StayActualMovement {
 
     @Column(nullable = false, updatable = false)
     private UUID recordedById;
+
+    @JdbcTypeCode(SqlTypes.LOCAL_DATE_TIME)
+    @Column(updatable = false)
+    private LocalDateTime registeredAtUtc;
 
     @Column(nullable = false, updatable = false)
     private String recordedBy;
@@ -43,8 +51,9 @@ public class StayActualMovement {
     @Column(nullable = false)
     private Long version;
 
-    public StayActualMovement(StayActualMovementId id, Instant occurredAt, UserAccount recorder) {
+    public StayActualMovement(StayActualMovementId id, Instant occurredAt, Instant registeredAt, UserAccount recorder) {
         this.id = id;
+        this.registeredAtUtc = LocalDateTime.ofInstant(registeredAt, ZoneOffset.UTC);
         this.occurredAtUtc = LocalDateTime.ofInstant(occurredAt, ZoneOffset.UTC);
         this.recordedById = recorder.getId();
         this.recordedBy = recorder.getUsername();

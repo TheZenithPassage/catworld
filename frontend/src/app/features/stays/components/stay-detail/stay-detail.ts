@@ -8,6 +8,8 @@ import {
   output,
   signal,
   viewChild,
+  TemplateRef,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
@@ -26,7 +28,7 @@ import type { StayMovementAction, StayMovementType } from '../../models/stay-mov
 import { StayMovementDialogService } from '../../services/stay-movement-dialog.service';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogActions, MatDialogContent, MatDialogTitle, MatDialogClose, MatDialogRef } from '@angular/material/dialog';
 import { filter } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
@@ -44,13 +46,13 @@ import { STAY_MOVEMENT_TRANSLATIONS } from '../stay-movement-dialog/stay-movemen
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  imports: [MatDialogActions, MatDialogContent, MatDialogTitle, MatDialogClose, DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
   host: {
     '[attr.aria-busy]': 'loading() || operationalLoading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
   },
   templateUrl: './stay-detail.html',
-  styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
+  styleUrls: ['../../../../shared/entity-detail/entity-detail-presenter.scss', './stay-detail.scss'],
 })
 export class StayDetail {
   readonly editor = viewChild(StayEditor);
@@ -68,6 +70,11 @@ export class StayDetail {
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
+  readonly initialMovement = input<'record-arrival' | 'record-departure'>();
+  private initialMovementOpened = false;
+  private movementInfoRef?: MatDialogRef<unknown>;
+  readonly selectedLeg = signal<StayMovementType>('ARRIVAL');
+  readonly resetWindowOpen = signal(true);
   readonly editRequested = output<void>();
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
@@ -104,11 +111,29 @@ export class StayDetail {
   });
   constructor() {
     this.destroyRef.onDestroy(() => {
+      this.movementInfoRef?.close();
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
       this.invalidateOperational();
       this.deletionGeneration++;
+    });
+    effect(() => {
+      const initial = this.initialMovement();
+      const detail = this.detail();
+      if (initial && !this.initialMovementOpened && detail && !this.loading() && this.movementCatNames().length) {
+        this.initialMovementOpened = true;
+        untracked(() => this.openMovement(initial, detail.stayId));
+      }
+    });
+    effect((onCleanup) => {
+      const deadline = this.detail()?.actualMovements?.arrivalResetUntil;
+      const remaining = deadline ? Date.parse(deadline) - Date.now() : null;
+      this.resetWindowOpen.set(remaining === null || remaining > 0);
+      if (remaining !== null && remaining > 0) {
+        const timer = setTimeout(() => this.resetWindowOpen.set(false), remaining);
+        onCleanup(() => clearTimeout(timer));
+      }
     });
     effect(() => {
       const id = this.entityId();
@@ -169,6 +194,10 @@ export class StayDetail {
   canCancel(detail: StayDetailResponse): boolean {
     return detail.canCancel ?? (detail.status === 'RESERVED' || detail.status === 'CHECKED_IN');
   }
+  openMovementDetails(type: StayMovementType, template: TemplateRef<unknown>): void {
+    this.selectedLeg.set(type);
+    this.movementInfoRef = this.dialog.open(template, { width: '32rem', maxWidth: 'calc(100vw - 2rem)' });
+  }
   openMovement(action: StayMovementAction, stayId: string): void {
     const catNames = this.movementCatNames();
     if (!catNames.length || this.loading() || this.deleting()) return;
@@ -176,6 +205,7 @@ export class StayDetail {
       .open({ stayId, catNames, action, allowHistorical: true })
       .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
+        this.movementInfoRef?.close();
         if (this.entityId() === stayId) this.load();
         this.updated.emit({ entityType: 'stay', entityId: stayId });
       });

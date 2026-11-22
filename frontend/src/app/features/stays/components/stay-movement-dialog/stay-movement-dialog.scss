@@ -1,0 +1,6 @@
+.movement-heading { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .75rem; }
+.movement-heading small { font-size: 1rem; overflow-wrap: anywhere; }
+.movement-override { display: block; margin-block: 1rem; }
+mat-form-field { margin-inline-end: .5rem; }
+mat-dialog-actions { display: flex; gap: .5rem; }
+mat-dialog-actions button { flex: 1 1 8rem; }

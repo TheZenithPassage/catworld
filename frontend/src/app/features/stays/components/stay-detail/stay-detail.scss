@@ -1,0 +1,4 @@
+.movement-link { color: var(--mat-sys-primary); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.stay-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.stay-actions .detail-actions-start, .stay-actions .detail-actions-end { display: contents; }
+.stay-actions button { flex: 1 1 max-content; }

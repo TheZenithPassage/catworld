@@ -17,6 +17,7 @@ public record StayActualMovementsDTO(
         boolean canRecordDeparture,
         boolean canResetArrival,
         boolean arrivalAllowsNow,
+        Instant arrivalResetUntil,
         boolean departureAllowsNow
 ) {
     public record ActualMovement(Instant occurredAt, long revision, String recordedBy,

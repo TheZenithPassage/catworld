@@ -39,6 +39,7 @@ type MovementError = 'invalid' | 'rejected' | 'conflict' | 'forbidden' | 'failed
     UiStateComponent,
   ],
   templateUrl: './stay-movement-dialog.html',
+  styleUrl: './stay-movement-dialog.scss',
 })
 export class StayMovementDialog {
   private readonly api = inject(StayApiService);
@@ -54,6 +55,19 @@ export class StayMovementDialog {
   readonly error = signal<MovementError | null>(null);
   readonly needsRefresh = signal(false);
   readonly time = signal('');
+  readonly day = signal('');
+  readonly manualTime = signal(false);
+  readonly latestDay = computed(() => {
+    const today = this.businessTime.currentLocalDateTime().slice(0, 10);
+    const scheduled = this.scheduledAt()?.slice(0, 10) ?? today;
+    return scheduled < today ? scheduled : today;
+  });
+  readonly earliestDay = computed(() => {
+    const movements = this.movements();
+    return this.type === 'DEPARTURE' && movements?.arrival
+      ? this.businessTime.instantToLocalDateTime(movements.arrival.occurredAt).slice(0, 10)
+      : movements?.startAt.slice(0, 10);
+  });
 
   readonly type: StayMovementType =
     this.data.action === 'record-departure' ? 'DEPARTURE' : 'ARRIVAL';
@@ -68,7 +82,7 @@ export class StayMovementDialog {
   readonly requiresTime = computed(
     () =>
       this.data.action === 'correct-arrival' ||
-      (this.data.action !== 'reset-arrival' && !this.allowsNow()),
+      (this.data.action !== 'reset-arrival' && (this.manualTime() || !this.allowsNow())),
   );
   readonly available = computed(() => {
     const movements = this.movements();
@@ -102,10 +116,12 @@ export class StayMovementDialog {
       .subscribe({
         next: (movements) => {
           this.movements.set(movements);
+          this.day.set(this.latestDay());
           if (!this.available()) this.needsRefresh.set(true);
           if (this.data.action === 'correct-arrival' && movements.arrival) {
             const local = this.businessTime.instantToLocalDateTime(movements.arrival.occurredAt);
-            this.time.set(local.slice(11));
+            this.day.set(local.slice(0, 10));
+            this.time.set(local.slice(11, 16));
           }
         },
         error: () => this.needsRefresh.set(true),
@@ -127,7 +143,7 @@ export class StayMovementDialog {
 
     let occurredAt: string | null = null;
     if (this.requiresTime()) {
-      const wallTime = `${this.scheduledAt()?.slice(0, 10)}T${this.time()}`;
+      const wallTime = `${this.day()}T${this.time()}`;
       if (
         this.data.action === 'correct-arrival' &&
         movements.arrival &&

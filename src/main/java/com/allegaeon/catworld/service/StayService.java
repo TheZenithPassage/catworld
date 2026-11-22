@@ -22,6 +22,7 @@ import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.StayBookingConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
@@ -91,6 +92,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import static com.allegaeon.catworld.model.StayMovementType.ARRIVAL;
+import static com.allegaeon.catworld.model.StayMovementType.DEPARTURE;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -160,7 +163,7 @@ public class StayService implements IStayService {
                 .forEach(sc -> cats.computeIfAbsent(sc.getStay().getId(), ignored -> new ArrayList<>())
                         .add(new CurrentCatLookupItem(sc.getCat().getId(), sc.getCat().getName(), sc.getCat().isDeceased())));
         return new OverviewPage<>(stays.stream().map(stay -> new StayOverviewItem(stay.getId(),
-                stay.getStartAt(), stay.getEndAt(), stay.status(),
+                stay.effectiveTime(ARRIVAL, clock.getZone()), stay.effectiveTime(DEPARTURE, clock.getZone()), stay.status(),
                 stay.getOwner().getId(), stay.getOwner().getFullName(),
                 List.copyOf(cats.getOrDefault(stay.getId(), List.of())),
                 stay.isArrivalTransferRequired(), stay.isDepartureTransferRequired())).toList(), page, stays.getTotalElements());
@@ -214,7 +217,8 @@ public class StayService implements IStayService {
                         .findStayIdsWithRemovalHistory(deletionAuthorizedStayIds));
 
         return stays.stream()
-                .map(stay -> toResponseDTO(
+                .map(stay -> {
+                    var response = toResponseDTO(
                         stay,
                         paymentsByStay.getOrDefault(stay.getId(), List.of()),
                         annulmentsByStay.getOrDefault(stay.getId(), Map.of()),
@@ -224,7 +228,11 @@ public class StayService implements IStayService {
                                         stay.getId(), List.of()).isEmpty(),
                                 staysWithRemovalHistory.contains(stay.getId())
                         )
-                ))
+                    );
+                    response.setEffectiveStartAt(stay.effectiveTime(ARRIVAL, clock.getZone()));
+                    response.setEffectiveEndAt(stay.effectiveTime(DEPARTURE, clock.getZone()));
+                    return response;
+                })
                 .toList();
     }
 
@@ -319,7 +327,7 @@ public class StayService implements IStayService {
                 throw new BadRequestException("Owner must be the same for all the cats");
             }
 
-            if(hasOverBooking(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cat, null)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
+            if(hasOverBooking(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cat, null)) throw new StayBookingConflictException(cat.getName());
 
             stayCats.add(StayCat.builder()
                     .stay(stay)
@@ -529,7 +537,7 @@ public class StayService implements IStayService {
         boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
 
         for(Cat cat : cats) {
-            if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new ConflictException("There's already a booking for " + cat.getName() + " in the selected dates");
+            if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new StayBookingConflictException(cat.getName());
         }
 
         if (extendsStay) {
@@ -985,7 +993,8 @@ public class StayService implements IStayService {
         for(StayCat stayCat : cat.getStayCats()) {
             Stay existingStay = stayCat.getStay();
             if(existingStay.getCancelledAt() != null || existingStay.getId().equals(stayId)) continue;
-            if(endAt.isAfter(existingStay.getStartAt()) && startAt.isBefore(existingStay.getEndAt())) return true;
+            if (endAt.isAfter(existingStay.effectiveTime(ARRIVAL, clock.getZone()))
+                    && startAt.isBefore(existingStay.effectiveTime(DEPARTURE, clock.getZone()))) return true;
         }
 
         return false;

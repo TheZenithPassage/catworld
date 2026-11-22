@@ -20,6 +20,8 @@ export interface StayOverviewItem {
 }
 
 export interface Stay {
+  effectiveStartAt?: string;
+  effectiveEndAt?: string;
   stayId: string;
   status?: StayOverviewStatus;
   canDelete?: boolean;

@@ -26,6 +26,7 @@ export interface StayActualMovements {
   canRecordArrival: boolean;
   canRecordDeparture: boolean;
   canResetArrival: boolean;
+  arrivalResetUntil?: string | null;
   arrivalAllowsNow: boolean;
   departureAllowsNow: boolean;
 }

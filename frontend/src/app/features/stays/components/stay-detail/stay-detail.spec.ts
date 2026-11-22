@@ -113,10 +113,14 @@ describe('StayDetail confirmed movements', () => {
     respondWithStay(checkedIn);
 
     expect(detail.textContent).toMatch(/Ingreso previsto.*14:30.*Ingreso real.*13:15/s);
-    expect(detail.textContent).toContain('Registrado por staff');
+    const arrival = [...detail.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('13:15'))!;
+    arrival.click();
+    fixture.detectChanges();
+    const movementInfo = [...document.querySelectorAll('[role="dialog"]')].at(-1)!;
+    expect(movementInfo.textContent).toMatch(/Registrado por\s*staff/);
     expect(button(detail, 'Registrar ingreso')).toBeUndefined();
-    expect(button(detail, 'Corregir hora de ingreso')).toBeDefined();
-    expect(button(detail, 'Deshacer ingreso')).toBeDefined();
+    expect(button(movementInfo, 'Corregir hora de ingreso')).toBeDefined();
+    expect(button(movementInfo, 'Deshacer ingreso')).toBeDefined();
     expect(button(detail, 'Registrar salida')).toBeDefined();
     expect(button(detail, 'Cancelar estadía')).toBeUndefined();
   });

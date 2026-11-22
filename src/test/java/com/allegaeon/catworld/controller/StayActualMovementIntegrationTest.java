@@ -219,6 +219,59 @@ class StayActualMovementIntegrationTest {
     }
 
     @Test
+    void correctionKeepsTheStaffUndoDeadlineFromRegistration() throws Exception {
+        write("ARRIVAL", 0, "2030-06-02T00:30:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrivalResetUntil").value("2030-06-02T02:15:00Z"));
+        clock.current = Instant.parse("2030-06-02T02:14:59Z");
+        write("ARRIVAL", 1, "2030-06-02T00:35:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.arrivalResetUntil").value("2030-06-02T02:15:00Z"));
+        clock.current = Instant.parse("2030-06-02T02:15:00Z");
+        reset(2, "movement-staff", UserRole.STAFF).andExpect(status().isForbidden());
+        reset(2, "movement-admin", UserRole.ADMIN).andExpect(status().isOk());
+    }
+
+    @Test
+    void earlyDepartureFreesTheCatWithoutChangingTheOriginalAgreementOrDeposit() throws Exception {
+        var original = entityManager.find(Stay.class, stay.getId());
+        original.setEndAt(LocalDateTime.parse("2030-06-05T10:00"));
+        original.setPricePending(false);
+        original.setAgreedAmount(BigDecimal.valueOf(500));
+        entityManager.flush();
+        mvc.perform(post("/api/stays/{id}/payments", stay.getId()).with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"amount":100,"paymentDate":"2030-06-01","note":"Deposit"}
+                                """))
+                .andExpect(status().isCreated());
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isOk());
+
+        var booking = json.createObjectNode().put("startAt", "2030-06-02T12:00").put("endAt", "2030-06-04T10:00");
+        booking.putArray("catIds").add(catId.toString());
+        var preview = mvc.perform(post("/api/stays/pricing-preview").with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        booking.set("confirmation", json.readTree(preview).get("confirmation"));
+        booking.putObject("pricingDecision").put("pricePending", true);
+        booking.put("overrideVaccineConflicts", false);
+        mvc.perform(post("/api/stays").with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STAY_DATES_OVERLAP"));
+
+        write("DEPARTURE", 1, null, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.endAt").value("2030-06-05T10:00:00"));
+        mvc.perform(post("/api/stays").with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/stays/{id}", stay.getId()).with(user("movement-admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endAt").value("2030-06-05T10:00:00"))
+                .andExpect(jsonPath("$.agreedAmount").value("500"))
+                .andExpect(jsonPath("$.payments[0].amount").value("100"));
+    }
+
+    @Test
     void createsAWhollyPastStayAsHistoricalWithoutSyntheticMovements() throws Exception {
         var booking = json.createObjectNode().put("startAt", "2030-05-28T10:00").put("endAt", "2030-05-30T10:00");
         booking.putArray("catIds").add(catId.toString());

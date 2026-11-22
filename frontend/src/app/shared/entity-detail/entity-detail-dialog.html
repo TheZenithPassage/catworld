@@ -236,6 +236,7 @@
       }
       @case ('stay') {
         <app-stay-detail
+          [initialMovement]="reference().initialMovement"
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"

@@ -255,6 +255,7 @@ export interface StaysTranslations {
       datesRequired: string;
       endAfterStart: string;
       createFailed: string;
+      bookingConflict: (catName: string) => string;
       notesTooLong: string;
     };
   };
@@ -589,6 +590,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         createFailed: 'Error al crear la estadía',
+        bookingConflict: (catName: string) => catName + ' ya tiene una estadía en esas fechas.',
         notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
@@ -920,6 +922,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'Start and end date are required',
         endAfterStart: 'End date must be after start date',
         createFailed: 'Error creating stay',
+        bookingConflict: (catName: string) => catName + ' already has a stay on those dates.',
         notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },

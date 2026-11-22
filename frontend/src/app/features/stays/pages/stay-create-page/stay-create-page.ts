@@ -1,3 +1,4 @@
+import { stayFormError } from '../../utils/stay-form-error';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AfterViewInit, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -719,40 +720,7 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private getCreateStayErrorMessage(error: unknown): string {
-    const fallbackMessage = this.text().stays.create.errors.createFailed;
-
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallbackMessage;
-    }
-
-    const responseBody: unknown = error.error;
-
-    if (!responseBody) {
-      return fallbackMessage;
-    }
-
-    if (typeof responseBody === 'string') {
-      return responseBody.trim() || fallbackMessage;
-    }
-
-    if (this.isValidationErrorMap(responseBody)) {
-      const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`,
-      );
-
-      return messages.length > 0 ? messages.join('. ') : fallbackMessage;
-    }
-
-    return fallbackMessage;
-  }
-
-  private isValidationErrorMap(value: unknown): value is Record<string, string> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value) &&
-      Object.values(value).every((message) => typeof message === 'string')
-    );
+    return stayFormError(error, this.text().stays.create.errors.createFailed, this.text().stays.create.errors.bookingConflict);
   }
 
   private getDefaultDateTimeLocalValue(daysToAdd: number): string {

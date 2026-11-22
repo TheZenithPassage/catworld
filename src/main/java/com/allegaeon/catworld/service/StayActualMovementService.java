@@ -61,7 +61,7 @@ public class StayActualMovementService {
 
     StayActualMovementsDTO detailsFor(Stay stay) {
         return toResponse(stay, currentMovements(stay.getId()), currentUser.getCurrentUserAccount(),
-                LocalDate.now(clock));
+                clock.instant());
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -83,9 +83,8 @@ public class StayActualMovementService {
         }
 
         Instant now = clock.instant();
-        LocalDate today = now.atZone(clock.getZone()).toLocalDate();
         LocalDate planned = (type == ARRIVAL ? stay.getStartAt() : stay.getEndAt()).toLocalDate();
-        Instant occurredAt = validateMovementTime(request.occurredAt(), now, planned, today);
+        Instant occurredAt = validateMovementTime(request.occurredAt(), now, stay.getStartAt().toLocalDate(), planned);
 
         StayActualMovement arrival = movements.get(ARRIVAL);
         if (type == DEPARTURE && arrival != null && occurredAt.isBefore(arrival.occurredAt())) {
@@ -93,7 +92,7 @@ public class StayActualMovementService {
         }
 
         if (correction && existing.occurredAt().equals(occurredAt)) {
-            return toResponse(stay, movements, actor, today);
+            return toResponse(stay, movements, actor, now);
         }
 
         // The stay lock serializes its schedule, lifecycle, economic writes and cancellation.
@@ -109,11 +108,13 @@ public class StayActualMovementService {
             existing.correct(occurredAt, actor);
         } else {
             stay.setMovementStatus(type == ARRIVAL ? StayStatus.CHECKED_IN : StayStatus.CHECKED_OUT);
-            movements.put(type, movementRepository.save(
-                    new StayActualMovement(new StayActualMovementId(stayId, type), occurredAt, actor)));
+            StayActualMovement recorded = movementRepository.save(
+                    new StayActualMovement(new StayActualMovementId(stayId, type), occurredAt, now, actor));
+            stay.getActualMovements().add(recorded);
+            movements.put(type, recorded);
         }
         movementRepository.flush();
-        return toResponse(stay, movements, actor, today);
+        return toResponse(stay, movements, actor, now);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -127,20 +128,21 @@ public class StayActualMovementService {
 
         var movements = currentMovements(stayId);
         StayActualMovement arrival = movements.get(ARRIVAL);
-        if (!canManageArrival(actor, arrival)) {
-            throw new ForbiddenException("Staff can reset only their own arrivals");
-        }
         lockCats(stay);
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
+        if (actor.getRole() != UserRole.ADMIN && staffResetDeadline(actor, arrival, now) == null) {
+            throw new ForbiddenException("Staff can undo their own check-in for fifteen minutes");
+        }
         movements.remove(ARRIVAL);
         entityManager.persist(new StayArrivalReset(stay, arrival, actor, now));
         if (arrival != null) {
+            stay.getActualMovements().remove(arrival);
             movementRepository.delete(arrival);
         }
         stay.setMovementStatus(StayStatus.RESERVED);
         stay.advanceMovementRevision();
         movementRepository.flush();
-        return toResponse(stay, movements, actor, now.atZone(clock.getZone()).toLocalDate());
+        return toResponse(stay, movements, actor, now);
     }
 
     private Stay lockStay(UUID stayId) {
@@ -170,14 +172,14 @@ public class StayActualMovementService {
         }
     }
 
-    private Instant validateMovementTime(Instant requested, Instant now, LocalDate planned, LocalDate today) {
+    private Instant validateMovementTime(Instant requested, Instant now, LocalDate earliest, LocalDate latest) {
         Instant occurredAt = requested == null ? now : requested;
         if (occurredAt.isBefore(FIRST_STORABLE_INSTANT) || occurredAt.isAfter(now)) {
             throw new BadRequestException("Actual movement time must be within the supported range and not in the future");
         }
-        if ((requested == null && !planned.equals(today))
-                || !occurredAt.atZone(clock.getZone()).toLocalDate().equals(planned)) {
-            throw new BadRequestException("Actual movement time must be on the scheduled business date");
+        LocalDate day = occurredAt.atZone(clock.getZone()).toLocalDate();
+        if (day.isBefore(earliest) || day.isAfter(latest)) {
+            throw new BadRequestException("Actual movement time is outside the scheduled business dates");
         }
         return occurredAt.truncatedTo(ChronoUnit.MICROS);
     }
@@ -197,8 +199,16 @@ public class StayActualMovementService {
                 || (arrival != null && actor.getId().equals(arrival.getRecordedById()));
     }
 
-    private static StayActualMovementsDTO toResponse(Stay stay, EnumMap<StayMovementType, StayActualMovement> movements,
-                                                      UserAccount actor, LocalDate today) {
+    private static Instant staffResetDeadline(UserAccount actor, StayActualMovement arrival, Instant now) {
+        if (actor.getRole() != UserRole.STAFF || arrival == null || arrival.getRegisteredAtUtc() == null
+                || !actor.getId().equals(arrival.getRecordedById())) return null;
+        Instant deadline = arrival.getRegisteredAtUtc().toInstant(ZoneOffset.UTC).plus(15, ChronoUnit.MINUTES);
+        return now.isBefore(deadline) ? deadline : null;
+    }
+
+    private StayActualMovementsDTO toResponse(Stay stay, EnumMap<StayMovementType, StayActualMovement> movements,
+                                                      UserAccount actor, Instant now) {
+        LocalDate today = now.atZone(clock.getZone()).toLocalDate();
         StayStatus status = stay.status();
         boolean enabled = actor.isEnabled();
         LocalDate arrivalDay = stay.getStartAt().toLocalDate();
@@ -206,15 +216,16 @@ public class StayActualMovementService {
         StayActualMovement arrival = movements.get(ARRIVAL);
         StayActualMovement departure = movements.get(DEPARTURE);
         boolean canRecordArrival = enabled && arrival == null && canRecord(ARRIVAL, status) && !arrivalDay.isAfter(today);
-        boolean canRecordDeparture = enabled && departure == null && canRecord(DEPARTURE, status) && !departureDay.isAfter(today);
+        boolean canRecordDeparture = enabled && departure == null && canRecord(DEPARTURE, status) && !arrivalDay.isAfter(today);
         boolean canCorrectArrival = enabled && status == StayStatus.CHECKED_IN && arrival != null
                 && !arrivalDay.isAfter(today) && canManageArrival(actor, arrival);
-        boolean canReset = enabled && status == StayStatus.CHECKED_IN && canManageArrival(actor, arrival);
+        Instant deadline = enabled && status == StayStatus.CHECKED_IN ? staffResetDeadline(actor, arrival, now) : null;
+        boolean canReset = enabled && status == StayStatus.CHECKED_IN && (actor.getRole() == UserRole.ADMIN || deadline != null);
         return new StayActualMovementsDTO(stay.getStartAt(), stay.getEndAt(), status == StayStatus.CANCELLED, status,
                 stay.getMovementRevision(), toMovement(arrival, canCorrectArrival), toMovement(departure, false),
                 canRecordArrival, canRecordDeparture, canReset,
                 arrivalDay.equals(today) && (canRecordArrival || canCorrectArrival),
-                departureDay.equals(today) && canRecordDeparture);
+                deadline, !today.isAfter(departureDay) && canRecordDeparture);
     }
 
     private static ActualMovement toMovement(StayActualMovement movement, boolean canEdit) {

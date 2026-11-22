@@ -38,6 +38,28 @@
   } @else {
     @let movements = stay.actualMovements;
     @let movementLabels = movementCopy();
+    <ng-template #movementInfo>
+      @let arrival = selectedLeg() === 'ARRIVAL';
+      @let actual = arrival ? movements?.arrival : movements?.departure;
+      <h2 mat-dialog-title>{{ arrival ? movementLabels.arrivalDetails : movementLabels.departureDetails }}</h2>
+      <mat-dialog-content>
+        <dl class="detail-fields">
+          <div><dt>{{ arrival ? movementLabels.scheduledArrival : movementLabels.scheduledDeparture }}</dt><dd>{{ date(arrival ? stay.startAt : stay.endAt) }}</dd></div>
+          <div><dt>{{ arrival ? movementLabels.actualArrival : movementLabels.actualDeparture }}</dt><dd>{{ actual ? actualDate(actual.occurredAt) : movementLabels.legacy }}</dd></div>
+          @if (actual?.recordedBy) { <div><dt>{{ movementLabels.recordedBy }}</dt><dd>{{ actual?.recordedBy }}</dd></div> }
+          @if (actual?.correctedBy) { <div><dt>{{ movementLabels.correctedBy }}</dt><dd>{{ actual?.correctedBy }}</dd></div> }
+        </dl>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        @if (arrival && movements?.canResetArrival && resetWindowOpen()) {
+          <button mat-button type="button" (click)="openMovement('reset-arrival', stay.stayId)">{{ movementLabels.title['reset-arrival'] }}</button>
+        }
+        @if (arrival && actual?.canEdit) {
+          <button mat-button type="button" (click)="openMovement('correct-arrival', stay.stayId)">{{ movementLabels.title['correct-arrival'] }}</button>
+        }
+        <button mat-flat-button type="button" mat-dialog-close>{{ movementLabels.goBack }}</button>
+      </mat-dialog-actions>
+    </ng-template>
     <dl class="detail-fields">
       @for (type of movementTypes; track type) {
         @let isArrival = type === 'ARRIVAL';
@@ -55,21 +77,12 @@
           <div class="detail-field">
             <dt>{{ isArrival ? movementLabels.actualArrival : movementLabels.actualDeparture }}</dt>
             <dd>
-              @if (actual) {
-                <time [attr.datetime]="actual.occurredAt">{{ actualDate(actual.occurredAt) }}</time>
-                @if (actual.recordedBy) {
-                  <div>{{ movementLabels.recordedBy }} {{ actual.recordedBy }}</div>
-                }
-                @if (actual.correctedBy) {
-                  <div>{{ movementLabels.correctedBy }} {{ actual.correctedBy }}</div>
-                }
-              } @else {
-                {{
-                  isHistorical(stay.status, type)
-                    ? movementLabels.legacy
-                    : movementLabels.unrecorded
-                }}
-              }
+              @if (actual || isHistorical(stay.status, type)) {
+                <button type="button" class="movement-link" (click)="openMovementDetails(type, movementInfo)">
+                  @if (actual) { <time [attr.datetime]="actual.occurredAt">{{ actualDate(actual.occurredAt) }}</time> }
+                  @else { {{ movementLabels.legacy }} }
+                </button>
+              } @else { {{ movementLabels.unrecorded }} }
             </dd>
           </div>
         }
@@ -130,7 +143,7 @@
         }
       </section>
     }
-    <div class="detail-actions">
+    <div class="detail-actions stay-actions">
       <div class="detail-actions-start">
         @if (canCancel(stay)) {
           <button
@@ -178,26 +191,6 @@
               (click)="openMovement('record-departure', stay.stayId)"
             >
               {{ movementLabels.title['record-departure'] }}
-            </button>
-          }
-          @if (actualMovements.arrival?.canEdit) {
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="deleting() || !movementCatNames().length"
-              (click)="openMovement('correct-arrival', stay.stayId)"
-            >
-              {{ movementLabels.title['correct-arrival'] }}
-            </button>
-          }
-          @if (actualMovements.canResetArrival) {
-            <button
-              mat-stroked-button
-              type="button"
-              [disabled]="deleting() || !movementCatNames().length"
-              (click)="openMovement('reset-arrival', stay.stayId)"
-            >
-              {{ movementLabels.title['reset-arrival'] }}
             </button>
           }
         }

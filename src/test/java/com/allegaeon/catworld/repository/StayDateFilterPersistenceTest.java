@@ -18,7 +18,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest(properties = {"spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false"})
-@Import({JpaAuditingConfig.class, StayOverviewReadRepository.class})
+@Import({JpaAuditingConfig.class, StayOverviewReadRepository.class, com.allegaeon.catworld.config.ApplicationClockConfig.class})
 class StayDateFilterPersistenceTest {
     @Autowired StayOverviewReadRepository reads;
     @Autowired StayRepository stays;
