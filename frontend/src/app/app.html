@@ -93,6 +93,9 @@
 }
 
 <main class="app-main" [class.public-main]="!authenticatedShell()">
+  @if (demoMode() && authenticatedShell()) {
+    <p class="demo-notice">{{ text().auth.demo.sharedData }}</p>
+  }
   <router-outlet></router-outlet>
 </main>
 

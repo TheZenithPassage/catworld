@@ -8,6 +8,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 
 import { AuthSessionService } from './core/auth/auth-session.service';
+import { RuntimeConfigService } from './core/config/runtime-config.service';
 import { I18nService } from './core/i18n/i18n.service';
 import { ThemeService } from './core/theme/theme.service';
 
@@ -43,6 +44,7 @@ export class App {
   readonly language = this.i18nService.language;
   readonly text = this.i18nService.text;
   readonly theme = this.themeService.theme;
+  readonly demoMode = inject(RuntimeConfigService).demoMode;
 
   readonly authenticated = this.authSessionService.authenticated;
   readonly loginRoute = signal(this.isLoginUrl(this.router.url));
@@ -63,7 +65,9 @@ export class App {
     if (this.authenticated()?.role === 'ADMIN') {
       items.push({ path: '/payments', label: nav.payments, exact: false });
       items.push({ path: '/sensitive-activity', label: nav.sensitiveActivity, exact: false });
-      items.push({ path: '/accounts', label: nav.accounts, exact: false });
+      if (!this.demoMode()) {
+        items.push({ path: '/accounts', label: nav.accounts, exact: false });
+      }
     }
 
     return items;

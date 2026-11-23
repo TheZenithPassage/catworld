@@ -6,6 +6,7 @@ const DEFAULT_BUSINESS_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 interface RuntimeConfig {
   businessTimeZone?: unknown;
   buildId?: unknown;
+  demoMode?: unknown;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -17,12 +18,14 @@ export class RuntimeConfigService {
   private reloadRequested = false;
 
   readonly businessTimeZone = signal(DEFAULT_BUSINESS_TIME_ZONE);
+  readonly demoMode = signal(false);
 
   async load(): Promise<void> {
     const config = await this.fetchRuntimeConfig();
     if (!config) return;
 
     this.applyBusinessTimeZone(config.businessTimeZone);
+    this.demoMode.set(config.demoMode === true);
 
     const buildId = this.readBuildId(config.buildId);
     if (!buildId || this.executingBuildId) return;

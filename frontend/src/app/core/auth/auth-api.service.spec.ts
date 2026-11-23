@@ -37,4 +37,18 @@ describe('AuthApiService', () => {
 
     request.flush({ username: 'admin', role: 'ADMIN' });
   });
+
+  it('exchanges the public demo marker for a generation tied to the demo session', () => {
+    const user = { username: 'demo', role: 'ADMIN' };
+    let result: unknown;
+    service.loginDemo().subscribe((session) => (result = session));
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/auth/login`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('Authorization')).toBe('Demo');
+    expect(request.request.body).toBeNull();
+
+    request.flush(user, { headers: { 'X-CatWorld-Demo-Generation': 'generation-1' } });
+    expect(result).toEqual({ user, generation: 'generation-1' });
+  });
 });

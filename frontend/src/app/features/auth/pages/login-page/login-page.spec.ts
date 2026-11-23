@@ -10,6 +10,7 @@ import { vi } from 'vitest';
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { LoginPage } from './login-page';
 
 describe('LoginPage', () => {
@@ -19,10 +20,12 @@ describe('LoginPage', () => {
 
   const authApiService = {
     login: vi.fn(),
+    loginDemo: vi.fn(),
   };
 
   const authSessionService = {
     login: vi.fn(),
+    loginDemo: vi.fn(),
     logout: vi.fn(),
   };
 
@@ -120,6 +123,26 @@ describe('LoginPage', () => {
     expect(compiled.querySelector('input[name="username"]')).not.toBeNull();
     expect(compiled.querySelector('input[name="password"]')).not.toBeNull();
     expect(compiled.querySelector('button[mat-flat-button]')).not.toBeNull();
+  });
+
+  it('opens the same workspace from the demo button without credential fields', async () => {
+    const user = { username: 'demo', role: 'ADMIN' as const };
+    authApiService.loginDemo.mockReturnValue(of({ user, generation: 'generation-1' }));
+    TestBed.inject(RuntimeConfigService).demoMode.set(true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('input')).toBeNull();
+    expect(compiled.querySelector('button[mat-flat-button]')?.textContent?.trim()).toBe(
+      component.text().auth.demo.enter,
+    );
+
+    await submitRenderedForm();
+
+    expect(authApiService.loginDemo).toHaveBeenCalledOnce();
+    expect(authApiService.login).not.toHaveBeenCalled();
+    expect(authSessionService.loginDemo).toHaveBeenCalledWith(user, 'generation-1');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
   });
 
   it('renders a localized explanation after a forbidden account deletion redirect', () => {

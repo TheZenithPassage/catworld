@@ -1,6 +1,12 @@
 import { AppLanguage } from '../app-language';
 
 export interface AuthTranslations {
+  demo: {
+    title: string;
+    enter: string;
+    sharedData: string;
+    reloadRequired: string;
+  };
   login: {
     logoAlt: string;
     title: string;
@@ -22,6 +28,13 @@ export interface AuthTranslations {
 
 export const AUTH_TRANSLATIONS = {
   es: {
+    demo: {
+      title: 'Demo de CatWorld',
+      enter: 'Entrar a la demo',
+      sharedData:
+        'Los datos de la demo son ficticios, se comparten y se restablecen periódicamente.',
+      reloadRequired: 'Se restablecieron los datos de la demo. ¿Querés recargar para continuar?',
+    },
     login: {
       logoAlt: 'Logo de CatWorld',
       title: 'Iniciar sesión',
@@ -42,6 +55,12 @@ export const AUTH_TRANSLATIONS = {
     },
   },
   en: {
+    demo: {
+      title: 'CatWorld demo',
+      enter: 'Enter demo',
+      sharedData: 'Demo data is fictional, shared with other visitors and reset periodically.',
+      reloadRequired: 'The demo data has been reset. Reload to continue?',
+    },
     login: {
       logoAlt: 'CatWorld logo',
       title: 'Login',
