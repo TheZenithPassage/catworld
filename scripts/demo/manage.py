@@ -205,7 +205,7 @@ class Demo:
             try:
                 if isinstance(DemoApi(URL).json("GET", "/owners"), list):
                     return
-            except (SeedError, ValueError):
+            except (SeedError, ConnectionError, ValueError):
                 pass
             if time.monotonic() >= deadline:
                 raise DemoError(f"The demo API did not become ready at {URL}.")
