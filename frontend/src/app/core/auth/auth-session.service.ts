@@ -1,11 +1,12 @@
 import { Injectable, signal } from '@angular/core';
 
-import { AuthUser, LoginRequest, UserRole } from './auth.model';
+import { AuthUser, DEMO_AUTHORIZATION, LoginRequest, UserRole } from './auth.model';
 
 interface AuthSession {
   username: string;
   role: UserRole;
   authorizationHeader: string;
+  demoGeneration?: string;
 }
 
 @Injectable({
@@ -27,12 +28,20 @@ export class AuthSessionService {
     });
   }
 
+  loginDemo(user: AuthUser, demoGeneration: string): void {
+    this.session.set({ ...user, authorizationHeader: DEMO_AUTHORIZATION, demoGeneration });
+  }
+
   logout(): void {
     this.session.set(null);
   }
 
   getAuthorizationHeader(): string | null {
     return this.session()?.authorizationHeader ?? null;
+  }
+
+  getDemoGeneration(): string | undefined {
+    return this.session()?.demoGeneration;
   }
 
   getUsername(): string | null {

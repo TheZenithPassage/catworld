@@ -7,7 +7,7 @@ import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 import { LoginPage } from './features/auth/pages/login-page/login-page';
 import { authGuard } from './core/auth/auth.guard';
-import { adminGuard } from './core/auth/admin.guard';
+import { accountManagementGuard, adminGuard } from './core/auth/admin.guard';
 
 export const routes: Routes = [
   {
@@ -116,7 +116,7 @@ export const routes: Routes = [
   },
   {
     path: 'accounts',
-    canActivate: [adminGuard],
+    canActivate: [accountManagementGuard],
     loadComponent: () =>
       import('./features/accounts/pages/account-management-page/account-management-page').then(
         (m) => m.AccountManagementPage,

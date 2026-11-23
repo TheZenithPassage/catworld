@@ -117,6 +117,20 @@ describe('authInterceptor', () => {
     request.flush({});
   });
 
+  it('sends the demo marker and generation when editing data and prompts on a reset', () => {
+    const confirmReload = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    authSessionService.loginDemo({ username: 'demo', role: 'ADMIN' }, 'generation-1');
+
+    httpClient.post(`${API_BASE_URL}/owners`, {}).subscribe({ error: () => undefined });
+
+    const request = httpTestingController.expectOne(`${API_BASE_URL}/owners`);
+    expect(request.request.headers.get('Authorization')).toBe('Demo');
+    expect(request.request.headers.get('X-CatWorld-Demo-Generation')).toBe('generation-1');
+
+    request.flush({ error: 'DEMO_RELOAD_REQUIRED' }, { status: 409, statusText: 'Conflict' });
+    expect(confirmReload).toHaveBeenCalledOnce();
+  });
+
   it('logs out and redirects to login with the current route when a protected API request returns unauthorized', () => {
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 

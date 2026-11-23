@@ -3,8 +3,8 @@
     <span class="login-logo">
       <img src="/catworld-logo.png" [alt]="text().auth.login.logoAlt" />
     </span>
-    <h2>{{ text().auth.login.title }}</h2>
-    <p>{{ text().auth.login.description }}</p>
+    <h2>{{ demoMode() ? text().auth.demo.title : text().auth.login.title }}</h2>
+    <p>{{ demoMode() ? text().auth.demo.sharedData : text().auth.login.description }}</p>
   </header>
 
   @if (error(); as errorMessage) {
@@ -15,42 +15,50 @@
     <app-ui-state kind="loading" [message]="text().auth.login.navigating"></app-ui-state>
   } @else {
     <form class="login-form" (ngSubmit)="submit()">
-      <mat-form-field appearance="outline">
-        <mat-label>{{ text().auth.login.username }}</mat-label>
-        <input
-          matInput
-          type="text"
-          name="username"
-          autocomplete="username"
-          required
-          appTrimRequired
-          [ngModel]="username()"
-          (ngModelChange)="username.set($event)"
-        />
-        @if (usernameError(); as message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
+      @if (!demoMode()) {
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().auth.login.username }}</mat-label>
+          <input
+            matInput
+            type="text"
+            name="username"
+            autocomplete="username"
+            required
+            appTrimRequired
+            [ngModel]="username()"
+            (ngModelChange)="username.set($event)"
+          />
+          @if (usernameError(); as message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
 
-      <mat-form-field appearance="outline">
-        <mat-label>{{ text().auth.login.password }}</mat-label>
-        <input
-          matInput
-          type="password"
-          name="password"
-          autocomplete="current-password"
-          required
-          [ngModel]="password()"
-          (ngModelChange)="password.set($event)"
-        />
-        @if (passwordError(); as message) {
-          <mat-error>{{ message }}</mat-error>
-        }
-      </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>{{ text().auth.login.password }}</mat-label>
+          <input
+            matInput
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+          />
+          @if (passwordError(); as message) {
+            <mat-error>{{ message }}</mat-error>
+          }
+        </mat-form-field>
+      }
 
       <div class="form-actions">
         <button mat-flat-button type="submit" [disabled]="submitting()">
-          {{ submitting() ? text().auth.login.submitting : text().auth.login.submit }}
+          {{
+            submitting()
+              ? text().auth.login.submitting
+              : demoMode()
+                ? text().auth.demo.enter
+                : text().auth.login.submit
+          }}
         </button>
       </div>
     </form>

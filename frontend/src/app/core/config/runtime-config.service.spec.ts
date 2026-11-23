@@ -88,6 +88,18 @@ describe('RuntimeConfigService', () => {
     expect(browser.reload).toHaveBeenCalledOnce();
   });
 
+  it('enables demo mode only for a boolean true in the runtime configuration', async () => {
+    expect(service.demoMode()).toBe(false);
+
+    fetchMock.mockResolvedValueOnce(configResponse({ demoMode: 'true' }));
+    await service.load();
+    expect(service.demoMode()).toBe(false);
+
+    fetchMock.mockResolvedValueOnce(configResponse({ demoMode: true }));
+    await service.load();
+    expect(service.demoMode()).toBe(true);
+  });
+
   it('does not reload when the deployed build is unchanged', async () => {
     fetchMock
       .mockResolvedValueOnce(

@@ -1,7 +1,10 @@
 package com.allegaeon.catworld.config;
 
+import com.allegaeon.catworld.security.DemoRequestFilter;
+import com.allegaeon.catworld.service.DemoActivityService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +18,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,7 +33,12 @@ public class SecurityConfig {
     private final CatWorldSecurityProperties securityProperties;
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<DemoActivityService> demoActivity)
+            throws Exception {
+        DemoActivityService activity = demoActivity.getIfAvailable();
+        if (activity != null) {
+            http.addFilterAfter(new DemoRequestFilter(activity), AuthorizationFilter.class);
+        }
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
