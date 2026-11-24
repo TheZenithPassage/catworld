@@ -1,6 +1,7 @@
 """Regression checks for the demo's reset and recovery boundaries."""
 
 from contextlib import nullcontext
+from http.client import RemoteDisconnected
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -8,6 +9,21 @@ import unittest
 from unittest.mock import Mock, call, patch
 
 import manage
+
+
+class DemoReadinessTest(unittest.TestCase):
+    def test_retries_when_the_gateway_closes_the_connection_during_startup(self):
+        demo = manage.Demo(Path("unused"), "a" * 40)
+        ready = Mock()
+        ready.json.return_value = []
+        with (
+            patch.object(manage, "DemoApi", side_effect=[RemoteDisconnected(), ready]) as api,
+            patch.object(manage.time, "sleep"),
+        ):
+            demo.wait_ready()
+
+        self.assertEqual(api.call_count, 2)
+        ready.json.assert_called_once_with("GET", "/owners")
 
 
 class DemoResetTest(unittest.TestCase):
