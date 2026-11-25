@@ -22,7 +22,7 @@ import com.allegaeon.catworld.dto.StayPricingPreviewResponseDTO;
 import com.allegaeon.catworld.dto.VaccineConflictViolationDTO;
 import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
-import com.allegaeon.catworld.exception.StayBookingConflictException;
+import com.allegaeon.catworld.exception.StayEndBeforeActualArrivalException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
 import com.allegaeon.catworld.exception.StalePricingConfirmationException;
@@ -295,7 +295,7 @@ public class StayService implements IStayService {
             UUID stayId, StayDatePricingPreviewRequestDTO request) {
         validateEndDateIsAfterStartDate(request.getStartAt(), request.getEndAt());
         Stay stay = getStayEntity(stayId);
-        validateStayCanBeModified(stay, request.getStartAt());
+        validateEditAndGetEffectiveStart(stay, request.getStartAt(), request.getEndAt());
         boolean arrival = request.getArrivalTransferRequired() == null ? stay.isArrivalTransferRequired() : request.getArrivalTransferRequired();
         boolean departure = request.getDepartureTransferRequired() == null ? stay.isDepartureTransferRequired() : request.getDepartureTransferRequired();
         boolean waived = request.getTransferWaived() == null ? stay.isTransferWaived() : request.getTransferWaived();
@@ -327,7 +327,8 @@ public class StayService implements IStayService {
                 throw new BadRequestException("Owner must be the same for all the cats");
             }
 
-            if(hasOverBooking(stayRequestDTO.getStartAt(), stayRequestDTO.getEndAt(), cat, null)) throw new StayBookingConflictException(cat.getName());
+            StayBookingAvailability.requireAvailable(cat, null, stayRequestDTO.getStartAt(),
+                    stayRequestDTO.getEndAt(), clock.getZone());
 
             stayCats.add(StayCat.builder()
                     .stay(stay)
@@ -404,12 +405,12 @@ public class StayService implements IStayService {
 
         validateEndDateIsAfterStartDate(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         Stay stay = getStayEntityForUpdate(stayId);
-        validateStayCanBeModified(stay, stayUpdateDTO.getStartAt());
-        boolean scheduleChanged = !stay.getStartAt().equals(stayUpdateDTO.getStartAt())
-                || !stay.getEndAt().equals(stayUpdateDTO.getEndAt());
+        LocalDateTime effectiveStart = validateEditAndGetEffectiveStart(
+                stay, stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
+        boolean scheduleChanged = changesSchedule(stay, stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
         List<Cat> cats = stay.getStayCats().stream().map(StayCat::getCat).toList();
         if (scheduleChanged) {
-            // Match the stay-then-cats order of confirmations and the cat order of creation.
+            // Match the stay-then-cats order used by movements.
             cats.stream().map(Cat::getId).sorted().forEach(catRepository::findByIdForUpdate);
         }
         long previousNumberOfNights = stayMapper.calculateNumberOfNights(
@@ -534,12 +535,14 @@ public class StayService implements IStayService {
             stay.setRetainedTransferRate(selectedTransferRate);
         }
 
-        boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
-
-        for(Cat cat : cats) {
-            if(hasOverBooking(stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt(), cat, stayId)) throw new StayBookingConflictException(cat.getName());
+        if (scheduleChanged) {
+            for (Cat cat : cats) {
+                StayBookingAvailability.requireAvailable(
+                        cat, stayId, effectiveStart, stayUpdateDTO.getEndAt(), clock.getZone());
+            }
         }
 
+        boolean extendsStay = stayUpdateDTO.getEndAt().isAfter(stay.getEndAt());
         if (extendsStay) {
             List<VaccineConflictViolationDTO> vaccineConflicts =
                     findVaccineConflicts(cats, stayUpdateDTO.getStartAt(), stayUpdateDTO.getEndAt());
@@ -988,25 +991,24 @@ public class StayService implements IStayService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cat", id));
     }
 
-    private boolean hasOverBooking(LocalDateTime startAt, LocalDateTime endAt, Cat cat, UUID stayId) {
-
-        for(StayCat stayCat : cat.getStayCats()) {
-            Stay existingStay = stayCat.getStay();
-            if(existingStay.getCancelledAt() != null || existingStay.getId().equals(stayId)) continue;
-            if (endAt.isAfter(existingStay.effectiveTime(ARRIVAL, clock.getZone()))
-                    && startAt.isBefore(existingStay.effectiveTime(DEPARTURE, clock.getZone()))) return true;
-        }
-
-        return false;
-    }
-
-    private void validateStayCanBeModified(Stay stay, LocalDateTime proposedStart) {
+    private LocalDateTime validateEditAndGetEffectiveStart(
+            Stay stay, LocalDateTime proposedStart, LocalDateTime proposedEnd) {
         if (!stay.canEdit()) {
             throw new ConflictException("Closed stays cannot be modified");
         }
         if (stay.status() == StayStatus.CHECKED_IN && !proposedStart.toLocalDate().equals(stay.getStartAt().toLocalDate())) {
             throw new ConflictException("The scheduled arrival day cannot change after check-in");
         }
+        var actualArrival = stay.actualTime(ARRIVAL, clock.getZone());
+        if (actualArrival.isPresent() && proposedEnd.isBefore(actualArrival.get())
+                && changesSchedule(stay, proposedStart, proposedEnd)) {
+            throw new StayEndBeforeActualArrivalException();
+        }
+        return actualArrival.orElse(proposedStart);
+    }
+
+    private boolean changesSchedule(Stay stay, LocalDateTime proposedStart, LocalDateTime proposedEnd) {
+        return !stay.getStartAt().equals(proposedStart) || !stay.getEndAt().equals(proposedEnd);
     }
 
     private void validateEndDateIsAfterStartDate(LocalDateTime startAt, LocalDateTime endAt) {

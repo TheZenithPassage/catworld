@@ -7,7 +7,9 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -86,10 +88,13 @@ public class Stay extends AuditableEntity {
     @org.hibernate.annotations.BatchSize(size = 64)
     private Set<StayActualMovement> actualMovements = new HashSet<>();
 
-    public LocalDateTime effectiveTime(StayMovementType type, java.time.ZoneId zone) {
+    public Optional<LocalDateTime> actualTime(StayMovementType type, ZoneId zone) {
         return actualMovements.stream().filter(movement -> movement.getId().getType() == type)
-                .map(movement -> LocalDateTime.ofInstant(movement.occurredAt(), zone)).findFirst()
-                .orElse(type == StayMovementType.ARRIVAL ? startAt : endAt);
+                .map(movement -> LocalDateTime.ofInstant(movement.occurredAt(), zone)).findFirst();
+    }
+
+    public LocalDateTime effectiveTime(StayMovementType type, ZoneId zone) {
+        return actualTime(type, zone).orElse(type == StayMovementType.ARRIVAL ? startAt : endAt);
     }
 
     public StayStatus status() {

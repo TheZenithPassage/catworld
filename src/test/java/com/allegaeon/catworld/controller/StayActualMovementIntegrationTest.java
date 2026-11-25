@@ -209,6 +209,88 @@ class StayActualMovementIntegrationTest {
     }
 
     @Test
+    void rejectingUndoThatWouldRestoreAnOverlapPreservesTheArrivalAndAudit() throws Exception {
+        write("ARRIVAL", 0, "2030-06-02T01:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk());
+        bookPendingStay("2030-06-01T21:00", "2030-06-01T22:00");
+
+        reset(1, "movement-staff", UserRole.STAFF)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STAY_DATES_OVERLAP"))
+                .andExpect(jsonPath("$.catName").value("Menta"));
+        mvc.perform(get(movementsUrl).with(user("movement-staff").roles("STAFF")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CHECKED_IN"))
+                .andExpect(jsonPath("$.revision").value(1))
+                .andExpect(jsonPath("$.arrival.occurredAt").value("2030-06-02T01:00:00Z"));
+        assertEquals(0, jdbc.queryForObject("select count(*) from stay_arrival_resets", Integer.class));
+    }
+
+    @Test
+    void editingUsesTheActualArrivalAndRejectsAnOverlapWithTheProposedDeparture() throws Exception {
+        write("ARRIVAL", 0, "2030-06-02T01:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk());
+        bookPendingStay("2030-06-01T21:00", "2030-06-01T22:00");
+        bookPendingStay("2030-06-01T23:15", "2030-06-01T23:45");
+
+        edit("2030-06-01T20:00", "2030-06-01T23:15")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.endAt").value("2030-06-01T23:15:00"));
+        edit("2030-06-01T20:00", "2030-06-01T23:30")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STAY_DATES_OVERLAP"))
+                .andExpect(jsonPath("$.catName").value("Menta"));
+    }
+
+    @Test
+    void aStayEndingAtItsActualArrivalDoesNotBlockAnotherBooking() throws Exception {
+        write("ARRIVAL", 0, "2030-06-02T01:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk());
+        edit("2030-06-01T20:00", "2030-06-01T22:00").andExpect(status().isOk());
+        entityManager.flush();
+        entityManager.clear();
+
+        bookPendingStay("2030-06-01T21:00", "2030-06-01T23:00");
+    }
+
+    @Test
+    void letsStaffSaveNotesWithoutChangingTheScheduleAfterALateSameDayArrival() throws Exception {
+        write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF).andExpect(status().isOk());
+        String dates = """
+                {"startAt":"2030-06-01T20:00","endAt":"2030-06-01T22:45"}
+                """;
+        var staff = user("movement-staff").roles("STAFF");
+        mvc.perform(post("/api/stays/{id}/pricing-preview", stay.getId()).with(staff)
+                        .contentType(MediaType.APPLICATION_JSON).content(dates))
+                .andExpect(status().isOk());
+        var update = json.createObjectNode().put("startAt", "2030-06-01T20:00")
+                .put("endAt", "2030-06-01T22:45").put("notes", "Arrived late")
+                .put("overrideVaccineConflicts", false);
+        mvc.perform(put("/api/stays/{id}", stay.getId()).with(staff)
+                        .contentType(MediaType.APPLICATION_JSON).content(update.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notes").value("Arrived late"));
+    }
+
+    @Test
+    void rejectsAProposedDepartureBeforeTheActualArrivalInPreviewAndSave() throws Exception {
+        write("ARRIVAL", 0, "2030-06-02T01:00:00Z", "movement-staff", UserRole.STAFF)
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/stays/{id}/pricing-preview", stay.getId())
+                        .with(user("movement-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"startAt":"2030-06-01T20:00","endAt":"2030-06-01T21:30"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("STAY_END_BEFORE_ACTUAL_ARRIVAL"));
+        edit("2030-06-01T20:00", "2030-06-01T21:30")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("STAY_END_BEFORE_ACTUAL_ARRIVAL"));
+        detail("CHECKED_IN", true, false);
+    }
+
+    @Test
     void staffCanUndoTheirOwnArrivalWithTheCurrentRevision() throws Exception {
         write("ARRIVAL", 0, null, "movement-staff", UserRole.STAFF)
                 .andExpect(status().isOk()).andExpect(jsonPath("$.canResetArrival").value(true));
@@ -349,6 +431,23 @@ class StayActualMovementIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CHECKED_OUT"))
                 .andExpect(jsonPath("$.actualMovements.arrival").doesNotExist())
                 .andExpect(jsonPath("$.actualMovements.departure").doesNotExist());
+    }
+
+    private void bookPendingStay(String startAt, String endAt) throws Exception {
+        var booking = json.createObjectNode().put("startAt", startAt).put("endAt", endAt);
+        booking.putArray("catIds").add(catId.toString());
+        var admin = user("movement-admin").roles("ADMIN");
+        var preview = mvc.perform(post("/api/stays/pricing-preview").with(admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        booking.set("confirmation", json.readTree(preview).get("confirmation"));
+        booking.putObject("pricingDecision").put("pricePending", true);
+        booking.put("overrideVaccineConflicts", false);
+        mvc.perform(post("/api/stays").with(admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(booking.toString()))
+                .andExpect(status().isCreated());
+        entityManager.flush();
+        entityManager.clear();
     }
 
     private ResultActions edit(String startAt, String endAt) throws Exception {

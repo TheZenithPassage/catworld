@@ -82,6 +82,7 @@ export class StayEditor {
 
   readonly startAt = signal('');
   readonly endAt = signal('');
+  readonly endBeforeActualArrival = signal(false);
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
@@ -164,6 +165,7 @@ export class StayEditor {
       !this.canEditStay() ||
       this.submitting() ||
       this.previewLoading() ||
+      this.endBeforeActualArrival() ||
       (this.pricingPreview()?.pricingDecisionRequired === true && !this.isAdmin()) ||
       (this.pricingConfirmationRequired() && !this.pricingConfirmed()),
   );
@@ -341,6 +343,7 @@ export class StayEditor {
       return;
     }
 
+    if (this.endBeforeActualArrival()) return;
     const preview = this.pricingPreview();
     if (this.previewLoading() || !preview) {
       this.showError(this.text().stays.pricing.errors.previewRequired);
@@ -424,7 +427,13 @@ export class StayEditor {
         if (request.overrideVaccineConflicts) {
           this.clearVaccineOverrideRecovery();
         }
-        this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed));
+        if (this.isEndBeforeActualArrivalError(error)) {
+          this.endBeforeActualArrival.set(true);
+        } else {
+          this.showError(
+            this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed),
+          );
+        }
         this.setSubmitting(false);
       },
     });
@@ -638,6 +647,7 @@ export class StayEditor {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.previewError.set(null);
+    this.endBeforeActualArrival.set(false);
     const sequence = ++this.previewRequestSequence;
 
     if (
@@ -724,6 +734,10 @@ export class StayEditor {
           if (sequence !== this.previewRequestSequence) return;
           this.pricingPreview.set(null);
           this.previewLoading.set(false);
+          if (this.isEndBeforeActualArrivalError(error)) {
+            this.endBeforeActualArrival.set(true);
+            return;
+          }
           this.previewError.set(
             !this.isAdmin() && error instanceof HttpErrorResponse && error.status === 403
               ? this.text().stays.pricing.errors.adminRequired
@@ -731,6 +745,12 @@ export class StayEditor {
           );
         },
       });
+  }
+
+  private isEndBeforeActualArrivalError(error: unknown): boolean {
+    return (
+      error instanceof HttpErrorResponse && error.error?.code === 'STAY_END_BEFORE_ACTUAL_ARRIVAL'
+    );
   }
 
   private currentPreviewBasis(): string {

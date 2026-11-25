@@ -32,6 +32,7 @@ import { NightlyReferenceRateApiService } from '../../features/nightly-rates/ser
 import { TransferRateApiService } from '../../features/nightly-rates/services/transfer-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { StayMovementDialog } from '../../features/stays/components/stay-movement-dialog/stay-movement-dialog';
 import { STAY_MOVEMENT_TRANSLATIONS } from '../../features/stays/components/stay-movement-dialog/stay-movement.translations';
 import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
@@ -1151,6 +1152,49 @@ describe('EntityDetailDialog', () => {
     expect(updated).toHaveBeenCalledExactlyOnceWith({ entityType: 'stay', entityId: 'stay-1' });
     expect(stayApi.getStayDetail).toHaveBeenCalledTimes(3);
     expect(dialogs.openDialogs).toHaveLength(1);
+  });
+
+  it('shows the affected cat when undoing an arrival would overlap another stay', () => {
+    const movements: StayActualMovements = {
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      serverNow: '2030-01-01T14:00:00Z',
+      status: 'CHECKED_IN',
+      cancelled: false,
+      revision: 1,
+      arrival: null,
+      departure: null,
+      canRecordArrival: false,
+      canRecordDeparture: true,
+      canResetArrival: true,
+      arrivalAllowsNow: false,
+      departureAllowsNow: true,
+    };
+    const conflict = new HttpErrorResponse({
+      status: 409,
+      error: { code: 'STAY_DATES_OVERLAP', catName: 'Milo' },
+    });
+    const resetActualArrival = vi.fn(() => throwError(() => conflict));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        {
+          provide: StayApiService,
+          useValue: { getActualMovements: () => of(movements), resetActualArrival },
+        },
+      ],
+    });
+    const reference = TestBed.inject(MatDialog).open(StayMovementDialog, {
+      data: { stayId: 'stay-1', action: 'reset-arrival', catNames: ['Milo'] },
+    });
+    reference.componentInstance.confirm();
+    TestBed.tick();
+
+    const dialog = document.getElementById(reference.id)!;
+    const message = TestBed.inject(I18nService).text().stays.create.errors.bookingConflict('Milo');
+    expect(dialog.querySelector('[role="alert"]')?.textContent?.trim()).toBe(message);
+    expect(resetActualArrival).toHaveBeenCalledExactlyOnceWith('stay-1', 1);
+    reference.close();
   });
 
   it('closes the detail dialog and releases an enlarged informational photo on session loss', async () => {
@@ -4279,6 +4323,23 @@ describe('Route-free StayEditor migrated coverage', () => {
       });
     },
   );
+
+  it('shows a departure before actual arrival next to the departure input', () => {
+    const invalidDates = new HttpErrorResponse({
+      status: 400,
+      error: { code: 'STAY_END_BEFORE_ACTUAL_ARRIVAL' },
+    });
+    stayApiService.previewDateChangePricing.mockReturnValue(throwError(() => invalidDates));
+    createComponent();
+    fixture.detectChanges();
+
+    const departure = fixture.nativeElement.querySelector('input[name="endAt"]');
+    expect(departure.getAttribute('aria-describedby')).toBe('stay-departure-before-actual-arrival');
+    expect(
+      fixture.nativeElement.querySelector('#stay-departure-before-actual-arrival')?.textContent,
+    ).toMatch(/actual arrival|ingreso real/i);
+    expect(component.saveDisabled()).toBe(true);
+  });
 
   it('presents the administrator-required state for a rejected staff pricing preview', () => {
     authSessionService.hasRole.mockReturnValue(false);

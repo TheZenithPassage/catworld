@@ -278,6 +278,7 @@ export interface StaysTranslations {
       dataNotLoaded: string;
       datesRequired: string;
       arrivalDayLocked: string;
+      endBeforeActualArrival: string;
       endAfterStart: string;
       updateFailed: string;
       notesTooLong: string;
@@ -613,6 +614,8 @@ export const STAYS_TRANSLATIONS = {
         dataNotLoaded: 'Los datos de la estadía no están cargados',
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         arrivalDayLocked: 'El día previsto de ingreso queda fijo cuando la estadía está en curso.',
+        endBeforeActualArrival:
+          'La salida prevista debe ser en el momento del ingreso real o después.',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         updateFailed: 'Error al actualizar la estadía',
         notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
@@ -945,6 +948,7 @@ export const STAYS_TRANSLATIONS = {
         dataNotLoaded: 'Stay data is not loaded',
         datesRequired: 'Start and end date are required',
         arrivalDayLocked: 'The scheduled arrival day is fixed while the stay is in progress.',
+        endBeforeActualArrival: 'The scheduled departure must be at or after the actual arrival.',
         endAfterStart: 'End date must be after start date',
         updateFailed: 'Error updating stay',
         notesTooLong: 'Notes must not exceed 10,000 characters',

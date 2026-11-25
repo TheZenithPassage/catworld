@@ -57,6 +57,11 @@ public class GlobalExceptionHandler {
                 "vaccineDateRange", exception.getVaccineDateRange()));
     }
 
+    @ExceptionHandler(StayEndBeforeActualArrivalException.class)
+    public ResponseEntity<Map<String, String>> handleStayEndBeforeActualArrival() {
+        return ResponseEntity.badRequest().body(Map.of("code", "STAY_END_BEFORE_ACTUAL_ARRIVAL"));
+    }
+
     @ExceptionHandler(StayBookingConflictException.class)
     public ResponseEntity<Map<String, String>> handleStayBookingConflict(StayBookingConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "STAY_DATES_OVERLAP",

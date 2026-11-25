@@ -532,9 +532,15 @@ declared time preserves that deadline. Administrators can undo any checked-in
 stay, including historical entries without an arrival time. Undo via
 `POST /api/stays/{id}/actual-movements/ARRIVAL/reset` returns a checked-in stay
 to reserved and records the former evidence and the operator who reset it.
+Undo rejects overlaps in the restored scheduled interval before changing the
+movement or audit history. Schedule edits validate availability from the
+actual arrival when known to the proposed departure. A proposed departure
+before the actual arrival is invalid when changing the schedule. An interval
+with equal endpoints does not block other bookings. Pricing and vaccine checks
+use the scheduled dates.
 There are no movement corrections after checkout. The stay row lock serializes
 confirmation, schedule edits, cancellation and payment mutations.
-Confirmations and schedule edits lock the participating cats in identifier
+Movement writes and schedule edits lock the participating cats in identifier
 order. Arrival rejects overlap with open operational occupancy or a later
 recorded checkout of a participating cat.
 

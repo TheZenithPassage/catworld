@@ -34,17 +34,28 @@
               />
             </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
-              <input
-                matInput
-                type="datetime-local"
-                name="endAt"
-                required
-                [ngModel]="endAt()"
-                (ngModelChange)="onEndAtChange($event)"
-              />
-            </mat-form-field>
+            <div>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
+                <input
+                  matInput
+                  type="datetime-local"
+                  name="endAt"
+                  required
+                  [attr.aria-invalid]="endBeforeActualArrival() ? 'true' : null"
+                  [attr.aria-describedby]="
+                    endBeforeActualArrival() ? 'stay-departure-before-actual-arrival' : null
+                  "
+                  [ngModel]="endAt()"
+                  (ngModelChange)="onEndAtChange($event)"
+                />
+              </mat-form-field>
+              @if (endBeforeActualArrival()) {
+                <p id="stay-departure-before-actual-arrival" class="pricing-warning" role="alert">
+                  {{ text().stays.edit.errors.endBeforeActualArrival }}
+                </p>
+              }
+            </div>
 
             <div class="transfer-assistance-control">
               <mat-checkbox

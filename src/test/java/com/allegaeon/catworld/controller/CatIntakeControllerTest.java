@@ -710,8 +710,13 @@ class CatIntakeControllerTest {
         var portraitReview = detail(rowFor(reviewList(), owner.getId(), "Up to date").get("id").asString());
         var portrait = portraitReview.get("photos").get(0);
         assertThat(portrait.get("frame").get("frameZoom").asInt()).isEqualTo(135);
+        String versionBeforePortrait = portraitReview.get("catUpdatedAt").asString();
         approve(portraitReview, Map.of(), List.of(portrait.get("id").asString()),
-                portraitReview.get("catUpdatedAt").asString(), 204);
+                versionBeforePortrait, 204);
+        doReturn(null).when(normalizer).normalize(org.mockito.ArgumentMatchers.isNull());
+        mvc.perform(internalCatEdit(complete, "Largo", versionBeforePortrait).param("removePhoto", "true"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CAT_EDIT_STALE"));
         mvc.perform(get("/api/cats/{id}/photo", complete.getId()).with(admin()))
                 .andExpect(status().isOk()).andExpect(header().string("X-Cat-Photo-Frame", "20,60,135"));
 

@@ -7,6 +7,7 @@ import com.allegaeon.catworld.exception.BadRequestException;
 import com.allegaeon.catworld.exception.ConflictException;
 import com.allegaeon.catworld.exception.ForbiddenException;
 import com.allegaeon.catworld.exception.ResourceNotFoundException;
+import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayActualMovement;
 import com.allegaeon.catworld.model.StayActualMovementId;
@@ -96,7 +97,7 @@ public class StayActualMovementService {
 
         // The stay lock serializes its schedule, lifecycle, economic writes and cancellation.
         // Both kinds of confirmation lock every cat before checking any competing stay.
-        List<UUID> catIds = lockCats(stay);
+        List<UUID> catIds = lockCats(stay).stream().map(Cat::getId).toList();
         if (type == ARRIVAL && !catIds.isEmpty() && stayCatRepository.hasOverlappingActualOccupancy(
                 catIds, stayId, LocalDateTime.ofInstant(occurredAt, ZoneOffset.UTC))) {
             throw new ConflictException("A cat has overlapping actual occupancy in another stay");
@@ -127,10 +128,14 @@ public class StayActualMovementService {
 
         var movements = currentMovements(stayId);
         StayActualMovement arrival = movements.get(ARRIVAL);
-        lockCats(stay);
+        List<Cat> cats = lockCats(stay);
         Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);
         if (actor.getRole() != UserRole.ADMIN && staffResetDeadline(actor, arrival, now) == null) {
             throw new ForbiddenException("Staff can undo their own check-in for fifteen minutes");
+        }
+        for (Cat cat : cats) {
+            StayBookingAvailability.requireAvailable(
+                    cat, stayId, stay.getStartAt(), stay.getEndAt(), clock.getZone());
         }
         movements.remove(ARRIVAL);
         entityManager.persist(new StayArrivalReset(stay, arrival, actor, now));
@@ -149,12 +154,11 @@ public class StayActualMovementService {
                 .orElseThrow(() -> new ResourceNotFoundException("Stay", stayId));
     }
 
-    private List<UUID> lockCats(Stay stay) {
-        List<UUID> catIds = stay.getStayCats().stream().map(link -> link.getCat().getId()).sorted().toList();
-        for (UUID id : catIds) {
-            catRepository.findByIdForUpdate(id).orElseThrow(() -> new ResourceNotFoundException("Cat", id));
-        }
-        return catIds;
+    private List<Cat> lockCats(Stay stay) {
+        return stay.getStayCats().stream().map(link -> link.getCat().getId()).sorted()
+                .map(id -> catRepository.findByIdForUpdate(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Cat", id)))
+                .toList();
     }
 
     private UserAccount enabledActor() {

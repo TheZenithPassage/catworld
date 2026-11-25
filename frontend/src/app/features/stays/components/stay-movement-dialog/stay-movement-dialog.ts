@@ -22,6 +22,7 @@ import type {
   StayMovementType,
 } from '../../models/stay-movement.model';
 import { StayApiService } from '../../services/stay-api.service';
+import { stayBookingConflictCatName } from '../../utils/stay-form-error';
 import { STAY_MOVEMENT_TRANSLATIONS } from './stay-movement.translations';
 
 type MovementError = 'invalid' | 'rejected' | 'conflict' | 'forbidden' | 'failed';
@@ -52,7 +53,14 @@ export class StayMovementDialog {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly movements = signal<StayActualMovements | null>(null);
-  readonly error = signal<MovementError | null>(null);
+  private readonly error = signal<MovementError | { catName: string } | null>(null);
+  readonly errorMessage = computed(() => {
+    const error = this.error();
+    if (!error) return null;
+    return typeof error === 'string'
+      ? this.copy()[error]
+      : this.i18n.text().stays.create.errors.bookingConflict(error.catName);
+  });
   readonly needsRefresh = signal(false);
   readonly time = signal('');
   readonly day = signal('');
@@ -199,7 +207,8 @@ export class StayMovementDialog {
           const status = error instanceof HttpErrorResponse ? error.status : 0;
           if (status === 409 || status === 404) {
             this.needsRefresh.set(true);
-            this.error.set('conflict');
+            const catName = stayBookingConflictCatName(error);
+            this.error.set(catName === null ? 'conflict' : { catName });
           } else if (status === 403) {
             this.needsRefresh.set(true);
             this.error.set('forbidden');

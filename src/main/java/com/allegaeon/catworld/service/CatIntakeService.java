@@ -338,8 +338,13 @@ public class CatIntakeService {
         request.setCatalogOptionIds(replacements);
         if (cat == null) {
             cat = catMutations.createFromIntake(request, reviewedOptions);
-        } else if (!accepted.isEmpty()) {
-            catMutations.applyProfile(cat, request, reviewedOptions);
+        } else {
+            if (!accepted.isEmpty()) {
+                catMutations.applyProfile(cat, request, reviewedOptions);
+            }
+            if (!acceptedPhotos.isEmpty()) {
+                cat.setUpdatedAt(Instant.now());
+            }
         }
         Cat approvedCat = cat;
         Instant now = clock.instant();

@@ -60,8 +60,8 @@
           }
         </section>
       }
-      @if (error(); as message) {
-        <p role="alert">{{ labels[message] }}</p>
+      @if (errorMessage(); as message) {
+        <p role="alert">{{ message }}</p>
       }
     } @else {
       <app-ui-state kind="error" [message]="movements() ? labels.unavailable : labels.loadFailed" />
