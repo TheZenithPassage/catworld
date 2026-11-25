@@ -70,8 +70,15 @@ class SecurityConfigTest {
         mockMvc.perform(post("/api/auth/login")
                         .with(httpBasic("test-admin", "test-password")))
                 .andExpect(status().isOk())
+                .andExpect(header().doesNotExist("X-CatWorld-Demo-Generation"))
                 .andExpect(jsonPath("$.username", is("test-admin")))
                 .andExpect(jsonPath("$.role", is("ADMIN")));
+    }
+
+    @Test
+    void productionLoginRejectsDemoAuthorization() throws Exception {
+        mockMvc.perform(post("/api/auth/login").header("Authorization", "Demo"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

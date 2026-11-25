@@ -1,3 +1,4 @@
 {
-  "businessTimeZone": "America/Argentina/Buenos_Aires"
+  "businessTimeZone": "America/Argentina/Buenos_Aires",
+  "demoMode": false
 }

@@ -5,10 +5,12 @@ import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Observable, tap } from 'rxjs';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
@@ -37,6 +39,7 @@ export class LoginPage {
   private readonly i18nService = inject(I18nService);
 
   readonly text = this.i18nService.text;
+  readonly demoMode = inject(RuntimeConfigService).demoMode;
   readonly username = signal('');
   readonly password = signal('');
   readonly submitting = signal(false);
@@ -59,6 +62,15 @@ export class LoginPage {
     this.error.set(null);
     this.clearValidationErrors();
 
+    if (this.demoMode()) {
+      this.startLogin(
+        this.authApiService
+          .loginDemo()
+          .pipe(tap(({ user, generation }) => this.authSessionService.loginDemo(user, generation))),
+      );
+      return;
+    }
+
     if (!this.username().trim()) {
       this.usernameError.set(this.text().auth.login.errors.usernameRequired);
       return;
@@ -69,16 +81,18 @@ export class LoginPage {
       return;
     }
 
-    const username = this.username().trim();
-    const password = this.password();
+    const credentials = { username: this.username().trim(), password: this.password() };
+    this.startLogin(
+      this.authApiService
+        .login(credentials)
+        .pipe(tap((user) => this.authSessionService.login(user, credentials))),
+    );
+  }
 
+  private startLogin(login: Observable<unknown>): void {
     this.submitting.set(true);
-
-    const credentials = { username, password };
-
-    this.authApiService.login(credentials).subscribe({
-      next: (user) => {
-        this.authSessionService.login(user, credentials);
+    login.subscribe({
+      next: () => {
         this.navigating.set(true);
         void this.router
           .navigateByUrl(this.getReturnUrl())
@@ -118,7 +132,7 @@ export class LoginPage {
   }
 
   private getLoginErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse && error.status === 401) {
+    if (!this.demoMode() && error instanceof HttpErrorResponse && error.status === 401) {
       return this.text().auth.login.errors.invalidCredentials;
     }
 

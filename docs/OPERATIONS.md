@@ -1,10 +1,9 @@
 # CatWorld Operations
 
-This runbook describes the supported production procedure. Its commands are
-instructions for an authorized operator, not evidence that a release,
-deployment, backup or restore has been executed. Record observed results in the
-release, deployment or operations record. The separate release acceptance task
-owns actual production checks.
+This runbook covers production on EC2 and the [public demo on Windows](#public-demo-on-windows).
+Its commands are instructions for an authorized operator. Record observed
+production results in the release, deployment or operations record. The separate
+release acceptance task owns actual production checks.
 
 ## Production topology and boundaries
 
@@ -279,3 +278,97 @@ evidence from the administration origin. Verify that administrative routes
 return 404 from the intake listener and that the staged photo requires its
 active invitation. Share real links individually after verifying the domain.
 Revoke a link from the tutor's record if it reaches the wrong recipient.
+
+## Public demo on Windows
+
+The demo uses Docker Desktop's Linux engine and the fixed `catworld-demo`
+project in [`compose.demo.yml`](../compose.demo.yml). It uses its own
+`catworld_demo` schema, `catworld-demo_mysql_data` volume, and generated service
+credentials. Only the frontend publishes a host port at `127.0.0.1:4210`.
+MySQL and the API are on internal networks. The optional tunnel shares the
+frontend's ingress network. Use only synthetic data in this shared workspace.
+
+Use PowerShell from a stable checkout of this repository with Git, Docker Desktop,
+and Python 3.12 or later. The examples use uv to select Python. A standard
+installation can use `python` in place of `uv run --python 3.12 python`.
+
+### Select and run a revision
+
+Choose a full commit SHA on `origin/main` whose checks passed. Build while the
+existing demo is running if needed. The build reads that exact commit from Git
+and uses the project's two Dockerfiles to produce local images with the same SHA.
+
+```powershell
+git fetch origin
+$revision = '<full validated commit SHA on origin/main>'
+uv run --python 3.12 python scripts/demo/manage.py build $revision
+uv run --python 3.12 python scripts/demo/manage.py start $revision --local-only
+uv run --python 3.12 python scripts/demo/manage.py status
+```
+
+Open `http://127.0.0.1:4210` and enter the demo. `start` verifies both image
+revision labels, replaces the workspace with current-date fixtures and checks
+the seeded API before making it available to the optional tunnel. It generates
+credentials on first use and keeps local state under `%LOCALAPPDATA%\CatWorldDemo`.
+Keep that directory private and retain `demo.env` for the lifetime of the demo volume.
+
+### Publish when the demo is ready
+
+For the one-time Cloudflare setup, create a dedicated remotely managed tunnel
+for the Windows demo. Add a published application route for
+`test.catworld.com.ar` with service type **HTTP** and service URL `frontend:80`.
+Use the token for this tunnel only. Keep public access enabled for this hostname
+and bypass CDN caching for `/api/*`. The production admin tunnel and its Access
+policy are configured independently. Follow the [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
+for the dashboard steps.
+
+```powershell
+uv run --python 3.12 python scripts/demo/manage.py token
+uv run --python 3.12 python scripts/demo/manage.py start $revision
+```
+
+Paste the token at the hidden prompt. Check that Cloudflare reports the
+connector healthy and open `https://test.catworld.com.ar` to verify the demo
+entry screen and synthetic records through the public route. If the tunnel
+fails to start after seeding succeeds, the local demo stays available. Fix the
+tunnel and retry with `uv run --python 3.12 python scripts/demo/manage.py publish`
+to keep the current workspace.
+
+### Reset, update, roll back or stop
+
+Install the hourly reset task once as the Windows user who runs Docker Desktop.
+The interactive task runs at the top of the hour while that user is signed in.
+It leaves stopped services stopped and skips reset if the API recorded a
+successful mutation since the start of the previous hour. It checks again
+after closing ingress and gracefully stopping the API so a change committed
+during shutdown preserves the workspace. A write with an uncertain outcome
+also defers the automatic reset until an operator resets the demo. The task
+uses the absolute checkout and Python paths. Reinstall it if either moves.
+Task Scheduler displays the latest result and the command writes
+`%LOCALAPPDATA%\CatWorldDemo\hourly-reset.log`.
+
+```powershell
+uv run --python 3.12 python scripts/demo/manage.py install-hourly
+uv run --python 3.12 python scripts/demo/manage.py reset
+uv run --python 3.12 python scripts/demo/manage.py stop
+```
+
+`reset` explicitly replaces the running workspace even after recent activity.
+For an update, build a newly validated SHA and run `start` with that SHA. For
+a rollback, run `start` with the previous validated SHA and its retained image
+pair. Add `--local-only` to keep the public tunnel stopped. Both operations
+reseed a fresh workspace for the selected revision and keep the demo volume.
+
+Before replacing an existing workspace, the command saves a demo-only SQL
+snapshot in `%LOCALAPPDATA%\CatWorldDemo\recovery.sql`. On a replacement failure
+it attempts to restore the snapshot and check the previous running revision
+before reopening its tunnel. If restoration fails or replacement is interrupted,
+`status` reports the pending recovery and new replacements preserve the backup.
+Fix the underlying failure, then run `uv run --python 3.12 python scripts/demo/manage.py recover`.
+This restores the previous revision and starts it locally. Run `publish` to open
+the tunnel when it is ready. Keep `recovery.sql` and `recovery-revision` together
+until recovery completes.
+
+`stop` closes the demo tunnel and services and keeps the volume. The public
+demo is unavailable while the PC or Docker Desktop is off, and is started again
+explicitly.
