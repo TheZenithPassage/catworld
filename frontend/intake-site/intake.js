@@ -62,7 +62,9 @@ const partialCats = document.querySelector('#partial-cats');
 const cards = [];
 const validationErrors = new Map();
 const validationAdvisory = element(
-  'span', 'validation-advisory', 'Revisá los campos marcados antes de enviar la ficha.',
+  'span',
+  'validation-advisory',
+  'Revisá los campos marcados antes de enviar la ficha.',
 );
 validationAdvisory.setAttribute('role', 'alert');
 let catalogOptions = {};
@@ -550,7 +552,9 @@ photoViewerClose.addEventListener('click', () => closePhotoViewer(true));
 function onPhotoBackdrop(event) {
   if (event.target !== photoViewer) return false;
   const { left, right, top, bottom } = photoViewer.getBoundingClientRect();
-  return event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom;
+  return (
+    event.clientX < left || event.clientX > right || event.clientY < top || event.clientY > bottom
+  );
 }
 let backdropPressed = false;
 photoViewer.addEventListener('pointerdown', (event) => {
@@ -838,8 +842,11 @@ function createAttachments(photos, required) {
 }
 
 const OPTIONAL_FIELDS = new Set([
-  'careInstructions', 'lastInternalDewormerName', 'lastInternalDewormingDate',
-  'lastExternalDewormerName', 'lastExternalDewormingDate',
+  'careInstructions',
+  'lastInternalDewormerName',
+  'lastInternalDewormingDate',
+  'lastExternalDewormerName',
+  'lastExternalDewormingDate',
 ]);
 
 function createPortrait(saved, required) {
@@ -871,7 +878,8 @@ function createPortrait(saved, required) {
     framing.append(field);
     return { key, slider, fallback };
   });
-  const frame = () => Object.fromEntries(ranges.map(({ key, slider }) => [key, Number(slider.value)]));
+  const frame = () =>
+    Object.fromEntries(ranges.map(({ key, slider }) => [key, Number(slider.value)]));
   function paint() {
     const { frameX, frameY, frameZoom } = frame();
     const position = frameX + '% ' + frameY + '%';
@@ -905,13 +913,19 @@ function createPortrait(saved, required) {
     try {
       let blob = file;
       if (!file) {
-        const response = await request('/api/intake/photos/' + encodeURIComponent(saved.id), { signal: controller.signal });
+        const response = await request('/api/intake/photos/' + encodeURIComponent(saved.id), {
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error('Preview unavailable');
         blob = await response.blob();
       } else if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         const body = new FormData();
         body.append('photo', file);
-        const response = await request('/api/intake/photo-preview', { method: 'POST', body, signal: controller.signal });
+        const response = await request('/api/intake/photo-preview', {
+          method: 'POST',
+          body,
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error('Preview unavailable');
         blob = await response.blob();
       }
@@ -979,12 +993,14 @@ function addCard(
   const summary = element('summary');
   const title = element('span', '', initial.name || fallbackTitle);
   summary.append(title);
-  const hasPending = isNew ? revision === 0 : requestedFields.some((key) => {
-    if (key === 'profilePhoto') return !savedPhotos.some(({ frame }) => frame);
-    if (key === 'birthDate' && proposedFields.birthYear) return false;
-    if (key === 'litterDetail' && proposedFields.litterBrand === SHARED_LITTER) return false;
-    return !proposedFields[key];
-  });
+  const hasPending = isNew
+    ? revision === 0
+    : requestedFields.some((key) => {
+        if (key === 'profilePhoto') return !savedPhotos.some(({ frame }) => frame);
+        if (key === 'birthDate' && proposedFields.birthYear) return false;
+        if (key === 'litterDetail' && proposedFields.litterBrand === SHARED_LITTER) return false;
+        return !proposedFields[key];
+      });
   if (hasPending) {
     summary.append(' ', element('span', 'cat-state cat-state--pending', 'Datos pendientes'));
   }
@@ -1017,7 +1033,8 @@ function addCard(
     };
     const catalog = isCatalog ? { options, id: optionIds?.[catalogField] } : undefined;
     const ui = createField(field, initial, isNew, catalog);
-    const requested = requestedFields.includes(key) ||
+    const requested =
+      requestedFields.includes(key) ||
       (key === 'litterBrand' && requestedFields.includes('litterDetail'));
     const container = isNew || requested ? primaryFields : otherFields;
     if (key === 'foodBrand') {
@@ -1054,10 +1071,18 @@ function addCard(
     title.textContent = target.value.trim() || fallbackTitle;
   });
 
-  const portrait = createPortrait(savedPhotos.find(({ frame }) => frame), isNew);
-  const photos = savedPhotos.filter(({ frame }) => !frame).map(({ id }, index) => ({ id, number: index + 1, keep: true }));
+  const portrait = createPortrait(
+    savedPhotos.find(({ frame }) => frame),
+    isNew,
+  );
+  const photos = savedPhotos
+    .filter(({ frame }) => !frame)
+    .map(({ id }, index) => ({ id, number: index + 1, keep: true }));
   const { attachments, fileInput, newFiles, releasePhotos } = createAttachments(photos, isNew);
-  (isNew || requestedFields.includes('profilePhoto') || portrait.saved ? primaryFields : otherFields).append(portrait.control);
+  (isNew || requestedFields.includes('profilePhoto') || portrait.saved
+    ? primaryFields
+    : otherFields
+  ).append(portrait.control);
   content.append(primaryFields);
   if (isNew || photos.length || VACCINES.some((key) => requestedFields.includes(key))) {
     content.append(attachments);
@@ -1108,7 +1133,8 @@ function addCard(
     remove.type = 'button';
     function refreshRemoval() {
       remove.hidden =
-        newFiles().length > 0 || !!portrait.file() ||
+        newFiles().length > 0 ||
+        !!portrait.file() ||
         [...inputs.values()].some(
           (field) =>
             field.hasEnteredValue?.() ??
@@ -1281,7 +1307,11 @@ function submissionCard(card) {
     optionIds,
     files,
     retainedPhotoIds,
-    changed: changed || !!card.portrait.file() || files.length > 0 || retainedPhotoIds.length !== card.photos.length,
+    changed:
+      changed ||
+      !!card.portrait.file() ||
+      files.length > 0 ||
+      retainedPhotoIds.length !== card.photos.length,
   };
 }
 
@@ -1308,7 +1338,9 @@ function validationIssues(drafts) {
       if (
         input.name === 'birthYear' &&
         value &&
-        (!valid || Number(value) < MIN_BIRTH_YEAR || Number(value) > Number(localToday().slice(0, 4)))
+        (!valid ||
+          Number(value) < MIN_BIRTH_YEAR ||
+          Number(value) > Number(localToday().slice(0, 4)))
       ) {
         issues.set(input, 'Ingresá un año de nacimiento válido.');
         continue;
@@ -1318,9 +1350,10 @@ function validationIssues(drafts) {
         continue;
       }
       if (value && !VACCINES.includes(key) && !valid) {
-        const message = rangeUnderflow || rangeOverflow
-          ? `Ingresá una fecha entre el ${displayDate(input.min)} y el ${displayDate(input.max)}.`
-          : 'Revisá este dato antes de enviar la ficha.';
+        const message =
+          rangeUnderflow || rangeOverflow
+            ? `Ingresá una fecha entre el ${displayDate(input.min)} y el ${displayDate(input.max)}.`
+            : 'Revisá este dato antes de enviar la ficha.';
         issues.set(input, message);
         continue;
       }
@@ -1342,7 +1375,13 @@ function validationIssues(drafts) {
       }
     }
     const brand = card.inputs.get('foodBrand').input;
-    if ((changed || required) && fields.foodDetail && !fields.foodBrand && !card.fields.foodBrand && !issues.has(brand)) {
+    if (
+      (changed || required) &&
+      fields.foodDetail &&
+      !fields.foodBrand &&
+      !card.fields.foodBrand &&
+      !issues.has(brand)
+    ) {
       issues.set(brand, 'Ingresá la marca para indicar la variedad.');
     }
     const portrait = card.portrait.file();
@@ -1360,7 +1399,10 @@ function validationIssues(drafts) {
     if (photoError) {
       issues.set(card.fileInput, photoError);
     } else if ((required || VACCINES.some((key) => fields[key])) && count === 0) {
-      issues.set(card.fileInput, 'Adjuntá al menos una foto del comprobante de la vacuna de este gato.');
+      issues.set(
+        card.fileInput,
+        'Adjuntá al menos una foto del comprobante de la vacuna de este gato.',
+      );
     } else if (files.length && totalBytes > MAX_TOTAL_BYTES) {
       issues.set(card.fileInput, TOTAL_PHOTO_ERROR);
     }
@@ -1390,7 +1432,9 @@ function updateValidationErrors(issues, markAll = false) {
     attachFieldError(input, error);
     validationErrors.set(input, error);
   }
-  const first = [...form.querySelectorAll('[aria-invalid="true"]')].find((input) => validationErrors.has(input));
+  const first = [...form.querySelectorAll('[aria-invalid="true"]')].find((input) =>
+    validationErrors.has(input),
+  );
   validationErrors.get(first).prepend(validationAdvisory);
   openField(first);
 }
@@ -1403,8 +1447,13 @@ form.addEventListener('input', refreshMarkedFields);
 form.addEventListener('change', refreshMarkedFields);
 
 function hasProposal({ card, fields, files, retainedPhotoIds }) {
-  return !!card.portrait.file() || !!card.portrait.saved ||
-    Object.keys(fields).length > 0 || files.length > 0 || retainedPhotoIds.length > 0;
+  return (
+    !!card.portrait.file() ||
+    !!card.portrait.saved ||
+    Object.keys(fields).length > 0 ||
+    files.length > 0 ||
+    retainedPhotoIds.length > 0
+  );
 }
 
 function missingFor({ card, fields }) {
@@ -1416,12 +1465,19 @@ function missingFor({ card, fields }) {
       if (!answered) missing.push([key, label]);
     }
   }
-  if (card.requestedFields.includes('profilePhoto') && !card.portrait.file() && !card.portrait.saved) {
+  if (
+    card.requestedFields.includes('profilePhoto') &&
+    !card.portrait.file() &&
+    !card.portrait.saved
+  ) {
     missing.push(['profilePhoto', 'Foto de perfil']);
   }
   const litter = card.inputs.get('litterBrand');
-  if ((isNew || card.requestedFields.includes('litterDetail')) &&
-      litter.read()?.startsWith(OWN_LITTER) && !litter.readLitterDetail()) {
+  if (
+    (isNew || card.requestedFields.includes('litterDetail')) &&
+    litter.read()?.startsWith(OWN_LITTER) &&
+    !litter.readLitterDetail()
+  ) {
     missing.push(['litterBrand', 'Marca o tipo de piedritas']);
   }
   return { card, fields: missing };
@@ -1503,7 +1559,11 @@ function showPartialSubmission(missing, body, entries) {
     partialCats.append(item);
   }
   const [{ card, fields }] = missing;
-  partialSubmission = { body, entries, firstPending: card.inputs.get(fields[0][0])?.input ?? card.portrait.input };
+  partialSubmission = {
+    body,
+    entries,
+    firstPending: card.inputs.get(fields[0][0])?.input ?? card.portrait.input,
+  };
   partialDialog.showModal();
 }
 
@@ -1561,9 +1621,7 @@ form.addEventListener('submit', async (event) => {
   }
   const proposals = entries.filter(hasProposal);
   const body = multipart(entries);
-  const missing = drafts
-    .map(missingFor)
-    .filter(({ fields }) => fields.length);
+  const missing = drafts.map(missingFor).filter(({ fields }) => fields.length);
   if (proposals.length && missing.length) {
     showPartialSubmission(missing, body, entries);
     return;

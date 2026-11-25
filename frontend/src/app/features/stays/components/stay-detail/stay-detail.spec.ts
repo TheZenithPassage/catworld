@@ -121,7 +121,9 @@ describe('StayDetail confirmed movements', () => {
     respondWithStay(checkedIn);
 
     expect(detail.textContent).toMatch(/Ingreso previsto.*14:30.*Ingreso real.*13:15/s);
-    const arrival = [...detail.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes('13:15'))!;
+    const arrival = [...detail.querySelectorAll('button')].find((candidate) =>
+      candidate.textContent?.includes('13:15'),
+    )!;
     arrival.click();
     fixture.detectChanges();
     const movementInfo = [...document.querySelectorAll('[role="dialog"]')].at(-1)!;
@@ -131,7 +133,9 @@ describe('StayDetail confirmed movements', () => {
     http.expectOne(url + '/actual-movements').flush(checkedIn);
     fixture.detectChanges();
     const correction = [...document.querySelectorAll('[role="dialog"]')].at(-1)!;
-    expect(correction.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe('2026-11-14');
+    expect(correction.querySelector<HTMLInputElement>('input[type="date"]')?.value).toBe(
+      '2026-11-14',
+    );
     expect(correction.querySelector<HTMLInputElement>('input[type="time"]')?.value).toBe('13:15');
     expect(button(movementInfo, 'Deshacer ingreso')).toBeDefined();
     expect(button(detail, 'Registrar salida')).toBeDefined();

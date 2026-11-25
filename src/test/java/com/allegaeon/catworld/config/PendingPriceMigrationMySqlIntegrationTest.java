@@ -493,14 +493,15 @@ class PendingPriceMigrationMySqlIntegrationTest {
         var initial = catalogMigrationFiles("catalog-initial", catalogManagerPresent, !pricingFirst,
                 breedSeedsPresent, pricingFirst);
         var initialFlyway = Flyway.configure().dataSource(dataSource).locations(location(initial));
-        if (pricingFirst && !breedSeedsPresent) initialFlyway.target("27");
+        initialFlyway.target(pricingFirst ? (breedSeedsPresent ? "28" : "27") : "26.4");
         initialFlyway.load().migrate();
         populate(false, false);
         var dataBefore = dataSnapshot("litter_preference", "litter_detail", "litter_detail_option_id");
         var historyBefore = history();
 
         var combined = catalogMigrationFiles("catalog-combined", true, true, true, true);
-        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
+        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined))
+                .target("28").load();
         HistoricalMigrationConfig.migrate(startup);
 
         for (String table : List.of("cat_profile_options", "food_brands", "food_varieties")) {
@@ -528,12 +529,13 @@ class PendingPriceMigrationMySqlIntegrationTest {
     @Test
     void rejectsPricingChecksumMismatchBeforeRunningLateCatalogMigration() throws IOException {
         var initial = catalogMigrationFiles("catalog-initial", false, false, true, true);
-        Flyway.configure().dataSource(dataSource).locations(location(initial)).load().migrate();
+        Flyway.configure().dataSource(dataSource).locations(location(initial)).target("28").load().migrate();
         var historyBefore = history();
 
         var combined = catalogMigrationFiles("catalog-combined", true, true, true, true);
         Files.writeString(combined.resolve("V27__add_stay_litter_pricing.sql"), "SELECT 'bad checksum';");
-        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined)).load();
+        var startup = Flyway.configure().dataSource(dataSource).locations(location(combined))
+                .target("28").load();
         assertThrows(FlywayException.class, () -> HistoricalMigrationConfig.migrate(startup));
 
         assertEquals(historyBefore, history());
@@ -611,7 +613,9 @@ class PendingPriceMigrationMySqlIntegrationTest {
             assertTrue(installedRank("28") < installedRank("21"));
             assertTrue(installedRank("21") < installedRank("29"));
         }
-        assertEquals(originalRows, snapshotRows("stay_actual_movements", Set.of()));
+        assertEquals(originalRows, snapshotRows("stay_actual_movements", Set.of("registered_at_utc")));
+        assertEquals(0, jdbc.queryForObject(
+                "select count(*) from stay_actual_movements where registered_at_utc is not null", Integer.class));
         assertEquals(List.of("CHECKED_OUT", "CHECKED_IN", "RESERVED", "CANCELLED",
                         originalMovementHistory ? "CHECKED_OUT" : "CHECKED_IN",
                         originalMovementHistory ? "CHECKED_IN" : "RESERVED", "CHECKED_IN"),

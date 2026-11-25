@@ -51,7 +51,8 @@ export class EntityDetailDialogService {
         component.allowClose(),
     });
     ref.componentInstance.entityUpdated.subscribe((update) => updates.next(update));
-    if (reference.initialMovement) ref.componentInstance.openInitialMovement(reference.initialMovement);
+    if (reference.initialMovement)
+      ref.componentInstance.openInitialMovement(reference.initialMovement);
     const locationChanges = this.location.subscribe(() => {
       if (ref.getState() === MatDialogState.OPEN && !ref.componentInstance.hasCatDraft()) {
         ref.componentInstance.closeImmediately();

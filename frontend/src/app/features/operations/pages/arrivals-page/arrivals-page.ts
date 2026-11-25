@@ -151,7 +151,8 @@ export class ArrivalsPage {
   }
 
   openMovement(stay: UpcomingStay): void {
-    if (!stay.canRecord && !(stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN'))) return;
+    if (!stay.canRecord && !(stay.overdue && (this.isArrivals() || stay.status === 'CHECKED_IN')))
+      return;
     this.details
       .open({
         entityType: 'stay',
@@ -193,10 +194,12 @@ export class ArrivalsPage {
   }
 
   protected missingProfileFields(cat: UpcomingCat): string[] {
-    return cat.missingProfileFields ?? [
-      ...(!cat.foodBrand?.trim() ? ['foodBrand'] : []),
-      ...(!cat.litterChoice ? ['litterBrand'] : []),
-    ];
+    return (
+      cat.missingProfileFields ?? [
+        ...(!cat.foodBrand?.trim() ? ['foodBrand'] : []),
+        ...(!cat.litterChoice ? ['litterBrand'] : []),
+      ]
+    );
   }
 
   protected profileFieldLabel(key: string): string {

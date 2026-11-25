@@ -27,7 +27,14 @@ import type { StayMovementAction, StayMovementType } from '../../models/stay-mov
 import { StayMovementDialogService } from '../../services/stay-movement-dialog.service';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
-import { MatDialog, MatDialogActions, MatDialogContent, MatDialogTitle, MatDialogClose, MatDialogRef } from '@angular/material/dialog';
+import {
+  MatDialog,
+  MatDialogActions,
+  MatDialogContent,
+  MatDialogTitle,
+  MatDialogClose,
+  MatDialogRef,
+} from '@angular/material/dialog';
 import { filter } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
@@ -45,13 +52,26 @@ import { STAY_MOVEMENT_TRANSLATIONS } from '../stay-movement-dialog/stay-movemen
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [MatDialogActions, MatDialogContent, MatDialogTitle, MatDialogClose, DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  imports: [
+    MatDialogActions,
+    MatDialogContent,
+    MatDialogTitle,
+    MatDialogClose,
+    DeceasedMarker,
+    MatButton,
+    MatProgressSpinner,
+    UiStateComponent,
+    StayEditor,
+  ],
   host: {
     '[attr.aria-busy]': 'loading() || operationalLoading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
   },
   templateUrl: './stay-detail.html',
-  styleUrls: ['../../../../shared/entity-detail/entity-detail-presenter.scss', './stay-detail.scss'],
+  styleUrls: [
+    '../../../../shared/entity-detail/entity-detail-presenter.scss',
+    './stay-detail.scss',
+  ],
 })
 export class StayDetail {
   readonly editor = viewChild(StayEditor);
@@ -100,8 +120,12 @@ export class StayDetail {
   });
   readonly pricingAvailable = computed(() => {
     const pricing = this.pricingStay();
-    return this.detail()?.stayId === this.entityId() && !this.error() &&
-      pricing?.stayId === this.entityId() && (pricing.agreedAmount !== null || pricing.pricePending);
+    return (
+      this.detail()?.stayId === this.entityId() &&
+      !this.error() &&
+      pricing?.stayId === this.entityId() &&
+      (pricing.agreedAmount !== null || pricing.pricePending)
+    );
   });
   readonly deletionError = createLanguageResetError(this.i18n.language);
   readonly movementTypes = ['ARRIVAL', 'DEPARTURE'] as const;
@@ -193,7 +217,10 @@ export class StayDetail {
   }
   openMovementDetails(type: StayMovementType, template: TemplateRef<unknown>): void {
     this.selectedLeg.set(type);
-    this.movementInfoRef = this.dialog.open(template, { width: '32rem', maxWidth: 'calc(100vw - 2rem)' });
+    this.movementInfoRef = this.dialog.open(template, {
+      width: '32rem',
+      maxWidth: 'calc(100vw - 2rem)',
+    });
   }
   openMovement(action: StayMovementAction, stayId: string): void {
     const catNames = this.movementCatNames();

@@ -166,7 +166,11 @@ test('only an empty unsubmitted cat can be removed, even while open', async (t) 
 });
 
 test('full registration requires its core fields and submits only the selected birth precision', async (t) => {
-  const portal = await openForm(t, { allowNewCats: true, vaccineDateRange: { min: "2025-11-22", max: "2026-11-22" }, cats: [] });
+  const portal = await openForm(t, {
+    allowNewCats: true,
+    vaccineDateRange: { min: '2025-11-22', max: '2026-11-22' },
+    cats: [],
+  });
   const [cat] = portal.entries();
   enter(portal.window, cat, 'name', 'Gala');
   enter(portal.window, cat, 'birthDate', '2021-05-07');
@@ -201,11 +205,16 @@ test('full registration requires its core fields and submits only the selected b
   assert.equal(portal.window.document.activeElement.name, 'foodDetail');
   enter(portal.window, cat, 'foodDetail', 'Pollo');
   const date = '2026-01-15';
-  for (const key of ['lastRabiesDate', 'lastTripleFelineDate']) enter(portal.window, cat, key, date);
+  for (const key of ['lastRabiesDate', 'lastTripleFelineDate'])
+    enter(portal.window, cat, key, date);
   const portrait = cat.querySelector('[name="profilePhoto"]');
   const evidence = cat.querySelector('input[type="file"][multiple]');
-  chooseFiles(portal.window, portrait, [new File(['portrait'], 'portrait.jpg', { type: 'image/jpeg' })]);
-  chooseFiles(portal.window, evidence, [new File(['evidence'], 'proof.jpg', { type: 'image/jpeg' })]);
+  chooseFiles(portal.window, portrait, [
+    new File(['portrait'], 'portrait.jpg', { type: 'image/jpeg' }),
+  ]);
+  chooseFiles(portal.window, evidence, [
+    new File(['evidence'], 'proof.jpg', { type: 'image/jpeg' }),
+  ]);
 
   assert.equal(await portal.submit(), undefined);
   const post = await portal.confirmPartial();
@@ -220,7 +229,6 @@ test('full registration requires its core fields and submits only the selected b
   assert.equal(cats[0].fields.lastTripleFelineDate, date);
   assert.equal(post.body.get(cats[0].portraitKey).name, 'portrait.jpg');
   assert.equal(cats[0].photoKeys.length, 1);
-
 });
 
 test('a legacy coat stays on an existing profile and color stays free text', async (t) => {
@@ -633,17 +641,25 @@ test('marks blocking fields together before offering to send a partial answer', 
 test('rechecks vaccine dates after partial confirmation and uses the server bounds if they roll over again', async (t) => {
   let vaccineDateRange = { min: '2025-11-21', max: '2026-11-21' };
   const serverRange = { min: '2025-11-23', max: '2026-11-23' };
-  const portal = await openForm(t, () => ({
-    vaccineDateRange,
-    cats: [{ ...existing, requestedFields: ['lastRabiesDate', 'foodBrand'] }],
-  }), {
-    submit: () => Response.json({
-      code: 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE',
-      vaccineDateRange: serverRange,
-      catIndex: 0,
-      field: 'lastRabiesDate',
-    }, { status: 422 }),
-  });
+  const portal = await openForm(
+    t,
+    () => ({
+      vaccineDateRange,
+      cats: [{ ...existing, requestedFields: ['lastRabiesDate', 'foodBrand'] }],
+    }),
+    {
+      submit: () =>
+        Response.json(
+          {
+            code: 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE',
+            vaccineDateRange: serverRange,
+            catIndex: 0,
+            field: 'lastRabiesDate',
+          },
+          { status: 422 },
+        ),
+    },
+  );
   const { window } = portal;
   const [cat] = portal.entries();
   const dose = enter(window, cat, 'lastRabiesDate', '2025-11-21');
@@ -761,7 +777,9 @@ test('partial and exact catalog matches require a choice even after leaving the 
     brand.closest('.catalog-field').querySelector('.sr-only[role="status"]').textContent,
     'Seleccionado: Royal Canin',
   );
-  const clear = brand.closest('.catalog-field').querySelector('button[aria-label="Limpiar Marca de comida"]');
+  const clear = brand
+    .closest('.catalog-field')
+    .querySelector('button[aria-label="Limpiar Marca de comida"]');
   assert.equal(clear.tabIndex, -1);
   clear.click();
   assert.equal(brand.value, '');
@@ -1183,14 +1201,18 @@ test('retained JPEG enlarges in the form, restores focus and closes on departure
 test('portrait and proofs share the full-image viewer and dismiss only from the backdrop', async (t) => {
   const revoked = [];
   let object = 0;
-  const portal = await openForm(t, {
-    cats: [{ ...existing, requestedFields: ['profilePhoto'] }],
-  }, {
-    urls: {
-      createObjectURL: () => `blob:photo-${++object}`,
-      revokeObjectURL: (url) => revoked.push(url),
+  const portal = await openForm(
+    t,
+    {
+      cats: [{ ...existing, requestedFields: ['profilePhoto'] }],
     },
-  });
+    {
+      urls: {
+        createObjectURL: () => `blob:photo-${++object}`,
+        revokeObjectURL: (url) => revoked.push(url),
+      },
+    },
+  );
   const { window } = portal;
   const [cat] = portal.entries();
   const portrait = cat.querySelector('[name="profilePhoto"]');
@@ -1210,7 +1232,10 @@ test('portrait and proofs share the full-image viewer and dismiss only from the 
     target.dispatchEvent(new window.MouseEvent('click', options));
   };
 
-  for (const [trigger, source] of [[portraitButton, 'blob:photo-1'], [proofButton, 'blob:photo-2']]) {
+  for (const [trigger, source] of [
+    [portraitButton, 'blob:photo-1'],
+    [proofButton, 'blob:photo-2'],
+  ]) {
     trigger.click();
     assert.equal(viewer.open, true);
     const fullImage = viewer.querySelector('img');

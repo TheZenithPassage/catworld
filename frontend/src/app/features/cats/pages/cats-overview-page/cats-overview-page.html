@@ -56,10 +56,14 @@
         >
           <div class="cat-photo" [attr.data-cat-photo]="cat.hasPhoto" [attr.data-cat-id]="cat.id">
             @if (photos()[cat.id]; as photo) {
-              <img [src]="photo.url" [alt]="cat.name" loading="lazy"
+              <img
+                [src]="photo.url"
+                [alt]="cat.name"
+                loading="lazy"
                 [style.object-position]="photo.frame.frameX + '% ' + photo.frame.frameY + '%'"
                 [style.transform-origin]="photo.frame.frameX + '% ' + photo.frame.frameY + '%'"
-                [style.transform]="'scale(' + photo.frame.frameZoom / 100 + ')'" />
+                [style.transform]="'scale(' + photo.frame.frameZoom / 100 + ')'"
+              />
             } @else {
               <span aria-hidden="true">🐈</span>
             }

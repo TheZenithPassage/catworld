@@ -50,7 +50,10 @@ export class CatPhotoInput implements OnDestroy {
   }
 
   setFrame(key: keyof CatPhotoFrame, event: Event): void {
-    this.frame.update((frame) => ({ ...frame, [key]: Number((event.target as HTMLInputElement).value) }));
+    this.frame.update((frame) => ({
+      ...frame,
+      [key]: Number((event.target as HTMLInputElement).value),
+    }));
   }
   readonly disabled = input(false);
   readonly text = this.i18n.text;
@@ -132,7 +135,10 @@ export class CatPhotoInput implements OnDestroy {
   mutation(): CatPhotoMutation {
     const frame = this.frame();
     const initial = this.selectedFile() ? CENTERED_PHOTO_FRAME : this.savedFrame();
-    const changed = frame.frameX !== initial.frameX || frame.frameY !== initial.frameY || frame.frameZoom !== initial.frameZoom;
+    const changed =
+      frame.frameX !== initial.frameX ||
+      frame.frameY !== initial.frameY ||
+      frame.frameZoom !== initial.frameZoom;
     return {
       photo: this.selectedFile(),
       removePhoto: this.removePhoto(),

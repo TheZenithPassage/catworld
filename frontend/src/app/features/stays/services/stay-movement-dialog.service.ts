@@ -19,7 +19,11 @@ export class StayMovementDialogService {
       maxWidth: 'calc(100vw - 2rem)',
       maxHeight: 'calc(100dvh - 2rem)',
       autoFocus: 'dialog',
-      ...(parentClosing && { enterAnimationDuration: 0, delayFocusTrap: false, restoreFocus: false }),
+      ...(parentClosing && {
+        enterAnimationDuration: 0,
+        delayFocusTrap: false,
+        restoreFocus: false,
+      }),
     });
     parentClosing?.pipe(takeUntil(ref.afterClosed())).subscribe(() => ref.close());
     const instance = ref.componentInstance;

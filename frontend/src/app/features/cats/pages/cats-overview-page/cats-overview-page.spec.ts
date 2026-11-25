@@ -121,7 +121,10 @@ describe('CatsOverviewPage paging and photos', () => {
   });
   it('cancels an in-flight photo before it can create a Blob URL after destruction', () => {
     vi.useFakeTimers();
-    const photo = new Subject<{ blob: Blob; frame: { frameX: number; frameY: number; frameZoom: number } }>();
+    const photo = new Subject<{
+      blob: Blob;
+      frame: { frameX: number; frameY: number; frameZoom: number };
+    }>();
     api.getCatOverview.mockReturnValue(
       of({
         items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: true }],
@@ -257,7 +260,10 @@ describe('CatsOverviewPage paging and photos', () => {
   });
   it('debounces remote search and loads a Blob only when visible', () => {
     vi.useFakeTimers();
-    const photo = new Subject<{ blob: Blob; frame: { frameX: number; frameY: number; frameZoom: number } }>();
+    const photo = new Subject<{
+      blob: Blob;
+      frame: { frameX: number; frameY: number; frameZoom: number };
+    }>();
     api.getCatOverview.mockReturnValue(
       of({
         items: [{ id: 'c', name: 'Milo', ownerId: 'o', ownerName: 'Ada', hasPhoto: true }],

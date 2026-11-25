@@ -66,7 +66,8 @@ export class StayMovementDialog {
   readonly day = signal('');
   readonly manualTime = signal(false);
   readonly serverTime = signal<string | null>(null);
-  readonly recording = this.data.action === 'record-arrival' || this.data.action === 'record-departure';
+  readonly recording =
+    this.data.action === 'record-arrival' || this.data.action === 'record-departure';
   private readonly today = computed(() => {
     const now = this.serverTime();
     return now ? this.businessTime.instantToLocalDateTime(now).slice(0, 10) : '';
@@ -141,9 +142,13 @@ export class StayMovementDialog {
           if (this.recording && this.available()) {
             const sample = Date.parse(movements.serverNow);
             const receivedAt = performance.now();
-            interval(1000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
-              this.serverTime.set(new Date(sample + performance.now() - receivedAt).toISOString());
-            });
+            interval(1000)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe(() => {
+                this.serverTime.set(
+                  new Date(sample + performance.now() - receivedAt).toISOString(),
+                );
+              });
           }
         },
         error: () => this.needsRefresh.set(true),

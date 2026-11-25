@@ -67,13 +67,16 @@ export class CatApiService {
   }
 
   getFramedCatPhoto(catId: string): Observable<{ blob: Blob; frame: CatPhotoFrame }> {
-    return this.http.get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob', observe: 'response' }).pipe(
-      map(({ body, headers }) => {
-        const [frameX, frameY, frameZoom] = headers.get('X-Cat-Photo-Frame')?.split(',').map(Number) ?? [];
-        const frame = frameZoom ? { frameX, frameY, frameZoom } : CENTERED_PHOTO_FRAME;
-        return { blob: body!, frame };
-      }),
-    );
+    return this.http
+      .get(`${this.baseUrl}/${catId}/photo`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map(({ body, headers }) => {
+          const [frameX, frameY, frameZoom] =
+            headers.get('X-Cat-Photo-Frame')?.split(',').map(Number) ?? [];
+          const frame = frameZoom ? { frameX, frameY, frameZoom } : CENTERED_PHOTO_FRAME;
+          return { blob: body!, frame };
+        }),
+      );
   }
 
   listInformationalPhotos(catId: string): Observable<CatInformationalPhoto[]> {

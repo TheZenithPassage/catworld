@@ -78,12 +78,22 @@
           @if (stay.editAvailable() || stay.pricingAvailable()) {
             <div class="stay-header-buttons">
               @if (stay.pricingAvailable()) {
-                <button mat-stroked-button type="button" [disabled]="stay.actionsDisabled()" (click)="openStayPricing()">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="openStayPricing()"
+                >
                   {{ text().stays.detail.pricing }}
                 </button>
               }
               @if (stay.editAvailable()) {
-                <button mat-flat-button type="button" [disabled]="stay.actionsDisabled()" (click)="enterEdit()">
+                <button
+                  mat-flat-button
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="enterEdit()"
+                >
                   {{ text().stays.detail.edit }}
                 </button>
               }
@@ -99,12 +109,22 @@
             </button>
             <mat-menu #stayActions="matMenu">
               @if (stay.pricingAvailable()) {
-                <button mat-menu-item type="button" [disabled]="stay.actionsDisabled()" (click)="openStayPricing()">
+                <button
+                  mat-menu-item
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="openStayPricing()"
+                >
                   {{ text().stays.detail.pricing }}
                 </button>
               }
               @if (stay.editAvailable()) {
-                <button mat-menu-item type="button" [disabled]="stay.actionsDisabled()" (click)="enterEdit()">
+                <button
+                  mat-menu-item
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="enterEdit()"
+                >
                   {{ text().stays.detail.edit }}
                 </button>
               }

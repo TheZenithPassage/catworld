@@ -14,8 +14,7 @@ export const STAY_MOVEMENT_TRANSLATIONS = {
     },
     instruction: {
       'record-arrival': 'Confirmá solo si el ingreso ya ocurrió.',
-      'record-departure':
-        'Confirmá solo si el retiro ya ocurrió. La salida es definitiva.',
+      'record-departure': 'Confirmá solo si el retiro ya ocurrió. La salida es definitiva.',
       'correct-arrival': 'Ingresá la fecha y la hora reales de ingreso del grupo.',
       'reset-arrival': 'La estadía volverá a quedar con el ingreso pendiente.',
     },
@@ -38,7 +37,8 @@ export const STAY_MOVEMENT_TRANSLATIONS = {
     unavailable: 'Este movimiento ya no está disponible. Volvé a la estadía para ver su estado.',
     loadFailed: 'No se pudieron cargar los datos del movimiento.',
     invalid: 'Ingresá una fecha y una hora válidas.',
-    rejected: 'Revisá la fecha y la hora. El movimiento debe estar dentro del período permitido y ya debe haber ocurrido.',
+    rejected:
+      'Revisá la fecha y la hora. El movimiento debe estar dentro del período permitido y ya debe haber ocurrido.',
     conflict: 'La estadía cambió o tiene un conflicto con otra. Volvé a la estadía para revisarla.',
     forbidden: 'Ya no tenés permiso para registrar este movimiento.',
     failed: 'No se pudo guardar el movimiento.',
@@ -58,8 +58,7 @@ export const STAY_MOVEMENT_TRANSLATIONS = {
     },
     instruction: {
       'record-arrival': 'Confirm only once arrival has taken place.',
-      'record-departure':
-        'Confirm only if pickup has already happened. Departure is final.',
+      'record-departure': 'Confirm only if pickup has already happened. Departure is final.',
       'correct-arrival': 'Enter the actual arrival date and time for the group.',
       'reset-arrival': 'The stay will return to awaiting arrival.',
     },
@@ -82,7 +81,8 @@ export const STAY_MOVEMENT_TRANSLATIONS = {
     unavailable: 'This movement is no longer available. Return to the stay to see its status.',
     loadFailed: 'The movement details could not be loaded.',
     invalid: 'Enter a valid date and time.',
-    rejected: 'Check the date and time. The movement must fall within the allowed period and must have already happened.',
+    rejected:
+      'Check the date and time. The movement must fall within the allowed period and must have already happened.',
     conflict: 'The stay changed or conflicts with another stay. Return to the stay to review it.',
     forbidden: 'You no longer have permission to record this movement.',
     failed: 'The movement could not be saved.',

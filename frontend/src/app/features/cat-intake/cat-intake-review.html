@@ -74,13 +74,36 @@
                           type="button"
                           class="proof-thumbnail"
                           [class.proof-portrait]="photo.id === portraitId()"
-                          [attr.aria-label]="photo.id === portraitId() ? text().cats.photo.label : copy().zoomPhoto(index + 1)"
-                          (click)="zoom(photoDialog, photo.url, photo.id === portraitId() ? text().cats.photo.label : copy().photo(index + 1))"
+                          [attr.aria-label]="
+                            photo.id === portraitId()
+                              ? text().cats.photo.label
+                              : copy().zoomPhoto(index + 1)
+                          "
+                          (click)="
+                            zoom(
+                              photoDialog,
+                              photo.url,
+                              photo.id === portraitId()
+                                ? text().cats.photo.label
+                                : copy().photo(index + 1)
+                            )
+                          "
                         >
-                          <img [src]="photo.url" alt=""
-                            [style.object-position]="photo.id === portraitId() ? portraitPosition() : null"
-                            [style.transform-origin]="photo.id === portraitId() ? portraitPosition() : null"
-                            [style.transform]="photo.id === portraitId() ? 'scale(' + (portrait()?.frame?.frameZoom ?? 100) / 100 + ')' : null" />
+                          <img
+                            [src]="photo.url"
+                            alt=""
+                            [style.object-position]="
+                              photo.id === portraitId() ? portraitPosition() : null
+                            "
+                            [style.transform-origin]="
+                              photo.id === portraitId() ? portraitPosition() : null
+                            "
+                            [style.transform]="
+                              photo.id === portraitId()
+                                ? 'scale(' + (portrait()?.frame?.frameZoom ?? 100) / 100 + ')'
+                                : null
+                            "
+                          />
                         </button>
                         @if (adjusting()) {
                           <label class="choice">
@@ -90,7 +113,11 @@
                               [checked]="photo.selected"
                               (change)="setPhoto(photo.id, $any($event.target).checked)"
                             />
-                            {{ photo.id === portraitId() ? copy().keepPortrait : copy().keepPhoto(index + 1) }}
+                            {{
+                              photo.id === portraitId()
+                                ? copy().keepPortrait
+                                : copy().keepPhoto(index + 1)
+                            }}
                           </label>
                         } @else {
                           <p class="photo-note">

@@ -8,10 +8,14 @@ import { CatApiService } from '../../services/cat-api.service';
   selector: 'app-cat-photo-thumbnail',
   template: `
     @if (url(); as source) {
-      <img [src]="source" alt=""
+      <img
+        [src]="source"
+        alt=""
         [style.object-fit]="informationalPhotoId() ? null : 'cover'"
-        [style.object-position]="position()" [style.transform-origin]="position()"
-        [style.transform]="informationalPhotoId() ? null : 'scale(' + frame().frameZoom / 100 + ')'" />
+        [style.object-position]="position()"
+        [style.transform-origin]="position()"
+        [style.transform]="informationalPhotoId() ? null : 'scale(' + frame().frameZoom / 100 + ')'"
+      />
     }
   `,
   styles: `
@@ -37,7 +41,9 @@ export class CatPhotoThumbnail {
   readonly catId = input.required<string>();
   readonly informationalPhotoId = input<string>();
   protected readonly frame = signal<CatPhotoFrame>(CENTERED_PHOTO_FRAME);
-  protected readonly position = computed(() => this.frame().frameX + '% ' + this.frame().frameY + '%');
+  protected readonly position = computed(
+    () => this.frame().frameX + '% ' + this.frame().frameY + '%',
+  );
   protected readonly url = signal<string | null>(null);
 
   constructor() {
@@ -48,9 +54,9 @@ export class CatPhotoThumbnail {
       const catId = this.catId();
       const informationalPhotoId = this.informationalPhotoId();
       const photo = informationalPhotoId
-        ? this.api.getInformationalPhoto(catId, informationalPhotoId).pipe(
-            map((blob) => ({ blob, frame: CENTERED_PHOTO_FRAME })),
-          )
+        ? this.api
+            .getInformationalPhoto(catId, informationalPhotoId)
+            .pipe(map((blob) => ({ blob, frame: CENTERED_PHOTO_FRAME })))
         : this.api.getFramedCatPhoto(catId);
       let url: string | undefined;
       const request = photo.subscribe({

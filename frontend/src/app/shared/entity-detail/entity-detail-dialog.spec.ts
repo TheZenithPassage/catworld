@@ -1101,7 +1101,10 @@ describe('EntityDetailDialog', () => {
         { provide: OwnerApiService, useValue: api },
         { provide: CatApiService, useValue: catApi },
         { provide: VetApiService, useValue: vetApi },
-        { provide: StayApiService, useValue: { ...stayApi, getActualMovements, saveActualMovement } },
+        {
+          provide: StayApiService,
+          useValue: { ...stayApi, getActualMovements, saveActualMovement },
+        },
       ],
     });
     const labels = STAY_MOVEMENT_TRANSLATIONS[TestBed.inject(I18nService).language()];
@@ -1121,7 +1124,9 @@ describe('EntityDetailDialog', () => {
     expect(getActualMovements).toHaveBeenCalledExactlyOnceWith('stay-1');
     const confirmation = document.getElementById(confirmationRef.id)!;
     const detail = document.getElementById(detailRef.id)!;
-    expect(confirmation.querySelector('h2')?.textContent?.trim()).toBe(labels.title['record-arrival']);
+    expect(confirmation.querySelector('h2')?.textContent?.trim()).toBe(
+      labels.title['record-arrival'],
+    );
     expect(confirmation.querySelector('.movement-cats')?.textContent?.trim()).toBe('Milo, Luna');
     expect(confirmation.querySelector('time')?.dateTime).toBe(movements.serverNow);
     expect(confirmation.contains(document.activeElement)).toBe(true);
@@ -1712,7 +1717,9 @@ describe('EntityDetailDialog', () => {
       const fixture = TestBed.createComponent(EntityDetailDialog);
       fixture.detectChanges();
       const header = (fixture.nativeElement as HTMLElement).querySelector('header')!;
-      const buttons = [...header.querySelectorAll('button')].map((button) => button.textContent?.trim());
+      const buttons = [...header.querySelectorAll('button')].map((button) =>
+        button.textContent?.trim(),
+      );
       expect(buttons.includes(fixture.componentInstance.text().stays.detail.pricing)).toBe(visible);
       expect(buttons).toContain(fixture.componentInstance.text().stays.detail.edit);
     },
@@ -2441,10 +2448,12 @@ describe('EntityDetailDialog cat photo destination', () => {
           stays: { totalElements: 0, items: [] },
         }),
       ),
-      getFramedCatPhoto: vi.fn(() => of({
-        blob: new Blob(['thumbnail'], { type: 'image/jpeg' }),
-        frame: { frameX: 50, frameY: 50, frameZoom: 100 },
-      })),
+      getFramedCatPhoto: vi.fn(() =>
+        of({
+          blob: new Blob(['thumbnail'], { type: 'image/jpeg' }),
+          frame: { frameX: 50, frameY: 50, frameZoom: 100 },
+        }),
+      ),
       getCatPhoto: vi.fn(() => photo.asObservable()),
     };
     const createUrl = vi

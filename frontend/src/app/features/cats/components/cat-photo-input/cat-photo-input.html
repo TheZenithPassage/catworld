@@ -13,17 +13,27 @@
   @if (!removePhoto()) {
     @if (selectedFile() ? previewUrl() : savedUrl(); as url) {
       <div class="cat-photo-frame">
-        <img [src]="url" [alt]="text().cats.photo.previewAlt"
-          [style.object-position]="position()" [style.transform-origin]="position()"
-          [style.transform]="zoom()" (error)="previewFailed(url)" />
+        <img
+          [src]="url"
+          [alt]="text().cats.photo.previewAlt"
+          [style.object-position]="position()"
+          [style.transform-origin]="position()"
+          [style.transform]="zoom()"
+          (error)="previewFailed(url)"
+        />
       </div>
       <div class="cat-photo-framing">
         @for (axis of ['frameX', 'frameY', 'frameZoom']; track axis; let index = $index) {
           <label>
             {{ text().cats.photo.framing[index] }}
-            <input type="range" [min]="index === 2 ? 100 : 0" [max]="index === 2 ? 300 : 100"
-              [disabled]="disabled()" [value]="$any(frame())[axis]"
-              (input)="setFrame($any(axis), $event)" />
+            <input
+              type="range"
+              [min]="index === 2 ? 100 : 0"
+              [max]="index === 2 ? 300 : 100"
+              [disabled]="disabled()"
+              [value]="$any(frame())[axis]"
+              (input)="setFrame($any(axis), $event)"
+            />
           </label>
         }
       </div>

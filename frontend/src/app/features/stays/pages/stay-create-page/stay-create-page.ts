@@ -720,7 +720,11 @@ export class StayCreatePage implements AfterViewInit {
   }
 
   private getCreateStayErrorMessage(error: unknown): string {
-    return stayFormError(error, this.text().stays.create.errors.createFailed, this.text().stays.create.errors.bookingConflict);
+    return stayFormError(
+      error,
+      this.text().stays.create.errors.createFailed,
+      this.text().stays.create.errors.bookingConflict,
+    );
   }
 
   private getDefaultDateTimeLocalValue(daysToAdd: number): string {

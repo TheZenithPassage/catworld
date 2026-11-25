@@ -212,5 +212,7 @@ app-cat-profile-option-field {
 .proof-portrait {
   overflow: hidden;
 
-  img { object-fit: cover; }
+  img {
+    object-fit: cover;
+  }
 }

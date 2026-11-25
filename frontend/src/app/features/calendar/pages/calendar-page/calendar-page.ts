@@ -506,7 +506,13 @@ export class CalendarPage implements OnDestroy {
       .subscribe({
         next: (stays) => {
           if (id !== this.requestId) return;
-          this.stays.set(stays.map(stay => ({ ...stay, startAt: stay.effectiveStartAt ?? stay.startAt, endAt: stay.effectiveEndAt ?? stay.endAt })));
+          this.stays.set(
+            stays.map((stay) => ({
+              ...stay,
+              startAt: stay.effectiveStartAt ?? stay.startAt,
+              endAt: stay.effectiveEndAt ?? stay.endAt,
+            })),
+          );
           this.loading.set(false);
         },
         error: () => {
