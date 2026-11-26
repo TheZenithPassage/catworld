@@ -391,8 +391,7 @@ textarea {
   }
 }
 
-.calendar-page > p,
-.demo-notice {
+.calendar-page > p {
   width: fit-content;
   max-width: 100%;
   margin: 0;
@@ -403,10 +402,6 @@ textarea {
   box-shadow: var(--shadow-soft);
   color: var(--color-text-muted);
   font-weight: 650;
-}
-
-.demo-notice {
-  margin-block-end: 1rem;
 }
 
 app-calendar-page .calendar-sticky-month {

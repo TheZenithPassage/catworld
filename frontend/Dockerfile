@@ -24,12 +24,14 @@ LABEL org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" 
       org.opencontainers.image.version="${RELEASE_TAG}"
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx-server.conf nginx-demo.conf nginx-demo-api.conf /etc/nginx/
 COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY --from=build /tmp/frontend-build /usr/share/nginx/html
 
 RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 
 EXPOSE 80
+EXPOSE 8081
 
 COPY nginx-intake.conf /etc/nginx/conf.d/intake.conf
 COPY intake-site/ /usr/share/nginx/intake-site/

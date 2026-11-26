@@ -3,6 +3,7 @@ package com.allegaeon.catworld.exception;
 import com.allegaeon.catworld.dto.VaccineConflictResponseDTO;
 import com.allegaeon.catworld.dto.StalePricingConfirmationResponseDTO;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -20,6 +21,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CatPhotoException.class)
     public ResponseEntity<CatPhotoErrorResponse> handleCatPhoto(CatPhotoException exception) {
         return ResponseEntity.badRequest().body(new CatPhotoErrorResponse(exception.getCode().name()));
+    }
+
+    @ExceptionHandler(DemoPhotoUploadLimitException.class)
+    public ResponseEntity<CatPhotoErrorResponse> handleDemoPhotoUploadLimit() {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new CatPhotoErrorResponse("DEMO_PHOTO_UPLOAD_LIMIT_REACHED"));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

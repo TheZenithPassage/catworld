@@ -9,6 +9,7 @@ export interface AccountsTranslations {
   empty: string;
   create: {
     title: string;
+    demoCredentials: string;
     username: string;
     password: string;
     role: string;
@@ -30,6 +31,7 @@ export interface AccountsTranslations {
     actions: string;
   };
   you: string;
+  quickAccess: string;
   roles: {
     admin: string;
     staff: string;
@@ -67,6 +69,7 @@ export const ACCOUNTS_TRANSLATIONS = {
     empty: 'No hay cuentas disponibles.',
     create: {
       title: 'Nueva cuenta',
+      demoCredentials: 'Usá un nombre de usuario y una contraseña inventados para esta demo.',
       username: 'Nombre de usuario',
       password: 'Contraseña',
       role: 'Nivel de acceso',
@@ -88,6 +91,7 @@ export const ACCOUNTS_TRANSLATIONS = {
       actions: 'Acciones',
     },
     you: 'Vos',
+    quickAccess: 'Cuenta de acceso rápido',
     roles: {
       admin: 'Administrador',
       staff: 'Estándar',
@@ -124,6 +128,7 @@ export const ACCOUNTS_TRANSLATIONS = {
     empty: 'No accounts are available.',
     create: {
       title: 'Create account',
+      demoCredentials: 'Use a made-up username and password for this demo.',
       username: 'Username',
       password: 'Password',
       role: 'Role',
@@ -145,6 +150,7 @@ export const ACCOUNTS_TRANSLATIONS = {
       actions: 'Actions',
     },
     you: 'You',
+    quickAccess: 'Quick access account',
     roles: {
       admin: 'Administrator',
       staff: 'Staff',

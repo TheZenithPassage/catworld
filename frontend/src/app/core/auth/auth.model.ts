@@ -12,3 +12,9 @@ export interface LoginRequest {
   username: string;
   password: string;
 }
+
+export function basicAuthorization({ username, password }: LoginRequest): string {
+  const bytes = new TextEncoder().encode(`${username}:${password}`);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
+  return `Basic ${btoa(binary)}`;
+}

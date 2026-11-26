@@ -9,6 +9,7 @@ const errorKeys = {
   CAT_PHOTO_DIMENSIONS_TOO_LARGE: 'dimensionsTooLarge',
   CAT_PHOTO_UNDECODABLE: 'undecodable',
   CAT_PHOTO_INTENT_CONFLICT: 'intentConflict',
+  DEMO_PHOTO_UPLOAD_LIMIT_REACHED: 'demoUploadLimitReached',
 } as const satisfies Record<string, keyof PhotoErrors>;
 
 export function catPhotoErrorMessage(error: unknown, errors: PhotoErrors): string | null {

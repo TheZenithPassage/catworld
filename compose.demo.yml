@@ -33,7 +33,8 @@ services:
       CATWORLD_DEMO_MODE: "true"
       CATWORLD_SECURITY_USERNAME: demo
       CATWORLD_SECURITY_PASSWORD: ${CATWORLD_DEMO_APP_PASSWORD:?Demo service credential is required}
-      CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS: https://test.catworld.com.ar,http://127.0.0.1:4210
+      CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS: https://test.catworld.com.ar,http://127.0.0.1:${CATWORLD_DEMO_PORT:-4210}
+      CATWORLD_INTAKE_URL: https://catworld-demo.invalid/
     depends_on:
       db:
         condition: service_healthy
@@ -45,7 +46,7 @@ services:
     image: catworld-demo-frontend:${CATWORLD_DEMO_REVISION:?Demo image revision is required}
     pull_policy: never
     ports:
-      - "127.0.0.1:4210:80"
+      - "127.0.0.1:${CATWORLD_DEMO_PORT:-4210}:${CATWORLD_DEMO_PROXY_PORT:-8081}"
     environment:
       BUSINESS_TIME_ZONE: America/Argentina/Buenos_Aires
       CATWORLD_DEMO_MODE: "true"

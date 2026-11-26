@@ -18,6 +18,35 @@
   margin-bottom: 0;
 }
 
+.login-page--demo .login-logo {
+  width: 9rem;
+  height: 9rem;
+}
+
+.demo-banner {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-secondary-soft);
+}
+
+.demo-banner p,
+.login-form p {
+  margin: 0;
+}
+
+.demo-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.demo-banner button {
+  justify-self: start;
+}
+
 .login-form {
   position: relative;
   display: grid;

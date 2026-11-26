@@ -9,6 +9,9 @@
 !public
 !public/**
 !nginx.conf
+!nginx-server.conf
+!nginx-demo.conf
+!nginx-demo-api.conf
 !docker-entrypoint.d
 !docker-entrypoint.d/**
 !nginx-intake.conf

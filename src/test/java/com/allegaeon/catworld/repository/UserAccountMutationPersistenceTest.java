@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,7 +60,8 @@ class UserAccountMutationPersistenceTest {
                 mock(StayPaymentRepository.class),
                 mock(StayPaymentEditRepository.class),
                 mock(StayPaymentAnnulmentRepository.class),
-                mock(StayPaymentRemovalRepository.class)
+                mock(StayPaymentRemovalRepository.class),
+                Optional.empty()
         );
     }
 

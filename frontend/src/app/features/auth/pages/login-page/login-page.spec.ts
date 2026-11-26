@@ -10,6 +10,7 @@ import { vi } from 'vitest';
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
+import { DemoApiService, DemoStatus } from '../../../../core/auth/demo-api.service';
 import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { LoginPage } from './login-page';
 
@@ -21,6 +22,14 @@ describe('LoginPage', () => {
   const authApiService = {
     login: vi.fn(),
     loginDemo: vi.fn(),
+  };
+
+  const demoApiService = { getStatus: vi.fn() };
+  const demoStatus: DemoStatus = {
+    hasAdditionalAccounts: false,
+    nextScheduledCheckAt: new Date(Date.now() + 60_000).toISOString(),
+    resetState: 'CLEAN',
+    resetAvailableAt: null,
   };
 
   const authSessionService = {
@@ -36,6 +45,7 @@ describe('LoginPage', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    demoApiService.getStatus.mockReturnValue(of(demoStatus));
     redirectReason = null;
     router.url = '/login';
     router.navigateByUrl.mockImplementation(async (url: string) => {
@@ -54,6 +64,10 @@ describe('LoginPage', () => {
         {
           provide: AuthSessionService,
           useValue: authSessionService,
+        },
+        {
+          provide: DemoApiService,
+          useValue: demoApiService,
         },
         {
           provide: ActivatedRoute,
@@ -133,15 +147,39 @@ describe('LoginPage', () => {
 
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('input')).toBeNull();
-    expect(compiled.querySelector('button[mat-flat-button]')?.textContent?.trim()).toBe(
-      component.text().auth.demo.enter,
-    );
+    const button = compiled.querySelector<HTMLButtonElement>('button[mat-flat-button]');
+    expect(button?.textContent?.trim()).toBe(component.text().auth.demo.enter);
 
-    await submitRenderedForm();
+    button?.click();
+    await fixture.whenStable();
 
     expect(authApiService.loginDemo).toHaveBeenCalledOnce();
     expect(authApiService.login).not.toHaveBeenCalled();
     expect(authSessionService.loginDemo).toHaveBeenCalledWith(user, 'generation-1');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
+  });
+
+  it('offers credential login alongside quick access when other demo accounts exist', async () => {
+    const user = { username: 'visitor', role: 'STAFF' as const };
+    demoApiService.getStatus.mockReturnValue(of({ ...demoStatus, hasAdditionalAccounts: true }));
+    authApiService.loginDemo.mockReturnValue(of({ user, generation: 'generation-2' }));
+    TestBed.inject(RuntimeConfigService).demoMode.set(true);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('button[mat-flat-button]')?.textContent?.trim()).toBe(
+      component.text().auth.demo.enter,
+    );
+    expect(compiled.querySelector('form')?.textContent).toContain(
+      component.text().auth.demo.inventedCredentials,
+    );
+    setInputValue('username', 'visitor');
+    setInputValue('password', 'invented-password');
+    await submitRenderedForm();
+
+    const credentials = { username: 'visitor', password: 'invented-password' };
+    expect(authApiService.loginDemo).toHaveBeenCalledWith(credentials);
+    expect(authSessionService.login).toHaveBeenCalledWith(user, credentials, 'generation-2');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
   });
 

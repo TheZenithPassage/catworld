@@ -38,8 +38,9 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectProvider<DemoActivityService> demoActivity)
             throws Exception {
         DemoActivityService activity = demoActivity.getIfAvailable();
-        if (activity != null) {
-            http.addFilterAfter(new DemoRequestFilter(activity), AuthorizationFilter.class);
+        DemoRequestFilter demoFilter = activity == null ? null : new DemoRequestFilter(activity);
+        if (demoFilter != null) {
+            http.addFilterAfter(demoFilter, AuthorizationFilter.class);
         }
         return http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -80,7 +81,7 @@ public class SecurityConfig {
                         })
                 )
                 .httpBasic(basic ->
-                        basic.authenticationEntryPoint(authenticationEntryPoint())
+                        basic.authenticationEntryPoint(authenticationEntryPoint(demoFilter))
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -107,8 +108,11 @@ public class SecurityConfig {
         return source;
     }
 
-    private AuthenticationEntryPoint authenticationEntryPoint() {
+    private AuthenticationEntryPoint authenticationEntryPoint(DemoRequestFilter demoFilter) {
         return (request, response, authException) -> {
+            if (demoFilter != null && demoFilter.rejectStaleWriteOnAuthenticationFailure(request, response)) {
+                return;
+            }
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");

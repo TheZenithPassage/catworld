@@ -1,9 +1,15 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 
 import { API_BASE_URL } from '../config/api.config';
-import { AuthUser, DEMO_AUTHORIZATION, DEMO_GENERATION_HEADER, LoginRequest } from './auth.model';
+import {
+  AuthUser,
+  basicAuthorization,
+  DEMO_AUTHORIZATION,
+  DEMO_GENERATION_HEADER,
+  LoginRequest,
+} from './auth.model';
 
 @Injectable({
   providedIn: 'root',
@@ -13,19 +19,17 @@ export class AuthApiService {
   private readonly baseUrl = `${API_BASE_URL}/auth`;
 
   login(request: LoginRequest): Observable<AuthUser> {
-    const authorizationHeader = `Basic ${btoa(`${request.username}:${request.password}`)}`;
-
     return this.http.post<AuthUser>(`${this.baseUrl}/login`, null, {
-      headers: new HttpHeaders({
-        Authorization: authorizationHeader,
-      }),
+      headers: { Authorization: basicAuthorization(request) },
     });
   }
 
-  loginDemo(): Observable<{ user: AuthUser; generation: string }> {
+  loginDemo(credentials?: LoginRequest): Observable<{ user: AuthUser; generation: string }> {
     return this.http
       .post<AuthUser>(`${this.baseUrl}/login`, null, {
-        headers: { Authorization: DEMO_AUTHORIZATION },
+        headers: {
+          Authorization: credentials ? basicAuthorization(credentials) : DEMO_AUTHORIZATION,
+        },
         observe: 'response',
       })
       .pipe(

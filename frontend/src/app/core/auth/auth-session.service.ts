@@ -1,6 +1,12 @@
 import { Injectable, signal } from '@angular/core';
 
-import { AuthUser, DEMO_AUTHORIZATION, LoginRequest, UserRole } from './auth.model';
+import {
+  AuthUser,
+  basicAuthorization,
+  DEMO_AUTHORIZATION,
+  LoginRequest,
+  UserRole,
+} from './auth.model';
 
 interface AuthSession {
   username: string;
@@ -17,14 +23,12 @@ export class AuthSessionService {
 
   readonly authenticated = this.session.asReadonly();
 
-  login(user: AuthUser, credentials: LoginRequest): void {
+  login(user: AuthUser, credentials: LoginRequest, demoGeneration?: string): void {
     this.session.set({
       username: user.username,
       role: user.role,
-      authorizationHeader: this.buildBasicAuthorizationHeader(
-        credentials.username,
-        credentials.password,
-      ),
+      authorizationHeader: basicAuthorization(credentials),
+      demoGeneration,
     });
   }
 
@@ -54,9 +58,5 @@ export class AuthSessionService {
 
   hasRole(role: UserRole): boolean {
     return this.session()?.role === role;
-  }
-
-  private buildBasicAuthorizationHeader(username: string, password: string): string {
-    return `Basic ${btoa(`${username}:${password}`)}`;
   }
 }

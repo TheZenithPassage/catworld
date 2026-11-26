@@ -92,6 +92,7 @@ export interface CatsTranslations {
       unsupportedFormat: string;
       dimensionsTooLarge: string;
       undecodable: string;
+      demoUploadLimitReached: string;
       intentConflict: string;
       requestTooLarge: string;
       tooManyAttachments: string;
@@ -311,6 +312,7 @@ export const CATS_TRANSLATIONS = {
         dimensionsTooLarge:
           'Las dimensiones de la foto son demasiado grandes. Seleccioná una imagen más pequeña.',
         undecodable: 'No se pudo leer la foto. Seleccioná otro archivo de imagen válido.',
+        demoUploadLimitReached: 'Se alcanzó el límite de carga de fotos de hoy para la demo.',
         intentConflict:
           'No se puede reemplazar y eliminar la foto a la vez. Revisá la selección e intentá de nuevo.',
       },
@@ -510,6 +512,7 @@ export const CATS_TRANSLATIONS = {
           'This format is not supported. Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         dimensionsTooLarge: 'The photo dimensions are too large. Select a smaller image.',
         undecodable: 'The photo could not be read. Select another valid image file.',
+        demoUploadLimitReached: 'The demo has reached today’s photo upload limit.',
         intentConflict:
           'The photo cannot be replaced and removed at the same time. Review the selection and try again.',
       },

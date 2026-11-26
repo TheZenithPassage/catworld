@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 
 import { API_BASE_URL } from '../config/api.config';
 
+import { AuthApiService } from './auth-api.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from './auth-redirect-reason';
 import { authInterceptor } from './auth.interceptor';
 import { AuthSessionService } from './auth-session.service';
@@ -82,6 +83,26 @@ describe('authInterceptor', () => {
     request.flush(adminUser);
   });
 
+  it.each([
+    ['GET', '/demo/status'],
+    ['POST', '/demo/reset'],
+  ])('leaves the session alone when a public demo %s %s request fails', (method, path) => {
+    const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+    authSessionService.login(adminUser, adminCredentials);
+
+    httpClient
+      .request(method, API_BASE_URL + path, { headers: { Authorization: 'Demo' } })
+      .subscribe({ error: () => undefined });
+
+    const request = httpTestingController.expectOne(API_BASE_URL + path);
+    expect(request.request.headers.get('Authorization')).toBe('Demo');
+    expect(request.request.headers.has('X-CatWorld-Demo-Generation')).toBe(false);
+    request.flush({ error: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(authSessionService.getRole()).toBe('ADMIN');
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
   it('logs out and redirects to login when a protected API request returns unauthorized', () => {
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     const returnUrl = router.url;
@@ -129,6 +150,28 @@ describe('authInterceptor', () => {
 
     request.flush({ error: 'DEMO_RELOAD_REQUIRED' }, { status: 409, statusText: 'Conflict' });
     expect(confirmReload).toHaveBeenCalledOnce();
+  });
+
+  it('keeps UTF-8 Basic credentials and generation on credentialed demo mutations', () => {
+    const credentials = { username: 'visitante', password: 'gatito-ñ-猫' };
+    const authorization = 'Basic dmlzaXRhbnRlOmdhdGl0by3DsS3njKs=';
+    TestBed.inject(AuthApiService)
+      .loginDemo(credentials)
+      .subscribe(({ user, generation }) => authSessionService.login(user, credentials, generation));
+
+    const login = httpTestingController.expectOne(`${API_BASE_URL}/auth/login`);
+    expect(login.request.headers.get('Authorization')).toBe(authorization);
+    login.flush(
+      { username: 'visitante', role: 'STAFF' },
+      { headers: { 'X-CatWorld-Demo-Generation': 'generation-2' } },
+    );
+
+    httpClient.post(`${API_BASE_URL}/owners`, {}).subscribe();
+
+    const mutation = httpTestingController.expectOne(`${API_BASE_URL}/owners`);
+    expect(mutation.request.headers.get('Authorization')).toBe(authorization);
+    expect(mutation.request.headers.get('X-CatWorld-Demo-Generation')).toBe('generation-2');
+    mutation.flush({});
   });
 
   it('logs out and redirects to login with the current route when a protected API request returns unauthorized', () => {
