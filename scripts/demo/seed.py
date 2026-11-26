@@ -2,9 +2,11 @@
 """Write the fictional CatWorld fixtures as a MySQL transaction for a fresh demo database."""
 
 import argparse
+import base64
 import hashlib
 import json
 import random
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -24,17 +26,31 @@ GALLERY_COUNT = 80
 INTAKE_COUNT = 96
 PENDING_INTAKE_COUNT = 32
 STAY_COUNTS = {"completed": 2_220, "checked-in": 24, "upcoming": 120, "cancelled": 36}
+FIRST_INTAKE_HOUSEHOLD = STAY_COUNTS["checked-in"]
+YUYO_INTAKE_INDEX = 1
+YUYO_OWNER_INDEX = FIRST_INTAKE_HOUSEHOLD + YUYO_INTAKE_INDEX
+YUYO_ARRIVAL_OFFSET = 4
+
+NEW_CAT_PROFILES = {
+    0: ("Oliva", "FEMALE"), 4: ("Miel", "FEMALE"), 7: ("Beto", "MALE"),
+    9: ("Cleo", "FEMALE"), 11: ("Violeta", "FEMALE"), 14: ("Nilo", "MALE"),
+    18: ("Piru", "MALE"), 20: ("Mora", "FEMALE"), 24: ("Pepita", "FEMALE"),
+    25: ("Bimba", "FEMALE"), 27: ("Lía", "FEMALE"), 31: ("Gino", "MALE"),
+}
+RABIES = "lastRabiesDate"
+TRIPLE_FELINE = "lastTripleFelineDate"
+VACCINE_LABELS = {RABIES: "Antirrábica", TRIPLE_FELINE: "Triple felina"}
 
 NIGHTLY_RATES = {
-    "ONE_CAT": 24_000,
-    "ONE_CAT_7_TO_14": 22_000,
-    "ONE_CAT_15_TO_29": 20_000,
-    "ONE_CAT_30_PLUS": 18_000,
-    "TWO_CATS": 38_000,
-    "THREE_PLUS_CATS": 49_000,
+    "ONE_CAT": 27_000,
+    "ONE_CAT_7_TO_14": 24_000,
+    "ONE_CAT_15_TO_29": 22_000,
+    "ONE_CAT_30_PLUS": 17_000,
+    "TWO_CATS": 30_000,
+    "THREE_PLUS_CATS": 35_000,
 }
-TRANSFER_RATE = 12_000
-LITTER_RATE = 3_600
+TRANSFER_RATE = 15_000
+LITTER_RATE = 1_000
 
 # The Flyway standard breeds already exist in an empty demo schema.
 STANDARD_BREEDS = {
@@ -235,14 +251,67 @@ class Owner:
 class Cat:
     id: UUID
     name: str
-    care: str
     litter: str
-    triple_feline: date
-    rabies: date
-    photo_index: int | None
 
 
-def add_households(rows, today, rng, options, brands, varieties, photos):
+@dataclass(frozen=True)
+class Intake:
+    submitted_at: datetime
+    original: dict[str, date | None]
+    proposed: dict[str, date]
+    approved_at: datetime | None
+    dismissed_at: datetime | None
+
+
+def plan_intakes(today):
+    cases = []
+    patterns = ((RABIES,), (TRIPLE_FELINE,), (RABIES, TRIPLE_FELINE))
+    # Yuyo is the sixth rabies-only update.
+    other_updates = iter(patterns * 5 + ((TRIPLE_FELINE,),) + ((RABIES, TRIPLE_FELINE),) * 3)
+    expires_during_yuyo_stay = today + timedelta(days=YUYO_ARRIVAL_OFFSET + 2)
+    # A leap-day anniversary is not possible in the immediately preceding year.
+    if (expires_during_yuyo_stay.month, expires_during_yuyo_stay.day) == (2, 29):
+        expires_during_yuyo_stay -= timedelta(days=1)
+    yuyo_previous_dose = expires_during_yuyo_stay.replace(year=expires_during_yuyo_stay.year - 1)
+
+    for index in range(INTAKE_COUNT):
+        pending = index < PENDING_INTAKE_COUNT
+        registration = index in NEW_CAT_PROFILES
+        approved_at = dismissed_at = None
+        if pending:
+            submitted_on = today - timedelta(days=1 + index // 6)
+            if registration:
+                fields = (RABIES, TRIPLE_FELINE)
+            elif index == YUYO_INTAKE_INDEX:
+                fields = (RABIES,)
+            else:
+                fields = next(other_updates)
+        else:
+            submitted_on = today - timedelta(days=18 + (index - PENDING_INTAKE_COUNT) // 2)
+            fields = patterns[index % len(patterns)]
+        submitted_at = utc(at(submitted_on, 10, index % 60))
+        proposed = {key: submitted_on - timedelta(days=2 + (index + offset) % 12)
+                    for offset, key in enumerate(fields)}
+
+        if registration:
+            original = {}
+        elif index == YUYO_INTAKE_INDEX:
+            original = {RABIES: yuyo_previous_dose}
+        elif pending:
+            original = {key: None if (index + offset) % 5 == 0 else today - timedelta(days=368 + index)
+                        for offset, key in enumerate(fields)}
+        else:
+            original = {key: dose - timedelta(days=360) for key, dose in proposed.items()}
+            if index % 4 == 0:
+                dismissed_at = submitted_at + timedelta(hours=4)
+            else:
+                approved_at = submitted_at + timedelta(hours=5)
+
+        cases.append(Intake(submitted_at, original, proposed, approved_at, dismissed_at))
+    return cases
+
+
+def add_households(rows, today, rng, options, brands, varieties, photos, intakes):
     setup_day = today - timedelta(days=780)
     vet_ids = []
     for index, name in enumerate(text.VET_NAMES):
@@ -272,7 +341,9 @@ def add_households(rows, today, rng, options, brands, varieties, photos):
 
     cat_index = 0
     for owner, cat_count in zip(owners, cat_counts):
-        for _ in range(cat_count):
+        intake_index = owner.index - FIRST_INTAKE_HOUSEHOLD
+        intake = intakes[intake_index] if 0 <= intake_index < len(intakes) else None
+        for household_cat in range(cat_count):
             photo_index = cat_index % len(photos) if cat_index < PORTRAIT_COUNT else None
             sex = "FEMALE" if cat_index % 3 == 0 or photo_index == 3 else "MALE"
             name = rng.choice(text.CAT_NAMES[sex])
@@ -297,11 +368,18 @@ def add_households(rows, today, rng, options, brands, varieties, photos):
             exact_birth = cat_index % 5 != 0
             triple = today - timedelta(days=rng.randint(12, 240))
             rabies = today - timedelta(days=rng.randint(12, 242))
+            approved_at = None
+            if household_cat == 0 and intake is not None and intake.original:
+                vaccinations = intake.proposed if intake.approved_at else intake.original
+                triple = vaccinations.get(TRIPLE_FELINE, triple)
+                rabies = vaccinations.get(RABIES, rabies)
+                approved_at = intake.approved_at
             care = rng.choice(text.CARE_NOTES)
-            cat = Cat(fixture_id("cat", cat_index), name, care, litter, triple, rabies, photo_index)
+            cat = Cat(fixture_id("cat", cat_index), name, litter)
             owner.cats.append(cat)
             created_at = utc(at(setup_day + timedelta(days=owner.index % 132), 11))
-            updated_at = utc(at(max(triple, rabies), 15))
+            dose_updates = (utc(at(dose, 15)) for dose in (triple, rabies) if dose is not None)
+            updated_at = max(approved_at or created_at, max(dose_updates, default=created_at))
             rows.add("cats", id=cat.id, name=name, birth_date=birthday if exact_birth else None,
                      birth_year=None if exact_birth else birthday.year, sex=sex, breed=breed.name, breed_option_id=breed.id,
                      coat=coat.name, coat_option_id=coat.id, color=color.name, color_option_id=color.id,
@@ -362,7 +440,9 @@ def stay_schedule(today, owners, rng):
     first_upcoming = STAY_COUNTS["checked-in"]
     last_upcoming = first_upcoming + STAY_COUNTS["upcoming"]
     for index, owner in enumerate(owners[first_upcoming:last_upcoming]):
-        if index < 5:
+        if index == YUYO_INTAKE_INDEX:
+            start_offset = YUYO_ARRIVAL_OFFSET
+        elif index < 5:
             start_offset = 0
         elif index < 12:
             start_offset = 1
@@ -371,7 +451,8 @@ def stay_schedule(today, owners, rng):
         else:
             start_offset = rng.randint(8, 96)
         start = today + timedelta(days=start_offset)
-        yield "upcoming", owner, start, start + timedelta(days=rng.randint(2, 15))
+        nights = rng.randint(2, 15)
+        yield "upcoming", owner, start, start + timedelta(days=8 if index == YUYO_INTAKE_INDEX else nights)
 
     last_cancelled = last_upcoming + STAY_COUNTS["cancelled"]
     for owner in owners[last_upcoming:last_cancelled]:
@@ -413,7 +494,10 @@ def add_stays(rows, today, rng, owners):
                 "upcoming": "RESERVED", "cancelled": "RESERVED"}
     for index, (kind, owner, start_day, end_day) in enumerate(stay_schedule(today, owners, rng)):
         stay_id = fixture_id("stay", index)
+        yuyo_arrival = kind == "upcoming" and owner.index == YUYO_OWNER_INDEX
         cat_count = len(owner.cats) if rng.random() < 0.78 else rng.randint(1, len(owner.cats))
+        if yuyo_arrival:
+            cat_count = 2
         cats = tuple(owner.cats[:cat_count])
         start = at(start_day, rng.randint(9, 16), rng.choice((0, 15, 30, 45)))
         end = at(end_day, rng.randint(9, 19), rng.choice((0, 15, 30, 45)))
@@ -431,19 +515,21 @@ def add_stays(rows, today, rng, owners):
 
         nights = (end_day - start_day).days
         night_rate = nightly_rate(cat_count, nights)
-        arrival_transfer = index % 7 == 0
-        departure_transfer = index % 11 == 0
-        transfer_waived = index % 5 == 0 and (arrival_transfer or departure_transfer)
+        arrival_transfer = yuyo_arrival or index % 7 == 0
+        departure_transfer = not yuyo_arrival and index % 11 == 0
+        transfer_waived = not yuyo_arrival and index % 5 == 0 and (arrival_transfer or departure_transfer)
         transfer_rate = TRANSFER_RATE if arrival_transfer or departure_transfer else None
         transfer_total = 0 if transfer_waived else TRANSFER_RATE * (arrival_transfer + departure_transfer)
         litter_choices = tuple("ONE" if (index + offset) % 17 == 0 else
                                ("HALF" if cat.litter == "SHARED" else "OWN")
                                for offset, cat in enumerate(cats))
+        if yuyo_arrival:
+            litter_choices = ("OWN", "HALF")
         litter_half_kilos = sum({"OWN": 0, "HALF": 1, "ONE": 2}[choice] for choice in litter_choices)
         litter_rate = LITTER_RATE if litter_half_kilos else None
         suggestion = night_rate * nights + transfer_total + nights * litter_half_kilos * LITTER_RATE // 2
-        price_pending = index % 29 == 0
-        discount = 5_000 if index % 21 == 0 and not price_pending else 0
+        price_pending = not yuyo_arrival and index % 29 == 0
+        discount = 5_000 if index % 21 == 0 and not (price_pending or yuyo_arrival) else 0
         agreed_amount = None if price_pending else suggestion - discount
 
         stay = Stay(index, stay_id, kind, owner, cats, start, end, booked_on, cancelled_at, agreed_amount)
@@ -526,7 +612,8 @@ def add_payments(rows, today, rng, stays):
             amount -= deposit
         payment(stay, amount, stay.end.date(), "Saldo al retirar." if stay.id in split_ids else "Pago completo.")
     for stay in partial:
-        payment(stay, stay.agreed_amount // 3, min(today - timedelta(days=1), stay.start.date() - timedelta(days=2)),
+        deposit = 80_000 if stay.kind == "upcoming" and stay.owner.index == YUYO_OWNER_INDEX else stay.agreed_amount // 3
+        payment(stay, deposit, min(today - timedelta(days=1), stay.start.date() - timedelta(days=2)),
                 "Seña de la reserva.", corrected=stay.index % 19 == 0)
     for stay in cancelled:
         payment(stay, stay.agreed_amount // 3, stay.cancelled_at.date() - timedelta(days=2),
@@ -539,75 +626,99 @@ def add_payments(rows, today, rng, stays):
 
 
 
-def add_intakes(rows, today, owners, options, brands, varieties, photos):
-    for index, owner in enumerate(owners[STAY_COUNTS["checked-in"]:][:INTAKE_COUNT]):
+def registration_profile(index, today, options, brands, varieties):
+    name, sex = NEW_CAT_PROFILES[index]
+    color, coat = PHOTO_LOOKS[index % len(PHOTO_LOOKS)]
+    brand = brands[index % len(brands)]
+    variety = varieties[brand.id][0]
+    birthday = today - timedelta(days=730 + index * 7)
+    entries = {
+        "breed": options["breed"]["Común"], "foodBrand": brand, "foodDetail": variety,
+    }
+    proposed = {
+        "name": name, "sex": sex, "personality": text.PERSONALITIES[index % len(text.PERSONALITIES)],
+        "coat": "Largo" if coat == "Pelo largo" else "Corto", "color": color, "litterBrand": "Usa las de CatWorld",
+    }
+    if index % 3 == 0:
+        proposed["birthYear"] = str(birthday.year)
+    else:
+        proposed["birthDate"] = birthday.isoformat()
+    if index % 2 == 1:
+        litter_types = list(options["litterDetail"].values())
+        litter = litter_types[index % len(litter_types)]
+        entries["litterDetail"] = litter
+        proposed["litterBrand"] = litter.name
+    if index in {4, 14, 25}:
+        proposed["careInstructions"] = text.CARE_NOTES[index % len(text.CARE_NOTES)]
+    proposed.update((key, entry.name) for key, entry in entries.items())
+    selected = {key: str(entry.id) for key, entry in entries.items()}
+    selected["foodDetailBrand"] = selected["foodBrand"]
+    return proposed, selected
+
+
+def render_vaccine_evidence(documents):
+    helper = Path(__file__).resolve().with_name("render-vaccine-evidence.ps1")
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-File", str(helper)],
+        input=json.dumps(documents, ensure_ascii=True).encode("ascii"),
+        capture_output=True,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    if result.returncode:
+        raise SeedError(f"Rendering the demo vaccine evidence failed: {result.stderr.decode(errors='replace').strip()}")
+    images = result.stdout.splitlines()
+    if len(images) != len(documents):
+        raise SeedError("The demo vaccine renderer did not produce one image per pending intake.")
+    return [base64.b64decode(image, validate=True) for image in images]
+
+
+def add_intakes(rows, today, owners, options, brands, varieties, photos, intakes):
+    evidence = []
+    for index, intake in enumerate(intakes):
+        owner = owners[FIRST_INTAKE_HOUSEHOLD + index]
         invitation_id = fixture_id("intake-invitation", index)
         review_id = fixture_id("intake-review", index)
-        pending = index < PENDING_INTAKE_COUNT
-        new_cat = pending and index % 7 == 4
-        cat = owner.cats[0]
-        submitted_at = utc(at(today - timedelta(days=1 + index // 6), 10, index % 60))
-        expired_at = submitted_at + timedelta(days=4)
-        original = {}
-        proposed = {}
-        selected = {}
-        requested = []
-        approved_at = None
-        dismissed_at = None
-        base_photo = photos[index % len(photos)][0]
-        cat_name = cat.name
+        decided_at = intake.approved_at or intake.dismissed_at
+        new_cat = index in NEW_CAT_PROFILES
+        cat = None if new_cat else owner.cats[0]
         if new_cat:
-            cat_name = ("Miel", "Violeta", "Piru", "Bimba")[index // 7]
-            color, coat = PHOTO_LOOKS[index % len(photos)]
-            brand = brands[index % len(brands)]
-            variety = varieties[brand.id][0]
-            proposed = {
-                "name": cat_name, "birthYear": str(today.year - 2), "sex": "FEMALE",
-                "breed": "Común", "coat": coat, "color": color, "personality": text.PERSONALITIES[index % 12],
-                "foodBrand": brand.name, "foodDetail": variety.name, "litterBrand": "Usa las de CatWorld",
-                "lastRabiesDate": (today - timedelta(days=18)).isoformat(),
-                "lastTripleFelineDate": (today - timedelta(days=18)).isoformat(),
-            }
-            selected = {"breed": str(options["breed"]["Común"].id), "coat": str(options["coat"][coat].id),
-                        "color": str(options["color"][color].id), "foodBrand": str(brand.id),
-                        "foodDetail": str(variety.id)}
-        elif pending:
-            original = {"careInstructions": cat.care}
-            proposed = {"careInstructions": "Dejar la bandeja lejos de la puerta y usar la manta que trae de casa."}
-            requested = ["careInstructions"]
-            if index % 3 == 0:
-                original["lastRabiesDate"] = cat.rabies.isoformat()
-                proposed["lastRabiesDate"] = (today - timedelta(days=9 + index % 8)).isoformat()
-                requested.append("lastRabiesDate")
-            if index % 4 == 0:
-                original["lastTripleFelineDate"] = cat.triple_feline.isoformat()
-                proposed["lastTripleFelineDate"] = (today - timedelta(days=14 + index % 7)).isoformat()
-                requested.append("lastTripleFelineDate")
-        elif index % 4 == 0:
-            dismissed_at = submitted_at + timedelta(hours=4)
+            proposed, selected = registration_profile(index, today, options, brands, varieties)
+            cat_name = proposed["name"]
         else:
-            approved_at = submitted_at + timedelta(hours=5)
+            proposed, selected = {}, {}
+            cat_name = cat.name
+        proposed.update((key, dose.isoformat()) for key, dose in intake.proposed.items())
+        original = {key: dose.isoformat() for key, dose in intake.original.items() if dose is not None}
 
-        scope = {} if new_cat else {str(cat.id): {}}
+        # These are already-received submissions. No working links are seeded.
+        scope = {str(member.id): {} for member in owner.cats}
         unsupplied_token_hash = hashlib.sha256(invitation_id.bytes).hexdigest()
         rows.add("cat_intake_invitations", id=invitation_id, owner_id=owner.id, token_hash=unsupplied_token_hash,
                  allow_new_cats=new_cat, scope_snapshot=json_text(scope),
-                 requested_fields_snapshot=json_text({str(cat.id): requested} if not new_cat else {}),
-                 expires_at=expired_at, submitted_at=submitted_at)
+                 requested_fields_snapshot=json_text({str(cat.id): list(intake.proposed)} if cat else {}),
+                 expires_at=intake.submitted_at + timedelta(days=5) if decided_at else utc(at(today, 0)),
+                 submitted_at=decided_at)
         rows.add("cat_intake_reviews", id=review_id, invitation_id=invitation_id,
-                 cat_id=None if new_cat else cat.id, draft_id=fixture_id("intake-draft", index) if new_cat else None,
+                 cat_id=cat.id if cat else None, draft_id=fixture_id("intake-draft", index) if new_cat else None,
                  cat_name=cat_name, original_fields=json_text(original), proposed_fields=json_text(proposed),
-                 proposed_option_ids=json_text(selected) if selected else None, submitted_at=submitted_at,
-                 approved_at=approved_at, dismissed_at=dismissed_at)
+                 proposed_option_ids=json_text(selected) if selected else None,
+                 proposed_food_detail_brand=proposed.get("foodBrand"), submitted_at=intake.submitted_at,
+                 approved_at=intake.approved_at, dismissed_at=intake.dismissed_at)
         if new_cat:
+            base_photo = photos[index % len(photos)][0]
             rows.add("cat_intake_photos", id=fixture_id("intake-photo", index), review_id=review_id,
                      content=base_photo.variable, portrait_width=base_photo.width, portrait_height=base_photo.height,
                      portrait_sha256=base_photo.sha256, frame_x=50, frame_y=50, frame_zoom=100)
-        elif pending and index % 5 == 0 and cat.photo_index is not None:
-            _, gallery = photos[cat.photo_index]
-            rows.add("cat_intake_photos", id=fixture_id("intake-photo", index), review_id=review_id,
-                     content=gallery.variable, portrait_width=None, portrait_height=None, portrait_sha256=None,
-                     frame_x=None, frame_y=None, frame_zoom=None)
+        if decided_at is None:
+            doses = [{"label": VACCINE_LABELS[key], "date": dose.strftime("%d/%m/%Y")}
+                     for key, dose in intake.proposed.items()]
+            evidence.append((fixture_id("intake-evidence", index), review_id, {"catName": cat_name, "doses": doses}))
+
+    images = render_vaccine_evidence([document for _, _, document in evidence])
+    for (photo_id, review_id, _), content in zip(evidence, images, strict=True):
+        rows.add("cat_intake_photos", id=photo_id, review_id=review_id, content=content,
+                 portrait_width=None, portrait_height=None, portrait_sha256=None, frame_x=None, frame_y=None,
+                 frame_zoom=None)
 
 
 def count_rows(table, condition=None):
@@ -646,10 +757,11 @@ def generate(today):
     rows = FixtureRows()
     photos = load_photos()
     options, brands, varieties = catalog(rows)
-    owners = add_households(rows, today, rng, options, brands, varieties, photos)
+    intakes = plan_intakes(today)
+    owners = add_households(rows, today, rng, options, brands, varieties, photos, intakes)
     stays = add_stays(rows, today, rng, owners)
     add_payments(rows, today, rng, stays)
-    add_intakes(rows, today, owners, options, brands, varieties, photos)
+    add_intakes(rows, today, owners, options, brands, varieties, photos, intakes)
     return rows, photos
 
 
