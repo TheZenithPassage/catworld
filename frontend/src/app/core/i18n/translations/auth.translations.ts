@@ -16,6 +16,7 @@ export interface AuthTranslations {
       COOLDOWN: string;
       LIMIT_REACHED: string;
     };
+      reconnecting: string;
     statusUnavailable: string;
     retry: string;
     resetFailed: string;
@@ -54,11 +55,12 @@ export const AUTH_TRANSLATIONS = {
       resetting: 'Solicitando reinicio…',
       resetStatus: {
         CLEAN: 'La demo ya está en su estado inicial.',
-        QUEUED: 'El reinicio está en curso.',
+        QUEUED: 'Reinicio solicitado. Podés entrar cuando termine.',
         COOLDOWN: 'Hay que esperar un momento antes de solicitar otro reinicio.',
         LIMIT_REACHED:
           'Se alcanzó el límite de reinicios de hoy. Contactá a quien te compartió la demo si necesitás otro',
       },
+      reconnecting: 'Reconectando con la demo…',
       statusUnavailable: 'No se pudo consultar el estado de la demo.',
       retry: 'Reintentar',
       resetFailed: 'No se pudo solicitar el reinicio. Intentá de nuevo en un momento.',
@@ -96,11 +98,12 @@ export const AUTH_TRANSLATIONS = {
       resetting: 'Requesting reset…',
       resetStatus: {
         CLEAN: 'The demo is already in its initial state.',
-        QUEUED: 'The reset is in progress.',
+        QUEUED: 'Reset requested. You can sign in when it finishes.',
         COOLDOWN: 'Wait a moment before requesting another reset.',
         LIMIT_REACHED:
           'Today’s reset limit has been reached. Contact the person who shared the demo if you need another reset.',
       },
+      reconnecting: 'Reconnecting to the demo…',
       statusUnavailable: 'The demo status could not be loaded.',
       retry: 'Retry',
       resetFailed: 'The reset could not be requested. Try again in a moment.',

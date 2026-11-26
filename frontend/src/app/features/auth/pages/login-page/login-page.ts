@@ -7,7 +7,7 @@ import { MatButton } from '@angular/material/button';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, Observable, Subscription, tap, timer } from 'rxjs';
+import { finalize, Observable, Subscription, tap, timeout, TimeoutError, timer } from 'rxjs';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from '../../../../core/auth/auth-redirect-reason';
@@ -18,6 +18,19 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { TrimRequiredDirective } from '../../../../shared/forms/trim-required.directive';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
+
+const DEMO_STATUS_INTERVAL = 5_000;
+const DEMO_STATUS_TIMEOUT = 8_000;
+const DEMO_RECONNECT_WINDOW = 60_000;
+const DEMO_UNAVAILABLE_INTERVAL = 15_000;
+
+function isTemporaryDemoError(error: unknown): boolean {
+  return (
+    error instanceof TimeoutError ||
+    (error instanceof HttpErrorResponse &&
+      (error.status === 0 || (error.status >= 500 && error.status < 600)))
+  );
+}
 
 @Component({
   selector: 'app-login-page',
@@ -43,6 +56,7 @@ export class LoginPage implements OnInit {
   private readonly i18nService = inject(I18nService);
   private readonly browserWindow = inject(DOCUMENT).defaultView;
   private readonly destroyRef = inject(DestroyRef);
+  private readonly demoConnectionLostAt = signal<number | null>(null);
   private demoStatusRefresh?: Subscription;
 
   readonly text = this.i18nService.text;
@@ -59,11 +73,30 @@ export class LoginPage implements OnInit {
   readonly demoResetFailed = signal(false);
   readonly loadingDemoStatus = signal(false);
   readonly resettingDemo = signal(false);
+  readonly demoLoginBlocked = computed(
+    () =>
+      this.demoMode() &&
+      (this.resettingDemo() ||
+        this.demoStatus()?.resetState === 'QUEUED' ||
+        this.demoConnectionLostAt() !== null),
+  );
+  readonly demoStatusMessage = computed(() => {
+    const state = this.demoStatus()?.resetState;
+    const copy = this.text().auth.demo;
+    if (state === 'QUEUED') {
+      return copy.resetStatus.QUEUED;
+    }
+    if (this.demoConnectionLostAt() !== null) {
+      return copy.reconnecting;
+    }
+    return state && state !== 'AVAILABLE' ? copy.resetStatus[state] : null;
+  });
   readonly canRequestDemoReset = computed(
     () =>
       this.demoStatus()?.resetState === 'AVAILABLE' &&
       !this.loadingDemoStatus() &&
-      !this.resettingDemo() &&
+      !this.demoStatusFailed() &&
+      !this.demoLoginBlocked() &&
       !this.submitting(),
   );
 
@@ -80,7 +113,7 @@ export class LoginPage implements OnInit {
   }
 
   enterDemo(): void {
-    if (this.submitting()) {
+    if (this.submitting() || this.demoLoginBlocked()) {
       return;
     }
 
@@ -95,7 +128,7 @@ export class LoginPage implements OnInit {
   }
 
   submit(): void {
-    if (this.submitting()) {
+    if (this.submitting() || this.demoLoginBlocked()) {
       return;
     }
 
@@ -139,17 +172,24 @@ export class LoginPage implements OnInit {
     }
 
     this.demoStatusRefresh?.unsubscribe();
-    this.demoStatusFailed.set(false);
     this.loadingDemoStatus.set(true);
     this.demoApiService
       .getStatus()
       .pipe(
+        timeout({ first: DEMO_STATUS_TIMEOUT }),
         takeUntilDestroyed(this.destroyRef),
         finalize(() => this.loadingDemoStatus.set(false)),
       )
       .subscribe({
         next: (status) => this.updateDemoStatus(status),
-        error: () => this.demoStatusFailed.set(true),
+        error: (error: unknown) => {
+          const rateLimited = error instanceof HttpErrorResponse && error.status === 429;
+          if (rateLimited || isTemporaryDemoError(error)) {
+            this.reconnectToDemo();
+          } else {
+            this.demoStatusFailed.set(true);
+          }
+        },
       });
   }
 
@@ -180,7 +220,11 @@ export class LoginPage implements OnInit {
               return;
             }
           }
-          this.demoResetFailed.set(true);
+          if (isTemporaryDemoError(error)) {
+            this.reconnectToDemo();
+          } else {
+            this.demoResetFailed.set(true);
+          }
         },
       });
   }
@@ -194,15 +238,32 @@ export class LoginPage implements OnInit {
 
   private updateDemoStatus(status: DemoStatus): void {
     this.demoStatus.set(status);
-    this.demoStatusRefresh?.unsubscribe();
+    this.demoConnectionLostAt.set(null);
+    this.demoStatusFailed.set(false);
+    this.demoResetFailed.set(false);
     const nextCheck = Date.parse(status.nextScheduledCheckAt);
     const nextAvailability = status.resetAvailableAt
       ? Date.parse(status.resetAvailableAt)
       : Infinity;
     const delay =
       status.resetState === 'QUEUED'
-        ? 5000
-        : Math.max(5000, Math.min(nextCheck, nextAvailability) - Date.now());
+        ? DEMO_STATUS_INTERVAL
+        : Math.max(DEMO_STATUS_INTERVAL, Math.min(nextCheck, nextAvailability) - Date.now());
+    this.scheduleDemoStatusRefresh(delay);
+  }
+
+  private reconnectToDemo(): void {
+    const now = Date.now();
+    const lostAt = this.demoConnectionLostAt() ?? now;
+    const unavailable = now - lostAt >= DEMO_RECONNECT_WINDOW;
+    this.demoConnectionLostAt.set(lostAt);
+    this.demoStatusFailed.set(unavailable);
+    this.demoResetFailed.set(false);
+    this.scheduleDemoStatusRefresh(unavailable ? DEMO_UNAVAILABLE_INTERVAL : DEMO_STATUS_INTERVAL);
+  }
+
+  private scheduleDemoStatusRefresh(delay: number): void {
+    this.demoStatusRefresh?.unsubscribe();
     this.demoStatusRefresh = timer(delay)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.loadDemoStatus());
@@ -224,7 +285,11 @@ export class LoginPage implements OnInit {
       },
       error: (error: unknown) => {
         this.authSessionService.logout();
-        this.error.set(this.getLoginErrorMessage(error, quickLogin));
+        if (this.demoMode() && isTemporaryDemoError(error)) {
+          this.reconnectToDemo();
+        } else {
+          this.error.set(this.getLoginErrorMessage(error, quickLogin));
+        }
         this.submitting.set(false);
       },
     });

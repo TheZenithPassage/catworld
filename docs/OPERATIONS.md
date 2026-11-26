@@ -373,9 +373,11 @@ using Buenos Aires business dates. It adopts the fresh baseline at the first
 eligible hourly check, including when the previous baseline is clean.
 
 Visitors can ask for an immediate reset from the login page. The task picks up
-one queued request on its next poll. Requests that restore the workspace have
-a two-minute global cooldown and daily quotas of three per visitor IP and six
-overall, renewed at midnight in Madrid. Reset restores shared fixture data and
+one queued request on its next poll. An open login page pauses sign-in during
+the reset, retries its status check, and enables sign-in when the demo returns.
+Requests that restore the workspace have a two-minute global cooldown and daily
+quotas of three per visitor IP and six overall, renewed at midnight in Madrid.
+Reset restores shared fixture data and
 clears extra accounts, and save attempts from a previous session generation
 prompt the visitor to reload. It preserves the daily reset counters.
 
