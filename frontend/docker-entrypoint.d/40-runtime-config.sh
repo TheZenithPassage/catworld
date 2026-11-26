@@ -17,11 +17,15 @@ case "$demo_mode" in
     esac
     (
       umask 077
-      printf 'default "";\n~^Demo$ "Basic %s";\n' "$demo_basic" > /etc/nginx/catworld-authorization.conf
+      printf 'default "";\n~^Demo$ "Basic %s";\n~*^Basic[[:space:]] $http_authorization;\n' "$demo_basic" > /etc/nginx/catworld-authorization.conf
     )
+    cp /etc/nginx/nginx-demo.conf /etc/nginx/conf.d/default.conf
+    cp /etc/nginx/nginx-demo-api.conf /etc/nginx/catworld-api-settings.conf
+    rm -f /etc/nginx/conf.d/intake.conf
     ;;
   false)
     printf 'default $http_authorization;\n' > /etc/nginx/catworld-authorization.conf
+    : > /etc/nginx/catworld-api-settings.conf
     ;;
   *)
     echo 'CATWORLD_DEMO_MODE must be true or false.' >&2

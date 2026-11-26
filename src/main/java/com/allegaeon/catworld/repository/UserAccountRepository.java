@@ -27,6 +27,7 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID> 
     Optional<UserAccount> findByUsername(String username);
 
     boolean existsByUsername(String username);
+    boolean existsByUsernameNot(String username);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select account from UserAccount account where account.role = :role and account.enabled = true")

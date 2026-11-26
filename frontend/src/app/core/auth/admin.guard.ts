@@ -1,7 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { RuntimeConfigService } from '../config/runtime-config.service';
 import { AuthSessionService } from './auth-session.service';
 
 export const adminGuard: CanActivateFn = (_route, state) => {
@@ -18,8 +17,3 @@ export const adminGuard: CanActivateFn = (_route, state) => {
 
   return authSessionService.hasRole('ADMIN') ? true : router.createUrlTree(['/']);
 };
-
-export const accountManagementGuard: CanActivateFn = (route, state) =>
-  inject(RuntimeConfigService).demoMode()
-    ? inject(Router).createUrlTree(['/'])
-    : adminGuard(route, state);

@@ -9,6 +9,7 @@ import { I18nService } from '../i18n/i18n.service';
 import { ACCOUNT_DELETION_FORBIDDEN_REASON } from './auth-redirect-reason';
 import { AuthSessionService } from './auth-session.service';
 import { DEMO_GENERATION_HEADER } from './auth.model';
+import { DEMO_RESET_URL, DEMO_STATUS_URL } from './demo-api.service';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const authSessionService = inject(AuthSessionService);
@@ -18,6 +19,8 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
   const isApiRequest = request.url.startsWith(`${API_BASE_URL}/`);
   const isLoginRequest = request.url.endsWith('/auth/login');
+  const isPublicDemoRequest = request.url === DEMO_STATUS_URL || request.url === DEMO_RESET_URL;
+  const isSessionRequest = isApiRequest && !isLoginRequest && !isPublicDemoRequest;
   const accountManagementBaseUrl = `${API_BASE_URL}/users`;
   const isAccountManagementRequest =
     request.url === accountManagementBaseUrl ||
@@ -30,7 +33,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const demoGeneration = authSessionService.getDemoGeneration();
 
   const authenticatedRequest =
-    isApiRequest && !isLoginRequest && !hasAuthorizationHeader && authorizationHeader
+    isSessionRequest && !hasAuthorizationHeader && authorizationHeader
       ? request.clone({
           setHeaders: {
             Authorization: authorizationHeader,
@@ -42,6 +45,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   return next(authenticatedRequest).pipe(
     catchError((error: unknown) => {
       if (
+        isSessionRequest &&
         demoGeneration &&
         authenticatedRequest.headers.has(DEMO_GENERATION_HEADER) &&
         error instanceof HttpErrorResponse &&
@@ -54,8 +58,7 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
 
       if (
         error instanceof HttpErrorResponse &&
-        isApiRequest &&
-        !isLoginRequest &&
+        isSessionRequest &&
         (error.status === 401 || (error.status === 403 && isAccountManagementRequest))
       ) {
         authSessionService.logout();

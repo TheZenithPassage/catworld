@@ -286,7 +286,9 @@ project in [`compose.demo.yml`](../compose.demo.yml). It uses its own
 `catworld_demo` schema, `catworld-demo_mysql_data` volume, and generated service
 credentials. Only the frontend publishes a host port at `127.0.0.1:4210`.
 MySQL and the API are on internal networks. The optional tunnel shares the
-frontend's ingress network. Use only synthetic data in this shared workspace.
+frontend's ingress network. Its frontend listener uses Cloudflare's visitor
+address. The separate Windows loopback listener uses the connecting address.
+Use only synthetic data in this shared workspace.
 
 Use PowerShell from a stable checkout of this repository with Git, Docker Desktop,
 and Python 3.12 or later. The examples use uv to select Python. A standard
@@ -307,10 +309,20 @@ uv run --python 3.12 python scripts/demo/manage.py status
 ```
 
 Open `http://127.0.0.1:4210` and enter the demo. `start` verifies both image
-revision labels, replaces the workspace with current-date fixtures and checks
-the seeded API before making it available to the optional tunnel. It generates
-credentials on first use and keeps local state under `%LOCALAPPDATA%\CatWorldDemo`.
-Keep that directory private and retain `demo.env` for the lifetime of the demo volume.
+revision labels and prepares a dated baseline against the selected schema in a
+temporary, private Compose project. It checks the restored workspace before
+opening the optional tunnel. It generates credentials on first use and keeps
+the baseline and operator state in `%LOCALAPPDATA%\CatWorldDemo`. Keep that
+directory private and retain `demo.env` for the lifetime of the demo volume.
+
+The baseline contains 500 fictional tutors, 800 cats, 20 vets, 2,400 stays,
+3,000 payments and 96 intake reviews, with populated catalogs and sample
+portraits and gallery photos. Quick entry signs in as the protected demo
+administrator. Administrators can create synthetic accounts from Accounts.
+The usual sign-in form then appears on the demo login page, so visitors can
+sign out and try the staff role. Removing all extra accounts hides that form.
+The intake back office includes synthetic submissions, and invitations use a
+reserved address to demonstrate the flow safely.
 
 ### Publish when the demo is ready
 
@@ -336,28 +348,49 @@ to keep the current workspace.
 
 ### Reset, update, roll back or stop
 
-Install the hourly reset task once as the Windows user who runs Docker Desktop.
-The interactive task runs at the top of the hour while that user is signed in.
-It leaves stopped services stopped and skips reset if the API recorded a
-successful mutation since the start of the previous hour. It checks again
-after closing ingress and gracefully stopping the API so a change committed
-during shutdown preserves the workspace. A write with an uncertain outcome
-also defers the automatic reset until an operator resets the demo. The task
-uses the absolute checkout and Python paths. Reinstall it if either moves.
-Task Scheduler displays the latest result and the command writes
+Run `install-hourly` from the stable checkout as the Windows user who runs
+Docker Desktop. It replaces the existing task with a one-minute poll while
+that user is signed in. The poll leaves stopped services stopped and attempts
+the automatic reset once per hour. It skips a clean workspace and defers
+restoration when a save occurred during the previous hour or has an uncertain
+outcome. It checks for saves again after closing ingress and draining the API.
+The login page shows the next scheduled attempt in the visitor's time zone.
+
+The task refreshes the baseline for Monday and Thursday at 05:00 Europe/Madrid
+using Buenos Aires business dates. It adopts the fresh baseline at the first
+eligible hourly check, including when the previous baseline is clean.
+
+Visitors can ask for an immediate reset from the login page. The task picks up
+one queued request on its next poll. Requests that restore the workspace have
+a two-minute global cooldown and daily quotas of three per visitor IP and six
+overall, renewed at midnight in Madrid. Reset restores shared fixture data and
+clears extra accounts, and save attempts from a previous session generation
+prompt the visitor to reload. It preserves the daily reset counters.
+
+The demo API has sustained Nginx limits of 10 reads per second per IP and 30
+overall, and 30 writes per minute per IP and 120 overall, with short bursts for
+ordinary UI actions. Uploads have an 8 MiB request limit and the demo allows 32
+photo upload requests per generation.
+
+The task uses the absolute checkout and Python paths. Reinstall it after moving
+either path or upgrading from the original hourly-only task. Task Scheduler
+shows the result, and the script logs to
 `%LOCALAPPDATA%\CatWorldDemo\hourly-reset.log`.
 
 ```powershell
 uv run --python 3.12 python scripts/demo/manage.py install-hourly
 uv run --python 3.12 python scripts/demo/manage.py reset
+uv run --python 3.12 python scripts/demo/manage.py reset-quota
 uv run --python 3.12 python scripts/demo/manage.py stop
 ```
 
 `reset` explicitly replaces the running workspace even after recent activity.
+`reset-quota` reopens today's public reset allowances while preserving any
+pending reset and the global cooldown.
 For an update, build a newly validated SHA and run `start` with that SHA. For
 a rollback, run `start` with the previous validated SHA and its retained image
 pair. Add `--local-only` to keep the public tunnel stopped. Both operations
-reseed a fresh workspace for the selected revision and keep the demo volume.
+prepare a baseline for the selected revision and keep the demo volume.
 
 Before replacing an existing workspace, the command saves a demo-only SQL
 snapshot in `%LOCALAPPDATA%\CatWorldDemo\recovery.sql`. On a replacement failure

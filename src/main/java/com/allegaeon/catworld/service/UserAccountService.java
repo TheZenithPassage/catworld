@@ -37,6 +37,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -58,6 +59,7 @@ public class UserAccountService implements IUserAccountService {
     private final StayPaymentEditRepository stayPaymentEditRepository;
     private final StayPaymentAnnulmentRepository stayPaymentAnnulmentRepository;
     private final StayPaymentRemovalRepository stayPaymentRemovalRepository;
+    private final Optional<DemoActivityService> demoActivity;
 
     @Override
     @Transactional(readOnly = true)
@@ -113,7 +115,7 @@ public class UserAccountService implements IUserAccountService {
     @Override
     @Transactional
     public UserAccountResponseDTO changeRole(UUID id, UserRole role) {
-        getEntity(id);
+        getMutableEntity(id);
         if (role == UserRole.STAFF) {
             validateCurrentAdminRetainsAccess(id);
             validateAnotherEnabledAdminExists(id);
@@ -126,7 +128,7 @@ public class UserAccountService implements IUserAccountService {
     @Override
     @Transactional
     public UserAccountResponseDTO changeEnabled(UUID id, boolean enabled) {
-        getEntity(id);
+        getMutableEntity(id);
         if (!enabled) {
             validateCurrentAdminRetainsAccess(id);
             validateAnotherEnabledAdminExists(id);
@@ -139,7 +141,7 @@ public class UserAccountService implements IUserAccountService {
     @Override
     @Transactional
     public void deleteUser(UUID id) {
-        UserAccount target = getEntity(id);
+        UserAccount target = getMutableEntity(id);
         UserAccount currentUser = currentUserAccountService.getCurrentUserAccount();
 
         if (Objects.equals(target.getId(), currentUser.getId())) {
@@ -163,6 +165,14 @@ public class UserAccountService implements IUserAccountService {
     private UserAccount getEntity(UUID id) {
         return userAccountRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User account", id));
+    }
+
+    private UserAccount getMutableEntity(UUID id) {
+        UserAccount target = getEntity(id);
+        if (demoActivity.map(activity -> activity.sharedUsername().equals(target.getUsername())).orElse(false)) {
+            throw new ForbiddenException("The shared demo account cannot be modified");
+        }
+        return target;
     }
 
     private void validateAnotherEnabledAdminExists(UUID targetId) {

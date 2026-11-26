@@ -11,6 +11,7 @@ import { finalize } from 'rxjs';
 
 import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { UserRole } from '../../../../core/auth/auth.model';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config.service';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { deletionErrorKind } from '../../../../shared/permanent-deletion/deletion-error';
@@ -44,6 +45,7 @@ export class AccountManagementPage {
   private readonly dialog = inject(MatDialog);
 
   readonly text = this.i18nService.text;
+  readonly demoMode = inject(RuntimeConfigService).demoMode;
   readonly accounts = signal<UserAccount[]>([]);
   readonly loading = signal(false);
   readonly loadError = createLanguageResetError(this.i18nService.language);
@@ -141,6 +143,10 @@ export class AccountManagementPage {
   }
 
   changeRole(account: UserAccount): void {
+    if (this.isQuickAccessAccount(account)) {
+      return;
+    }
+
     const role = this.selectedRole(account);
 
     if (
@@ -181,7 +187,7 @@ export class AccountManagementPage {
   }
 
   changeEnabled(account: UserAccount): void {
-    if (this.isCurrentAccount(account) || this.isPending(account.id)) {
+    if (!this.canManageAccount(account) || this.isPending(account.id)) {
       return;
     }
 
@@ -210,7 +216,7 @@ export class AccountManagementPage {
   }
 
   confirmDeleteAccount(account: UserAccount): void {
-    if (this.isCurrentAccount(account) || this.isPending(account.id)) {
+    if (!this.canManageAccount(account) || this.isPending(account.id)) {
       return;
     }
 
@@ -230,6 +236,14 @@ export class AccountManagementPage {
 
   isCurrentAccount(account: UserAccount): boolean {
     return account.username === this.authSessionService.getUsername();
+  }
+
+  isQuickAccessAccount(account: UserAccount): boolean {
+    return this.demoMode() && account.username === 'demo';
+  }
+
+  canManageAccount(account: UserAccount): boolean {
+    return !this.isCurrentAccount(account) && !this.isQuickAccessAccount(account);
   }
 
   isPending(accountId: string): boolean {

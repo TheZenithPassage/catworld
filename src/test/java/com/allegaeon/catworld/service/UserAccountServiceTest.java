@@ -118,7 +118,8 @@ class UserAccountServiceTest {
                 stayPaymentRepository,
                 stayPaymentEditRepository,
                 stayPaymentAnnulmentRepository,
-                stayPaymentRemovalRepository
+                stayPaymentRemovalRepository,
+                Optional.empty()
         );
         lenient().when(currentUserAccountService.getCurrentUserAccount())
                 .thenReturn(account(UserRole.ADMIN, true));

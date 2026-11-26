@@ -5,6 +5,7 @@ import com.allegaeon.catworld.dto.CatResponseDTO;
 import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.dto.overview.*;
+import com.allegaeon.catworld.service.DemoActivityService;
 import com.allegaeon.catworld.service.ICatService;
 import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class CatController {
 
     private final ICatService catService;
+    private final Optional<DemoActivityService> demoActivity;
 
     @GetMapping
     public ResponseEntity<List<CatResponseDTO>> getAllCats() {
@@ -65,6 +68,7 @@ public class CatController {
             @Validated({Default.class, CatRequestDTO.Create.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
             @RequestPart(value = "photo", required = false) MultipartFile photo,
             @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos) {
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(photo, informationalPhotos));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(catService.createCat(catRequestDTO, photo, informationalPhotos));
     }
@@ -75,12 +79,14 @@ public class CatController {
             @RequestPart(value = "photo", required = false) MultipartFile photo,
             @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos,
             @RequestParam(defaultValue = "false") boolean removePhoto) {
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(photo, informationalPhotos));
         return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto, informationalPhotos));
     }
 
     @PostMapping(value = "/photo-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
             produces = MediaType.IMAGE_JPEG_VALUE)
     public ResponseEntity<byte[]> previewPhoto(@RequestPart("photo") MultipartFile photo) {
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(photo, List.of()));
         return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(catService.previewPhoto(photo));
     }
 

@@ -10,6 +10,9 @@
 
   <form class="account-form" (ngSubmit)="createAccount()">
     <h3>{{ text().accounts.create.title }}</h3>
+    @if (demoMode()) {
+      <p class="account-form-hint">{{ text().accounts.create.demoCredentials }}</p>
+    }
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().accounts.create.username }}</mat-label>
@@ -74,7 +77,9 @@
           <td mat-cell *matCellDef="let account">
             <div class="username-cell">
               <span class="username-value">{{ account.username }}</span>
-              @if (isCurrentAccount(account)) {
+              @if (isQuickAccessAccount(account)) {
+                <span class="current-account-marker">({{ text().accounts.quickAccess }})</span>
+              } @else if (isCurrentAccount(account)) {
                 <span class="current-account-marker">({{ text().accounts.you }})</span>
               }
             </div>
@@ -85,7 +90,7 @@
           <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.role }}</th>
           <td mat-cell *matCellDef="let account">
             <div class="role-action">
-              @if (isCurrentAccount(account)) {
+              @if (!canManageAccount(account)) {
                 <span class="state-marker">{{ text().accounts.roles.admin }}</span>
               } @else {
                 <mat-form-field appearance="outline" class="role-select">
@@ -136,7 +141,7 @@
           <th mat-header-cell *matHeaderCellDef>{{ text().accounts.table.actions }}</th>
           <td mat-cell *matCellDef="let account">
             <div class="account-actions">
-              @if (!isCurrentAccount(account)) {
+              @if (canManageAccount(account)) {
                 <button
                   mat-stroked-button
                   type="button"
@@ -151,8 +156,6 @@
                         : text().accounts.actions.enable
                   }}
                 </button>
-              }
-              @if (!isCurrentAccount(account)) {
                 <button
                   mat-stroked-button
                   type="button"

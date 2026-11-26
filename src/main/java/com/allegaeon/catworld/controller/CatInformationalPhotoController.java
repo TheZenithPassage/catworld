@@ -2,6 +2,7 @@ package com.allegaeon.catworld.controller;
 
 import com.allegaeon.catworld.dto.CatInformationalPhotoSummary;
 import com.allegaeon.catworld.service.CatInformationalPhotoService;
+import com.allegaeon.catworld.service.DemoActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -18,6 +20,7 @@ import java.util.UUID;
 @RequestMapping("/api/cats/{catId}/informational-photos")
 public class CatInformationalPhotoController {
     private final CatInformationalPhotoService photos;
+    private final Optional<DemoActivityService> demoActivity;
 
     @GetMapping
     public List<CatInformationalPhotoSummary> list(@PathVariable UUID catId) {
@@ -27,6 +30,7 @@ public class CatInformationalPhotoController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public CatInformationalPhotoSummary add(@PathVariable UUID catId, @RequestPart("photo") MultipartFile photo) {
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(photo, List.of()));
         return photos.add(catId, photo);
     }
 
