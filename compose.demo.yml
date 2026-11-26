@@ -34,7 +34,7 @@ services:
       CATWORLD_SECURITY_USERNAME: demo
       CATWORLD_SECURITY_PASSWORD: ${CATWORLD_DEMO_APP_PASSWORD:?Demo service credential is required}
       CATWORLD_SECURITY_CORS_ALLOWED_ORIGINS: https://test.catworld.com.ar,http://127.0.0.1:${CATWORLD_DEMO_PORT:-4210}
-      CATWORLD_INTAKE_URL: https://catworld-demo.invalid/
+      CATWORLD_INTAKE_URL: ${CATWORLD_DEMO_INTAKE_URL:-https://fichas-test.catworld.com.ar/}
     depends_on:
       db:
         condition: service_healthy

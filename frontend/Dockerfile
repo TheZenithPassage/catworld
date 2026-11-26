@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.source="https://github.com/${SOURCE_REPOSITORY}" 
       org.opencontainers.image.version="${RELEASE_TAG}"
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY nginx-server.conf nginx-demo.conf nginx-demo-api.conf /etc/nginx/
+COPY nginx-server.conf nginx-demo.conf nginx-demo-api.conf nginx-demo-real-ip.conf /etc/nginx/
 COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 COPY --from=build /tmp/frontend-build /usr/share/nginx/html
 

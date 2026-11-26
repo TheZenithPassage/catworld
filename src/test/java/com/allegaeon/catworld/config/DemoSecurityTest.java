@@ -2,6 +2,7 @@ package com.allegaeon.catworld.config;
 
 import com.allegaeon.catworld.security.DemoRequestFilter;
 import com.allegaeon.catworld.service.DemoActivityService;
+import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -22,9 +24,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -273,6 +277,77 @@ class DemoSecurityTest {
     }
 
     @Test
+    void successfulHouseholdSubmissionRecordsDemoActivityWithoutAGenerationHeader() throws Exception {
+        var invite = issueHouseholdLink();
+
+        mockMvc.perform(get("/api/intake/request").header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk());
+        mockMvc.perform(multipart("/api/intake/submissions").file(submissionPart("{\"cats\":[]}"))
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isBadRequest());
+        assertNull(lastActivity());
+        assertEquals(0, pendingWrites());
+
+        jdbc.update("UPDATE demo_activity SET photo_uploads = 32 WHERE id = 1");
+        var change = submissionPart("""
+                {"cats":[{"catId":"%s","fields":{"careInstructions":"Offer food separately"}}]}
+                """.formatted(invite.catId()));
+        mockMvc.perform(multipart("/api/intake/submissions").file(change)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/intake/request").header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cats[0].proposedFields.careInstructions").value("Offer food separately"));
+        assertNotNull(lastActivity());
+        assertEquals(0, pendingWrites());
+        assertEquals(32, photoUploads());
+    }
+
+    @Test
+    void householdPhotoPreviewAndSubmissionShareTheDemoQuota() throws Exception {
+        var invite = issueHouseholdLink();
+        jdbc.update("UPDATE demo_activity SET photo_uploads = 30 WHERE id = 1");
+        var emptyPhoto = new MockMultipartFile("photo", "empty.jpg", "image/jpeg", new byte[0]);
+        var invalidPhoto = new MockMultipartFile("photo", "invalid.jpg", "image/jpeg", new byte[]{1});
+        mockMvc.perform(multipart("/api/intake/photo-preview").file(invalidPhoto)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + "a".repeat(43)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(multipart("/api/intake/photo-preview").file(emptyPhoto)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isBadRequest());
+        assertEquals(30, photoUploads());
+
+        mockMvc.perform(multipart("/api/intake/photo-preview").file(invalidPhoto)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAT_PHOTO_UNSUPPORTED_FORMAT"));
+        assertEquals(31, photoUploads());
+
+        var change = submissionPart("""
+                {"cats":[{"catId":"%s","photoKeys":["evidence1","evidence2"]}]}
+                """.formatted(invite.catId()));
+        var first = new MockMultipartFile("evidence1", "first.jpg", "image/jpeg", new byte[]{1});
+        var second = new MockMultipartFile("evidence2", "second.jpg", "image/jpeg", new byte[]{2});
+        mockMvc.perform(multipart("/api/intake/submissions").file(change).file(first).file(second)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CAT_PHOTO_UNSUPPORTED_FORMAT"));
+        assertEquals(32, photoUploads());
+
+        mockMvc.perform(multipart("/api/intake/submissions").file(change).file(first).file(second)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("DEMO_PHOTO_UPLOAD_LIMIT_REACHED"));
+        mockMvc.perform(multipart("/api/intake/photo-preview").file(invalidPhoto)
+                        .header(HttpHeaders.AUTHORIZATION, invite.authorization()).accept(MediaType.IMAGE_JPEG))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("DEMO_PHOTO_UPLOAD_LIMIT_REACHED"));
+        assertEquals(32, photoUploads());
+        assertNull(lastActivity());
+        assertEquals(0, pendingWrites());
+    }
+
+    @Test
     void onlySuccessfulCurrentGenerationWritesDelayAnHourlyReset() throws Exception {
         String generation = login();
         assertNull(lastActivity());
@@ -349,6 +424,40 @@ class DemoSecurityTest {
                 .andExpect(header().exists(GENERATION_HEADER))
                 .andReturn().getResponse().getHeader(GENERATION_HEADER);
     }
+
+    private HouseholdLink issueHouseholdLink() throws Exception {
+        when(clock.getZone()).thenReturn(ZoneId.of("Europe/Madrid"));
+        String generation = login();
+        String ownerResponse = mockMvc.perform(post("/api/owners").with(httpBasic("demo", "internal-demo-password"))
+                        .header(GENERATION_HEADER, generation)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Demo Household Owner","primaryPhone":"123456789"}
+                                """))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String ownerId = JsonPath.read(ownerResponse, "$.id");
+        var cat = new MockMultipartFile("cat", "cat.json", MediaType.APPLICATION_JSON_VALUE, """
+                {"name":"Demo Household Cat","birthYear":2020,"sex":"MALE","ownerId":"%s"}
+                """.formatted(ownerId).getBytes(StandardCharsets.UTF_8));
+        String catResponse = mockMvc.perform(multipart("/api/cats").file(cat)
+                        .with(httpBasic("demo", "internal-demo-password")).header(GENERATION_HEADER, generation))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String invitation = mockMvc.perform(post("/api/cat-intake/invitations")
+                        .with(httpBasic("demo", "internal-demo-password")).header(GENERATION_HEADER, generation)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ownerId\":\"%s\",\"allowNewCats\":false}".formatted(ownerId)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String url = JsonPath.read(invitation, "$.url");
+        jdbc.update("UPDATE demo_activity SET last_changed_at = NULL WHERE id = 1");
+        return new HouseholdLink(JsonPath.read(catResponse, "$.id"), "Bearer " + URI.create(url).getFragment().substring(6));
+    }
+
+    private MockMultipartFile submissionPart(String json) {
+        return new MockMultipartFile("submission", "submission.json", MediaType.APPLICATION_JSON_VALUE,
+                json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private record HouseholdLink(String catId, String authorization) {}
 
     private Object lastActivity() {
         return jdbc.queryForObject("SELECT last_changed_at FROM demo_activity WHERE id = 1", Object.class);

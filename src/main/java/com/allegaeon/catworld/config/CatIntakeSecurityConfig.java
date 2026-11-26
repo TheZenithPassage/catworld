@@ -1,10 +1,13 @@
 package com.allegaeon.catworld.config;
 
+import com.allegaeon.catworld.security.DemoRequestFilter;
 import com.allegaeon.catworld.service.CatIntakeService;
+import com.allegaeon.catworld.service.DemoActivityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -28,16 +31,18 @@ import java.util.List;
 public class CatIntakeSecurityConfig {
     @Bean
     @Order(1)
-    SecurityFilterChain catIntakeLinkSecurity(HttpSecurity http, CatIntakeService intake) throws Exception {
+    SecurityFilterChain catIntakeLinkSecurity(HttpSecurity http, CatIntakeService intake,
+                                             ObjectProvider<DemoActivityService> demoActivity) throws Exception {
         var paths = PathPatternRequestMatcher.withDefaults();
+        var activity = demoActivity.getIfAvailable();
         String formPath = "/api/intake/request";
         String submissionPath = "/api/intake/submissions";
         String photoPath = "/api/intake/photos/{id}";
         String previewPath = "/api/intake/photo-preview";
         var read = paths.matcher(HttpMethod.GET, formPath);
         var photo = paths.matcher(HttpMethod.GET, photoPath);
-        var upload = new OrRequestMatcher(paths.matcher(HttpMethod.POST, submissionPath),
-                paths.matcher(HttpMethod.POST, previewPath));
+        var submit = paths.matcher(HttpMethod.POST, submissionPath);
+        var upload = new OrRequestMatcher(submit, paths.matcher(HttpMethod.POST, previewPath));
         var options = new OrRequestMatcher(paths.matcher(HttpMethod.OPTIONS, formPath),
                 paths.matcher(HttpMethod.OPTIONS, submissionPath), paths.matcher(HttpMethod.OPTIONS, photoPath),
                 paths.matcher(HttpMethod.OPTIONS, previewPath));
@@ -61,7 +66,11 @@ public class CatIntakeSecurityConfig {
                             response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                             return;
                         }
-                        chain.doFilter(request, response);
+                        if (activity != null && submit.matches(request)) {
+                            DemoRequestFilter.trackWrite(activity, request, response, chain);
+                        } else {
+                            chain.doFilter(request, response);
+                        }
                     }
                 }, AuthorizationFilter.class)
                 .build();
