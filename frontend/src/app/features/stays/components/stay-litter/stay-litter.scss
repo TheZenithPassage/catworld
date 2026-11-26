@@ -1,0 +1,31 @@
+.litter-details,
+.litter-cats,
+.litter-cats > li {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.litter-cats {
+  padding: 0;
+  list-style: none;
+}
+
+.litter-details p,
+.litter-cats {
+  margin: 0;
+}
+
+.litter-cats small {
+  color: var(--color-text-muted);
+}
+
+.litter-warning {
+  font-weight: 650;
+}
+
+.litter-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+}

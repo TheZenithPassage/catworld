@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatCheckbox } from '@angular/material/checkbox';
@@ -54,6 +54,9 @@ export class OwnerEditor {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly ownerLoaded = signal(false);
+  readonly saveDisabled = computed(
+    () => this.loading() || !this.ownerLoaded() || this.submitting(),
+  );
   readonly fullNameError = createLanguageResetError(this.i18n.language);
   readonly primaryPhoneError = createLanguageResetError(this.i18n.language);
   readonly notesError = createLanguageResetError(this.i18n.language);
@@ -91,6 +94,7 @@ export class OwnerEditor {
     });
   }
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.fullNameError.set(null);
     this.primaryPhoneError.set(null);

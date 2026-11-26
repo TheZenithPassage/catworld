@@ -12,6 +12,9 @@
     }
   </h2>
   <div class="dialog-header-actions">
+    @if (hasCatDraft()) {
+      <span class="cat-draft-indicator" role="status">{{ text().cats.draft.unsaved }}</span>
+    }
     @if (history().length > 1) {
       <button
         class="back-button"
@@ -23,6 +26,112 @@
       >
         {{ text().entityDetail.back }}
       </button>
+    }
+    @if (entry().kind === 'detail') {
+      @if (editing()) {
+        <button
+          class="header-cancel-button"
+          mat-stroked-button
+          type="button"
+          [disabled]="submitting()"
+          (click)="cancelEdit()"
+        >
+          {{ text().entityDetail.cancel }}
+        </button>
+        <button
+          class="header-save-button"
+          mat-flat-button
+          type="button"
+          [disabled]="editor()?.saveDisabled() ?? true"
+          (click)="saveEdit()"
+        >
+          {{ submitting() ? text().entityDetail.saving : text().entityDetail.save }}
+        </button>
+      } @else {
+        @if (ownerDetail(); as owner) {
+          @if (owner.intakeAvailable()) {
+            <button
+              class="header-intake-button"
+              mat-stroked-button
+              type="button"
+              [disabled]="owner.intakeDisabled()"
+              (click)="owner.openCatIntake()"
+            >
+              {{ text().owners.detail.requestIntake }}
+            </button>
+          }
+        }
+        @if (editableDetail(); as detail) {
+          @if (detail.editAvailable()) {
+            <button
+              class="header-edit-button"
+              mat-flat-button
+              type="button"
+              [disabled]="detail.editDisabled()"
+              (click)="detail.requestEdit()"
+            >
+              {{ text().entityDetail.edit }}
+            </button>
+          }
+        }
+        @if (stayDetail(); as stay) {
+          @if (stay.editAvailable() || stay.pricingAvailable()) {
+            <div class="stay-header-buttons">
+              @if (stay.pricingAvailable()) {
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="openStayPricing()"
+                >
+                  {{ text().stays.detail.pricing }}
+                </button>
+              }
+              @if (stay.editAvailable()) {
+                <button
+                  mat-flat-button
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="enterEdit()"
+                >
+                  {{ text().stays.detail.edit }}
+                </button>
+              }
+            </div>
+            <button
+              class="stay-header-menu"
+              mat-stroked-button
+              type="button"
+              [matMenuTriggerFor]="stayActions"
+              [disabled]="stay.actionsDisabled()"
+            >
+              {{ text().entityDetail.actions }}
+            </button>
+            <mat-menu #stayActions="matMenu">
+              @if (stay.pricingAvailable()) {
+                <button
+                  mat-menu-item
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="openStayPricing()"
+                >
+                  {{ text().stays.detail.pricing }}
+                </button>
+              }
+              @if (stay.editAvailable()) {
+                <button
+                  mat-menu-item
+                  type="button"
+                  [disabled]="stay.actionsDisabled()"
+                  (click)="enterEdit()"
+                >
+                  {{ text().stays.detail.edit }}
+                </button>
+              }
+            </mat-menu>
+          }
+        }
+      }
     }
     <button
       class="close-button"
@@ -140,7 +249,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -156,7 +265,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -172,7 +281,7 @@
           [entityId]="reference().entityId"
           [editing]="editing()"
           (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="referenceSaved()"
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
@@ -186,8 +295,7 @@
         <app-stay-detail
           [entityId]="reference().entityId"
           [editing]="editing()"
-          (editRequested)="enterEdit()"
-          (cancelRequested)="leaveEdit()"
+          (cancelRequested)="cancelEdit()"
           (saveCompleted)="leaveEdit()"
           (navigate)="showReference($event)"
           (openCats)="openCats(reference())"
@@ -195,7 +303,6 @@
           (submittingChanged)="submissionChanged($event)"
           (refreshingChanged)="refreshChanged($event)"
           (contentSettled)="destinationSettled()"
-          (pricingRequested)="openStayPricing()"
           (deletionCompleted)="deletionCompleted($event)"
         />
       }

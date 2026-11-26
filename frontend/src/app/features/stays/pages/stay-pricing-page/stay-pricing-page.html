@@ -41,6 +41,35 @@
       </div>
     </dl>
     @if (currentStay.agreedAmount !== null || currentStay.pricePending) {
+      @if (currentStay.litter; as litter) {
+        @let copy = text().stays.pricing;
+        <section class="retained-pricing" aria-labelledby="retained-pricing-title">
+          <h3 id="retained-pricing-title">{{ text().stays.pricingPage.breakdown }}</h3>
+          <dl class="stay-context">
+            <div>
+              <dt>{{ copy.nights }}</dt>
+              <dd>{{ currentStay.numberOfNights }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.retainedRate }}</dt>
+              <dd>{{ currentStay.retainedNightlyRate ?? copy.unavailable }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.transfer }}</dt>
+              <dd>{{ currentStay.transferSuggestedAmount ?? copy.unavailable }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.litter.title }}</dt>
+              <dd>{{ litter.subtotal ?? copy.unavailable }}</dd>
+            </div>
+            <div>
+              <dt>{{ copy.suggestion }}</dt>
+              <dd>{{ currentStay.suggestedAmount ?? copy.unavailable }}</dd>
+            </div>
+          </dl>
+          <app-stay-litter [litter]="litter" [cats]="currentStay.cats" />
+        </section>
+      }
       @if (isAdmin()) {
         <button
           mat-stroked-button

@@ -29,6 +29,7 @@ import com.allegaeon.catworld.model.NightlyReferenceRate;
 import com.allegaeon.catworld.model.NightlyReferenceRateKey;
 import com.allegaeon.catworld.model.Owner;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.StayAgreedAmountCorrection;
 import com.allegaeon.catworld.model.StayCat;
 import com.allegaeon.catworld.model.StayPayment;
@@ -134,6 +135,9 @@ public class StayServiceTest {
     private com.allegaeon.catworld.repository.TransferRateRepository transferRateRepository;
 
     @Mock
+    private LitterRateService litterRates;
+
+    @Mock
     private StayPricingDecisionRepository stayPricingDecisionRepository;
 
     @Mock
@@ -157,6 +161,9 @@ public class StayServiceTest {
 
     @Mock
     private CurrentUserAccountService currentUserAccountService;
+
+    @Mock
+    private StayActualMovementService stayActualMovementService;
 
     @Mock
     private DeletionAuthorizationPolicy deletionAuthorizationPolicy;
@@ -198,6 +205,8 @@ public class StayServiceTest {
         lenient().when(transferRateRepository.findCurrentForUpdate()).thenReturn(Optional.of(com.allegaeon.catworld.model.TransferRate.builder().id(1L).transferRate(new BigDecimal("10")).build()));
         lenient().when(stayRepository.findByIdForUpdate(any()))
                 .thenAnswer(invocation -> stayRepository.findById(invocation.getArgument(0)));
+        lenient().when(catRepository.findByIdForUpdate(any()))
+                .thenAnswer(invocation -> catRepository.findById(invocation.getArgument(0)));
         lenient().when(stayMapper.calculateNumberOfNights(any(), any()))
                 .thenCallRealMethod();
         lenient().when(stayMapper.calculateSuggestedAmount(
@@ -1493,7 +1502,7 @@ public class StayServiceTest {
                     .endAt(startAt.plusDays(2))
                     .retainedNightlyRate(new BigDecimal("20"))
                     .agreedAmount(new BigDecimal("40"))
-                    .stayCats(Set.of(StayCat.builder().build()))
+                    .stayCats(Set.of(StayCat.builder().cat(Cat.builder().id(UUID.randomUUID()).build()).build()))
                     .build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
@@ -1545,7 +1554,7 @@ public class StayServiceTest {
             Stay stay = Stay.builder().id(UUID.randomUUID()).startAt(start).endAt(start.plusDays(2))
                     .retainedNightlyRate(new BigDecimal("10")).retainedTransferRate(new BigDecimal("5"))
                     .arrivalTransferRequired(true).agreedAmount(new BigDecimal("25"))
-                    .stayCats(Set.of(StayCat.builder().build())).build();
+                    .stayCats(Set.of(StayCat.builder().cat(Cat.builder().id(UUID.randomUUID()).build()).build())).build();
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount()).thenReturn(user(UserRole.ADMIN));
             when(nightlyReferenceRateRepository.findById(NightlyReferenceRateKey.ONE_CAT)).thenReturn(Optional.of(NightlyReferenceRate.builder().key(NightlyReferenceRateKey.ONE_CAT).nightlyRate(new BigDecimal("15")).build()));
@@ -2223,6 +2232,7 @@ public class StayServiceTest {
             Stay stay = paymentStay(new BigDecimal("100"), false);
             stay.setStartAt(LocalDateTime.now(clock).minusDays(3));
             stay.setEndAt(LocalDateTime.now(clock).minusDays(1));
+            stay.setMovementStatus(StayStatus.CHECKED_OUT);
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
             when(currentUserAccountService.getCurrentUserAccount())
                     .thenReturn(user(UserRole.STAFF));
@@ -2733,6 +2743,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
+                    .movementStatus(StayStatus.CHECKED_OUT)
                     .build();
 
             when(stayRepository.findById(stay.getId())).thenReturn(Optional.of(stay));
@@ -3050,6 +3061,7 @@ public class StayServiceTest {
                     .id(UUID.randomUUID())
                     .startAt(startAt)
                     .endAt(endAt)
+                    .movementStatus(StayStatus.CHECKED_OUT)
                     .build();
 
             StayUpdateDTO requestDto = StayUpdateDTO.builder()
@@ -3345,7 +3357,7 @@ public class StayServiceTest {
 
             assertEquals(2, exception.getViolations().size());
             assertTrue(exception.getViolations().stream()
-                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED));
+                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRES_DURING_STAY));
             assertTrue(exception.getViolations().stream()
                     .allMatch(violation -> violation.getExpiresOn().equals(endAt.toLocalDate())));
             verify(stayRepository, never()).save(any(Stay.class));
@@ -3353,12 +3365,12 @@ public class StayServiceTest {
         }
 
         @Test
-        void createBlocksVaccinesThatExpireBeforeStayEnd() {
+        void createReportsVaccinesThatExpireOnOrBeforeArrival() {
 
             LocalDateTime startAt = LocalDateTime.of(2027, 8, 1, 12, 0);
             LocalDateTime endAt = LocalDateTime.of(2027, 8, 5, 12, 0);
-            LocalDate vaccinatedOn = endAt.toLocalDate().minusYears(1).minusDays(1);
-            Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn);
+            LocalDate vaccinatedOn = startAt.toLocalDate().minusYears(1);
+            Cat cat = vaccineCat("Milo", vaccinatedOn, vaccinatedOn.minusDays(1));
             StayRequestDTO request = createRequest(cat, startAt, endAt, false);
 
             stubCreateRequest(cat, request, UserRole.STAFF);
@@ -3369,7 +3381,9 @@ public class StayServiceTest {
 
             assertEquals(2, exception.getViolations().size());
             assertTrue(exception.getViolations().stream()
-                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED));
+                    .allMatch(violation -> violation.getReason() == VaccineConflictReason.EXPIRED_BY_ARRIVAL));
+            assertEquals(startAt.toLocalDate(), exception.getViolations().get(0).getExpiresOn());
+            assertEquals(startAt.toLocalDate().minusDays(1), exception.getViolations().get(1).getExpiresOn());
             verify(stayRepository, never()).save(any(Stay.class));
 
         }

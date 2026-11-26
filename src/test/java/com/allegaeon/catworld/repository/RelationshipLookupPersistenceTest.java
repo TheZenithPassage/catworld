@@ -69,7 +69,13 @@ class RelationshipLookupPersistenceTest {
                 now.minusDays(2), now.minusDays(8), now.minusDays(8));
         for (int index = 0; index < starts.size(); index++) {
             LocalDateTime start = starts.get(index);
+            StayStatus movementState = switch (index) {
+                case 2 -> StayStatus.CHECKED_IN;
+                case 4, 5 -> StayStatus.CHECKED_OUT;
+                default -> StayStatus.RESERVED;
+            };
             Stay stay = stays.save(Stay.builder().startAt(start).endAt(start.plusHours(12)).owner(owner)
+                    .movementStatus(movementState)
                     .cancelledAt(index == 3 ? now.minusDays(1) : null).createdBy(creator).build());
             stayCats.save(StayCat.builder().stay(stay).cat(cat).build());
             saved.add(stay);
@@ -87,7 +93,7 @@ class RelationshipLookupPersistenceTest {
         assertEquals(6, catFirst.getTotalElements());
         assertEquals(2, catFirst.getTotalPages());
         assertEquals(List.of(StayStatus.RESERVED, StayStatus.CHECKED_IN, StayStatus.CANCELLED, StayStatus.CHECKED_OUT),
-                saved.stream().limit(5).map(stay -> stay.statusAt(now)).distinct().toList());
+                saved.stream().limit(5).map(Stay::status).distinct().toList());
     }
 
     @Test

@@ -1,3 +1,4 @@
+import { stayFormError } from '../../utils/stay-form-error';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
@@ -24,6 +25,7 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { TransferRateApiService } from '../../../nightly-rates/services/transfer-rate-api.service';
+import { StayLitter } from '../stay-litter/stay-litter';
 import {
   VaccineConflictDialog,
   VaccineConflictDialogData,
@@ -33,6 +35,8 @@ import {
   isStalePricingConfirmationError,
   Stay,
   StayDatePricingPreview,
+  StayLitterChoice,
+  StayLitterChoices,
   UpdateStayRequest,
   VaccineConflictResponse,
 } from '../../models/stay.model';
@@ -52,6 +56,7 @@ import { isValidWholeMoney, sameWholeMoney } from '../../utils/stay-money.util';
     MatInput,
     MatLabel,
     MatProgressSpinner,
+    StayLitter,
     UiStateComponent,
   ],
   templateUrl: './stay-editor.html',
@@ -77,6 +82,7 @@ export class StayEditor {
 
   readonly startAt = signal('');
   readonly endAt = signal('');
+  readonly endBeforeActualArrival = signal(false);
   readonly notes = signal('');
   readonly agreedAmount = signal('');
   readonly pricingReason = signal('');
@@ -84,6 +90,7 @@ export class StayEditor {
   readonly arrivalTransferRequired = signal(false);
   readonly departureTransferRequired = signal(false);
   readonly transferWaived = signal(false);
+  readonly litterChoices = signal<StayLitterChoices>({});
   readonly pricingReasonContext = signal<'untouched' | 'manual' | 'suggested'>('untouched');
   readonly pricingPreview = signal<StayDatePricingPreview | null>(null);
   readonly currentTransferRate = signal<string | null>(null);
@@ -143,7 +150,25 @@ export class StayEditor {
     const current = this.stay();
     return current !== null && canModifyStay(current, this.businessTime.currentLocalDateTime());
   });
+  readonly lockedArrivalDay = computed(() => {
+    const current = this.stay();
+    return current?.status === 'CHECKED_IN' ? current.startAt.slice(0, 10) : null;
+  });
+  readonly arrivalDayChanged = computed(() => {
+    const day = this.lockedArrivalDay();
+    return day !== null && !!this.startAt() && this.startAt().slice(0, 10) !== day;
+  });
   readonly isAdmin = computed(() => this.authSessionService.hasRole('ADMIN'));
+  readonly saveDisabled = computed(
+    () =>
+      this.loading() ||
+      !this.canEditStay() ||
+      this.submitting() ||
+      this.previewLoading() ||
+      this.endBeforeActualArrival() ||
+      (this.pricingPreview()?.pricingDecisionRequired === true && !this.isAdmin()) ||
+      (this.pricingConfirmationRequired() && !this.pricingConfirmed()),
+  );
   readonly applicableCurrentRate = computed(() => {
     const preview = this.pricingPreview();
     const currentRate = preview?.currentApplicableNightlyRate ?? null;
@@ -279,6 +304,7 @@ export class StayEditor {
   }
 
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.notesError.set(null);
 
@@ -307,11 +333,17 @@ export class StayEditor {
       return;
     }
 
+    if (this.arrivalDayChanged()) {
+      this.showError(this.text().stays.edit.errors.arrivalDayLocked);
+      return;
+    }
+
     if (Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')) {
       this.showError(this.text().stays.edit.errors.endAfterStart);
       return;
     }
 
+    if (this.endBeforeActualArrival()) return;
     const preview = this.pricingPreview();
     if (this.previewLoading() || !preview) {
       this.showError(this.text().stays.pricing.errors.previewRequired);
@@ -336,6 +368,7 @@ export class StayEditor {
       notes: this.notes().trim() || null,
       overrideVaccineConflicts,
       ...this.transferInputs(),
+      ...this.litterInputs(),
       ...(preview.pricingDecisionRequired
         ? {
             ...(preview.currentPricePending
@@ -394,7 +427,13 @@ export class StayEditor {
         if (request.overrideVaccineConflicts) {
           this.clearVaccineOverrideRecovery();
         }
-        this.showError(this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed));
+        if (this.isEndBeforeActualArrivalError(error)) {
+          this.endBeforeActualArrival.set(true);
+        } else {
+          this.showError(
+            this.getApiErrorMessage(error, this.text().stays.edit.errors.updateFailed),
+          );
+        }
         this.setSubmitting(false);
       },
     });
@@ -446,6 +485,7 @@ export class StayEditor {
     this.arrivalTransferRequired.set(Boolean(stay.arrivalTransferRequired));
     this.departureTransferRequired.set(Boolean(stay.departureTransferRequired));
     this.transferWaived.set(Boolean(stay.transferWaived));
+    this.litterChoices.set({});
     this.agreedAmountBeforeCurrentRate = null;
     this.refreshPricingPreview();
   }
@@ -513,6 +553,12 @@ export class StayEditor {
     else this.transferWaived.set(value);
     this.selectedTransferRate.set(null);
     this.clearVaccineOverrideRecovery();
+    this.refreshPricingPreview();
+  }
+
+  changeLitterChoice({ catId, choice }: { catId: string; choice: StayLitterChoice }): void {
+    this.clearVaccineOverrideRecovery();
+    this.litterChoices.update((choices) => ({ ...choices, [catId]: choice }));
     this.refreshPricingPreview();
   }
 
@@ -601,12 +647,14 @@ export class StayEditor {
     if (this.pricingReasonContext() === 'suggested') this.pricingReasonContext.set('manual');
     this.pricingConfirmed.set(false);
     this.previewError.set(null);
+    this.endBeforeActualArrival.set(false);
     const sequence = ++this.previewRequestSequence;
 
     if (
       !this.stayId ||
       !this.startAt() ||
       !this.endAt() ||
+      this.arrivalDayChanged() ||
       Date.parse(this.endAt() + 'Z') <= Date.parse(this.startAt() + 'Z')
     ) {
       this.pricingPreview.set(null);
@@ -621,6 +669,7 @@ export class StayEditor {
         startAt: this.startAt(),
         endAt: this.endAt(),
         ...this.transferInputs(),
+        ...this.litterInputs(),
         ...(this.selectedNightlyRate() !== null
           ? { selectedNightlyRate: this.selectedNightlyRate() }
           : {}),
@@ -685,6 +734,10 @@ export class StayEditor {
           if (sequence !== this.previewRequestSequence) return;
           this.pricingPreview.set(null);
           this.previewLoading.set(false);
+          if (this.isEndBeforeActualArrivalError(error)) {
+            this.endBeforeActualArrival.set(true);
+            return;
+          }
           this.previewError.set(
             !this.isAdmin() && error instanceof HttpErrorResponse && error.status === 403
               ? this.text().stays.pricing.errors.adminRequired
@@ -692,6 +745,12 @@ export class StayEditor {
           );
         },
       });
+  }
+
+  private isEndBeforeActualArrivalError(error: unknown): boolean {
+    return (
+      error instanceof HttpErrorResponse && error.error?.code === 'STAY_END_BEFORE_ACTUAL_ARRIVAL'
+    );
   }
 
   private currentPreviewBasis(): string {
@@ -704,6 +763,7 @@ export class StayEditor {
       this.transferWaived(),
       this.selectedNightlyRate(),
       this.selectedTransferRate(),
+      this.litterChoices(),
     ]);
   }
 
@@ -720,6 +780,11 @@ export class StayEditor {
         ? { transferWaived: this.transferWaived() }
         : {}),
     };
+  }
+
+  private litterInputs(): { litterChoices?: StayLitterChoices } {
+    const litterChoices = this.litterChoices();
+    return Object.keys(litterChoices).length ? { litterChoices } : {};
   }
 
   private clearNightlySelectionWhenAdoptionIsIneligible(): void {
@@ -748,37 +813,6 @@ export class StayEditor {
   }
 
   private getApiErrorMessage(error: unknown, fallbackMessage: string): string {
-    if (!(error instanceof HttpErrorResponse)) {
-      return fallbackMessage;
-    }
-
-    const responseBody: unknown = error.error;
-
-    if (!responseBody) {
-      return fallbackMessage;
-    }
-
-    if (typeof responseBody === 'string') {
-      return responseBody.trim() || fallbackMessage;
-    }
-
-    if (this.isValidationErrorMap(responseBody)) {
-      const messages = Object.entries(responseBody).map(
-        ([field, message]) => `${field}: ${message}`,
-      );
-
-      return messages.length > 0 ? messages.join('. ') : fallbackMessage;
-    }
-
-    return fallbackMessage;
-  }
-
-  private isValidationErrorMap(value: unknown): value is Record<string, string> {
-    return (
-      typeof value === 'object' &&
-      value !== null &&
-      !Array.isArray(value) &&
-      Object.values(value).every((message) => typeof message === 'string')
-    );
+    return stayFormError(error, fallbackMessage, this.text().stays.create.errors.bookingConflict);
   }
 }

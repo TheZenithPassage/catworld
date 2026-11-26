@@ -3,15 +3,23 @@ package com.allegaeon.catworld.repository;
 import com.allegaeon.catworld.dto.PaymentEditRequestDTO;
 import com.allegaeon.catworld.dto.PaymentRegistrationRequestDTO;
 import com.allegaeon.catworld.dto.PricingDecisionRequestDTO;
+import com.allegaeon.catworld.dto.StayActualMovementRequest;
 import com.allegaeon.catworld.exception.ConflictException;
+import com.allegaeon.catworld.exception.ForbiddenException;
+import com.allegaeon.catworld.model.Cat;
 import com.allegaeon.catworld.model.Owner;
+import com.allegaeon.catworld.model.Sex;
 import com.allegaeon.catworld.model.Stay;
+import com.allegaeon.catworld.model.StayCat;
+import com.allegaeon.catworld.model.StayMovementType;
+import com.allegaeon.catworld.model.StayStatus;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.StayPaymentEdit;
 import com.allegaeon.catworld.model.UserAccount;
 import com.allegaeon.catworld.model.UserRole;
 import com.allegaeon.catworld.security.CurrentUserAccountService;
 import com.allegaeon.catworld.service.StayService;
+import com.allegaeon.catworld.service.StayActualMovementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -84,6 +92,15 @@ class StayPaymentMySqlIntegrationTest {
 
     @Autowired
     private StayService stayService;
+
+    @Autowired
+    private StayActualMovementService movements;
+
+    @Autowired
+    private CatRepository cats;
+
+    @Autowired
+    private StayCatRepository stayCats;
 
     @Autowired
     private UserAccountRepository userAccountRepository;
@@ -402,6 +419,102 @@ class StayPaymentMySqlIntegrationTest {
                         fixture.stay().getId()
                 )
         );
+    }
+
+    @Test
+    void concurrentArrivalsForAdjacentBookingsAdmitTheCatOnlyOnce() throws Exception {
+        Fixture fixture = createFixture(new BigDecimal("100"));
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        LocalDateTime first = LocalDateTime.of(2026, 7, 30, 6, 0);
+        Cat cat = cats.save(Cat.builder().name("Race cat").sex(Sex.FEMALE)
+                .birthDate(LocalDate.of(2020, 1, 1)).owner(fixture.stay().getOwner())
+                .createdBy(fixture.actor()).build());
+        Stay previous = movementStay(fixture, first, first.plusHours(1), StayStatus.RESERVED);
+        Stay following = movementStay(fixture, first.plusHours(1), first.plusHours(2), StayStatus.RESERVED);
+        stayCats.save(StayCat.builder().stay(previous).cat(cat).build());
+        stayCats.save(StayCat.builder().stay(following).cat(cat).build());
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var one = executor.submit(() -> arrivalOutcome(previous, ready, start));
+            var other = executor.submit(() -> arrivalOutcome(following, ready, start));
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            var outcomes = List.of(one.get(10, TimeUnit.SECONDS), other.get(10, TimeUnit.SECONDS));
+            assertEquals(1, Collections.frequency(outcomes, StayStatus.CHECKED_IN));
+            assertEquals(1, Collections.frequency(outcomes, StayStatus.RESERVED));
+        }
+
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from stay_actual_movements", Integer.class));
+    }
+
+    @Test
+    void staffPaymentWaitingForCheckoutUsesTheCommittedLifecycle() throws Exception {
+        Fixture fixture = createFixture(new BigDecimal("100"));
+        UserAccount staff = userAccountRepository.save(UserAccount.builder()
+                .username("native-movement-staff").role(UserRole.STAFF).passwordHash("unused").build());
+        LocalDateTime start = LocalDateTime.of(2026, 7, 30, 6, 0);
+        Stay stay = movementStay(fixture, start, start.plusHours(1), StayStatus.CHECKED_IN);
+        var closing = new AtomicReference<Thread>();
+        var checkoutHasLock = new CountDownLatch(1);
+        var allowCheckout = new CountDownLatch(1);
+        var paymentStarted = new CountDownLatch(1);
+        var paymentHasLock = new CountDownLatch(1);
+        when(currentUserAccountService.getCurrentUserAccount()).thenAnswer(invocation -> {
+            if (Thread.currentThread() == closing.get()) {
+                checkoutHasLock.countDown();
+                await(allowCheckout);
+            } else {
+                paymentHasLock.countDown();
+            }
+            return staff;
+        });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            var checkout = executor.submit(() -> {
+                closing.set(Thread.currentThread());
+                return movements.recordMovement(stay.getId(), StayMovementType.DEPARTURE,
+                        new StayActualMovementRequest(0L, null)).status();
+            });
+            assertTrue(checkoutHasLock.await(5, TimeUnit.SECONDS));
+            var payment = executor.submit(() -> {
+                paymentStarted.countDown();
+                assertThrows(ForbiddenException.class, () -> stayService.registerPayment(stay.getId(),
+                        registration(BigDecimal.TEN)));
+            });
+            assertTrue(paymentStarted.await(5, TimeUnit.SECONDS));
+            assertFalse(paymentHasLock.await(250, TimeUnit.MILLISECONDS));
+            allowCheckout.countDown();
+            assertEquals(StayStatus.CHECKED_OUT, checkout.get(10, TimeUnit.SECONDS));
+            payment.get(10, TimeUnit.SECONDS);
+        } finally {
+            allowCheckout.countDown();
+            executor.shutdownNow();
+        }
+
+        assertEquals(0, payments(stay.getId()).size());
+        when(currentUserAccountService.getCurrentUserAccount()).thenReturn(fixture.actor());
+        stayService.registerPayment(stay.getId(), registration(BigDecimal.TEN));
+        assertEquals(1, payments(stay.getId()).size());
+    }
+
+    private StayStatus arrivalOutcome(Stay stay, CountDownLatch ready, CountDownLatch start) {
+        ready.countDown();
+        await(start);
+        try {
+            return movements.recordMovement(stay.getId(), StayMovementType.ARRIVAL,
+                    new StayActualMovementRequest(0L, null)).status();
+        } catch (ConflictException exception) {
+            assertTrue(exception.getMessage().contains("overlapping actual occupancy"));
+            return stayRepository.findById(stay.getId()).orElseThrow().status();
+        }
+    }
+
+    private Stay movementStay(Fixture fixture, LocalDateTime start, LocalDateTime end, StayStatus status) {
+        return stayRepository.save(Stay.builder().startAt(start).endAt(end).movementStatus(status)
+                .owner(fixture.stay().getOwner()).createdBy(fixture.actor()).agreedAmount(BigDecimal.valueOf(100)).build());
     }
 
     private Future<String> registrationTask(

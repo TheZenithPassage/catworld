@@ -1,0 +1,25 @@
+<mat-form-field appearance="outline">
+  <mat-label>{{ text().cats.form.litterBrand }}</mat-label>
+  <select
+    matNativeControl
+    name="litterChoice"
+    [disabled]="disabled()"
+    [ngModel]="choice()"
+    (ngModelChange)="changeChoice($event)"
+  >
+    <option value="">{{ text().cats.form.unconfirmedLitter }}</option>
+    <option value="shared">{{ text().cats.form.sharedLitter }}</option>
+    <option value="own">{{ text().cats.form.ownLitter }}</option>
+  </select>
+</mat-form-field>
+@if (choice() === 'own') {
+  <app-cat-profile-option-field
+    field="litterDetail"
+    controlName="litterBrand"
+    [disabled]="disabled()"
+    [label]="text().cats.form.ownLitterDetail"
+    [value]="ownDetail()"
+    (valueChange)="changeOwnDetail($event)"
+    [(optionId)]="litterOptionId"
+  />
+}

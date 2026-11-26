@@ -20,7 +20,10 @@ export interface StayOverviewItem {
 }
 
 export interface Stay {
+  effectiveStartAt?: string;
+  effectiveEndAt?: string;
   stayId: string;
+  status?: StayOverviewStatus;
   canDelete?: boolean;
   startAt: string;
   endAt: string;
@@ -39,6 +42,7 @@ export interface Stay {
   transferWaived?: boolean;
   retainedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount?: MonetaryAmount;
+  litter?: StayLitterBreakdown;
   suggestedAmount: MonetaryAmount | null;
   agreedAmount: MonetaryAmount | null;
   pricePending?: boolean;
@@ -49,6 +53,22 @@ export interface Stay {
 }
 
 export type MonetaryAmount = string;
+
+export type StayLitterChoice = 'OWN' | 'HALF' | 'ONE';
+export type StayLitterChoices = Partial<Record<string, StayLitterChoice>>;
+
+export interface StayLitterBreakdown {
+  ratePerKg: MonetaryAmount | null;
+  subtotal: MonetaryAmount | null;
+  rateUnavailable: boolean;
+  cats: Array<{
+    catId: string;
+    choice: StayLitterChoice | null;
+    kgPerDay: string | null;
+    totalKg: string | null;
+    suggestedAmount: MonetaryAmount | null;
+  }>;
+}
 
 export type PaymentCondition = 'NO_PAYMENT' | 'PARTIAL_PAYMENT' | 'FULL_PAYMENT';
 
@@ -87,6 +107,7 @@ export type PricingDecision =
       pricePending?: false;
       reason?: string | null;
       expectedPendingPriceVersion?: string;
+      litterChoices?: StayLitterChoices;
     }
   | { agreedAmount?: null; pricePending: true; reason?: string | null };
 
@@ -101,7 +122,12 @@ export interface PendingPricePreview {
   transferWaived: boolean;
   retainedTransferRate: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount | null;
+  litter?: StayLitterBreakdown;
   suggestedAmount: MonetaryAmount | null;
+}
+
+export interface PendingPricePreviewRequest {
+  litterChoices?: StayLitterChoices;
 }
 
 export interface CreationPricingConfirmation {
@@ -113,6 +139,7 @@ export interface CreationPricingConfirmation {
   transferWaived?: boolean;
   retainedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount?: MonetaryAmount;
+  litter?: StayLitterBreakdown;
 }
 
 export interface ExistingStayPricingConfirmation {
@@ -128,6 +155,8 @@ export interface ExistingStayPricingConfirmation {
   retainedTransferRate: MonetaryAmount | null;
   selectedTransferRate?: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount;
+  previousLitter?: StayLitterBreakdown;
+  litter?: StayLitterBreakdown;
 }
 
 export interface CreationPricingPreview extends CreationPricingConfirmation {
@@ -151,6 +180,7 @@ interface StayDatePricingPreviewBase {
   retainedTransferRate: MonetaryAmount | null;
   transferSuggestedAmount: MonetaryAmount;
   transferRateUnavailable?: boolean;
+  litter?: StayLitterBreakdown;
 }
 
 export type StayDatePricingPreview =
@@ -170,6 +200,7 @@ export interface CreationPricingPreviewRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface StayDatePricingPreviewRequest {
@@ -180,6 +211,7 @@ export interface StayDatePricingPreviewRequest {
   transferWaived?: boolean;
   selectedNightlyRate?: MonetaryAmount | null;
   selectedTransferRate?: MonetaryAmount | null;
+  litterChoices?: StayLitterChoices;
 }
 
 export interface CreateStayRequest {
@@ -191,6 +223,7 @@ export interface CreateStayRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
   pricingDecision: PricingDecision;
   confirmation: CreationPricingConfirmation;
 }
@@ -203,6 +236,7 @@ export interface UpdateStayRequest {
   arrivalTransferRequired?: boolean;
   departureTransferRequired?: boolean;
   transferWaived?: boolean;
+  litterChoices?: StayLitterChoices;
   pricingDecision?: PricingDecision;
   confirmation?: ExistingStayPricingConfirmation;
 }
@@ -224,7 +258,7 @@ export function isStalePricingConfirmationError(
 
 export type VaccineType = 'RABIES' | 'TRIPLE_FELINE';
 
-export type VaccineConflictReason = 'MISSING' | 'EXPIRED';
+export type VaccineConflictReason = 'MISSING' | 'EXPIRED_BY_ARRIVAL' | 'EXPIRES_DURING_STAY';
 
 export interface VaccineConflictViolation {
   catId: string;
@@ -278,7 +312,7 @@ function isVaccineType(value: unknown): value is VaccineType {
 }
 
 function isVaccineConflictReason(value: unknown): value is VaccineConflictReason {
-  return value === 'MISSING' || value === 'EXPIRED';
+  return value === 'MISSING' || value === 'EXPIRED_BY_ARRIVAL' || value === 'EXPIRES_DURING_STAY';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

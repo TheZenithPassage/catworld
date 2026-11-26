@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, effect, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
@@ -48,6 +48,7 @@ export class VetEditor {
   readonly submitting = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly vetLoaded = signal(false);
+  readonly saveDisabled = computed(() => this.loading() || !this.vetLoaded() || this.submitting());
   readonly nameError = createLanguageResetError(this.i18n.language);
   readonly registrationNumberError = createLanguageResetError(this.i18n.language);
   readonly registrationNumberErrorStateMatcher: ErrorStateMatcher = {
@@ -88,6 +89,7 @@ export class VetEditor {
     });
   }
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.nameError.set(null);
     this.registrationNumberError.set(null);

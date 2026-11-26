@@ -45,7 +45,9 @@ public record SensitiveEconomicActivityProjection(
         Boolean arrivalTransferRequired,
         Boolean departureTransferRequired,
         Boolean transferWaived,
-        BigDecimal retainedTransferRate) {
+        BigDecimal retainedTransferRate,
+        BigDecimal litterRatePerKg,
+        int litterDailyHalfKilos) {
 
     public record CatProjection(UUID id, String name) {
     }

@@ -3,6 +3,12 @@ import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 
 describe('application routes', () => {
+  it('protects catalog management with the admin guard', () => {
+    const catalog = routes.find((candidate) => candidate.path === 'catalogs');
+    expect(catalog?.canActivate).toEqual([adminGuard]);
+    expect(catalog?.loadComponent).toBeDefined();
+  });
+
   it('protects monthly payments with the admin guard', () => {
     const route = routes.find((candidate) => candidate.path === 'payments');
     expect(route?.canActivate).toEqual([adminGuard]);

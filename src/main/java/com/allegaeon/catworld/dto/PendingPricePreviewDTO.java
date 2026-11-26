@@ -15,5 +15,6 @@ public record PendingPricePreviewDTO(
         boolean transferWaived,
         @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal retainedTransferRate,
         @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal transferSuggestedAmount,
-        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal suggestedAmount
+        @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal suggestedAmount,
+        StayLitterBreakdown litter
 ) {}

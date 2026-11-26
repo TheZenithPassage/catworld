@@ -22,7 +22,7 @@ describe('VaccineConflictDialog', () => {
           catId: 'cat-1',
           catName: 'Milo',
           vaccineType: 'RABIES',
-          reason: 'EXPIRED',
+          reason: 'EXPIRED_BY_ARRIVAL',
           vaccinatedOn: '2025-07-01',
           expiresOn: '2026-07-01',
         },
@@ -33,6 +33,14 @@ describe('VaccineConflictDialog', () => {
           reason: 'MISSING',
           vaccinatedOn: null,
           expiresOn: null,
+        },
+        {
+          catId: 'cat-1',
+          catName: 'Milo',
+          vaccineType: 'TRIPLE_FELINE',
+          reason: 'EXPIRES_DURING_STAY',
+          vaccinatedOn: '2025-07-10',
+          expiresOn: '2026-07-10',
         },
       ],
     };
@@ -56,13 +64,16 @@ describe('VaccineConflictDialog', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const violations = compiled.querySelectorAll('.violation-list li');
 
-    expect(violations).toHaveLength(2);
+    expect(violations).toHaveLength(3);
     expect(violations[0].textContent).toContain('Milo');
     expect(violations[0].textContent).toContain('Rabies');
-    expect(violations[0].textContent).toContain('Vaccination expires on or before the stay ends');
+    expect(violations[0].textContent).toContain(
+      'Vaccination will have expired by arrival (01/07/2026)',
+    );
     expect(violations[1].textContent).toContain('Luna');
     expect(violations[1].textContent).toContain('Triple feline');
     expect(violations[1].textContent).toContain('Vaccination date is missing');
+    expect(violations[2].textContent).toContain('Vaccination expires during the stay (10/07/2026)');
   });
 
   it('offers cancel and continue only when override is allowed', async () => {

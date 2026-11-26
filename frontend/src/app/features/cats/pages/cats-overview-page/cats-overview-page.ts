@@ -1,3 +1,4 @@
+import type { CatPhotoFrame } from '../../models/cat.model';
 import { afterNextRender, Component, DestroyRef, inject, signal } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatFormField, MatLabel } from '@angular/material/form-field';
@@ -42,7 +43,7 @@ export class CatsOverviewPage {
   private readonly urls = new Map<string, string>();
   readonly text = this.i18n.text;
   readonly cats = signal<CatOverviewItem[]>([]);
-  readonly photos = signal<Record<string, string>>({});
+  readonly photos = signal<Record<string, { url: string; frame: CatPhotoFrame }>>({});
   readonly loading = signal(false);
   readonly error = createLanguageResetError(this.i18n.language);
   readonly searchText = signal('');
@@ -176,13 +177,13 @@ export class CatsOverviewPage {
       return;
     this.photoRequests.set(
       id,
-      this.api.getCatPhoto(id).subscribe({
-        next: (blob) => {
+      this.api.getFramedCatPhoto(id).subscribe({
+        next: ({ blob, frame }) => {
           this.photoRequests.delete(id);
           if (this.destroyed || generation !== this.requestId) return;
           const url = URL.createObjectURL(blob);
           this.urls.set(id, url);
-          this.photos.update((p) => ({ ...p, [id]: url }));
+          this.photos.update((p) => ({ ...p, [id]: { url, frame } }));
         },
         error: () => this.photoRequests.delete(id),
       }),

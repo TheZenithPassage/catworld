@@ -23,4 +23,5 @@ public class CreationPricingConfirmationDTO {
     private Boolean transferWaived;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
+    private StayLitterBreakdown litter;
 }

@@ -50,9 +50,50 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getMessage());
     }
 
+    @ExceptionHandler(CatIntakeVaccineDateException.class)
+    public ResponseEntity<Map<String, Object>> handleIntakeVaccineDate(CatIntakeVaccineDateException exception) {
+        return ResponseEntity.badRequest().body(Map.of("code", "CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE",
+                "catIndex", exception.getCatIndex(), "field", exception.getField(),
+                "vaccineDateRange", exception.getVaccineDateRange()));
+    }
+
+    @ExceptionHandler(StayEndBeforeActualArrivalException.class)
+    public ResponseEntity<Map<String, String>> handleStayEndBeforeActualArrival() {
+        return ResponseEntity.badRequest().body(Map.of("code", "STAY_END_BEFORE_ACTUAL_ARRIVAL"));
+    }
+
+    @ExceptionHandler(StayBookingConflictException.class)
+    public ResponseEntity<Map<String, String>> handleStayBookingConflict(StayBookingConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "STAY_DATES_OVERLAP",
+                "catName", exception.getCatName()));
+    }
+
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<String> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(exception.getMessage());
+    }
+
+    @ExceptionHandler(CatCatalogOptionInUseException.class)
+    public ResponseEntity<Map<String, String>> handleCatalogOptionInUse() {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CAT_CATALOG_OPTION_IN_USE"));
+    }
+
+    @ExceptionHandler(CatCatalogTextConfirmationException.class)
+    public ResponseEntity<Map<String, Object>> handleCatalogTextConfirmation(
+            CatCatalogTextConfirmationException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("code", "CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED", "fields", exception.getFields()));
+    }
+
+    @ExceptionHandler(CatIntakeCatalogChangedException.class)
+    public ResponseEntity<Map<String, String>> handleIntakeCatalogChanged(CatIntakeCatalogChangedException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("code", "CAT_INTAKE_CATALOG_CHANGED", "field", exception.getField()));
+    }
+
+    @ExceptionHandler(StaleCatEditException.class)
+    public ResponseEntity<Map<String, String>> handleStaleCatEdit(StaleCatEditException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("code", "CAT_EDIT_STALE"));
     }
 
     @ExceptionHandler(StalePricingConfirmationException.class)

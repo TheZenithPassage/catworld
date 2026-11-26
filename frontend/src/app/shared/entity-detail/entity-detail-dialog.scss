@@ -18,9 +18,39 @@
 
 .dialog-header-actions {
   display: flex;
-  flex: 0 0 auto;
+  min-width: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.35rem;
+}
+
+.stay-header-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.stay-header-menu {
+  display: none;
+}
+
+@media (max-width: 42rem) {
+  .stay-header-buttons {
+    display: none;
+  }
+
+  .stay-header-menu {
+    display: inline-flex;
+  }
+}
+
+.cat-draft-indicator {
+  max-inline-size: 10rem;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: end;
 }
 
 h2[mat-dialog-title] {
@@ -175,6 +205,16 @@ mat-paginator {
 @media (max-width: 36rem) {
   .dialog-header {
     padding: 0.75rem 0.75rem 0.65rem 1rem;
+  }
+
+  .dialog-header:has(.header-edit-button, .header-cancel-button) {
+    flex-wrap: wrap;
+    gap: 0.35rem;
+
+    h2[mat-dialog-title],
+    .dialog-header-actions {
+      flex-basis: 100%;
+    }
   }
 
   h2[mat-dialog-title] {

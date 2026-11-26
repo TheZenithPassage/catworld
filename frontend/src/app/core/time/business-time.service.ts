@@ -19,10 +19,10 @@ export type BusinessLocalDateTimeResolution =
 export class BusinessTimeService {
   private readonly config = inject(RuntimeConfigService);
 
-  formatInstant(value: string, locale: string): string {
+  formatInstant(value: string, locale: string, timeStyle: 'short' | 'medium' = 'short'): string {
     return new Intl.DateTimeFormat(locale, {
       dateStyle: 'medium',
-      timeStyle: 'short',
+      timeStyle,
       hourCycle: 'h23',
       timeZone: this.config.businessTimeZone(),
     }).format(new Date(value));

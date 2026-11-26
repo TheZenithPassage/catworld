@@ -18,7 +18,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest(properties = {"spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false"})
-@Import({JpaAuditingConfig.class, StayOverviewReadRepository.class})
+@Import({JpaAuditingConfig.class, StayOverviewReadRepository.class, com.allegaeon.catworld.config.ApplicationClockConfig.class})
 class StayDateFilterPersistenceTest {
     @Autowired StayOverviewReadRepository reads;
     @Autowired StayRepository stays;
@@ -55,7 +55,7 @@ class StayDateFilterPersistenceTest {
         save("arrival", "2030-01-20T23:59:59", "2030-01-25T10:00");
         save("after", "2030-01-21T00:00", "2030-01-25T10:00");
         var dates = new StayDateFilter(from == null ? null : LocalDate.parse(from), to == null ? null : LocalDate.parse(to), mode);
-        var result = reads.find(0, 10, LocalDateTime.of(2029, 1, 1, 0, 0), null, null, null, dates);
+        var result = reads.find(0, 10, null, null, null, dates);
         assertEquals(List.of(expected.split("\\|")), result.stream().map(Stay::getNotes).sorted().toList());
         assertEquals(expected.split("\\|").length, result.getTotalElements());
     }
@@ -72,8 +72,8 @@ class StayDateFilterPersistenceTest {
         Stay cancelled = save("cancelled", "2030-01-01T10:00", "2030-02-01T15:00");
         cancelled.setCancelledAt(LocalDateTime.of(2029, 12, 1, 0, 0));
         var dates = new StayDateFilter(LocalDate.of(2030,1,1), LocalDate.of(2030,1,31), StayDateMatchMode.OVERLAPS);
-        var first = reads.find(0,10, LocalDateTime.of(2029,1,1,0,0), Set.of(StayStatus.RESERVED), owner.getId(), cat.getId(), dates);
-        var second = reads.find(1,10, LocalDateTime.of(2029,1,1,0,0), Set.of(StayStatus.RESERVED), owner.getId(), cat.getId(), dates);
+        var first = reads.find(0,10, Set.of(StayStatus.RESERVED), owner.getId(), cat.getId(), dates);
+        var second = reads.find(1,10, Set.of(StayStatus.RESERVED), owner.getId(), cat.getId(), dates);
         assertEquals(12, first.getTotalElements());
         assertEquals(10, first.getNumberOfElements());
         assertEquals(2, second.getNumberOfElements());

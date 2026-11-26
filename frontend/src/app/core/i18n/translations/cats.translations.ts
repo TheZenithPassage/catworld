@@ -2,6 +2,9 @@ import { AppLanguage } from '../app-language';
 
 export interface CatsTranslations {
   emptyValue: string;
+  draft: {
+    unsaved: string;
+  };
   detail: {
     title: string;
     loading: string;
@@ -13,6 +16,7 @@ export interface CatsTranslations {
     openDetails: string;
     photo: string;
     viewPhoto: string;
+    noProfilePhoto: string;
     photoLoading: string;
     photoMissing: string;
     photoLoadFailed: string;
@@ -21,6 +25,9 @@ export interface CatsTranslations {
   form: {
     name: string;
     birthDate: string;
+    birthYear: string;
+    birthYearOnly: string;
+    birthYearInvalid: string;
     sex: string;
     selectSex: string;
     male: string;
@@ -33,11 +40,32 @@ export interface CatsTranslations {
     createVet: string;
     breed: string;
     coat: string;
+    coatLengths: Record<'Corto' | 'Largo' | 'Sin pelo', string>;
     color: string;
     foodBrand: string;
+    foodDetail: string;
+    catalogNames: Record<
+      | 'breed'
+      | 'foodBrand'
+      | 'litterDetail'
+      | 'lastInternalDewormerName'
+      | 'lastExternalDewormerName',
+      string
+    >;
+    varietyCatalog: (brand: string) => string;
+    publishOption: (name: string, catalog: string) => string;
+    publishOptionError: string;
+    catalogSelection: (name: string) => string;
+    catalogExamples: Record<'breed' | 'foodBrand' | 'foodDetail', string>;
     litterBrand: string;
+    sharedLitter: string;
+    ownLitter: string;
+    unconfirmedLitter: string;
+    ownLitterDetail: string;
     personality: string;
     notes: string;
+    careInstructions: string;
+    careInstructionsTooLong: string;
     lastInternalDewormerName: string;
     lastInternalDewormingDate: string;
     lastExternalDewormerName: string;
@@ -56,6 +84,7 @@ export interface CatsTranslations {
     undoRemoval: string;
     previewUnavailable: string;
     previewAlt: string;
+    framing: [string, string, string];
     errors: {
       localFileTooLarge: string;
       localUnsupportedFormat: string;
@@ -64,7 +93,26 @@ export interface CatsTranslations {
       dimensionsTooLarge: string;
       undecodable: string;
       intentConflict: string;
+      requestTooLarge: string;
+      tooManyAttachments: string;
     };
+  };
+  informationalPhotos: {
+    title: string;
+    photo: string;
+    photoAlt: (catName: string) => string;
+    add: string;
+    view: (number: number) => string;
+    remove: string;
+    removeNamed: (number: number) => string;
+    confirmRemove: string;
+    removePrompt: string;
+    removalPending: (number: number) => string;
+    empty: string;
+    loading: string;
+    close: string;
+    previewUnavailable: string;
+    loadFailed: string;
   };
   create: {
     title: string;
@@ -87,6 +135,7 @@ export interface CatsTranslations {
     title: string;
     description: string;
     backToCats: string;
+    reload: string;
     loading: string;
     submit: string;
     submitting: string;
@@ -94,6 +143,7 @@ export interface CatsTranslations {
       catIdMissing: string;
       loadFormDataFailed: string;
       dataNotLoaded: string;
+      staleEdit: string;
       nameRequired: string;
       birthDateRequired: string;
       sexRequired: string;
@@ -143,6 +193,9 @@ export interface CatsTranslations {
 export const CATS_TRANSLATIONS = {
   es: {
     emptyValue: '-',
+    draft: {
+      unsaved: 'Cambios sin guardar',
+    },
     detail: {
       title: 'Detalles del gato',
       loading: 'Cargando gato...',
@@ -152,16 +205,37 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancelar',
       close: 'Cerrar',
       openDetails: 'Ver detalles',
-      photo: 'Foto',
-      viewPhoto: 'Ver foto',
+      photo: 'Foto de perfil',
+      viewPhoto: 'Ver foto de perfil',
+      noProfilePhoto: 'Sin foto de perfil',
       photoLoading: 'Cargando foto...',
       photoMissing: 'Este gato no tiene foto.',
       photoLoadFailed: 'Error al cargar la foto.',
       photoAlt: (catName) => `Foto de ${catName}`,
     },
+    informationalPhotos: {
+      title: 'Fotos informativas',
+      photo: 'Foto informativa',
+      photoAlt: (catName) => `Foto informativa de ${catName}`,
+      add: 'Adjuntar foto',
+      view: (number) => `Ver foto ${number}`,
+      remove: 'Quitar',
+      removeNamed: (number) => `Quitar foto ${number}`,
+      confirmRemove: 'Quitar foto',
+      removalPending: (number) => `La foto informativa ${number} se quitará al guardar.`,
+      removePrompt: '¿Querés quitar esta foto?',
+      empty: 'Todavía no hay fotos adjuntas.',
+      loading: 'Cargando fotos…',
+      close: 'Cerrar',
+      previewUnavailable: 'La vista previa de esta foto no está disponible.',
+      loadFailed: 'No se pudieron cargar las fotos.',
+    },
     form: {
       name: 'Nombre',
       birthDate: 'Fecha de nacimiento',
+      birthYear: 'Año de nacimiento',
+      birthYearOnly: 'Solo sé el año',
+      birthYearInvalid: 'Introducí un año de cuatro cifras, hasta el año actual',
       sex: 'Sexo',
       selectSex: 'Seleccioná sexo',
       male: 'Macho',
@@ -173,16 +247,42 @@ export const CATS_TRANSLATIONS = {
       noVet: 'Sin veterinario',
       createVet: 'Crear veterinario',
       breed: 'Raza',
-      coat: 'Pelaje',
-      color: 'Color',
+      coat: 'Largo del pelo',
+      coatLengths: { Corto: 'Corto', Largo: 'Largo', 'Sin pelo': 'Sin pelo' },
+      color: 'Color y marcas',
       foodBrand: 'Marca de comida',
-      litterBrand: 'Marca de arena',
+      foodDetail: 'Variedad del alimento',
+      catalogNames: {
+        breed: 'Razas',
+        foodBrand: 'Marcas de comida',
+        litterDetail: 'Marca o tipo de piedritas',
+        lastInternalDewormerName: 'Desparasitantes internos',
+        lastExternalDewormerName: 'Pipetas antipulgas',
+      },
+      varietyCatalog: (brand) => 'Variedades de «' + brand + '»',
+      publishOption: (name, catalog) => 'Agregar «' + name + '» a ' + catalog,
+      publishOptionError: 'No se pudo agregar al catálogo.',
+      catalogSelection: (name) => 'Seleccionado: ' + name,
+      catalogExamples: {
+        breed: 'Por ejemplo, Común.',
+        foodBrand: 'Por ejemplo, Royal Canin.',
+        foodDetail: 'Por ejemplo, Kitten o Senior.',
+      },
+      litterBrand: 'Piedritas',
+      ownLitter: 'Trae sus propias piedritas',
+      unconfirmedLitter: 'Por confirmar',
+      ownLitterDetail: 'Marca o tipo de piedritas',
+
+      sharedLitter: 'Usa las de CatWorld',
       personality: 'Personalidad',
-      notes: 'Notas',
+      notes: 'Notas internas del equipo',
+      careInstructions: 'Indicaciones extra',
+
+      careInstructionsTooLong: 'Las indicaciones extra no pueden superar los 2.000 caracteres',
       lastInternalDewormerName: 'Nombre del último desparasitante interno',
       lastInternalDewormingDate: 'Fecha de la última desparasitación interna',
-      lastExternalDewormerName: 'Pipetas para pulgas o comprimidos',
-      lastExternalDewormingDate: 'Fecha del último tratamiento antipulgas',
+      lastExternalDewormerName: 'Última pipeta antipulgas',
+      lastExternalDewormingDate: 'Fecha de la última pipeta antipulgas',
       lastTripleFelineDate: 'Fecha de la última vacunación triple felina',
       lastRabiesDate: 'Fecha de la última vacunación antirrábica',
     },
@@ -196,11 +296,16 @@ export const CATS_TRANSLATIONS = {
       pendingRemoval: 'La foto guardada se eliminará al guardar.',
       undoRemoval: 'Deshacer eliminación',
       previewUnavailable: 'La vista previa no está disponible; el archivo se enviará al guardar.',
-      previewAlt: 'Vista previa completa de la foto de perfil seleccionada',
+      previewAlt: 'Encuadre de la foto de perfil',
+      framing: ['Posición horizontal', 'Posición vertical', 'Zoom'],
       errors: {
         localFileTooLarge: 'Seleccioná una foto de 32 MiB o menos.',
         localUnsupportedFormat: 'Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         fileTooLarge: 'La foto supera el límite de 32 MiB. Seleccioná un archivo más pequeño.',
+        requestTooLarge:
+          'El guardado admite hasta 33 MiB en total. Quitá alguna foto nueva o usá archivos más pequeños.',
+        tooManyAttachments:
+          'La cantidad de fotos nuevas supera el límite de un guardado. Guardá algunas y adjuntá las restantes después.',
         unsupportedFormat:
           'El formato no es compatible. Seleccioná una foto JPEG, PNG, WebP, HEIC o HEIF.',
         dimensionsTooLarge:
@@ -231,6 +336,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Editar gato',
       description: 'Actualizar información del gato.',
       backToCats: 'Volver',
+      reload: 'Recargar ficha',
       loading: 'Cargando gato...',
       submit: 'Guardar cambios',
       submitting: 'Guardando...',
@@ -238,6 +344,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Falta el id del gato',
         loadFormDataFailed: 'Error al cargar los datos del formulario del gato',
         dataNotLoaded: 'Los datos del gato no están cargados',
+        staleEdit:
+          'La ficha cambió mientras la editabas. Si la recargás, se perderán los cambios sin guardar.',
         nameRequired: 'El nombre es obligatorio',
         birthDateRequired: 'La fecha de nacimiento es obligatoria',
         sexRequired: 'El sexo es obligatorio',
@@ -271,20 +379,23 @@ export const CATS_TRANSLATIONS = {
       },
       care: {
         food: 'Comida',
-        litter: 'Arena',
+        litter: 'Piedritas',
         personality: 'Personalidad',
       },
       health: {
         tripleFeline: 'Triple felina',
         rabies: 'Rabia',
         internalDeworming: 'Desparasitación interna',
-        externalDeworming: 'Pipetas para pulgas o comprimidos',
+        externalDeworming: 'Última pipeta antipulgas',
       },
       edit: 'Editar',
     },
   },
   en: {
     emptyValue: '-',
+    draft: {
+      unsaved: 'Unsaved changes',
+    },
     detail: {
       title: 'Cat details',
       loading: 'Loading cat...',
@@ -294,16 +405,37 @@ export const CATS_TRANSLATIONS = {
       cancel: 'Cancel',
       close: 'Close',
       openDetails: 'View details',
-      photo: 'Photo',
-      viewPhoto: 'View photo',
+      photo: 'Profile photo',
+      viewPhoto: 'View profile photo',
+      noProfilePhoto: 'No profile photo',
       photoLoading: 'Loading photo...',
       photoMissing: 'This cat has no photo.',
       photoLoadFailed: 'Error loading photo.',
       photoAlt: (catName) => `Photo of ${catName}`,
     },
+    informationalPhotos: {
+      title: 'Informational photos',
+      photo: 'Informational photo',
+      photoAlt: (catName) => `Informational photo of ${catName}`,
+      add: 'Attach photo',
+      view: (number) => `View photo ${number}`,
+      remove: 'Remove',
+      removeNamed: (number) => `Remove photo ${number}`,
+      confirmRemove: 'Remove photo',
+      removalPending: (number) => `Informational photo ${number} will be removed when you save.`,
+      removePrompt: 'Remove this photo?',
+      empty: 'No photos attached yet.',
+      loading: 'Loading photos…',
+      close: 'Close',
+      previewUnavailable: 'A preview of this photo is unavailable.',
+      loadFailed: 'Could not load the photos.',
+    },
     form: {
       name: 'Name',
       birthDate: 'Birth date',
+      birthYear: 'Birth year',
+      birthYearOnly: 'I only know the year',
+      birthYearInvalid: 'Enter a four-digit year no later than the current year',
       sex: 'Sex',
       selectSex: 'Select sex',
       male: 'Male',
@@ -315,15 +447,41 @@ export const CATS_TRANSLATIONS = {
       noVet: 'No vet',
       createVet: 'Create vet',
       breed: 'Breed',
-      coat: 'Coat',
-      color: 'Color',
+      coat: 'Coat length',
+      coatLengths: { Corto: 'Short', Largo: 'Long', 'Sin pelo': 'Hairless' },
+      color: 'Color and markings',
       foodBrand: 'Food brand',
-      litterBrand: 'Litter brand',
+      foodDetail: 'Food variety',
+      catalogNames: {
+        breed: 'Breeds',
+        foodBrand: 'Food brands',
+        litterDetail: 'Litter brand or type',
+        lastInternalDewormerName: 'Internal dewormers',
+        lastExternalDewormerName: 'Flea treatments',
+      },
+      varietyCatalog: (brand) => 'varieties for “' + brand + '”',
+      publishOption: (name, catalog) => 'Add “' + name + '” to ' + catalog,
+      publishOptionError: 'Could not add this option to the catalog.',
+      catalogSelection: (name) => 'Selected: ' + name,
+      catalogExamples: {
+        breed: 'For example, Domestic.',
+        foodBrand: 'For example, Royal Canin.',
+        foodDetail: 'For example, Kitten or Senior.',
+      },
+      litterBrand: 'Litter',
+      ownLitter: 'Brings their own litter',
+      unconfirmedLitter: 'To be confirmed',
+      ownLitterDetail: 'Litter brand or type',
+
+      sharedLitter: 'Uses CatWorld litter',
       personality: 'Personality',
-      notes: 'Notes',
+      notes: 'Internal team notes',
+      careInstructions: 'Extra instructions',
+
+      careInstructionsTooLong: 'Extra instructions must not exceed 2,000 characters',
       lastInternalDewormerName: 'Last internal dewormer name',
       lastInternalDewormingDate: 'Last internal deworming date',
-      lastExternalDewormerName: 'Flea treatment (pipette or tablet)',
+      lastExternalDewormerName: 'Last flea spot-on treatment',
       lastExternalDewormingDate: 'Date of last flea treatment',
       lastTripleFelineDate: 'Date of last feline triple vaccination',
       lastRabiesDate: 'Date of last rabies vaccination',
@@ -338,11 +496,16 @@ export const CATS_TRANSLATIONS = {
       pendingRemoval: 'The saved photo will be removed when you save.',
       undoRemoval: 'Undo removal',
       previewUnavailable: 'Preview is unavailable; the file will still be uploaded when you save.',
-      previewAlt: 'Complete preview of the selected cat profile photo',
+      previewAlt: 'Profile photo framing',
+      framing: ['Horizontal position', 'Vertical position', 'Zoom'],
       errors: {
         localFileTooLarge: 'Select a photo that is 32 MiB or smaller.',
         localUnsupportedFormat: 'Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         fileTooLarge: 'The photo exceeds the 32 MiB limit. Select a smaller file.',
+        requestTooLarge:
+          'A save request can be up to 33 MiB. Remove a new photo or use smaller files.',
+        tooManyAttachments:
+          'There are too many new photos for one save. Save some now and attach the rest afterward.',
         unsupportedFormat:
           'This format is not supported. Select a JPEG, PNG, WebP, HEIC, or HEIF photo.',
         dimensionsTooLarge: 'The photo dimensions are too large. Select a smaller image.',
@@ -372,6 +535,7 @@ export const CATS_TRANSLATIONS = {
       title: 'Edit cat',
       description: 'Update cat information.',
       backToCats: 'Back to cats',
+      reload: 'Reload profile',
       loading: 'Loading cat...',
       submit: 'Save changes',
       submitting: 'Saving...',
@@ -379,6 +543,8 @@ export const CATS_TRANSLATIONS = {
         catIdMissing: 'Cat id is missing',
         loadFormDataFailed: 'Error loading cat form data',
         dataNotLoaded: 'Cat data is not loaded',
+        staleEdit:
+          'This profile changed while you were editing. Reloading discards unsaved changes.',
         nameRequired: 'Name is required',
         birthDateRequired: 'Birth date is required',
         sexRequired: 'Sex is required',

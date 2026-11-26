@@ -20,10 +20,15 @@ public interface ICatService {
     CatDetailResponse getCatDetail(UUID id);
     RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page);
     CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo);
+    CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo, List<MultipartFile> informationalPhotos);
     CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto);
+    CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto,
+                             List<MultipartFile> informationalPhotos);
     CatResponseDTO createCat(CatRequestDTO catRequestDTO);
     CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO);
     CatPhotoContent getPhoto(UUID id);
+
+    byte[] previewPhoto(MultipartFile photo);
     void deleteCat(UUID id);
 
 }

@@ -26,6 +26,17 @@ export interface StaysTranslations {
     transferAssistance: string;
     transferRate: string;
     transferUnavailable: string;
+    litter: {
+      title: string;
+      catLabel: (name: string) => string;
+      choices: Record<'OWN' | 'HALF' | 'ONE', string>;
+      perKg: (rate: string) => string;
+      totalKg: (weight: string) => string;
+      charge: (amount: string) => string;
+      unavailable: string;
+      change: string;
+      unconfirmed: string;
+    };
     arrivalTransfer: string;
     departureTransfer: string;
     transferWaived: string;
@@ -78,6 +89,7 @@ export interface StaysTranslations {
   };
   pricingPage: {
     title: string;
+    breakdown: string;
     description: string;
     back: string;
     loading: string;
@@ -164,8 +176,9 @@ export interface StaysTranslations {
       tripleFeline: string;
     };
     reason: {
-      missing: string;
-      expired: string;
+      MISSING: string;
+      EXPIRED_BY_ARRIVAL: string;
+      EXPIRES_DURING_STAY: string;
     };
     actions: {
       dismiss: string;
@@ -242,6 +255,7 @@ export interface StaysTranslations {
       datesRequired: string;
       endAfterStart: string;
       createFailed: string;
+      bookingConflict: (catName: string) => string;
       notesTooLong: string;
     };
   };
@@ -263,6 +277,8 @@ export interface StaysTranslations {
       loadFailed: string;
       dataNotLoaded: string;
       datesRequired: string;
+      arrivalDayLocked: string;
+      endBeforeActualArrival: string;
       endAfterStart: string;
       updateFailed: string;
       notesTooLong: string;
@@ -315,6 +331,22 @@ export const STAYS_TRANSLATIONS = {
       transferAssistance: 'Asistencia de traslado',
       transferRate: 'Tarifa de traslado aplicada',
       transferUnavailable: 'No hay tarifa de traslado disponible; el traslado aporta 0.',
+      litter: {
+        title: 'Piedritas',
+        catLabel: (name) => `Piedritas para ${name}`,
+        choices: {
+          OWN: 'Trae sus propias piedritas',
+          HALF: 'Usa las de CatWorld (½ kg/día)',
+          ONE: 'Usa las de CatWorld (1 kg/día)',
+        },
+        perKg: (rate) => `Tarifa de piedritas de ${rate} pesos por kg`,
+        totalKg: (weight) => `${weight} kg en la estadía`,
+        charge: (amount) => `${amount} pesos`,
+        unavailable:
+          'La cotización está incompleta porque falta la tarifa de piedritas de CatWorld.',
+        change: 'Cambiar',
+        unconfirmed: 'Por confirmar',
+      },
       arrivalTransfer: 'Requiere traslado de llegada',
       departureTransfer: 'Requiere traslado de salida',
       transferWaived: 'Traslado exento',
@@ -368,6 +400,7 @@ export const STAYS_TRANSLATIONS = {
     },
     pricingPage: {
       title: 'Precios y pagos',
+      breakdown: 'Desglose del precio',
       description: 'Consultá el acuerdo económico y el historial de pagos de la estadía.',
       back: 'Volver',
       loading: 'Cargando precios y pagos...',
@@ -476,8 +509,9 @@ export const STAYS_TRANSLATIONS = {
         tripleFeline: 'Triple felina',
       },
       reason: {
-        missing: 'Falta la fecha de vacunación',
-        expired: 'La vacuna caduca el día que termina la estadía o antes',
+        MISSING: 'Falta la fecha de vacunación',
+        EXPIRED_BY_ARRIVAL: 'La vacuna ya estará vencida al ingreso',
+        EXPIRES_DURING_STAY: 'La vacuna vence durante la estadía',
       },
       actions: {
         dismiss: 'Cerrar',
@@ -557,6 +591,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'La fecha de inicio y fin son obligatorias',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         createFailed: 'Error al crear la estadía',
+        bookingConflict: (catName: string) => catName + ' ya tiene una estadía en esas fechas.',
         notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
       },
     },
@@ -578,6 +613,9 @@ export const STAYS_TRANSLATIONS = {
         loadFailed: 'Error al cargar la estadía',
         dataNotLoaded: 'Los datos de la estadía no están cargados',
         datesRequired: 'La fecha de inicio y fin son obligatorias',
+        arrivalDayLocked: 'El día previsto de ingreso queda fijo cuando la estadía está en curso.',
+        endBeforeActualArrival:
+          'La salida prevista debe ser en el momento del ingreso real o después.',
         endAfterStart: 'La fecha de fin debe ser posterior a la fecha de inicio',
         updateFailed: 'Error al actualizar la estadía',
         notesTooLong: 'Las notas no pueden superar los 10.000 caracteres',
@@ -628,6 +666,21 @@ export const STAYS_TRANSLATIONS = {
       transferAssistance: 'Transfer assistance',
       transferRate: 'Retained transfer rate',
       transferUnavailable: 'No transfer rate is available; transfer contributes 0.',
+      litter: {
+        title: 'Litter',
+        catLabel: (name) => `Litter for ${name}`,
+        choices: {
+          OWN: 'Supplied by the owner (0 kg/day)',
+          HALF: 'CatWorld (½ kg/day)',
+          ONE: 'CatWorld (1 kg/day)',
+        },
+        perKg: (rate) => `Litter rate of ${rate} pesos per kg`,
+        totalKg: (weight) => `${weight} kg for the stay`,
+        charge: (amount) => `${amount} pesos`,
+        unavailable: 'The quote is incomplete because the CatWorld litter rate is unavailable.',
+        change: 'Change',
+        unconfirmed: 'To confirm',
+      },
       arrivalTransfer: 'Arrival transfer required',
       departureTransfer: 'Departure transfer required',
       transferWaived: 'Transfer waived',
@@ -681,6 +734,7 @@ export const STAYS_TRANSLATIONS = {
     },
     pricingPage: {
       title: 'Pricing & Payments',
+      breakdown: 'Price breakdown',
       description: "Review the stay's economic agreement and payment history.",
       back: 'Back',
       loading: 'Loading pricing and payments...',
@@ -790,8 +844,9 @@ export const STAYS_TRANSLATIONS = {
         tripleFeline: 'Triple feline',
       },
       reason: {
-        missing: 'Vaccination date is missing',
-        expired: 'Vaccination expires on or before the stay ends',
+        MISSING: 'Vaccination date is missing',
+        EXPIRED_BY_ARRIVAL: 'Vaccination will have expired by arrival',
+        EXPIRES_DURING_STAY: 'Vaccination expires during the stay',
       },
       actions: {
         dismiss: 'Dismiss',
@@ -870,6 +925,7 @@ export const STAYS_TRANSLATIONS = {
         datesRequired: 'Start and end date are required',
         endAfterStart: 'End date must be after start date',
         createFailed: 'Error creating stay',
+        bookingConflict: (catName: string) => catName + ' already has a stay on those dates.',
         notesTooLong: 'Notes must not exceed 10,000 characters',
       },
     },
@@ -891,6 +947,8 @@ export const STAYS_TRANSLATIONS = {
         loadFailed: 'Error loading stay',
         dataNotLoaded: 'Stay data is not loaded',
         datesRequired: 'Start and end date are required',
+        arrivalDayLocked: 'The scheduled arrival day is fixed while the stay is in progress.',
+        endBeforeActualArrival: 'The scheduled departure must be at or after the actual arrival.',
         endAfterStart: 'End date must be after start date',
         updateFailed: 'Error updating stay',
         notesTooLong: 'Notes must not exceed 10,000 characters',

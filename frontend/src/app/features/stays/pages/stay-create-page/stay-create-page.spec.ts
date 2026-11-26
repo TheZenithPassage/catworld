@@ -112,7 +112,7 @@ describe('StayCreatePage', () => {
         catId: 'cat-1',
         catName: 'Milo',
         vaccineType: 'RABIES',
-        reason: 'EXPIRED',
+        reason: 'EXPIRED_BY_ARRIVAL',
         vaccinatedOn: '2025-07-01',
         expiresOn: '2026-07-01',
       },
@@ -1041,6 +1041,60 @@ describe('StayCreatePage', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/stays']);
     expect(component.submitting()).toBe(false);
     expect(TestBed.inject(CreationFlowService).has(flowId)).toBe(false);
+  });
+
+  it('carries the selected litter allowance into the incomplete quote and pending stay', async () => {
+    const cat = {
+      catId: 'cat-1',
+      choice: 'HALF',
+      kgPerDay: '0.5',
+      totalKg: '3.5',
+      suggestedAmount: null,
+    };
+    const litter = { ratePerKg: null, rateUnavailable: true, subtotal: null, cats: [cat] };
+    const revised = { ...litter, cats: [{ ...cat, choice: 'ONE', kgPerDay: '1', totalKg: '7' }] };
+    const confirmation = { ...pricingPreview.confirmation, suggestedAmount: null, litter: revised };
+    stayApiService.previewCreationPricing
+      .mockReturnValueOnce(of({ ...pricingPreview, suggestedAmount: null, litter }))
+      .mockReturnValueOnce(
+        of({ ...pricingPreview, suggestedAmount: null, litter: revised, confirmation }),
+      );
+    stayApiService.createStay.mockReturnValue(of(createdStay));
+
+    createComponent();
+    selectOwner();
+    component.onCatToggle('cat-1', true);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    const choice = root.querySelector<HTMLSelectElement>('[data-litter-cat="cat-1"]')!;
+    expect(choice?.value).toBe('HALF');
+    const i18n = TestBed.inject(I18nService);
+    const previousLanguage = i18n.language();
+    i18n.language.set('es');
+    fixture.detectChanges();
+    expect(root.textContent).toContain('falta la tarifa de piedritas de CatWorld');
+    expect([...choice.options].map(({ textContent }) => textContent?.trim())).toEqual([
+      'Trae sus propias piedritas',
+      'Usa las de CatWorld (½ kg/día)',
+      'Usa las de CatWorld (1 kg/día)',
+    ]);
+    i18n.language.set(previousLanguage);
+    choice.value = 'ONE';
+    choice.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(stayApiService.previewCreationPricing).toHaveBeenLastCalledWith(
+      expect.objectContaining({ litterChoices: { 'cat-1': 'ONE' } }),
+    );
+    component.setPricePending(true);
+    component.submit();
+    expect(stayApiService.createStay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        litterChoices: { 'cat-1': 'ONE' },
+        pricingDecision: { pricePending: true },
+        confirmation,
+      }),
+    );
   });
 
   it('shows backend validation errors through shared Material error state', () => {

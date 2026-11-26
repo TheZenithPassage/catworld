@@ -53,26 +53,31 @@ class CatPhotoMySqlIntegrationTest {
         CatRequestDTO request = CatRequestDTO.builder().name("Milo").birthDate(LocalDate.of(2020, 1, 1))
                 .sex(Sex.MALE).ownerId(owner.getId()).build();
         NormalizedCatPhoto first = photo(new byte[] {1, 2, 3}, "a".repeat(64));
+        long catCount = cats.count();
+        long photoCount = photos.count();
         assertThrows(RuntimeException.class, () -> mutations.create(request,
                 new NormalizedCatPhoto(new byte[] {9}, 0, 1, "z".repeat(64))));
-        assertEquals(0, cats.count());
-        assertEquals(0, photos.count());
+        assertEquals(catCount, cats.count());
+        assertEquals(photoCount, photos.count());
         Cat cat = mutations.create(request, first);
+        request.setExpectedUpdatedAt(cat.getUpdatedAt());
         assertArrayEquals(first.bytes(), photos.findById(cat.getId()).orElseThrow().getContent());
         assertEquals(Set.of(cat.getId()), photos.findPresentCatIds(List.of(cat.getId())));
 
         mutations.update(cat.getId(), request, null, false);
         assertArrayEquals(first.bytes(), photos.findById(cat.getId()).orElseThrow().getContent());
         NormalizedCatPhoto replacement = photo(new byte[] {4, 5}, "b".repeat(64));
-        mutations.update(cat.getId(), request, replacement, false);
+        Cat replaced = mutations.update(cat.getId(), request, replacement, false);
+        request.setExpectedUpdatedAt(replaced.getUpdatedAt());
         assertArrayEquals(replacement.bytes(), photos.findById(cat.getId()).orElseThrow().getContent());
         assertThrows(CatPhotoException.class, () -> mutations.update(cat.getId(), request, replacement, true));
         assertArrayEquals(replacement.bytes(), photos.findById(cat.getId()).orElseThrow().getContent());
-        mutations.update(cat.getId(), request, null, true);
+        Cat removed = mutations.update(cat.getId(), request, null, true);
+        request.setExpectedUpdatedAt(removed.getUpdatedAt());
         assertFalse(photos.existsById(cat.getId()));
 
         CatRequestDTO changed = CatRequestDTO.builder().name("Should Roll Back").birthDate(request.getBirthDate())
-                .sex(request.getSex()).ownerId(owner.getId()).build();
+                .sex(request.getSex()).ownerId(owner.getId()).expectedUpdatedAt(removed.getUpdatedAt()).build();
         assertThrows(RuntimeException.class, () -> mutations.update(cat.getId(), changed,
                 new NormalizedCatPhoto(new byte[] {9}, 0, 1, "c".repeat(64)), false));
         assertEquals("Milo", cats.findById(cat.getId()).orElseThrow().getName());

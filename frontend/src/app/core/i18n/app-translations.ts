@@ -1,4 +1,5 @@
 import { AppLanguage } from './app-language';
+import { CATALOGS_TRANSLATIONS } from './translations/catalogs.translations';
 import { MONTHLY_PAYMENTS_TRANSLATIONS } from './translations/monthly-payments.translations';
 import {
   APP_SHELL_TRANSLATIONS,
@@ -45,6 +46,7 @@ export interface AppTranslations {
   stays: StaysTranslations;
   vets: VetsTranslations;
   accounts: AccountsTranslations;
+  catalogs: (typeof CATALOGS_TRANSLATIONS)['es' | 'en'];
   nightlyRates: NightlyRatesTranslations;
   sensitiveActivity: SensitiveActivityTranslations;
   entityDetail: EntityDetailTranslations;
@@ -64,6 +66,7 @@ export const APP_TRANSLATIONS = {
     stays: STAYS_TRANSLATIONS.es,
     vets: VETS_TRANSLATIONS.es,
     accounts: ACCOUNTS_TRANSLATIONS.es,
+    catalogs: CATALOGS_TRANSLATIONS.es,
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.es,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.es,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.es,
@@ -81,6 +84,7 @@ export const APP_TRANSLATIONS = {
     stays: STAYS_TRANSLATIONS.en,
     vets: VETS_TRANSLATIONS.en,
     accounts: ACCOUNTS_TRANSLATIONS.en,
+    catalogs: CATALOGS_TRANSLATIONS.en,
     nightlyRates: NIGHTLY_RATES_TRANSLATIONS.en,
     sensitiveActivity: SENSITIVE_ACTIVITY_TRANSLATIONS.en,
     entityDetail: ENTITY_DETAIL_TRANSLATIONS.en,

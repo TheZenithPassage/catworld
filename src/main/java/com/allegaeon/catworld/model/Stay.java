@@ -7,7 +7,9 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +33,14 @@ public class Stay extends AuditableEntity {
 
     private LocalDateTime cancelledAt;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 11)
+    private StayStatus movementStatus = StayStatus.RESERVED;
+
+    @Column(nullable = false)
+    private long movementRevision;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
@@ -47,6 +57,11 @@ public class Stay extends AuditableEntity {
     private BigDecimal retainedTransferRate;
     @Column(nullable = false)
     private boolean transferWaived;
+
+    @Column(precision = 19, scale = 0)
+    @DecimalMin(value = "0", inclusive = false)
+    @Digits(integer = 19, fraction = 0)
+    private BigDecimal retainedLitterRatePerKg;
 
     @Column(precision = 19, scale = 0)
     @DecimalMin("0")
@@ -68,13 +83,34 @@ public class Stay extends AuditableEntity {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "stay", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StayCat> stayCats = new HashSet<>();
 
-    public StayStatus statusAt(LocalDateTime now) {
-        if (cancelledAt != null) return StayStatus.CANCELLED;
+    @Builder.Default
+    @OneToMany(mappedBy = "stay", fetch = FetchType.LAZY)
+    @org.hibernate.annotations.BatchSize(size = 64)
+    private Set<StayActualMovement> actualMovements = new HashSet<>();
 
+    public Optional<LocalDateTime> actualTime(StayMovementType type, ZoneId zone) {
+        return actualMovements.stream().filter(movement -> movement.getId().getType() == type)
+                .map(movement -> LocalDateTime.ofInstant(movement.occurredAt(), zone)).findFirst();
+    }
 
-        if (now.isBefore(startAt)) return StayStatus.RESERVED;
-        if (now.isBefore(endAt)) return StayStatus.CHECKED_IN;
-        return StayStatus.CHECKED_OUT;
+    public LocalDateTime effectiveTime(StayMovementType type, ZoneId zone) {
+        return actualTime(type, zone).orElse(type == StayMovementType.ARRIVAL ? startAt : endAt);
+    }
+
+    public StayStatus status() {
+        return cancelledAt == null ? movementStatus : StayStatus.CANCELLED;
+    }
+
+    public boolean canEdit() {
+        return status() == StayStatus.RESERVED || status() == StayStatus.CHECKED_IN;
+    }
+
+    public boolean canCancel() {
+        return status() == StayStatus.RESERVED;
+    }
+
+    public void advanceMovementRevision() {
+        movementRevision++;
     }
 
 }

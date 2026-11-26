@@ -60,10 +60,6 @@ $catworld-material-theme: (
   --color-danger-soft: #fff0ed;
 
   --color-warning-soft: #fff2bf;
-  --color-success: #2e7d32;
-  --color-success-strong: #1b5e20;
-  --color-success-text: #1f5128;
-  --color-success-soft: #edf8ef;
   --color-neutral-soft: #f5f2ef;
   --color-neutral-muted: #ebdfdb;
   --color-language-start: #b9dddc;
@@ -218,6 +214,14 @@ body {
     'Segoe UI',
     sans-serif;
   line-height: 1.5;
+}
+
+html[data-theme='dark'] .catworld-dialog-backdrop {
+  background-color: rgb(0 0 0 / 0.68);
+}
+
+html[data-theme='dark'] .mat-mdc-dialog-surface {
+  outline: 1px solid var(--color-border-strong);
 }
 
 a {

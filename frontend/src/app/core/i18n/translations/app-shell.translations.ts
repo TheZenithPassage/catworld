@@ -9,9 +9,11 @@ export interface AppShellTranslations {
     stays: string;
     calendar: string;
     cats: string;
+    catIntake: string;
     owners: string;
     vets: string;
     accounts: string;
+    catalogs: string;
     nightlyRates: string;
     payments: string;
     sensitiveActivity: string;
@@ -39,9 +41,11 @@ export const APP_SHELL_TRANSLATIONS = {
       stays: 'Estadías',
       calendar: 'Calendario',
       cats: 'Gatos',
+      catIntake: 'Fichas recibidas',
       owners: 'Dueños',
       vets: 'Veterinarios',
       accounts: 'Cuentas',
+      catalogs: 'Catálogos',
       nightlyRates: 'Tarifas por noche',
       payments: 'Pagos',
       sensitiveActivity: 'Actividad sensible',
@@ -67,9 +71,11 @@ export const APP_SHELL_TRANSLATIONS = {
       stays: 'Stays',
       calendar: 'Calendar',
       cats: 'Cats',
+      catIntake: 'Cat submissions',
       owners: 'Owners',
       vets: 'Vets',
       accounts: 'Accounts',
+      catalogs: 'Catalogs',
       nightlyRates: 'Nightly rates',
       payments: 'Payments',
       sensitiveActivity: 'Sensitive activity',

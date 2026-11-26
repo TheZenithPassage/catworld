@@ -1,4 +1,16 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+  TemplateRef,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import {
@@ -11,9 +23,18 @@ import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { StayApiService } from '../../services/stay-api.service';
 import { Stay } from '../../models/stay.model';
+import type { StayMovementAction, StayMovementType } from '../../models/stay-movement.model';
+import { StayMovementDialogService } from '../../services/stay-movement-dialog.service';
 import { StayEditor } from '../stay-editor/stay-editor';
 import { BusinessTimeService } from '../../../../core/time/business-time.service';
-import { MatDialog } from '@angular/material/dialog';
+import {
+  MatDialog,
+  MatDialogActions,
+  MatDialogContent,
+  MatDialogTitle,
+  MatDialogClose,
+  MatDialogRef,
+} from '@angular/material/dialog';
 import { filter } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
@@ -27,22 +48,39 @@ import {
   isPermanentDeletionConfirmed,
 } from '../../../../shared/permanent-deletion/permanent-deletion-confirmation-dialog';
 import { deletionErrorMessage } from '../../../../shared/permanent-deletion/deletion-error';
+import { STAY_MOVEMENT_TRANSLATIONS } from '../stay-movement-dialog/stay-movement.translations';
 
 @Component({
   selector: 'app-stay-detail',
-  imports: [DeceasedMarker, MatButton, MatProgressSpinner, UiStateComponent, StayEditor],
+  imports: [
+    MatDialogActions,
+    MatDialogContent,
+    MatDialogTitle,
+    MatDialogClose,
+    DeceasedMarker,
+    MatButton,
+    MatProgressSpinner,
+    UiStateComponent,
+    StayEditor,
+  ],
   host: {
     '[attr.aria-busy]': 'loading() || operationalLoading()',
     '[attr.inert]': 'loading() && detail() ? "" : null',
   },
   templateUrl: './stay-detail.html',
-  styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
+  styleUrls: [
+    '../../../../shared/entity-detail/entity-detail-presenter.scss',
+    './stay-detail.scss',
+  ],
 })
 export class StayDetail {
+  readonly editor = viewChild(StayEditor);
   private readonly api = inject(StayApiService);
   private readonly businessTime = inject(BusinessTimeService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  private readonly movementDialog = inject(StayMovementDialogService);
+  private readonly destroyRef = inject(DestroyRef);
   private detailGeneration = 0;
   private operationalGeneration = 0;
   private pricingGeneration = 0;
@@ -51,18 +89,20 @@ export class StayDetail {
   private loadedEntityId: string | null = null;
   readonly entityId = input.required<string>();
   readonly editing = input.required<boolean>();
-  readonly editRequested = output<void>();
+  private movementInfoRef?: MatDialogRef<unknown>;
+  readonly selectedLeg = signal<StayMovementType>('ARRIVAL');
+  readonly resetWindowOpen = signal(true);
   readonly cancelRequested = output<void>();
   readonly saveCompleted = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openCats = output<void>();
   readonly updated = output<EntityDetailUpdate>();
-  readonly pricingRequested = output<void>();
   readonly submittingChanged = output<boolean>();
   readonly deletionCompleted = output<EntityReference>();
   readonly refreshingChanged = output<boolean>();
   readonly contentSettled = output<void>();
   readonly text = this.i18n.text;
+  readonly movementCopy = computed(() => STAY_MOVEMENT_TRANSLATIONS[this.i18n.language()]);
   readonly detail = signal<StayDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
@@ -73,14 +113,48 @@ export class StayDetail {
   readonly cancellationContextLoading = signal(false);
   readonly cancellationContextError = signal(false);
   readonly deleting = signal(false);
+  readonly actionsDisabled = computed(() => this.loading() || this.deleting());
+  readonly editAvailable = computed(() => {
+    const stay = this.detail();
+    return stay?.stayId === this.entityId() && !this.error() && this.canEdit(stay);
+  });
+  readonly pricingAvailable = computed(() => {
+    const pricing = this.pricingStay();
+    return (
+      this.detail()?.stayId === this.entityId() &&
+      !this.error() &&
+      pricing?.stayId === this.entityId() &&
+      (pricing.agreedAmount !== null || pricing.pricePending)
+    );
+  });
   readonly deletionError = createLanguageResetError(this.i18n.language);
+  readonly movementTypes = ['ARRIVAL', 'DEPARTURE'] as const;
+  readonly movementCatNames = computed(() => {
+    const detail = this.detail();
+    const stay = this.pricingStay();
+    if (!detail) return [];
+    if (stay?.stayId === detail.stayId) return stay.cats.map((cat) => cat.name);
+    return detail.cats.items.length === detail.cats.totalElements
+      ? detail.cats.items.map((cat) => cat.name)
+      : [];
+  });
   constructor() {
-    inject(DestroyRef).onDestroy(() => {
+    this.destroyRef.onDestroy(() => {
+      this.movementInfoRef?.close();
       this.detailGeneration++;
       this.pricingGeneration++;
       this.invalidateCancellationContext();
       this.invalidateOperational();
       this.deletionGeneration++;
+    });
+    effect((onCleanup) => {
+      const deadline = this.detail()?.actualMovements?.arrivalResetUntil;
+      const remaining = deadline ? Date.parse(deadline) - Date.now() : null;
+      this.resetWindowOpen.set(remaining === null || remaining > 0);
+      if (remaining !== null && remaining > 0) {
+        const timer = setTimeout(() => this.resetWindowOpen.set(false), remaining);
+        onCleanup(() => clearTimeout(timer));
+      }
     });
     effect(() => {
       const id = this.entityId();
@@ -136,10 +210,35 @@ export class StayDetail {
     });
   }
   canEdit(detail: StayDetailResponse): boolean {
-    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+    return detail.canEdit ?? (detail.status === 'RESERVED' || detail.status === 'CHECKED_IN');
   }
   canCancel(detail: StayDetailResponse): boolean {
-    return detail.status === 'RESERVED' || detail.status === 'CHECKED_IN';
+    return detail.canCancel ?? (detail.status === 'RESERVED' || detail.status === 'CHECKED_IN');
+  }
+  openMovementDetails(type: StayMovementType, template: TemplateRef<unknown>): void {
+    this.selectedLeg.set(type);
+    this.movementInfoRef = this.dialog.open(template, {
+      width: '32rem',
+      maxWidth: 'calc(100vw - 2rem)',
+    });
+  }
+  openMovement(action: StayMovementAction, stayId: string): void {
+    const catNames = this.movementCatNames();
+    if (!catNames.length || this.loading() || this.deleting()) return;
+    this.movementDialog
+      .open({ stayId, catNames, action })
+      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.movementInfoRef?.close();
+        if (this.entityId() === stayId) this.load();
+        this.updated.emit({ entityType: 'stay', entityId: stayId });
+      });
+  }
+  actualDate(value: string): string {
+    return this.businessTime.formatInstant(value, this.i18n.dateLocale());
+  }
+  isHistorical(status: StayDetailResponse['status'], type: StayMovementType): boolean {
+    return status === 'CHECKED_OUT' || (type === 'ARRIVAL' && status === 'CHECKED_IN');
   }
   canDelete(detail: StayDetailResponse): boolean {
     const stay = this.pricingStay();

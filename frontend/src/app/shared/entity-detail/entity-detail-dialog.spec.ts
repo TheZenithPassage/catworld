@@ -1,14 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpErrorResponse } from '@angular/common/http';
+import { Component, DebugElement, getDebugNode } from '@angular/core';
+import { Location } from '@angular/common';
+import { provideLocationMocks } from '@angular/common/testing';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
 import { By } from '@angular/platform-browser';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { of, Subject, throwError } from 'rxjs';
+import { EMPTY, filter, firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { OwnerEditor } from '../../features/owners/components/owner-editor/owner-editor';
 import { Owner } from '../../features/owners/models/owner.model';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { CatEditor } from '../../features/cats/components/cat-editor/cat-editor';
+import { CatInformationalPhotoGallery } from '../../features/cats/components/cat-informational-photos/cat-informational-photo-gallery';
+import { CatPhotoInput } from '../../features/cats/components/cat-photo-input/cat-photo-input';
 import { Cat } from '../../features/cats/models/cat.model';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
 import { VetEditor } from '../../features/vets/components/vet-editor/vet-editor';
@@ -21,16 +26,24 @@ import { EntityDetailDialog } from './entity-detail-dialog';
 import { EntityDetailDialogService } from './entity-detail-dialog.service';
 import { OwnerDetailResponse } from './relationship.models';
 import { Stay, StayDatePricingPreview } from '../../features/stays/models/stay.model';
+import type { StayActualMovements } from '../../features/stays/models/stay-movement.model';
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { NightlyReferenceRateApiService } from '../../features/nightly-rates/services/nightly-reference-rate-api.service';
 import { TransferRateApiService } from '../../features/nightly-rates/services/transfer-rate-api.service';
 import { StayEditor } from '../../features/stays/components/stay-editor/stay-editor';
 import { StayDetail } from '../../features/stays/components/stay-detail/stay-detail';
+import { StayMovementDialog } from '../../features/stays/components/stay-movement-dialog/stay-movement-dialog';
+import { STAY_MOVEMENT_TRANSLATIONS } from '../../features/stays/components/stay-movement-dialog/stay-movement.translations';
 import { StayCancellationDialog } from '../../features/stays/components/stay-cancellation-dialog/stay-cancellation-dialog';
 import { PermanentDeletionConfirmationDialog } from '../permanent-deletion/permanent-deletion-confirmation-dialog';
-import type { EntityDetailUpdate } from './entity-reference';
-import { Router } from '@angular/router';
+import type { EntityDetailUpdate, EntityReference } from './entity-reference';
+import { NavigationEnd, provideRouter, Router, withRouterConfig } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { confirmCatDraftNavigation } from '../../app.routes';
 import { appPaginatorIntl } from '../pagination/app-paginator-intl';
+
+@Component({ template: '' })
+class CatDraftTestRoute {}
 
 describe('EntityDetailDialog', () => {
   const owner: Owner = {
@@ -48,6 +61,7 @@ describe('EntityDetailDialog', () => {
   const secondOwner = { ...owner, id: 'owner-2', fullName: 'Grace Hopper' };
   const cat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00Z',
     name: 'Milo',
     birthDate: '2020-01-01',
     sex: 'MALE',
@@ -99,6 +113,7 @@ describe('EntityDetailDialog', () => {
     updateOwner: vi.fn(() => of(updated)),
   };
   const catApi = {
+    listInformationalPhotos: vi.fn(() => of([])),
     getCatDetail: vi.fn((id: string): any =>
       of({
         cat: { ...cat, id, hasPhoto: false },
@@ -107,6 +122,7 @@ describe('EntityDetailDialog', () => {
     ),
     getCatStays: vi.fn(),
     getCatPhoto: vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' }))),
+    getFramedCatPhoto: vi.fn(() => EMPTY),
     updateCat: vi.fn(() => of(updatedCat)),
   };
   const vetApi = {
@@ -212,16 +228,33 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Ada Lovelace');
 
-    (
-      fixture.nativeElement.querySelector(
-        'app-owner-detail button[mat-flat-button]',
-      ) as HTMLButtonElement
-    ).click();
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
     fixture.detectChanges();
     const editor = fixture.debugElement.query(By.directive(OwnerEditor))
       .componentInstance as OwnerEditor;
+    const headerSave = root.querySelector<HTMLButtonElement>('.header-save-button')!;
+    const form = root.querySelector<HTMLFormElement>('app-owner-editor form')!;
+
+    editor.fullName.set('  ');
+    headerSave.click();
+    fixture.detectChanges();
+    expect(form.classList.contains('ng-submitted')).toBe(true);
+    expect(editor.fullNameError()).toBe(editor.text().owners.edit.errors.fullNameRequired);
+    expect(api.updateOwner).not.toHaveBeenCalled();
+
     editor.fullName.set('Ada Byron');
-    editor.submit();
+    const pending = new Subject<Owner>();
+    api.updateOwner.mockReturnValueOnce(pending);
+    headerSave.click();
+    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+    expect(api.updateOwner).toHaveBeenCalledOnce();
+    expect(headerSave.disabled).toBe(true);
+    expect(form.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(true);
+    expect(root.querySelector<HTMLButtonElement>('.header-cancel-button')!.disabled).toBe(true);
+    pending.next(updated);
+    pending.complete();
     fixture.detectChanges();
 
     expect(api.updateOwner).toHaveBeenCalled();
@@ -229,6 +262,53 @@ describe('EntityDetailDialog', () => {
     expect(fixture.debugElement.query(By.directive(OwnerEditor))).toBeNull();
     expect(fixture.componentInstance.editing()).toBe(false);
     expect(emitted).toHaveBeenCalledWith({ entityType: 'owner', entityId: 'owner-1' });
+  });
+
+  it('offers owner intake sharing in the header and footer only to administrators', async () => {
+    const open = vi.fn();
+    await TestBed.configureTestingModule({
+      imports: [EntityDetailDialog],
+      providers: [
+        provideNoopAnimations(),
+        { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: MatDialogRef, useValue: dialogRef },
+        { provide: MatDialog, useValue: { open } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(EntityDetailDialog);
+    const auth = TestBed.inject(AuthSessionService);
+    const credentials = { username: 'operator', password: 'test' };
+    const root = fixture.nativeElement as HTMLElement;
+    const buttons = () =>
+      Array.from(root.querySelectorAll<HTMLButtonElement>('button')).filter(
+        (button) =>
+          button.textContent?.trim() ===
+          fixture.componentInstance.text().owners.detail.requestIntake,
+      );
+
+    auth.login({ username: 'operator', role: 'STAFF' }, credentials);
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(0);
+
+    auth.login({ username: 'operator', role: 'ADMIN' }, credentials);
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(2);
+    root.querySelector<HTMLButtonElement>('.header-intake-button')!.click();
+    await vi.waitFor(() => expect(open).toHaveBeenCalledOnce());
+    expect(open).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ data: { ownerId: owner.id, ownerName: owner.fullName } }),
+    );
+    root.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(0);
+    root.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
+    fixture.detectChanges();
+    expect(buttons()).toHaveLength(2);
   });
 
   it('owns cancel and reference-change discard transitions and handles Stay explicitly', async () => {
@@ -405,6 +485,7 @@ describe('EntityDetailDialog', () => {
         imports: [EntityDetailDialog],
         providers: [
           provideNoopAnimations(),
+          provideHttpClient(),
           { provide: MAT_DIALOG_DATA, useValue: { entityType: 'owner', entityId: 'owner-1' } },
           { provide: OwnerApiService, useValue: api },
           { provide: CatApiService, useValue: catApi },
@@ -450,10 +531,16 @@ describe('EntityDetailDialog', () => {
       const back = () =>
         fixture.nativeElement.querySelector('[data-dialog-focus]') as HTMLButtonElement;
       const close = () => fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement;
+      const headerSave = () =>
+        fixture.nativeElement.querySelector('.header-save-button') as HTMLButtonElement;
+      const headerCancel = () =>
+        fixture.nativeElement.querySelector('.header-cancel-button') as HTMLButtonElement;
 
       submit().click();
       fixture.detectChanges();
       expect(cancel().disabled).toBe(true);
+      expect(headerSave().disabled).toBe(true);
+      expect(headerCancel().disabled).toBe(true);
       expect(back().disabled).toBe(true);
       expect(close().disabled).toBe(true);
       expect(dialogRef.disableClose).toBe(true);
@@ -482,7 +569,7 @@ describe('EntityDetailDialog', () => {
             : (editor as VetEditor).name(),
       ).toBe(draft);
 
-      submit().click();
+      headerSave().click();
       fixture.detectChanges();
       expect(dialogRef.disableClose).toBe(true);
       succeeded.next(
@@ -800,19 +887,19 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.reference()).toEqual({ entityType: 'cat', entityId: 'cat-1' });
     expect(catApi.getCatDetail).toHaveBeenCalledWith('cat-1');
-    expect(fixture.nativeElement.textContent).not.toContain(
-      fixture.componentInstance.text().cats.detail.viewPhoto,
-    );
-    const emptyPhotoField = [
-      ...(fixture.nativeElement as HTMLElement).querySelectorAll('.detail-field'),
-    ].find(
-      (field) =>
-        field.querySelector('dt')?.textContent?.trim() ===
-        fixture.componentInstance.text().cats.detail.photo,
-    );
-    expect(emptyPhotoField?.querySelector('dd')?.textContent?.trim()).toBe(
-      fixture.componentInstance.text().cats.emptyValue,
-    );
+    const catElement = (fixture.nativeElement as HTMLElement).querySelector('app-cat-detail')!;
+    const identity = catElement.querySelector('.detail-identity');
+    expect(identity?.querySelector('h3')?.textContent?.trim()).toBe('Milo');
+    expect(identity?.querySelector('p')?.textContent?.trim()).toBe('No profile photo');
+    expect(identity?.querySelector('button')).toBeNull();
+    const sections = Array.from(fixture.nativeElement.querySelector('app-cat-detail').children);
+    expect(sections.map((section) => (section as Element).className)).toEqual([
+      'detail-identity',
+      'detail-fields',
+      'detail-gallery',
+      'relationship-group',
+      'detail-actions',
+    ]);
     const catStay = buttonContaining(fixture, 'Reserved');
     catStay.click();
     fixture.detectChanges();
@@ -821,6 +908,18 @@ describe('EntityDetailDialog', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.reference().entityType).toBe('cat');
     expect(fixture.nativeElement.textContent).toContain('Milo');
+
+    const root: HTMLElement = fixture.nativeElement;
+    const content = root.querySelector('mat-dialog-content')!;
+    const headerEdit = root.querySelector<HTMLButtonElement>('.header-edit-button')!;
+    expect(headerEdit.nextElementSibling?.classList.contains('close-button')).toBe(true);
+    content.scrollTop = 120;
+    headerEdit.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(root.querySelector('app-cat-editor')).not.toBeNull();
+    expect(content.scrollTop).toBe(0);
+    expect(root.querySelector('.header-edit-button')).toBeNull();
   });
 
   it('drives rendered associated Stay/Cat lists through paginator, child and restored Back state', async () => {
@@ -974,6 +1073,498 @@ describe('EntityDetailDialog', () => {
     expect(completed).toHaveBeenCalledOnce();
   });
 
+  it('opens movement confirmation before the stay detail resolves and resumes the detail on close', async () => {
+    const pendingDetail = new Subject<ReturnType<typeof stayDetailResponse>>();
+    const movements: StayActualMovements = {
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      serverNow: '2030-01-01T13:00:42Z',
+      status: 'RESERVED',
+      cancelled: false,
+      revision: 3,
+      arrival: null,
+      departure: null,
+      canRecordArrival: true,
+      canRecordDeparture: false,
+      canResetArrival: false,
+      arrivalAllowsNow: true,
+      departureAllowsNow: false,
+    };
+    stayApi.getStayDetail
+      .mockReturnValueOnce(pendingDetail)
+      .mockReturnValue(of({ ...stayDetailResponse('stay-1'), status: 'CHECKED_IN' }));
+    const getActualMovements = vi.fn(() => of(movements));
+    const saveActualMovement = vi.fn(() => of({ ...movements, status: 'CHECKED_IN' }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: OwnerApiService, useValue: api },
+        { provide: CatApiService, useValue: catApi },
+        { provide: VetApiService, useValue: vetApi },
+        {
+          provide: StayApiService,
+          useValue: { ...stayApi, getActualMovements, saveActualMovement },
+        },
+      ],
+    });
+    const labels = STAY_MOVEMENT_TRANSLATIONS[TestBed.inject(I18nService).language()];
+    const detailService = TestBed.inject(EntityDetailDialogService);
+    const dialogs = TestBed.inject(MatDialog);
+    const reference: EntityReference = {
+      entityType: 'stay',
+      entityId: 'stay-1',
+      initialMovement: { action: 'record-arrival', catNames: ['Milo', 'Luna'] },
+    };
+
+    const updated = vi.fn();
+    detailService.open(reference).subscribe(updated);
+    TestBed.tick();
+    expect(dialogs.openDialogs).toHaveLength(2);
+    const [detailRef, confirmationRef] = dialogs.openDialogs;
+    expect(getActualMovements).toHaveBeenCalledExactlyOnceWith('stay-1');
+    const confirmation = document.getElementById(confirmationRef.id)!;
+    const detail = document.getElementById(detailRef.id)!;
+    expect(confirmation.querySelector('h2')?.textContent?.trim()).toBe(
+      labels.title['record-arrival'],
+    );
+    expect(confirmation.querySelector('.movement-cats')?.textContent?.trim()).toBe('Milo, Luna');
+    expect(confirmation.querySelector('time')?.dateTime).toBe(movements.serverNow);
+    expect(confirmation.contains(document.activeElement)).toBe(true);
+    const back = [...confirmation.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === labels.goBack,
+    )!;
+    const closed = firstValueFrom(confirmationRef.afterClosed());
+    back.click();
+    await closed;
+    await vi.waitFor(() => expect(detail.contains(document.activeElement)).toBe(true));
+    expect(dialogs.openDialogs).toEqual([detailRef]);
+    expect(updated).not.toHaveBeenCalled();
+    pendingDetail.next(stayDetailResponse('stay-1'));
+    detailRef.close();
+    await firstValueFrom(detailRef.afterClosed());
+
+    detailService.open(reference).subscribe(updated);
+    TestBed.tick();
+    const foreground = dialogs.getDialogById('stay-movement-stay-1')!;
+    const foregroundElement = document.getElementById(foreground.id)!;
+    const complete = [...foregroundElement.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === labels.confirm['record-arrival'],
+    )!;
+    const saved = firstValueFrom(foreground.afterClosed());
+    complete.click();
+    await saved;
+    expect(saveActualMovement).toHaveBeenCalledExactlyOnceWith('stay-1', 'ARRIVAL', 3, null);
+    expect(updated).toHaveBeenCalledExactlyOnceWith({ entityType: 'stay', entityId: 'stay-1' });
+    expect(stayApi.getStayDetail).toHaveBeenCalledTimes(3);
+    expect(dialogs.openDialogs).toHaveLength(1);
+  });
+
+  it('shows the affected cat when undoing an arrival would overlap another stay', () => {
+    const movements: StayActualMovements = {
+      startAt: '2030-01-01T10:00:00',
+      endAt: '2030-01-03T10:00:00',
+      serverNow: '2030-01-01T14:00:00Z',
+      status: 'CHECKED_IN',
+      cancelled: false,
+      revision: 1,
+      arrival: null,
+      departure: null,
+      canRecordArrival: false,
+      canRecordDeparture: true,
+      canResetArrival: true,
+      arrivalAllowsNow: false,
+      departureAllowsNow: true,
+    };
+    const conflict = new HttpErrorResponse({
+      status: 409,
+      error: { code: 'STAY_DATES_OVERLAP', catName: 'Milo' },
+    });
+    const resetActualArrival = vi.fn(() => throwError(() => conflict));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        {
+          provide: StayApiService,
+          useValue: { getActualMovements: () => of(movements), resetActualArrival },
+        },
+      ],
+    });
+    const reference = TestBed.inject(MatDialog).open(StayMovementDialog, {
+      data: { stayId: 'stay-1', action: 'reset-arrival', catNames: ['Milo'] },
+    });
+    reference.componentInstance.confirm();
+    TestBed.tick();
+
+    const dialog = document.getElementById(reference.id)!;
+    const message = TestBed.inject(I18nService).text().stays.create.errors.bookingConflict('Milo');
+    expect(dialog.querySelector('[role="alert"]')?.textContent?.trim()).toBe(message);
+    expect(resetActualArrival).toHaveBeenCalledExactlyOnceWith('stay-1', 1);
+    reference.close();
+  });
+
+  it('closes the detail dialog and releases an enlarged informational photo on session loss', async () => {
+    const getInformationalPhoto = vi.fn(() => of(new Blob(['jpeg'], { type: 'image/jpeg' })));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: { ...catApi, getInformationalPhoto } },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+        { provide: Router, useValue: { url: '/', navigate: vi.fn() } },
+      ],
+    });
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:private-gallery-photo');
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    try {
+      const auth = TestBed.inject(AuthSessionService);
+      auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+      TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+      const dialog = TestBed.inject(MatDialog);
+      const ref = dialog.openDialogs[0];
+      const detail = ref.componentInstance as EntityDetailDialog;
+      const closed = firstValueFrom(ref.afterClosed());
+      detail.openCatPhoto({
+        catId: cat.id,
+        catName: cat.name,
+        ownerName: cat.ownerName,
+        informationalPhotoId: 'photo-1',
+      });
+      TestBed.tick();
+      const image = document.querySelector<HTMLImageElement>(
+        'img[src="blob:private-gallery-photo"]',
+      );
+      expect(image).not.toBeNull();
+      image!.dispatchEvent(new Event('load'));
+      expect(detail.photoState()).toBe('success');
+      expect(getInformationalPhoto).toHaveBeenCalledWith(cat.id, 'photo-1');
+      expect(revokeUrl).not.toHaveBeenCalled();
+
+      auth.logout();
+      TestBed.tick();
+
+      expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:private-gallery-photo');
+      await closed;
+      expect(dialog.openDialogs).toHaveLength(0);
+      expect(document.body.contains(image)).toBe(false);
+    } finally {
+      createUrl.mockRestore();
+      revokeUrl.mockRestore();
+    }
+  });
+
+  it('keeps an effective cat draft through photo preview, a refused catalog warning, a failed save and a refused cancel', async () => {
+    const savedBreed = 'Saved breed';
+    catApi.getCatDetail.mockReturnValueOnce(
+      of({
+        cat: {
+          ...cat,
+          breed: savedBreed,
+          catalogOptionIds: { breed: 'saved-breed-id' },
+          hasPhoto: true,
+        },
+        stays: { totalElements: 0, items: [] },
+      }),
+    );
+    const catalogText = { breed: 'Unlisted breed', foodBrand: 'Unlisted food brand' };
+    catApi.updateCat
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED', fields: catalogText },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(throwError(() => new Error('save rejected')));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+      ],
+    });
+    const dialog = TestBed.inject(MatDialog);
+    TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const editorNode = () =>
+      getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement;
+    const editor = editorNode().componentInstance as CatEditor;
+    const gallery = editorNode().query(By.directive(CatInformationalPhotoGallery))
+      .componentInstance as CatInformationalPhotoGallery;
+    const portrait = editorNode().query(By.directive(CatPhotoInput))
+      .componentInstance as CatPhotoInput;
+    const indicator = () => document.querySelector('.cat-draft-indicator');
+    const beforeUnload = () => {
+      const event = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(indicator()).toBeNull();
+    expect(beforeUnload()).toBe(false);
+
+    editor.name.set('Draft name');
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    expect(beforeUnload()).toBe(true);
+    editor.name.set(cat.name);
+    editor.breed.set('Another breed');
+    editor.setCatalogSelection('breed', 'another-breed-id');
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    editor.breed.set(savedBreed);
+    editor.setCatalogSelection('breed', 'saved-breed-id');
+    TestBed.tick();
+    expect(indicator()).toBeNull();
+    expect(beforeUnload()).toBe(false);
+    portrait.markSavedPhotoForRemoval();
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    portrait.undoRemoval();
+    TestBed.tick();
+    expect(indicator()).toBeNull();
+
+    const picture = new File(['jpeg'], 'record.jpg', { type: 'image/jpeg' });
+    gallery.stage(picture);
+    TestBed.tick();
+    gallery.showDraft(gallery.drafts()[0]);
+    const preview = dialog.openDialogs[1];
+    const previewClosed = firstValueFrom(preview.afterClosed());
+    preview.close();
+    await previewClosed;
+    expect(gallery.files()).toEqual([picture]);
+
+    editor.breed.set(catalogText.breed);
+    editor.setCatalogSelection('breed');
+    editor.changeFoodBrand(catalogText.foodBrand);
+    editor.submit();
+    TestBed.tick();
+    expect(dialog.openDialogs).toHaveLength(2);
+    expect(editor.submitting()).toBe(true);
+    expect(indicator()).not.toBeNull();
+    const warningRef = dialog.openDialogs[1];
+    const warning = document.getElementById(warningRef.id)!;
+    expect(warning.textContent).toContain(catalogText.breed);
+    expect(warning.textContent).toContain(catalogText.foodBrand);
+    const reviewed = firstValueFrom(warningRef.afterClosed());
+    warning.querySelector<HTMLButtonElement>('mat-dialog-actions button:first-child')!.click();
+    await reviewed;
+    TestBed.tick();
+    expect(catApi.updateCat).toHaveBeenCalledTimes(1);
+    expect(editor.submitting()).toBe(false);
+    expect(editor.breed()).toBe(catalogText.breed);
+    expect(editor.foodBrand()).toBe(catalogText.foodBrand);
+    expect(gallery.files()).toEqual([picture]);
+    expect(indicator()).not.toBeNull();
+
+    editor.submit();
+    TestBed.tick();
+    expect(indicator()).not.toBeNull();
+    document
+      .querySelector<HTMLButtonElement>('app-cat-editor .form-actions button[type=button]')!
+      .click();
+    TestBed.tick();
+    const confirmation = dialog.openDialogs[1];
+    const kept = firstValueFrom(confirmation.afterClosed());
+    expect(document.querySelector('app-discard-changes-dialog h2')?.textContent?.trim()).toBe(
+      TestBed.inject(I18nService).text().entityDetail.discardChanges.title,
+    );
+    const keepButton = document.querySelector<HTMLButtonElement>('.keep-editing')!;
+    await vi.waitFor(() => expect(document.activeElement).toBe(keepButton));
+    keepButton.click();
+    await kept;
+    expect(gallery.files()).toEqual([picture]);
+    expect(editorNode().componentInstance).toBe(editor);
+
+    document.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
+    TestBed.tick();
+    const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
+    document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
+    await discarded;
+    TestBed.tick();
+    expect(dialog.openDialogs).toHaveLength(1);
+    expect(document.querySelector('app-cat-editor')).toBeNull();
+    expect(indicator()).toBeNull();
+  });
+
+  it('protects dirty cat edits across Material dismissal and preserves the internal Back destination', async () => {
+    catApi.getCatDetail.mockReturnValueOnce(of({ cat, stays: { totalElements: 0, items: [] } }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideNoopAnimations(),
+        { provide: CatApiService, useValue: catApi },
+        { provide: OwnerApiService, useValue: api },
+        { provide: VetApiService, useValue: vetApi },
+        { provide: StayApiService, useValue: stayApi },
+      ],
+    });
+    const auth = TestBed.inject(AuthSessionService);
+    auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+    TestBed.inject(EntityDetailDialogService).open({ entityType: 'owner', entityId: owner.id });
+    const dialog = TestBed.inject(MatDialog);
+    const ref = dialog.openDialogs[0];
+    const shell = ref.componentInstance as EntityDetailDialog;
+    shell.showReference({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const editor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+      .componentInstance as CatEditor;
+    editor.name.set('Draft name');
+    TestBed.tick();
+
+    const dismissals = [
+      () => document.querySelector<HTMLButtonElement>('.close-button')!.click(),
+      () => document.querySelector<HTMLElement>('.cdk-overlay-backdrop')!.click(),
+      () => {
+        const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+        Object.defineProperty(escape, 'keyCode', { value: 27 });
+        document.body.dispatchEvent(escape);
+      },
+    ];
+    for (const dismiss of dismissals) {
+      dismiss();
+      TestBed.tick();
+      expect(dialog.openDialogs).toHaveLength(2);
+      const kept = firstValueFrom(dialog.openDialogs[1].afterClosed());
+      document.querySelector<HTMLButtonElement>('.keep-editing')!.click();
+      await kept;
+      expect(editor.name()).toBe('Draft name');
+      expect(shell.reference().entityType).toBe('cat');
+    }
+
+    document.querySelector<HTMLButtonElement>('.back-button')!.click();
+    TestBed.tick();
+    const discarded = firstValueFrom(dialog.openDialogs[1].afterClosed());
+    shell.allowClose();
+    expect(dialog.openDialogs).toHaveLength(2);
+    document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
+    await discarded;
+    TestBed.tick();
+    expect(dialog.openDialogs).toEqual([ref]);
+    expect(shell.reference().entityType).toBe('owner');
+
+    shell.showReference({ entityType: 'cat', entityId: cat.id });
+    TestBed.tick();
+    document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+    TestBed.tick();
+    const changedEditor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+      .componentInstance as CatEditor;
+    changedEditor.name.set('Second draft');
+    const portrait = (getDebugNode(document.querySelector('app-cat-photo-input')!) as DebugElement)
+      .componentInstance as CatPhotoInput;
+    portrait.restore(new File(['jpeg'], 'portrait.jpg', { type: 'image/jpeg' }));
+    const portraitUrl = portrait.previewUrl();
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    try {
+      const closed = firstValueFrom(ref.afterClosed());
+      document.querySelector<HTMLButtonElement>('.close-button')!.click();
+      TestBed.tick();
+      expect(dialog.openDialogs).toHaveLength(2);
+      auth.logout();
+      TestBed.tick();
+      expect(revoke).toHaveBeenCalledWith(portraitUrl);
+      await closed;
+      await vi.waitFor(() => expect(dialog.openDialogs).toHaveLength(0));
+    } finally {
+      revoke.mockRestore();
+    }
+  });
+
+  it.each([false, true])(
+    'restores browser history on Keep editing and completes the first Back action on discard (superseded=%s)',
+    async (superseded) => {
+      catApi.getCatDetail.mockReturnValueOnce(of({ cat, stays: { totalElements: 0, items: [] } }));
+      TestBed.configureTestingModule({
+        providers: [
+          provideNoopAnimations(),
+          provideLocationMocks(),
+          provideRouter(
+            [
+              { path: 'previous', component: CatDraftTestRoute },
+              {
+                path: 'cats',
+                component: CatDraftTestRoute,
+                canDeactivate: [confirmCatDraftNavigation],
+              },
+            ],
+            withRouterConfig({ canceledNavigationResolution: 'computed' }),
+          ),
+          { provide: CatApiService, useValue: catApi },
+          { provide: OwnerApiService, useValue: api },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+        ],
+      });
+      const router = TestBed.inject(Router);
+      const location = TestBed.inject(Location);
+      router.setUpLocationChangeListener();
+      const previous = '/previous?filter=kept#results';
+      const harness = await RouterTestingHarness.create('/previous?filter=older');
+      await harness.navigateByUrl(previous);
+      await harness.navigateByUrl('/cats');
+      const auth = TestBed.inject(AuthSessionService);
+      auth.login({ username: 'admin', role: 'ADMIN' }, { username: 'admin', password: 'password' });
+      const dialog = TestBed.inject(MatDialog);
+      TestBed.inject(EntityDetailDialogService).open({ entityType: 'cat', entityId: cat.id });
+      TestBed.tick();
+      document.querySelector<HTMLButtonElement>('.header-edit-button')!.click();
+      TestBed.tick();
+      const editor = (getDebugNode(document.querySelector('app-cat-editor')!) as DebugElement)
+        .componentInstance as CatEditor;
+      editor.name.set('Draft name');
+      TestBed.tick();
+
+      const goBack = async () => {
+        location.back();
+        await vi.waitFor(() => {
+          TestBed.tick();
+          expect(document.querySelector('.keep-editing')).not.toBeNull();
+        });
+        expect(router.url).toBe('/cats');
+        expect(dialog.openDialogs).toHaveLength(2);
+      };
+
+      await goBack();
+      document.querySelector<HTMLButtonElement>('.keep-editing')!.click();
+      await vi.waitFor(() => {
+        expect(dialog.openDialogs).toHaveLength(1);
+        expect(location.path()).toBe('/cats');
+      });
+      expect(editor.name()).toBe('Draft name');
+
+      await goBack();
+      if (superseded) {
+        location.back();
+        await vi.waitFor(() => expect(location.path()).toBe('/cats'));
+        expect(dialog.openDialogs).toHaveLength(2);
+      }
+      const navigated = firstValueFrom(
+        router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+      );
+      document.querySelector<HTMLButtonElement>('.discard-changes')!.click();
+      await navigated;
+      expect(router.url).toBe(previous);
+      await vi.waitFor(() => expect(dialog.openDialogs).toHaveLength(0));
+
+      if (!superseded) {
+        const forwarded = firstValueFrom(
+          router.events.pipe(filter((e) => e instanceof NavigationEnd)),
+        );
+        location.forward();
+        await forwarded;
+        expect(router.url).toBe('/cats');
+      }
+    },
+  );
+
   it('keeps the operational edit load failure separate and retries the operational GET', async () => {
     const pricingGate = new Subject<Stay>();
     const failed = new Subject<Stay>();
@@ -1107,23 +1698,30 @@ describe('EntityDetailDialog', () => {
     ['known', '100', true],
     ['null', null, false],
   ] as const)(
-    'shows pricing only after the full Stay proves a %s agreement',
+    'shows pricing in the header only after the full Stay proves a %s agreement',
     async (_label, agreedAmount, visible) => {
       stayApi.getStayDetail.mockReturnValue(of(stayDetailResponse('stay-1')));
       stayApi.getStayById.mockReturnValue(of({ ...operationalStay, agreedAmount }));
       await TestBed.configureTestingModule({
-        imports: [StayDetail],
-        providers: [provideNoopAnimations(), { provide: StayApiService, useValue: stayApi }],
+        imports: [EntityDetailDialog],
+        providers: [
+          provideNoopAnimations(),
+          { provide: MAT_DIALOG_DATA, useValue: { entityType: 'stay', entityId: 'stay-1' } },
+          { provide: OwnerApiService, useValue: api },
+          { provide: CatApiService, useValue: catApi },
+          { provide: VetApiService, useValue: vetApi },
+          { provide: StayApiService, useValue: stayApi },
+          { provide: MatDialogRef, useValue: dialogRef },
+        ],
       }).compileComponents();
-      const fixture = TestBed.createComponent(StayDetail);
-      fixture.componentRef.setInput('entityId', 'stay-1');
-      fixture.componentRef.setInput('editing', false);
+      const fixture = TestBed.createComponent(EntityDetailDialog);
       fixture.detectChanges();
-      const pricing = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
-        (button) =>
-          button.textContent?.includes(fixture.componentInstance.text().stays.detail.pricing),
+      const header = (fixture.nativeElement as HTMLElement).querySelector('header')!;
+      const buttons = [...header.querySelectorAll('button')].map((button) =>
+        button.textContent?.trim(),
       );
-      expect(pricing !== undefined).toBe(visible);
+      expect(buttons.includes(fixture.componentInstance.text().stays.detail.pricing)).toBe(visible);
+      expect(buttons).toContain(fixture.componentInstance.text().stays.detail.edit);
     },
   );
 
@@ -1252,12 +1850,18 @@ describe('EntityDetailDialog', () => {
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
     buttonContaining(fixture, 'Reserved').click();
     fixture.detectChanges();
-    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.edit).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.header-cancel-button, .header-save-button')).toBeNull();
+    const edit = root.querySelector<HTMLButtonElement>('.stay-header-buttons button')!;
+    expect(edit.textContent?.trim()).toBe(fixture.componentInstance.text().stays.detail.edit);
+    edit.click();
     fixture.detectChanges();
     let editor = fixture.debugElement.query(By.directive(StayEditor))
       .componentInstance as StayEditor;
     editor.notes.set('discard me');
-    buttonContaining(fixture, fixture.componentInstance.text().stays.detail.cancelEdit).click();
+    root.querySelector<HTMLButtonElement>('.header-cancel-button')!.click();
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.directive(StayEditor))).toBeNull();
 
@@ -1266,13 +1870,14 @@ describe('EntityDetailDialog', () => {
     editor = fixture.debugElement.query(By.directive(StayEditor)).componentInstance as StayEditor;
     expect(editor.notes()).toBe('');
     editor.notes.set('retained rejected draft');
-    buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
+    root.querySelector<HTMLButtonElement>('.header-save-button')!.click();
     fixture.detectChanges();
     expect(fixture.debugElement.query(By.directive(StayEditor))).not.toBeNull();
     expect(editor.notes()).toBe('retained rejected draft');
 
     buttonContaining(fixture, fixture.componentInstance.text().stays.edit.submit).click();
     fixture.detectChanges();
+    expect(root.querySelector<HTMLButtonElement>('.header-save-button')!.disabled).toBe(true);
     expect(dialogRef.disableClose).toBe(true);
     expect(
       (fixture.nativeElement.querySelector('.close-button') as HTMLButtonElement).disabled,
@@ -1553,8 +2158,6 @@ describe('EntityDetailDialog', () => {
     ).toEqual([
       fixture.componentInstance.text().stays.cancellation.action,
       fixture.componentInstance.text().deletion.actions.deletePermanently,
-      fixture.componentInstance.text().stays.detail.pricing,
-      fixture.componentInstance.text().stays.detail.edit,
     ]);
 
     buttonContaining(
@@ -1809,10 +2412,13 @@ describe('EntityDetailDialog', () => {
 });
 
 describe('EntityDetailDialog cat photo destination', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('owns private loading, success, missing, error, back, and URL cleanup states', async () => {
     const photo = new Subject<Blob>();
     const beforeClosed = new Subject<void>();
     const catApi = {
+      listInformationalPhotos: vi.fn(() => of([])),
       getCatDetail: vi.fn(() =>
         of({
           cat: {
@@ -1842,16 +2448,22 @@ describe('EntityDetailDialog cat photo destination', () => {
           stays: { totalElements: 0, items: [] },
         }),
       ),
+      getFramedCatPhoto: vi.fn(() =>
+        of({
+          blob: new Blob(['thumbnail'], { type: 'image/jpeg' }),
+          frame: { frameX: 50, frameY: 50, frameZoom: 100 },
+        }),
+      ),
       getCatPhoto: vi.fn(() => photo.asObservable()),
     };
     const createUrl = vi
-      .fn<() => string>()
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:profile-thumbnail')
       .mockReturnValueOnce('blob:cat-photo')
       .mockReturnValueOnce('blob:portrait-photo')
       .mockReturnValueOnce('blob:broken-photo')
       .mockReturnValueOnce('blob:close-photo');
-    const revokeUrl = vi.fn();
-    vi.stubGlobal('URL', { ...URL, createObjectURL: createUrl, revokeObjectURL: revokeUrl });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     await TestBed.configureTestingModule({
       imports: [EntityDetailDialog],
       providers: [
@@ -1878,19 +2490,17 @@ describe('EntityDetailDialog cat photo destination', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const viewPhoto = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].find(
-      (button) =>
-        button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
-    )!;
-    expect(
-      [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].filter(
-        (button) =>
-          button.textContent?.trim() === fixture.componentInstance.text().cats.detail.viewPhoto,
-      ),
-    ).toHaveLength(1);
+    const root = fixture.nativeElement as HTMLElement;
+    const viewPhoto = root.querySelector<HTMLButtonElement>('.detail-identity button')!;
+    expect(viewPhoto?.getAttribute('aria-label')).toBe(
+      fixture.componentInstance.text().cats.detail.viewPhoto,
+    );
+    expect(viewPhoto.querySelector('img')?.getAttribute('src')).toBe('blob:profile-thumbnail');
+    expect(catApi.getFramedCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
     viewPhoto.click();
     fixture.detectChanges();
-    expect(catApi.getCatPhoto).toHaveBeenCalledTimes(1);
+    expect(catApi.getCatPhoto).toHaveBeenCalledExactlyOnceWith('cat-1');
+    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:profile-thumbnail');
     expect(fixture.componentInstance.photoState()).toBe('loading');
     expect(fixture.componentInstance.title()).toBe(
       `${fixture.componentInstance.text().cats.detail.photo} — Milo (Ada)`,
@@ -1898,7 +2508,7 @@ describe('EntityDetailDialog cat photo destination', () => {
 
     photo.next(new Blob(['jpeg'], { type: 'image/jpeg' }));
     fixture.detectChanges();
-    expect(createUrl).toHaveBeenCalledTimes(1);
+    expect(createUrl).toHaveBeenCalledTimes(2);
     expect((fixture.nativeElement as HTMLElement).querySelector('img')?.getAttribute('src')).toBe(
       'blob:cat-photo',
     );
@@ -1922,10 +2532,10 @@ describe('EntityDetailDialog cat photo destination', () => {
       'min(52rem, calc(100vw - 2rem))',
       '',
     );
-    expect(revokeUrl).toHaveBeenCalledExactlyOnceWith('blob:cat-photo');
+    expect(revokeUrl).toHaveBeenLastCalledWith('blob:cat-photo');
     expect(fixture.componentInstance.entry().kind).toBe('detail');
     firstImage.dispatchEvent(new Event('error'));
-    expect(revokeUrl).toHaveBeenCalledTimes(1);
+    expect(revokeUrl).toHaveBeenCalledTimes(2);
 
     catApi.getCatPhoto.mockReturnValueOnce(of(new Blob(['portrait'], { type: 'image/jpeg' })));
     fixture.componentInstance.openCatPhoto({
@@ -1979,7 +2589,7 @@ describe('EntityDetailDialog cat photo destination', () => {
     beforeClosed.next();
     expect(closePhoto.observers).toHaveLength(0);
     closePhoto.next(new Blob(['late'], { type: 'image/jpeg' }));
-    expect(createUrl).toHaveBeenCalledTimes(3);
+    expect(createUrl).toHaveBeenCalledTimes(4);
 
     const loadedBeforeClose = new Subject<Blob>();
     catApi.getCatPhoto.mockReturnValueOnce(loadedBeforeClose.asObservable());
@@ -1993,7 +2603,6 @@ describe('EntityDetailDialog cat photo destination', () => {
     const revokeCount = revokeUrl.mock.calls.length;
     fixture.destroy();
     expect(revokeUrl).toHaveBeenCalledTimes(revokeCount);
-    vi.unstubAllGlobals();
   });
 });
 describe('Route-free StayEditor migrated coverage', () => {
@@ -2087,7 +2696,7 @@ describe('Route-free StayEditor migrated coverage', () => {
         catId: 'cat-1',
         catName: 'Milo',
         vaccineType: 'RABIES',
-        reason: 'EXPIRED',
+        reason: 'EXPIRED_BY_ARRIVAL',
         vaccinatedOn: '2025-07-01',
         expiresOn: '2026-07-01',
       },
@@ -3723,6 +4332,23 @@ describe('Route-free StayEditor migrated coverage', () => {
       });
     },
   );
+
+  it('shows a departure before actual arrival next to the departure input', () => {
+    const invalidDates = new HttpErrorResponse({
+      status: 400,
+      error: { code: 'STAY_END_BEFORE_ACTUAL_ARRIVAL' },
+    });
+    stayApiService.previewDateChangePricing.mockReturnValue(throwError(() => invalidDates));
+    createComponent();
+    fixture.detectChanges();
+
+    const departure = fixture.nativeElement.querySelector('input[name="endAt"]');
+    expect(departure.getAttribute('aria-describedby')).toBe('stay-departure-before-actual-arrival');
+    expect(
+      fixture.nativeElement.querySelector('#stay-departure-before-actual-arrival')?.textContent,
+    ).toMatch(/actual arrival|ingreso real/i);
+    expect(component.saveDisabled()).toBe(true);
+  });
 
   it('presents the administrator-required state for a rejected staff pricing preview', () => {
     authSessionService.hasRole.mockReturnValue(false);

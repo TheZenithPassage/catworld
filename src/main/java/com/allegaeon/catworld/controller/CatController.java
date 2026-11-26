@@ -6,12 +6,13 @@ import com.allegaeon.catworld.dto.relationship.*;
 import com.allegaeon.catworld.dto.lookup.*;
 import com.allegaeon.catworld.dto.overview.*;
 import com.allegaeon.catworld.service.ICatService;
-import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,17 +62,26 @@ public class CatController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> createCat(
-            @Valid @RequestPart("cat") CatRequestDTO catRequestDTO,
-            @RequestPart(value = "photo", required = false) MultipartFile photo) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(catService.createCat(catRequestDTO, photo));
+            @Validated({Default.class, CatRequestDTO.Create.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(catService.createCat(catRequestDTO, photo, informationalPhotos));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CatResponseDTO> updateCat(@PathVariable UUID id,
-            @Valid @RequestPart("cat") CatRequestDTO catRequestDTO,
+            @Validated({Default.class, CatRequestDTO.Update.class}) @RequestPart("cat") CatRequestDTO catRequestDTO,
             @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestPart(value = "informationalPhotos", required = false) List<MultipartFile> informationalPhotos,
             @RequestParam(defaultValue = "false") boolean removePhoto) {
-        return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto));
+        return ResponseEntity.ok(catService.updateCat(id, catRequestDTO, photo, removePhoto, informationalPhotos));
+    }
+
+    @PostMapping(value = "/photo-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
+            produces = MediaType.IMAGE_JPEG_VALUE)
+    public ResponseEntity<byte[]> previewPhoto(@RequestPart("photo") MultipartFile photo) {
+        return ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store").body(catService.previewPhoto(photo));
     }
 
     @GetMapping(value = "/{id}/photo", produces = MediaType.IMAGE_JPEG_VALUE)
@@ -80,6 +90,11 @@ public class CatController {
         var photo = catService.getPhoto(id);
         var headers = new HttpHeaders();
         headers.setETag(photo.etag());
+        if (photo.frame() != null) {
+            headers.set("X-Cat-Photo-Frame", "%d,%d,%d".formatted(
+                    photo.frame().frameX(), photo.frame().frameY(), photo.frame().frameZoom()));
+            headers.add(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, "X-Cat-Photo-Frame");
+        }
         headers.setCacheControl("private, no-cache");
         if (matches(ifNoneMatch, photo.etag())) return new ResponseEntity<>(null, headers, HttpStatus.NOT_MODIFIED);
         return new ResponseEntity<>(photo.bytes(), headers, HttpStatus.OK);

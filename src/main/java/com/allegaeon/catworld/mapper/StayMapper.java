@@ -9,6 +9,7 @@ import com.allegaeon.catworld.dto.StayUpdateDTO;
 import com.allegaeon.catworld.model.Stay;
 import com.allegaeon.catworld.model.StayPayment;
 import com.allegaeon.catworld.model.StayPaymentAnnulment;
+import com.allegaeon.catworld.service.StayLitterPricing;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -25,12 +26,16 @@ public class StayMapper {
     }
 
     public StayResponseDTO toResponseDTO(Stay stay, boolean canDelete) {
+        long nights = calculateNumberOfNights(stay.getStartAt(), stay.getEndAt());
+        var litter = StayLitterPricing.retained(stay, nights);
+        BigDecimal transfer = calculateTransferSuggestedAmount(stay);
 
         return StayResponseDTO.builder()
                 .stayId(stay.getId())
                 .startAt(stay.getStartAt())
                 .endAt(stay.getEndAt())
                 .cancelledAt(stay.getCancelledAt())
+                .status(stay.status())
                 .createdAt(stay.getCreatedAt())
                 .updatedAt(stay.getUpdatedAt())
                 .notes(stay.getNotes())
@@ -38,19 +43,16 @@ public class StayMapper {
                 .ownerId(stay.getOwner().getId())
                 .ownerName(stay.getOwner().getFullName())
                 .cats(toCatSummaries(stay))
-                .numberOfNights(calculateNumberOfNights(
-                        stay.getStartAt(),
-                        stay.getEndAt()))
+                .numberOfNights(nights)
                 .retainedNightlyRate(stay.getRetainedNightlyRate())
                 .arrivalTransferRequired(stay.isArrivalTransferRequired())
                 .departureTransferRequired(stay.isDepartureTransferRequired())
                 .transferWaived(stay.isTransferWaived())
                 .retainedTransferRate(stay.getRetainedTransferRate())
-                .transferSuggestedAmount(calculateTransferSuggestedAmount(stay))
-                .suggestedAmount(combineSuggestion(calculateSuggestedAmount(
-                        stay.getRetainedNightlyRate(),
-                        calculateNumberOfNights(stay.getStartAt(), stay.getEndAt())),
-                        calculateTransferSuggestedAmount(stay)))
+                .transferSuggestedAmount(transfer)
+                .litter(litter)
+                .suggestedAmount(StayLitterPricing.combine(
+                        calculateSuggestedAmount(stay.getRetainedNightlyRate(), nights), transfer, litter.subtotal()))
                 .agreedAmount(stay.getAgreedAmount())
                 .pricePending(stay.isPricePending())
                 .canDelete(canDelete)
@@ -124,9 +126,6 @@ public class StayMapper {
                 : retainedNightlyRate.multiply(BigDecimal.valueOf(numberOfNights));
     }
 
-    private BigDecimal combineSuggestion(BigDecimal accommodation, BigDecimal transfer) {
-        return accommodation == null ? null : accommodation.add(transfer);
-    }
     public BigDecimal calculateTransferSuggestedAmount(Stay stay) { if (stay.isTransferWaived() || stay.getRetainedTransferRate() == null) return BigDecimal.ZERO; long legs = (stay.isArrivalTransferRequired()?1:0) + (stay.isDepartureTransferRequired()?1:0); return stay.getRetainedTransferRate().multiply(BigDecimal.valueOf(legs)); }
 
     private Set<StayCatSummaryDTO> toCatSummaries(Stay stay) {

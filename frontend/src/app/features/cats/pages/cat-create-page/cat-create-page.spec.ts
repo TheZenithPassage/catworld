@@ -1,6 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { NgModel } from '@angular/forms';
+import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatAutocompleteHarness } from '@angular/material/autocomplete/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import {
@@ -21,9 +24,12 @@ import { Cat } from '../../models/cat.model';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatCreatePage } from './cat-create-page';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { CatProfileOptionsService } from '../../../../shared/cat-profile-options/cat-profile-options.service';
 import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-entity-selector';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
+import type { CatCreationDraft } from '../../../../core/creation-flow/creation-flow.models';
+import { AuthSessionService } from '../../../../core/auth/auth-session.service';
 import { CreationFlowService } from '../../../../core/creation-flow/creation-flow.service';
 
 describe('CatCreatePage', () => {
@@ -58,6 +64,7 @@ describe('CatCreatePage', () => {
 
   const createdCat: Cat = {
     id: 'cat-1',
+    updatedAt: '2026-10-05T13:00:00Z',
     name: 'Milo',
     birthDate: '2020-01-02',
     sex: 'MALE',
@@ -83,6 +90,25 @@ describe('CatCreatePage', () => {
 
   const catApiService = {
     createCat: vi.fn(),
+  };
+
+  const profileOptions = {
+    load: vi.fn(),
+    loadVarieties: vi.fn(),
+    publish: vi.fn(),
+    varieties: signal([
+      { id: 'variety-royal-kitten', brandId: 'brand-1', name: 'Kitten' },
+      { id: 'variety-other-kitten', brandId: 'brand-2', name: 'Kitten Other' },
+    ]),
+    catalog: signal({
+      breed: [],
+      coat: [],
+      color: [],
+      foodBrand: [{ id: 'brand-1', name: 'Royal Canin' }],
+      litterDetail: [{ id: 'pine', name: 'Pine pellets' }],
+      lastInternalDewormerName: [],
+      lastExternalDewormerName: [],
+    }),
   };
 
   const ownerApiService = {
@@ -119,6 +145,7 @@ describe('CatCreatePage', () => {
       imports: [CatCreatePage],
       providers: [
         provideNoopAnimations(),
+        { provide: CatProfileOptionsService, useValue: profileOptions },
         {
           provide: CatApiService,
           useValue: catApiService,
@@ -186,15 +213,316 @@ describe('CatCreatePage', () => {
       .join(' ');
   }
 
+  it('queues informational photos for the same create request as the portrait', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    const portrait = new File(['portrait'], 'profile.jpg', { type: 'image/jpeg' });
+    const attachments = [
+      new File(['first'], 'first.jpg', { type: 'image/jpeg' }),
+      new File(['second'], 'second.jpg', { type: 'image/jpeg' }),
+    ];
+    const stage = (selector: string, file: File) => {
+      const input = fixture.nativeElement.querySelector(selector) as HTMLInputElement;
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    stage('app-cat-photo-input input[type=file]', portrait);
+    for (const attachment of attachments) {
+      stage('app-cat-informational-photo-gallery input[type=file]', attachment);
+    }
+
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    await submitRenderedForm();
+    expect(catApiService.createCat).toHaveBeenCalledOnce();
+    expect(catApiService.createCat).toHaveBeenCalledWith(expect.anything(), portrait, attachments);
+  });
+
+  it('explains the combined upload limit and keeps the queued images', async () => {
+    createComponent();
+    fixture.detectChanges();
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    const gallery = fixture.nativeElement.querySelector('app-cat-informational-photo-gallery');
+    const input = gallery.querySelector('input[type=file]') as HTMLInputElement;
+    for (const name of ['first.jpg', 'second.jpg']) {
+      const file = new File(['record'], name, { type: 'image/jpeg' });
+      Object.defineProperty(file, 'size', { value: 20 * 1024 * 1024 });
+      Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+      input.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    }
+
+    await submitRenderedForm();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.error()).toContain('33 MiB');
+    expect(gallery.querySelectorAll('li')).toHaveLength(2);
+  });
+
+  it('submits a brand and only its selected variety with the shared litter choice', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const food = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodBrand]' }),
+    );
+    await food.enterText('royal');
+    await food.selectOption({ text: 'Royal Canin' });
+    const variety = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodDetail]' }),
+    );
+    await variety.enterText('Kit');
+    const options = await variety.getOptions();
+    expect(await Promise.all(options.map((option) => option.getText()))).toEqual(['Kitten']);
+    await variety.selectOption({ text: 'Kitten' });
+    const litter = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>(
+      '[name=litterChoice]',
+    )!;
+    litter.value = 'shared';
+    litter.dispatchEvent(new Event('change', { bubbles: true }));
+    await fixture.whenStable();
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        foodBrand: 'Royal Canin',
+        foodBrandId: 'brand-1',
+        foodDetail: 'Kitten',
+        foodVarietyId: 'variety-royal-kitten',
+        litterBrand: 'Usa las de CatWorld',
+      }),
+      null,
+      [],
+    );
+  });
+
+  it('links an explicitly selected own-litter option when creating a cat', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-02');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('[name=litterBrand]')).toBeNull();
+    const choice = root.querySelector<HTMLSelectElement>('[name=litterChoice]')!;
+    choice.value = 'own';
+    choice.dispatchEvent(new Event('change', { bubbles: true }));
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const litter = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=litterBrand]' }),
+    );
+    await litter.enterText('pine');
+    await litter.selectOption({ text: 'Pine pellets' });
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        litterPreference: 'OWN',
+        litterDetail: 'Pine pellets',
+        catalogOptionIds: { litterDetail: 'pine' },
+      }),
+      null,
+      [],
+    );
+  });
+
+  it('marks an explicitly selected catalog value and clears its text and ID together', async () => {
+    createComponent();
+    fixture.detectChanges();
+    const loader = TestbedHarnessEnvironment.loader(fixture);
+    const food = await loader.getHarness(
+      MatAutocompleteHarness.with({ selector: '[name=foodBrand]' }),
+    );
+    const root = fixture.nativeElement as HTMLElement;
+    const control = root.querySelector('app-cat-profile-option-field[field=foodBrand]')!;
+    const input = control.querySelector('input')!;
+    expect(input.placeholder).toBe('');
+    input.dispatchEvent(new Event('focus'));
+    fixture.detectChanges();
+    expect(input.placeholder).toContain('Royal Canin');
+
+    await food.enterText('Royal Canin');
+    expect(control.querySelector('.lookup-success')).toBeNull();
+    expect(component.catalogSelection().foodBrand).toBeUndefined();
+    await food.selectOption({ text: 'Royal Canin' });
+    expect(control.querySelector('.lookup-success .success-check')).not.toBeNull();
+    expect(control.querySelector('[role="status"]')?.textContent).toContain('Royal Canin');
+
+    const clear = control.querySelector('button.clear-button')!;
+    expect(clear.getAttribute('aria-label')).toBeTruthy();
+    (clear as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(input.value).toBe('');
+    expect(control.querySelector('.lookup-success')).toBeNull();
+    expect(component.catalogSelection().foodBrand).toBeUndefined();
+    expect(component.foodBrand()).toBe('');
+  });
+
+  it('publishes only an explicitly selected catalog field as an administrator', async () => {
+    const session = TestBed.inject(AuthSessionService);
+    const credentials = { username: 'operator', password: 'password' };
+    session.login({ username: credentials.username, role: 'STAFF' }, credentials);
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-01');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    component.breed.set('Mixed');
+    component.color.set('Orange');
+    fixture.detectChanges();
+
+    profileOptions.publish.mockReturnValue(of({ id: 'breed-mixed', name: 'Mixed' }));
+    const rendered = fixture.nativeElement as HTMLElement;
+    const breedApproval = () =>
+      rendered.querySelector<HTMLButtonElement>(
+        'app-cat-profile-option-field[field=breed] .publish-option',
+      );
+    expect(breedApproval()).toBeNull();
+
+    session.login({ username: credentials.username, role: 'ADMIN' }, credentials);
+    fixture.detectChanges();
+    expect(breedApproval()?.textContent).toContain('Agregar «Mixed» a Razas');
+    expect(profileOptions.publish).not.toHaveBeenCalled();
+    breedApproval()!.click();
+    await fixture.whenStable();
+    expect(profileOptions.publish).not.toHaveBeenCalled();
+    const publication = document.querySelector('mat-dialog-container')!;
+    expect(publication.textContent).toContain('Mixed');
+    expect(publication.textContent).toContain('Razas');
+    publication.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
+    await fixture.whenStable();
+    expect(profileOptions.publish).toHaveBeenCalledWith('breed', 'Mixed', undefined);
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    await fixture.whenStable();
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        birthDate: '2020-01-01',
+        breed: 'Mixed',
+        color: 'Orange',
+        catalogOptionIds: { breed: 'breed-mixed' },
+      }),
+      null,
+      [],
+    );
+    expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('birthYear');
+    expect(catApiService.createCat.mock.lastCall?.[0]).not.toHaveProperty('approveCatalogOptions');
+    expect(profileOptions.publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries one confirmed group of catalog values with the same staged photo', async () => {
+    createComponent();
+    component.name.set('Milo');
+    component.birthDate.set('2020-01-01');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+    component.breed.set('Unlisted breed');
+    component.foodBrand.set('Unlisted brand');
+    fixture.detectChanges();
+    const photo = new File(['image'], 'milo.jpg', { type: 'image/jpeg' });
+    fixture.debugElement.query(By.directive(CatPhotoInput)).componentInstance.restore(photo);
+    const fields = { breed: 'Unlisted breed', foodBrand: 'Unlisted brand' };
+    catApiService.createCat
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new HttpErrorResponse({
+              status: 409,
+              error: { code: 'CAT_CATALOG_TEXT_CONFIRMATION_REQUIRED', fields },
+            }),
+        ),
+      )
+      .mockReturnValueOnce(of(createdCat));
+
+    component.submit();
+    await fixture.whenStable();
+    const dialog = document.querySelector('mat-dialog-container')!;
+    expect(dialog.textContent).toContain('Unlisted breed');
+    expect(dialog.textContent).toContain('Unlisted brand');
+    expect(catApiService.createCat).toHaveBeenCalledTimes(1);
+    dialog.querySelector<HTMLButtonElement>('mat-dialog-actions button:last-child')!.click();
+    await fixture.whenStable();
+
+    expect(catApiService.createCat).toHaveBeenCalledTimes(2);
+    const [original, sentPhoto] = catApiService.createCat.mock.calls[0];
+    expect(sentPhoto).toBe(photo);
+    expect(catApiService.createCat.mock.calls[1]).toEqual([
+      { ...original, confirmedCatalogText: fields },
+      photo,
+      [],
+    ]);
+  });
+
+  it('submits only the known birth year and keeps tutor instructions separate from notes', async () => {
+    createComponent();
+    fixture.detectChanges();
+    catApiService.createCat.mockReturnValue(of(createdCat));
+    component.name.set('Milo');
+    component.sex.set('MALE');
+    component.ownerId.set('owner-1');
+
+    const form = fixture.nativeElement as HTMLElement;
+    const yearOnly = form.querySelector<HTMLInputElement>('mat-checkbox input');
+    expect(yearOnly).not.toBeNull();
+    yearOnly!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    component.birthYear.set('999');
+    component.submit();
+    expect(catApiService.createCat).not.toHaveBeenCalled();
+    expect(component.birthDateError()).toBe(component.text().cats.form.birthYearInvalid);
+
+    const year = form.querySelector<HTMLInputElement>('input[name="birthYear"]')!;
+    year.value = '2020';
+    year.dispatchEvent(new Event('input'));
+    const care = form.querySelector<HTMLTextAreaElement>('textarea[name="careInstructions"]')!;
+    care.value = '  Serve wet food separately.  ';
+    care.dispatchEvent(new Event('input'));
+    component.notes.set('Private note');
+    component.submit();
+
+    expect(catApiService.createCat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        birthDate: null,
+        birthYear: 2020,
+        careInstructions: 'Serve wet food separately.',
+        notes: 'Private note',
+      }),
+      null,
+      [],
+    );
+  });
+
   it('renders Material cat create fields, selects, links and submit action', () => {
     createComponent();
     fixture.detectChanges();
 
     const compiled = fixture.nativeElement as HTMLElement;
 
-    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(18);
+    expect(compiled.querySelectorAll('mat-form-field')).toHaveLength(20);
     expect(compiled.querySelector('textarea[name="notes"]')).not.toBeNull();
-    expect(compiled.querySelectorAll('select[matNativeControl]')).toHaveLength(1);
+    expect(compiled.querySelector('select[name=sex]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=coat]')).not.toBeNull();
+    expect(compiled.querySelector('select[name=litterChoice]')).not.toBeNull();
     expect(compiled.querySelectorAll('app-remote-entity-selector')).toHaveLength(2);
     expect(ownerApiService.getOwners).not.toHaveBeenCalled();
     expect(vetApiService.getVets).not.toHaveBeenCalled();
@@ -264,6 +592,7 @@ describe('CatCreatePage', () => {
         vetId: 'vet-1',
       },
       null,
+      [],
     );
     expect(router.navigate).toHaveBeenCalledWith(['/cats']);
     expect(component.submitting()).toBe(false);
@@ -461,6 +790,7 @@ describe('CatCreatePage', () => {
     expect(catApiService.createCat).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Still Milo' }),
       null,
+      [],
     );
     expect(component.name()).toBe('Still Milo');
   });
@@ -562,6 +892,35 @@ describe('CatCreatePage', () => {
       queryParams: { creationFlowId: flowId },
     });
     preview.mockRestore();
+  });
+
+  it('restores a year-only draft with its distinct care instructions and catalog selections', () => {
+    arriveWithDraft(
+      '/vets/new',
+      {},
+      {
+        ...completeDraft(null),
+        birthDate: '2020-01-01',
+        birthYear: '2021',
+        yearOnly: true,
+        careInstructions: 'Feed separately',
+        catalogSelection: { breed: 'breed-existing' },
+      },
+    );
+
+    expect(component.yearOnly()).toBe(true);
+    expect(component.birthYear()).toBe('2021');
+    expect(component.birthDate()).toBe('2020-01-01');
+    expect(component.careInstructions()).toBe('Feed separately');
+    expect(component.catalogSelection()).toEqual({ breed: 'breed-existing' });
+
+    component.createRelated('owner', new Event('click'));
+    returnFromCancelledRelated('owner', latestCreatedFlowId());
+    expect(component.yearOnly()).toBe(true);
+    expect(component.birthYear()).toBe('2021');
+    expect(component.birthDate()).toBe('2020-01-01');
+    expect(component.careInstructions()).toBe('Feed separately');
+    expect(component.catalogSelection()).toEqual({ breed: 'breed-existing' });
   });
 
   it('overlays only a returned Vet and restores both saved relations after child cancel', () => {
@@ -713,7 +1072,7 @@ describe('CatCreatePage', () => {
   function arriveWithDraft(
     via: '/owners/new' | '/vets/new',
     returned: Record<string, string>,
-    draft: ReturnType<typeof completeDraft>,
+    draft: CatCreationDraft,
   ): string {
     const creationFlow = TestBed.inject(CreationFlowService);
     const flowId = creationFlow.start('stay');

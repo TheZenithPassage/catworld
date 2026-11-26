@@ -15,6 +15,7 @@ import {
   PaymentReasonRequest,
   PaymentRegistrationRequest,
   PendingPricePreview,
+  PendingPricePreviewRequest,
   PricingDecision,
   Stay,
   StayOverviewItem,
@@ -25,6 +26,7 @@ import {
 } from '../models/stay.model';
 import { OverviewPage } from '../../../shared/pagination/overview-page';
 
+import type { StayActualMovements, StayMovementType } from '../models/stay-movement.model';
 import { StayDateFilters } from '../utils/stay-search-filter.util';
 
 function dateParams(filters: StayDateFilters): Record<string, string> {
@@ -76,6 +78,31 @@ export class StayApiService {
     return this.http.get<StayDetailResponse>(`${this.baseUrl}/${id}/detail`);
   }
 
+  getActualMovements(id: string): Observable<StayActualMovements> {
+    return this.http.get<StayActualMovements>(`${this.baseUrl}/${id}/actual-movements`);
+  }
+
+  saveActualMovement(
+    id: string,
+    type: StayMovementType,
+    expectedRevision: number,
+    occurredAt: string | null,
+  ): Observable<StayActualMovements> {
+    return this.http.put<StayActualMovements>(`${this.baseUrl}/${id}/actual-movements/${type}`, {
+      expectedRevision,
+      occurredAt,
+    });
+  }
+
+  resetActualArrival(id: string, expectedRevision: number): Observable<StayActualMovements> {
+    return this.http.post<StayActualMovements>(
+      `${this.baseUrl}/${id}/actual-movements/ARRIVAL/reset`,
+      {
+        expectedRevision,
+      },
+    );
+  }
+
   getStayCats(id: string, page = 0): Observable<CatRelationshipPage> {
     return this.http.get<CatRelationshipPage>(`${this.baseUrl}/${id}/cats`, { params: { page } });
   }
@@ -101,8 +128,14 @@ export class StayApiService {
     return this.http.put<Stay>(`${this.baseUrl}/${id}`, request);
   }
 
-  previewPendingPrice(id: string): Observable<PendingPricePreview> {
-    return this.http.get<PendingPricePreview>(`${this.baseUrl}/${id}/pending-price-preview`);
+  previewPendingPrice(
+    id: string,
+    request?: PendingPricePreviewRequest,
+  ): Observable<PendingPricePreview> {
+    const url = `${this.baseUrl}/${id}/pending-price-preview`;
+    return request
+      ? this.http.post<PendingPricePreview>(url, request)
+      : this.http.get<PendingPricePreview>(url);
   }
 
   correctAgreedAmount(id: string, request: PricingDecision): Observable<Stay> {

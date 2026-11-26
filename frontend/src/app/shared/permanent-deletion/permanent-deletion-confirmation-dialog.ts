@@ -15,6 +15,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 
 export interface PermanentDeletionConfirmationDialogData {
   subject: string;
+  extraDescription?: string;
   reasonLabel?: string;
   reasonRequiredMessage?: string;
   initialReason?: string;

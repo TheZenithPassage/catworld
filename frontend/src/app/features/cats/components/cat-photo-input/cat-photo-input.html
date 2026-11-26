@@ -6,19 +6,42 @@
     type="file"
     hidden
     [disabled]="disabled()"
-    [accept]="'.jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif'"
+    [accept]="acceptedFormats"
     (change)="select($event)"
   />
 
+  @if (!removePhoto()) {
+    @if (selectedFile() ? previewUrl() : savedUrl(); as url) {
+      <div class="cat-photo-frame">
+        <img
+          [src]="url"
+          [alt]="text().cats.photo.previewAlt"
+          [style.object-position]="position()"
+          [style.transform-origin]="position()"
+          [style.transform]="zoom()"
+          (error)="previewFailed(url)"
+        />
+      </div>
+      <div class="cat-photo-framing">
+        @for (axis of ['frameX', 'frameY', 'frameZoom']; track axis; let index = $index) {
+          <label>
+            {{ text().cats.photo.framing[index] }}
+            <input
+              type="range"
+              [min]="index === 2 ? 100 : 0"
+              [max]="index === 2 ? 300 : 100"
+              [disabled]="disabled()"
+              [value]="$any(frame())[axis]"
+              (input)="setFrame($any(axis), $event)"
+            />
+          </label>
+        }
+      </div>
+    }
+  }
+
   @if (selectedFile(); as file) {
-    @if (previewUrl(); as url) {
-      <img
-        class="photo-preview"
-        [src]="url"
-        [alt]="text().cats.photo.previewAlt"
-        (error)="previewFailed(url)"
-      />
-    } @else {
+    @if (!previewUrl()) {
       <p class="photo-status">{{ file.name }} — {{ text().cats.photo.previewUnavailable }}</p>
     }
     <div class="photo-actions">

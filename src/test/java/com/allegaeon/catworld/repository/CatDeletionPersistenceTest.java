@@ -163,9 +163,12 @@ class CatDeletionPersistenceTest {
         Vet vet = saveVet(creator);
         Cat cat = saveCat(fixtureKey, owner, vet, creator);
         Stay stay = saveStay(cat, owner, creator, startAt, endAt, cancelledAt);
+        if (expectedStatus == StayStatus.CHECKED_OUT) {
+            stay.setMovementStatus(StayStatus.CHECKED_OUT);
+        }
 
         UUID catId = cat.getId();
-        assertEquals(expectedStatus, stay.statusAt(LocalDateTime.now()));
+        assertEquals(expectedStatus, stay.status());
         assertTrue(stayCatRepository.existsByCat_Id(catId));
         assertEquals(1, countStayCatRows(catId));
 

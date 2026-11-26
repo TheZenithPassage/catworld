@@ -149,6 +149,17 @@ docker compose --project-name catworld-prod --env-file .env.production -f compos
 application pair only after checking its compatibility with the **current**
 Flyway schema and data; changing image digests does not downgrade MySQL.
 
+During the confirmed stay lifecycle upgrade, Flyway validates the original
+V21 movement schema when it is installed and applies that migration on known
+compatible histories where it was omitted. It can also fill the V14–V17 gap
+from the original movement-only history. V29 adds the lifecycle schema. V30
+classifies existing stays once using the backend's configured
+`BUSINESS_TIME_ZONE` at migration time. It keeps existing actual movements and
+leaves unknown times and authors empty. Stop the old application before
+starting the new pair so that only one lifecycle policy writes to MySQL.
+An older pair uses scheduled dates for operational permissions, so treat it as
+incompatible with changes made after this upgrade.
+
 ## Backup and off-host retention
 
 The database includes operational records **and** JPEG photo binaries. Use
@@ -222,11 +233,51 @@ The cat-photo resource's digest ETag is another check, not a substitute for
 reading the restored bytes. Do not claim a successful restore from a completed
 SQL import alone.
 
+Keep the intake listener disabled for the first startup after a restore.
+Before enabling the listener, review and revoke restored links that were
+closed, replaced or revoked after the backup.
+
 The creator-attribution checks once needed for migration #146 were a
 historical rollout decision, not a standing pre-deployment command. For every
 deployment, let Flyway apply the committed migrations and investigate any
 schema/data incompatibility against the actual source and backup before
 continuing; never invent creator attribution or bypass a failed migration.
+
+When upgrading a database that already has V16, startup applies a missing V14
+(pending stay prices) or V15 (private cat photo gallery) in a version-limited
+Flyway pass before continuing with the remaining migrations. Flyway still
+validates applied checksums and rejects other unexpected gaps.
+
+The earlier intake candidate applied V1–V13, V15 and V17. For that
+exact recorded sequence, startup applies the original V14 and V16 scripts
+before continuing. A restart can finish V16 if V14 already succeeded during
+that upgrade. The V17 intake data stays in place.
+
+If V27 (litter pricing) was applied before the catalog changes and V26.1
+(food varieties) is already present, startup can apply the missing V26.4
+own-litter catalog migration and its V26.2 and V26.3 predecessors where needed.
+Flyway validates the existing schema history before applying those migrations.
+Installations that receive the catalogs first continue through V27 and later
+migrations in order. V26.4 leaves existing litter text and proposal data in place.
+
+## Enable private cat intake links
+
+When authorized, download `compose.cat-intake.yml` next to `compose.prod.yml`
+from the same pinned source commit. Add `--enable-listener intake` to
+`production_pair.py --deploy` on each deployment that should expose the intake
+listener. Route `fichas.catworld.com.ar` to it in Cloudflare Tunnel (default port
+4202) and set `CATWORLD_INTAKE_URL` to the external HTTPS origin used in
+invitations. Keep the administrative listener behind Cloudflare Access.
+The intake listener serves the standalone form and the token-protected form,
+submission, photo preview and staged photo endpoints. Invitation management,
+review and informational gallery access use the administrative listener.
+
+Use a synthetic household to check the link on a phone. Submit vaccination
+evidence, reopen the link to view the staged photo, and approve selected
+evidence from the administration origin. Verify that administrative routes
+return 404 from the intake listener and that the staged photo requires its
+active invitation. Share real links individually after verifying the domain.
+Revoke a link from the tutor's record if it reaches the wrong recipient.
 
 ## Public demo on Windows
 

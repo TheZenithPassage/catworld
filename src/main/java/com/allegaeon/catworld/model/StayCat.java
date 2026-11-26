@@ -25,4 +25,9 @@ public class StayCat {
     @JoinColumn(name = "cat_id", nullable = false)
     private Cat cat;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(length = 4)
+    private LitterChoice litterChoice = LitterChoice.OWN;
+
 }

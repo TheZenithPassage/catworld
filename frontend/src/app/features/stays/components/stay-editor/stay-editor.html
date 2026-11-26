@@ -26,22 +26,36 @@
                 type="datetime-local"
                 name="startAt"
                 required
+                [attr.min]="lockedArrivalDay() ? lockedArrivalDay() + 'T00:00' : null"
+                [attr.max]="lockedArrivalDay() ? lockedArrivalDay() + 'T23:59' : null"
+                [attr.aria-describedby]="arrivalDayChanged() ? 'stay-arrival-day-locked' : null"
                 [ngModel]="startAt()"
                 (ngModelChange)="onStartAtChange($event)"
               />
             </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
-              <input
-                matInput
-                type="datetime-local"
-                name="endAt"
-                required
-                [ngModel]="endAt()"
-                (ngModelChange)="onEndAtChange($event)"
-              />
-            </mat-form-field>
+            <div>
+              <mat-form-field appearance="outline">
+                <mat-label>{{ text().stays.edit.endDateTime }}</mat-label>
+                <input
+                  matInput
+                  type="datetime-local"
+                  name="endAt"
+                  required
+                  [attr.aria-invalid]="endBeforeActualArrival() ? 'true' : null"
+                  [attr.aria-describedby]="
+                    endBeforeActualArrival() ? 'stay-departure-before-actual-arrival' : null
+                  "
+                  [ngModel]="endAt()"
+                  (ngModelChange)="onEndAtChange($event)"
+                />
+              </mat-form-field>
+              @if (endBeforeActualArrival()) {
+                <p id="stay-departure-before-actual-arrival" class="pricing-warning" role="alert">
+                  {{ text().stays.edit.errors.endBeforeActualArrival }}
+                </p>
+              }
+            </div>
 
             <div class="transfer-assistance-control">
               <mat-checkbox
@@ -53,6 +67,12 @@
               >
             </div>
           </div>
+
+          @if (arrivalDayChanged()) {
+            <p id="stay-arrival-day-locked" class="pricing-warning" role="status">
+              {{ text().stays.edit.errors.arrivalDayLocked }}
+            </p>
+          }
 
           @if (transferAssistanceActive()) {
             <section
@@ -134,11 +154,28 @@
                   <dt>{{ text().stays.pricing.transfer }}</dt>
                   <dd>{{ preview.transferSuggestedAmount }}</dd>
                 </div>
+                @if (preview.litter; as litter) {
+                  <div>
+                    <dt>{{ text().stays.pricing.litter.title }}</dt>
+                    <dd>{{ litter.subtotal ?? text().stays.pricing.unavailable }}</dd>
+                  </div>
+                }
                 <div>
                   <dt>{{ text().stays.pricing.suggestion }}</dt>
                   <dd>{{ preview.suggestedAmount ?? text().stays.pricing.unavailable }}</dd>
                 </div>
               </dl>
+              @if (preview.litter; as litter) {
+                <app-stay-litter
+                  [litter]="litter"
+                  [cats]="entity().cats"
+                  [editable]="isAdmin()"
+                  [disabled]="submitting()"
+                  [updating]="previewLoading()"
+                  [choices]="litterChoices()"
+                  (choiceChange)="changeLitterChoice($event)"
+                />
+              }
               @if (preview.transferRateUnavailable) {
                 <p class="pricing-warning" role="status">
                   {{ text().stays.pricing.transferUnavailable }}
@@ -247,12 +284,7 @@
               id="update-stay-submit"
               mat-flat-button
               type="submit"
-              [disabled]="
-                submitting() ||
-                previewLoading() ||
-                (pricingPreview()?.pricingDecisionRequired === true && !isAdmin()) ||
-                (pricingConfirmationRequired() && !pricingConfirmed())
-              "
+              [disabled]="saveDisabled()"
             >
               {{ submitting() ? text().stays.edit.submitting : text().stays.edit.submit }}
             </button>

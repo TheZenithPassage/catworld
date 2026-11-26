@@ -17,6 +17,7 @@ import {
   NightlyReferenceRateKey,
 } from '../../models/nightly-reference-rate.model';
 import { NightlyReferenceRateApiService } from '../../services/nightly-reference-rate-api.service';
+import { LitterRateApiService } from '../../services/litter-rate-api.service';
 import { TransferRateApiService } from '../../services/transfer-rate-api.service';
 
 type PendingAction = 'save' | 'clear';
@@ -44,6 +45,7 @@ export class NightlyRateManagementPage {
   private readonly auth = inject(AuthSessionService);
   private readonly i18n = inject(I18nService);
   private readonly transferApi = inject(TransferRateApiService);
+  private readonly litterApi = inject(LitterRateApiService);
   readonly text = this.i18n.text;
   readonly keys = NIGHTLY_REFERENCE_RATE_KEYS;
   readonly rates = signal<Partial<Record<NightlyReferenceRateKey, string | null>>>({});
@@ -69,10 +71,81 @@ export class NightlyRateManagementPage {
   readonly transferPending = signal<PendingAction | null>(null);
   readonly transferValidationError = signal<ValidationErrorCode | null>(null);
   readonly transferError = createLanguageResetError(this.i18n.language);
+  readonly litterRate = signal<string | null>(null);
+  readonly litterEntry = signal('');
+  readonly litterLoading = signal(true);
+  readonly litterPending = signal<PendingAction | null>(null);
+  readonly litterValidationError = signal<ValidationErrorCode | null>(null);
+  readonly litterLoadError = signal(false);
 
   constructor() {
     this.loadRates();
     this.loadTransferRate();
+    this.loadLitterRate();
+  }
+
+  loadLitterRate(): void {
+    this.litterLoading.set(true);
+    this.litterLoadError.set(false);
+    this.litterApi
+      .getCurrentRate()
+      .pipe(finalize(() => this.litterLoading.set(false)))
+      .subscribe({
+        next: ({ litterRatePerKg }) => this.setLitterRate(litterRatePerKg),
+        error: () => this.litterLoadError.set(true),
+      });
+  }
+
+  setLitterEntry(value: string): void {
+    this.litterEntry.set(value);
+    this.litterValidationError.set(null);
+    this.actionError.set(null);
+  }
+
+  saveLitterRate(): void {
+    if (!this.isAdmin() || this.litterPending()) return;
+    const value = this.litterEntry();
+    const error = this.validate(value);
+    if (error) {
+      this.litterValidationError.set(error);
+      this.focusLitterField();
+      return;
+    }
+    this.actionError.set(null);
+    this.litterPending.set('save');
+    this.litterApi
+      .configureRate(value)
+      .pipe(finalize(() => this.litterPending.set(null)))
+      .subscribe({
+        next: ({ litterRatePerKg }) => this.setLitterRate(litterRatePerKg),
+        error: (error: unknown) => this.handleMutationError(error),
+      });
+  }
+
+  clearLitterRate(): void {
+    if (!this.isAdmin() || this.litterPending()) return;
+    this.actionError.set(null);
+    this.litterPending.set('clear');
+    this.litterApi
+      .clearRate()
+      .pipe(finalize(() => this.litterPending.set(null)))
+      .subscribe({
+        next: () => {
+          this.setLitterRate(null);
+          this.focusLitterField();
+        },
+        error: (error: unknown) => this.handleMutationError(error),
+      });
+  }
+
+  private setLitterRate(value: string | null): void {
+    this.litterRate.set(value);
+    this.litterEntry.set(value ?? '');
+    this.litterValidationError.set(null);
+  }
+
+  private focusLitterField(): void {
+    setTimeout(() => document.getElementById('litter-rate')?.focus());
   }
   loadTransferRate(): void {
     this.transferLoading.set(true);

@@ -16,37 +16,39 @@
       [entityId]="entityId()"
       [entity]="cat"
       (saved)="saved($event)"
+      (reloaded)="reloaded($event)"
       (cancelled)="cancelRequested.emit()"
       (submittingChanged)="submittingChanged.emit($event)"
     />
   } @else {
+    <div class="detail-identity">
+      @if (cat.hasPhoto) {
+        <button
+          class="profile-photo-thumbnail"
+          type="button"
+          [disabled]="deleting()"
+          [attr.aria-label]="text().cats.detail.viewPhoto"
+          (click)="openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })"
+        >
+          <app-cat-photo-thumbnail [catId]="cat.id" />
+        </button>
+      }
+      <div>
+        <h3>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></h3>
+        @if (!cat.hasPhoto) {
+          <p>{{ text().cats.detail.noProfilePhoto }}</p>
+        }
+      </div>
+    </div>
     <dl class="detail-fields">
-      <div class="detail-field">
-        <dt>{{ text().cats.form.name }}</dt>
-        <dd>{{ cat.name }}<app-deceased-marker [deceased]="cat.deceased" /></dd>
-      </div>
-      <div class="detail-field">
-        <dt>{{ text().cats.detail.photo }}</dt>
-        <dd>
-          @if (cat.hasPhoto) {
-            <button
-              mat-button
-              type="button"
-              [disabled]="deleting()"
-              (click)="
-                openPhoto.emit({ catId: cat.id, catName: cat.name, ownerName: cat.ownerName })
-              "
-            >
-              {{ text().cats.detail.viewPhoto }}
-            </button>
-          } @else {
-            {{ text().cats.emptyValue }}
-          }
-        </dd>
-      </div>
-      <div class="detail-field">
-        <dt>{{ text().cats.form.birthDate }}</dt>
-        <dd>{{ date(cat.birthDate) }}</dd>
+      <div class="detail-field detail-field-birth">
+        @if (cat.birthDate || cat.birthYear == null) {
+          <dt>{{ text().cats.form.birthDate }}</dt>
+          <dd>{{ date(cat.birthDate) }}</dd>
+        } @else {
+          <dt>{{ text().cats.form.birthYear }}</dt>
+          <dd>{{ cat.birthYear }}</dd>
+        }
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.sex }}</dt>
@@ -88,7 +90,7 @@
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.coat }}</dt>
-        <dd>{{ value(cat.coat) }}</dd>
+        <dd>{{ coatValue(cat.coat) }}</dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.color }}</dt>
@@ -99,16 +101,20 @@
         <dd>{{ value(cat.foodBrand) }}</dd>
       </div>
       <div class="detail-field">
+        <dt>{{ text().cats.form.foodDetail }}</dt>
+        <dd>{{ value(cat.foodDetail) }}</dd>
+      </div>
+      <div class="detail-field">
         <dt>{{ text().cats.form.litterBrand }}</dt>
-        <dd>{{ value(cat.litterBrand) }}</dd>
+        <dd>{{ litterValue(cat) }}</dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.personality }}</dt>
         <dd>{{ value(cat.personality) }}</dd>
       </div>
-      <div class="detail-field detail-field-notes">
-        <dt>{{ text().cats.form.notes }}</dt>
-        <dd>{{ value(cat.notes) }}</dd>
+      <div class="detail-field detail-field-notes detail-field-care-instructions">
+        <dt>{{ text().cats.form.careInstructions }}</dt>
+        <dd>{{ value(cat.careInstructions) }}</dd>
       </div>
       <div class="detail-field">
         <dt>{{ text().cats.form.lastInternalDewormerName }}</dt>
@@ -134,7 +140,24 @@
         <dt>{{ text().cats.form.lastRabiesDate }}</dt>
         <dd>{{ date(cat.lastRabiesDate) }}</dd>
       </div>
+      <div class="detail-field detail-field-notes detail-field-internal-notes">
+        <dt>{{ text().cats.form.notes }}</dt>
+        <dd>{{ value(cat.notes) }}</dd>
+      </div>
     </dl>
+    <app-cat-informational-photo-gallery
+      class="detail-gallery"
+      [catId]="cat.id"
+      [disabled]="deleting()"
+      (openPhoto)="
+        openPhoto.emit({
+          catId: cat.id,
+          catName: cat.name,
+          ownerName: cat.ownerName,
+          informationalPhotoId: $event,
+        })
+      "
+    />
     @if (detail.stays.totalElements > 0) {
       <section class="relationship-group">
         <h3>{{ text().entityDetail.stays }}</h3>
@@ -178,12 +201,7 @@
         }
       </div>
       <div class="detail-actions-end">
-        <button
-          mat-flat-button
-          type="button"
-          [disabled]="deleting()"
-          (click)="editRequested.emit()"
-        >
+        <button mat-flat-button type="button" [disabled]="editDisabled()" (click)="requestEdit()">
           {{ text().cats.detail.edit }}
         </button>
       </div>

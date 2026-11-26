@@ -36,15 +36,92 @@
       </div>
     }
   } @else {
+    @let movements = stay.actualMovements;
+    @let movementLabels = movementCopy();
+    <ng-template #movementInfo>
+      @let arrival = selectedLeg() === 'ARRIVAL';
+      @let actual = arrival ? movements?.arrival : movements?.departure;
+      <h2 mat-dialog-title>
+        {{ arrival ? movementLabels.arrivalDetails : movementLabels.departureDetails }}
+      </h2>
+      <mat-dialog-content>
+        <dl class="detail-fields">
+          <div>
+            <dt>
+              {{ arrival ? movementLabels.scheduledArrival : movementLabels.scheduledDeparture }}
+            </dt>
+            <dd>{{ date(arrival ? stay.startAt : stay.endAt) }}</dd>
+          </div>
+          <div>
+            <dt>{{ arrival ? movementLabels.actualArrival : movementLabels.actualDeparture }}</dt>
+            <dd>{{ actual ? actualDate(actual.occurredAt) : movementLabels.legacy }}</dd>
+          </div>
+          @if (actual?.recordedBy) {
+            <div>
+              <dt>{{ movementLabels.recordedBy }}</dt>
+              <dd>{{ actual?.recordedBy }}</dd>
+            </div>
+          }
+          @if (actual?.correctedBy) {
+            <div>
+              <dt>{{ movementLabels.correctedBy }}</dt>
+              <dd>{{ actual?.correctedBy }}</dd>
+            </div>
+          }
+        </dl>
+      </mat-dialog-content>
+      <mat-dialog-actions align="end">
+        @if (arrival && movements?.canResetArrival && resetWindowOpen()) {
+          <button mat-button type="button" (click)="openMovement('reset-arrival', stay.stayId)">
+            {{ movementLabels.title['reset-arrival'] }}
+          </button>
+        }
+        @if (arrival && actual?.canEdit) {
+          <button mat-button type="button" (click)="openMovement('correct-arrival', stay.stayId)">
+            {{ movementLabels.title['correct-arrival'] }}
+          </button>
+        }
+        <button mat-flat-button type="button" mat-dialog-close>{{ movementLabels.goBack }}</button>
+      </mat-dialog-actions>
+    </ng-template>
     <dl class="detail-fields">
-      <div class="detail-field">
-        <dt>{{ text().stays.detail.start }}</dt>
-        <dd>{{ date(stay.startAt) }}</dd>
-      </div>
-      <div class="detail-field">
-        <dt>{{ text().stays.detail.end }}</dt>
-        <dd>{{ date(stay.endAt) }}</dd>
-      </div>
+      @for (type of movementTypes; track type) {
+        @let isArrival = type === 'ARRIVAL';
+        @let scheduled = isArrival ? stay.startAt : stay.endAt;
+        <div class="detail-field">
+          <dt>
+            {{ isArrival ? movementLabels.scheduledArrival : movementLabels.scheduledDeparture }}
+          </dt>
+          <dd>
+            <time [attr.datetime]="scheduled">{{ date(scheduled) }}</time>
+          </dd>
+        </div>
+        @if (movements) {
+          @let actual = isArrival ? movements.arrival : movements.departure;
+          <div class="detail-field">
+            <dt>{{ isArrival ? movementLabels.actualArrival : movementLabels.actualDeparture }}</dt>
+            <dd>
+              @if (actual || isHistorical(stay.status, type)) {
+                <button
+                  type="button"
+                  class="movement-link"
+                  (click)="openMovementDetails(type, movementInfo)"
+                >
+                  @if (actual) {
+                    <time [attr.datetime]="actual.occurredAt">{{
+                      actualDate(actual.occurredAt)
+                    }}</time>
+                  } @else {
+                    {{ movementLabels.legacy }}
+                  }
+                </button>
+              } @else {
+                {{ movementLabels.unrecorded }}
+              }
+            </dd>
+          </div>
+        }
+      }
       <div class="detail-field">
         <dt>{{ text().stays.detail.nights }}</dt>
         <dd>{{ stay.numberOfNights }}</dd>
@@ -101,7 +178,7 @@
         }
       </section>
     }
-    <div class="detail-actions">
+    <div class="detail-actions stay-actions">
       <div class="detail-actions-start">
         @if (canCancel(stay)) {
           <button
@@ -130,27 +207,27 @@
         }
       </div>
       <div class="detail-actions-end">
-        @if (pricingStay(); as pricing) {
-          @if (pricing.agreedAmount !== null || pricing.pricePending) {
+        @if (movements; as actualMovements) {
+          @if (actualMovements.canRecordArrival) {
             <button
-              mat-stroked-button
+              mat-flat-button
               type="button"
-              [disabled]="deleting()"
-              (click)="pricingRequested.emit()"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('record-arrival', stay.stayId)"
             >
-              {{ text().stays.detail.pricing }}
+              {{ movementLabels.title['record-arrival'] }}
             </button>
           }
-        }
-        @if (canEdit(stay)) {
-          <button
-            mat-flat-button
-            type="button"
-            [disabled]="deleting()"
-            (click)="editRequested.emit()"
-          >
-            {{ text().stays.detail.edit }}
-          </button>
+          @if (actualMovements.canRecordDeparture) {
+            <button
+              mat-flat-button
+              type="button"
+              [disabled]="deleting() || !movementCatNames().length"
+              (click)="openMovement('record-departure', stay.stayId)"
+            >
+              {{ movementLabels.title['record-departure'] }}
+            </button>
+          }
         }
       </div>
     </div>

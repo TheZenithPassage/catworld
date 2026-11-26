@@ -59,3 +59,24 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cat-photo-frame {
+  width: min(100%, 15rem);
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.cat-photo-framing label {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}

@@ -1,15 +1,28 @@
-import { Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { DeceasedMarker } from '../../../../shared/deceased-marker/deceased-marker';
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { createLanguageResetError } from '../../../../core/i18n/language-reset-error';
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { formatLocalDate } from '../../../../shared/date/local-date-format';
-import { Cat } from '../../models/cat.model';
+import { catLitterLabel } from '../../utils/cat-litter-label';
+import { CAT_COAT_LENGTHS, Cat, CatPhotoViewRequest } from '../../models/cat.model';
 import { CatDetailResponse } from '../../../../shared/entity-detail/relationship.models';
 import { EntityReference } from '../../../../shared/entity-detail/entity-reference';
 import { CatApiService } from '../../services/cat-api.service';
 import { CatEditor } from '../cat-editor/cat-editor';
+import { CatInformationalPhotoGallery } from '../cat-informational-photos/cat-informational-photo-gallery';
+import { CatPhotoThumbnail } from '../cat-photo-thumbnail/cat-photo-thumbnail';
 import { StayRelationshipLabel } from '../../../stays/components/stay-relationship-label/stay-relationship-label';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDialog } from '@angular/material/dialog';
@@ -29,6 +42,8 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
     MatProgressSpinner,
     UiStateComponent,
     CatEditor,
+    CatInformationalPhotoGallery,
+    CatPhotoThumbnail,
     StayRelationshipLabel,
   ],
   host: {
@@ -36,12 +51,13 @@ import { deletionErrorMessage } from '../../../../shared/permanent-deletion/dele
     '[attr.inert]': 'loading() && detail() ? "" : null',
   },
   templateUrl: './cat-detail.html',
-  styleUrl: '../../../../shared/entity-detail/entity-detail-presenter.scss',
+  styleUrls: ['../../../../shared/entity-detail/entity-detail-presenter.scss', './cat-detail.scss'],
 })
 export class CatDetail {
   private readonly api = inject(CatApiService);
   private readonly i18n = inject(I18nService);
   private readonly dialog = inject(MatDialog);
+  readonly editor = viewChild(CatEditor);
   private loadGeneration = 0;
   private deletionGeneration = 0;
   private loadedEntityId: string | null = null;
@@ -56,13 +72,18 @@ export class CatDetail {
   readonly contentSettled = output<void>();
   readonly navigate = output<EntityReference>();
   readonly openStays = output<void>();
-  readonly openPhoto = output<{ catId: string; catName: string; ownerName: string }>();
+  readonly openPhoto = output<CatPhotoViewRequest>();
   readonly text = this.i18n.text;
   readonly dateLocale = this.i18n.dateLocale;
   readonly detail = signal<CatDetailResponse | null>(null);
   readonly loading = signal(true);
   readonly error = signal(false);
   readonly deleting = signal(false);
+  readonly editAvailable = computed(
+    () => this.detail()?.cat.id === this.entityId() && !this.error() && !this.editing(),
+  );
+  readonly editDisabled = computed(() => this.loading() || this.deleting());
+  readonly hasUnsavedChanges = computed(() => this.editor()?.hasUnsavedChanges() === true);
   readonly deletionError = createLanguageResetError(this.i18n.language);
   constructor() {
     inject(DestroyRef).onDestroy(() => {
@@ -74,6 +95,12 @@ export class CatDetail {
       if (this.loadedEntityId !== entityId) this.detail.set(null);
       this.load(entityId);
     });
+  }
+  requestEdit(): void {
+    if (this.editAvailable() && !this.editDisabled()) this.editRequested.emit();
+  }
+  releaseDraftMedia(): void {
+    this.editor()?.releaseDraftMedia();
   }
   load(entityId = this.entityId()): void {
     const generation = ++this.loadGeneration;
@@ -102,6 +129,9 @@ export class CatDetail {
   saved(c: Cat): void {
     this.saveCompleted.emit();
     this.load();
+  }
+  reloaded(cat: Cat): void {
+    this.detail.update((detail) => detail && { ...detail, cat });
   }
   canDelete(detail: CatDetailResponse): boolean {
     return detail.cat.id === this.entityId() && detail.cat.canDelete === true;
@@ -148,8 +178,20 @@ export class CatDetail {
     this.submittingChanged.emit(false);
     this.deletionCompleted.emit({ entityType: 'cat', entityId: catId });
   }
-  value(v: string | null): string {
+  value(v: string | null | undefined): string {
     return v || this.text().cats.emptyValue;
+  }
+  coatValue(value: string | null): string {
+    const length = CAT_COAT_LENGTHS.find((length) => length === value);
+    return length ? this.text().cats.form.coatLengths[length] : this.value(value);
+  }
+  litterValue(cat: Cat): string {
+    return catLitterLabel(
+      cat.litterBrand,
+      this.text().cats.form,
+      cat.litterPreference,
+      cat.litterDetail,
+    );
   }
   date(v: string | null): string {
     return v ? formatLocalDate(v, this.dateLocale()) : this.text().cats.emptyValue;

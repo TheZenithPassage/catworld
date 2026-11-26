@@ -29,8 +29,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -73,7 +71,6 @@ public class CatService implements ICatService{
     private final CatPhotoRepository catPhotoRepository;
     private final LibVipsCatPhotoNormalizer photoNormalizer;
     private final CatMutationTransactionService mutationTransactionService;
-    private final Clock clock;
 
     @Override
     public List<CatResponseDTO> getAllCats() {
@@ -123,30 +120,35 @@ public class CatService implements ICatService{
     @Override
     @Transactional(readOnly = true)
     public CatDetailResponse getCatDetail(UUID id) {
-        LocalDateTime now = LocalDateTime.now(clock);
         Cat cat = getCatEntity(id);
         Page<com.allegaeon.catworld.model.Stay> stays = stayCatRepository.findStaysByCatId(
                 id, PageRequest.of(0, 4));
         return new CatDetailResponse(toResponseDTO(cat),
-                RelationshipResponses.preview(stays, stay -> RelationshipResponses.stay(stay, now)));
+                RelationshipResponses.preview(stays, RelationshipResponses::stay));
     }
 
     @Override
     @Transactional(readOnly = true)
     public RelationshipPage<StayRelationshipItem> getCatStays(UUID id, int page) {
-        LocalDateTime now = LocalDateTime.now(clock);
         getCatEntity(id);
         RelationshipResponses.requireValidPage(page);
         return RelationshipResponses.page(
                 stayCatRepository.findStaysByCatId(id,
                         PageRequest.of(page, RelationshipResponses.PAGE_SIZE)),
-                stay -> RelationshipResponses.stay(stay, now));
+                RelationshipResponses::stay);
     }
 
     @Override
     public CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo) {
+        return createCat(catRequestDTO, photo, List.of());
+    }
+
+    @Override
+    public CatResponseDTO createCat(CatRequestDTO catRequestDTO, MultipartFile photo,
+                                    List<MultipartFile> informationalPhotos) {
         NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
-        return toResponseDTO(mutationTransactionService.create(catRequestDTO, normalized));
+        return toResponseDTO(mutationTransactionService.create(catRequestDTO, normalized,
+                normalizeInformationalPhotos(informationalPhotos)));
     }
 
     @Override
@@ -156,12 +158,23 @@ public class CatService implements ICatService{
 
     @Override
     public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto) {
+        return updateCat(id, catRequestDTO, photo, removePhoto, List.of());
+    }
+
+    @Override
+    public CatResponseDTO updateCat(UUID id, CatRequestDTO catRequestDTO, MultipartFile photo, boolean removePhoto,
+                                    List<MultipartFile> informationalPhotos) {
         if (photo != null && removePhoto) {
             throw new com.allegaeon.catworld.exception.CatPhotoException(
                     com.allegaeon.catworld.exception.CatPhotoErrorCode.CAT_PHOTO_INTENT_CONFLICT);
         }
         NormalizedCatPhoto normalized = photoNormalizer.normalize(photo);
-        return toResponseDTO(mutationTransactionService.update(id, catRequestDTO, normalized, removePhoto));
+        return toResponseDTO(mutationTransactionService.update(id, catRequestDTO, normalized, removePhoto,
+                normalizeInformationalPhotos(informationalPhotos)));
+    }
+
+    private List<NormalizedCatPhoto> normalizeInformationalPhotos(List<MultipartFile> uploads) {
+        return uploads == null ? List.of() : uploads.stream().map(photoNormalizer::normalize).toList();
     }
 
     @Override
@@ -170,12 +183,19 @@ public class CatService implements ICatService{
     }
 
     @Override
+    public byte[] previewPhoto(MultipartFile photo) {
+        return photoNormalizer.normalize(photo).bytes();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public CatPhotoContent getPhoto(UUID id) {
         if (!catRepository.existsById(id)) throw new ResourceNotFoundException("Cat", id);
         var photo = catPhotoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cat", id));
-        return new CatPhotoContent(photo.getContent().clone(), "\"" + photo.getSha256() + "\"");
+        var frame = photo.getFrame();
+        String revision = frame == null ? "" : "-" + frame.frameX() + "-" + frame.frameY() + "-" + frame.frameZoom();
+        return new CatPhotoContent(photo.getContent().clone(), "\"" + photo.getSha256() + revision + "\"", frame);
     }
 
     @Override

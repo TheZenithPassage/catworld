@@ -1,18 +1,58 @@
+import type { CatProfileOptionFieldKey } from '../../../shared/cat-profile-options/cat-profile-options.service';
+
 export type Sex = 'MALE' | 'FEMALE';
+
+export type CatCatalogSelectionField =
+  | Exclude<CatProfileOptionFieldKey, 'coat' | 'color'>
+  | 'foodDetail';
+export type CatCatalogSelection = Partial<Record<CatCatalogSelectionField, string>>;
+export type CatCatalogText = Partial<Record<CatCatalogSelectionField, string>>;
+
+export const CAT_COAT_LENGTHS = ['Corto', 'Largo', 'Sin pelo'] as const;
+
+export type CatLitterPreference = 'OWN' | 'SHARED';
+
+export const CATWORLD_LITTER = 'Usa las de CatWorld';
+export const OWN_LITTER = 'Trae sus propias piedritas';
+
+export interface FoodBrandOption {
+  id: string;
+  name: string;
+}
+
+export interface CatInformationalPhoto {
+  id: string;
+  createdAt: string;
+}
+
+export interface CatPhotoViewRequest {
+  catId: string;
+  catName: string;
+  ownerName: string;
+  informationalPhotoId?: string;
+}
 
 export interface Cat {
   id: string;
+  updatedAt: string;
   canDelete?: boolean;
   deceased?: boolean;
   name: string;
-  birthDate: string;
+  birthDate: string | null;
+  birthYear?: number | null;
   sex: Sex;
   breed: string | null;
   coat: string | null;
   color: string | null;
   foodBrand: string | null;
+  foodBrandId?: string | null;
+  catalogOptionIds?: Partial<Record<CatProfileOptionFieldKey | 'foodDetail', string>>;
+  foodDetail?: string | null;
   litterBrand: string | null;
+  litterPreference?: CatLitterPreference | null;
+  litterDetail?: string | null;
   personality: string | null;
+  careInstructions?: string | null;
   notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
@@ -29,15 +69,27 @@ export interface Cat {
 }
 
 export interface CreateCatRequest {
+  photoFrame?: CatPhotoFrame;
   name: string;
-  birthDate: string;
+  birthDate: string | null;
+  birthYear?: number | null;
   sex: Sex;
   breed: string | null;
   coat: string | null;
   color: string | null;
-  foodBrand: string | null;
-  litterBrand: string | null;
+  foodBrand?: string | null;
+  foodBrandId?: string;
+  foodDetail?: string | null;
+  foodVarietyId?: string;
+  confirmedCatalogText?: CatCatalogText;
+  catalogOptionIds?: Partial<
+    Record<Exclude<CatCatalogSelectionField, 'foodBrand' | 'foodDetail'>, string>
+  >;
+  litterBrand?: string | null;
+  litterPreference?: CatLitterPreference | null;
+  litterDetail?: string | null;
   personality: string | null;
+  careInstructions?: string | null;
   notes: string | null;
   lastInternalDewormerName: string | null;
   lastInternalDewormingDate: string | null;
@@ -50,10 +102,22 @@ export interface CreateCatRequest {
 }
 
 export interface UpdateCatRequest extends CreateCatRequest {
+  expectedUpdatedAt: string;
   deceased?: boolean;
+  removedInformationalPhotoIds?: string[];
+  photoFrame?: CatPhotoFrame;
 }
 
+export interface CatPhotoFrame {
+  frameX: number;
+  frameY: number;
+  frameZoom: number;
+}
+
+export const CENTERED_PHOTO_FRAME: CatPhotoFrame = { frameX: 50, frameY: 50, frameZoom: 100 };
+
 export interface CatPhotoMutation {
+  frame?: CatPhotoFrame;
   photo: File | null;
   removePhoto: boolean;
 }

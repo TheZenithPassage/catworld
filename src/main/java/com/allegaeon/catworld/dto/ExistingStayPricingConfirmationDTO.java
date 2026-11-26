@@ -29,4 +29,6 @@ public class ExistingStayPricingConfirmationDTO {
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal selectedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
+    private StayLitterBreakdown litter;
+    private StayLitterBreakdown previousLitter;
 }

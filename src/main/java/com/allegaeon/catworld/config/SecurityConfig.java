@@ -25,6 +25,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+import static com.allegaeon.catworld.controller.UpcomingStaysController.REFRESH_HEADER;
+
 @Configuration
 @RequiredArgsConstructor
 @EnableConfigurationProperties(CatWorldSecurityProperties.class)
@@ -47,9 +49,13 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates")
+                        .requestMatchers(HttpMethod.GET, "/api/nightly-reference-rates", "/api/operations/arrivals",
+                                "/api/operations/departures",
+                                "/api/food-brands", "/api/food-brands/varieties", "/api/cat-profile-options", "/api/litter-rate")
                         .hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/nightly-reference-rates/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/cat-profile-options").hasRole("ADMIN")
+                        .requestMatchers("/api/cat-profile-options/manage/**").hasRole("ADMIN")
+                        .requestMatchers("/api/nightly-reference-rates/**", "/api/litter-rate").hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/sensitive-economic-activity"
@@ -58,6 +64,8 @@ public class SecurityConfig {
                                 HttpMethod.DELETE,
                                 "/api/stays/*/payments/*"
                         ).hasRole("ADMIN")
+                        .requestMatchers("/api/stays/*/actual-movements/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/cat-intake/**").hasRole("ADMIN")
                         .requestMatchers("/api/payments/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
@@ -91,7 +99,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(securityProperties.corsAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("WWW-Authenticate"));
+        configuration.setExposedHeaders(List.of("WWW-Authenticate", REFRESH_HEADER));
 
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", configuration);

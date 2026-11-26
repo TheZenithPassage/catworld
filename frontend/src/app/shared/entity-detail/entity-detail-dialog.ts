@@ -1,8 +1,12 @@
 import {
+  afterNextRender,
   Component,
+  computed,
   DestroyRef,
+  effect,
   ElementRef,
   inject,
+  Injector,
   output,
   signal,
   viewChild,
@@ -10,10 +14,12 @@ import {
 import { MatButton, MatIconButton } from '@angular/material/button';
 import {
   MAT_DIALOG_DATA,
+  MatDialog,
   MatDialogClose,
   MatDialogContent,
   MatDialogTitle,
   MatDialogRef,
+  MatDialogState,
 } from '@angular/material/dialog';
 import { CatDetail } from '../../features/cats/components/cat-detail/cat-detail';
 import { OwnerDetail } from '../../features/owners/components/owner-detail/owner-detail';
@@ -25,17 +31,24 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { UiStateComponent } from '../ui-state/ui-state';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { OwnerApiService } from '../../features/owners/services/owner-api.service';
 import { VetApiService } from '../../features/vets/services/vet-api.service';
 import { CatRelationshipPage } from './relationship.models';
 import { StayRelationshipPage } from './relationship.models';
 import { CatApiService } from '../../features/cats/services/cat-api.service';
+import { CatPhotoViewRequest } from '../../features/cats/models/cat.model';
 import { StayApiService } from '../../features/stays/services/stay-api.service';
-import { Observable } from 'rxjs';
-import { Subscription } from 'rxjs';
+import { StayMovementDialogService } from '../../features/stays/services/stay-movement-dialog.service';
+import { defaultIfEmpty, map, Observable, shareReplay, Subscription, tap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StayRelationshipLabel } from '../../features/stays/components/stay-relationship-label/stay-relationship-label';
 import { Router } from '@angular/router';
+import {
+  DiscardChangesDialog,
+  openDiscardChangesDialog,
+} from '../discard-changes-dialog/discard-changes-dialog';
 
 const ENTITY_DETAIL_DIALOG_WIDTH = 'min(52rem, calc(100vw - 2rem))';
 
@@ -43,7 +56,7 @@ type RelationshipKind = 'owner-cats' | 'vet-cats' | 'owner-stays' | 'cat-stays' 
 type HistoryEntry =
   | { kind: 'detail'; reference: EntityReference }
   | { kind: 'list'; relationship: RelationshipKind; parent: EntityReference; page: number }
-  | { kind: 'cat-photo'; catId: string; catName: string; ownerName: string };
+  | ({ kind: 'cat-photo' } & CatPhotoViewRequest);
 type PhotoState = 'loading' | 'success' | 'missing' | 'error';
 @Component({
   selector: 'app-entity-detail-dialog',
@@ -54,6 +67,9 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatDialogClose,
     MatDialogContent,
     MatDialogTitle,
+    MatMenu,
+    MatMenuItem,
+    MatMenuTrigger,
     OwnerDetail,
     CatDetail,
     VetDetail,
@@ -63,6 +79,9 @@ type PhotoState = 'loading' | 'success' | 'missing' | 'error';
     MatProgressSpinner,
     StayRelationshipLabel,
   ],
+  host: {
+    '(document:beforeinput)': 'preventBackgroundHistory($event)',
+  },
   templateUrl: './entity-detail-dialog.html',
   styleUrl: './entity-detail-dialog.scss',
 })
@@ -71,14 +90,30 @@ export class EntityDetailDialog {
   private readonly vetApi = inject(VetApiService);
   private readonly catApi = inject(CatApiService);
   private readonly stayApi = inject(StayApiService);
+  private readonly movementDialog = inject(StayMovementDialogService);
   private readonly dialogRef = inject(MatDialogRef<EntityDetailDialog>);
+  private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly router = inject(Router);
   private readonly element = inject(ElementRef<HTMLElement>);
+  private readonly injector = inject(Injector);
+  private discardConfirmation?: MatDialogRef<DiscardChangesDialog, boolean>;
+  private closing = false;
   private requestGeneration = 0;
   private geometryGeneration = 0;
   private contentResolved = false;
   private photoSubscription: Subscription | null = null;
   private readonly contentRegion = viewChild<ElementRef<HTMLElement>>('contentRegion');
+  private readonly catDetail = viewChild(CatDetail);
+  protected readonly ownerDetail = viewChild(OwnerDetail);
+  private readonly vetDetail = viewChild(VetDetail);
+  protected readonly stayDetail = viewChild(StayDetail);
+  protected readonly editableDetail = computed(
+    () => this.catDetail() ?? this.ownerDetail() ?? this.vetDetail(),
+  );
+  protected readonly editor = computed(
+    () => this.editableDetail()?.editor() ?? this.stayDetail()?.editor(),
+  );
   readonly reference = signal(inject<EntityReference>(MAT_DIALOG_DATA));
   readonly history = signal<HistoryEntry[]>([{ kind: 'detail', reference: this.reference() }]);
   readonly entry = signal<HistoryEntry>(this.history()[0]);
@@ -86,6 +121,9 @@ export class EntityDetailDialog {
   readonly relationshipLoading = signal(false);
   readonly relationshipError = signal(false);
   readonly editing = signal(false);
+  readonly hasCatDraft = computed(
+    () => this.editing() && this.catDetail()?.hasUnsavedChanges() === true,
+  );
   readonly text = inject(I18nService).text;
   readonly entityUpdated = output<EntityDetailUpdate>();
   readonly submitting = signal(false);
@@ -96,17 +134,47 @@ export class EntityDetailDialog {
   readonly photoWidth = signal<number | null>(null);
   readonly photoHeight = signal<number | null>(null);
   constructor() {
-    this.dialogRef.beforeClosed().subscribe(() => this.leavePhoto());
-    inject(DestroyRef).onDestroy(() => {
+    this.dialogRef.beforeClosed().subscribe(() => {
+      this.closing = true;
+      if (this.discardConfirmation?.getState() === MatDialogState.OPEN) {
+        this.discardConfirmation.close(false);
+      }
+      this.leavePhoto();
+    });
+    this.destroyRef.onDestroy(() => {
       this.geometryGeneration++;
       this.leavePhoto();
     });
+    effect((onCleanup) => {
+      const window = this.element.nativeElement.ownerDocument.defaultView;
+      if (!window || !this.hasCatDraft()) return;
+      const beforeUnload = (event: BeforeUnloadEvent) => {
+        if (this.closing || !this.hasCatDraft()) return;
+        event.preventDefault();
+        event.returnValue = true;
+      };
+      window.addEventListener('beforeunload', beforeUnload);
+      onCleanup(() => window.removeEventListener('beforeunload', beforeUnload));
+    });
   }
+
+  protected preventBackgroundHistory(event: InputEvent): void {
+    // Native undo and redo can target an editor outside the focused dialog.
+    if (
+      (event.inputType === 'historyUndo' || event.inputType === 'historyRedo') &&
+      !event.composedPath().includes(this.element.nativeElement)
+    ) {
+      event.preventDefault();
+    }
+  }
+
   title(): string {
     if (this.entry().kind === 'list') return this.relationshipTitle();
     if (this.entry().kind === 'cat-photo') {
       const entry = this.entry() as Extract<HistoryEntry, { kind: 'cat-photo' }>;
-      return `${this.text().cats.detail.photo} — ${entry.catName} (${entry.ownerName})`;
+      const { detail, informationalPhotos } = this.text().cats;
+      const label = entry.informationalPhotoId ? informationalPhotos.photo : detail.photo;
+      return `${label} — ${entry.catName} (${entry.ownerName})`;
     }
     const text = this.text();
     return this.reference().entityType === 'owner'
@@ -129,10 +197,17 @@ export class EntityDetailDialog {
   }
   photoAlt(): string {
     const entry = this.entry();
-    return entry.kind === 'cat-photo' ? this.text().cats.detail.photoAlt(entry.catName) : '';
+    if (entry.kind !== 'cat-photo') return '';
+    const { detail, informationalPhotos } = this.text().cats;
+    return entry.informationalPhotoId
+      ? informationalPhotos.photoAlt(entry.catName)
+      : detail.photoAlt(entry.catName);
   }
   showReference(reference: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.loadReference(reference));
+  }
+  private loadReference(reference: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.editing.set(false);
@@ -145,6 +220,9 @@ export class EntityDetailDialog {
   }
   openCats(parent: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.showCats(parent));
+  }
+  private showCats(parent: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -164,6 +242,9 @@ export class EntityDetailDialog {
   }
   openStays(parent: EntityReference): void {
     if (this.submitting()) return;
+    this.leaveCatDraft(() => this.showStays(parent));
+  }
+  private showStays(parent: EntityReference): void {
     this.leavePhoto();
     this.captureContentGeometry();
     this.detailRefreshing.set(false);
@@ -180,6 +261,9 @@ export class EntityDetailDialog {
   back(): void {
     if (this.submitting()) return;
     if (this.history().length <= 1) return;
+    this.leaveCatDraft(() => this.returnToPreviousEntry());
+  }
+  private returnToPreviousEntry(): void {
     this.captureContentGeometry();
     this.leavePhoto();
     this.editing.set(false);
@@ -195,7 +279,7 @@ export class EntityDetailDialog {
     }
     this.focusContent();
   }
-  openCatPhoto(photo: { catId: string; catName: string; ownerName: string }): void {
+  openCatPhoto(photo: CatPhotoViewRequest): void {
     if (this.submitting()) return;
     this.captureContentGeometry();
     this.leavePhoto();
@@ -204,7 +288,10 @@ export class EntityDetailDialog {
     this.entry.set(entry);
     this.photoState.set('loading');
     const generation = ++this.requestGeneration;
-    this.photoSubscription = this.catApi.getCatPhoto(photo.catId).subscribe({
+    const image = photo.informationalPhotoId
+      ? this.catApi.getInformationalPhoto(photo.catId, photo.informationalPhotoId)
+      : this.catApi.getCatPhoto(photo.catId);
+    this.photoSubscription = image.subscribe({
       next: (blob) => {
         if (generation !== this.requestGeneration || this.entry() !== entry) return;
         const url = URL.createObjectURL(blob);
@@ -358,9 +445,79 @@ export class EntityDetailDialog {
   }
   enterEdit(): void {
     this.editing.set(true);
+    afterNextRender(
+      {
+        write: () => {
+          const content = this.contentRegion()?.nativeElement;
+          if (content && this.editing()) content.scrollTop = 0;
+        },
+      },
+      { injector: this.injector },
+    );
   }
   leaveEdit(): void {
     this.editing.set(false);
+  }
+  cancelEdit(): void {
+    if (!this.submitting()) this.leaveCatDraft(() => this.leaveEdit());
+  }
+  saveEdit(): void {
+    if (!this.editing() || this.editor()?.saveDisabled() !== false) return;
+    // Use the active form so Angular marks it submitted and displays errors as it does from the footer.
+    this.contentRegion()?.nativeElement.querySelector('form')?.requestSubmit();
+  }
+  allowClose(): boolean {
+    if (this.closing || !this.hasCatDraft()) return true;
+    this.leaveCatDraft(() => this.closeImmediately());
+    return false;
+  }
+  confirmCatNavigation(destination: string): boolean | Observable<boolean> {
+    if (!this.hasCatDraft()) return true;
+    const navigation = this.router.currentNavigation();
+    const confirmation = this.openDiscardConfirmation();
+    if (!confirmation) return false;
+    const decision = confirmation.pipe(
+      defaultIfEmpty(false),
+      tap((discard) => {
+        if (!discard) return;
+        this.closeImmediately();
+        if (navigation && this.router.currentNavigation()?.id !== navigation.id) {
+          // A second browser action can supersede the first guarded navigation.
+          void this.router.navigateByUrl(destination, { state: navigation.extras.state });
+        }
+      }),
+      shareReplay(1),
+    );
+    // Keep the first decision active even if the Router unsubscribes from the guard.
+    decision.subscribe();
+    return decision;
+  }
+  closeImmediately(): void {
+    this.closing = true;
+    this.catDetail()?.releaseDraftMedia();
+    this.dialogRef.close();
+  }
+  private leaveCatDraft(leave: () => void): void {
+    if (!this.hasCatDraft()) {
+      leave();
+      return;
+    }
+    this.openDiscardConfirmation()?.subscribe((discard) => {
+      if (discard) leave();
+    });
+  }
+  private openDiscardConfirmation(): Observable<boolean> | null {
+    if (this.submitting() || this.discardConfirmation || this.closing) return null;
+    const confirmation = openDiscardChangesDialog(this.dialog);
+    this.discardConfirmation = confirmation;
+    confirmation
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => (this.discardConfirmation = undefined));
+    return confirmation.afterClosed().pipe(
+      takeUntilDestroyed(this.destroyRef),
+      map((discard) => discard === true && !this.closing),
+    );
   }
   referenceSaved(): void {
     const reference = this.reference();
@@ -404,6 +561,20 @@ export class EntityDetailDialog {
       this.preservedContentHeight.set(null);
       this.contentResolved = true;
     });
+  }
+  openInitialMovement(movement: NonNullable<EntityReference['initialMovement']>): void {
+    const stayId = this.reference().entityId;
+    this.movementDialog
+      .open({ stayId, ...movement }, this.dialogRef.beforeClosed())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((refresh) => {
+        if (this.closing) return;
+        this.focusContent();
+        if (refresh) {
+          this.stayDetail()?.load();
+          this.stayUpdated({ entityType: 'stay', entityId: stayId });
+        }
+      });
   }
   private captureContentGeometry(): void {
     if (!this.contentResolved) return;

@@ -1,11 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { AfterViewInit, Component, inject, signal, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatError, MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { ActivatedRoute, Router } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
 import { CREATION_FLOW_QUERY_PARAM } from '../../../../core/creation-flow/creation-flow.models';
@@ -21,10 +31,30 @@ import { RemoteEntitySelector } from '../../../../shared/entity-lookup/remote-en
 import { UiStateComponent } from '../../../../shared/ui-state/ui-state';
 import { OwnerLookup } from '../../../owners/models/owner.model';
 import { VetLookup } from '../../../vets/models/vet.model';
-import { CreateCatRequest, Sex } from '../../models/cat.model';
+import {
+  CAT_COAT_LENGTHS,
+  CatCatalogSelection,
+  CatCatalogSelectionField,
+  CatLitterPreference,
+  CreateCatRequest,
+  Sex,
+} from '../../models/cat.model';
+import { CatProfileOptionField } from '../../../../shared/cat-profile-options/cat-profile-option-field';
+import { CatalogTextConfirmation } from '../../../../shared/cat-profile-options/catalog-text-confirmation';
+import {
+  catalogOptionKey,
+  CatProfileOptionsService,
+  matchingFoodBrandId,
+} from '../../../../shared/cat-profile-options/cat-profile-options.service';
+import { catLitterRequest } from '../../utils/cat-litter-label';
+import { catCatalogSelectionRequest } from '../../utils/cat-catalog-selection';
+import { CatBirthField, parseBirthYear } from '../../components/cat-birth-field/cat-birth-field';
 import { CatApiService } from '../../services/cat-api.service';
 import { catPhotoErrorMessage } from '../../utils/cat-photo-error';
 import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input';
+import { CatCareFields } from '../../components/cat-care-fields/cat-care-fields';
+import { CatInformationalPhotoGallery } from '../../components/cat-informational-photos/cat-informational-photo-gallery';
+import { catPhotoRequestError } from '../../utils/cat-photo-file';
 
 @Component({
   selector: 'app-cat-create-page',
@@ -39,15 +69,23 @@ import { CatPhotoInput } from '../../components/cat-photo-input/cat-photo-input'
     RemoteEntitySelector,
     UiStateComponent,
     CatPhotoInput,
+    CatInformationalPhotoGallery,
+    CatCareFields,
+    CatBirthField,
+    CatProfileOptionField,
   ],
   templateUrl: './cat-create-page.html',
   styleUrl: './cat-create-page.scss',
 })
 export class CatCreatePage implements AfterViewInit {
   @ViewChild(CatPhotoInput) private photoInput?: CatPhotoInput;
+  @ViewChild(CatInformationalPhotoGallery) private gallery?: CatInformationalPhotoGallery;
   @ViewChild('ownerSelector') private ownerSelector?: RemoteEntitySelector<OwnerLookup>;
   @ViewChild('vetSelector') private vetSelector?: RemoteEntitySelector<VetLookup>;
   private readonly catApiService = inject(CatApiService);
+  private readonly profileOptions = inject(CatProfileOptionsService);
+  private readonly catalogTextConfirmation = inject(CatalogTextConfirmation);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly i18nService = inject(I18nService);
@@ -60,6 +98,8 @@ export class CatCreatePage implements AfterViewInit {
 
   readonly name = signal('');
   readonly birthDate = signal('');
+  readonly birthYear = signal('');
+  readonly yearOnly = signal(false);
   readonly sex = signal<Sex | ''>('');
   readonly ownerId = signal('');
   readonly vetId = signal('');
@@ -71,8 +111,18 @@ export class CatCreatePage implements AfterViewInit {
   readonly coat = signal('');
   readonly color = signal('');
   readonly foodBrand = signal('');
+  readonly foodDetail = signal('');
+  readonly catalogSelection = signal<CatCatalogSelection>({});
+  readonly foodBrandId = computed(
+    () =>
+      this.catalogSelection().foodBrand ??
+      matchingFoodBrandId(this.profileOptions.catalog()?.foodBrand, this.foodBrand()),
+  );
+  readonly coatLengths = CAT_COAT_LENGTHS;
   readonly litterBrand = signal('');
+  readonly litterPreference = signal<CatLitterPreference | null | undefined>(undefined);
   readonly personality = signal('');
+  readonly careInstructions = signal('');
   readonly notes = signal('');
   readonly lastInternalDewormerName = signal('');
   readonly lastInternalDewormingDate = signal('');
@@ -87,9 +137,33 @@ export class CatCreatePage implements AfterViewInit {
   readonly birthDateError = createLanguageResetError(this.i18nService.language);
   readonly sexError = createLanguageResetError(this.i18nService.language);
   readonly notesError = createLanguageResetError(this.i18nService.language);
+  readonly careInstructionsError = createLanguageResetError(this.i18nService.language);
+  readonly careInstructionsErrorStateMatcher: ErrorStateMatcher = {
+    isErrorState: () => this.careInstructionsError() !== null,
+  };
   readonly notesErrorStateMatcher: ErrorStateMatcher = {
     isErrorState: () => this.notesError() !== null,
   };
+
+  setCatalogSelection(field: CatCatalogSelectionField, id?: string): void {
+    this.catalogSelection.update((current) => ({ ...current, [field]: id }));
+  }
+
+  changeFoodBrand(value: string): void {
+    const previous = this.foodBrand();
+    this.foodBrand.set(value);
+    if (catalogOptionKey(value) !== catalogOptionKey(previous)) {
+      this.foodDetail.set('');
+      this.setCatalogSelection('foodDetail');
+    }
+  }
+
+  updateCareInstructions(value: string): void {
+    this.careInstructions.set(value);
+    this.careInstructionsError.set(
+      value.trim().length > 2000 ? this.text().cats.form.careInstructionsTooLong : null,
+    );
+  }
 
   updateNotes(value: string): void {
     this.notes.set(value);
@@ -104,13 +178,19 @@ export class CatCreatePage implements AfterViewInit {
     if (draft) {
       this.name.set(draft.name);
       this.birthDate.set(draft.birthDate);
+      this.birthYear.set(draft.birthYear ?? '');
+      this.yearOnly.set(draft.yearOnly ?? false);
       this.sex.set(draft.sex);
       this.breed.set(draft.breed);
       this.coat.set(draft.coat);
       this.color.set(draft.color);
       this.foodBrand.set(draft.foodBrand);
+      this.foodDetail.set(draft.foodDetail ?? '');
+      this.catalogSelection.set(draft.catalogSelection ?? {});
       this.litterBrand.set(draft.litterBrand);
+      this.litterPreference.set(draft.litterPreference);
       this.personality.set(draft.personality);
+      this.careInstructions.set(draft.careInstructions ?? '');
       this.notes.set(draft.notes);
       this.lastInternalDewormerName.set(draft.lastInternalDewormerName);
       this.lastInternalDewormingDate.set(draft.lastInternalDewormingDate);
@@ -125,6 +205,7 @@ export class CatCreatePage implements AfterViewInit {
       if (ownerId) this.resolveCommittedOwnerId(ownerId);
       if (vetId) this.resolveCommittedVetId(vetId);
       if (draft.photo) this.photoInput?.restore(draft.photo);
+      for (const file of draft.informationalPhotos ?? []) this.gallery?.stage(file);
       return;
     }
     if (!hasFlowMarker) {
@@ -154,6 +235,7 @@ export class CatCreatePage implements AfterViewInit {
   }
 
   submit(): void {
+    if (this.submitting()) return;
     this.error.set(null);
     this.clearValidationErrors();
     if (this.photoInput && !this.photoInput.valid()) return;
@@ -163,7 +245,12 @@ export class CatCreatePage implements AfterViewInit {
       return;
     }
 
-    if (!this.birthDate()) {
+    const birthYear = this.yearOnly() ? parseBirthYear(this.birthYear()) : null;
+    if (this.yearOnly() && birthYear === null) {
+      this.birthDateError.set(this.text().cats.form.birthYearInvalid);
+      return;
+    }
+    if (!this.yearOnly() && !this.birthDate()) {
       this.birthDateError.set(this.text().cats.create.errors.birthDateRequired);
       return;
     }
@@ -177,20 +264,31 @@ export class CatCreatePage implements AfterViewInit {
       return;
     }
 
+    const careInstructions = this.careInstructions().trim();
+    if (careInstructions.length > 2000) {
+      this.careInstructionsError.set(this.text().cats.form.careInstructionsTooLong);
+      return;
+    }
+
     this.ownerSelector?.markSubmitted();
     this.vetSelector?.markSubmitted();
     if (!this.ownerId() || (this.vetRawContentPresent() && !this.vetId())) return;
 
+    const foodDetail = this.toNullableString(this.foodDetail());
     const request: CreateCatRequest = {
       name: this.name().trim(),
-      birthDate: this.birthDate(),
+      birthDate: this.yearOnly() ? null : this.birthDate(),
+      ...(birthYear === null ? {} : { birthYear }),
       sex: this.sex() as Sex,
       breed: this.toNullableString(this.breed()),
       coat: this.toNullableString(this.coat()),
       color: this.toNullableString(this.color()),
       foodBrand: this.toNullableString(this.foodBrand()),
-      litterBrand: this.toNullableString(this.litterBrand()),
+      ...(foodDetail ? { foodDetail } : {}),
+      ...catCatalogSelectionRequest(this.catalogSelection()),
+      ...catLitterRequest(this.litterBrand(), this.litterPreference()),
       personality: this.toNullableString(this.personality()),
+      ...(careInstructions ? { careInstructions } : {}),
       notes: this.toNullableString(this.notes()),
       lastInternalDewormerName: this.toNullableString(this.lastInternalDewormerName()),
       lastInternalDewormingDate: this.toNullableString(this.lastInternalDewormingDate()),
@@ -202,28 +300,48 @@ export class CatCreatePage implements AfterViewInit {
       vetId: this.toNullableString(this.vetId()),
     };
 
+    const photoMutation = this.photoInput?.mutation();
+    const photo = photoMutation?.photo ?? null;
+    if (photoMutation?.frame) request.photoFrame = photoMutation.frame;
+    const attachments = this.gallery?.files() ?? [];
+    const photoError = catPhotoRequestError(photo, attachments);
+    if (photoError) {
+      this.error.set(this.text().cats.photo.errors[photoError]);
+      return;
+    }
     this.submitting.set(true);
-
-    this.catApiService.createCat(request, this.photoInput?.mutation().photo ?? null).subscribe({
-      next: (cat) => {
-        this.photoInput?.reset();
-        this.submitting.set(false);
-        this.navigateAfterSuccess(cat.id, cat.ownerId);
-      },
-      error: (error: unknown) => {
-        this.error.set(
-          catPhotoErrorMessage(error, this.text().cats.photo.errors) ??
-            this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed),
-        );
-        this.submitting.set(false);
-      },
-    });
+    this.catalogTextConfirmation
+      .save((confirmedCatalogText) =>
+        this.catApiService.createCat(
+          confirmedCatalogText ? { ...request, confirmedCatalogText } : request,
+          photo,
+          attachments,
+        ),
+      )
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        finalize(() => this.submitting.set(false)),
+      )
+      .subscribe({
+        next: (cat) => {
+          this.photoInput?.reset();
+          this.gallery?.resetDraft();
+          this.navigateAfterSuccess(cat.id, cat.ownerId);
+        },
+        error: (error: unknown) => {
+          this.error.set(
+            catPhotoErrorMessage(error, this.text().cats.photo.errors) ??
+              this.getApiErrorMessage(error, this.text().cats.create.errors.createFailed),
+          );
+        },
+      });
   }
 
   cancel(): void {
     if (this.submitting()) return;
 
     this.photoInput?.reset();
+    this.gallery?.resetDraft();
     const returnTo = this.route.snapshot.queryParamMap.get('returnTo');
     if (returnTo === '/stays/new') {
       const queryParams: Record<string, string> = {};
@@ -248,6 +366,7 @@ export class CatCreatePage implements AfterViewInit {
     this.birthDateError.set(null);
     this.sexError.set(null);
     this.notesError.set(null);
+    this.careInstructionsError.set(null);
   }
 
   getCreateVetQueryParams(): Record<string, string> {
@@ -328,13 +447,19 @@ export class CatCreatePage implements AfterViewInit {
     return {
       name: this.name(),
       birthDate: this.birthDate(),
+      birthYear: this.birthYear(),
+      yearOnly: this.yearOnly(),
       sex: this.sex(),
       breed: this.breed(),
       coat: this.coat(),
       color: this.color(),
       foodBrand: this.foodBrand(),
+      foodDetail: this.foodDetail(),
+      catalogSelection: this.catalogSelection(),
       litterBrand: this.litterBrand(),
+      litterPreference: this.litterPreference(),
       personality: this.personality(),
+      careInstructions: this.careInstructions(),
       notes: this.notes(),
       lastInternalDewormerName: this.lastInternalDewormerName(),
       lastInternalDewormingDate: this.lastInternalDewormingDate(),
@@ -345,6 +470,7 @@ export class CatCreatePage implements AfterViewInit {
       ownerId: this.currentCommittedOwnerId(),
       vetId: this.currentCommittedVetId(),
       photo: this.photoInput?.mutation().photo ?? null,
+      informationalPhotos: this.gallery?.files() ?? [],
     };
   }
 

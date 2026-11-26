@@ -1,0 +1,23 @@
+@use '@angular/cdk' as cdk;
+@use '../entity-lookup/lookup-control';
+
+@include lookup-control.selection;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.selection-announcement {
+  @include cdk.a11y-visually-hidden();
+}
+
+.publish-option {
+  margin-block: -0.65rem 0.5rem;
+  text-align: left;
+  white-space: normal;
+}

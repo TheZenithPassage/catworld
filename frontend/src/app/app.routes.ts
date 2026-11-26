@@ -1,13 +1,34 @@
-import { Routes } from '@angular/router';
+import { inject, Injector } from '@angular/core';
+import { CanDeactivateFn, Route, Routes } from '@angular/router';
+import { from, of, switchMap } from 'rxjs';
 import { OwnerCreatePage } from './features/owners/pages/owner-create-page/owner-create-page';
 import { OwnerEditPage } from './features/owners/pages/owner-edit-page/owner-edit-page';
-import { CatCreatePage } from './features/cats/pages/cat-create-page/cat-create-page';
-import { CatEditPage } from './features/cats/pages/cat-edit-page/cat-edit-page';
 import { VetCreatePage } from './features/vets/pages/vet-create-page/vet-create-page';
 import { VetEditPage } from './features/vets/pages/vet-edit-page/vet-edit-page';
 import { LoginPage } from './features/auth/pages/login-page/login-page';
 import { authGuard } from './core/auth/auth.guard';
 import { accountManagementGuard, adminGuard } from './core/auth/admin.guard';
+
+export const confirmCatDraftNavigation: CanDeactivateFn<unknown> = (
+  _component,
+  _route,
+  _current,
+  next,
+) => {
+  const injector = inject(Injector);
+  return from(import('./shared/entity-detail/entity-detail-dialog.service')).pipe(
+    switchMap(({ EntityDetailDialogService }) => {
+      const decision = injector.get(EntityDetailDialogService).confirmCatDraftNavigation(next.url);
+      return typeof decision === 'boolean' ? of(decision) : decision;
+    }),
+  );
+};
+
+// Entity details can open from these routes without changing the URL.
+const canLeaveCatDetails = {
+  canDeactivate: [confirmCatDraftNavigation],
+  runGuardsAndResolvers: 'always',
+} satisfies Partial<Route>;
 
 export const routes: Routes = [
   {
@@ -23,7 +44,15 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'operations/arrivals',
+    ...canLeaveCatDetails,
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/operations/pages/arrivals-page/arrivals-page').then((m) => m.ArrivalsPage),
+  },
+  {
     path: 'stays',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/stays/pages/stays-overview-page/stays-overview-page').then(
@@ -48,12 +77,14 @@ export const routes: Routes = [
   },
   {
     path: 'calendar',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/calendar/pages/calendar-page/calendar-page').then((m) => m.CalendarPage),
   },
   {
     path: 'owners',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/owners/pages/owners-overview-page/owners-overview-page').then(
@@ -72,6 +103,7 @@ export const routes: Routes = [
   },
   {
     path: 'cats',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/cats/pages/cats-overview-page/cats-overview-page').then(
@@ -81,15 +113,18 @@ export const routes: Routes = [
   {
     path: 'cats/new',
     canActivate: [authGuard],
-    component: CatCreatePage,
+    loadComponent: () =>
+      import('./features/cats/pages/cat-create-page/cat-create-page').then((m) => m.CatCreatePage),
   },
   {
     path: 'cats/:id/edit',
     canActivate: [authGuard],
-    component: CatEditPage,
+    loadComponent: () =>
+      import('./features/cats/pages/cat-edit-page/cat-edit-page').then((m) => m.CatEditPage),
   },
   {
     path: 'vets',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/vets/pages/vets-overview-page/vets-overview-page').then(
@@ -115,12 +150,25 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'catalogs',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/catalogs/catalog-management').then((m) => m.CatalogManagement),
+  },
+  {
     path: 'accounts',
     canActivate: [accountManagementGuard],
     loadComponent: () =>
       import('./features/accounts/pages/account-management-page/account-management-page').then(
         (m) => m.AccountManagementPage,
       ),
+  },
+  {
+    path: 'cat-intake',
+    ...canLeaveCatDetails,
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/cat-intake/cat-intake-review').then((m) => m.CatIntakeReview),
   },
   {
     path: 'payments',

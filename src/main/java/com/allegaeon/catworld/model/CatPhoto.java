@@ -28,4 +28,7 @@ public class CatPhoto {
 
     @Column(nullable = false, length = 64)
     private String sha256;
+
+    @Embedded
+    private CatPhotoFrame frame;
 }

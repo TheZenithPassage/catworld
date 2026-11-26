@@ -1,6 +1,7 @@
 package com.allegaeon.catworld.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.allegaeon.catworld.model.StayStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -19,7 +20,10 @@ public class StayResponseDTO {
     private UUID stayId;
     private LocalDateTime startAt;
     private LocalDateTime endAt;
+    private LocalDateTime effectiveStartAt;
+    private LocalDateTime effectiveEndAt;
     private LocalDateTime cancelledAt;
+    private StayStatus status;
     private Instant createdAt;
     private Instant updatedAt;
     private String notes;
@@ -34,6 +38,7 @@ public class StayResponseDTO {
     private boolean transferWaived;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal retainedTransferRate;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal transferSuggestedAmount;
+    private StayLitterBreakdown litter;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal suggestedAmount;
     @JsonFormat(shape = JsonFormat.Shape.STRING) private BigDecimal agreedAmount;
     private boolean pricePending;

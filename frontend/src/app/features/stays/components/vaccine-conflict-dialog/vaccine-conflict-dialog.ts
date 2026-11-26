@@ -9,11 +9,8 @@ import {
 } from '@angular/material/dialog';
 
 import { I18nService } from '../../../../core/i18n/i18n.service';
-import {
-  VaccineConflictReason,
-  VaccineConflictViolation,
-  VaccineType,
-} from '../../models/stay.model';
+import { VaccineConflictViolation } from '../../models/stay.model';
+import { vaccineConflictLabels } from '../../models/vaccine-conflict-label';
 
 export interface VaccineConflictDialogData {
   violations: VaccineConflictViolation[];
@@ -33,15 +30,11 @@ export class VaccineConflictDialog {
 
   readonly text = this.i18nService.text;
 
-  vaccineLabel(vaccineType: VaccineType): string {
-    return vaccineType === 'RABIES'
-      ? this.text().stays.vaccineConflict.vaccine.rabies
-      : this.text().stays.vaccineConflict.vaccine.tripleFeline;
-  }
-
-  reasonLabel(reason: VaccineConflictReason): string {
-    return reason === 'MISSING'
-      ? this.text().stays.vaccineConflict.reason.missing
-      : this.text().stays.vaccineConflict.reason.expired;
+  labels(violation: VaccineConflictViolation) {
+    return vaccineConflictLabels(
+      violation,
+      this.text().stays.vaccineConflict,
+      this.i18nService.dateLocale(),
+    );
   }
 }

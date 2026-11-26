@@ -1,0 +1,195 @@
+<section class="catalog-management">
+  <h2>{{ copy().title }}</h2>
+  <div class="selectors">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ copy().category }}</mat-label>
+      <select
+        #categorySelect
+        matNativeControl
+        [value]="field()"
+        [disabled]="disabled()"
+        (change)="selectField(categorySelect.value)"
+      >
+        @for (category of fields; track category) {
+          <option [value]="category">{{ copy().fields[category] }}</option>
+        }
+      </select>
+    </mat-form-field>
+  </div>
+
+  @if (saved()) {
+    <p class="feedback" role="status">{{ copy().saved }}</p>
+  }
+  @if (saveError(); as error) {
+    <p class="error" role="alert">{{ copy()[error] }}</p>
+  }
+  @if (inUse(); as option) {
+    <div class="feedback catalog-in-use">
+      <p role="alert">
+        {{
+          option.field === 'foodBrand' ? copy().brandInUse(option.name) : copy().inUse(option.name)
+        }}
+      </p>
+      @if (option.active) {
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="disabled()"
+          (click)="hideInUse(option)"
+        >
+          {{ copy().hide }} {{ option.name }}
+        </button>
+      }
+    </div>
+  }
+  @if (loading()) {
+    <p role="status">{{ copy().loading }}</p>
+  } @else if (loadError()) {
+    <div class="feedback">
+      <p role="alert">{{ copy().loadError }}</p>
+      <button mat-stroked-button type="button" (click)="load()">{{ copy().retry }}</button>
+    </div>
+  } @else {
+    <ng-container *ngTemplateOutlet="addForm; context: { draft: name }" />
+    @if (options().length) {
+      <ul class="options">
+        @for (option of options(); track option.id) {
+          <li>
+            <ng-container *ngTemplateOutlet="optionRow; context: { $implicit: option }" />
+            @if (option.field === 'foodBrand' && brandId() === option.id) {
+              <section
+                class="varieties"
+                [id]="'varieties-' + option.id"
+                [attr.aria-label]="copy().varieties + ': ' + option.name"
+              >
+                @if (option.active) {
+                  <ng-container
+                    *ngTemplateOutlet="addForm; context: { draft: varietyName, brand: option }"
+                  />
+                } @else {
+                  <p class="feedback">{{ copy().hiddenBrandHelp }}</p>
+                }
+                @if (varieties().length) {
+                  <ul class="options">
+                    @for (variety of varieties(); track variety.id) {
+                      <li>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            optionRow;
+                            context: { $implicit: variety, brand: option }
+                          "
+                        />
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p>{{ copy().empty }}</p>
+                }
+              </section>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p>{{ copy().empty }}</p>
+    }
+  }
+</section>
+
+<ng-template #addForm let-draft="draft" let-brand="brand">
+  <form class="entry-form" (submit)="$event.preventDefault(); add(brand)">
+    <mat-form-field appearance="outline">
+      <mat-label>{{ brand ? copy().varietyName : copy().name }}</mat-label>
+      <input
+        matInput
+        required
+        [maxLength]="brand ? 255 : 100"
+        [value]="draft()"
+        [disabled]="disabled()"
+        (input)="draft.set($event.target.value)"
+      />
+    </mat-form-field>
+    <button mat-flat-button [disabled]="disabled() || !draft().trim()">
+      {{ brand ? copy().addVariety : copy().add }}
+    </button>
+  </form>
+</ng-template>
+
+<ng-template #optionRow let-option let-brand="brand">
+  @if (renameId() === option.id) {
+    <form class="entry-form" (submit)="$event.preventDefault(); rename(option)">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ copy().name }}</mat-label>
+        <input
+          matInput
+          required
+          [maxLength]="brand ? 255 : 100"
+          [value]="renameName()"
+          [disabled]="disabled()"
+          (input)="renameName.set($event.target.value)"
+        />
+      </mat-form-field>
+      <button mat-flat-button [disabled]="disabled() || !renameName().trim()">
+        {{ copy().save }}
+      </button>
+      <button mat-button type="button" [disabled]="disabled()" (click)="cancelRename()">
+        {{ copy().cancel }}
+      </button>
+    </form>
+  } @else {
+    <div class="option">
+      <div>
+        <strong>{{ option.name }}</strong>
+        <small>{{
+          !option.active
+            ? copy().hidden
+            : brand && !brand.active
+              ? copy().hiddenBrand
+              : copy().visible
+        }}</small>
+      </div>
+      <div class="actions">
+        @if (option.field === 'foodBrand') {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="disabled()"
+            [attr.aria-label]="copy().varieties + ': ' + option.name"
+            [attr.aria-expanded]="brandId() === option.id"
+            [attr.aria-controls]="brandId() === option.id ? 'varieties-' + option.id : null"
+            (click)="toggleBrand(option)"
+          >
+            {{ copy().varieties }}
+          </button>
+        }
+        <button
+          mat-button
+          type="button"
+          [disabled]="disabled()"
+          [attr.aria-label]="copy().edit + ' ' + option.name"
+          (click)="beginRename(option)"
+        >
+          {{ copy().edit }}
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="disabled()"
+          [attr.aria-label]="(option.active ? copy().hide : copy().restore) + ' ' + option.name"
+          (click)="toggleVisibility(option)"
+        >
+          {{ option.active ? copy().hide : copy().restore }}
+        </button>
+        <button
+          mat-button
+          type="button"
+          [disabled]="disabled()"
+          [attr.aria-label]="copy().remove + ' ' + option.name"
+          (click)="deleteOption(option)"
+        >
+          {{ copy().remove }}
+        </button>
+      </div>
+    </div>
+  }
+</ng-template>
