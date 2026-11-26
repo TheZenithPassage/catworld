@@ -321,10 +321,14 @@ portraits and gallery photos. Quick entry signs in as the protected demo
 administrator. Administrators can create synthetic accounts from Accounts.
 The usual sign-in form then appears on the demo login page, so visitors can
 sign out and try the staff role. Removing all extra accounts hides that form.
-The intake back office includes synthetic submissions. Invitations use
+The intake back office includes complete cat registrations and vaccination
+updates. Preparing a dated baseline uses Windows PowerShell with local script
+execution enabled to render the fictional JPEG receipts. Review Miel under
+Iván Roldán for a new registration, or open Yuyo's
+update from upcoming arrivals to resolve a vaccine warning. Pucho's stay shows
+how to agree a pending price that includes CatWorld litter. Invitations use
 `https://fichas-test.catworld.com.ar/` and the form reminds recipients to use
-fictional data. A successful form submission counts as a save for the hourly
-reset.
+fictional data. A successful form submission counts as a save for the hourly reset.
 
 ### Publish when the demo is ready
 
