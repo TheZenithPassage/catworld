@@ -21,11 +21,17 @@ case "$demo_mode" in
     )
     cp /etc/nginx/nginx-demo.conf /etc/nginx/conf.d/default.conf
     cp /etc/nginx/nginx-demo-api.conf /etc/nginx/catworld-api-settings.conf
-    rm -f /etc/nginx/conf.d/intake.conf
+    printf 'client_max_body_size 8m;\ninclude /etc/nginx/nginx-demo-real-ip.conf;\n' > /etc/nginx/catworld-intake-settings.conf
+    cp /etc/nginx/nginx-demo-api.conf /etc/nginx/catworld-intake-api.conf
+    : > /etc/nginx/catworld-intake-preview.conf
+    sed -i 's/id="demo-data-notice" hidden>/id="demo-data-notice">/' /usr/share/nginx/intake-site/index.html
     ;;
   false)
     printf 'default $http_authorization;\n' > /etc/nginx/catworld-authorization.conf
     : > /etc/nginx/catworld-api-settings.conf
+    printf 'client_max_body_size 33m;\n' > /etc/nginx/catworld-intake-settings.conf
+    printf 'client_max_body_size 9m;\n' > /etc/nginx/catworld-intake-preview.conf
+    : > /etc/nginx/catworld-intake-api.conf
     ;;
   *)
     echo 'CATWORLD_DEMO_MODE must be true or false.' >&2

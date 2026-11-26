@@ -3,9 +3,9 @@
 const MAX_CATS = 20;
 const MAX_PHOTOS_PER_CAT = 5;
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 32 * 1024 * 1024;
-const TOTAL_PHOTO_ERROR =
-  'Las fotos nuevas del envío superan los 32 MiB. Quitá alguna foto o elegí archivos más chicos.';
+const MAX_TOTAL_MIB = document.querySelector('#demo-data-notice')?.hidden === false ? 8 : 32;
+const MAX_TOTAL_BYTES = MAX_TOTAL_MIB * 1024 * 1024;
+const TOTAL_PHOTO_ERROR = `Las fotos nuevas del envío superan los ${MAX_TOTAL_MIB} MiB. Quitá alguna foto o elegí archivos más chicos.`;
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'];
 const MIN_BIRTH_YEAR = 1000;
@@ -1665,6 +1665,8 @@ async function submitDraft(body, entries, { hasProposals, recheckVaccineDates = 
       }
     } else if (response.status === 413) {
       showError('Las fotos son demasiado grandes. Elegí archivos más chicos y volvé a enviar.');
+    } else if (response.status === 429) {
+      showError('Se alcanzó el límite de solicitudes. Volvé a intentarlo más tarde.');
     } else if (response.status === 400 || response.status === 415 || response.status === 422) {
       const problem = await response.json().catch(() => null);
       if (problem?.code === 'CAT_INTAKE_VACCINE_DATE_OUT_OF_RANGE') {

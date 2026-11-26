@@ -48,6 +48,11 @@ public class DemoRequestFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        trackWrite(activity, request, response, chain);
+    }
+
+    public static void trackWrite(DemoActivityService activity, HttpServletRequest request,
+                                  HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
         activity.beginWrite();
         chain.doFilter(request, response);
         // An interrupted request or server error may have committed before the response failed.

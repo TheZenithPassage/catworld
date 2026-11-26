@@ -321,18 +321,25 @@ portraits and gallery photos. Quick entry signs in as the protected demo
 administrator. Administrators can create synthetic accounts from Accounts.
 The usual sign-in form then appears on the demo login page, so visitors can
 sign out and try the staff role. Removing all extra accounts hides that form.
-The intake back office includes synthetic submissions, and invitations use a
-reserved address to demonstrate the flow safely.
+The intake back office includes synthetic submissions. Invitations use
+`https://fichas-test.catworld.com.ar/` and the form reminds recipients to use
+fictional data. A successful form submission counts as a save for the hourly
+reset.
 
 ### Publish when the demo is ready
 
 For the one-time Cloudflare setup, create a dedicated remotely managed tunnel
-for the Windows demo. Add a published application route for
-`test.catworld.com.ar` with service type **HTTP** and service URL `frontend:80`.
-Use the token for this tunnel only. Keep public access enabled for this hostname
-and bypass CDN caching for `/api/*`. The production admin tunnel and its Access
-policy are configured independently. Follow the [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
-for the dashboard steps.
+for the Windows demo. Add these published application routes to that tunnel.
+
+| Public hostname | Service type | Service URL |
+| --- | --- | --- |
+| `test.catworld.com.ar` | HTTP | `frontend:80` |
+| `fichas-test.catworld.com.ar` | HTTP | `frontend:8082` |
+
+Use the token for this tunnel only. Keep public access enabled for both
+hostnames and bypass CDN caching for `/api/*`. The intake listener serves the
+form and its token-authorized API. The production admin tunnel and its Access
+policy are configured independently. [Cloudflare Tunnel setup](https://developers.cloudflare.com/tunnel/get-started/)
 
 ```powershell
 uv run --python 3.12 python scripts/demo/manage.py token
@@ -341,8 +348,9 @@ uv run --python 3.12 python scripts/demo/manage.py start $revision
 
 Paste the token at the hidden prompt. Check that Cloudflare reports the
 connector healthy and open `https://test.catworld.com.ar` to verify the demo
-entry screen and synthetic records through the public route. If the tunnel
-fails to start after seeding succeeds, the local demo stays available. Fix the
+entry screen and synthetic records. Share a link for a fictional tutor, submit
+the form and check that the proposal appears in the demo's intake review.
+If the tunnel fails to start after seeding succeeds, the local demo stays available. Fix the
 tunnel and retry with `uv run --python 3.12 python scripts/demo/manage.py publish`
 to keep the current workspace.
 
@@ -367,8 +375,8 @@ overall, renewed at midnight in Madrid. Reset restores shared fixture data and
 clears extra accounts, and save attempts from a previous session generation
 prompt the visitor to reload. It preserves the daily reset counters.
 
-The demo API has sustained Nginx limits of 10 reads per second per IP and 30
-overall, and 30 writes per minute per IP and 120 overall, with short bursts for
+The demo and its intake form share sustained Nginx limits of 10 API reads per
+second per IP and 30 overall, and 30 writes per minute per IP and 120 overall, with short bursts for
 ordinary UI actions. Uploads have an 8 MiB request limit and the demo allows 32
 photo upload requests per generation.
 

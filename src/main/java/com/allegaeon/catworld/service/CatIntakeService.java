@@ -92,6 +92,7 @@ public class CatIntakeService {
     private final FoodBrandService foodBrands;
     private final LitterRateService litterRates;
     private final LibVipsCatPhotoNormalizer normalizer;
+    private final Optional<DemoActivityService> demoActivity;
     private final PlatformTransactionManager transactions;
     private final ObjectMapper json;
     private final Clock clock;
@@ -208,6 +209,7 @@ public class CatIntakeService {
         var eligible = eligibleCats(invite.getOwnerId(), scope.keySet(), false);
         requireAccessible(invite.getAllowNewCats(), eligible);
         validatePhotoSize(photo);
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(photo, List.of()));
         return normalizer.normalize(photo).bytes();
     }
 
@@ -594,6 +596,7 @@ public class CatIntakeService {
         if (uploads.values().stream().mapToLong(MultipartFile::getSize).sum() > MAX_TOTAL_PHOTO_BYTES) {
             throw new CatPhotoException(CatPhotoErrorCode.CAT_PHOTO_FILE_TOO_LARGE);
         }
+        demoActivity.ifPresent(activity -> activity.reservePhotoUpload(null, List.copyOf(uploads.values())));
         Map<String, NormalizedCatPhoto> result = new LinkedHashMap<>();
         uploads.forEach((key, upload) -> result.put(key, normalizer.normalize(upload)));
         return result;
