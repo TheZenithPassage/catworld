@@ -1,0 +1,56 @@
+<h2 mat-dialog-title>{{ copy().newTask }}</h2>
+
+<form #taskForm="ngForm" (ngSubmit)="create(taskForm, descriptionInput, dateInput)">
+  <mat-dialog-content>
+    <fieldset class="create-fields" [disabled]="saving()">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ copy().description }}</mat-label>
+        <textarea
+          #descriptionInput
+          matInput
+          required
+          maxlength="500"
+          rows="3"
+          name="description"
+          #descriptionModel="ngModel"
+          [ngModel]="description()"
+          [errorStateMatcher]="descriptionErrorMatcher"
+          (ngModelChange)="updateDescription($event)"
+        ></textarea>
+        <mat-error>{{
+          descriptionModel.hasError('maxlength')
+            ? copy().descriptionTooLong
+            : copy().descriptionRequired
+        }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ copy().dueDate }}</mat-label>
+        <input
+          #dateInput
+          matInput
+          appNativeBadInput
+          type="date"
+          name="dueDate"
+          min="1000-01-01"
+          max="9999-12-31"
+          [(ngModel)]="dueDate"
+        />
+        <mat-error>{{ copy().invalidDate }}</mat-error>
+      </mat-form-field>
+
+      <app-operations-task-link-picker [disabled]="saving()" (selectionChange)="setLink($event)" />
+
+      @if (createError(); as error) {
+        <p class="field-error" role="alert">{{ copy()[error] }}</p>
+      }
+    </fieldset>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close [disabled]="saving()">
+      {{ copy().cancel }}
+    </button>
+    <button mat-flat-button type="submit" [disabled]="saving()">{{ copy().create }}</button>
+  </mat-dialog-actions>
+</form>

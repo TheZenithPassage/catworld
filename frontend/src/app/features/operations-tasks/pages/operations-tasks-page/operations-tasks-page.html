@@ -1,0 +1,82 @@
+<section class="operations-tasks">
+  <header class="page-header">
+    <h2>{{ copy().title }}</h2>
+    <button mat-flat-button type="button" (click)="openCreate()">{{ copy().newTask }}</button>
+  </header>
+
+  <nav mat-tab-nav-bar [tabPanel]="taskPanel" [attr.aria-label]="copy().tabsLabel">
+    @for (filter of tabs; track filter) {
+      <button mat-tab-link type="button" [active]="tab() === filter" (click)="tab.set(filter)">
+        {{ filter === 'ALL' ? copy().all : copy().buckets[filter] }}
+      </button>
+    }
+  </nav>
+
+  <mat-tab-nav-panel #taskPanel class="task-list" [attr.aria-busy]="loading() && !loaded()">
+    @if (resolutionError(); as error) {
+      <p class="field-error" role="alert">{{ copy()[error] }}</p>
+    }
+    @if (loadError()) {
+      <app-ui-state
+        kind="error"
+        [message]="copy().loadFailed"
+        [actionLabel]="copy().retry"
+        (actionTriggered)="loadTasks()"
+      />
+    }
+    @if (!loaded() && loading() && !loadError()) {
+      <app-ui-state kind="loading" [message]="copy().loading" />
+    }
+    @if (loaded() && !groups().length) {
+      <app-ui-state kind="empty" [message]="tab() === 'ALL' ? copy().empty : copy().emptyGroup" />
+    }
+    @for (group of groups(); track group.bucket) {
+      <section
+        class="task-group"
+        [attr.aria-labelledby]="tab() === 'ALL' ? 'task-group-' + group.bucket : null"
+      >
+        @if (tab() === 'ALL') {
+          <h3 [id]="'task-group-' + group.bucket">{{ copy().buckets[group.bucket] }}</h3>
+        }
+        <ul class="task-items">
+          @for (task of group.tasks; track task.id) {
+            @let action = task.bucket === 'RESOLVED' ? copy().reopen : copy().resolve;
+            <li class="task-item">
+              <div class="task-copy">
+                <p class="task-description">{{ task.description }}</p>
+                <div class="task-meta">
+                  @if (task.dueDate; as dueDate) {
+                    <time [attr.datetime]="dueDate">{{ displayDueDate(dueDate) }}</time>
+                  }
+                  <span>{{ attribution(task) }}</span>
+                </div>
+              </div>
+              <div class="task-actions">
+                @if (linkFor(task); as link) {
+                  @let linkLabel = copy().openLink[link.entityType];
+                  <button
+                    mat-button
+                    type="button"
+                    (click)="openLink(link)"
+                    [attr.aria-label]="linkLabel + ' · ' + task.description"
+                  >
+                    {{ linkLabel }}
+                  </button>
+                }
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="changingId() !== null"
+                  [attr.aria-label]="action + ' · ' + task.description"
+                  (click)="toggleResolution(task)"
+                >
+                  {{ action }}
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </mat-tab-nav-panel>
+</section>

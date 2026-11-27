@@ -83,6 +83,15 @@ export const routes: Routes = [
       import('./features/calendar/pages/calendar-page/calendar-page').then((m) => m.CalendarPage),
   },
   {
+    path: 'operations/tasks',
+    ...canLeaveCatDetails,
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/operations-tasks/pages/operations-tasks-page/operations-tasks-page').then(
+        (m) => m.OperationsTasksPage,
+      ),
+  },
+  {
     path: 'owners',
     ...canLeaveCatDetails,
     canActivate: [authGuard],

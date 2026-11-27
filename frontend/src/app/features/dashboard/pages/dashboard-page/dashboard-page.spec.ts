@@ -30,13 +30,14 @@ describe('DashboardPage', () => {
       link.injector.get(RouterLink),
     );
 
-    expect(compiled.querySelectorAll('.dashboard-card mat-card')).toHaveLength(6);
+    expect(compiled.querySelectorAll('.dashboard-card mat-card')).toHaveLength(7);
     expect(compiled.textContent).toContain(component.text().dashboard.links.stays.title);
     expect(compiled.textContent).toContain(component.text().dashboard.links.calendar.title);
     expect(cardLinks.map((link) => link.href)).toEqual([
       '/operations/arrivals',
       '/stays',
       '/calendar',
+      '/operations/tasks',
       '/cats',
       '/owners',
       '/vets',

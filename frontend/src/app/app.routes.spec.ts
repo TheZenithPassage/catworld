@@ -1,4 +1,4 @@
-import { routes } from './app.routes';
+import { confirmCatDraftNavigation, routes } from './app.routes';
 import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 
@@ -14,6 +14,15 @@ describe('application routes', () => {
     expect(route?.canActivate).toEqual([adminGuard]);
     expect(route?.loadComponent).toBeDefined();
   });
+
+  it('loads operations tasks on demand behind the authentication guard', () => {
+    const route = routes.find((candidate) => candidate.path === 'operations/tasks');
+    expect(route?.canActivate).toEqual([authGuard]);
+    expect(route?.canDeactivate).toEqual([confirmCatDraftNavigation]);
+    expect(route?.runGuardsAndResolvers).toBe('always');
+    expect(route?.loadComponent).toBeDefined();
+  });
+
   it('protects the sensitive activity route with the admin guard', () => {
     const route = routes.find((candidate) => candidate.path === 'sensitive-activity');
     expect(route).toBeDefined();

@@ -16,6 +16,10 @@ export interface DashboardTranslations {
       title: string;
       description: string;
     };
+    operationsTasks: {
+      title: string;
+      description: string;
+    };
     cats: {
       title: string;
       description: string;
@@ -56,6 +60,10 @@ export const DASHBOARD_TRANSLATIONS = {
         title: 'Calendario',
         description: 'Revisar estadías en una vista de calendario.',
       },
+      operationsTasks: {
+        title: 'Pendientes internos',
+        description: 'Organizá el trabajo diario y registrá qué quedó resuelto.',
+      },
       cats: {
         title: 'Gatos',
         description: 'Ver gatos registrados y agregar gatos a dueños existentes.',
@@ -92,6 +100,10 @@ export const DASHBOARD_TRANSLATIONS = {
       calendar: {
         title: 'Calendar',
         description: 'Review stays in a calendar view.',
+      },
+      operationsTasks: {
+        title: 'Internal tasks',
+        description: 'Organise daily work and record what was resolved.',
       },
       cats: {
         title: 'Cats',

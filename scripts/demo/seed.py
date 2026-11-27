@@ -142,6 +142,7 @@ class FixtureRows:
         "cat_informational_photos", "stays", "stay_cat", "stay_actual_movements", "sensitive_stay_contexts",
         "sensitive_stay_context_cats", "stay_pricing_decisions", "stay_payments", "stay_payment_annulments",
         "stay_payment_edits", "cat_intake_invitations", "cat_intake_reviews", "cat_intake_photos",
+        "operations_tasks", "operations_task_transitions",
     )
 
     def __init__(self):
@@ -770,6 +771,26 @@ def add_intakes(rows, today, owners, options, brands, varieties, photos, intakes
                  frame_zoom=None)
 
 
+def add_operations_tasks(rows, today, *, overdue_stay_id, owner_id, cat_id, upcoming_stay_id):
+    yesterday = today - timedelta(days=1)
+    created = utc(at(yesterday, 15))
+    examples = (
+        ("Confirmar el ingreso de Selva y Copito", yesterday, overdue_stay_id, None, None),
+        ("Confirmar con Manuel el horario de retiro", today, None, owner_id, None),
+        ("Preparar la medicación de Chispa para el retiro", today, None, None, cat_id),
+        ("Revisar la ficha de Yuyo con Raúl", today + timedelta(days=1), upcoming_stay_id, None, None),
+        ("Revisar cuántas mantas limpias quedan", None, None, None, None),
+        ("Dejar listas las transportadoras de repuesto", yesterday, None, None, None),
+    )
+    for index, (description, due, stay_id, linked_owner_id, linked_cat_id) in enumerate(examples, start=1):
+        rows.add("operations_tasks", id=fixture_id("operations_task", index), description=description,
+                 due_date=due, stay_id=stay_id, owner_id=linked_owner_id, cat_id=linked_cat_id,
+                 created_by_id=ACTOR, created_by_username="demo", created_at=created)
+    rows.add("operations_task_transitions", id=fixture_id("operations_task_transition", 1),
+             task_id=fixture_id("operations_task", len(examples)), revision=1, resolved=True,
+             actor_id=ACTOR, actor_username="demo", occurred_at=utc(at(yesterday, 16)))
+
+
 def count_rows(table, condition=None):
     where = f" WHERE {condition}" if condition else ""
     return f"(SELECT COUNT(*) FROM {table}{where})"
@@ -795,6 +816,8 @@ SEED_STATUS = (
     (count_rows("cat_profile_options", "category = 'lastExternalDewormerName' AND active"), 12),
     (count_rows("cat_photos"), PORTRAIT_COUNT),
     (count_rows("cat_informational_photos"), GALLERY_COUNT),
+    (count_rows("operations_tasks"), 6),
+    (count_rows("operations_task_transitions"), 1),
 )
 
 SEED_STATUS_QUERY = "SELECT\n    " + ",\n    ".join(expression for expression, _ in SEED_STATUS) + ";"
@@ -811,6 +834,16 @@ def generate(today):
     stays = add_stays(rows, today, rng, owners)
     add_payments(rows, today, rng, stays)
     add_intakes(rows, today, owners, options, brands, varieties, photos, intakes)
+    manuel = next(owner for owner in owners if owner.name == "Manuel Castañares")
+    add_operations_tasks(
+        rows, today,
+        overdue_stay_id=next(stay.id for stay in stays
+                             if stay.owner.name == "Joaquín del Prado" and stay.kind == "upcoming"),
+        owner_id=manuel.id,
+        cat_id=next(cat.id for cat in manuel.cats if cat.name == "Chispa"),
+        upcoming_stay_id=next(stay.id for stay in stays
+                              if stay.owner.name == "Raúl del Prado" and stay.kind == "upcoming"),
+    )
     return rows, photos
 
 
