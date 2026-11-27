@@ -316,19 +316,36 @@ the baseline and operator state in `%LOCALAPPDATA%\CatWorldDemo`. Keep that
 directory private and retain `demo.env` for the lifetime of the demo volume.
 
 The baseline contains 500 fictional tutors, 800 cats, 20 vets, 2,400 stays,
-3,000 payments and 96 intake reviews, with populated catalogs and sample
+3,000 payments and 97 intake reviews, with populated catalogs and sample
 portraits and gallery photos. Quick entry signs in as the protected demo
 administrator. Administrators can create synthetic accounts from Accounts.
 The usual sign-in form then appears on the demo login page, so visitors can
 sign out and try the staff role. Removing all extra accounts hides that form.
-The intake back office includes complete cat registrations and vaccination
-updates. Preparing a dated baseline uses Windows PowerShell with local script
-execution enabled to render the fictional JPEG receipts. Review Miel under
-Iván Roldán for a new registration, or open Yuyo's
-update from upcoming arrivals to resolve a vaccine warning. Pucho's stay shows
-how to agree a pending price that includes CatWorld litter. Invitations use
-`https://fichas-test.catworld.com.ar/` and the form reminds recipients to use
-fictional data. A successful form submission counts as a save for the hourly reset.
+Preparing a dated baseline uses Windows PowerShell with local script execution
+enabled to render the fictional JPEG receipts. The 33 pending intake reviews
+include these examples for a fresh baseline.
+
+- **Fichas recibidas.** The first six cats are Amapola, Miga, Anís, Oliver,
+  Churro and Bimba. Each has a proposed portrait and the number of supporting
+  images goes from zero to five. Amapola's existing profile needs a portrait.
+  Bimba and Miel (Iván Roldán) show complete new registrations.
+- **Próximas estadías → Ingresos.** Open Yuyo's proposal under Raúl del Prado
+  and approve the rabies dose to clear the warning. Open the overdue arrival
+  for Selva and Copito (Joaquín del Prado) and enter 14:30 on the scheduled day.
+- **Próximas estadías → Salidas.** Collect the ARS 54,000 balance for
+  Chispa (Manuel Castañares), whose ARS 81,000 agreement has an ARS 27,000
+  deposit. Record the early departure at 16:00 on the day before the
+  scheduled departure. Use the date and time fields, opening
+  **Indicar otra hora** if offered.
+- **Pagos → Cobrado → Todo el historial.** Look up Uma (Valentina Vilar) to
+  find the ARS 36,000 deposit and ARS 72,000 balance, even when they fall in
+  different months. The annulled duplicate appears in **Actividad sensible**.
+  To confirm a pending price with CatWorld litter, look up Pucho (Raúl Casares)
+  in **Estadías**.
+
+Invitations use `https://fichas-test.catworld.com.ar/` and the form reminds
+recipients to use fictional data. A successful form submission counts as a save
+for the hourly reset.
 
 ### Publish when the demo is ready
 

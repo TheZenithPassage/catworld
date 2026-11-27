@@ -23,13 +23,14 @@ VET_COUNT = 20
 PAYMENT_COUNT = 3_000
 PORTRAIT_COUNT = 160
 GALLERY_COUNT = 80
-INTAKE_COUNT = 96
-PENDING_INTAKE_COUNT = 32
+VACCINE_INTAKE_COUNT = 96
+PENDING_VACCINE_INTAKE_COUNT = 32
 STAY_COUNTS = {"completed": 2_220, "checked-in": 24, "upcoming": 120, "cancelled": 36}
 FIRST_INTAKE_HOUSEHOLD = STAY_COUNTS["checked-in"]
 YUYO_INTAKE_INDEX = 1
 YUYO_OWNER_INDEX = FIRST_INTAKE_HOUSEHOLD + YUYO_INTAKE_INDEX
 YUYO_ARRIVAL_OFFSET = 4
+RECENT_DEPARTURE_OWNER = "Valentina Vilar"
 
 NEW_CAT_PROFILES = {
     0: ("Oliva", "FEMALE"), 4: ("Miel", "FEMALE"), 7: ("Beto", "MALE"),
@@ -40,6 +41,21 @@ NEW_CAT_PROFILES = {
 RABIES = "lastRabiesDate"
 TRIPLE_FELINE = "lastTripleFelineDate"
 VACCINE_LABELS = {RABIES: "Antirrábica", TRIPLE_FELINE: "Triple felina"}
+EVIDENCE_PAGES = {
+    "register": ("Registro de vacunas", "Dosis asentadas en el registro", None),
+    "cover": ("Libreta sanitaria", "Identificación de la libreta del paciente", None),
+    "rabies": ("Constancia antirrábica", "Comprobante de aplicación", RABIES),
+    "triple": ("Constancia de triple felina", "Comprobante de aplicación", TRIPLE_FELINE),
+    "lots": ("Etiquetas de vacunas", "Lotes asentados en la libreta", None),
+    "validation": ("Validación veterinaria", "Constancia revisada por el consultorio", None),
+}
+WALKTHROUGH_EVIDENCE = {
+    "Alma Larralde": ("register",),
+    "Amalia Barrenechea": ("register", "validation"),
+    "Amalia Castañares": ("cover", "rabies", "validation"),
+    "Amalia Montemiel": ("cover", "triple", "lots", "validation"),
+    "Amalia Ocampo": ("cover", "rabies", "triple", "lots", "validation"),
+}
 
 NIGHTLY_RATES = {
     "ONE_CAT": 27_000,
@@ -252,6 +268,7 @@ class Cat:
     id: UUID
     name: str
     litter: str
+    photo_index: int | None
 
 
 @dataclass(frozen=True)
@@ -274,8 +291,8 @@ def plan_intakes(today):
         expires_during_yuyo_stay -= timedelta(days=1)
     yuyo_previous_dose = expires_during_yuyo_stay.replace(year=expires_during_yuyo_stay.year - 1)
 
-    for index in range(INTAKE_COUNT):
-        pending = index < PENDING_INTAKE_COUNT
+    for index in range(VACCINE_INTAKE_COUNT):
+        pending = index < PENDING_VACCINE_INTAKE_COUNT
         registration = index in NEW_CAT_PROFILES
         approved_at = dismissed_at = None
         if pending:
@@ -287,7 +304,7 @@ def plan_intakes(today):
             else:
                 fields = next(other_updates)
         else:
-            submitted_on = today - timedelta(days=18 + (index - PENDING_INTAKE_COUNT) // 2)
+            submitted_on = today - timedelta(days=18 + (index - PENDING_VACCINE_INTAKE_COUNT) // 2)
             fields = patterns[index % len(patterns)]
         submitted_at = utc(at(submitted_on, 10, index % 60))
         proposed = {key: submitted_on - timedelta(days=2 + (index + offset) % 12)
@@ -375,7 +392,7 @@ def add_households(rows, today, rng, options, brands, varieties, photos, intakes
                 rabies = vaccinations.get(RABIES, rabies)
                 approved_at = intake.approved_at
             care = rng.choice(text.CARE_NOTES)
-            cat = Cat(fixture_id("cat", cat_index), name, litter)
+            cat = Cat(fixture_id("cat", cat_index), name, litter, photo_index)
             owner.cats.append(cat)
             created_at = utc(at(setup_day + timedelta(days=owner.index % 132), 11))
             dose_updates = (utc(at(dose, 15)) for dose in (triple, rabies) if dose is not None)
@@ -429,6 +446,9 @@ def stay_schedule(today, owners, rng):
             start = band_start + timedelta(days=rng.randrange(60))
             nights = rng.choice((2, 3, 4, 4, 5, 6, 7, 8, 10, 14, 21, 33))
             end = min(start + timedelta(days=nights), today - timedelta(days=12))
+            if cycle == 4 and owner.name == RECENT_DEPARTURE_OWNER:
+                end = today - timedelta(days=1)
+                start = end - timedelta(days=4)
             yield "completed", owner, start, end
 
     for index, owner in enumerate(owners[:STAY_COUNTS["checked-in"]]):
@@ -442,6 +462,8 @@ def stay_schedule(today, owners, rng):
     for index, owner in enumerate(owners[first_upcoming:last_upcoming]):
         if index == YUYO_INTAKE_INDEX:
             start_offset = YUYO_ARRIVAL_OFFSET
+        elif owner.name == "Joaquín del Prado":
+            start_offset = -1
         elif index < 5:
             start_offset = 0
         elif index < 12:
@@ -570,9 +592,13 @@ def add_payments(rows, today, rng, stays):
                or (stay.kind in {"checked-in", "upcoming"} and stay.index % 4 != 0)]
     # Record reversals on some cancelled reservations and duplicate entries in settled bookings.
     cancelled = [stay for stay in payable if stay.kind == "cancelled" and stay.index % 2 == 0]
-    duplicates = rng.sample(settled, 48 - len(cancelled))
-    split_count = PAYMENT_COUNT - (len(settled) + len(partial) + len(cancelled) + len(duplicates))
-    split_ids = {stay.id for stay in rng.sample(settled, split_count)}
+    duplicate_count = 48 - len(cancelled)
+    split_count = PAYMENT_COUNT - (len(settled) + len(partial) + len(cancelled) + duplicate_count)
+    recent = next(stay for stay in settled if stay.owner.name == RECENT_DEPARTURE_OWNER
+                  and stay.end.date() == today - timedelta(days=1))
+    other_split_stays = rng.sample([stay for stay in settled if stay.id != recent.id], split_count - 1)
+    split_ids = {recent.id, *(stay.id for stay in other_split_stays)}
+    duplicates = [recent, *rng.sample(other_split_stays, duplicate_count - 1)]
     payment_index = 0
 
     def payment(stay, amount, day, note, *, voided=False, corrected=False):
@@ -619,7 +645,7 @@ def add_payments(rows, today, rng, stays):
         payment(stay, stay.agreed_amount // 3, stay.cancelled_at.date() - timedelta(days=2),
                 "Seña de la reserva luego cancelada.", voided=True)
     for stay in duplicates:
-        payment(stay, stay.agreed_amount // 3, stay.start.date() - timedelta(days=3),
+        payment(stay, stay.agreed_amount // 3, stay.start.date() - timedelta(days=2),
                 "Anticipo registrado dos veces.", voided=True)
     if payment_index != PAYMENT_COUNT:
         raise SeedError(f"Expected {PAYMENT_COUNT} payments, generated {payment_index}.")
@@ -668,19 +694,34 @@ def render_vaccine_evidence(documents):
         raise SeedError(f"Rendering the demo vaccine evidence failed: {result.stderr.decode(errors='replace').strip()}")
     images = result.stdout.splitlines()
     if len(images) != len(documents):
-        raise SeedError("The demo vaccine renderer did not produce one image per pending intake.")
+        raise SeedError("The demo vaccine renderer did not produce one image per evidence page.")
     return [base64.b64decode(image, validate=True) for image in images]
 
 
+def vaccine_document(cat_name, proposed, page, reference):
+    title, caption, vaccine = EVIDENCE_PAGES[page]
+    doses = (vaccine,) if vaccine else proposed
+    return {
+        "kind": page, "title": title, "caption": caption, "catName": cat_name, "reference": reference,
+        "doses": [{"label": VACCINE_LABELS[key], "date": proposed[key].strftime("%d/%m/%Y"),
+                   "lot": f"{'R' if key == RABIES else 'T'}-{reference}"} for key in doses],
+    }
+
+
 def add_intakes(rows, today, owners, options, brands, varieties, photos, intakes):
+    amapola_owner = next(owner for owner in owners if owner.name == "Agustina Montemiel")
+    amapola = next(cat for cat in amapola_owner.cats if cat.name == "Amapola")
+    portrait_intake = Intake(utc(at(today - timedelta(days=1), 10)), {}, {}, None, None)
     evidence = []
-    for index, intake in enumerate(intakes):
-        owner = owners[FIRST_INTAKE_HOUSEHOLD + index]
+    for index, intake in enumerate([*intakes, portrait_intake]):
+        portrait_only = intake is portrait_intake
+        owner = amapola_owner if portrait_only else owners[FIRST_INTAKE_HOUSEHOLD + index]
         invitation_id = fixture_id("intake-invitation", index)
         review_id = fixture_id("intake-review", index)
         decided_at = intake.approved_at or intake.dismissed_at
         new_cat = index in NEW_CAT_PROFILES
-        cat = None if new_cat else owner.cats[0]
+        cat = amapola if portrait_only else (None if new_cat else owner.cats[0])
+        requested_fields = ["profilePhoto"] if portrait_only else list(intake.proposed)
         if new_cat:
             proposed, selected = registration_profile(index, today, options, brands, varieties)
             cat_name = proposed["name"]
@@ -695,7 +736,7 @@ def add_intakes(rows, today, owners, options, brands, varieties, photos, intakes
         unsupplied_token_hash = hashlib.sha256(invitation_id.bytes).hexdigest()
         rows.add("cat_intake_invitations", id=invitation_id, owner_id=owner.id, token_hash=unsupplied_token_hash,
                  allow_new_cats=new_cat, scope_snapshot=json_text(scope),
-                 requested_fields_snapshot=json_text({str(cat.id): list(intake.proposed)} if cat else {}),
+                 requested_fields_snapshot=json_text({str(cat.id): requested_fields} if cat else {}),
                  expires_at=intake.submitted_at + timedelta(days=5) if decided_at else utc(at(today, 0)),
                  submitted_at=decided_at)
         rows.add("cat_intake_reviews", id=review_id, invitation_id=invitation_id,
@@ -704,15 +745,23 @@ def add_intakes(rows, today, owners, options, brands, varieties, photos, intakes
                  proposed_option_ids=json_text(selected) if selected else None,
                  proposed_food_detail_brand=proposed.get("foodBrand"), submitted_at=intake.submitted_at,
                  approved_at=intake.approved_at, dismissed_at=intake.dismissed_at)
+        portrait = None
         if new_cat:
-            base_photo = photos[index % len(photos)][0]
+            portrait = photos[index % len(photos)][0]
+        elif portrait_only:
+            portrait = photos[PHOTO_LOOKS.index(("Negro y blanco", "Pelo corto"))][0]
+        elif decided_at is None and owner.name in WALKTHROUGH_EVIDENCE:
+            portrait = photos[cat.photo_index][1]
+        if portrait:
             rows.add("cat_intake_photos", id=fixture_id("intake-photo", index), review_id=review_id,
-                     content=base_photo.variable, portrait_width=base_photo.width, portrait_height=base_photo.height,
-                     portrait_sha256=base_photo.sha256, frame_x=50, frame_y=50, frame_zoom=100)
-        if decided_at is None:
-            doses = [{"label": VACCINE_LABELS[key], "date": dose.strftime("%d/%m/%Y")}
-                     for key, dose in intake.proposed.items()]
-            evidence.append((fixture_id("intake-evidence", index), review_id, {"catName": cat_name, "doses": doses}))
+                     content=portrait.variable, portrait_width=portrait.width, portrait_height=portrait.height,
+                     portrait_sha256=portrait.sha256, frame_x=50, frame_y=50, frame_zoom=100)
+        if decided_at is None and intake.proposed:
+            pages = WALKTHROUGH_EVIDENCE.get(owner.name, ("register",))
+            for ordinal, page in enumerate(pages):
+                key = index if ordinal == 0 else f"{index}:{ordinal}"
+                document = vaccine_document(cat_name, intake.proposed, page, f"DEMO-{index + 1:03}")
+                evidence.append((fixture_id("intake-evidence", key), review_id, document))
 
     images = render_vaccine_evidence([document for _, _, document in evidence])
     for (photo_id, review_id, _), content in zip(evidence, images, strict=True):
@@ -735,9 +784,9 @@ SEED_STATUS = (
     (count_rows("stays", "cancelled_at IS NULL AND movement_status = 'RESERVED'"), STAY_COUNTS["upcoming"]),
     (count_rows("stays", "cancelled_at IS NOT NULL"), STAY_COUNTS["cancelled"]),
     (count_rows("stay_payments"), PAYMENT_COUNT),
-    (count_rows("cat_intake_reviews", "approved_at IS NULL AND dismissed_at IS NULL"), PENDING_INTAKE_COUNT),
+    (count_rows("cat_intake_reviews", "approved_at IS NULL AND dismissed_at IS NULL"), PENDING_VACCINE_INTAKE_COUNT + 1),
     (count_rows("cat_intake_reviews", "approved_at IS NOT NULL OR dismissed_at IS NOT NULL"),
-     INTAKE_COUNT - PENDING_INTAKE_COUNT),
+     VACCINE_INTAKE_COUNT - PENDING_VACCINE_INTAKE_COUNT),
     (count_rows("cat_profile_options", "category = 'breed' AND active"), 40),
     (count_rows("food_brands", "active"), 20),
     (count_rows("food_varieties", "active"), 100),
