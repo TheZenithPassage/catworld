@@ -9,7 +9,6 @@ export interface AccountsTranslations {
   empty: string;
   create: {
     title: string;
-    demoCredentials: string;
     username: string;
     password: string;
     role: string;
@@ -69,7 +68,6 @@ export const ACCOUNTS_TRANSLATIONS = {
     empty: 'No hay cuentas disponibles.',
     create: {
       title: 'Nueva cuenta',
-      demoCredentials: 'Usá un nombre de usuario y una contraseña inventados para esta demo.',
       username: 'Nombre de usuario',
       password: 'Contraseña',
       role: 'Nivel de acceso',
@@ -128,7 +126,6 @@ export const ACCOUNTS_TRANSLATIONS = {
     empty: 'No accounts are available.',
     create: {
       title: 'Create account',
-      demoCredentials: 'Use a made-up username and password for this demo.',
       username: 'Username',
       password: 'Password',
       role: 'Role',

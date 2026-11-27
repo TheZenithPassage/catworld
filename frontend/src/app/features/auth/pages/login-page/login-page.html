@@ -19,9 +19,6 @@
             {{ formatDemoTime(status.nextScheduledCheckAt) }}
           </time>
         </p>
-        @if (status.resetState !== 'AVAILABLE') {
-          <p role="status">{{ text().auth.demo.resetStatus[status.resetState] }}</p>
-        }
       }
       <button
         mat-stroked-button
@@ -38,15 +35,18 @@
           [actionLabel]="text().auth.demo.retry"
           (actionTriggered)="loadDemoStatus()"
         ></app-ui-state>
-      }
-      @if (demoResetFailed()) {
+      } @else if (demoResetFailed()) {
         <app-ui-state kind="error" [message]="text().auth.demo.resetFailed"></app-ui-state>
+      } @else if (demoStatusMessage(); as message) {
+        <p role="status">{{ message }}</p>
       }
     </aside>
   }
 
-  @if (error(); as errorMessage) {
-    <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
+  @if (!demoLoginBlocked()) {
+    @if (error(); as errorMessage) {
+      <app-ui-state kind="error" [message]="errorMessage"></app-ui-state>
+    }
   }
 
   @if (navigating()) {
@@ -54,17 +54,22 @@
   } @else {
     @if (demoMode()) {
       <div class="form-actions">
-        <button mat-flat-button type="button" (click)="enterDemo()" [disabled]="submitting()">
+        <button
+          mat-flat-button
+          type="button"
+          (click)="enterDemo()"
+          [disabled]="submitting() || demoLoginBlocked()"
+        >
           {{ submitting() ? text().auth.login.submitting : text().auth.demo.enter }}
         </button>
       </div>
     }
 
     @if (!demoMode() || demoStatus()?.hasAdditionalAccounts) {
+      @if (demoMode()) {
+        <h3 class="account-sign-in-title">{{ text().auth.demo.signInWithAccount }}</h3>
+      }
       <form class="login-form" (ngSubmit)="submit()">
-        @if (demoMode()) {
-          <p>{{ text().auth.demo.inventedCredentials }}</p>
-        }
         <mat-form-field appearance="outline">
           <mat-label>{{ text().auth.login.username }}</mat-label>
           <input
@@ -98,7 +103,7 @@
           }
         </mat-form-field>
         <div class="form-actions">
-          <button mat-flat-button type="submit" [disabled]="submitting()">
+          <button mat-flat-button type="submit" [disabled]="submitting() || demoLoginBlocked()">
             {{ submitting() ? text().auth.login.submitting : text().auth.login.submit }}
           </button>
         </div>

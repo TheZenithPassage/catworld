@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 
 import { AuthApiService } from '../../../../core/auth/auth-api.service';
@@ -24,7 +24,7 @@ describe('LoginPage', () => {
     loginDemo: vi.fn(),
   };
 
-  const demoApiService = { getStatus: vi.fn() };
+  const demoApiService = { getStatus: vi.fn(), requestReset: vi.fn() };
   const demoStatus: DemoStatus = {
     hasAdditionalAccounts: false,
     nextScheduledCheckAt: new Date(Date.now() + 60_000).toISOString(),
@@ -98,6 +98,7 @@ describe('LoginPage', () => {
 
   afterEach(() => {
     TestBed.resetTestingModule();
+    vi.useRealTimers();
   });
 
   async function submitRenderedForm(): Promise<void> {
@@ -170,8 +171,8 @@ describe('LoginPage', () => {
     expect(compiled.querySelector('button[mat-flat-button]')?.textContent?.trim()).toBe(
       component.text().auth.demo.enter,
     );
-    expect(compiled.querySelector('form')?.textContent).toContain(
-      component.text().auth.demo.inventedCredentials,
+    expect(compiled.querySelector('h3')?.textContent?.trim()).toBe(
+      component.text().auth.demo.signInWithAccount,
     );
     setInputValue('username', 'visitor');
     setInputValue('password', 'invented-password');
@@ -181,6 +182,109 @@ describe('LoginPage', () => {
     expect(authApiService.loginDemo).toHaveBeenCalledWith(credentials);
     expect(authSessionService.login).toHaveBeenCalledWith(user, credentials, 'generation-2');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/owners');
+  });
+
+  it('keeps both demo sign-in methods blocked through a queued reset and recovers after a failed poll', () => {
+    vi.useFakeTimers();
+    const reset = new Subject<DemoStatus>();
+    const recovered = new Subject<DemoStatus>();
+    const active = { ...demoStatus, hasAdditionalAccounts: true };
+    demoApiService.getStatus
+      .mockReturnValueOnce(of({ ...active, resetState: 'AVAILABLE' }))
+      .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 530 })))
+      .mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 429 })))
+      .mockReturnValueOnce(recovered);
+    demoApiService.requestReset.mockReturnValue(reset);
+    TestBed.inject(RuntimeConfigService).demoMode.set(true);
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    const signInButtons = [...page.querySelectorAll<HTMLButtonElement>('button[mat-flat-button]')];
+    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    component.requestDemoReset();
+    confirmation.mockRestore();
+    fixture.detectChanges();
+    expect(signInButtons.map((button) => button.disabled)).toEqual([true, true]);
+    reset.next({ ...active, resetState: 'QUEUED' });
+    reset.complete();
+
+    vi.advanceTimersByTime(5_000);
+    fixture.detectChanges();
+
+    expect(page.querySelectorAll('aside [role="status"]')).toHaveLength(1);
+    expect(page.querySelector('[role="alert"]')).toBeNull();
+    expect(signInButtons.map((button) => button.disabled)).toEqual([true, true]);
+    component.username.set('visitor');
+    component.password.set('invented-password');
+    component.enterDemo();
+    page
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    expect(authApiService.loginDemo).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(5_000);
+    fixture.detectChanges();
+    expect(page.querySelector('[role="alert"]')).toBeNull();
+    vi.advanceTimersByTime(5_000);
+    component.loadDemoStatus();
+    expect(demoApiService.getStatus).toHaveBeenCalledTimes(4);
+    recovered.next(demoStatus);
+    recovered.complete();
+    fixture.detectChanges();
+
+    expect(signInButtons[0].disabled).toBe(false);
+    expect(page.querySelector('form')).toBeNull();
+    expect(page.querySelector('aside [role="status"]')?.textContent).toContain(
+      component.text().auth.demo.resetStatus.CLEAN,
+    );
+    expect(demoApiService.requestReset).toHaveBeenCalledOnce();
+  });
+
+  it('reconnects after a demo sign-in hits an outage and slows the status checks after a minute', () => {
+    vi.useFakeTimers();
+    demoApiService.getStatus
+      .mockReturnValueOnce(of(demoStatus))
+      .mockReturnValue(throwError(() => new HttpErrorResponse({ status: 503 })));
+    authApiService.loginDemo.mockReturnValue(
+      throwError(() => new HttpErrorResponse({ status: 0 })),
+    );
+    TestBed.inject(RuntimeConfigService).demoMode.set(true);
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    const enter = page.querySelector<HTMLButtonElement>('button[mat-flat-button]')!;
+    enter.click();
+    fixture.detectChanges();
+
+    expect(enter.disabled).toBe(true);
+    expect(page.querySelector('[role="alert"]')).toBeNull();
+    expect(page.querySelector('aside [role="status"]')?.textContent).toContain(
+      component.text().auth.demo.reconnecting,
+    );
+
+    vi.advanceTimersByTime(60_000);
+    fixture.detectChanges();
+
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain(
+      component.text().auth.demo.statusUnavailable,
+    );
+    expect(page.querySelector('aside [role="status"]')).toBeNull();
+    const retry = [...page.querySelectorAll<HTMLButtonElement>('aside button')].find(
+      (button) => button.textContent?.trim() === component.text().auth.demo.retry,
+    );
+    const readsBeforeRetry = demoApiService.getStatus.mock.calls.length;
+    retry?.click();
+    expect(demoApiService.getStatus).toHaveBeenCalledTimes(readsBeforeRetry + 1);
+
+    vi.advanceTimersByTime(14_999);
+    expect(demoApiService.getStatus).toHaveBeenCalledTimes(readsBeforeRetry + 1);
+    demoApiService.getStatus.mockReturnValue(of(demoStatus));
+    vi.advanceTimersByTime(1);
+    fixture.detectChanges();
+
+    expect(enter.disabled).toBe(false);
+    expect(page.querySelector('[role="alert"]')).toBeNull();
+    expect(authApiService.loginDemo).toHaveBeenCalledOnce();
   });
 
   it('renders a localized explanation after a forbidden account deletion redirect', () => {
