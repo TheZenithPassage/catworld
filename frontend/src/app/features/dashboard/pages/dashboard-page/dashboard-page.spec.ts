@@ -37,6 +37,7 @@ describe('DashboardPage', () => {
       '/operations/arrivals',
       '/stays',
       '/calendar',
+      '/operations/tasks',
       '/cats',
       '/owners',
       '/vets',

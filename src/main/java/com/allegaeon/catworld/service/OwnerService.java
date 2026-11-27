@@ -204,7 +204,7 @@ public class OwnerService implements IOwnerService {
         return ownerMapper.toResponseDTO(owner, canDelete);
     }
 
-    private List<OwnerLookupItem> hydrateLookupOwners(List<Owner> owners) {
+    List<OwnerLookupItem> hydrateLookupOwners(List<Owner> owners) {
         if (owners.isEmpty()) return List.of();
         Map<UUID, List<CurrentCatLookupItem>> catsByOwner = new java.util.HashMap<>();
         catRepository.findLookupCatsByOwnerIds(owners.stream().map(Owner::getId).toList())

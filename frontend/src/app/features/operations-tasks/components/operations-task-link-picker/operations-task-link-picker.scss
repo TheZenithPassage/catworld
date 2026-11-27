@@ -1,0 +1,59 @@
+app-operations-task-link-picker,
+app-operations-task-link-picker mat-form-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+app-operations-task-link-picker input[readonly] {
+  text-overflow: ellipsis;
+}
+
+app-operations-task-link-picker .clear-glyph {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+app-operations-task-link-picker .link-searching {
+  padding-inline-end: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+html[data-theme='dark'] .mat-mdc-autocomplete-panel.operations-task-link-options {
+  outline: 1px solid var(--color-border-strong);
+}
+
+.mat-mdc-autocomplete-panel.operations-task-link-options {
+  max-height: min(29rem, 54dvh);
+  overflow-anchor: none;
+
+  .mat-mdc-optgroup-label {
+    min-height: 1.875rem;
+  }
+
+  .link-option {
+    min-height: 2.75rem;
+    height: auto;
+    padding-block: 0.25rem;
+    overflow-wrap: anywhere;
+  }
+
+  .option-primary,
+  .option-context {
+    display: block;
+  }
+
+  .option-primary {
+    font-weight: 600;
+  }
+
+  .option-context {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  .link-more {
+    color: var(--color-primary-hover);
+  }
+}

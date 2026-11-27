@@ -1635,6 +1635,42 @@ Typography and density are configured through the Material theme. Local
 typography or density overrides should be limited to documented product
 exceptions on specific components.
 
+## Internal Operations Tasks
+
+The dashboard links to `/operations/tasks` for ADMIN and STAFF. The default
+tab groups all open tasks. Separate tabs show one group, including resolved
+tasks. Operators create tasks in a dialog with a short description, an
+optional due date and one optional link. A shared search field finds owners,
+cats and stays by owner or cat name. Each task link opens the standard detail
+dialog for its entity.
+
+The page refreshes the existing list API when opened, when the browser tab
+becomes visible and after task changes. While visible, it schedules the next
+refresh one minute after the previous request completes. A failed refresh
+keeps the last available list and offers a retry.
+
+`GET` and `POST /api/operations/tasks` use a dedicated task contract. The
+server classifies open tasks as overdue, today, upcoming or undated using one
+date from the configured business clock. Resolved tasks have their own group.
+The contract exposes nullable stay, owner and cat IDs and task attribution.
+`GET /api/operations/tasks/link-options` returns five matches per group and
+lets the caller page a single group. The database ranks stays by current
+confirmed status and the business date before paging. Active stays and
+upcoming reservations come before overdue unconfirmed arrivals and past stays.
+
+`PUT /api/operations/tasks/{id}/resolution` takes the desired resolution and
+the revision last read by the operator. The service locks the task and appends
+one transition for a real change. Repeating the immediately preceding change
+returns the current revision and attribution. A stale request that would undo
+a later change returns `409 Conflict`. Each transition stores its actor and
+timestamp and the list shows the latest one. Actor IDs and usernames are
+snapshotted for durable attribution.
+
+Flyway V33 creates the task and transition tables with nullable foreign keys
+for stays, owners and cats. Task creation accepts at most one entity link.
+Deleting a linked entity clears its foreign key and preserves the task and
+its transition history.
+
 ## Auditing
 
 Main entities include:

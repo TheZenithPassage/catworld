@@ -1,0 +1,90 @@
+<mat-form-field appearance="outline" subscriptSizing="dynamic">
+  <mat-label>{{ copy().link }}</mat-label>
+  <input
+    #linkInput
+    matInput
+    type="text"
+    name="taskLinkLookup"
+    autocomplete="off"
+    maxlength="255"
+    [placeholder]="copy().linkPlaceholder"
+    [value]="selectedLabel()"
+    [attr.title]="selected() ? selectedLabel() : null"
+    [readonly]="selected() !== null"
+    [disabled]="disabled()"
+    [matAutocomplete]="suggestions"
+    [matAutocompleteDisabled]="disabled() || selected() !== null"
+    (input)="search(linkInput.value)"
+  />
+  @if (loading()) {
+    <span matSuffix class="link-searching" role="status">{{ copy().linkSearching }}</span>
+  }
+  @if (selected()) {
+    <button
+      mat-icon-button
+      matSuffix
+      type="button"
+      [attr.aria-label]="copy().clearLink"
+      [disabled]="disabled()"
+      (click)="clear()"
+    >
+      <span class="clear-glyph" aria-hidden="true">×</span>
+    </button>
+  }
+
+  <mat-autocomplete
+    #suggestions="matAutocomplete"
+    class="operations-task-link-options"
+    [displayWith]="displayValue"
+    (optionSelected)="choose($event.option.value)"
+  >
+    @for (group of groups(); track group.kind) {
+      <mat-optgroup [label]="copy().linkGroups[group.kind]">
+        @for (option of group.options; track option.id) {
+          <mat-option class="link-option" [value]="option">
+            <span class="option-primary">
+              {{ option.primary.name }}<app-deceased-marker [deceased]="option.primary.deceased" />
+            </span>
+            @if (option.context.length) {
+              <span class="option-context">
+                @for (name of option.context; track $index) {
+                  {{ name.name }}<app-deceased-marker [deceased]="name.deceased" />{{
+                    $last ? '' : ' · '
+                  }}
+                }
+              </span>
+            }
+          </mat-option>
+        }
+        @if (group.hasMore) {
+          <mat-option
+            class="link-more"
+            taskLinkAction
+            [value]="{ more: group.kind }"
+            [disabled]="loadingMore() !== null"
+            (actionRequested)="runAction({ more: group.kind })"
+          >
+            @if (failed() === group.kind) {
+              {{ copy().linkSearchFailed }} {{ copy().retry }}
+            } @else {
+              {{
+                loadingMore() === group.kind ? copy().linkSearching : copy().linkMore[group.kind]
+              }}
+            }
+          </mat-option>
+        }
+      </mat-optgroup>
+    }
+    @if (failed() === 'search') {
+      <mat-option
+        taskLinkAction
+        [value]="{ retry: true }"
+        (actionRequested)="runAction({ retry: true })"
+      >
+        {{ copy().linkSearchFailed }} {{ copy().retry }}
+      </mat-option>
+    } @else if (!loading() && query().trim() && !groups().length) {
+      <mat-option disabled>{{ copy().linkNoResults }}</mat-option>
+    }
+  </mat-autocomplete>
+</mat-form-field>

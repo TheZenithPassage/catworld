@@ -316,8 +316,8 @@ the baseline and operator state in `%LOCALAPPDATA%\CatWorldDemo`. Keep that
 directory private and retain `demo.env` for the lifetime of the demo volume.
 
 The baseline contains 500 fictional tutors, 800 cats, 20 vets, 2,400 stays,
-3,000 payments and 97 intake reviews, with populated catalogs and sample
-portraits and gallery photos. Quick entry signs in as the protected demo
+3,000 payments, 97 intake reviews and six internal tasks, with populated
+catalogs and sample portraits and gallery photos. Quick entry signs in as the protected demo
 administrator. Administrators can create synthetic accounts from Accounts.
 The usual sign-in form then appears on the demo login page, so visitors can
 sign out and try the staff role. Removing all extra accounts hides that form.
@@ -342,6 +342,10 @@ include these examples for a fresh baseline.
   different months. The annulled duplicate appears in **Actividad sensible**.
   To confirm a pending price with CatWorld litter, look up Pucho (Raúl Casares)
   in **Estadías**.
+
+- **Pendientes internos.** Check **Vencidos**, **Hoy**, **Próximos**,
+  **Sin fecha** and **Resueltos**. The examples include links to Manuel
+  Castañares, Chispa and individual stays, and one resolved task with attribution.
 
 Invitations use `https://fichas-test.catworld.com.ar/` and the form reminds
 recipients to use fictional data. A successful form submission counts as a save
