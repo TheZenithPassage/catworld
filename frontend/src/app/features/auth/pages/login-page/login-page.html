@@ -66,10 +66,10 @@
     }
 
     @if (!demoMode() || demoStatus()?.hasAdditionalAccounts) {
+      @if (demoMode()) {
+        <h3 class="account-sign-in-title">{{ text().auth.demo.signInWithAccount }}</h3>
+      }
       <form class="login-form" (ngSubmit)="submit()">
-        @if (demoMode()) {
-          <p>{{ text().auth.demo.inventedCredentials }}</p>
-        }
         <mat-form-field appearance="outline">
           <mat-label>{{ text().auth.login.username }}</mat-label>
           <input

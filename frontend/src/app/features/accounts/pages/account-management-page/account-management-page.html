@@ -10,9 +10,6 @@
 
   <form class="account-form" (ngSubmit)="createAccount()">
     <h3>{{ text().accounts.create.title }}</h3>
-    @if (demoMode()) {
-      <p class="account-form-hint">{{ text().accounts.create.demoCredentials }}</p>
-    }
 
     <mat-form-field appearance="outline">
       <mat-label>{{ text().accounts.create.username }}</mat-label>

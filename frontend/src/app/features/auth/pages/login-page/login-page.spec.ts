@@ -171,8 +171,8 @@ describe('LoginPage', () => {
     expect(compiled.querySelector('button[mat-flat-button]')?.textContent?.trim()).toBe(
       component.text().auth.demo.enter,
     );
-    expect(compiled.querySelector('form')?.textContent).toContain(
-      component.text().auth.demo.inventedCredentials,
+    expect(compiled.querySelector('h3')?.textContent?.trim()).toBe(
+      component.text().auth.demo.signInWithAccount,
     );
     setInputValue('username', 'visitor');
     setInputValue('password', 'invented-password');
