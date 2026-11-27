@@ -84,6 +84,7 @@ export const routes: Routes = [
   },
   {
     path: 'operations/tasks',
+    ...canLeaveCatDetails,
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/operations-tasks/pages/operations-tasks-page/operations-tasks-page').then(
