@@ -147,4 +147,4 @@ jobs:
             --source "$SOURCE_SHA" --backend "$backend_ref" --frontend "$frontend_ref" \
             --run "$GITHUB_RUN_ID" --attempt "$GITHUB_RUN_ATTEMPT" \
             --output catworld-delivery.json
-          gh release upload "$RELEASE_TAG" catworld-delivery.json --repo "$REPOSITORY"
+          gh release upload --repo "$REPOSITORY" -- "$RELEASE_TAG" catworld-delivery.json
