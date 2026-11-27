@@ -217,7 +217,9 @@ describe('LoginPage', () => {
     component.username.set('visitor');
     component.password.set('invented-password');
     component.enterDemo();
-    page.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    page
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     expect(authApiService.loginDemo).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(5_000);

@@ -16,7 +16,7 @@ export interface AuthTranslations {
       COOLDOWN: string;
       LIMIT_REACHED: string;
     };
-      reconnecting: string;
+    reconnecting: string;
     statusUnavailable: string;
     retry: string;
     resetFailed: string;
